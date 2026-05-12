@@ -29,9 +29,23 @@ export type ConnectionCapability =
   | "stream"
   | "resource"
   | "mutation"
-  | "health-check";
+  | "health-check"
+  | "sql-read"
+  | "sql-write"
+  | "physical-data-source"
+  | "timescale-extension";
 
 export type ConnectionAccessMode = "proxy" | "browser" | "server-only";
+export type ConnectionPhysicalDataSourceRegistrationMode =
+  "auto-when-write-capable";
+
+export interface ConnectionPhysicalDataSourceMetadata {
+  eligible: boolean;
+  dataSourceClassType: string;
+  requiresCapabilities?: ConnectionCapability[];
+  defaultRegistrationMode?: ConnectionPhysicalDataSourceRegistrationMode;
+  managedLifecycle?: boolean;
+}
 
 export type ConnectionStreamMode = "snapshot" | "delta";
 export type ConnectionAuthoringMode = "query" | "stream";
@@ -246,6 +260,7 @@ export interface ConnectionTypeDefinition<
   configEditor?: ComponentType<ConnectionConfigEditorProps<TPublicConfig>>;
   queryEditor?: ComponentType<ConnectionQueryEditorProps<TQuery>>;
   authoringContract?: ConnectionAuthoringContract;
+  physicalDataSource?: ConnectionPhysicalDataSourceMetadata;
   usageGuidance?: string;
   examples?: Array<{
     title: string;
@@ -272,6 +287,7 @@ export interface ConnectionInstance {
   status: ConnectionStatus;
   statusMessage?: string;
   lastHealthCheckAt?: string;
+  isActive?: boolean;
   isDefault?: boolean;
   isSystem?: boolean;
   tags?: string[];

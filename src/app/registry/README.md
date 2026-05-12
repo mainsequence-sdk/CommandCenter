@@ -15,8 +15,8 @@ types.
   This now includes flattened shell-settings contribution entries derived from app definitions.
 - `widget-type-sync.ts`: builds the explicit backend widget-type manifest, validates contract completeness, and exposes the explicit publish request used by platform-admin settings.
 - `connection-type-sync.ts`: builds the backend connection-type manifest from
-  `appRegistry.connections` and exposes the explicit publish request used by platform-admin
-  settings.
+  `appRegistry.connections`, including optional connection-backed physical data-source metadata,
+  and exposes the explicit publish request used by platform-admin settings.
 
 ## Notable Behavior
 
@@ -50,6 +50,9 @@ types.
 - Backend widget-type publication is now an explicit platform-admin action. Normal sign-in and app bootstrap must not write widget registry state to the backend.
 - Backend connection-type publication is also an explicit platform-admin action. The shared
   Connections app treats active backend connection types as the user-facing availability gate.
+- Connection-type sync projects optional `physicalDataSource` metadata so backend adapters such as
+  `timescaledb.database` can declare physical-source eligibility, required capabilities, default
+  registration mode, and lifecycle ownership.
 - Publish requests are still deduplicated while the same checksum is already in flight, but identical manifests may be published again intentionally from the admin UI and should no-op server-side through checksum handling.
 - The admin manifest preview now shows validation issues plus a contract preview so registry publication can be reviewed before it is sent to the backend.
 - The standardized contract and remaining rollout checklist live in [docs/adr/command_center/adr-agent-ready-widget-type-registry-contract.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/docs/adr/command_center/adr-agent-ready-widget-type-registry-contract.md).

@@ -193,6 +193,7 @@ export function useCustomWorkspaceStudio() {
       ) ||
       !initializedUserId ||
       loadingWorkspaceId === requestedWorkspaceId ||
+      missingWorkspaceIds[requestedWorkspaceId] ||
       workspaceLoadErrorById[requestedWorkspaceId]
     ) {
       return;
@@ -207,6 +208,7 @@ export function useCustomWorkspaceStudio() {
     requestedWorkspaceId,
     draftWorkspaceById,
     workspaceUserStateHydratedById,
+    missingWorkspaceIds,
     workspaceLoadErrorById,
   ]);
 

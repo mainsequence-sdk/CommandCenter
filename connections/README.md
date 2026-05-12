@@ -20,6 +20,9 @@ API clients, hooks, and picker components.
   Explore shell.
 - `prometheus/`: Prometheus connection metadata and its custom Explore shell.
 - `postgresql/`: PostgreSQL connection metadata and its custom SQL Explore shell.
+- `timescaledb/`: TimescaleDB connection metadata that reuses the PostgreSQL-compatible
+  configuration, query models, query editor, and backend adapter contract while advertising
+  Timescale physical data-source projection metadata.
 
 ## Behavior
 

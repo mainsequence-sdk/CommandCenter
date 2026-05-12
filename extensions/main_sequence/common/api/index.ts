@@ -14,6 +14,7 @@ const sourceTableConfigurationEndpoint = "/orm/api/ts_manager/source_table_confi
 const simpleTableEndpoint = "/orm/api/ts_manager/simple_table/";
 const localTimeSerieEndpoint = "/orm/api/ts_manager/local_time_serie/";
 const availableGpuTypesEndpoint = "/orm/api/pods/billing/available-gpu-types/";
+const mainSequenceConnectionsEndpoint = "/orm/api/connections/";
 const assetEndpoint = "/orm/api/assets/asset/";
 const assetCategoryEndpoint = "/orm/api/assets/asset-category/";
 const instrumentsConfigurationEndpoint = "/orm/api/assets/instruments-configuration/";
@@ -279,14 +280,14 @@ export interface PhysicalDataSourceEditorPayload {
     title: string;
   } | null;
   title: string;
-  source_type?: "duck_db" | "timescale_db" | "timescale_db_gcp_cloud" | "";
+  source_type?: "duck_db" | "timescale_db" | "timescale_db_remote" | "";
   source_type_label?: string;
   fields: PhysicalDataSourceEditorField[];
   actions: PhysicalDataSourceEditorActions;
 }
 
 export interface PhysicalDataSourceEditorCreateInput {
-  source_type: "duck_db" | "timescale_db" | "timescale_db_gcp_cloud";
+  source_type: "duck_db" | "timescale_db" | "timescale_db_remote";
   display_name?: string;
   file_path?: string;
   database_user?: string;
@@ -4101,7 +4102,7 @@ export function listPhysicalDataSources({
   classType?: string;
 } = {}) {
   return requestJson<PhysicalDataSourceListResponse>(
-    commandCenterConfig.mainSequence.endpoint,
+    mainSequenceConnectionsEndpoint,
     "data_source/",
     undefined,
     {
@@ -4116,7 +4117,7 @@ export function listPhysicalDataSources({
 
 export function bulkDeletePhysicalDataSources(input: PhysicalDataSourceBulkDeleteInput) {
   return requestJson<PhysicalDataSourceBulkDeleteResponse>(
-    commandCenterConfig.mainSequence.endpoint,
+    mainSequenceConnectionsEndpoint,
     "data_source/bulk-delete/",
     {
       method: "POST",
@@ -4131,10 +4132,10 @@ export function bulkDeletePhysicalDataSources(input: PhysicalDataSourceBulkDelet
 }
 
 export function fetchPhysicalDataSourceEditorConfig(
-  sourceType: "duck_db" | "timescale_db" | "timescale_db_gcp_cloud",
+  sourceType: "duck_db" | "timescale_db" | "timescale_db_remote",
 ) {
   return requestJson<PhysicalDataSourceEditorPayload>(
-    commandCenterConfig.mainSequence.endpoint,
+    mainSequenceConnectionsEndpoint,
     "data_source/editor-config/",
     undefined,
     { source_type: sourceType },
@@ -4143,7 +4144,7 @@ export function fetchPhysicalDataSourceEditorConfig(
 
 export function fetchPhysicalDataSourceEditor(physicalDataSourceId: number) {
   return requestJson<PhysicalDataSourceEditorPayload>(
-    commandCenterConfig.mainSequence.endpoint,
+    mainSequenceConnectionsEndpoint,
     `data_source/${physicalDataSourceId}/`,
     undefined,
     { response_format: "editor" },
@@ -4152,14 +4153,14 @@ export function fetchPhysicalDataSourceEditor(physicalDataSourceId: number) {
 
 export function fetchPhysicalDataSourceSummary(physicalDataSourceId: number) {
   return requestJson<SummaryResponse>(
-    commandCenterConfig.mainSequence.endpoint,
+    mainSequenceConnectionsEndpoint,
     `data_source/${physicalDataSourceId}/summary/`,
   );
 }
 
 export function createPhysicalDataSourceEditor(input: PhysicalDataSourceEditorCreateInput) {
   return requestJson<PhysicalDataSourceEditorWriteResponse>(
-    commandCenterConfig.mainSequence.endpoint,
+    mainSequenceConnectionsEndpoint,
     "data_source/",
     {
       method: "POST",
@@ -4174,7 +4175,7 @@ export function updatePhysicalDataSourceEditor(
   input: PhysicalDataSourceEditorUpdateInput,
 ) {
   return requestJson<PhysicalDataSourceEditorWriteResponse>(
-    commandCenterConfig.mainSequence.endpoint,
+    mainSequenceConnectionsEndpoint,
     `data_source/${physicalDataSourceId}/`,
     {
       method: "PATCH",
@@ -4186,7 +4187,7 @@ export function updatePhysicalDataSourceEditor(
 
 export function deletePhysicalDataSourceEditor(physicalDataSourceId: number) {
   return requestJson<PhysicalDataSourceDeleteResponse>(
-    commandCenterConfig.mainSequence.endpoint,
+    mainSequenceConnectionsEndpoint,
     `data_source/${physicalDataSourceId}/delete/`,
     {
       method: "POST",
@@ -4207,7 +4208,7 @@ export async function listTimeScaleDBServices({
   const payload = await requestJson<
     PaginatedResponse<TimeScaleDBServiceRecord> | TimeScaleDBServiceRecord[]
   >(
-    commandCenterConfig.mainSequence.endpoint,
+    mainSequenceConnectionsEndpoint,
     "timescaledb-service/",
     undefined,
     {
@@ -4333,14 +4334,14 @@ export async function fetchKnativePodRuntimeResourceUsage(knativePodRuntimeId: n
 
 export function fetchTimeScaleDBServiceDetail(timeScaleDBServiceId: number) {
   return requestJson<TimeScaleDBServiceRecord>(
-    commandCenterConfig.mainSequence.endpoint,
+    mainSequenceConnectionsEndpoint,
     `timescaledb-service/${timeScaleDBServiceId}/`,
   );
 }
 
 export function fetchTimeScaleDBServiceSummary(timeScaleDBServiceId: number) {
   return requestJson<SummaryResponse>(
-    commandCenterConfig.mainSequence.endpoint,
+    mainSequenceConnectionsEndpoint,
     `timescaledb-service/${timeScaleDBServiceId}/summary/`,
   );
 }
@@ -4360,7 +4361,7 @@ export function listTimeScaleDBServiceDataSources(
   } = {},
 ) {
   return requestJson<TimeScaleDBServiceDataSourceListResponse>(
-    commandCenterConfig.mainSequence.endpoint,
+    mainSequenceConnectionsEndpoint,
     `timescaledb-service/${timeScaleDBServiceId}/data-sources/`,
     undefined,
     {

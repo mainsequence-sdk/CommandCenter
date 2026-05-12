@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { ChevronDown } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +26,7 @@ import {
   WidgetSourceExplorer,
   type WidgetSourceExplorerWidgetOption,
 } from "@/widgets/shared/WidgetSourceExplorer";
+import { cn } from "@/lib/utils";
 
 interface BindingDraftRow {
   binding?: WidgetPortBinding;
@@ -206,6 +209,8 @@ export function WidgetBindingPanel({
   );
   const [draftBindingRowsByInputId, setDraftBindingRowsByInputId] =
     useState<Record<string, BindingDraftRow[]>>(initialBindingDraftRows);
+  const [expandedInputEffectsByInputId, setExpandedInputEffectsByInputId] =
+    useState<Record<string, boolean>>({});
   const sourceWidgetOptionCacheRef =
     useRef<Map<string, Map<string, WidgetSourceExplorerWidgetOption>>>(new Map());
 
@@ -422,32 +427,64 @@ export function WidgetBindingPanel({
               </div>
 
               {input.effects?.length ? (
-                <div className="space-y-2">
-                  <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    Input effects
-                  </div>
-                  <div className="space-y-2">
-                    {input.effects.map((effect, index) => (
-                      <div
-                        key={`${input.id}:${effect.kind}:${effect.target.kind}:${index}`}
-                        className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 px-3 py-2 text-sm"
-                      >
-                        <div className="font-medium text-foreground">{effect.kind}</div>
-                        <div className="mt-1 text-muted-foreground">
-                          {effect.description ??
-                            `${effect.sourcePath} -> ${effect.target.kind}:${
-                              effect.target.kind === "schema-field"
-                                ? effect.target.id
-                                : effect.target.kind === "generated-field"
+                <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 px-3 py-2 text-sm">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                    aria-expanded={expandedInputEffectsByInputId[input.id] === true}
+                    onClick={() => {
+                      setExpandedInputEffectsByInputId((current) => ({
+                        ...current,
+                        [input.id]: !(current[input.id] === true),
+                      }));
+                    }}
+                  >
+                    <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Input effects
+                    </span>
+                    <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{input.effects.length} effect{input.effects.length === 1 ? "" : "s"}</span>
+                      <span>
+                        {expandedInputEffectsByInputId[input.id] === true
+                          ? "Hide input effects"
+                          : "Show input effects"}
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 transition-transform",
+                          expandedInputEffectsByInputId[input.id] === true ? "rotate-180" : undefined,
+                        )}
+                      />
+                    </span>
+                  </button>
+                  {expandedInputEffectsByInputId[input.id] === true ? (
+                    <div className="mt-2 space-y-2">
+                      {input.effects.map((effect, index) => (
+                        <div
+                          key={`${input.id}:${effect.kind}:${effect.target.kind}:${index}`}
+                          className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 px-3 py-2 text-sm"
+                        >
+                          <div className="font-medium text-foreground">{effect.kind}</div>
+                          <div className="mt-1 text-muted-foreground">
+                            {effect.description ??
+                              `${effect.sourcePath} -> ${effect.target.kind}:${
+                                effect.target.kind === "schema-field"
                                   ? effect.target.id
-                                : effect.target.kind === "prop"
-                                  ? effect.target.path
-                                  : effect.target.id
-                            }`}
+                                  : effect.target.kind === "generated-field"
+                                    ? effect.target.id
+                                  : effect.target.kind === "prop"
+                                    ? effect.target.path
+                                    : effect.target.id
+                              }`}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      Input effects hidden until expanded.
+                    </div>
+                  )}
                 </div>
               ) : null}
             </section>

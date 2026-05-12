@@ -4,7 +4,9 @@ Shared static assets for Main Sequence domain UI live here.
 
 ## Contents
 
-- `physical-data-sources/`: logos and icons reused by Main Sequence forms and registry views.
+- `physical-data-sources/`: feature-scoped physical-data-source icons that are not shared through the
+  generic connection asset catalog. Shared database/provider logos such as DuckDB and Timescale now
+  live in `src/connections/assets/`.
 
 ## Rules
 

@@ -47,9 +47,10 @@ export type PostgreSqlConnectionQuery =
       maxRows?: number;
     }
   | {
-      kind: "sql-timeseries";
+      kind: "sql-time-series";
       sql: string;
       maxRows?: number;
+      timeField?: string;
     }
   | {
       kind: "schema-tables";
@@ -65,6 +66,10 @@ export type PostgreSqlConnectionQuery =
 The Explore component sends `queryConnection(...)` requests. It does not open database sockets and
 does not expand SQL macros locally. The backend adapter owns execution, macro expansion, row
 limits, authorization, and frame conversion.
+
+The shared frontend authoring seed should default `sql-table` to a safe table-list query against
+`information_schema.tables` plus `maxRows = 100` so first-load Explore previews work without
+assuming an application table exists.
 
 ## Backend Adapter Requirements
 
@@ -116,16 +121,17 @@ defaults unless the request explicitly bypasses or refreshes cache behavior.
 The adapter must treat `request.query.kind` as the runtime discriminator. Query model ids in
 `connections/postgresql/index.ts` are intentionally identical to these `kind` values so the
 frontend catalog, Explore UI, synced backend metadata, and backend adapter dispatch table stay
-aligned.
+aligned. The backend may continue to accept legacy `sql` and `sql-timeseries` requests for older
+clients, but new frontend-authored metadata uses the canonical query ids below.
 
 The backend dispatch table is:
 
 | `request.query.kind` | Required payload | Required request fields | Adapter behavior | Response contract |
 | --- | --- | --- | --- | --- |
 | `sql-table` | `{ sql: string; maxRows?: number }` | `connectionId`, `query` | Execute user-authored SQL through the configured pool after authorization, variable expansion, timeout, and row-limit enforcement. | `core.tabular_frame@v1` |
-| `sql-timeseries` | `{ sql: string; maxRows?: number }` | `connectionId`, `query`, `timeRange` | Expand time macros, execute SQL, validate a usable time column, sort by time when possible, and shape rows as time series. | `core.time_series_frame@v1`, with warning/fallback behavior when shaping fails |
-| `schema-tables` | `{ schema?: string }` | `connectionId`, `query` | Read safe PostgreSQL catalog metadata for the requested schema or configured default schema. | `core.option_list@v1` |
-| `schema-columns` | `{ schema?: string; table: string }` | `connectionId`, `query` | Read safe PostgreSQL catalog metadata for the requested table. | `core.option_list@v1` |
+| `sql-time-series` | `{ sql: string; maxRows?: number; timeField?: string }` | `connectionId`, `query`, `timeRange` | Expand time macros, execute SQL, validate a usable time column when hints are present, sort by time when possible, and return tabular rows with time-series metadata hints. | `core.tabular_frame@v1` |
+| `schema-tables` | `{ schema?: string }` | `connectionId`, `query` | Read safe PostgreSQL catalog metadata for the requested schema or configured default schema. | `core.tabular_frame@v1` |
+| `schema-columns` | `{ schema?: string; table: string }` | `connectionId`, `query` | Read safe PostgreSQL catalog metadata for the requested table. | `core.tabular_frame@v1` |
 
 Unknown `kind` values must be rejected with a typed bad-request error. The adapter should include
 the query kind in audit logs and response metadata.
@@ -138,21 +144,21 @@ For `sql-table`:
 - enforce `maxRows`
 - return one or more `CommandCenterFrame` objects with `contract: "core.tabular_frame@v1"`
 
-For `sql-timeseries`:
+For `sql-time-series`:
 
 - require a time range from `ConnectionQueryRequest.timeRange`
 - apply time macros before execution
 - require a result column named `time` or a backend-configured equivalent
 - enforce sorted time output when possible
-- return `CommandCenterFrame` results with `contract: "core.time_series_frame@v1"` when the result
-  can be interpreted as time series data
+- return `CommandCenterFrame` results with `contract: "core.tabular_frame@v1"` and publish
+  time-series hints in frame metadata when the result can be interpreted as time series data
 - return warnings when the SQL result cannot be shaped as time series data
 
 For `schema-tables` and `schema-columns`:
 
 - query safe catalog metadata only
 - respect the configured default schema
-- return option-list frames or resource payloads suitable for editor autocomplete
+- return tabular frames or resource payloads suitable for editor autocomplete
 
 ## SQL Macro Contract
 

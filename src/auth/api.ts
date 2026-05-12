@@ -19,8 +19,49 @@ function buildEndpointUrl(path: string) {
   return url.toString();
 }
 
+export function buildAuthEndpointUrl(path: string) {
+  return buildEndpointUrl(path);
+}
+
 export interface AuthDetailResponse {
   detail: string;
+}
+
+export interface SocialLoginProvidersResponse {
+  providers: string[];
+  provider_details?: SocialLoginProviderDetailResponse[];
+}
+
+export interface SocialLoginProviderDetailResponse {
+  id: string;
+  name: string;
+  start_url: string;
+}
+
+export interface SocialLoginProviderDescriptor {
+  id: string;
+  name: string;
+  startUrl: string;
+}
+
+export interface SocialAuthTokenExchangeInput {
+  code: string;
+  code_verifier: string;
+  redirect_uri: string;
+}
+
+export interface SocialAuthTokenExchangeResponse {
+  access: string;
+  refresh: string;
+}
+
+export interface BrowserMfaVerifyInput {
+  mfa_code: string;
+}
+
+export interface BrowserMfaVerifyResponse {
+  detail: string;
+  redirect_url: string;
 }
 
 export interface PasswordResetRequestInput {
@@ -72,6 +113,10 @@ export interface CurrentUserMfaSetupResponse {
   detail?: string;
   qr_png_base64?: string;
   manual_entry_key?: string;
+  mfa_enabled?: boolean;
+  mfa_policy_enforced?: boolean;
+  mfa_setup_required?: boolean;
+  setup_token?: string;
 }
 
 export interface VerifyCurrentUserMfaSetupInput {
@@ -81,6 +126,11 @@ export interface VerifyCurrentUserMfaSetupInput {
 export interface VerifyCurrentUserMfaSetupResponse {
   detail: string;
   mfa_enabled: boolean;
+  mfa_policy_enforced?: boolean;
+  mfa_setup_required?: boolean;
+  redirect_url?: string | null;
+  refresh?: string;
+  access?: string;
 }
 
 export interface WebSocketTicketRequestInput {
@@ -158,8 +208,10 @@ async function requestAuthJson<T>(
   init?: RequestInit,
   {
     requiresAuth = false,
+    credentials,
   }: {
     requiresAuth?: boolean;
+    credentials?: RequestCredentials;
   } = {},
 ) {
   const requestUrl = buildEndpointUrl(path);
@@ -212,6 +264,7 @@ async function requestAuthJson<T>(
     return fetch(requestUrl, {
       ...init,
       headers,
+      credentials: init?.credentials ?? credentials,
     });
   }
 
@@ -241,6 +294,92 @@ export function requestPasswordReset(input: PasswordResetRequestInput) {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export async function listSocialLoginProviders() {
+  const payload = await requestAuthJson<SocialLoginProvidersResponse>("/auth/social/providers/");
+
+  return (payload.provider_details ?? [])
+    .filter((provider): provider is SocialLoginProviderDetailResponse => {
+      return Boolean(
+        provider &&
+          typeof provider.id === "string" &&
+          typeof provider.start_url === "string",
+      );
+    })
+    .map((provider) => ({
+      id: provider.id.trim(),
+      name: typeof provider.name === "string" && provider.name.trim() ? provider.name.trim() : provider.id.trim(),
+      startUrl: provider.start_url.trim(),
+    }))
+    .filter((provider) => provider.id && provider.startUrl);
+}
+
+export function buildSocialLoginStartUrl(
+  baseStartUrl: string,
+  input: {
+    redirectUri: string;
+    state: string;
+    codeChallenge: string;
+  },
+) {
+  const baseOrigin =
+    typeof window === "undefined" ? "http://localhost" : window.location.origin;
+  const url = new URL(
+    buildAuthEndpointUrl(baseStartUrl),
+    baseOrigin,
+  );
+  url.searchParams.set("redirect_uri", input.redirectUri);
+  url.searchParams.set("state", input.state);
+  url.searchParams.set("code_challenge", input.codeChallenge);
+  url.searchParams.set("code_challenge_method", "S256");
+  return url.toString();
+}
+
+export function exchangeSocialAuthCode(input: SocialAuthTokenExchangeInput) {
+  return requestAuthJson<SocialAuthTokenExchangeResponse>("/auth/social/token/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function verifyBrowserMfaChallenge(url: string, input: BrowserMfaVerifyInput) {
+  return requestAuthJson<BrowserMfaVerifyResponse>(
+    url,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    {
+      credentials: "include",
+    },
+  );
+}
+
+export function getSocialMfaSetup(url: string) {
+  return requestAuthJson<CurrentUserMfaSetupResponse>(
+    url,
+    undefined,
+    {
+      credentials: "include",
+    },
+  );
+}
+
+export function verifySocialMfaSetup(
+  url: string,
+  input: VerifyCurrentUserMfaSetupInput & { setup_token?: string },
+) {
+  return requestAuthJson<VerifyCurrentUserMfaSetupResponse>(
+    url,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+    {
+      credentials: "include",
+    },
+  );
 }
 
 export function validatePasswordResetLink(input: PasswordResetValidateInput) {

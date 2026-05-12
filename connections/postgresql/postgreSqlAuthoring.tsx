@@ -1,4 +1,9 @@
-import { ConnectionAuthoringContract, ConnectionAuthoringSummaryProps } from "@/connections/types";
+import type {
+  ConnectionAuthoringContract,
+  ConnectionAuthoringSummaryProps,
+} from "@/connections/types";
+
+export const POSTGRESQL_DEFAULT_AUTHORING_MAX_ROWS = 100;
 
 function readConfigString(
   config: Record<string, unknown>,
@@ -66,11 +71,33 @@ export function PostgreSqlConnectionAuthoringSummary({
   );
 }
 
-export const postgreSqlConnectionAuthoringContract: ConnectionAuthoringContract = {
-  SummaryComponent: PostgreSqlConnectionAuthoringSummary,
-  exploreTitle: "PostgreSQL Explore",
-  exploreDescription:
-    "Runs the same generated connection query request as the workspace Connection Query widget.",
-  exploreRunButtonLabel: "Run query",
-  exploreResultDescription: "Preview of the normalized connection runtime frame.",
-};
+export function createPostgreSqlConnectionAuthoringContract({
+  providerName = "PostgreSQL",
+}: {
+  providerName?: string;
+} = {}): ConnectionAuthoringContract {
+  return {
+    SummaryComponent: PostgreSqlConnectionAuthoringSummary,
+    exploreTitle: `${providerName} Explore`,
+    exploreDescription:
+      "Runs the same generated connection query request as the workspace Connection Query widget.",
+    exploreRunButtonLabel: "Run query",
+    exploreResultDescription: "Preview of the normalized connection runtime frame.",
+    resolveDraftDefaults: ({ queryModels, selectedQueryModel }) => {
+      const queryModel =
+        selectedQueryModel ??
+        queryModels.find((model) => model.id === "sql-table") ??
+        queryModels[0];
+
+      return queryModel
+        ? {
+            queryModelId: queryModel.id,
+            maxRows: queryModel.supportsMaxRows === false ? undefined : POSTGRESQL_DEFAULT_AUTHORING_MAX_ROWS,
+          }
+        : {};
+    },
+  };
+}
+
+export const postgreSqlConnectionAuthoringContract =
+  createPostgreSqlConnectionAuthoringContract();

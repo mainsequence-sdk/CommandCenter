@@ -29,7 +29,7 @@ import { MainSequenceEntitySummaryCard } from "../../../../common/components/Mai
 type PhysicalDataSourceCreateSourceType =
   | "duck_db"
   | "timescale_db"
-  | "timescale_db_gcp_cloud";
+  | "timescale_db_remote";
 
 function extractPhysicalDataSourceIdFromRedirectPath(redirectPath: string | undefined) {
   if (!redirectPath) {
@@ -174,7 +174,7 @@ export function MainSequencePhysicalDataSourceEditor({
         });
       }
 
-      if (createSourceType === "timescale_db") {
+      if (createSourceType === "timescale_db" || createSourceType === "timescale_db_remote") {
         return createPhysicalDataSourceEditor({
           source_type: createSourceType,
           display_name: formState.display_name ?? "",

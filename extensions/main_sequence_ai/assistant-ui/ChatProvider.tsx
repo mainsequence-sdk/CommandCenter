@@ -539,6 +539,14 @@ function createFallbackAgentSessionAgentFromId({
   };
 }
 
+function isCommandCenterBaseSession(session: AgentSessionRecord | null | undefined) {
+  return session?.origin === "astro_command_center_base";
+}
+
+function findCommandCenterBaseSessionId(sessions: readonly AgentSessionRecord[]) {
+  return sessions.find((session) => isCommandCenterBaseSession(session))?.id ?? null;
+}
+
 interface EmbeddedChatRailState {
   closeRail: () => void;
   isRailOpen: boolean;
@@ -730,13 +738,18 @@ export function ChatProvider({
       return;
     }
 
-    commandCenterSessionIdRef.current = currentSessionIdRef.current;
+    commandCenterSessionIdRef.current =
+      findCommandCenterBaseSessionId(agentSessionsRef.current) ?? commandCenterSessionIdRef.current;
   }, []);
   const restoreCommandCenterSelection = useCallback(() => {
     clearProjectAgentRailSelection();
 
-    const nextSessionId = commandCenterSessionIdRef.current;
+    const nextSessionId =
+      findCommandCenterBaseSessionId(agentSessionsRef.current) ?? commandCenterSessionIdRef.current;
+
+    commandCenterSessionIdRef.current = nextSessionId;
     if (currentSessionIdRef.current !== nextSessionId) {
+      setSessionSelectionMode("auto");
       setCurrentSessionId(nextSessionId);
     }
   }, [clearProjectAgentRailSelection]);
@@ -838,6 +851,10 @@ export function ChatProvider({
       sortAgentSessions(agentSessions)
         .filter((session) => !session.isPlaceholder)
         .map(summarizeAgentSession),
+    [agentSessions],
+  );
+  const commandCenterBaseSessionId = useMemo(
+    () => findCommandCenterBaseSessionId(agentSessions),
     [agentSessions],
   );
   const selectedSession = useMemo(
@@ -1552,6 +1569,112 @@ export function ChatProvider({
   ]);
 
   useEffect(() => {
+    if (
+      isEmbeddedProjectAgent ||
+      location.pathname === CHAT_PAGE_PATH ||
+      !isRailOpen ||
+      isProjectAgentRail ||
+      agentSessions.length === 0
+    ) {
+      return;
+    }
+
+    if (commandCenterBaseSessionId) {
+      commandCenterSessionIdRef.current = commandCenterBaseSessionId;
+
+      if (currentSessionId !== commandCenterBaseSessionId) {
+        setSessionSelectionMode("auto");
+        setSessionNotice(null);
+        setCurrentSessionId(commandCenterBaseSessionId);
+      }
+      return;
+    }
+
+    if (
+      env.useMockData ||
+      !sessionToken ||
+      isCreatingAgentSession ||
+      commandCenterBootstrapRequestRef.current
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+    commandCenterBootstrapRequestRef.current = controller;
+    setIsCreatingAgentSession(true);
+    setLatestSessionsError(null);
+    setSessionNotice(null);
+
+    void (async () => {
+      try {
+        const handle = await fetchCommandCenterBaseSessionHandle({
+          signal: controller.signal,
+          token: sessionToken,
+          tokenType: sessionTokenType,
+        });
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        const currentSessions = agentSessionsRef.current;
+        const nextSession = toAgentSessionRecordFromBaseHandle(
+          handle,
+          currentSessions.find((session) => session.id === handle.sessionId),
+        );
+        const nextSessions = sortAgentSessions([
+          nextSession,
+          ...currentSessions.filter((session) => session.id !== nextSession.id),
+        ]);
+
+        agentSessionsRef.current = nextSessions;
+        commandCenterSessionIdRef.current = nextSession.id;
+        setAgentSessions(nextSessions);
+        setSessionSelectionMode("auto");
+        setCurrentSessionId(nextSession.id);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        const detail =
+          error instanceof Error
+            ? error.message
+            : "Command Center could not load the orchestrator session.";
+
+        setLatestSessionsError(`Command Center could not load the orchestrator session. ${detail}`);
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsCreatingAgentSession(false);
+        }
+
+        if (commandCenterBootstrapRequestRef.current === controller) {
+          commandCenterBootstrapRequestRef.current = null;
+        }
+      }
+    })();
+
+    return () => {
+      controller.abort();
+
+      if (commandCenterBootstrapRequestRef.current === controller) {
+        commandCenterBootstrapRequestRef.current = null;
+      }
+    };
+  }, [
+    agentSessions.length,
+    commandCenterBaseSessionId,
+    currentSessionId,
+    isCreatingAgentSession,
+    isEmbeddedProjectAgent,
+    isProjectAgentRail,
+    isRailOpen,
+    location.pathname,
+    sessionToken,
+    sessionTokenType,
+  ]);
+
+  useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
 
@@ -1583,8 +1706,8 @@ export function ChatProvider({
       return;
     }
 
-    commandCenterSessionIdRef.current = currentSessionId;
-  }, [currentSessionId, directLaunchSessionId]);
+    commandCenterSessionIdRef.current = commandCenterBaseSessionId;
+  }, [commandCenterBaseSessionId, directLaunchSessionId]);
 
   useEffect(() => {
     selectedSessionRef.current = selectedSession;
@@ -3406,10 +3529,7 @@ export function ChatProvider({
       return;
     }
 
-    if (directLaunchSessionIdRef.current) {
-      restoreCommandCenterSelection();
-    }
-
+    restoreCommandCenterSelection();
     openPreferredRail();
   }, [
     closeChatRail,

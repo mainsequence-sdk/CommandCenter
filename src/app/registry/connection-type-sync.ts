@@ -6,6 +6,7 @@ import type {
   ConnectionAccessMode,
   ConnectionCapability,
   ConnectionConfigSchema,
+  ConnectionPhysicalDataSourceMetadata,
   ConnectionQueryModel,
   ConnectionQueryStreamModel,
   AnyConnectionTypeDefinition,
@@ -14,7 +15,7 @@ import type {
 const devAuthProxyPrefix = "/__command_center_auth__";
 
 export const CONNECTION_REGISTRY_VERSION =
-  "2026-04-28-query-stream-metadata";
+  "2026-05-11-physical-data-source-metadata";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
@@ -59,6 +60,7 @@ export interface SyncedConnectionTypePayload {
   secureConfigSchema?: ConnectionConfigSchema;
   queryModels: SyncedConnectionQueryModel[];
   requiredPermissions: string[];
+  physicalDataSource?: ConnectionPhysicalDataSourceMetadata;
   usageGuidance?: string;
   examples: JsonValue;
   isActive: boolean;
@@ -353,7 +355,88 @@ export function validateConnectionTypeForSync(
     validateConnectionQueryStreamMetadata(connection, model, index, issues);
   });
 
+  if (connection.physicalDataSource) {
+    validateConnectionPhysicalDataSourceMetadata(connection, issues);
+  }
+
   return issues;
+}
+
+function validateConnectionPhysicalDataSourceMetadata(
+  connection: AnyConnectionTypeDefinition,
+  issues: ConnectionTypeSyncValidationIssue[],
+) {
+  const metadata = connection.physicalDataSource;
+  const section = "physicalDataSource";
+
+  if (!metadata) {
+    return;
+  }
+
+  if (metadata.eligible !== true) {
+    appendValidationIssue(
+      issues,
+      connection,
+      section,
+      "physicalDataSource.eligible must be true when physicalDataSource metadata is provided.",
+    );
+  }
+
+  if (typeof metadata.dataSourceClassType !== "string" || !metadata.dataSourceClassType.trim()) {
+    appendValidationIssue(
+      issues,
+      connection,
+      section,
+      "physicalDataSource.dataSourceClassType is required.",
+    );
+  }
+
+  if (
+    metadata.defaultRegistrationMode !== undefined &&
+    metadata.defaultRegistrationMode !== "auto-when-write-capable"
+  ) {
+    appendValidationIssue(
+      issues,
+      connection,
+      section,
+      "physicalDataSource.defaultRegistrationMode must be auto-when-write-capable when provided.",
+    );
+  }
+
+  if (
+    metadata.managedLifecycle !== undefined &&
+    typeof metadata.managedLifecycle !== "boolean"
+  ) {
+    appendValidationIssue(
+      issues,
+      connection,
+      section,
+      "physicalDataSource.managedLifecycle must be a boolean when provided.",
+    );
+  }
+
+  const requiredCapabilities = metadata.requiresCapabilities ?? [];
+  const missingCapabilities = requiredCapabilities.filter(
+    (capability) => !connection.capabilities.includes(capability),
+  );
+
+  if (!connection.capabilities.includes("physical-data-source")) {
+    appendValidationIssue(
+      issues,
+      connection,
+      section,
+      "connection capability physical-data-source is required when physicalDataSource metadata is provided.",
+    );
+  }
+
+  if (missingCapabilities.length > 0) {
+    appendValidationIssue(
+      issues,
+      connection,
+      section,
+      `physicalDataSource.requiresCapabilities must be included in capabilities: ${missingCapabilities.join(", ")}.`,
+    );
+  }
 }
 
 function projectConnectionQueryStreamModel(
@@ -422,7 +505,7 @@ export function projectConnectionQueryModelForSync(
 export function projectConnectionTypeForSync(
   connection: AnyConnectionTypeDefinition,
 ): SyncedConnectionTypePayload {
-  return {
+  const payload: SyncedConnectionTypePayload = {
     typeId: connection.id,
     typeVersion: connection.version,
     title: connection.title,
@@ -437,10 +520,17 @@ export function projectConnectionTypeForSync(
     secureConfigSchema: connection.secureConfigSchema,
     queryModels: (connection.queryModels ?? []).map(projectConnectionQueryModelForSync),
     requiredPermissions: connection.requiredPermissions ?? [],
+    physicalDataSource: connection.physicalDataSource,
     usageGuidance: connection.usageGuidance,
     examples: toJsonValue(connection.examples ?? []),
     isActive: true,
   };
+
+  if (!connection.physicalDataSource) {
+    delete payload.physicalDataSource;
+  }
+
+  return payload;
 }
 
 function formatValidationIssues(issues: ConnectionTypeSyncValidationIssue[]) {

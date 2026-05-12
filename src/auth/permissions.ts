@@ -19,6 +19,9 @@ export const PROMETHEUS_CONNECTION_PERMISSIONS = [
 export const POSTGRESQL_CONNECTION_PERMISSIONS = [
   "postgresql:query",
 ] as const satisfies Permission[];
+export const TIMESCALEDB_CONNECTION_PERMISSIONS = [
+  "timescaledb:query",
+] as const satisfies Permission[];
 
 export const ROLE_LABELS: Record<BuiltinAppRole, string> = {
   user: "User",
@@ -63,6 +66,7 @@ export const ROLE_PERMISSIONS: Record<BuiltinAppRole, Permission[]> = {
     "main_sequence_foundry:view",
     ...PROMETHEUS_CONNECTION_PERMISSIONS,
     ...POSTGRESQL_CONNECTION_PERMISSIONS,
+    ...TIMESCALEDB_CONNECTION_PERMISSIONS,
   ],
 };
 
@@ -145,6 +149,12 @@ export const CORE_PERMISSION_DEFINITIONS = [
     description: "Query backend-owned PostgreSQL data-source instances.",
     category: "Connections",
   },
+  {
+    id: "timescaledb:query",
+    label: "TimescaleDB / query",
+    description: "Query backend-owned TimescaleDB data-source instances.",
+    category: "Connections",
+  },
 ] as const satisfies PermissionDefinition[];
 
 export const ALL_PERMISSIONS: Permission[] = Array.from(
@@ -152,6 +162,7 @@ export const ALL_PERMISSIONS: Permission[] = Array.from(
     ...CORE_PERMISSION_DEFINITIONS.map((definition) => definition.id),
     ...PROMETHEUS_CONNECTION_PERMISSIONS,
     ...POSTGRESQL_CONNECTION_PERMISSIONS,
+    ...TIMESCALEDB_CONNECTION_PERMISSIONS,
   ]),
 );
 

@@ -32,6 +32,8 @@ It is the AI-owned implementation of the project-agent workflow:
   builder from `main_sequence/common/components/projectImagePickerOptions.ts`. They keep the image
   title on the first line, but the second line is shared with the other project-image pickers and
   prioritizes backend-provided tags, especially `ms-sdk...` tags, before the commit/date copy.
+- Both image pickers are restricted to deployable images only. The frontend offers only images
+  where `is_ready === true` and `build_error !== true`.
 - The screen keeps a persistent warning that project agents are one-per-project runtimes and
   should be rebuilt from images updated to the latest Main Sequence SDK before deployment.
 - LLM selection for project-agent deployment is sourced from the Command Center

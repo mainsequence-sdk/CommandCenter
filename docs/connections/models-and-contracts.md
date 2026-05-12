@@ -31,6 +31,8 @@ Optional fields:
 - `configEditor`: custom React editor for public config
 - `queryEditor`: custom React editor for query payloads
 - `authoringContract`: shared Explore/widget authoring behavior
+- `physicalDataSource`: optional metadata declaring that a connection type can be projected into a
+  backend physical data-source model
 - `usageGuidance`: agent-facing and catalog-facing Markdown
 - `examples`: realistic public config and query examples
 
@@ -46,8 +48,29 @@ state, health state, or runtime clients.
 - `stream`: supports long-lived channels
 - `mutation`: performs write-like provider operations
 - `health-check`: supports `testConnection(id)`
+- `sql-read`: adapter can prove read access to a SQL-compatible database
+- `sql-write`: adapter can prove write access to a SQL-compatible database
+- `physical-data-source`: adapter can be projected into a backend physical data-source model
+- `timescale-extension`: Timescale adapter can prove the `timescaledb` extension is installed
 
 Only advertise capabilities the backend adapter actually implements.
+
+## Physical Data Source Metadata
+
+`physicalDataSource` is optional connection-type metadata for backend projection into a physical
+data-source row. It is registry metadata only; the connection create form still uses Command Center
+public config names such as `database` and `username`.
+
+Fields:
+
+- `eligible`: must be `true` when metadata is present
+- `dataSourceClassType`: backend physical data-source class type, such as `timescale_db`
+- `requiresCapabilities`: capabilities that must also appear in `capabilities`
+- `defaultRegistrationMode`: currently `auto-when-write-capable`
+- `managedLifecycle`: whether the backend owns the physical source lifecycle
+
+TimescaleDB uses `requiresCapabilities: ["sql-write", "timescale-extension"]`, so projection is
+allowed only after the backend health check, write probe, and Timescale extension probe succeed.
 
 ## Access Mode
 

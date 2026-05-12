@@ -17,6 +17,7 @@ import { AdminBillingDetailsPage } from "@/extensions/core/apps/admin/AdminBilli
 import { AdminGithubOrganizationsPage } from "@/extensions/core/apps/admin/AdminGithubOrganizationsPage";
 import { AdminInvoicesPage } from "@/extensions/core/apps/admin/AdminInvoicesPage";
 import { AdminLoginSessionsPage } from "@/extensions/core/apps/admin/AdminLoginSessionsPage";
+import { AdminManageCreditsPage } from "@/extensions/core/apps/admin/AdminManageCreditsPage";
 import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOrganizationUsersPage";
 import { AdminWidgetConfigurationsPage } from "@/extensions/core/apps/admin/AdminWidgetConfigurationsPage";
 import { SavedWidgetsPage } from "@/features/dashboards/SavedWidgetsPage";
@@ -418,6 +419,31 @@ const adminApp: AppDefinition = {
         order: 45,
       },
       component: AdminBillingDetailsPage,
+    },
+    {
+      id: "manage-credits",
+      title: "Manage Credits",
+      navLabel: "Manage Credits",
+      description: "Review organization credit balance and current credit auto-reload settings.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Manage Credits. This page is intended for reviewing organization prepaid credits and current auto-reload state.",
+        availableActions: [
+          "Review organization credit balance",
+          "Inspect auto-reload status",
+          "Check whether spendable credits are available",
+        ],
+      }),
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["org_admin:view"],
+      navigationSection: {
+        id: "billing",
+        label: "Billing",
+        description: "Organization billing records and payment configuration.",
+        order: 45,
+      },
+      component: AdminManageCreditsPage,
     },
   ],
 };

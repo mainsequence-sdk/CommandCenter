@@ -49,9 +49,9 @@ function createConnectionDefinition(
   };
 }
 
-describe("connection type sync stream metadata", () => {
-  it("bumps the registry version for query stream metadata", () => {
-    expect(CONNECTION_REGISTRY_VERSION).toBe("2026-04-28-query-stream-metadata");
+describe("connection type sync metadata", () => {
+  it("bumps the registry version for physical data-source metadata", () => {
+    expect(CONNECTION_REGISTRY_VERSION).toBe("2026-05-11-physical-data-source-metadata");
   });
 
   it("projects ConnectionQueryModel.stream into the sync payload", () => {
@@ -122,6 +122,67 @@ describe("connection type sync stream metadata", () => {
         "stream.supportsResume must be a boolean when provided.",
         "stream.heartbeatMs must be a positive number when provided.",
         "stream.description must be a string when provided.",
+      ]),
+    );
+  });
+
+  it("projects physical data-source metadata into the sync payload", () => {
+    const payload = projectConnectionTypeForSync(
+      createConnectionDefinition({
+        capabilities: [
+          "query",
+          "resource",
+          "health-check",
+          "sql-read",
+          "sql-write",
+          "physical-data-source",
+          "timescale-extension",
+        ],
+        physicalDataSource: {
+          eligible: true,
+          dataSourceClassType: "timescale_db",
+          requiresCapabilities: ["sql-write", "timescale-extension"],
+          defaultRegistrationMode: "auto-when-write-capable",
+          managedLifecycle: false,
+        },
+      }),
+    );
+
+    expect(payload.physicalDataSource).toEqual({
+      eligible: true,
+      dataSourceClassType: "timescale_db",
+      requiresCapabilities: ["sql-write", "timescale-extension"],
+      defaultRegistrationMode: "auto-when-write-capable",
+      managedLifecycle: false,
+    });
+  });
+
+  it("requires advertised capabilities for physical data-source metadata", () => {
+    const issues = validateConnectionTypeForSync(
+      createConnectionDefinition({
+        capabilities: ["query", "sql-write"],
+        physicalDataSource: {
+          eligible: true,
+          dataSourceClassType: "timescale_db",
+          requiresCapabilities: ["sql-write", "timescale-extension"],
+          defaultRegistrationMode: "auto-when-write-capable",
+          managedLifecycle: false,
+        },
+      }),
+    );
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          section: "physicalDataSource",
+          message:
+            "connection capability physical-data-source is required when physicalDataSource metadata is provided.",
+        }),
+        expect.objectContaining({
+          section: "physicalDataSource",
+          message:
+            "physicalDataSource.requiresCapabilities must be included in capabilities: timescale-extension.",
+        }),
       ]),
     );
   });

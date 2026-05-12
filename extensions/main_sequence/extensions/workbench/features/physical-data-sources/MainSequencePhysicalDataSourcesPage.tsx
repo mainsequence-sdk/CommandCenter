@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Database, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowUpRight, Database, Loader2, Trash2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
@@ -28,10 +28,6 @@ import { MainSequencePhysicalDataSourceEditor } from "./MainSequencePhysicalData
 const mainSequencePhysicalDataSourceIdParam = "msPhysicalDataSourceId";
 const mainSequencePhysicalDataSourceViewParam = "msPhysicalDataSourceView";
 
-const physicalDataSourceCreateFlows = [
-  { id: "create-timescale-db", label: "Create Timescale DB" },
-] as const;
-
 const createViewToSourceType = {
   "create-timescale-db": "timescale_db",
 } as const;
@@ -39,7 +35,6 @@ const createViewToSourceType = {
 const classTypeFilterOptions = [
   { value: "", label: "All types" },
   { value: "timescale_db_remote", label: "Timescale DB" },
-  { value: "timescale_db_gcp_cloud", label: "Managed Data Source" },
   { value: "duck_db", label: "Duck DB" },
 ] as const;
 
@@ -166,13 +161,6 @@ export function MainSequencePhysicalDataSourcesPage() {
     );
   }
 
-  function openCreateFlow(view: (typeof physicalDataSourceCreateFlows)[number]["id"]) {
-    updateSearchParams((nextParams) => {
-      nextParams.set(mainSequencePhysicalDataSourceViewParam, view);
-      nextParams.delete(mainSequencePhysicalDataSourceIdParam);
-    });
-  }
-
   function openPhysicalDataSourceDetail(physicalDataSourceId: number) {
     updateSearchParams((nextParams) => {
       nextParams.set(mainSequencePhysicalDataSourceIdParam, String(physicalDataSourceId));
@@ -248,24 +236,7 @@ export function MainSequencePhysicalDataSourcesPage() {
       <PageHeader
         eyebrow="Main Sequence"
         title="Physical Data Sources"
-        description="Search and manage physical data source records."
-        actions={
-          <>
-            <Badge variant="neutral">{`${totalItems} physical data sources`}</Badge>
-            {physicalDataSourceCreateFlows.map((flow) => (
-              <Button
-                key={flow.id}
-                type="button"
-                variant={activeView === flow.id ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => openCreateFlow(flow.id)}
-              >
-                <Plus className="h-4 w-4" />
-                {flow.label}
-              </Button>
-            ))}
-          </>
-        }
+        actions={<Badge variant="neutral">{`${totalItems} physical data sources`}</Badge>}
       />
 
       <Card>
@@ -460,12 +431,6 @@ export function MainSequencePhysicalDataSourcesPage() {
                             )}
                             <div className="min-w-0">
                               <div className="font-medium text-foreground">{row.class_type_label}</div>
-                              <div
-                                className="mt-0.5 text-muted-foreground"
-                                style={{ fontSize: "var(--table-meta-font-size)" }}
-                              >
-                                {row.class_type}
-                              </div>
                             </div>
                           </div>
                         </td>

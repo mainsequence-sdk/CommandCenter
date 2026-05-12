@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 
-import { ArrowRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
+import { listSocialLoginProviders } from "@/auth/api";
 import { useAuthStore } from "@/auth/auth-store";
 import { getMockAuthHint } from "@/auth/mock-jwt-auth";
 import { getRoleLabel } from "@/auth/permissions";
+import { createSocialAuthStartRequest } from "@/auth/social-auth";
 import { builtinAppRoles, type BuiltinAppRole } from "@/auth/types";
 import { BrandWordmark } from "@/components/brand/BrandWordmark";
 import { Button } from "@/components/ui/button";
@@ -18,11 +21,26 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import { Separator } from "@/components/ui/separator";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
 import { env } from "@/config/env";
+import {
+  SocialProviderIcon,
+  formatSocialProviderName,
+} from "@/features/auth/socialProviderPresentation";
 
 function normalizeMfaCode(value: string) {
   return value.replace(/\D/g, "").slice(0, 6);
+}
+
+function resolveRedirectTarget(
+  locationState: { from?: { pathname?: string; search?: string; hash?: string } } | null,
+) {
+  const pathname = locationState?.from?.pathname?.trim() || "/app";
+  const search = locationState?.from?.search?.trim() || "";
+  const hash = locationState?.from?.hash?.trim() || "";
+
+  return `${pathname}${search}${hash}` || "/app";
 }
 
 export function LoginPage() {
@@ -52,10 +70,13 @@ export function LoginPage() {
   const [role, setRole] = useState<BuiltinAppRole>("org_admin");
   const [mfaCode, setMfaCode] = useState("");
   const [setupCode, setSetupCode] = useState("");
+  const [socialAuthError, setSocialAuthError] = useState<string | null>(null);
+  const [activeSocialProviderId, setActiveSocialProviderId] = useState<string | null>(null);
 
-  const redirectTarget =
-    (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ??
-    "/app";
+  const redirectTarget = resolveRedirectTarget(
+    (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null) ??
+      null,
+  );
   const loginUiState: "password_login" | "mfa_verify" | "mfa_setup" =
     challenge?.type === "mfa_setup_required"
       ? "mfa_setup"
@@ -67,6 +88,8 @@ export function LoginPage() {
   const isMfaRequired = loginUiState === "mfa_verify";
   const isMfaSetupRequired = loginUiState === "mfa_setup";
   const isSubmitting = status === "authenticating" || status === "resolving";
+  const showSocialLoginSection =
+    !isBypassAuth && !isMockAuth && loginUiState === "password_login";
   const submitLabel =
     status === "resolving"
       ? "Authorizing..."
@@ -81,6 +104,16 @@ export function LoginPage() {
           : isMfaRequired
             ? "Verify code"
             : "Sign in";
+  const visibleError = socialAuthError ?? error;
+
+  const socialProvidersQuery = useQuery({
+    queryKey: ["auth", "social-providers"],
+    queryFn: listSocialLoginProviders,
+    enabled: showSocialLoginSection,
+    retry: false,
+    staleTime: 60_000,
+  });
+  const visibleSocialProviders = socialProvidersQuery.data ?? [];
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -100,6 +133,7 @@ export function LoginPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setSocialAuthError(null);
     const didLogin = isMfaSetupRequired
       ? await completeMfaSetup({
           setupToken: mfaSetupChallenge?.setupToken ?? "",
@@ -118,10 +152,34 @@ export function LoginPage() {
     }
   }
 
+  async function startSocialLogin(provider: { id: string; startUrl: string }) {
+    setSocialAuthError(null);
+    resetLoginState();
+    setActiveSocialProviderId(provider.id);
+
+    try {
+      const { startUrl } = await createSocialAuthStartRequest({
+        providerId: provider.id,
+        providerStartUrl: provider.startUrl,
+        redirectTarget,
+      });
+      window.location.assign(startUrl);
+    } catch (error) {
+      setActiveSocialProviderId(null);
+      setSocialAuthError(
+        error instanceof Error && error.message
+          ? error.message
+          : "Unable to start social sign-in.",
+      );
+    }
+  }
+
   function resetChallengeAndInputs() {
     resetLoginState();
     setMfaCode("");
     setSetupCode("");
+    setSocialAuthError(null);
+    setActiveSocialProviderId(null);
   }
 
   return (
@@ -155,6 +213,7 @@ export function LoginPage() {
                     if (challenge) {
                       resetChallengeAndInputs();
                     }
+                    setSocialAuthError(null);
                     setIdentifier(event.target.value);
                   }}
                   placeholder={auth.identifierPlaceholder}
@@ -174,6 +233,7 @@ export function LoginPage() {
                     if (challenge) {
                       resetChallengeAndInputs();
                     }
+                    setSocialAuthError(null);
                     setPassword(event.target.value);
                   }}
                   placeholder={isBypassAuth ? "demo" : "Enter your password"}
@@ -282,9 +342,9 @@ export function LoginPage() {
                 </div>
               ) : null}
 
-              {error ? (
+              {visibleError ? (
                 <div className="rounded-[calc(var(--radius)-6px)] border border-destructive/40 bg-destructive/8 px-3 py-2 text-sm text-destructive">
-                  {error}
+                  {visibleError}
                 </div>
               ) : null}
 
@@ -303,6 +363,45 @@ export function LoginPage() {
                 >
                   Start over
                 </Button>
+              ) : null}
+
+              {showSocialLoginSection && visibleSocialProviders.length > 0 ? (
+                <>
+                  <div className="flex items-center gap-3 py-1">
+                    <Separator className="flex-1" />
+                    <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      Or continue with
+                    </span>
+                    <Separator className="flex-1" />
+                  </div>
+
+                  <div className="space-y-2">
+                    {visibleSocialProviders.map((provider) => {
+                      const isActive = activeSocialProviderId === provider.id;
+                      const providerName = provider.name || formatSocialProviderName(provider.id);
+
+                      return (
+                        <Button
+                          key={provider.id}
+                          type="button"
+                          variant="outline"
+                          className="w-full justify-start"
+                          disabled={isSubmitting || activeSocialProviderId !== null}
+                          onClick={() => {
+                            void startSocialLogin(provider);
+                          }}
+                        >
+                          {isActive ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <SocialProviderIcon providerId={provider.id} className="h-4 w-4" />
+                          )}
+                          <span>{isActive ? `Connecting to ${providerName}...` : `Continue with ${providerName}`}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </>
               ) : null}
             </form>
 

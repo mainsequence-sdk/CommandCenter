@@ -66,6 +66,11 @@ connection ADR. Connections are platform data-access resources, not widgets.
   and URL template interpolation.
 - Connection authorization is enforced through the existing platform and Main Sequence permission
   systems. This package does not define a separate connection-permission model.
+- Connection types that can be projected into backend physical data sources must declare
+  `physicalDataSource` metadata and matching capabilities such as `sql-write`,
+  `physical-data-source`, and, for TimescaleDB, `timescale-extension`. The connection form still
+  uses Command Center public config names like `database` and `username`; physical model fields are
+  translated by the backend.
 - Widgets and workspaces should store stable `ConnectionRef` values: `{ id, typeId }`.
 - The core connection layer must not fabricate system/default connection instances such as
   `prometheus-default` for widgets, Explore, or picker surfaces. Connection selection and runtime

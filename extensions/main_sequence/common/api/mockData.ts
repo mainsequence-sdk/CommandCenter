@@ -8,6 +8,7 @@ const mockJsonModules = import.meta.glob("/mock_data/mainsequence/*.json", {
 const defaultPageSize = 25;
 const devAuthProxyPrefix = "/__command_center_auth__";
 const mainSequencePodsRoot = "/orm/api/pods/";
+const mainSequenceConnectionsRoot = "/orm/api/connections/";
 const mainSequenceTsManagerRoot = "/orm/api/ts_manager/";
 const mainSequenceAssetsRoot = "/orm/api/assets/";
 
@@ -3445,6 +3446,10 @@ function normalizeMainSequenceRoute(pathname: string) {
 
   if (normalized.startsWith(mainSequencePodsRoot)) {
     return normalized.slice(mainSequencePodsRoot.slice(0, -1).length);
+  }
+
+  if (normalized.startsWith(mainSequenceConnectionsRoot)) {
+    return normalized.slice(mainSequenceConnectionsRoot.slice(0, -1).length);
   }
 
   if (

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AnyConnectionTypeDefinition } from "@/connections/types";
 
-import { hydrateConnectionRuntime } from "./connection-runtime";
+import { connectionRuntimeDefinitions, hydrateConnectionRuntime } from "./connection-runtime";
 
 function createDefinition(
   input: Partial<AnyConnectionTypeDefinition> = {},
@@ -32,6 +32,14 @@ function createDefinition(
 }
 
 describe("hydrateConnectionRuntime", () => {
+  it("loads the TimescaleDB custom connection definition", () => {
+    expect(
+      connectionRuntimeDefinitions.some(
+        (definition) => definition.id === "timescaledb.database",
+      ),
+    ).toBe(true);
+  });
+
   it("preserves stream metadata from local runtime query models", () => {
     const localDefinition = createDefinition({
       version: 2,
@@ -72,6 +80,37 @@ describe("hydrateConnectionRuntime", () => {
       defaultMode: "delta",
       supportsResume: true,
       heartbeatMs: 15_000,
+    });
+  });
+
+  it("hydrates physical data-source metadata from a local runtime definition", () => {
+    const localDefinition = createDefinition({
+      id: "timescaledb.database",
+      version: 1,
+      physicalDataSource: {
+        eligible: true,
+        dataSourceClassType: "timescale_db",
+        requiresCapabilities: ["sql-write", "timescale-extension"],
+        defaultRegistrationMode: "auto-when-write-capable",
+        managedLifecycle: false,
+      },
+    });
+    const backendDefinition = createDefinition({
+      id: "timescaledb.database",
+      version: 1,
+      physicalDataSource: undefined,
+    });
+
+    const hydrated = hydrateConnectionRuntime(backendDefinition, {
+      runtimeDefinitions: [localDefinition],
+    });
+
+    expect(hydrated.physicalDataSource).toEqual({
+      eligible: true,
+      dataSourceClassType: "timescale_db",
+      requiresCapabilities: ["sql-write", "timescale-extension"],
+      defaultRegistrationMode: "auto-when-write-capable",
+      managedLifecycle: false,
     });
   });
 });

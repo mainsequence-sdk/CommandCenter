@@ -7,6 +7,10 @@ import alpacaMarketDataConnection from "../../connections/alpaca";
 import binanceMarketDataConnection from "../../connections/binance";
 import fredEconomicDataConnection from "../../connections/fred";
 import massiveMarketDataConnection from "../../connections/massive";
+import postgreSqlConnection, {
+  POSTGRESQL_DEFAULT_SQL_TABLE_QUERY,
+} from "../../connections/postgresql";
+import { timescaleDbConnection } from "../../connections/timescaledb";
 import { mainSequenceDataNodeConnection } from "../../extensions/main_sequence/extensions/workbench/connections/dataNodeConnection";
 import { mainSequenceSimpleTableConnection } from "../../extensions/main_sequence/extensions/workbench/connections/simpleTableConnection";
 
@@ -100,6 +104,37 @@ describe("connection authoring contract", () => {
     expect(fredDraft.queryModelId).toBe("fred-series-observations");
     expect(fredDraft.maxRows).toBe(1000);
     expect(fredDraft.timeRangeMode).toBe("fixed");
+  });
+
+  it("seeds PostgreSQL-compatible Explore defaults through the shared authoring contract", () => {
+    const postgreSqlDraft = buildConnectionQueryDraftSeed({
+      connectionInstance: createConnectionInstance(postgreSqlConnection, {
+        defaultSchema: "public",
+      }),
+      connectionType: postgreSqlConnection,
+    });
+    const timescaleDraft = buildConnectionQueryDraftSeed({
+      connectionInstance: createConnectionInstance(timescaleDbConnection, {
+        defaultSchema: "public",
+      }),
+      connectionType: timescaleDbConnection,
+    });
+
+    expect(postgreSqlDraft.queryModelId).toBe("sql-table");
+    expect(postgreSqlDraft.query).toEqual({
+      kind: "sql-table",
+      sql: POSTGRESQL_DEFAULT_SQL_TABLE_QUERY,
+    });
+    expect(postgreSqlDraft.maxRows).toBe(100);
+    expect(postgreSqlDraft.timeRangeMode).toBe("none");
+
+    expect(timescaleDraft.queryModelId).toBe("sql-table");
+    expect(timescaleDraft.query).toEqual({
+      kind: "sql-table",
+      sql: POSTGRESQL_DEFAULT_SQL_TABLE_QUERY,
+    });
+    expect(timescaleDraft.maxRows).toBe(100);
+    expect(timescaleDraft.timeRangeMode).toBe("none");
   });
 
   it("seeds stream drafts from streamable query models instead of HTTP defaults", () => {

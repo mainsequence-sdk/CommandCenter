@@ -439,6 +439,7 @@ export function WidgetSourceExplorer({
   sourceWidgets,
   value,
 }: WidgetSourceExplorerProps) {
+  const [previewExpanded, setPreviewExpanded] = useState(false);
   const selectedSourceWidget = useMemo(
     () => sourceWidgets.find((option) => option.id === selectedSourceWidgetId),
     [selectedSourceWidgetId, sourceWidgets],
@@ -1039,12 +1040,34 @@ export function WidgetSourceExplorer({
           </div>
 
           <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 px-3 py-2 text-sm">
-            <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Preview
-            </div>
-            <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-foreground">
-              {formatBindingPreviewValue(evaluation.value)}
-            </pre>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-3 text-left"
+              aria-expanded={previewExpanded}
+              onClick={() => setPreviewExpanded((current) => !current)}
+            >
+              <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                Preview
+              </span>
+              <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                <span>{previewExpanded ? "Hide preview" : "Show preview"}</span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 transition-transform",
+                    previewExpanded ? "rotate-180" : undefined,
+                  )}
+                />
+              </span>
+            </button>
+            {previewExpanded ? (
+              <pre className="mt-2 overflow-auto whitespace-pre-wrap break-words font-mono text-xs text-foreground">
+                {formatBindingPreviewValue(evaluation.value)}
+              </pre>
+            ) : (
+              <div className="mt-2 text-xs text-muted-foreground">
+                Preview hidden until expanded.
+              </div>
+            )}
           </div>
         </div>
       ) : (

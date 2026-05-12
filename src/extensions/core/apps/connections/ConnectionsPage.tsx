@@ -554,6 +554,7 @@ function CreateConnectionPanel({
           omitEmpty: true,
           visibilityValues: { ...publicValues, ...secureValues },
         }),
+        isActive: true,
       });
     },
     onSuccess: async () => {

@@ -116,11 +116,12 @@ remaining height. The two shells still differ intentionally:
   in-message thinking/tool detail blocks. The user can expand into the full page for those details,
   but the overlay composer still exposes the model controls and compact context-window usage footer
 - the right-side rail has two presentation modes:
-  - the default Command Center rail only warns when it is attached to a real non-orchestrator
-    session; `astro-orchestrator` itself is treated as the normal Command Center rail case
+  - the default Command Center rail now rebinds itself to the canonical
+    `astro-orchestrator` base-handle session whenever the rail opens; it must not keep using an
+    arbitrary previously selected non-orchestrator session
   - direct project-agent launches use a dedicated `Project Agent` rail variant with its own
     provider instance, header, theme-derived accent styling, session chip, and copy, and it
-    intentionally suppresses the default-orchestrator warning
+    intentionally stays isolated from the default Command Center rail selection
   - the project-agent rail is additive, not a replacement for the normal Command Center rail:
     Command Center `Cmd+J` and the project-agent launcher can both stay open at the same time
     because they no longer share one rail-open flag or one selected session/runtime

@@ -10,5 +10,5 @@ This feature contains the Main Sequence physical data source registry and editor
 ## Notes
 
 - Keep physical data source form behavior and list-specific filtering in this folder unless it becomes shared across features.
-- Edit mode now shows the standardized `data_source/{id}/summary/` payload above the editor form through the shared Main Sequence summary card.
-- The registry exposes only the Timescale DB create flow; Duck DB and managed data source creation are intentionally not available from this screen.
+- Edit mode now shows the standardized `connections/data_source/{id}/summary/` payload above the editor form through the shared Main Sequence summary card.
+- Timescale DB creation still uses this feature's editor flow, but the primary entry action now lives on the TimeScaleDB service detail screen instead of the registry header.

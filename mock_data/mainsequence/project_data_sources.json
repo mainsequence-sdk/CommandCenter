@@ -32,7 +32,7 @@
     "related_resource": {
       "id": 703,
       "label": "Operations Event Store",
-      "class_type": "timescale_db_gcp_cloud",
+      "class_type": "timescale_db_remote",
       "status": "healthy"
     },
     "creation_date": "2026-01-18T11:00:00Z",

@@ -12,6 +12,7 @@ import { LegacyWorkspaceRedirect } from "@/features/apps/LegacyWorkspaceRedirect
 import { LoginPage } from "@/features/auth/LoginPage";
 import { LoginPageV2 } from "@/features/auth/LoginPageV2";
 import { ResetPasswordPage } from "@/features/auth/ResetPasswordPage";
+import { SocialAuthCallbackPage } from "@/features/auth/SocialAuthCallbackPage";
 import { ExtensionsGalleryPage } from "@/features/extensions/ExtensionsGalleryPage";
 import { NotFoundPage } from "@/features/misc/NotFoundPage";
 import { ThemeStudioPage } from "@/features/themes/ThemeStudioPage";
@@ -49,6 +50,10 @@ export const router = createBrowserRouter([
   {
     path: "/reset-password",
     element: <ResetPasswordPage />,
+  },
+  {
+    path: "/auth/callback",
+    element: <SocialAuthCallbackPage />,
   },
   {
     path: "/extensions",

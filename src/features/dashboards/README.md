@@ -220,6 +220,7 @@ These flows are all part of one app surface, with instance state selected throug
   recovery surface must keep `Open workspace settings` available so corrupted documents can still be
   exported or repaired from JSON.
 - In backend mode, delete reloads the workspace collection from the backend after success instead of computing the next list locally.
+- Backend delete also marks the just-deleted workspace id as missing until the route query clears, so the detail loader must not immediately refetch the deleted workspace while settings is navigating back to the list.
 - In backend mode, workspace save keeps the submitted companion-card layout if the mutation response does not explicitly echo `companions`. It also keeps the submitted widget geometry for matching widget ids so resized cards do not snap back locally after save when the backend response omits or returns stale layout data.
 - Workspace edit mode no longer has to treat every widget body as non-interactive. Widgets that opt
   into shared inline canvas editing can remain interactive on the canvas and write directly into

@@ -649,6 +649,15 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
             current.workspaceUserStateRevisionById,
             [workspaceId],
           ),
+          workspaceLoadErrorById: Object.fromEntries(
+            Object.entries(current.workspaceLoadErrorById).filter(([id]) => id !== workspaceId),
+          ),
+          missingWorkspaceIds: {
+            ...Object.fromEntries(
+              Object.entries(current.missingWorkspaceIds).filter(([id]) => id !== workspaceId),
+            ),
+            [workspaceId]: true,
+          },
           workspaceEditorModeById: Object.fromEntries(
             Object.entries(current.workspaceEditorModeById).filter(([id]) => id !== workspaceId),
           ),
@@ -689,6 +698,15 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
           state.workspaceUserStateRevisionById,
           [workspaceId],
         ),
+        workspaceLoadErrorById: Object.fromEntries(
+          Object.entries(state.workspaceLoadErrorById).filter(([id]) => id !== workspaceId),
+        ),
+        missingWorkspaceIds: {
+          ...Object.fromEntries(
+            Object.entries(state.missingWorkspaceIds).filter(([id]) => id !== workspaceId),
+          ),
+          [workspaceId]: true,
+        },
         workspaceEditorModeById: Object.fromEntries(
           Object.entries(state.workspaceEditorModeById).filter(([id]) => id !== workspaceId),
         ),

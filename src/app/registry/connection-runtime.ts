@@ -142,5 +142,6 @@ export function hydrateConnectionRuntime(
     configEditor: runtimeDefinition.configEditor,
     queryEditor: runtimeDefinition.queryEditor,
     authoringContract: runtimeDefinition.authoringContract,
+    physicalDataSource: connection.physicalDataSource ?? runtimeDefinition.physicalDataSource,
   };
 }

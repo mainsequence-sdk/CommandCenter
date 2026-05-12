@@ -7,10 +7,23 @@ This feature owns unauthenticated sign-in and password-reset entry points for th
 - `LoginPage.tsx`: primary production login screen.
 - `LoginPageV2.tsx`: alternate login concept route kept for experimentation.
 - `ResetPasswordPage.tsx`: forgot-password request flow and token-based password reset confirmation.
+- `SocialAuthCallbackPage.tsx`: frontend callback for social sign-in PKCE exchange and browser-session MFA continuation.
+- `socialProviderPresentation.tsx`: shared provider naming/icon helpers for login surfaces.
 
 ## Notes
 
 - The reset flow uses `/user/api/user/password-reset/`, `/validate/`, and `/confirm/`.
+- The login screen now discovers visible social providers from `GET /auth/social/providers/`
+  and uses `provider_details[].start_url` as the backend-owned entry point for each provider.
+- Social sign-in uses the public `/auth/social/<provider>/start/` PKCE contract with a top-level
+  browser navigation, not a popup or background fetch.
+- The frontend callback at `/auth/callback` validates the stored `state` and `code_verifier`,
+  exchanges the short-lived code at `POST /auth/social/token/`, then persists the standard local
+  JWT session bundle used by password login.
+- Social MFA continuation is browser-session based: `mfa_required` callbacks post to
+  `/auth/browser/mfa/verify/` with browser credentials, while `mfa_setup_required` callbacks use
+  `/user/api/user/mfa/setup/` and `/user/api/user/mfa/setup/verify/`, then follow the returned
+  `redirect_url` until the backend redirects back with a social auth code.
 - Authenticated users can also request a password change email from the settings dialog through the shared auth API helpers.
 - JWT login now handles three token-endpoint outcomes: direct token success, `mfa_required`
   re-submit with `mfa_code`, and `mfa_setup_required` enrollment before login completion.

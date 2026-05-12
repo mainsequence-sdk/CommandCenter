@@ -92,10 +92,10 @@
         "id": 703,
         "display_name": "Operations Event Store",
         "organization": 1,
-        "class_type": "timescale_db_gcp_cloud",
+        "class_type": "timescale_db_remote",
         "status": "healthy"
       },
-      "related_resource_class_type": "timescale_db_gcp_cloud"
+      "related_resource_class_type": "timescale_db_remote"
     },
     "git_ssh_url": "git@github.com:mainsequence/ops-control.git",
     "is_initialized": false,

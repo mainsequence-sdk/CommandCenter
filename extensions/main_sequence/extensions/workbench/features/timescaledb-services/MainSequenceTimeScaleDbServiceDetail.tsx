@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
-import { ArrowLeft, ArrowUpRight, Database, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Database, Loader2, Plus } from "lucide-react";
 
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -270,6 +270,12 @@ function getStatusBadgeVariant(statusTone: string) {
   return "neutral" as const;
 }
 
+function buildCreateTimescaleDbPath() {
+  const searchParams = new URLSearchParams();
+  searchParams.set("msPhysicalDataSourceView", "create-timescale-db");
+  return `${getAppPath("main_sequence_workbench", "physical-data-sources")}?${searchParams.toString()}`;
+}
+
 export type TimeScaleDbServiceDetailTabId = "details" | "databases";
 
 export function MainSequenceTimeScaleDbServiceDetail({
@@ -370,6 +376,10 @@ export function MainSequenceTimeScaleDbServiceDetail({
     navigate(`${getAppPath("main_sequence_workbench", "physical-data-sources")}?${searchParams.toString()}`);
   }
 
+  function openCreateTimescaleDb() {
+    navigate(buildCreateTimescaleDbPath());
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -381,10 +391,16 @@ export function MainSequenceTimeScaleDbServiceDetail({
             : "Read-only deployment service detail from the pods TimeScaleDB service endpoints."
         }
         actions={
-          <Button type="button" variant="outline" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
-            Back to services
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" onClick={openCreateTimescaleDb}>
+              <Plus className="h-4 w-4" />
+              Create Timescale DB
+            </Button>
+            <Button type="button" variant="outline" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4" />
+              Back to services
+            </Button>
+          </div>
         }
       />
 

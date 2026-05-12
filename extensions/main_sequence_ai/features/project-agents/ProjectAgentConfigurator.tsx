@@ -67,6 +67,10 @@ function toProjectAgentImageOption(image: ProjectImageOption): PickerOption {
   });
 }
 
+function isSelectableProjectAgentImage(image: ProjectImageOption) {
+  return image.is_ready === true && image.build_error !== true;
+}
+
 function isProjectAgentImagePending(result: ProjectExecutorAgentServiceRecord | null) {
   if (!result) {
     return false;
@@ -252,11 +256,17 @@ export function ProjectAgentConfigurator({
   });
 
   const projectAgentImageOptions = useMemo(
-    () => (projectAgentImagesQuery.data ?? []).map(toProjectAgentImageOption),
+    () =>
+      (projectAgentImagesQuery.data ?? [])
+        .filter(isSelectableProjectAgentImage)
+        .map(toProjectAgentImageOption),
     [projectAgentImagesQuery.data],
   );
   const deploymentImageOptions = useMemo(
-    () => (deploymentImagesQuery.data ?? []).map(toProjectAgentImageOption),
+    () =>
+      (deploymentImagesQuery.data ?? [])
+        .filter(isSelectableProjectAgentImage)
+        .map(toProjectAgentImageOption),
     [deploymentImagesQuery.data],
   );
   const availableProviders = commandCenterModelOptionsQuery.data?.providers ?? [];
@@ -627,7 +637,7 @@ export function ProjectAgentConfigurator({
           options={projectAgentImageOptions}
           placeholder="Select an image"
           searchPlaceholder="Search images"
-          emptyMessage="No project images available."
+          emptyMessage="No ready project images available."
           loading={projectAgentImagesQuery.isLoading}
         />
       </div>
@@ -715,7 +725,7 @@ export function ProjectAgentConfigurator({
               options={deploymentImageOptions}
               placeholder="Select a deployment image"
               searchPlaceholder="Search runtime images"
-              emptyMessage="No project executor images available."
+              emptyMessage="No ready project executor images available."
               loading={deploymentImagesQuery.isLoading}
             />
           </div>

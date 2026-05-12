@@ -1,7 +1,10 @@
 import { create } from "zustand";
 
+import type { SocialAuthTokenExchangeInput } from "@/auth/api";
 import {
+  buildJwtSessionBundleFromTokenResponse,
   clearStoredJwtSession,
+  completeSocialAuthCodeExchange,
   verifyJwtMfaSetup,
   loginWithJwt,
   logoutJwtSession,
@@ -9,6 +12,7 @@ import {
   refreshJwtSession,
   resolveStoredJwtSession,
   restoreStoredJwtSession,
+  type JwtSessionBundle,
   type StoredJwtTokens,
 } from "@/auth/jwt-auth";
 import { hasAllPermissions } from "@/auth/permissions";
@@ -79,8 +83,11 @@ interface AuthState {
   status: "anonymous" | "resolving" | "authenticating" | "authenticated";
   error: string | null;
   challenge: AuthLoginChallenge | null;
+  applyJwtSession: (bundle: JwtSessionBundle) => void;
   login: (input: LoginInput) => Promise<boolean>;
   completeMfaSetup: (input: CompleteMfaSetupInput) => Promise<boolean>;
+  completeSocialLogin: (input: SocialAuthTokenExchangeInput) => Promise<boolean>;
+  applyJwtResponse: (responseData: Record<string, unknown>) => Promise<boolean>;
   refreshSession: () => Promise<boolean>;
   logout: () => void;
   resetLoginState: () => void;
@@ -100,6 +107,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     : "anonymous",
   error: null,
   challenge: null,
+  applyJwtSession(bundle) {
+    persistJwtSession(bundle);
+    scheduleRefresh(bundle.tokens);
+    set({
+      session: bundle.session,
+      refreshToken: bundle.tokens.refreshToken,
+      authMode: bundle.tokens.authMode ?? "jwt",
+      status: "authenticated",
+      error: null,
+      challenge: null,
+    });
+  },
   async login(input) {
     if (loginPromise) {
       return loginPromise;
@@ -128,17 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const result = await loginWithJwt(input);
 
         if (result.status === "authenticated") {
-          persistJwtSession(result.bundle);
-          const { session, tokens } = result.bundle;
-          scheduleRefresh(tokens);
-          set({
-            session,
-            refreshToken: tokens.refreshToken,
-            authMode: tokens.authMode ?? "jwt",
-            status: "authenticated",
-            error: null,
-            challenge: null,
-          });
+          get().applyJwtSession(result.bundle);
           return true;
         }
 
@@ -172,6 +181,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     return loginPromise;
   },
+  async completeSocialLogin(input) {
+    if (loginPromise) {
+      return loginPromise;
+    }
+
+    set({ status: "authenticating", error: null, challenge: null });
+
+    loginPromise = (async () => {
+      try {
+        const bundle = await completeSocialAuthCodeExchange(input);
+        get().applyJwtSession(bundle);
+        return true;
+      } catch (error) {
+        clearStoredJwtSession();
+        clearRefreshTimer();
+        set({
+          session: null,
+          refreshToken: null,
+          authMode: "jwt",
+          status: "anonymous",
+          error: getLoginErrorMessage(error),
+          challenge: null,
+        });
+        return false;
+      } finally {
+        loginPromise = null;
+      }
+    })();
+
+    return loginPromise;
+  },
   async completeMfaSetup(input) {
     if (mfaSetupPromise) {
       return mfaSetupPromise;
@@ -183,17 +223,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     mfaSetupPromise = (async () => {
       try {
         const bundle = await verifyJwtMfaSetup(input);
-        persistJwtSession(bundle);
-        const { session, tokens } = bundle;
-        scheduleRefresh(tokens);
-        set({
-          session,
-          refreshToken: tokens.refreshToken,
-          authMode: tokens.authMode ?? "jwt",
-          status: "authenticated",
-          error: null,
-          challenge: null,
-        });
+        get().applyJwtSession(bundle);
         return true;
       } catch (error) {
         clearStoredJwtSession();
@@ -214,6 +244,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     return mfaSetupPromise;
   },
+  async applyJwtResponse(responseData) {
+    try {
+      const bundle = await buildJwtSessionBundleFromTokenResponse(responseData);
+      get().applyJwtSession(bundle);
+      return true;
+    } catch (error) {
+      clearStoredJwtSession();
+      clearRefreshTimer();
+      set({
+        session: null,
+        refreshToken: null,
+        authMode: "jwt",
+        status: "anonymous",
+        error: getLoginErrorMessage(error),
+        challenge: null,
+      });
+      return false;
+    }
+  },
   async refreshSession() {
     if (env.bypassAuth) {
       return false;
@@ -232,17 +281,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     refreshPromise = (async () => {
       try {
         const bundle = await refreshJwtSession(refreshToken, get().session?.user);
-        persistJwtSession(bundle);
-        const { session, tokens } = bundle;
-        scheduleRefresh(tokens);
-        set({
-          session,
-          refreshToken: tokens.refreshToken,
-          authMode: tokens.authMode ?? "jwt",
-          status: "authenticated",
-          error: null,
-          challenge: null,
-        });
+        get().applyJwtSession(bundle);
         return true;
       } catch (error) {
         clearStoredJwtSession();

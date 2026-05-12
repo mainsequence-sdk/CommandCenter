@@ -33,6 +33,9 @@ Current surfaces in this folder:
 - `AdminBillingDetailsPage.tsx`: billing usage table backed by `/orm/api/pods/billing/usage/`
   with a summary header from `/orm/api/pods/billing/summary/`, `datetime-local`
   range filters, and quick date presets
+- `AdminManageCreditsPage.tsx`: organization credit overview backed by
+  `/users/api/organization/<id>/credits/` with current balance, spendable state, and
+  auto-reload configuration details
 
 Maintenance notes:
 
@@ -45,3 +48,6 @@ Maintenance notes:
 - Legacy `/app/admin-panel` links should continue redirecting into this app
 - Keep organization user bulk actions aligned with `/user/api/user/` backend endpoints and
   their confirmation semantics
+- Billing surfaces currently span both pod-manager billing endpoints and the org-admin
+  `/users/api/organization/<id>/credits/` credit endpoints; keep that split explicit in the
+  page-level API helpers instead of normalizing paths ad hoc in components

@@ -293,6 +293,23 @@ export interface OrganizationSubscriptionSeatsUpdateResponse {
   redirect_url: string | null;
 }
 
+export interface OrganizationCreditsAutoReloadConfig {
+  enabled: boolean;
+  threshold_cents: number;
+  reload_amount_cents: number;
+  monthly_limit_cents: number;
+  currency: string;
+  has_payment_method: boolean;
+}
+
+export interface OrganizationCreditsResponse {
+  organization_id: number;
+  balance_cents: number;
+  currency: string;
+  has_spendable_credits: boolean;
+  auto_reload: OrganizationCreditsAutoReloadConfig;
+}
+
 export type OrganizationLoginSessionAuthSource = "django_session" | "jwt";
 
 export interface OrganizationLoginSessionUserSummary {
@@ -454,6 +471,15 @@ export function listOrganizationActivePlans(organizationId: number) {
 export function listOrganizationSubscriptionSeats(organizationId: number) {
   return requestAdminJson<OrganizationSubscriptionSeatsResponse>(
     `/user/api/organization/${encodeURIComponent(String(organizationId))}/subscription-seats/`,
+    {
+      method: "GET",
+    },
+  );
+}
+
+export function getOrganizationCredits(organizationId: number) {
+  return requestAdminJson<OrganizationCreditsResponse>(
+    `/users/api/organization/${encodeURIComponent(String(organizationId))}/credits/`,
     {
       method: "GET",
     },

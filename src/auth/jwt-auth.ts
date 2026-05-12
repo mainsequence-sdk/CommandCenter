@@ -9,6 +9,10 @@ import {
   type Session,
 } from "@/auth/types";
 import {
+  exchangeSocialAuthCode as exchangeSocialAuthCodeRequest,
+  type SocialAuthTokenExchangeInput,
+} from "@/auth/api";
+import {
   handleMockAuthRequest,
   handleMockJwtAuthorizedGet,
   handleMockJwtPost,
@@ -811,16 +815,10 @@ async function fetchUserShellAccess(
   return normalizeShellAccessPermissions(payload);
 }
 
-async function hydrateUserShellAccess(
-  tokens: StoredJwtTokens,
+function applyShellAccessPermissions(
   user: AppUser,
+  shellPermissions: Permission[] | null,
 ) {
-  if (!user.id) {
-    throw new Error("User details did not provide an id required for shell-access resolution.");
-  }
-
-  const shellPermissions = await fetchUserShellAccess(tokens, user.id);
-
   if (!shellPermissions) {
     return user;
   }
@@ -842,15 +840,28 @@ async function hydrateUserShellAccess(
   } satisfies AppUser;
 }
 
-function buildUserProfile(
+async function hydrateUserShellAccess(
   tokens: StoredJwtTokens,
-  tokenResponse?: Record<string, unknown>,
-  userDetails?: Record<string, unknown> | null,
-): AppUser {
-  const claims = decodeJwtClaims(tokens.accessToken);
+  user: AppUser,
+) {
+  if (!user.id) {
+    throw new Error("User details did not provide an id required for shell-access resolution.");
+  }
+
+  const shellPermissions = await fetchUserShellAccess(tokens, user.id);
+
+  return applyShellAccessPermissions(user, shellPermissions);
+}
+
+function buildUserProfileFromSources({
+  tokenSources = [],
+  userDetails = null,
+}: {
+  tokenSources?: Record<string, unknown>[];
+  userDetails?: Record<string, unknown> | null;
+}): AppUser {
   const claimMapping = commandCenterConfig.auth.jwt.claimMapping;
   const userDetailsMapping = commandCenterConfig.auth.jwt.userDetails.responseMapping;
-  const tokenSources = [tokenResponse, claims].filter(isRecord);
   const allSources = [userDetails, ...tokenSources].filter(isRecord);
   const groups = normalizeGroupNames(
     userDetails ? readPathValue(userDetails, "groups") : undefined,
@@ -998,6 +1009,19 @@ function buildUserProfile(
   };
 }
 
+function buildUserProfile(
+  tokens: StoredJwtTokens,
+  tokenResponse?: Record<string, unknown>,
+  userDetails?: Record<string, unknown> | null,
+): AppUser {
+  const claims = decodeJwtClaims(tokens.accessToken);
+
+  return buildUserProfileFromSources({
+    tokenSources: [tokenResponse, claims].filter(isRecord),
+    userDetails,
+  });
+}
+
 async function buildSessionBundle(
   tokens: StoredJwtTokens,
   tokenResponse?: Record<string, unknown>,
@@ -1033,6 +1057,17 @@ async function buildSessionBundle(
     session,
     tokens: normalizedTokens,
   } satisfies JwtSessionBundle;
+}
+
+export async function buildJwtSessionBundleFromTokenResponse(
+  responseData: Record<string, unknown>,
+  previousRefreshToken?: string | null,
+) {
+  const tokens = buildStoredTokens(responseData, previousRefreshToken);
+
+  return buildSessionBundle(tokens, responseData, {
+    includeUserDetails: true,
+  });
 }
 
 function shouldRefresh(expiresAt?: number) {
@@ -1114,7 +1149,11 @@ export function persistJwtSession(bundle: JwtSessionBundle) {
     },
   };
 
-  window.localStorage.setItem(authStorageKey, JSON.stringify(payload));
+  try {
+    window.localStorage.setItem(authStorageKey, JSON.stringify(payload));
+  } catch {
+    // Ignore storage failures in restricted browser contexts.
+  }
 }
 
 export function clearStoredJwtSession() {
@@ -1122,7 +1161,11 @@ export function clearStoredJwtSession() {
     return;
   }
 
-  window.localStorage.removeItem(authStorageKey);
+  try {
+    window.localStorage.removeItem(authStorageKey);
+  } catch {
+    // Ignore storage failures in restricted browser contexts.
+  }
 }
 
 export function restoreStoredJwtSession(): RestoredJwtSession | null {
@@ -1130,7 +1173,13 @@ export function restoreStoredJwtSession(): RestoredJwtSession | null {
     return null;
   }
 
-  const rawValue = window.localStorage.getItem(authStorageKey);
+  let rawValue: string | null;
+
+  try {
+    rawValue = window.localStorage.getItem(authStorageKey);
+  } catch {
+    return null;
+  }
 
   if (!rawValue) {
     return null;
@@ -1284,6 +1333,16 @@ export async function verifyJwtMfaSetup(
   return buildSessionBundle(tokens, responseData, {
     includeUserDetails: true,
   });
+}
+
+export async function completeSocialAuthCodeExchange(
+  input: SocialAuthTokenExchangeInput,
+): Promise<JwtSessionBundle> {
+  const responseData = (await exchangeSocialAuthCodeRequest(input)) as unknown as Record<
+    string,
+    unknown
+  >;
+  return buildJwtSessionBundleFromTokenResponse(responseData);
 }
 
 export async function refreshJwtSession(

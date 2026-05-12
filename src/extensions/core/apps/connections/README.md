@@ -20,7 +20,8 @@ registered by `src/extensions/connections/index.ts` as a standalone extension ga
 - The Data Sources and Explore surfaces read backend-owned connection instances through
   `src/connections/api.ts`. If the backend returns no instances, the UI shows no data sources.
 - New connection instances rely on backend-assigned `id` values. The create form must not ask the
-  user for a custom identifier.
+  user for a custom identifier. Creates send `isActive: true` so a newly configured connection can
+  be tested and projected by backend lifecycle hooks immediately.
 - The Data Sources list keeps backend `id` values out of the main operator-facing table. IDs stay
   available in edit/detail flows, but the list should emphasize the user-facing name, type, health,
   and secret metadata.

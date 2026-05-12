@@ -14,6 +14,14 @@ frontend id:  postgresql.database
 backend type: postgresql.database
 ```
 
+TimescaleDB is a separate Command Center connection type with a PostgreSQL-compatible runtime
+contract:
+
+```text
+frontend id:  timescaledb.database
+backend type: timescaledb.database
+```
+
 If the ids do not match, the backend cannot dispatch configured connection instances to the right
 runtime implementation.
 
@@ -150,6 +158,20 @@ It is useful for behavior and examples:
 - Prometheus provider/resource handling
 - Main Sequence Data Node and Simple Table resource-scoped behavior
 - market-data adapter query models
+
+## TimescaleDB Adapter Contract
+
+`timescaledb.database` reuses PostgreSQL adapter behavior for public config, secure config, query
+kinds, resources, health checks, cache policy, in-flight dedupe, and `core.tabular_frame@v1`
+normalization. The frontend sends Command Center public config keys such as `database` and
+`username`; `database_name` and `database_user` remain physical data-source model fields only.
+
+The type advertises `physicalDataSource.dataSourceClassType = "timescale_db"`,
+`requiresCapabilities = ["sql-write", "timescale-extension"]`,
+`defaultRegistrationMode = "auto-when-write-capable"`, and `managedLifecycle = false`. The backend
+may create the physical TimeScaleDB source after create/update or successful test only when the
+connection test works, the write probe works, and the `timescaledb` extension exists in
+`pg_extension`.
 
 New Python adapter documentation should follow the FastAPI/Pydantic contract for the owning
 project, not the Django/DRF framework shape documented here.

@@ -12,6 +12,8 @@ This folder contains reusable UI building blocks shared by nested Main Sequence 
 - `MainSequenceRegistrySearch.tsx`: shared search input used by registry screens.
 - `MainSequenceSelectionCheckbox.tsx`: table-selection checkbox helper.
 - `PickerField.tsx`: searchable picker/dropdown used by forms and dialogs.
+- `physicalDataSourceIcons.ts`: local class-type to icon resolver used by the physical data source
+  registry. It prefers bundled logos over backend-provided image paths.
 - `projectImagePickerOptions.ts`: shared project-image picker metadata builders, including tag prioritization and the shared `ms-sdk...` visibility rule.
 - `registryTable.ts`: shared table column and row helpers for registry layouts.
 

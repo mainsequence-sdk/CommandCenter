@@ -76,6 +76,38 @@ const graphWidgetDefinition = defineWidget({
   },
 });
 
+const graphWithEffectsWidgetDefinition = defineWidget({
+  id: "graph-with-effects",
+  widgetVersion: "1.0.0",
+  title: "Graph With Effects",
+  description: "Graph With Effects",
+  category: "Core",
+  kind: "chart",
+  source: "test",
+  component: () => null,
+  io: {
+    inputs: [
+      {
+        id: "sourceData",
+        label: "Source data",
+        accepts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
+        required: true,
+        effects: [
+          {
+            kind: "drives-render",
+            sourcePath: "rows",
+            target: {
+              kind: "render",
+              id: "series-preview",
+            },
+            description: "Recomputes the rendered chart series from the selected source rows.",
+          },
+        ],
+      },
+    ],
+  },
+});
+
 const datasetOutputDefinition = {
   id: "dataset",
   label: "Dataset",
@@ -160,6 +192,7 @@ const incrementalConsumerWidgetDefinition = defineWidget({
 
 const widgetDefinitions = new Map<string, WidgetDefinition>([
   [graphWidgetDefinition.id, graphWidgetDefinition],
+  [graphWithEffectsWidgetDefinition.id, graphWithEffectsWidgetDefinition],
   [incrementalConsumerWidgetDefinition.id, incrementalConsumerWidgetDefinition],
   [streamSourceDefinition.id, streamSourceDefinition],
   [httpSourceDefinition.id, httpSourceDefinition],
@@ -685,6 +718,75 @@ describe("WidgetBindingPanel", () => {
         sourceOutputId: "updates",
       },
     });
+  });
+
+  it("keeps the binding preview collapsed until the user expands it", async () => {
+    const harness = createHarness(
+      buildWidgets({
+        consumerBindings: {},
+      }),
+    );
+    harnesses.push(harness);
+
+    await harness.render(
+      buildWidgets({
+        consumerBindings: {},
+      }),
+    );
+
+    await selectSourceWidget(harness.container, "HTTP OHLC");
+
+    await act(async () => {
+      changeSelectValue(getSourceOutputSelect(harness.container), "dataset");
+    });
+
+    expect(harness.container.textContent).toContain("Show preview");
+    expect(harness.container.textContent).toContain("Preview hidden until expanded.");
+    expect(harness.container.textContent).not.toContain("No value available.");
+
+    await act(async () => {
+      click(findButtonByText(harness.container, "Show preview"));
+    });
+
+    expect(harness.container.textContent).toContain("Hide preview");
+    expect(harness.container.textContent).toContain("No value available.");
+  });
+
+  it("keeps input effects collapsed until the user expands them", async () => {
+    const effectWidgets = [
+      {
+        ...buildWidgets({
+          consumerBindings: {},
+        })[0],
+        id: "graph-effects-1",
+        widgetId: "graph-with-effects",
+      },
+      ...buildWidgets({
+        consumerBindings: {},
+      }).filter((widget) => widget.id !== "graph-1"),
+    ];
+    const harness = createHarness(effectWidgets, {
+      consumerWidgetDefinition: graphWithEffectsWidgetDefinition,
+      consumerInstanceId: "graph-effects-1",
+    });
+    harnesses.push(harness);
+
+    await harness.render(effectWidgets);
+
+    expect(harness.container.textContent).toContain("Show input effects");
+    expect(harness.container.textContent).toContain("Input effects hidden until expanded.");
+    expect(harness.container.textContent).not.toContain(
+      "Recomputes the rendered chart series from the selected source rows.",
+    );
+
+    await act(async () => {
+      click(findButtonByText(harness.container, "Show input effects"));
+    });
+
+    expect(harness.container.textContent).toContain("Hide input effects");
+    expect(harness.container.textContent).toContain(
+      "Recomputes the rendered chart series from the selected source rows.",
+    );
   });
 
   it("allows seedData to bind incremental updates outputs directly", async () => {
