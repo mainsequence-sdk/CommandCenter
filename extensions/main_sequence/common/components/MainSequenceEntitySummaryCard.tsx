@@ -37,6 +37,7 @@ import {
   addSummaryLabel,
   canMutateSummaryLabels,
   formatMainSequenceError,
+  getSummaryLabels,
   removeSummaryLabel,
   type SummaryField,
   type SummaryResponse,
@@ -264,7 +265,8 @@ export function MainSequenceEntitySummaryCard({
   const { toast } = useToast();
   const [editingItemKey, setEditingItemKey] = useState<string | null>(null);
   const [labelInput, setLabelInput] = useState("");
-  const [localLabels, setLocalLabels] = useState<string[]>(summary.labels ?? []);
+  const summaryLabels = getSummaryLabels(summary);
+  const [localLabels, setLocalLabels] = useState<string[]>(summaryLabels);
   const [labelInputOpen, setLabelInputOpen] = useState(false);
   const [activeLabelMutation, setActiveLabelMutation] = useState<{
     action: "add" | "remove";
@@ -273,7 +275,7 @@ export function MainSequenceEntitySummaryCard({
   const editableItems = [...summary.inline_fields, ...summary.highlight_fields, ...summary.stats];
   const editingItem =
     editableItems.find((item) => isEditableItem(item) && item.key === editingItemKey) ?? null;
-  const isLabelable = summary.labelable === true && canMutateSummaryLabels(summary);
+  const isLabelable = canMutateSummaryLabels(summary);
   const displayedLabels = useMemo(
     () =>
       Array.from(
@@ -287,8 +289,8 @@ export function MainSequenceEntitySummaryCard({
   );
 
   useEffect(() => {
-    setLocalLabels(summary.labels ?? []);
-  }, [summary.entity.id, summary.entity.type, summary.labels]);
+    setLocalLabels(summaryLabels);
+  }, [summary.entity.id, summary.entity.type, summaryLabels]);
 
   useEffect(() => {
     setLabelInput("");

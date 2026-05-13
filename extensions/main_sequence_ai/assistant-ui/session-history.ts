@@ -20,7 +20,6 @@ type HistoryMessagePart =
 export interface SessionHistoryApiSession {
   sessionId: string;
   threadId: string | null;
-  agentName: string;
   agentId: number | null;
   agentSessionId: string | null;
   status: HistoryMessageStatus;
@@ -262,10 +261,6 @@ function normalizeSession(value: unknown): SessionHistoryApiSession {
       typeof candidate.threadId === "string" && candidate.threadId.trim()
         ? candidate.threadId.trim()
         : null,
-    agentName:
-      typeof candidate.agentName === "string" && candidate.agentName.trim()
-        ? candidate.agentName.trim()
-        : "",
     agentId: parsedAgentId !== null && Number.isFinite(parsedAgentId) ? parsedAgentId : null,
     agentSessionId:
       typeof rawAgentSessionId === "string" && rawAgentSessionId.trim()

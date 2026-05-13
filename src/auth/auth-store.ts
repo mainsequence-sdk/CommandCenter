@@ -89,6 +89,7 @@ interface AuthState {
   completeSocialLogin: (input: SocialAuthTokenExchangeInput) => Promise<boolean>;
   applyJwtResponse: (responseData: Record<string, unknown>) => Promise<boolean>;
   refreshSession: () => Promise<boolean>;
+  clearLocalSession: () => void;
   logout: () => void;
   resetLoginState: () => void;
   can: (permission: string | string[]) => boolean;
@@ -302,6 +303,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     return refreshPromise;
   },
+  clearLocalSession() {
+    clearStoredJwtSession();
+    clearRefreshTimer();
+    set({
+      session: null,
+      refreshToken: null,
+      authMode: "jwt",
+      status: "anonymous",
+      error: null,
+      challenge: null,
+    });
+  },
   logout() {
     const activeToken = get().session?.token;
     const tokenType = get().session?.tokenType || "Bearer";
@@ -313,16 +326,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
     }
 
-    clearStoredJwtSession();
-    clearRefreshTimer();
-    set({
-      session: null,
-      refreshToken: null,
-      authMode: "jwt",
-      status: "anonymous",
-      error: null,
-      challenge: null,
-    });
+    get().clearLocalSession();
   },
   resetLoginState() {
     set({ error: null, challenge: null });

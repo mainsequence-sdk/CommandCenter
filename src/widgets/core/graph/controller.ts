@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
-import type { WidgetController } from "@/widgets/types";
+import type { ResolvedWidgetInputs, WidgetController } from "@/widgets/types";
+import { useRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 
 import { type PickerOption } from "@/widgets/shared/picker-field";
 import {
@@ -18,12 +19,39 @@ import {
   useTabularWidgetSourceControllerContext,
   type TabularWidgetSourceControllerContext,
 } from "@/widgets/shared/tabular-widget-source";
+import { resolveIncrementalTabularBindingSnapshot } from "@/widgets/shared/incremental-tabular-consumer";
+
+const GRAPH_LIVE_UPDATE_MERGE_KEY_FIELDS: string[] = [];
 
 export interface GraphControllerContext
   extends TabularWidgetSourceControllerContext<ReturnType<typeof resolveGraphConfig>> {
   xAxisOptions: PickerOption[];
   yAxisOptions: PickerOption[];
   groupOptions: PickerOption[];
+}
+
+function hasGraphFieldHints(
+  dataset: Parameters<typeof buildGraphFieldOptionsFromRuntime>[0],
+) {
+  return (
+    (dataset?.fields?.length ?? 0) > 0 ||
+    (dataset?.columns?.length ?? 0) > 0 ||
+    (dataset?.rows?.some((row) => Object.keys(row).length > 0) ?? false)
+  );
+}
+
+function mergeGraphFieldOptions(optionGroups: TabularFieldOption[][]) {
+  const merged = new Map<string, TabularFieldOption>();
+
+  optionGroups.forEach((options) => {
+    options.forEach((option) => {
+      if (!merged.has(option.key)) {
+        merged.set(option.key, option);
+      }
+    });
+  });
+
+  return Array.from(merged.values());
 }
 
 function toPickerOption(option: TabularFieldOption) {
@@ -40,10 +68,15 @@ function toPickerOption(option: TabularFieldOption) {
 export function useGraphControllerContext({
   props,
   instanceId,
+  runtimeState,
+  resolvedInputs,
 }: {
   props: GraphWidgetProps;
   instanceId?: string;
+  runtimeState?: Record<string, unknown>;
+  resolvedInputs?: ResolvedWidgetInputs;
 }): GraphControllerContext {
+  const runtimeDataStore = useRuntimeDataStore();
   const normalizedProps = useMemo(
     () => normalizeGraphProps(props),
     [props],
@@ -52,15 +85,62 @@ export function useGraphControllerContext({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
     queryKeyScope: "data_node_visualizer",
+    resolvedInputs,
     resolveConfig: resolveGraphConfig,
   });
+  const incrementalBinding = useMemo(
+    () =>
+      resolveIncrementalTabularBindingSnapshot({
+        liveMergeKeyFields: GRAPH_LIVE_UPDATE_MERGE_KEY_FIELDS,
+        resolvedInputs,
+        runtimeState,
+        runtimeDataStore,
+      }),
+    [resolvedInputs, runtimeDataStore, runtimeState],
+  );
+  const linkedBaseDataset = useMemo(
+    () =>
+      resolveGraphDatasetFrame(
+        incrementalBinding.active
+          ? incrementalBinding.dataset
+          : sourceContext.resolvedSourceDataset,
+      ),
+    [
+      incrementalBinding.active,
+      incrementalBinding.dataset,
+      sourceContext.resolvedSourceDataset,
+    ],
+  );
+  const linkedDeltaDataset = useMemo(
+    () =>
+      resolveGraphDatasetFrame(
+        incrementalBinding.active
+          ? incrementalBinding.deltaDataset
+          : sourceContext.resolvedSourceDeltaFrame,
+      ),
+    [
+      incrementalBinding.active,
+      incrementalBinding.deltaDataset,
+      sourceContext.resolvedSourceDeltaFrame,
+    ],
+  );
   const linkedDataset = useMemo(
-    () => resolveGraphDatasetFrame(sourceContext.resolvedSourceDataset),
-    [sourceContext.resolvedSourceDataset],
+    () =>
+      hasGraphFieldHints(linkedBaseDataset)
+        ? linkedBaseDataset
+        : linkedDeltaDataset ?? linkedBaseDataset,
+    [
+      linkedBaseDataset,
+      linkedDeltaDataset,
+    ],
   );
   const runtimeFieldOptions = useMemo(
-    () => buildGraphFieldOptionsFromRuntime(linkedDataset),
-    [linkedDataset],
+    () =>
+      mergeGraphFieldOptions([
+        buildGraphFieldOptionsFromRuntime(linkedBaseDataset),
+        buildGraphFieldOptionsFromRuntime(linkedDeltaDataset),
+      ]),
+    [linkedBaseDataset, linkedDeltaDataset],
   );
   const resolvedConfig = useMemo(
     () =>
@@ -119,7 +199,17 @@ export function useGraphControllerContext({
 
   return {
     ...sourceContext,
+    consumerState: incrementalBinding.active
+      ? incrementalBinding.consumerState
+      : sourceContext.consumerState,
+    isAwaitingBoundSourceValue: incrementalBinding.active
+      ? incrementalBinding.consumerState.kind === "awaiting-upstream"
+      : sourceContext.isAwaitingBoundSourceValue,
+    requiresUpstreamResolution: incrementalBinding.active
+      ? incrementalBinding.requiresUpstreamResolution
+      : sourceContext.requiresUpstreamResolution,
     resolvedSourceDataset: linkedDataset,
+    resolvedSourceDeltaFrame: linkedDeltaDataset,
     fieldPickerOptions,
     resolvedConfig,
     xAxisOptions,
@@ -133,6 +223,6 @@ export const graphWidgetController: WidgetController<
   GraphControllerContext
 > = {
   normalizeProps: (props) => normalizeGraphProps(props),
-  useContext: ({ props, instanceId }) =>
-    useGraphControllerContext({ props, instanceId }),
+  useContext: ({ props, instanceId, resolvedInputs, runtimeState }) =>
+    useGraphControllerContext({ props, instanceId, resolvedInputs, runtimeState }),
 };

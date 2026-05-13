@@ -18,6 +18,7 @@ import {
   resolveGraphEffectiveTimeAxisMode,
   resolveGraphDatasetFrame,
   resolveGraphNormalizationTimeMs,
+  resolveGraphTimeQuantization,
   type GraphViewMode,
   type GraphWidgetProps,
 } from "./graphModel";
@@ -169,6 +170,7 @@ function buildSeriesStylingEmptyMessage(input: {
 
 export function GraphWidgetSettings({
   widget,
+  instanceId,
   draftProps,
   draftPresentation,
   onDraftPresentationChange,
@@ -223,8 +225,25 @@ export function GraphWidgetSettings({
         previewSeriesResult.series,
         previewTimeAxisMode,
         resolvedConfig?.provider ?? "tradingview",
+        resolvedConfig?.timeQuantization ?? "auto",
       ),
-    [previewSeriesResult.series, previewTimeAxisMode, resolvedConfig?.provider],
+    [
+      previewSeriesResult.series,
+      previewTimeAxisMode,
+      resolvedConfig?.provider,
+      resolvedConfig?.timeQuantization,
+    ],
+  );
+  const previewTimeQuantization = useMemo(
+    () =>
+      resolveGraphTimeQuantization(
+        {
+          provider: resolvedConfig?.provider ?? "tradingview",
+          timeQuantization: resolvedConfig?.timeQuantization ?? "auto",
+        },
+        previewTimeAxisMode,
+      ),
+    [previewTimeAxisMode, resolvedConfig?.provider, resolvedConfig?.timeQuantization],
   );
   const previewTableColumns = useMemo(
     () =>
@@ -251,24 +270,24 @@ export function GraphWidgetSettings({
       ? "Rows were loaded, but the selected X field is not time-like or the Y field is not numeric."
       : "No chartable rows are available for the selected range.";
   const canRenderChartPreview = Boolean(resolvedConfig?.xField && resolvedConfig?.yField);
-  const suggestedGroupField = null;
   const previewChartCollisionMessage = useMemo(() => {
     if (previewChartSeriesResult.collapsedPointCount <= 0) {
       return null;
     }
 
-    const baseMessage = `Merged ${previewChartSeriesResult.collapsedPointCount.toLocaleString()} preview row ${
-      previewChartSeriesResult.collapsedPointCount === 1 ? "collision" : "collisions"
-    } that resolved to the same chart second. The preview keeps the latest point per second.`;
+    const providerNote =
+      previewTimeQuantization.providerLimited && resolvedConfig?.provider === "tradingview"
+        ? " TradingView requires at least 1-second timestamps; use ECharts for raw sub-second ticks."
+        : "";
 
-    if (suggestedGroupField) {
-      return `${baseMessage} Consider grouping by ${suggestedGroupField}.`;
-    }
-
-    return baseMessage;
+    return `Collapsed ${previewChartSeriesResult.collapsedPointCount.toLocaleString()} preview point ${
+      previewChartSeriesResult.collapsedPointCount === 1 ? "update" : "updates"
+    } into ${previewTimeQuantization.label.toLowerCase()} buckets. The preview keeps the latest point in each bucket.${providerNote}`;
   }, [
     previewChartSeriesResult.collapsedPointCount,
-    suggestedGroupField,
+    previewTimeQuantization.label,
+    previewTimeQuantization.providerLimited,
+    resolvedConfig?.provider,
   ]);
 
   const seriesStyleRows = useMemo(() => {
@@ -353,6 +372,7 @@ export function GraphWidgetSettings({
     <div className="space-y-4">
       <WidgetSchemaForm
         widget={widget}
+        instanceId={instanceId}
         draftProps={draftProps}
         onDraftPropsChange={onDraftPropsChange}
         draftPresentation={draftPresentation}

@@ -29,6 +29,8 @@ import {
   type StatisticWidgetProps,
 } from "./statisticModel";
 
+const STATISTIC_LIVE_UPDATE_MERGE_KEY_FIELDS: string[] = [];
+
 function resolveStatisticSnapshotSourceDataset(input: {
   props: StatisticWidgetProps;
   resolvedInputs: ResolvedWidgetInputs | undefined;
@@ -37,6 +39,7 @@ function resolveStatisticSnapshotSourceDataset(input: {
   resolveWidgetRuntimeState?: (instanceId: string | undefined) => Record<string, unknown> | undefined;
 }) {
   const incrementalDataset = resolveIncrementalTabularOutputFrame({
+    liveMergeKeyFields: STATISTIC_LIVE_UPDATE_MERGE_KEY_FIELDS,
     resolvedInputs: input.resolvedInputs,
     runtimeState: input.runtimeState,
     runtimeDataStore: input.runtimeDataStore,
@@ -89,7 +92,7 @@ function resolveStatisticSnapshotSourceDataset(input: {
 
 export const statisticWidget = defineWidget<StatisticWidgetProps>({
   id: "statistic",
-  widgetVersion: "3.0.2",
+  widgetVersion: "3.0.3",
   title: "Statistic",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",

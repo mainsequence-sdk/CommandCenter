@@ -2,8 +2,14 @@ import { useMemo } from "react";
 
 import { LayoutDashboard } from "lucide-react";
 
+import { useResolvedWidgetIo } from "@/dashboards/DashboardWidgetDependencies";
+import { parseWidgetReferencePropInputPath } from "@/dashboards/widget-instance-references";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  WidgetSettingReferenceControl,
+  updateSingleWidgetBinding,
+} from "@/widgets/shared/widget-setting-reference-control";
 import {
   resolveWidgetFieldState,
   updateWidgetFieldExposure,
@@ -12,6 +18,7 @@ import {
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 import type {
   WidgetDefinition,
+  WidgetInstanceBindings,
   WidgetInstancePresentation,
   WidgetSettingsSchema,
 } from "@/widgets/types";
@@ -29,27 +36,47 @@ export function WidgetSchemaForm<
   TContext = unknown,
 >({
   widget,
+  instanceId,
   draftProps,
+  draftBindings,
   draftPresentation,
+  onDraftBindingsChange,
   onDraftPropsChange,
   onDraftPresentationChange,
   editable,
   context,
 }: {
   widget: WidgetDefinition<TProps>;
+  instanceId: string;
   draftProps: TProps;
+  draftBindings?: WidgetInstanceBindings;
   draftPresentation: WidgetInstancePresentation;
+  onDraftBindingsChange?: (bindings: WidgetInstanceBindings | undefined) => void;
   onDraftPropsChange: (props: TProps) => void;
   onDraftPresentationChange: (presentation: WidgetInstancePresentation) => void;
   editable: boolean;
   context: TContext;
 }) {
   const schema = widget.schema as WidgetSettingsSchema<TProps, TContext> | undefined;
+  const resolvedIo = useResolvedWidgetIo(instanceId);
   const visibleFields = useVisibleWidgetSchemaFields(widget, draftProps, editable, context);
   const visibleFieldIds = useMemo(
     () => new Set(visibleFields.map((field) => field.id)),
     [visibleFields],
   );
+  const referenceInputsByFieldId = useMemo(() => {
+    const entries = (resolvedIo?.inputs ?? []).flatMap((input) => {
+      const path = parseWidgetReferencePropInputPath(input.id);
+
+      if (!path || path.length === 0) {
+        return [];
+      }
+
+      return [[path.join("."), input] as const];
+    });
+
+    return new Map(entries);
+  }, [resolvedIo?.inputs]);
 
   if (!schema || visibleFields.length === 0) {
     return null;
@@ -86,6 +113,9 @@ export function WidgetSchemaForm<
 
                 const fieldState = resolveWidgetFieldState(draftPresentation, field, index);
                 const canPop = field.pop?.canPop === true;
+                const referenceInput = referenceInputsByFieldId.get(field.id);
+                const referenceBinding = referenceInput ? draftBindings?.[referenceInput.id] : undefined;
+                const referenceActive = Boolean(referenceBinding);
 
                 return (
                   <div
@@ -103,45 +133,66 @@ export function WidgetSchemaForm<
                         {field.label}
                       </WidgetSettingFieldLabel>
 
-                      {canPop ? (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          disabled={!editable}
-                          aria-label={
-                            fieldState.visible
-                              ? `Hide ${field.label} on canvas`
-                              : `Show ${field.label} on canvas`
-                          }
-                          title={
-                            fieldState.visible
-                              ? `Hide ${field.label} on canvas`
-                              : `Show ${field.label} on canvas`
-                          }
-                          className={cn(
-                            "h-8 w-8 shrink-0 border",
-                            fieldState.visible
-                              ? "border-primary/55 bg-primary/12 text-primary hover:bg-primary/16 hover:text-primary"
-                              : "border-border/70 text-muted-foreground hover:border-primary/45 hover:text-foreground",
-                          )}
-                          onClick={() => {
-                            onDraftPresentationChange(
-                              updateWidgetFieldExposure(
-                                draftPresentation,
-                                field,
-                                !fieldState.visible,
-                                index,
-                              ),
-                            );
-                          }}
-                        >
-                          <LayoutDashboard className="h-3.5 w-3.5" />
-                        </Button>
-                      ) : null}
+                      <div className="flex items-center gap-2">
+                        {referenceInput && onDraftBindingsChange ? (
+                          <WidgetSettingReferenceControl
+                            editable={editable}
+                            instanceId={instanceId}
+                            input={referenceInput}
+                            value={referenceBinding}
+                            onBindingChange={(binding) => {
+                              onDraftBindingsChange(
+                                updateSingleWidgetBinding(draftBindings, referenceInput.id, binding),
+                              );
+                            }}
+                          />
+                        ) : null}
+
+                        {canPop ? (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            disabled={!editable}
+                            aria-label={
+                              fieldState.visible
+                                ? `Hide ${field.label} on canvas`
+                                : `Show ${field.label} on canvas`
+                            }
+                            title={
+                              fieldState.visible
+                                ? `Hide ${field.label} on canvas`
+                                : `Show ${field.label} on canvas`
+                            }
+                            className={cn(
+                              "h-8 w-8 shrink-0 border",
+                              fieldState.visible
+                                ? "border-primary/55 bg-primary/12 text-primary hover:bg-primary/16 hover:text-primary"
+                                : "border-border/70 text-muted-foreground hover:border-primary/45 hover:text-foreground",
+                            )}
+                            onClick={() => {
+                              onDraftPresentationChange(
+                                updateWidgetFieldExposure(
+                                  draftPresentation,
+                                  field,
+                                  !fieldState.visible,
+                                  index,
+                                ),
+                              );
+                            }}
+                          >
+                            <LayoutDashboard className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
 
-                    <div className={cn("min-h-0")}>
+                    <div
+                      className={cn(
+                        "min-h-0",
+                        referenceActive ? "pointer-events-none opacity-60" : undefined,
+                      )}
+                    >
                       <SettingsRenderer
                         field={field}
                         widget={widget}
@@ -149,7 +200,7 @@ export function WidgetSchemaForm<
                         onDraftPropsChange={onDraftPropsChange}
                         draftPresentation={draftPresentation}
                         onDraftPresentationChange={onDraftPresentationChange}
-                        editable={editable}
+                        editable={editable && !referenceActive}
                         context={context}
                       />
                     </div>

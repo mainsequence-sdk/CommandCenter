@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Loader2 } from "lucide-react";
@@ -72,6 +72,10 @@ export function LoginPage() {
   const [setupCode, setSetupCode] = useState("");
   const [socialAuthError, setSocialAuthError] = useState<string | null>(null);
   const [activeSocialProviderId, setActiveSocialProviderId] = useState<string | null>(null);
+  const accountDeleted = useMemo(
+    () => new URLSearchParams(location.search).get("account_deleted") === "1",
+    [location.search],
+  );
 
   const redirectTarget = resolveRedirectTarget(
     (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null) ??
@@ -201,6 +205,14 @@ export function LoginPage() {
           </CardHeader>
 
           <CardContent>
+            {accountDeleted ? (
+              <div className="mb-4 rounded-[calc(var(--radius)-6px)] border border-success/30 bg-success/10 px-3 py-3 text-sm text-foreground">
+                <div className="font-medium text-foreground">Account deleted</div>
+                <div className="mt-1 text-muted-foreground">
+                  Your account was deleted successfully.
+                </div>
+              </div>
+            ) : null}
             <form className="space-y-4" autoComplete="off" onSubmit={handleSubmit}>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-foreground">

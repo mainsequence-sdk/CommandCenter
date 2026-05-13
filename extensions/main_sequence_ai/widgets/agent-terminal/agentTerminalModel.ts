@@ -25,7 +25,8 @@ export const AGENT_TERMINAL_LATEST_ASSISTANT_UPDATED_AT_RUNTIME_KEY = "latestAss
 
 export type AgentTerminalWidgetProps = Record<string, unknown> & {
   agentId?: string;
-  agentName?: string;
+  agentType?: string;
+  agentLabel?: string;
   agentSessionId?: string;
   blockUserInput?: boolean;
   loadInitialHistory?: boolean;
@@ -45,10 +46,10 @@ export interface AgentTerminalLine {
 }
 
 export interface AgentTerminalSessionState {
-  agentName: string;
+  displayLabel: string;
   llmModel?: string | null;
   llmProvider?: string | null;
-  requestAgentName: string | null;
+  requestAgentType: string | null;
   serializedSession: AgentSessionSerializedRecord | null;
   sessionId: string;
   threadId: string | null;
@@ -217,7 +218,8 @@ export function normalizeAgentTerminalWidgetProps(
   const agentId = normalizeOptionalIdentifier(props.agentId);
   const normalizedSessionId =
     typeof props.agentSessionId === "string" ? props.agentSessionId.trim() : "";
-  const agentName = normalizeOptionalTrimmedString(props.agentName);
+  const agentType = normalizeOptionalTrimmedString(props.agentType);
+  const agentLabel = normalizeOptionalTrimmedString(props.agentLabel);
   const loadInitialHistory = props.loadInitialHistory === true;
   const blockUserInput = props.blockUserInput === true;
   const historyRefreshMode = normalizeAgentTerminalHistoryRefreshMode(props.historyRefreshMode);
@@ -228,7 +230,8 @@ export function normalizeAgentTerminalWidgetProps(
 
   return {
     ...(agentId ? { agentId } : {}),
-    ...(agentName ? { agentName } : {}),
+    ...(agentType ? { agentType } : {}),
+    ...(agentLabel ? { agentLabel } : {}),
     ...(normalizedSessionId ? { agentSessionId: normalizedSessionId } : {}),
     ...(blockUserInput ? { blockUserInput: true } : {}),
     ...(loadInitialHistory ? { loadInitialHistory: true } : {}),
@@ -426,16 +429,16 @@ export function extractLatestAssistantMarkdown(
   return null;
 }
 
-export function buildAgentTerminalPrompt(sessionId: string, agentName?: string | null) {
-  const normalizedAgentName = normalizeOptionalTrimmedString(agentName)
+export function buildAgentTerminalPrompt(sessionId: string, agentLabel?: string | null) {
+  const normalizedAgentLabel = normalizeOptionalTrimmedString(agentLabel)
     ?.replace(/\s+/g, "-")
     .toLowerCase();
 
-  if (normalizedAgentName) {
+  if (normalizedAgentLabel) {
     const agentPrompt =
-      normalizedAgentName.length <= 28
-        ? normalizedAgentName
-        : `${normalizedAgentName.slice(0, 18)}...${normalizedAgentName.slice(-7)}`;
+      normalizedAgentLabel.length <= 28
+        ? normalizedAgentLabel
+        : `${normalizedAgentLabel.slice(0, 18)}...${normalizedAgentLabel.slice(-7)}`;
 
     return `you@${agentPrompt}>`;
   }
@@ -543,7 +546,7 @@ export function buildAgentTerminalSessionLines({
 }) {
   const lines: AgentTerminalLine[] = [
     createAgentTerminalOutputLine({
-      text: `[session] ${session.agentName} (${session.sessionId})`,
+      text: `[session] ${session.displayLabel} (${session.sessionId})`,
       tone: "muted",
     }),
   ];

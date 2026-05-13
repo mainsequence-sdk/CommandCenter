@@ -1,6 +1,5 @@
 export interface SessionInsightsSession {
   agentId: number | null;
-  agentName: string | null;
   agentSessionId: string | null;
   lastError: string | null;
   sessionId: string | null;
@@ -233,7 +232,6 @@ function normalizeSession(
 
   return {
     agentId: normalizeNumber(readCandidateValue(candidate, "agentId", "agent_id")),
-    agentName: normalizeString(readCandidateValue(candidate, "agentName", "agent_name")),
     agentSessionId: normalizeString(
       readCandidateValue(candidate, "agentSessionId", "agent_session_id"),
     ) ?? normalizeString(fallback.agentSessionId),

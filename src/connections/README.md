@@ -23,6 +23,10 @@ connection ADR. Connections are platform data-access resources, not widgets.
 - `connectionStreamPreview.ts`: preview-only accumulation helper for WebSocket test and Explore
   surfaces. It keeps bounded chart history, projects query-model graph hints into preview graph
   defaults, and preserves canonical source-widget runtime semantics.
+- `connection-runtime-store.tsx`: workspace-scoped browser runtime store for active
+  connection/query sessions. It lets source widgets acquire WebSocket sessions once per effective
+  request while settings, rails, charts, and passive widgets observe the same active status without
+  opening diagnostic sockets.
 - `ConnectionExploreSurface.tsx`: generic Data Sources Explore surface. It reuses the same shared
   workbench used by connection-query widgets, exposes an explicit HTTP-vs-WS transport selector
   when the selected connection has streamable query models, and delegates connection-specific
@@ -31,7 +35,9 @@ connection ADR. Connections are platform data-access resources, not widgets.
   execution, and normalized response preview surface used by workspace Connection Query widget
   settings and Data Sources Explore.
 - `ConnectionStreamQueryTestPanel.tsx`: shared WebSocket test action for streamable connection
-  queries. It sends the query-shaped subscribe payload, previews streamed frames through
+  queries. When the workspace runtime already has a matching active stream in
+  `connection-runtime-store.tsx`, it shows that live status instead of opening a second socket.
+  Otherwise it sends the query-shaped subscribe payload, previews streamed frames through
   `ConnectionQueryResponsePreview.tsx`, and shows lifecycle, sequence, emitted-time, heartbeat,
   preview retention metrics, error metadata, plus explicit ticket-request and socket-connect
   diagnostics for stream startup.
@@ -141,6 +147,9 @@ connection ADR. Connections are platform data-access resources, not widgets.
 - Preview accumulation for WebSocket testing is diagnostic UI state only. Keep it in
   `connectionStreamPreview.ts` and the test/explore shell; do not write accumulated preview rows
   back into canonical widget runtime state or workspace storage.
+- Workspace runtime-owned WebSocket streams must acquire sessions through
+  `connection-runtime-store.tsx`. Settings and diagnostic panels should observe an existing active
+  store entry instead of opening a second socket for the same effective request.
 - Do not reintroduce synthetic system connection instances anywhere in connection-owned code. Legacy
   placeholder ids may be recognized only to clear or repair saved refs; they must never appear as
   selectable instances or runtime execution ids.

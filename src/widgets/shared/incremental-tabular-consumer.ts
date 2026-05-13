@@ -202,11 +202,11 @@ function serializeStoredFrame(frame: TabularFrameSourceV1 | null | undefined) {
 
   return stableJsonStringify({
     status: frame.status,
+    error: frame.error,
     columns: frame.columns,
     rows: frame.rows,
     fields: frame.fields,
     meta: frame.meta,
-    updatedAtMs: frame.source?.updatedAtMs,
   });
 }
 
@@ -215,18 +215,7 @@ function serializeByValueFrameIdentity(frame: TabularFrameSourceV1 | null | unde
     return "null";
   }
 
-  return stableJsonStringify({
-    status: frame.status,
-    error: frame.error,
-    rowCount: frame.rows.length,
-    columnCount: frame.columns.length,
-    fields: frame.fields?.map((field) => ({
-      key: field.key,
-      type: field.type,
-    })),
-    meta: frame.meta,
-    updatedAtMs: frame.source?.updatedAtMs,
-  });
+  return serializeStoredFrame(stripConsumerContextFromFrame(frame));
 }
 
 function serializeRuntimeDataRef(ref: RuntimeTabularFrameRef | null | undefined) {
@@ -315,7 +304,12 @@ function normalizePublicationRole(
 function resolvePublicationMergeKeyFields(
   publication: IncrementalTabularPublication | null | undefined,
   fallback?: string[],
+  override?: string[],
 ) {
+  if (override !== undefined) {
+    return override;
+  }
+
   const mergeKeyFields = normalizeStringArray(publication?.update?.diagnostics?.mergeKeyFields);
   return mergeKeyFields.length > 0 ? mergeKeyFields : (fallback ?? []);
 }
@@ -392,8 +386,6 @@ function buildPublicationSignature(input: {
           rowCount: input.deltaRef.rowCount,
         }
       : undefined,
-    baseUpdatedAtMs: input.baseRef ? undefined : input.baseFrame?.source?.updatedAtMs,
-    deltaUpdatedAtMs: input.deltaRef ? undefined : input.deltaFrame?.source?.updatedAtMs,
     baseFrame: input.baseRef ? undefined : serializeByValueFrameIdentity(input.baseFrame),
     deltaFrame: input.deltaRef ? undefined : serializeByValueFrameIdentity(input.deltaFrame),
   });
@@ -796,6 +788,7 @@ function applyLivePublication(
   previousFrame: TabularFrameSourceV1 | null,
   publication: IncrementalTabularPublication,
   meta: IncrementalTabularConsumerMeta | undefined,
+  liveMergeKeyFieldsOverride?: string[],
 ) {
   if (publication.role === "seed") {
     return applySeedFrame(previousFrame, publication);
@@ -817,7 +810,11 @@ function applyLivePublication(
     return publication.baseFrame ?? previousFrame;
   }
 
-  const mergeKeyFields = resolvePublicationMergeKeyFields(publication, meta?.liveMergeKeyFields);
+  const mergeKeyFields = resolvePublicationMergeKeyFields(
+    publication,
+    meta?.liveMergeKeyFields,
+    liveMergeKeyFieldsOverride,
+  );
 
   return mergeDeltaFrame(previousFrame, publication.deltaFrame, mergeKeyFields);
 }
@@ -902,14 +899,11 @@ function serializeFrameState(frame: TabularFrameSourceV1 | null | undefined) {
   }
 
   const runtimeRef = getRuntimeDataRef(frame);
+  const normalizedFrame = stripConsumerContextFromFrame(frame);
 
   return stableJsonStringify({
-    status: frame.status,
-    error: frame.error,
-    rowCount: frame.rows.length,
-    columnCount: frame.columns.length,
     runtimeRef: runtimeRef ? serializeRuntimeDataRef(runtimeRef) : undefined,
-    updatedAtMs: runtimeRef ? undefined : frame.source?.updatedAtMs,
+    frame: runtimeRef ? undefined : serializeStoredFrame(normalizedFrame),
     meta: readConsumerMeta(frame),
   });
 }
@@ -1125,6 +1119,7 @@ export function resolveIncrementalTabularRuntimeFrame(
 
 export function resolveIncrementalTabularOutputFrame(input: {
   resolvedInputs: ResolvedWidgetInputs | undefined;
+  liveMergeKeyFields?: string[];
   runtimeState?: unknown;
   runtimeDataStore?: RuntimeDataStore | null;
   runtimeRowSelector?: RuntimeRowSelector;
@@ -1189,7 +1184,11 @@ export function resolveIncrementalTabularOutputFrame(input: {
   const combinedFrame = combineSeedAndLiveFrames({
     seedFrame,
     liveFrame,
-    mergeKeyFields: resolvePublicationMergeKeyFields(livePublication),
+    mergeKeyFields: resolvePublicationMergeKeyFields(
+      livePublication,
+      undefined,
+      input.liveMergeKeyFields,
+    ),
   });
 
   return combinedFrame?.status === "idle" ? null : combinedFrame;
@@ -1197,6 +1196,7 @@ export function resolveIncrementalTabularOutputFrame(input: {
 
 export function resolveIncrementalTabularBindingSnapshot(input: {
   resolvedInputs: ResolvedWidgetInputs | undefined;
+  liveMergeKeyFields?: string[];
   runtimeState?: unknown;
   runtimeDataStore?: RuntimeDataStore | null;
   runtimeRowSelector?: RuntimeRowSelector;
@@ -1239,6 +1239,7 @@ export function resolveIncrementalTabularBindingSnapshot(input: {
 
 export function useIncrementalTabularConsumerBindingState(input: {
   instanceId?: string;
+  liveMergeKeyFields?: string[];
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   resolvedInputs?: ResolvedWidgetInputs;
   runtimeRetention?: RuntimeRetentionPolicy;
@@ -1246,6 +1247,13 @@ export function useIncrementalTabularConsumerBindingState(input: {
   runtimeState?: Record<string, unknown>;
 }) {
   const runtimeDataStore = useRuntimeDataStore();
+  const liveMergeKeyFieldsOverride = useMemo(
+    () =>
+      input.liveMergeKeyFields === undefined
+        ? undefined
+        : normalizeStringArray(input.liveMergeKeyFields),
+    [input.liveMergeKeyFields],
+  );
   const seedInput = normalizeResolvedWidgetInput(input.resolvedInputs?.[TABULAR_SEED_INPUT_ID]);
   const liveInput = normalizeResolvedWidgetInput(input.resolvedInputs?.[TABULAR_LIVE_UPDATES_INPUT_ID]);
   const seedState = useMemo(() => buildInputConsumerState(seedInput), [seedInput]);
@@ -1297,6 +1305,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
     const effectiveLiveMergeKeyFields = resolvePublicationMergeKeyFields(
       livePublication,
       currentMeta?.liveMergeKeyFields,
+      liveMergeKeyFieldsOverride,
     );
     const reductionSignature = buildReductionSignature({
       seedPublication,
@@ -1342,13 +1351,19 @@ export function useIncrementalTabularConsumerBindingState(input: {
       livePublication &&
       (livePublication.signature !== currentMeta?.lastLiveSignature || !nextLiveFrame)
     ) {
-      const liveFrame = applyLivePublication(nextLiveFrame, livePublication, currentMeta);
+      const liveFrame = applyLivePublication(
+        nextLiveFrame,
+        livePublication,
+        currentMeta,
+        liveMergeKeyFieldsOverride,
+      );
 
       if (liveFrame) {
         nextLiveFrame = liveFrame;
         nextLiveMergeKeyFields = resolvePublicationMergeKeyFields(
           livePublication,
           currentMeta?.liveMergeKeyFields,
+          liveMergeKeyFieldsOverride,
         );
         nextMeta = buildConsumerMeta(nextMeta, {
           lastLiveSignature: livePublication.signature,
@@ -1512,6 +1527,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
     input.runtimeRetention,
     input.runtimeRowSelector,
     input.runtimeState,
+    liveMergeKeyFieldsOverride,
     livePublication,
     runtimeFrameSignature,
     runtimeDataStore,
@@ -1521,6 +1537,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
   return useMemo(
     () =>
       resolveIncrementalTabularBindingSnapshot({
+        liveMergeKeyFields: liveMergeKeyFieldsOverride,
         resolvedInputs: input.resolvedInputs,
         runtimeState: input.runtimeState,
         runtimeDataStore,
@@ -1528,6 +1545,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
       }),
     [
       input.resolvedInputs,
+      liveMergeKeyFieldsOverride,
       input.runtimeRowSelector,
       input.runtimeState,
       runtimeDataStore,

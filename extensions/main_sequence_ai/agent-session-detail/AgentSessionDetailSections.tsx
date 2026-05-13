@@ -123,9 +123,9 @@ export function AgentSessionDetailSections({
           <SessionField label="Display Session ID" value={detail.context.sessionDisplayId} mono />
           <SessionField label="Status" value={core.status} />
           <SessionField label="Working" value={formatBoolean(core.working || detail.context.working)} />
-          <SessionField label="Agent Name" value={core.agentName || detail.context.requestName} />
-          <SessionField label="Actor Name" value={core.actorName || detail.context.displayName} />
-          <SessionField label="Request Name" value={detail.context.requestName} mono />
+          <SessionField label="Agent Type" value={core.agentType} />
+          <SessionField label="Actor Name" value={core.actorName} />
+          <SessionField label="Request Agent Type" value={detail.context.requestAgentType} mono />
           <SessionField label="Agent Unique ID" value={detail.context.agentUniqueId} mono />
         </div>
 

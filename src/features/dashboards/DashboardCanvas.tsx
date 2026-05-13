@@ -53,7 +53,7 @@ import {
   resolveWidgetInstancePresentation,
   useResolvedWidgetControllerContext,
 } from "@/widgets/shared/widget-schema";
-import type { WidgetInstancePresentation } from "@/widgets/types";
+import type { WidgetInstanceBindings, WidgetInstancePresentation } from "@/widgets/types";
 import type { WidgetHeaderActionsProps } from "@/widgets/types";
 import {
   sanitizeWorkspaceSlideProps,
@@ -114,6 +114,7 @@ function jsonValueEquals(a: unknown, b: unknown) {
 }
 
 interface WidgetInstanceOverride {
+  bindings?: WidgetInstanceBindings;
   props?: Record<string, unknown>;
   presentation?: WidgetInstancePresentation | null;
   runtimeState?: Record<string, unknown> | null;
@@ -134,6 +135,10 @@ function applyWidgetOverride(
       "title" in override
         ? (override.title ?? undefined)
         : instance.title,
+    bindings:
+      "bindings" in override
+        ? override.bindings
+        : instance.bindings,
     props:
       "props" in override
         ? override.props
@@ -1020,10 +1025,11 @@ function DashboardCanvasSurface({
                 onClose={() => {
                   setSettingsInstanceId(null);
                 }}
-                onSave={({ title, props, presentation }) => {
+                onSave={({ title, props, bindings, presentation }) => {
                   setWidgetOverrides((current) => ({
                     ...current,
                     [settingsInstance.id]: {
+                      bindings,
                       title: title ?? null,
                       props,
                       presentation: presentation ?? null,

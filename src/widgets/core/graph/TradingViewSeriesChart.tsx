@@ -17,14 +17,18 @@ import { useTheme } from "@/themes/ThemeProvider";
 import type { WidgetRuntimeUpdateMode } from "@/widgets/shared/runtime-update";
 
 import {
+  formatGraphTimestampLabel,
   buildStackedGraphSeriesProjection,
   formatGraphAxisValue,
   normalizeGraphSeries,
+  resolveGraphTimeQuantization,
 } from "./graphModel";
 import type {
   GraphChartType,
   GraphLineStyle,
   GraphNormalizationAnchor,
+  GraphTimeQuantizationMode,
+  ResolvedGraphTimeQuantization,
   GraphSeriesAxisMode,
   GraphSeries,
   GraphTimeAxisMode,
@@ -58,6 +62,7 @@ function resolveTimeMs(time: Time) {
 function formatTradingViewTime(
   time: Time,
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto">,
+  timeQuantization: ResolvedGraphTimeQuantization,
   options?: { includeSeconds?: boolean },
 ) {
   const timestampMs = resolveTimeMs(time);
@@ -70,11 +75,11 @@ function formatTradingViewTime(
     return formatGraphUtcDateKey(timestampMs);
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: options?.includeSeconds ? "2-digit" : undefined,
-  }).format(new Date(timestampMs));
+  return formatGraphTimestampLabel(timestampMs, {
+    includeSeconds: options?.includeSeconds,
+    timeAxisMode,
+    timeQuantization,
+  });
 }
 
 function mapGraphSeriesPoints(
@@ -103,6 +108,7 @@ export function TradingViewSeriesChart({
   seriesAxisMode = "shared",
   stackSeries = false,
   timeAxisMode = "datetime",
+  timeQuantization = "auto",
   transparentSurface = false,
   updateMode = "snapshot",
   yAxisDecimals,
@@ -121,6 +127,7 @@ export function TradingViewSeriesChart({
   seriesAxisMode?: GraphSeriesAxisMode;
   stackSeries?: boolean;
   timeAxisMode?: Exclude<GraphTimeAxisMode, "auto">;
+  timeQuantization?: GraphTimeQuantizationMode;
   transparentSurface?: boolean;
   updateMode?: WidgetRuntimeUpdateMode;
   yAxisDecimals?: number;
@@ -205,6 +212,13 @@ export function TradingViewSeriesChart({
       }),
     [yAxisDecimals, yAxisScaleZeros, yAxisSuffix],
   );
+  const resolvedTimeQuantization = useMemo(
+    () => resolveGraphTimeQuantization(
+      { provider: "tradingview", timeQuantization },
+      timeAxisMode,
+    ),
+    [timeAxisMode, timeQuantization],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -240,11 +254,11 @@ export function TradingViewSeriesChart({
           secondsVisible: false,
           minBarSpacing: minBarSpacingPx,
           tickMarkFormatter: (time: Time) =>
-            formatTradingViewTime(time, timeAxisMode),
+            formatTradingViewTime(time, timeAxisMode, resolvedTimeQuantization),
         },
         localization: {
           timeFormatter: (time: Time) =>
-            formatTradingViewTime(time, timeAxisMode, { includeSeconds: true }),
+            formatTradingViewTime(time, timeAxisMode, resolvedTimeQuantization, { includeSeconds: true }),
           priceFormatter: formatPriceValue,
           tickmarksPriceFormatter: (prices: number[]) =>
             prices.map((price: number) => formatPriceValue(price)),
@@ -309,7 +323,14 @@ export function TradingViewSeriesChart({
       chartRef.current = null;
       lastStructureKeyRef.current = null;
     };
-  }, [formatPriceValue, minBarSpacingPx, renderedSeries.length, resolvedTokens, timeAxisMode]);
+  }, [
+    formatPriceValue,
+    minBarSpacingPx,
+    renderedSeries.length,
+    resolvedTimeQuantization,
+    resolvedTokens,
+    timeAxisMode,
+  ]);
 
   useEffect(() => {
     const chart = chartRef.current;

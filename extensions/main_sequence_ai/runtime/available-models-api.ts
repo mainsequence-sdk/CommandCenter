@@ -61,17 +61,17 @@ function normalizeCacheKey(value: string | null | undefined) {
 }
 
 export function buildAvailableRunConfigCacheKey({
-  agentRequestName,
+  agentType,
   userId,
 }: {
-  agentRequestName?: string | null;
+  agentType?: string | null;
   userId?: string | number | null;
 }) {
   const normalizedUserId =
     userId === null || userId === undefined ? "anonymous" : String(userId).trim() || "anonymous";
-  const normalizedAgentRequestName = normalizeCacheKey(agentRequestName) ?? "global";
+  const normalizedAgentType = normalizeCacheKey(agentType) ?? "global";
 
-  return [normalizedUserId, normalizedAgentRequestName].join("::");
+  return [normalizedUserId, normalizedAgentType].join("::");
 }
 
 function getAvailableRunConfigCacheEntry(cacheKey: string | null) {

@@ -101,7 +101,7 @@ chrome, not just a page-local feature.
   supported agent, then creates a new monitor workspace or inserts an Agent Terminal widget into
   the current monitor without going through the generic component browser first.
 - The `main-sequence-ai-agent-terminal` widget is now agent-owned rather than session-picked. It
-  persists `agentId`, `agentName`, and its widget-managed `agentSessionId`, then renders the same
+  persists `agentId`, `agentType`, `agentLabel`, and its widget-managed `agentSessionId`, then renders the same
   backend session stream as terminal output inside workspaces.
 - The `main-sequence-ai-workspace` widget (`Workspace`) publishes a minimal workspace reference object shaped as
   `{"id": "<workspace-id>"}` and blocks self-selection so a workspace cannot point to itself.

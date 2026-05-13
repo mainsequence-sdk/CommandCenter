@@ -28,6 +28,12 @@ into one or more KPI-style cards.
 - When a bound source publishes a ref-backed frame shell, the widget prefers the materialized
   runtime dataset over the raw preview shell so connection-backed statistics do not collapse into
   false `No rows available` states.
+- When explicit incremental bindings are active, the renderer prefers the accumulated
+  `seedData`/`liveUpdates` consumer dataset over a one-frame authoring preview so live WebSocket
+  statistics do not collapse to the latest delta row.
+- Live WebSocket statistics intentionally ignore source-side merge keys such as `symbol`.
+  Source widgets may retain latest state per entity, but the statistic keeps a bounded
+  consumer-owned row window before reducing cards.
 - Supported reductions are `last`, `first`, `max`, `min`, `sum`, `mean`, and `count`.
 - Optional grouping renders one card per group value.
 - Numeric cards can render a compact sparkline from the same incoming value field, including multi-card grouped layouts.
@@ -42,5 +48,8 @@ into one or more KPI-style cards.
 
 - Keep the registered id as `statistic`.
 - Keep accepted input aligned with `core.tabular_frame@v1`.
+- Keep live statistic reductions based on the consumer-owned row window. Do not reuse
+  source-side entity merge keys for `liveUpdates`, or slide-hosted stream statistics collapse to
+  the latest entity row.
 - Avoid adding connection-specific or Main Sequence-specific backend calls here.
 - Bump `widgetVersion` when props, accepted input behavior, registry metadata, or user-facing authoring semantics change.

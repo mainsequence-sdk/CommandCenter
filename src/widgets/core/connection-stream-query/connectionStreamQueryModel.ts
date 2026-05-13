@@ -1214,7 +1214,7 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
       outputId: "dataset",
       store: runtimeDataStore,
       refKey: `${subscriptionKey}:dataset`,
-      includeRowsInShell: true,
+      includeRowsInShell: false,
     }) as ConnectionStreamQueryRuntimeState;
 
     retainedState = storedState;
@@ -1452,12 +1452,13 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
       },
       onMessage: (message) => {
         try {
+          const materializedRetainedState =
+            materializeRuntimeTabularFrame(retainedState, runtimeDataStore) ?? retainedState;
           const nextState = reduceConnectionStreamQueryMessage({
             message,
             props: input.props,
             queryModel: input.queryModel,
-            retainedState:
-              materializeRuntimeTabularFrame(retainedState, runtimeDataStore) ?? retainedState,
+            retainedState: materializedRetainedState,
             sourceWidgetId: input.sourceWidgetId,
             sourceRunId,
           });
@@ -1638,4 +1639,32 @@ export function buildConnectionStreamQuerySubscriptionKey(input: {
     : input.publicExecutionKey?.trim()
       ? `connection-stream-query:${input.publicExecutionKey.trim()}`
       : `connection-stream-query:${stableJsonStringify(input.request)}`;
+}
+
+export function buildConnectionStreamQueryRuntimeKey(input: {
+  executionSurface?: WidgetExecutionSurface;
+  publicExecutionKey?: string;
+  request: ConnectionStreamQueryRequest<Record<string, unknown>>;
+}) {
+  const publicExecutionKey = input.publicExecutionKey?.trim() || undefined;
+  const executionSurface =
+    input.executionSurface === "public-workspace" || publicExecutionKey
+      ? "public-workspace"
+      : "private-dashboard";
+  const request =
+    executionSurface === "public-workspace" &&
+    input.request &&
+    typeof input.request === "object"
+      ? (({ connectionId: _connectionId, ...publicRequest }) => publicRequest)(
+          input.request as {
+            connectionId?: string | number;
+          } & Record<string, unknown>,
+        )
+      : input.request;
+
+  return `connection-stream-query:${stableJsonStringify({
+    executionSurface,
+    publicExecutionKey,
+    request,
+  })}`;
 }

@@ -38,7 +38,8 @@ export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
   tags: ["agents", "terminal", "chat", "sessions"],
   exampleProps: {
     agentId: "42",
-    agentName: "astro-orchestrator",
+    agentType: "astro-orchestrator",
+    agentLabel: "Astro Orchestrator",
     agentSessionId: "12345",
     blockUserInput: false,
     loadInitialHistory: false,

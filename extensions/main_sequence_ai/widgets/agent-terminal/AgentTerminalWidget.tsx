@@ -17,7 +17,7 @@ import {
   type AgentSessionStreamChunk,
 } from "../../runtime/agent-session-stream";
 import {
-  resolveMainSequenceAiAssistantEndpointForAgentRequestName,
+  resolveMainSequenceAiAssistantEndpointForAgentType,
   resolveMainSequenceAiAssistantProtocol,
 } from "../../runtime/assistant-endpoint";
 import {
@@ -140,7 +140,7 @@ function buildWidgetContext({
   };
 }
 
-function inferAgentNameFromTitle({
+function inferAgentLabelFromTitle({
   sessionId,
   title,
 }: {
@@ -170,30 +170,20 @@ function inferAgentNameFromTitle({
 }
 
 function buildValidatedSessionState({
-  fallbackAgentName,
   record,
   sessionId,
 }: {
-  fallbackAgentName: string | null | undefined;
   record: AgentSessionSerializedRecord;
   sessionId: string;
 }): AgentTerminalSessionState {
-  const displayAgentName =
-    record.actor_name?.trim() ||
-    record.agent_name?.trim() ||
-    fallbackAgentName?.trim() ||
-    "Agent session";
-  const requestAgentName =
-    record.agent_name?.trim() ||
-    fallbackAgentName?.trim() ||
-    record.actor_name?.trim() ||
-    null;
+  const displayLabel = "Agent session";
+  const requestAgentType = record.agent_type?.trim() || null;
 
   return {
-    agentName: displayAgentName,
+    displayLabel,
     llmModel: record.llm_model?.trim() || null,
     llmProvider: record.llm_provider?.trim() || null,
-    requestAgentName,
+    requestAgentType,
     serializedSession: record,
     sessionId,
     threadId: null,
@@ -250,16 +240,17 @@ export function AgentTerminalWidget({
       ? runtimeState[AGENT_TERMINAL_HISTORY_REFRESH_RUNTIME_KEY]
       : null;
 
-  const configuredAgentName = useMemo(
+  const configuredAgentLabel = useMemo(
     () =>
-      normalizedProps.agentName?.trim() ||
-      inferAgentNameFromTitle({
+      normalizedProps.agentLabel?.trim() ||
+      inferAgentLabelFromTitle({
         sessionId,
         title: instanceTitle,
       }),
-    [instanceTitle, normalizedProps.agentName, sessionId],
+    [instanceTitle, normalizedProps.agentLabel, sessionId],
   );
-  const terminalAgentLabel = sessionState?.agentName ?? configuredAgentName ?? null;
+  const configuredAgentType = normalizedProps.agentType?.trim() || null;
+  const terminalAgentLabel = sessionState?.displayLabel ?? configuredAgentLabel ?? null;
   const prompt = useMemo(
     () => buildAgentTerminalPrompt(sessionId, terminalAgentLabel),
     [sessionId, terminalAgentLabel],
@@ -297,10 +288,10 @@ export function AgentTerminalWidget({
     }
 
     return buildAgentTerminalSessionWidgetTitle({
-      agentName: sessionState?.agentName,
+      agentLabel: sessionState?.displayLabel,
       sessionId: sessionState?.sessionId ?? sessionId,
     });
-  }, [instanceTitle, sessionId, sessionState?.agentName, sessionState?.sessionId]);
+  }, [instanceTitle, sessionId, sessionState?.displayLabel, sessionState?.sessionId]);
   const terminalModelLabel = useMemo(
     () =>
       formatAgentTerminalModelLabel({
@@ -524,21 +515,14 @@ export function AgentTerminalWidget({
         }
 
         const currentSessionState = sessionStateRef.current;
-        const historyAgentName = history.session.agentName.trim();
-        const requestAgentName =
-          historyAgentName ||
-          currentSessionState?.requestAgentName ||
-          configuredAgentName ||
-          null;
         const nextSessionState: AgentTerminalSessionState = {
-          agentName:
-            historyAgentName ||
-            currentSessionState?.agentName ||
-            requestAgentName ||
+          displayLabel:
+            currentSessionState?.displayLabel ||
+            configuredAgentLabel ||
             "Agent session",
           llmModel: currentSessionState?.llmModel ?? null,
           llmProvider: currentSessionState?.llmProvider ?? null,
-          requestAgentName,
+          requestAgentType: currentSessionState?.requestAgentType ?? null,
           serializedSession: currentSessionState?.serializedSession ?? null,
           sessionId: targetSessionId,
           threadId: history.session.threadId ?? currentSessionState?.threadId ?? null,
@@ -552,7 +536,7 @@ export function AgentTerminalWidget({
           setLines(
             buildAgentTerminalSessionLines({
               messages: shouldRenderHistory ? history.messages : [],
-              prompt: buildAgentTerminalPrompt(targetSessionId, nextSessionState.agentName),
+              prompt: buildAgentTerminalPrompt(targetSessionId, nextSessionState.displayLabel),
               session: nextSessionState,
               sessionError: history.session.status === "error" ? history.session.error : null,
               userInputBlocked: blockUserInput,
@@ -586,7 +570,8 @@ export function AgentTerminalWidget({
     },
     [
       blockUserInput,
-      configuredAgentName,
+      configuredAgentLabel,
+      configuredAgentType,
       focusPromptInput,
       loadInitialHistory,
       publishLatestAssistantMarkdown,
@@ -661,7 +646,6 @@ export function AgentTerminalWidget({
           tokenType: sessionTokenType,
         });
         const validatedSessionState = buildValidatedSessionState({
-          fallbackAgentName: configuredAgentName,
           record: sessionDetail,
           sessionId,
         });
@@ -676,20 +660,14 @@ export function AgentTerminalWidget({
           return;
         }
 
-        const historyAgentName = history.session.agentName.trim();
-        const requestAgentName =
-          historyAgentName ||
-          validatedSessionState.requestAgentName ||
-          configuredAgentName ||
-          null;
+        const requestAgentType = validatedSessionState.requestAgentType;
         const readySessionState: AgentTerminalSessionState = {
           ...validatedSessionState,
-          agentName:
-            historyAgentName ||
-            validatedSessionState.agentName ||
-            requestAgentName ||
+          displayLabel:
+            validatedSessionState.displayLabel ||
+            configuredAgentLabel ||
             "Agent session",
-          requestAgentName,
+          requestAgentType,
           serializedSession: sessionDetail,
           threadId: history.session.threadId ?? validatedSessionState.threadId ?? null,
         };
@@ -701,7 +679,7 @@ export function AgentTerminalWidget({
         setLines(
           buildAgentTerminalSessionLines({
             messages: loadInitialHistory ? history.messages : [],
-            prompt: buildAgentTerminalPrompt(sessionId, readySessionState.agentName),
+            prompt: buildAgentTerminalPrompt(sessionId, readySessionState.displayLabel),
             session: readySessionState,
             sessionError: history.session.status === "error" ? history.session.error : null,
             userInputBlocked: blockUserInput,
@@ -740,7 +718,8 @@ export function AgentTerminalWidget({
       loadControllerRef.current?.abort();
     };
   }, [
-    configuredAgentName,
+    configuredAgentLabel,
+    configuredAgentType,
     blockUserInput,
     focusPromptInput,
     loadInitialHistory,
@@ -825,7 +804,7 @@ export function AgentTerminalWidget({
         return;
       }
 
-      if (!activeSession.requestAgentName) {
+      if (!activeSession.requestAgentType) {
         if (automated) {
           pendingHistoryRefreshRef.current = true;
           void hydrateSession(sessionId, { showLoading: false });
@@ -834,7 +813,7 @@ export function AgentTerminalWidget({
 
         appendLine(
           createAgentTerminalOutputLine({
-            text: "[unavailable] Agent name is missing. Reselect the session in widget settings or enable initial history load once to recover it.",
+            text: "[unavailable] Agent type is missing. Reselect the session in widget settings or enable initial history load once to recover it.",
             tone: "danger",
           }),
         );
@@ -859,11 +838,11 @@ export function AgentTerminalWidget({
 
       try {
         await streamAgentSessionResponse({
-          assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
-            activeSession.requestAgentName,
+          assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentType(
+            activeSession.requestAgentType,
           ),
           body: buildAgentSessionLiveRequestBody({
-            agentName: activeSession.requestAgentName,
+            agentType: activeSession.requestAgentType,
             context: buildWidgetContext({
               instanceId,
               sessionId,
@@ -875,7 +854,7 @@ export function AgentTerminalWidget({
             sessionId,
             threadId: activeSession.threadId ?? sessionId,
             userId: sessionUserId,
-            workflowKey: activeSession.requestAgentName,
+            workflowKey: activeSession.requestAgentType,
           }),
           onChunk: (chunk) => {
             if (chunk.type === "text-delta") {

@@ -22,6 +22,9 @@ import { useResolvedTabularWidgetSourceBinding } from "@/widgets/shared/tabular-
 
 type Props = WidgetComponentProps<StatisticWidgetProps>;
 
+const STATISTIC_RUNTIME_ROW_WINDOW_MAX_ROWS = 250_000;
+const STATISTIC_LIVE_UPDATE_MERGE_KEY_FIELDS: string[] = [];
+
 export function StatisticWidget({
   props,
   instanceId,
@@ -36,11 +39,18 @@ export function StatisticWidget({
   const sourceBinding = useResolvedTabularWidgetSourceBinding({
     props,
     currentWidgetInstanceId: instanceId,
+    resolvedInputs,
   });
+  const runtimeRetention = useMemo(
+    () => ({ maxRows: STATISTIC_RUNTIME_ROW_WINDOW_MAX_ROWS }),
+    [],
+  );
   const incrementalBinding = useIncrementalTabularConsumerBindingState({
     instanceId,
+    liveMergeKeyFields: STATISTIC_LIVE_UPDATE_MERGE_KEY_FIELDS,
     onRuntimeStateChange,
     resolvedInputs,
+    runtimeRetention,
     runtimeState,
   });
   const sourceConsumerState = incrementalBinding.active

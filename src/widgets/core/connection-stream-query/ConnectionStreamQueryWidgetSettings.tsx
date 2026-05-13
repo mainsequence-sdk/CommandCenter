@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { getConnectionTypeById } from "@/app/registry";
+import { Loader2 } from "lucide-react";
 import { QueryStringListField } from "@/connections/components/ConnectionQueryEditorFields";
 import {
   resolveConnectionStreamAuthoringCopy,
@@ -23,7 +24,10 @@ import {
   type ConnectionStreamQueryWidgetProps,
 } from "./connectionStreamQueryModel";
 
-type Props = WidgetSettingsComponentProps<ConnectionStreamQueryWidgetProps>;
+type Props = WidgetSettingsComponentProps<ConnectionStreamQueryWidgetProps> & {
+  onPreviewRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
+  previewRuntimeState?: Record<string, unknown>;
+};
 
 function RetentionMaxRowsInput({
   disabled,
@@ -65,8 +69,10 @@ export function ConnectionStreamQueryWidgetSettings({
   draftPresentation,
   editable,
   controllerContext,
+  onPreviewRuntimeStateChange,
   onDraftPropsChange,
   onDraftPresentationChange,
+  previewRuntimeState,
 }: Props) {
   const widgetRegistry = useDashboardWidgetRegistry();
   const connectionInstancesQuery = useConnectionInstances();
@@ -102,8 +108,17 @@ export function ConnectionStreamQueryWidgetSettings({
     : [];
   const supportsRetainedAccumulation = streamModes.length > 0;
   const useTypedQueryEditor = Boolean(selectedConnectionType?.queryEditor);
-  const runtimeFrame = normalizeConnectionStreamQueryRuntimeState(currentWidget?.runtimeState);
+  const effectiveRuntimeState = currentWidget?.runtimeState ?? previewRuntimeState;
+  const runtimeFrame = normalizeConnectionStreamQueryRuntimeState(effectiveRuntimeState);
   const streamCopy = resolveConnectionStreamAuthoringCopy(selectedConnectionType);
+  const testPanelHydrationKey = [
+    instanceId,
+    normalizedDraftProps.connectionRef?.id ?? "",
+    normalizedDraftProps.connectionRef?.typeId ?? "",
+    normalizedDraftProps.queryModelId ?? "",
+  ].join(":");
+  const [hydratedTestPanelKey, setHydratedTestPanelKey] = useState<string | null>(null);
+  const testPanelReady = hydratedTestPanelKey === testPanelHydrationKey;
   const fieldSuggestions = [
     ...(runtimeFrame?.fields?.map((field) => field.key) ?? []),
     ...(runtimeFrame?.columns ?? []),
@@ -123,6 +138,47 @@ export function ConnectionStreamQueryWidgetSettings({
     );
   }
 
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let animationFrameId: number | undefined;
+    let cancelled = false;
+
+    setHydratedTestPanelKey(null);
+
+    const markReady = () => {
+      if (!cancelled) {
+        setHydratedTestPanelKey(testPanelHydrationKey);
+      }
+    };
+
+    if (
+      typeof window !== "undefined" &&
+      typeof window.requestAnimationFrame === "function"
+    ) {
+      animationFrameId = window.requestAnimationFrame(() => {
+        timeoutId = window.setTimeout(markReady, 0);
+      });
+    } else {
+      timeoutId = setTimeout(markReady, 0);
+    }
+
+    return () => {
+      cancelled = true;
+
+      if (
+        animationFrameId !== undefined &&
+        typeof window !== "undefined" &&
+        typeof window.cancelAnimationFrame === "function"
+      ) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [testPanelHydrationKey]);
+
   return (
     <div className="space-y-6">
       <ConnectionQuerySettingsSurface
@@ -132,7 +188,7 @@ export function ConnectionStreamQueryWidgetSettings({
           updateStreamProps(nextValue as ConnectionStreamQueryWidgetProps);
         }}
         editable={editable}
-        runtimeState={currentWidget?.runtimeState}
+        runtimeState={effectiveRuntimeState}
         runtimeStatusTitle="Current stream runtime"
         runtimeStatusDescription="This is the last live runtime state published by this stream source while you edit the draft query."
         runtimeStatusEmptyMessage="This stream source has not published a live dataset yet."
@@ -140,6 +196,7 @@ export function ConnectionStreamQueryWidgetSettings({
         connectionPathSettings={useTypedQueryEditor ? undefined : (
           <WidgetSchemaForm
             widget={widget}
+            instanceId={instanceId}
             draftProps={normalizedDraftProps}
             onDraftPropsChange={(nextValue) => {
               updateStreamProps(nextValue as ConnectionStreamQueryWidgetProps);
@@ -190,15 +247,28 @@ export function ConnectionStreamQueryWidgetSettings({
         </section>
       ) : null}
 
-      <ConnectionStreamQueryTestPanel
-        editable={editable}
-        value={normalizedDraftProps}
-        queryModel={selectedQueryModel}
-        sourceWidgetId={instanceId}
-        runButtonLabel={streamCopy.runButtonLabel}
-        resultDescription={streamCopy.resultDescription}
-        resultTitle={streamCopy.resultTitle}
-      />
+      {testPanelReady ? (
+        <ConnectionStreamQueryTestPanel
+          editable={editable}
+          value={normalizedDraftProps}
+          queryModel={selectedQueryModel}
+          onPreviewRuntimeStateChange={onPreviewRuntimeStateChange}
+          sourceWidgetId={instanceId}
+          runButtonLabel={streamCopy.runButtonLabel}
+          resultDescription={streamCopy.resultDescription}
+          resultTitle={streamCopy.resultTitle}
+        />
+      ) : (
+        <section className="space-y-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-topbar-foreground">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            Loading stream diagnostics
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Preparing active stream status and optional test controls after the editor opens.
+          </p>
+        </section>
+      )}
     </div>
   );
 }

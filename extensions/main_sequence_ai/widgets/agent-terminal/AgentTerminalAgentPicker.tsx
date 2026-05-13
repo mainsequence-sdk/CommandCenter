@@ -166,7 +166,7 @@ export function AgentTerminalAgentPicker({
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-foreground">
-                      {agent.name}
+                      {agent.displayLabel}
                     </div>
                     <div className="mt-1 truncate text-xs text-muted-foreground">
                       {buildAgentSelectionDescription(agent)}

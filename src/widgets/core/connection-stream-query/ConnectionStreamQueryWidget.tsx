@@ -3,6 +3,11 @@ import { useEffect, useMemo, useRef } from "react";
 import { AlertTriangle, DatabaseZap, Loader2, Wifi, WifiOff } from "lucide-react";
 
 import { getConnectionTypeById } from "@/app/registry";
+import {
+  useConnectionRuntimeStore,
+  useThrottledConnectionRuntimeEntry,
+  type ConnectionRuntimeSessionHandle,
+} from "@/connections/connection-runtime-store";
 import type { ConnectionQueryModel } from "@/connections/types";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import { useDashboardWidgetExecution } from "@/dashboards/DashboardWidgetExecution";
@@ -14,7 +19,7 @@ import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
   buildConnectionStreamQueryRequest,
-  buildConnectionStreamQuerySubscriptionKey,
+  buildConnectionStreamQueryRuntimeKey,
   buildConnectionStreamQueryValidationError,
   buildConnectionStreamQueryLifecycleFrame,
   createConnectionStreamQueryWidgetRuntimeSession,
@@ -100,6 +105,7 @@ export function ConnectionStreamQueryWidget({
 }: Props) {
   const dashboardControls = useDashboardControls();
   const widgetExecution = useDashboardWidgetExecution();
+  const connectionRuntimeStore = useConnectionRuntimeStore();
   const runtimeDataStore = useRuntimeDataStore();
   const normalizedProps = useMemo(() => normalizeConnectionStreamQueryProps(props), [props]);
   const connectionType = normalizedProps.connectionRef?.typeId
@@ -177,12 +183,39 @@ export function ConnectionStreamQueryWidget({
       }),
     [instanceId, normalizedProps, publicExecutionKey, request, runtimeQueryModel, validationError],
   );
+  const runtimeKey = useMemo(
+    () =>
+      request
+        ? buildConnectionStreamQueryRuntimeKey({
+            executionSurface: widgetExecution?.executionSurface,
+            publicExecutionKey,
+            request,
+          })
+        : undefined,
+    [publicExecutionKey, request, widgetExecution?.executionSurface],
+  );
+  const runtimeEntry = useThrottledConnectionRuntimeEntry(runtimeKey, 250);
+  const runtimeEntryState = runtimeEntry?.runtimeState;
   const normalizedRuntimeState = useMemo(
-    () => normalizeConnectionStreamQueryRuntimeState(runtimeState),
-    [runtimeState],
+    () => normalizeConnectionStreamQueryRuntimeState(runtimeEntryState ?? runtimeState),
+    [runtimeEntryState, runtimeState],
   );
   const runtimeRef = useRef<ConnectionStreamQueryRuntimeState | null>(normalizedRuntimeState);
   const onRuntimeStateChangeRef = useRef(onRuntimeStateChange);
+  const publicExecutionSignature = useMemo(
+    () => stableJsonStringify(publicExecution ?? null),
+    [publicExecution],
+  );
+  const streamSessionConfigKey = useMemo(
+    () =>
+      stableJsonStringify({
+        executionKey,
+        executionSurface: widgetExecution?.executionSurface,
+        publicExecutionSignature,
+        runtimeKey,
+      }),
+    [executionKey, publicExecutionSignature, runtimeKey, widgetExecution?.executionSurface],
+  );
 
   useEffect(() => {
     runtimeRef.current = normalizedRuntimeState;
@@ -199,12 +232,24 @@ export function ConnectionStreamQueryWidget({
         ? Boolean(normalizedProps.queryModelId)
         : Boolean(normalizedProps.connectionRef?.id && normalizedProps.queryModelId);
 
-    if (!publishRuntimeState) {
+    if (!publishRuntimeState && !connectionRuntimeStore) {
       return undefined;
     }
 
+    const publishState = (state: Record<string, unknown>) => {
+      if (runtimeKey && connectionRuntimeStore) {
+        connectionRuntimeStore.publishStreamState({
+          key: runtimeKey,
+          ownerId: instanceId,
+          runtimeState: state,
+        });
+      }
+
+      publishRuntimeState?.(state);
+    };
+
     if (validationError) {
-      publishRuntimeState(
+      publishState(
         buildConnectionStreamQueryLifecycleFrame({
           props: normalizedProps,
           status: hasExecutableConfig ? "error" : "idle",
@@ -215,7 +260,7 @@ export function ConnectionStreamQueryWidget({
     }
 
     if (!request || !runtimeQueryModel) {
-      publishRuntimeState(
+      publishState(
         buildConnectionStreamQueryLifecycleFrame({
           props: normalizedProps,
           status: "idle",
@@ -224,32 +269,62 @@ export function ConnectionStreamQueryWidget({
       return undefined;
     }
 
-    let session: ReturnType<typeof createConnectionStreamQueryWidgetRuntimeSession>;
+    let session: ReturnType<typeof createConnectionStreamQueryWidgetRuntimeSession> | undefined;
+    let storeHandle: ConnectionRuntimeSessionHandle | undefined;
 
     try {
-      session = createConnectionStreamQueryWidgetRuntimeSession({
-        subscriptionKey: buildConnectionStreamQuerySubscriptionKey({
-          instanceId,
+      if (runtimeKey && connectionRuntimeStore) {
+        storeHandle = connectionRuntimeStore.acquireStreamSession({
+          key: runtimeKey,
+          ownerId: instanceId ?? runtimeKey,
+          onRuntimeStateChange: (nextRuntimeState) => {
+            runtimeRef.current = normalizeConnectionStreamQueryRuntimeState(nextRuntimeState);
+            onRuntimeStateChangeRef.current?.(nextRuntimeState);
+          },
+          start: () =>
+            createConnectionStreamQueryWidgetRuntimeSession({
+              subscriptionKey: runtimeKey,
+              request,
+              props: normalizedProps,
+              queryModel: runtimeQueryModel,
+              executionSurface: widgetExecution?.executionSurface,
+              publicExecution,
+              initialRuntimeState: runtimeRef.current,
+              sourceWidgetId: instanceId,
+              onRuntimeStateChange: (nextRuntimeState) => {
+                runtimeRef.current = nextRuntimeState;
+                connectionRuntimeStore.publishStreamState({
+                  key: runtimeKey,
+                  ownerId: instanceId,
+                  runtimeState: nextRuntimeState as unknown as Record<string, unknown>,
+                });
+              },
+              options: {
+                runtimeDataStore,
+              },
+            }),
+        });
+      } else {
+        session = createConnectionStreamQueryWidgetRuntimeSession({
+          subscriptionKey: runtimeKey ?? executionKey,
           request,
-          publicExecutionKey,
-        }),
-        request,
-        props: normalizedProps,
-        queryModel: runtimeQueryModel,
-        executionSurface: widgetExecution?.executionSurface,
-        publicExecution,
-        initialRuntimeState: runtimeRef.current,
-        sourceWidgetId: instanceId,
-        onRuntimeStateChange: (nextRuntimeState) => {
-          runtimeRef.current = nextRuntimeState;
-          onRuntimeStateChangeRef.current?.(nextRuntimeState as unknown as Record<string, unknown>);
-        },
-        options: {
-          runtimeDataStore,
-        },
-      });
+          props: normalizedProps,
+          queryModel: runtimeQueryModel,
+          executionSurface: widgetExecution?.executionSurface,
+          publicExecution,
+          initialRuntimeState: runtimeRef.current,
+          sourceWidgetId: instanceId,
+          onRuntimeStateChange: (nextRuntimeState) => {
+            runtimeRef.current = nextRuntimeState;
+            onRuntimeStateChangeRef.current?.(nextRuntimeState as unknown as Record<string, unknown>);
+          },
+          options: {
+            runtimeDataStore,
+          },
+        });
+      }
     } catch (error) {
-      publishRuntimeState(
+      publishState(
         buildConnectionStreamQueryLifecycleFrame({
           props: normalizedProps,
           status: "error",
@@ -260,19 +335,20 @@ export function ConnectionStreamQueryWidget({
     }
 
     return () => {
-      session.close();
+      storeHandle?.release();
+      session?.close();
     };
   }, [
-    executionKey,
-    publicExecution,
-    publicExecutionKey,
+    connectionRuntimeStore,
+    instanceId,
     runtimeDataStore,
+    streamSessionConfigKey,
     widgetExecution?.executionSurface,
   ]);
 
   const streamStatus = normalizedRuntimeState?.streamStatus ?? "idle";
   const frameStatus = normalizedRuntimeState?.status ?? "idle";
-  const runtimeDataRef = getRuntimeDataRef(runtimeState);
+  const runtimeDataRef = getRuntimeDataRef(runtimeEntryState ?? runtimeState);
   const rowCount = runtimeDataRef?.rowCount ?? normalizedRuntimeState?.rows.length ?? 0;
   const columnCount = normalizedRuntimeState?.columns.length ?? 0;
   const hasExecutableConfig =

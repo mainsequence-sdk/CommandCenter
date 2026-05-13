@@ -39,6 +39,8 @@ export function WorkspaceStudioCanvasHost({
     commitSelectedWorkspaceControlsState,
   } = useCustomWorkspaceStudio();
   const effectiveWorkspaceView = publicPreview ? "dashboard" : selectedWorkspaceView;
+  const runtimeWorkspaceView =
+    effectiveWorkspaceView === "widget-settings" ? "dashboard" : effectiveWorkspaceView;
   const renderPermissions = publicPreview
     ? clonePublicWorkspaceRenderPermissions()
     : permissions;
@@ -120,7 +122,7 @@ export function WorkspaceStudioCanvasHost({
 
   return (
     <WorkspaceRenderErrorBoundary
-      resetKey={`${selectedDashboard.id}:${effectiveWorkspaceView}:${publicPreview ? "public-preview" : "default"}`}
+      resetKey={`${selectedDashboard.id}:${runtimeWorkspaceView}:${publicPreview ? "public-preview" : "default"}`}
       onBackToWorkspaces={() => {
         navigate(workspaceListPath);
       }}
@@ -133,7 +135,7 @@ export function WorkspaceStudioCanvasHost({
       <DashboardControlsProvider
         key={selectedDashboard.id}
         controls={selectedDashboard.controls}
-        refreshProgressUpdateIntervalMs={effectiveWorkspaceView === "graph" ? 1000 : 120}
+        refreshProgressUpdateIntervalMs={runtimeWorkspaceView === "graph" ? 1000 : 120}
         onStateChange={(state) => {
           updateSelectedWorkspaceUserState((dashboard) =>
             updateDashboardControlsState(dashboard, state),
@@ -143,7 +145,7 @@ export function WorkspaceStudioCanvasHost({
       >
         <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
           <DashboardWidgetExecutionProvider
-            activeSurface={effectiveWorkspaceView === "graph" ? "graph" : "dashboard"}
+            activeSurface={runtimeWorkspaceView === "graph" ? "graph" : "dashboard"}
             scopeId={selectedDashboard.id}
             widgets={resolvedDashboard.widgets}
             writeRuntimeState={(instanceId, runtimeState) => {

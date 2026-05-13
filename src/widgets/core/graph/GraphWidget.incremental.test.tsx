@@ -131,6 +131,7 @@ function buildLiveInput(input: {
   role?: "seed" | "update";
   baseRows: Array<Record<string, unknown>>;
   deltaRows?: Array<Record<string, unknown>>;
+  mergeKeyFields?: string[];
   sourceRunId: string;
   updatedAtMs: number;
 }): ResolvedWidgetInput {
@@ -148,6 +149,9 @@ function buildLiveInput(input: {
     outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
     deltaOutput: deltaFrame,
     retainedOutputLocation: "carrier",
+    diagnostics: input.mergeKeyFields?.length
+      ? { mergeKeyFields: input.mergeKeyFields }
+      : undefined,
   });
   const projected = projectWidgetRuntimeUpdateOutput(published, {
     sourceOutputId: "updates",
@@ -170,15 +174,19 @@ function buildLiveInput(input: {
 }
 
 function Harness({
+  initialRuntimeState,
   resolvedInputs,
   onRuntimeStateEvent,
   props,
 }: {
+  initialRuntimeState?: Record<string, unknown>;
   resolvedInputs?: ResolvedWidgetInputs;
   onRuntimeStateEvent: (runtimeState: Record<string, unknown> | undefined) => void;
   props?: GraphWidgetProps;
 }) {
-  const [runtimeState, setRuntimeState] = useState<Record<string, unknown> | undefined>(undefined);
+  const [runtimeState, setRuntimeState] = useState<Record<string, unknown> | undefined>(
+    initialRuntimeState,
+  );
 
   return (
     <GraphWidget
@@ -213,23 +221,27 @@ async function flushEffects() {
 interface HarnessDriver {
   render: (resolvedInputs?: ResolvedWidgetInputs, props?: GraphWidgetProps) => Promise<void>;
   getRuntimeEventCount: () => number;
+  getRuntimeState: () => Record<string, unknown> | undefined;
   cleanup: () => void;
 }
 
-function createHarness(): HarnessDriver {
+function createHarness(initialRuntimeState?: Record<string, unknown>): HarnessDriver {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root: Root = createRoot(container);
   let runtimeEventCount = 0;
+  let latestRuntimeState = initialRuntimeState;
 
   return {
     async render(resolvedInputs, props) {
       await act(async () => {
         root.render(
           <Harness
+            initialRuntimeState={initialRuntimeState}
             resolvedInputs={resolvedInputs}
             props={props}
-            onRuntimeStateEvent={() => {
+            onRuntimeStateEvent={(nextRuntimeState) => {
+              latestRuntimeState = nextRuntimeState;
               runtimeEventCount += 1;
             }}
           />,
@@ -238,6 +250,7 @@ function createHarness(): HarnessDriver {
       await flushEffects();
     },
     getRuntimeEventCount: () => runtimeEventCount,
+    getRuntimeState: () => latestRuntimeState,
     cleanup() {
       void act(() => {
         root.unmount();
@@ -278,6 +291,46 @@ describe("GraphWidget incremental bindings", () => {
     expect(harness.getRuntimeEventCount()).toBe(firstEventCount);
   });
 
+  it("does not republish graph runtime state when only source updatedAtMs changes", async () => {
+    const harness = createHarness();
+    harnesses.push(harness);
+
+    await harness.render({
+      [TABULAR_SEED_INPUT_ID]: buildSeedInput(
+        [{ time: "2026-04-29T00:00:00.000Z", value: 1 }],
+        100,
+      ),
+      liveUpdates: buildLiveInput({
+        baseRows: [
+          { time: "2026-04-29T00:00:00.000Z", value: 1 },
+          { time: "2026-04-29T00:01:00.000Z", value: 2 },
+        ],
+        deltaRows: [{ time: "2026-04-29T00:01:00.000Z", value: 2 }],
+        sourceRunId: "ws-run-updated-at-only",
+        updatedAtMs: 200,
+      }),
+    });
+    const runtimeEventCountAfterFirstRender = harness.getRuntimeEventCount();
+
+    await harness.render({
+      [TABULAR_SEED_INPUT_ID]: buildSeedInput(
+        [{ time: "2026-04-29T00:00:00.000Z", value: 1 }],
+        900,
+      ),
+      liveUpdates: buildLiveInput({
+        baseRows: [
+          { time: "2026-04-29T00:00:00.000Z", value: 1 },
+          { time: "2026-04-29T00:01:00.000Z", value: 2 },
+        ],
+        deltaRows: [{ time: "2026-04-29T00:01:00.000Z", value: 2 }],
+        sourceRunId: "ws-run-updated-at-only",
+        updatedAtMs: 901,
+      }),
+    });
+
+    expect(harness.getRuntimeEventCount()).toBe(runtimeEventCountAfterFirstRender);
+  });
+
   it("uses delta renderer props for tail-safe live updates", async () => {
     const harness = createHarness();
     harnesses.push(harness);
@@ -312,6 +365,89 @@ describe("GraphWidget incremental bindings", () => {
     expect(chartProps?.updateMode).toBe("delta");
     expect(Array.isArray(chartProps?.deltaSeries)).toBe(true);
     expect((chartProps?.deltaSeries as Array<{ points: Array<unknown> }>)[0]?.points).toEqual([
+      { time: Date.parse("2026-04-29T00:01:00.000Z"), value: 2 },
+    ]);
+  });
+
+  it("rehydrates same-symbol live stream history from graph runtime state", async () => {
+    const harness = createHarness();
+    harnesses.push(harness);
+
+    await harness.render({
+      liveUpdates: buildLiveInput({
+        baseRows: [
+          {
+            time: "2026-04-29T00:00:00.000Z",
+            value: 1,
+            symbol: "BTCUSDT",
+          },
+        ],
+        deltaRows: [
+          {
+            time: "2026-04-29T00:00:00.000Z",
+            value: 1,
+            symbol: "BTCUSDT",
+          },
+        ],
+        mergeKeyFields: ["symbol"],
+        sourceRunId: "ws-run-same-symbol",
+        updatedAtMs: 100,
+      }),
+    });
+
+    await harness.render({
+      liveUpdates: buildLiveInput({
+        baseRows: [
+          {
+            time: "2026-04-29T00:01:00.000Z",
+            value: 2,
+            symbol: "BTCUSDT",
+          },
+        ],
+        deltaRows: [
+          {
+            time: "2026-04-29T00:01:00.000Z",
+            value: 2,
+            symbol: "BTCUSDT",
+          },
+        ],
+        mergeKeyFields: ["symbol"],
+        sourceRunId: "ws-run-same-symbol",
+        updatedAtMs: 200,
+      }),
+    });
+
+    const remountedHarness = createHarness(harness.getRuntimeState());
+    harnesses.push(remountedHarness);
+
+    await remountedHarness.render({
+      liveUpdates: buildLiveInput({
+        baseRows: [
+          {
+            time: "2026-04-29T00:01:00.000Z",
+            value: 2,
+            symbol: "BTCUSDT",
+          },
+        ],
+        deltaRows: [
+          {
+            time: "2026-04-29T00:01:00.000Z",
+            value: 2,
+            symbol: "BTCUSDT",
+          },
+        ],
+        mergeKeyFields: ["symbol"],
+        sourceRunId: "ws-run-same-symbol",
+        updatedAtMs: 200,
+      }),
+    });
+
+    const chartProps = (globalThis as typeof globalThis & {
+      __graphLastTradingViewProps?: Record<string, unknown>;
+    }).__graphLastTradingViewProps;
+
+    expect((chartProps?.series as Array<{ points: Array<unknown> }>)[0]?.points).toEqual([
+      { time: Date.parse("2026-04-29T00:00:00.000Z"), value: 1 },
       { time: Date.parse("2026-04-29T00:01:00.000Z"), value: 2 },
     ]);
   });

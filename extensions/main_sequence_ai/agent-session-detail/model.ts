@@ -4,10 +4,9 @@ import type {
   AgentSessionApiRecord,
   AgentSessionSerializedRecord,
 } from "../runtime/agent-sessions-api";
+import { getAgentSessionRecordAgentId } from "../runtime/agent-sessions-api";
 
 export type AgentSessionDetailStatus = "idle" | "loading" | "ready" | "not_found" | "error";
-
-const DEFAULT_AGENT_REQUEST_NAME = "astro-orchestrator";
 
 export interface AgentSessionContextInput {
   id: string;
@@ -25,8 +24,8 @@ export interface AgentSessionContextInput {
   serializedSession?: AgentSessionSerializedRecord | null;
   agent?: {
     id?: number | null;
-    name?: string | null;
-    requestName?: string | null;
+    displayLabel?: string | null;
+    requestAgentType?: string | null;
     agentUniqueId?: string | null;
     llmProvider?: string | null;
     llmModel?: string | null;
@@ -43,7 +42,7 @@ export interface AgentSessionBoundHandleDetail {
 export interface AgentSessionCoreDetail {
   sessionId: string;
   agentId: string | null;
-  agentName: string | null;
+  agentType: string | null;
   actorName: string | null;
   title: string | null;
   summary: string | null;
@@ -75,8 +74,8 @@ export interface AgentSessionCoreDetail {
 export interface AgentSessionDetailContext {
   sessionId: string;
   sessionDisplayId: string | null;
-  requestName: string;
-  displayName: string | null;
+  requestAgentType: string;
+  displayLabel: string | null;
   agentUniqueId: string | null;
   handleUniqueId: string | null;
   isDefaultCommandCenterSession: boolean;
@@ -105,8 +104,8 @@ export interface AgentSessionDetailSnapshot {
 }
 
 export interface ActiveSessionSummary {
-  requestName: string;
-  displayName: string | null;
+  requestAgentType: string;
+  displayLabel: string | null;
   agentUniqueId: string | null;
   imageDrift: AgentImageDriftRecord | null;
   llmProvider: string | null;
@@ -152,15 +151,15 @@ function normalizeThinkingValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-export function resolveAgentSessionRequestName(session: AgentSessionContextInput | null) {
-  return normalizeOptionalString(session?.agent?.requestName) ?? DEFAULT_AGENT_REQUEST_NAME;
+export function resolveAgentSessionRequestAgentType(session: AgentSessionContextInput | null) {
+  return normalizeOptionalString(session?.agent?.requestAgentType) ?? "";
 }
 
 export function resolveAgentSessionLabel(session: AgentSessionContextInput | null) {
   return (
     normalizeOptionalString(session?.agent?.agentUniqueId) ??
-    normalizeOptionalString(session?.agent?.name) ??
-    DEFAULT_AGENT_REQUEST_NAME
+    normalizeOptionalString(session?.agent?.displayLabel) ??
+    ""
   );
 }
 
@@ -205,8 +204,8 @@ export function buildAgentSessionDetailContext(
   return {
     sessionId: session.id,
     sessionDisplayId: resolveAgentSessionDisplayId(session),
-    requestName: resolveAgentSessionRequestName(session),
-    displayName: normalizeOptionalString(session.agent?.name),
+    requestAgentType: resolveAgentSessionRequestAgentType(session),
+    displayLabel: normalizeOptionalString(session.agent?.displayLabel),
     agentUniqueId: normalizeOptionalString(session.agent?.agentUniqueId),
     handleUniqueId: normalizeOptionalString(session.handleUniqueId),
     isDefaultCommandCenterSession: normalizeOptionalString(session.origin) === "astro_command_center_base",
@@ -225,12 +224,12 @@ export function buildAgentSessionDetailContext(
 
 export function normalizeAgentSessionCoreDetail(record: AgentSessionApiRecord): AgentSessionCoreDetail {
   const sessionId = String(record.agent_session || record.id);
+  const agentId = getAgentSessionRecordAgentId(record);
 
   return {
     sessionId,
-    agentId:
-      record.agent !== null && record.agent !== undefined ? String(record.agent) : null,
-    agentName: normalizeOptionalString(record.agent_name),
+    agentId: agentId !== null ? String(agentId) : null,
+    agentType: normalizeOptionalString(record.agent_type),
     actorName: normalizeOptionalString(record.actor_name),
     title: normalizeOptionalString(record.title),
     summary: normalizeOptionalString(record.summary),
@@ -336,8 +335,8 @@ export function buildActiveSessionSummary({
   const detailThinking = normalizeThinkingValue(detail?.serializedRecord?.llm_thinking);
 
   return {
-    requestName: context.requestName,
-    displayName: context.displayName,
+    requestAgentType: context.requestAgentType,
+    displayLabel: context.displayLabel,
     agentUniqueId: context.agentUniqueId,
     imageDrift: imageDrift ?? null,
     llmProvider:

@@ -37,10 +37,7 @@ export function AgentSessionDetailPage() {
   });
   const title =
     activeDetail?.core?.title ||
-    activeDetail?.core?.agentName ||
-    activeDetail?.core?.actorName ||
-    activeDetail?.context.displayName ||
-    activeDetail?.context.requestName ||
+    activeDetail?.core?.agentType ||
     "Agent Session";
   const subtitle = sessionId ? `Session ${sessionId}` : "Select a session from Chat or a widget.";
 

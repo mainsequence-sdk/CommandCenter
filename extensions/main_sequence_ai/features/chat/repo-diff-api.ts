@@ -24,7 +24,7 @@ export interface RepoDiffResponse {
   version: number;
   session: {
     sessionId: string;
-    agentName: string;
+    agentType: string;
     agentId: number | null;
     agentUniqueId: string | null;
     agentSessionId: string | null;
@@ -51,6 +51,16 @@ function normalizeString(value: unknown) {
 function normalizeNullableString(value: unknown) {
   const next = normalizeString(value);
   return next || null;
+}
+
+function normalizeRequiredAgentType(value: unknown) {
+  const agentType = normalizeString(value);
+
+  if (!agentType) {
+    throw new Error("Repo diff response missing required session.agent_type.");
+  }
+
+  return agentType;
 }
 
 function normalizeNullableIdentifier(value: unknown) {
@@ -132,7 +142,7 @@ function normalizeRepoDiffResponse(payload: unknown) {
         : 1,
     session: {
       sessionId: normalizeString(session.sessionId),
-      agentName: normalizeString(session.agentName),
+      agentType: normalizeRequiredAgentType(session.agent_type),
       agentId: normalizeNullableNumber(session.agentId),
       agentUniqueId: normalizeNullableString(session.agentUniqueId),
       agentSessionId: normalizeNullableIdentifier(session.agentSessionId),

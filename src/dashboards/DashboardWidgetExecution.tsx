@@ -9,6 +9,10 @@ import {
 } from "react";
 
 import { getWidgetById } from "@/app/registry";
+import {
+  ConnectionRuntimeStoreProvider,
+  createConnectionRuntimeStore,
+} from "@/connections/connection-runtime-store";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import {
   resolveDashboardSurfaceHydrationState,
@@ -209,6 +213,10 @@ export function DashboardWidgetExecutionProvider({
   const effectiveResolveWidgetDefinition = resolveWidgetDefinition ?? getWidgetById;
   const runtimeDataStore = useMemo(
     () => createRuntimeDataStore(scopeId),
+    [scopeId],
+  );
+  const connectionRuntimeStore = useMemo(
+    () => createConnectionRuntimeStore(scopeId),
     [scopeId],
   );
   const {
@@ -1046,9 +1054,11 @@ export function DashboardWidgetExecutionProvider({
 
   return (
     <RuntimeDataStoreProvider store={runtimeDataStore}>
-      <DashboardWidgetExecutionContext.Provider value={value}>
-        {children}
-      </DashboardWidgetExecutionContext.Provider>
+      <ConnectionRuntimeStoreProvider store={connectionRuntimeStore}>
+        <DashboardWidgetExecutionContext.Provider value={value}>
+          {children}
+        </DashboardWidgetExecutionContext.Provider>
+      </ConnectionRuntimeStoreProvider>
     </RuntimeDataStoreProvider>
   );
 }

@@ -15,8 +15,11 @@ import { getRegistryTableCellClassName } from "../../../../../extensions/main_se
 
 import {
   fetchCurrentOrganizationId,
+  isAdminRequestError,
   listOrganizationActivePlans,
   listOrganizationSubscriptionSeats,
+  type OrganizationActivePlanAssignmentUpgradeRequiredErrorPayload,
+  type OrganizationSubscriptionSeatsUpgradeRequiredErrorPayload,
   type OrganizationActivePlanAssignment,
   type OrganizationActivePlanItem,
   type OrganizationSubscriptionSeatsPlanRow,
@@ -28,6 +31,138 @@ import { AdminSurfaceLayout } from "./shared";
 
 function formatAdminError(error: unknown) {
   return error instanceof Error ? error.message : "The active plans request failed.";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readTrimmedString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function readPayloadMessage(value: unknown) {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  if (!Array.isArray(value)) {
+    return "";
+  }
+
+  return value
+    .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+    .join(", ");
+}
+
+function readPayloadFieldMessage(payload: unknown, field: string) {
+  if (!isRecord(payload)) {
+    return "";
+  }
+
+  return readPayloadMessage(payload[field]);
+}
+
+function readPayloadUpgradeMessage(payload: unknown) {
+  if (!isRecord(payload) || !isRecord(payload.upgrade)) {
+    return "";
+  }
+
+  return readTrimmedString(payload.upgrade.message);
+}
+
+function readManageSeatsUpgradePayload(
+  error: unknown,
+): OrganizationSubscriptionSeatsUpgradeRequiredErrorPayload | null {
+  if (!isAdminRequestError(error) || error.status !== 403 || !isRecord(error.payload)) {
+    return null;
+  }
+
+  const { payload } = error;
+  const upgrade = isRecord(payload.upgrade) ? payload.upgrade : null;
+
+  if (
+    payload.code !== "organization_seat_management_upgrade_required" ||
+    typeof payload.title !== "string" ||
+    typeof payload.detail !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    code: "organization_seat_management_upgrade_required",
+    title: readPayloadFieldMessage(payload, "title"),
+    detail: readPayloadFieldMessage(payload, "detail"),
+    action: readPayloadFieldMessage(payload, "action"),
+    required_entitlement:
+      readPayloadFieldMessage(payload, "required_entitlement"),
+    upgrade: upgrade
+      ? {
+          required: Boolean(upgrade.required),
+          reason: readTrimmedString(upgrade.reason),
+          message: readTrimmedString(upgrade.message),
+        }
+      : null,
+  };
+}
+
+function readActivePlanAssignmentUpgradePayload(
+  error: unknown,
+): OrganizationActivePlanAssignmentUpgradeRequiredErrorPayload | null {
+  if (!isAdminRequestError(error) || error.status !== 403 || !isRecord(error.payload)) {
+    return null;
+  }
+
+  const { payload } = error;
+  const upgrade = isRecord(payload.upgrade) ? payload.upgrade : null;
+  const code = readPayloadFieldMessage(payload, "code");
+  const title = readPayloadFieldMessage(payload, "title");
+  const detail = readPayloadFieldMessage(payload, "detail");
+
+  if (
+    code !== "organization_plan_assignment_upgrade_required" ||
+    !title ||
+    !detail
+  ) {
+    return null;
+  }
+
+  return {
+    code: "organization_plan_assignment_upgrade_required",
+    title,
+    detail,
+    action: readPayloadFieldMessage(payload, "action"),
+    required_entitlement: readPayloadFieldMessage(payload, "required_entitlement"),
+    upgrade: upgrade
+      ? {
+          required: Boolean(upgrade.required),
+          reason: readTrimmedString(upgrade.reason),
+          message: readTrimmedString(upgrade.message),
+        }
+      : null,
+  };
+}
+
+function describeActivePlanAssignmentError(error: unknown) {
+  const upgradePayload = readActivePlanAssignmentUpgradePayload(error);
+
+  if (upgradePayload) {
+    return {
+      title: upgradePayload.title || "Upgrade required",
+      description: [
+        upgradePayload.detail,
+        upgradePayload.upgrade?.message ||
+          "Upgrade your organization plan to manage user seats and plan assignments.",
+      ]
+        .filter((value, index, values) => value && values.indexOf(value) === index)
+        .join("\n"),
+    };
+  }
+
+  return {
+    title: "Plan assignment failed",
+    description: formatAdminError(error),
+  };
 }
 
 function countAssignedPlans(value: OrganizationActivePlanAssignment[]) {
@@ -287,10 +422,11 @@ export function AdminActivePlansPage() {
       });
     },
     onError: (error) => {
+      const assignmentError = describeActivePlanAssignmentError(error);
       toast({
         variant: "error",
-        title: "Plan assignment failed",
-        description: formatAdminError(error),
+        title: assignmentError.title,
+        description: assignmentError.description,
       });
     },
     onSettled: () => {
@@ -355,6 +491,7 @@ export function AdminActivePlansPage() {
   const loading = organizationIdQuery.isLoading || activePlansQuery.isLoading;
   const error = organizationIdQuery.error ?? activePlansQuery.error;
   const manageSeatsError = organizationIdQuery.error ?? subscriptionSeatsQuery.error;
+  const manageSeatsUpgradePayload = readManageSeatsUpgradePayload(manageSeatsError);
 
   useEffect(() => {
     if (!manageSeatsOpen || !subscriptionSeats) {
@@ -631,13 +768,15 @@ export function AdminActivePlansPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredUsers.map((user) => {
+                      {filteredUsers.map((user, userIndex) => {
                         const dropdownActions = buildUserPlanDropdownActions(
                           user,
                           activePlans.items,
                         );
                         const rowPending =
                           assignmentMutation.isPending && activeAssignmentUserId === user.user_id;
+                        const assignmentListboxPlacement =
+                          userIndex >= filteredUsers.length - 1 ? "top" : "bottom";
 
                         return (
                           <tr key={user.user_id}>
@@ -665,6 +804,7 @@ export function AdminActivePlansPage() {
                                   handleAssignmentChange(user.user_id, event.target.value)
                                 }
                                 className="h-9 min-w-[240px]"
+                                listboxPlacement={assignmentListboxPlacement}
                               >
                                 <option value="">
                                   {rowPending
@@ -727,7 +867,47 @@ export function AdminActivePlansPage() {
           </div>
         ) : null}
 
-        {!organizationIdQuery.isLoading && !subscriptionSeatsQuery.isLoading && manageSeatsError ? (
+        {!organizationIdQuery.isLoading &&
+        !subscriptionSeatsQuery.isLoading &&
+        manageSeatsUpgradePayload ? (
+          <div className="space-y-5 rounded-[calc(var(--radius)-2px)] border border-primary/35 bg-primary/10 p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="primary">Upgrade required</Badge>
+              {manageSeatsUpgradePayload.upgrade?.reason ? (
+                <Badge variant="neutral">{manageSeatsUpgradePayload.upgrade.reason}</Badge>
+              ) : null}
+            </div>
+            <div>
+              <div className="text-sm font-medium text-foreground">
+                {manageSeatsUpgradePayload.title}
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {manageSeatsUpgradePayload.detail}
+              </p>
+              {manageSeatsUpgradePayload.upgrade?.message ? (
+                <p className="mt-3 text-sm text-primary">
+                  {manageSeatsUpgradePayload.upgrade.message}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setManageSeatsOpen(false);
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {!organizationIdQuery.isLoading &&
+        !subscriptionSeatsQuery.isLoading &&
+        manageSeatsError &&
+        !manageSeatsUpgradePayload ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
             {formatAdminError(manageSeatsError)}
           </div>

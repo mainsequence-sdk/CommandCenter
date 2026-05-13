@@ -10,7 +10,15 @@ import {
 import { Copy, Loader2, Settings2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { useResolvedWidgetInputs } from "@/dashboards/DashboardWidgetDependencies";
+import {
+  useResolvedWidgetInputs,
+  useResolvedWidgetIo,
+} from "@/dashboards/DashboardWidgetDependencies";
+import {
+  WIDGET_REFERENCE_TITLE_INPUT_ID,
+  isWidgetReferenceTargetInputId,
+} from "@/dashboards/widget-instance-references";
+import { normalizeWidgetInstanceBindings } from "@/dashboards/widget-dependencies";
 import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
 import {
   WidgetPreviewModeBoundary,
@@ -36,9 +44,14 @@ import {
   resolveWidgetInstancePresentation,
   useResolvedWidgetControllerContext,
 } from "@/widgets/shared/widget-schema";
+import {
+  WidgetSettingReferenceControl,
+  updateSingleWidgetBinding,
+} from "@/widgets/shared/widget-setting-reference-control";
 import type {
   ResolvedWidgetInputs,
   WidgetDefinition,
+  WidgetInstanceBindings,
   WidgetInstancePresentation,
   WidgetSettingsComponentProps,
 } from "@/widgets/types";
@@ -49,6 +62,10 @@ function cloneWidgetProps<T extends Record<string, unknown>>(value: T): T {
 
 function serializeWidgetProps(value: Record<string, unknown>) {
   return JSON.stringify(value, null, 2);
+}
+
+function jsonValueEquals(left: unknown, right: unknown) {
+  return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
 }
 
 function parseWidgetProps<T extends Record<string, unknown>>(value: string) {
@@ -72,6 +89,20 @@ function parseWidgetProps<T extends Record<string, unknown>>(value: string) {
       props: null,
     };
   }
+}
+
+function clearWidgetReferenceBindings(bindings: WidgetInstanceBindings | undefined) {
+  const normalizedBindings = normalizeWidgetInstanceBindings(bindings);
+
+  if (!normalizedBindings) {
+    return undefined;
+  }
+
+  const nextBindings = Object.fromEntries(
+    Object.entries(normalizedBindings).filter(([inputId]) => !isWidgetReferenceTargetInputId(inputId)),
+  ) as WidgetInstanceBindings;
+
+  return normalizeWidgetInstanceBindings(nextBindings);
 }
 
 function resolveWidgetMockPresentation<TProps extends Record<string, unknown>>(
@@ -135,6 +166,7 @@ interface WidgetSettingsPanelProps<
 > {
   editable?: boolean;
   closeOnSave?: boolean;
+  draftBindings?: WidgetInstanceBindings;
   draftPresentation?: WidgetInstancePresentation;
   draftProps?: TProps;
   draftTitle?: string;
@@ -143,10 +175,12 @@ interface WidgetSettingsPanelProps<
     id: string;
     title?: string;
     props?: TProps;
+    bindings?: WidgetInstanceBindings;
     presentation?: WidgetInstancePresentation;
     runtimeState?: Record<string, unknown>;
   };
   onClose: () => void;
+  onDraftBindingsChange?: (bindings: WidgetInstanceBindings | undefined) => void;
   onDraftPresentationChange?: (presentation: WidgetInstancePresentation) => void;
   onDraftPropsChange?: (props: TProps) => void;
   onDraftTitleChange?: (title: string) => void;
@@ -155,6 +189,7 @@ interface WidgetSettingsPanelProps<
   onSave?: (next: {
     title?: string;
     props: TProps;
+    bindings?: WidgetInstanceBindings;
     presentation: WidgetInstancePresentation;
   }) => void;
   panelDescription?: string;
@@ -182,6 +217,20 @@ function WidgetSettingsLoadingState() {
         <Skeleton className="h-28 rounded-[calc(var(--radius)-8px)]" />
         <Skeleton className="h-24 rounded-[calc(var(--radius)-8px)]" />
       </div>
+    </section>
+  );
+}
+
+function WidgetSettingsPreviewLoadingState() {
+  return (
+    <section className="space-y-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-4">
+      <div>
+        <div className="text-sm font-medium text-topbar-foreground">Panel preview</div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Preparing the widget preview after the settings shell opens.
+        </p>
+      </div>
+      <Skeleton className="h-[420px] rounded-[var(--radius)]" />
     </section>
   );
 }
@@ -357,6 +406,8 @@ function WidgetSettingsAdvancedSections<
   editable,
   instance,
   instanceTitle,
+  draftBindings,
+  onDraftBindingsChange,
   onDraftPresentationChange,
   onDraftPropsChange,
   onDraftTitleChange,
@@ -373,6 +424,8 @@ function WidgetSettingsAdvancedSections<
     id: string;
   };
   instanceTitle: string;
+  draftBindings?: WidgetInstanceBindings;
+  onDraftBindingsChange?: (bindings: WidgetInstanceBindings | undefined) => void;
   onDraftPresentationChange?: (presentation: WidgetInstancePresentation) => void;
   onDraftPropsChange: (props: TProps) => void;
   onDraftTitleChange?: (title: string) => void;
@@ -399,9 +452,12 @@ function WidgetSettingsAdvancedSections<
       {renderSchemaAutomatically && widget.schema ? (
         <WidgetSchemaForm
           widget={widget}
+          instanceId={instance.id}
           draftProps={resolvedDraftProps}
+          draftBindings={draftBindings}
           onDraftPropsChange={onDraftPropsChange}
           draftPresentation={resolvedDraftPresentation}
+          onDraftBindingsChange={onDraftBindingsChange}
           onDraftPresentationChange={(nextPresentation) => {
             onDraftPresentationChange?.(nextPresentation);
           }}
@@ -452,15 +508,18 @@ function WidgetSettingsAdvancedSections<
 
 export function WidgetSettingsPanel<
   TProps extends Record<string, unknown> = Record<string, unknown>,
->({
+>(props: WidgetSettingsPanelProps<TProps>) {
+  const {
   editable = true,
   closeOnSave = false,
   draftPresentation,
   draftProps,
+  draftBindings,
   draftTitle,
   footerActions,
   instance,
   onClose,
+  onDraftBindingsChange,
   onDraftPresentationChange,
   onDraftPropsChange,
   onDraftTitleChange,
@@ -474,13 +533,22 @@ export function WidgetSettingsPanel<
   secondaryActionLabel,
   showPlacementField = true,
   widget,
-}: WidgetSettingsPanelProps<TProps>) {
+  } = props;
   const resolvedPanelTitle = panelTitle ?? `${instance.title ?? widget.title} Settings`;
+  const controlledBindings = Object.prototype.hasOwnProperty.call(props, "draftBindings");
   const resolvedInitialProps = useMemo(
     () => cloneWidgetProps((instance.props ?? widget.exampleProps ?? {}) as TProps),
     [instance.props, widget.exampleProps],
   );
   const initialTitle = instance.title ?? "";
+  const initialBindings = useMemo(
+    () => normalizeWidgetInstanceBindings(instance.bindings),
+    [instance.bindings],
+  );
+  const initialBindingsJson = useMemo(
+    () => JSON.stringify(initialBindings ?? null),
+    [initialBindings],
+  );
   const resolvedInitialPresentation = useMemo(
     () => resolveWidgetInstancePresentation(widget, instance.presentation),
     [instance.presentation, widget],
@@ -540,6 +608,9 @@ export function WidgetSettingsPanel<
   );
   const [internalInstanceTitle, setInternalInstanceTitle] = useState(initialTitle);
   const [internalDraftProps, setInternalDraftProps] = useState<TProps>(initialProps);
+  const [internalDraftBindings, setInternalDraftBindings] = useState<WidgetInstanceBindings | undefined>(
+    initialBindings,
+  );
   const [internalDraftPresentation, setInternalDraftPresentation] = useState<WidgetInstancePresentation>(
     initialPresentation,
   );
@@ -555,15 +626,16 @@ export function WidgetSettingsPanel<
   const controlledTitle = typeof draftTitle === "string";
   const controlledProps = draftProps !== undefined;
   const controlledPresentation = draftPresentation !== undefined;
+  const resolvedDraftBindings = controlledBindings ? draftBindings : internalDraftBindings;
   const instanceTitle = controlledTitle ? draftTitle : internalInstanceTitle;
   const resolvedDraftProps = controlledProps ? draftProps : internalDraftProps;
   const resolvedDraftPresentation = controlledPresentation
     ? draftPresentation
     : internalDraftPresentation;
   const demoModeActive = useDemoData && hasDemoPreview;
-  const liveResolvedInputs = useResolvedWidgetInputs(instance.id);
   const activeInstanceTitle = demoModeActive ? demoDraftTitle : instanceTitle;
   const activeDraftProps = demoModeActive ? demoDraftProps : resolvedDraftProps;
+  const activeDraftBindings = resolvedDraftBindings;
   const activeDraftPresentation = demoModeActive
     ? demoDraftPresentation
     : resolvedDraftPresentation;
@@ -575,47 +647,97 @@ export function WidgetSettingsPanel<
         placementMode: fixedPlacementMode,
       }
     : activeDraftPresentation;
+  const activeDraftPropsJson = useMemo(
+    () => serializeWidgetProps(activeDraftProps),
+    [activeDraftProps],
+  );
+  const deferredRegionsKey = `${instance.id}:${widget.id}`;
+  const demoResetSignature = useMemo(
+    () =>
+      JSON.stringify({
+        hasDemoPreview,
+        instanceId: instance.id,
+        mockPresentationJson,
+        mockPropsJson,
+        mockRuntimeStateJson,
+        mockTitle,
+        widgetId: widget.id,
+      }),
+    [
+      hasDemoPreview,
+      instance.id,
+      mockPresentationJson,
+      mockPropsJson,
+      mockRuntimeStateJson,
+      mockTitle,
+      widget.id,
+    ],
+  );
+  const [rawPropsValue, setRawPropsValue] = useState(() => serializeWidgetProps(activeDraftProps));
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const [rawPropsEditorOpen, setRawPropsEditorOpen] = useState(false);
+  const [deferredRegionsHydratedKey, setDeferredRegionsHydratedKey] = useState<string | null>(null);
+  const deferredRegionsReady = deferredRegionsHydratedKey === deferredRegionsKey;
+  const deferredInstanceId = deferredRegionsReady ? instance.id : undefined;
+  const liveResolvedInputs = useResolvedWidgetInputs(deferredInstanceId);
+  const resolvedIo = useResolvedWidgetIo(deferredInstanceId);
   const activeResolvedInputs = demoModeActive
     ? mockResolvedInputs
     : (previewResolvedInputsOverride ?? liveResolvedInputs);
   const activePreviewRuntimeState = demoModeActive
     ? demoDraftRuntimeState
     : (previewRuntimeStateOverride ?? instance.runtimeState);
-  const [rawPropsValue, setRawPropsValue] = useState(() => serializeWidgetProps(activeDraftProps));
-  const [jsonError, setJsonError] = useState<string | null>(null);
-  const [rawPropsEditorOpen, setRawPropsEditorOpen] = useState(false);
   const SettingsComponent =
     widget.settingsComponent as
       | ComponentType<WidgetSettingsComponentProps<TProps>>
       | undefined;
-  const [heavySectionsReady, setHeavySectionsReady] = useState(false);
   const showRawPropsEditor = widget.showRawPropsEditor !== false;
   const showHeader = resolveWidgetHeaderVisibility(activeDraftProps);
   const transparentSurface = resolveWidgetTransparentSurface(effectiveActiveDraftPresentation);
   const sidebarOnly = effectiveActiveDraftPresentation.placementMode === "sidebar";
   const hasAdvancedSections = Boolean(widget.schema || SettingsComponent);
   const showPanelPreview = !isWorkspaceRowWidgetId(widget.id);
+  const titleReferenceInput = useMemo(
+    () => (resolvedIo?.inputs ?? []).find((input) => input.id === WIDGET_REFERENCE_TITLE_INPUT_ID),
+    [resolvedIo?.inputs],
+  );
+  const titleReferenceBinding = titleReferenceInput
+    ? activeDraftBindings?.[titleReferenceInput.id]
+    : undefined;
 
   useEffect(() => {
     if (!controlledTitle) {
-      setInternalInstanceTitle(initialTitle);
+      setInternalInstanceTitle((current) => current === initialTitle ? current : initialTitle);
     }
 
     if (!controlledProps) {
-      setInternalDraftProps(initialProps);
+      setInternalDraftProps((current) =>
+        jsonValueEquals(current, initialProps) ? current : initialProps,
+      );
+    }
+
+    if (!controlledBindings) {
+      setInternalDraftBindings((current) =>
+        jsonValueEquals(current, initialBindings) ? current : initialBindings,
+      );
     }
 
     if (!controlledPresentation) {
-      setInternalDraftPresentation(initialPresentation);
+      setInternalDraftPresentation((current) =>
+        jsonValueEquals(current, initialPresentation) ? current : initialPresentation,
+      );
     }
 
-    setRawPropsValue(initialPropsJson);
-    setJsonError(null);
+    setRawPropsValue((current) => current === initialPropsJson ? current : initialPropsJson);
+    setJsonError((current) => current === null ? current : null);
   }, [
     controlledPresentation,
+    controlledBindings,
     controlledProps,
     controlledTitle,
+    initialBindingsJson,
     initialPresentation,
+    initialPresentationJson,
     initialProps,
     initialPropsJson,
     initialTitle,
@@ -623,56 +745,94 @@ export function WidgetSettingsPanel<
   ]);
 
   useEffect(() => {
-    setDemoDraftTitle(mockTitle);
-    setDemoDraftProps(mockProps);
-    setDemoDraftPresentation(mockPresentation);
-    setDemoDraftRuntimeState(mockRuntimeState);
-    setUseDemoData(false);
+    const nextMockProps = JSON.parse(mockPropsJson) as TProps;
+    const nextMockPresentation = JSON.parse(mockPresentationJson) as WidgetInstancePresentation;
+    const nextMockRuntimeState = mockRuntimeStateJson
+      ? (JSON.parse(mockRuntimeStateJson) as Record<string, unknown>)
+      : undefined;
+
+    setDemoDraftTitle((current) => current === mockTitle ? current : mockTitle);
+    setDemoDraftProps((current) =>
+      jsonValueEquals(current, nextMockProps) ? current : nextMockProps,
+    );
+    setDemoDraftPresentation((current) =>
+      jsonValueEquals(current, nextMockPresentation) ? current : nextMockPresentation,
+    );
+    setDemoDraftRuntimeState((current) =>
+      jsonValueEquals(current, nextMockRuntimeState) ? current : nextMockRuntimeState,
+    );
+    setUseDemoData((current) => current ? false : current);
   }, [
-    hasDemoPreview,
-    instance.id,
-    mockPresentation,
-    mockProps,
-    mockRuntimeState,
+    demoResetSignature,
+    mockPresentationJson,
+    mockPropsJson,
+    mockRuntimeStateJson,
     mockTitle,
-    widget.id,
   ]);
 
   useEffect(() => {
-    setRawPropsValue(serializeWidgetProps(activeDraftProps));
-  }, [activeDraftProps]);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let animationFrameId: number | undefined;
+    let cancelled = false;
 
-  useEffect(() => {
-    setHeavySectionsReady(false);
+    setDeferredRegionsHydratedKey(null);
 
-    const frameId =
-      typeof window !== "undefined"
-        ? window.requestAnimationFrame(() => {
-            setHeavySectionsReady(true);
-          })
-        : null;
-    const timeoutId =
-      frameId == null
-        ? setTimeout(() => {
-            setHeavySectionsReady(true);
-          }, 0)
-        : null;
+    const markReady = () => {
+      if (!cancelled) {
+        setDeferredRegionsHydratedKey(deferredRegionsKey);
+      }
+    };
+
+    if (
+      typeof window !== "undefined" &&
+      typeof window.requestAnimationFrame === "function"
+    ) {
+      animationFrameId = window.requestAnimationFrame(() => {
+        timeoutId = window.setTimeout(markReady, 0);
+      });
+    } else {
+      timeoutId = setTimeout(markReady, 0);
+    }
 
     return () => {
-      if (frameId != null && typeof window !== "undefined") {
-        window.cancelAnimationFrame(frameId);
+      cancelled = true;
+
+      if (
+        animationFrameId !== undefined &&
+        typeof window !== "undefined" &&
+        typeof window.cancelAnimationFrame === "function"
+      ) {
+        window.cancelAnimationFrame(animationFrameId);
       }
 
-      if (timeoutId != null) {
+      if (timeoutId !== undefined) {
         clearTimeout(timeoutId);
       }
     };
-  }, [instance.id, widget.id]);
+  }, [deferredRegionsKey]);
+
+  useEffect(() => {
+    setRawPropsValue((current) =>
+      current === activeDraftPropsJson ? current : activeDraftPropsJson,
+    );
+  }, [activeDraftPropsJson]);
 
   const dirty =
     instanceTitle !== initialTitle ||
+    JSON.stringify(activeDraftBindings ?? null) !== initialBindingsJson ||
     serializeWidgetProps(resolvedDraftProps) !== initialPropsJson ||
     JSON.stringify(resolvedDraftPresentation) !== initialPresentationJson;
+
+  function handleDraftBindingsChange(nextBindings: WidgetInstanceBindings | undefined) {
+    const normalizedBindings = normalizeWidgetInstanceBindings(nextBindings);
+
+    if (controlledBindings) {
+      onDraftBindingsChange?.(normalizedBindings);
+      return;
+    }
+
+    setInternalDraftBindings(normalizedBindings);
+  }
 
   function handleRealDraftPropsChange(nextProps: TProps) {
     const cloned = cloneWidgetProps(nextProps);
@@ -738,6 +898,7 @@ export function WidgetSettingsPanel<
 
     const nextProps = cloneWidgetProps((widget.exampleProps ?? {}) as TProps);
     const nextPresentation = resolveDefaultWidgetPresentation(widget);
+    const nextBindings = clearWidgetReferenceBindings(activeDraftBindings);
     if (controlledTitle) {
       onDraftTitleChange?.("");
     } else {
@@ -749,6 +910,8 @@ export function WidgetSettingsPanel<
     } else {
       setInternalDraftProps(nextProps);
     }
+
+    handleDraftBindingsChange(nextBindings);
 
     if (controlledPresentation) {
       onDraftPresentationChange?.(nextPresentation);
@@ -821,6 +984,7 @@ export function WidgetSettingsPanel<
     onSave?.({
       title: activeInstanceTitle.trim() ? activeInstanceTitle.trim() : undefined,
       props: parsed.props,
+      bindings: activeDraftBindings,
       presentation: effectiveActiveDraftPresentation,
     });
 
@@ -853,11 +1017,26 @@ export function WidgetSettingsPanel<
       </div>
       <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
         <section className="space-y-3">
-          <div>
-            <div className="text-sm font-medium text-topbar-foreground">Display title</div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Leave blank to fall back to the widget default title.
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium text-topbar-foreground">Display title</div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Leave blank to fall back to the widget default title.
+              </p>
+            </div>
+            {titleReferenceInput ? (
+              <WidgetSettingReferenceControl
+                editable={editable && !demoModeActive}
+                instanceId={instance.id}
+                input={titleReferenceInput}
+                value={titleReferenceBinding}
+                onBindingChange={(binding) => {
+                  handleDraftBindingsChange(
+                    updateSingleWidgetBinding(activeDraftBindings, titleReferenceInput.id, binding),
+                  );
+                }}
+              />
+            ) : null}
           </div>
           <Input
             value={activeInstanceTitle}
@@ -871,7 +1050,7 @@ export function WidgetSettingsPanel<
               }
             }}
             placeholder={widget.title}
-            readOnly={!editable}
+            readOnly={!editable || Boolean(titleReferenceBinding)}
           />
         </section>
 
@@ -926,29 +1105,35 @@ export function WidgetSettingsPanel<
         </div>
 
         {showPanelPreview ? (
-          <WidgetPanelPreview
-            demoMode={demoModeActive}
-            hasDemoPreview={hasDemoPreview}
-            instanceId={instance.id}
-            instanceTitle={activeInstanceTitle.trim() || (demoModeActive ? mockTitle : widget.title)}
-            onDemoModeChange={setUseDemoData}
-            onRuntimeStateChange={demoModeActive ? setDemoDraftRuntimeState : undefined}
-            previewResolvedInputs={activeResolvedInputs}
-            previewRuntimeState={activePreviewRuntimeState}
-            props={activeDraftProps}
-            presentation={effectiveActiveDraftPresentation}
-            widget={widget}
-          />
+          deferredRegionsReady ? (
+            <WidgetPanelPreview
+              demoMode={demoModeActive}
+              hasDemoPreview={hasDemoPreview}
+              instanceId={instance.id}
+              instanceTitle={activeInstanceTitle.trim() || (demoModeActive ? mockTitle : widget.title)}
+              onDemoModeChange={setUseDemoData}
+              onRuntimeStateChange={demoModeActive ? setDemoDraftRuntimeState : undefined}
+              previewResolvedInputs={activeResolvedInputs}
+              previewRuntimeState={activePreviewRuntimeState}
+              props={activeDraftProps}
+              presentation={effectiveActiveDraftPresentation}
+              widget={widget}
+            />
+          ) : (
+            <WidgetSettingsPreviewLoadingState />
+          )
         ) : null}
 
         {hasAdvancedSections ? (
-          heavySectionsReady ? (
+          deferredRegionsReady ? (
             <WidgetSettingsAdvancedSections
               controlledPresentation={controlledPresentation}
               controlledTitle={controlledTitle}
               editable={editable}
               instance={instance}
               instanceTitle={activeInstanceTitle}
+              draftBindings={activeDraftBindings}
+              onDraftBindingsChange={handleDraftBindingsChange}
               onDraftPresentationChange={(nextPresentation) => {
                 const resolvedNextPresentation = fixedPlacementMode
                   ? {

@@ -1,12 +1,13 @@
 ## buildPurpose
 
 Publishes canonical tabular incremental publications from a streamable connection query over a WebSocket, with a compatibility retained dataset output for legacy consumers.
-Large retained frames are stored in the workspace runtime data store and carried through bindings as runtime refs, while the source widget keeps inline rows for cold reload and preview fallback.
+Large retained frames are stored in the workspace runtime data store and carried through bindings as runtime refs; active runtime shells stay lightweight instead of carrying inline retained rows when the runtime data store is available.
 
 ## whenToUse
 
 - Use when a backend connection query model advertises `stream.transport: "websocket"` and widgets need live rows from that path.
 - Use when downstream widgets should bind to explicit `updates` publications while the source keeps a WebSocket open.
+- Use when several widgets need the same stream request; matching active requests share one workspace runtime connection instead of opening duplicate browser sockets.
 - Use when snapshot and delta messages should feed the same table, graph, statistic, transform, or debug widgets that already consume connection query output.
 
 ## whenNotToUse
@@ -32,9 +33,11 @@ Large retained frames are stored in the workspace runtime data store and carried
 ## commonPitfalls
 
 - The widget stores connection/query selection and stream merge settings only; credentials and provider URLs must stay on the backend connection instance.
-- Runtime state should carry stream lifecycle plus runtime data refs, but the source widget still retains inline rows for the current retained dataset so cold-loaded workspaces and settings previews can render without waiting for a new live message.
+- Runtime state should carry stream lifecycle plus runtime data refs. Do not rely on active source widgets keeping retained rows inline; materialize rows through the shared runtime data store when row data is needed.
+- Widget settings read an active workspace stream from the shared connection runtime store. If the same request is already live, settings should show that status instead of requiring a separate test stream.
+- The visible source card should observe shared stream status at a throttled cadence, not per WebSocket frame. High-frequency streams must not make settings buttons or canvas controls wait behind status-card rerenders.
 - Delta frames must keep the same schema as the retained frame. A schema change is treated as a stream error so consumers do not render mixed columns.
 - Live-capable widgets should bind `liveUpdates` to this widget's `updates` output. `seedData` reacts only to seed publications, while `liveUpdates` continues applying seed/update publications from the stream.
 - Snapshot-origin stream messages republish as seed resets. Delta-origin messages remain incremental updates.
 - Downstream widgets should read their existing `consumerState` from shared source-binding helpers, not `streamStatus`.
-- Passive consumer remounts should not create WebSocket subscriptions. Only this source widget owns the socket.
+- Passive consumer remounts should not create WebSocket subscriptions. Runtime-owner source widgets acquire shared stream sessions through the workspace connection runtime store; settings, charts, and passive widgets only observe existing stream status.

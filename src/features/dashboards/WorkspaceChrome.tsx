@@ -155,6 +155,7 @@ function RailHoverCard({
 
   useLayoutEffect(() => {
     if (!open || !anchorRef.current) {
+      setStyle(undefined);
       return undefined;
     }
 
@@ -175,25 +176,36 @@ function RailHoverCard({
       );
       const left = Math.min(rect.right + offset, viewportWidth - cardWidth - 12);
 
-      setStyle({
-        left,
-        top,
-      });
+      setStyle((current) =>
+        current?.left === left && current?.top === top
+          ? current
+          : {
+              left,
+              top,
+            },
+      );
     }
 
     let frameId = 0;
+    const resizeObserver = new ResizeObserver(() => {
+      updatePosition();
+    });
 
     const updatePortalPosition = () => {
-      updatePosition();
-      frameId = window.requestAnimationFrame(updatePortalPosition);
+      window.cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(() => {
+        updatePosition();
+      });
     };
 
     updatePortalPosition();
+    resizeObserver.observe(anchorRef.current);
 
     window.addEventListener("resize", updatePortalPosition);
     window.addEventListener("scroll", updatePortalPosition, true);
 
     return () => {
+      resizeObserver.disconnect();
       window.cancelAnimationFrame(frameId);
       window.removeEventListener("resize", updatePortalPosition);
       window.removeEventListener("scroll", updatePortalPosition, true);

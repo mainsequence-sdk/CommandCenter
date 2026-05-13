@@ -5,15 +5,20 @@ import type {
   AgentSessionApiRecord,
   AgentSessionSerializedRecord,
 } from "../runtime/agent-sessions-api";
+import {
+  getAgentSessionRecordAgentId,
+  getAgentSessionRecordAgentName,
+} from "../runtime/agent-sessions-api";
 import type { CommandCenterBaseSessionHandle } from "../runtime/command-center-base-session-api";
 
-export const DEFAULT_AGENT_NAME = "astro-orchestrator";
+export const DEFAULT_AGENT_TYPE = "astro-orchestrator";
 export const DEFAULT_AGENT_LABEL = "Astro Orchestrator";
 
 export interface AgentSessionAgent {
   id: number | null;
   name: string;
-  requestName: string;
+  displayLabel: string;
+  requestAgentType: string;
   agentUniqueId: string;
   description: string;
   status: string;
@@ -99,7 +104,8 @@ export function toAgentSessionAgent(agent: AgentSearchResult): AgentSessionAgent
   return {
     id: agent.id,
     name: agent.name,
-    requestName: agent.name,
+    displayLabel: agent.displayLabel,
+    requestAgentType: agent.agentType,
     agentUniqueId: agent.agent_unique_id,
     description: agent.description,
     status: agent.status ?? "",
@@ -113,8 +119,9 @@ export function createDefaultAgentSessionAgent(): AgentSessionAgent {
   return {
     id: null,
     name: DEFAULT_AGENT_LABEL,
-    requestName: DEFAULT_AGENT_NAME,
-    agentUniqueId: DEFAULT_AGENT_NAME,
+    displayLabel: DEFAULT_AGENT_LABEL,
+    requestAgentType: DEFAULT_AGENT_TYPE,
+    agentUniqueId: DEFAULT_AGENT_TYPE,
     description: "",
     status: "",
     llmProvider: "",
@@ -131,7 +138,9 @@ export function toAgentSessionRecordFromApi(
   const updatedAt = record.ended_at || record.started_at || new Date().toISOString();
   const title = record.title?.trim() || record.summary?.trim() || `Agent session ${sessionId}`;
   const preview = record.summary?.trim() || null;
-  const requestName = record.agent_name?.trim() || existing?.agent?.requestName || DEFAULT_AGENT_NAME;
+  const requestAgentType = record.agent_type?.trim() || "";
+  const recordAgentId = getAgentSessionRecordAgentId(record);
+  const recordAgentName = getAgentSessionRecordAgentName(record);
   const handleUniqueId =
     (Array.isArray(record.bound_handles) ? record.bound_handles[0]?.handle_unique_id : null) ??
     existing?.handleUniqueId ??
@@ -139,10 +148,10 @@ export function toAgentSessionRecordFromApi(
   const preservedAgentUniqueId =
     existing?.agent &&
     existing.agent.agentUniqueId &&
-    existing.agent.agentUniqueId !== DEFAULT_AGENT_NAME &&
+    existing.agent.agentUniqueId !== DEFAULT_AGENT_TYPE &&
     (
-      existing.agent.requestName === requestName ||
-      (record.agent !== null && record.agent !== undefined && existing.agent.id === record.agent)
+      existing.agent.requestAgentType === requestAgentType ||
+      (recordAgentId !== null && existing.agent.id === recordAgentId)
     )
       ? existing.agent.agentUniqueId
       : null;
@@ -164,13 +173,10 @@ export function toAgentSessionRecordFromApi(
     isPlaceholder: false,
     serializedSession: existing?.serializedSession ?? null,
     agent: {
-      id: record.agent ?? existing?.agent?.id ?? null,
-      name:
-        record.actor_name?.trim() ||
-        requestName ||
-        existing?.agent?.name ||
-        "Astro Orchestrator",
-      requestName,
+      id: recordAgentId ?? existing?.agent?.id ?? null,
+      name: recordAgentName || existing?.agent?.name || "",
+      displayLabel: existing?.agent?.displayLabel || "",
+      requestAgentType,
       agentUniqueId: preservedAgentUniqueId ?? "",
       description: existing?.agent?.description || "",
       status: record.status || existing?.agent?.status || "",
@@ -201,8 +207,8 @@ export function buildAgentSessionTitle({
     return firstUserText.length > 72 ? `${firstUserText.slice(0, 69)}...` : firstUserText;
   }
 
-  if (agent?.name) {
-    return agent.name;
+  if (agent?.displayLabel) {
+    return agent.displayLabel;
   }
 
   return "New agent session";
@@ -231,7 +237,7 @@ export function createEmptyAgentSession(
 ): AgentSessionRecord {
   return {
     id: createAgentSessionId(),
-    title: agent?.name ?? "New agent session",
+    title: agent?.displayLabel ?? "New agent session",
     preview: null,
     runtimeSessionId: null,
     sessionKey: null,
@@ -317,7 +323,7 @@ export function attachAgentToSession(session: AgentSessionRecord, agent: AgentSe
     isPlaceholder: false,
     title:
       session.messages.length === 0
-        ? nextAgent.name
+        ? nextAgent.displayLabel
         : buildAgentSessionTitle({ agent: nextAgent, messages: session.messages }),
     updatedAt: new Date().toISOString(),
   };
@@ -361,16 +367,14 @@ export function toAgentSessionRecordFromBaseHandle(
   existing?: AgentSessionRecord,
 ): AgentSessionRecord {
   const nextAgent = existing?.agent ?? createDefaultAgentSessionAgent();
-  const requestName = handle.agent.requestName?.trim() || DEFAULT_AGENT_NAME;
-  const displayName =
-    handle.agent.name?.trim() ||
-    (requestName === DEFAULT_AGENT_NAME ? DEFAULT_AGENT_LABEL : requestName);
+  const requestAgentType = handle.agent.requestAgentType?.trim() || "";
+  const displayLabel = handle.agent.displayLabel?.trim() || "";
 
   return {
     id: handle.sessionId,
     title:
       existing?.title ||
-      displayName,
+      displayLabel,
     preview: existing?.preview ?? null,
     runtimeSessionId: handle.runtimeSessionId ?? existing?.runtimeSessionId ?? handle.sessionId,
     sessionKey: handle.sessionKey ?? existing?.sessionKey ?? null,
@@ -384,12 +388,10 @@ export function toAgentSessionRecordFromBaseHandle(
     agent: {
       ...nextAgent,
       id: handle.agent.id ?? nextAgent.id,
-      name: displayName,
-      requestName,
-      agentUniqueId:
-        handle.agent.agentUniqueId?.trim() ||
-        nextAgent.agentUniqueId ||
-        requestName,
+      name: nextAgent.name,
+      displayLabel,
+      requestAgentType,
+      agentUniqueId: handle.agent.agentUniqueId?.trim() || "",
       llmProvider: handle.agent.llmProvider?.trim() || nextAgent.llmProvider || "",
       llmModel: handle.agent.llmModel?.trim() || nextAgent.llmModel || "",
     },
@@ -474,17 +476,24 @@ export function readAgentSessions(userId: string | null) {
               : null,
           agent:
             candidate.agent && typeof candidate.agent === "object" && !Array.isArray(candidate.agent)
-              ? ({
-                  ...(candidate.agent as AgentSessionAgent),
-                  requestName:
-                    typeof (candidate.agent as Partial<AgentSessionAgent>).requestName === "string" &&
-                    (candidate.agent as Partial<AgentSessionAgent>).requestName
-                      ? (candidate.agent as AgentSessionAgent).requestName
-                      : typeof (candidate.agent as Partial<AgentSessionAgent>).name === "string" &&
-                          (candidate.agent as Partial<AgentSessionAgent>).name
-                        ? (candidate.agent as AgentSessionAgent).name
-                        : DEFAULT_AGENT_NAME,
-                } satisfies AgentSessionAgent)
+              ? (() => {
+                  const agent = candidate.agent as Partial<AgentSessionAgent>;
+
+                  return {
+                    id: typeof agent.id === "number" && Number.isFinite(agent.id) ? agent.id : null,
+                    name: typeof agent.name === "string" ? agent.name : "",
+                    displayLabel: typeof agent.displayLabel === "string" ? agent.displayLabel : "",
+                    requestAgentType:
+                      typeof agent.requestAgentType === "string" ? agent.requestAgentType : "",
+                    agentUniqueId:
+                      typeof agent.agentUniqueId === "string" ? agent.agentUniqueId : "",
+                    description: typeof agent.description === "string" ? agent.description : "",
+                    status: typeof agent.status === "string" ? agent.status : "",
+                    llmProvider: typeof agent.llmProvider === "string" ? agent.llmProvider : "",
+                    llmModel: typeof agent.llmModel === "string" ? agent.llmModel : "",
+                    engineName: typeof agent.engineName === "string" ? agent.engineName : "",
+                  } satisfies AgentSessionAgent;
+                })()
               : null,
           isPlaceholder: Boolean(candidate.isPlaceholder),
           serializedSession:

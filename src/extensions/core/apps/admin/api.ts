@@ -9,6 +9,18 @@ import type { EntitySummaryHeader } from "../../../../../extensions/main_sequenc
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 
+export class AdminRequestError extends Error {
+  status: number;
+  payload: unknown;
+
+  constructor(status: number, payload: unknown, message: string) {
+    super(message);
+    this.name = "AdminRequestError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
 function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
 }
@@ -122,7 +134,11 @@ async function requestAdminJson<T>(
   const payload = await readResponsePayload(response);
 
   if (!response.ok) {
-    throw new Error(readErrorMessage(payload) || `Admin request failed with ${response.status}.`);
+    throw new AdminRequestError(
+      response.status,
+      payload,
+      readErrorMessage(payload) || `Admin request failed with ${response.status}.`,
+    );
   }
 
   return payload as T;
@@ -149,9 +165,17 @@ export interface UserBulkOrgAdminActionResponse {
 }
 
 export interface OrganizationUserCreateResponse {
-  detail?: string;
-  email?: string;
-  id?: number | string;
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  profile_picture: string | null;
+  groups: string[];
+  plan: string;
+  teams: Array<{
+    id: number;
+    name: string;
+  }>;
 }
 
 export interface OrganizationUserCreateInput {
@@ -267,6 +291,15 @@ export interface OrganizationActivePlanAssignmentUpdateResponse {
   item_id: number;
 }
 
+export interface OrganizationActivePlanAssignmentUpgradeRequiredErrorPayload {
+  code: "organization_plan_assignment_upgrade_required";
+  title: string;
+  detail: string;
+  action: string;
+  required_entitlement: string;
+  upgrade: OrganizationSubscriptionSeatsUpgradeInfo | null;
+}
+
 export interface OrganizationSubscriptionSeatsSubscription {
   stripe_subscription_id: string | null;
   status: string | null;
@@ -293,6 +326,21 @@ export interface OrganizationSubscriptionSeatsUpdateResponse {
   redirect_url: string | null;
 }
 
+export interface OrganizationSubscriptionSeatsUpgradeInfo {
+  required: boolean;
+  reason: string;
+  message: string;
+}
+
+export interface OrganizationSubscriptionSeatsUpgradeRequiredErrorPayload {
+  code: "organization_seat_management_upgrade_required";
+  title: string;
+  detail: string;
+  action: string;
+  required_entitlement: string;
+  upgrade: OrganizationSubscriptionSeatsUpgradeInfo | null;
+}
+
 export interface OrganizationCreditsAutoReloadConfig {
   enabled: boolean;
   threshold_cents: number;
@@ -302,12 +350,118 @@ export interface OrganizationCreditsAutoReloadConfig {
   has_payment_method: boolean;
 }
 
+export interface OrganizationCreditsActionDescriptor {
+  method: string;
+  url: string;
+  label: string;
+}
+
+export interface OrganizationCreditsFormFieldChoice {
+  value: string | number | boolean;
+  label: string;
+}
+
+export interface OrganizationCreditsFormFieldDescriptor {
+  name: string;
+  label?: string;
+  help_text?: string;
+  required?: boolean;
+  type?: string;
+  initial?: unknown;
+  choices?: OrganizationCreditsFormFieldChoice[];
+}
+
+export interface OrganizationCreditsFormDescriptor {
+  method: string;
+  url: string;
+  fields: OrganizationCreditsFormFieldDescriptor[];
+}
+
+export interface OrganizationCreditsPolicy {
+  id: number;
+  organization_id: number;
+  user_id: number;
+  is_enabled: boolean;
+  mode: "allocated" | "organization_pool" | "disabled" | string;
+  monthly_limit_cents: number;
+  allocated_cents: number;
+  auto_reload_enabled: boolean;
+  auto_reload_threshold_cents: number;
+  auto_reload_amount_cents: number;
+  auto_reload_monthly_limit_cents: number;
+  currency: string;
+}
+
+export interface UserCreditsState {
+  organization_id: number;
+  user_id: number;
+  user_balance_cents: number;
+  organization_balance_cents: number;
+  available_cents: number;
+  currency: string;
+  has_spendable_credits: boolean;
+  policy: OrganizationCreditsPolicy | null;
+}
+
+export interface OrganizationCreditsCheckoutInput {
+  amount_cents: number;
+  success_url: string;
+  cancel_url: string;
+  idempotency_key: string;
+}
+
+export interface OrganizationCreditsCheckoutResponse {
+  checkout_session_id: string;
+  checkout_url: string;
+  credit_transaction_id: number;
+  amount_cents: number;
+  currency: string;
+  idempotent_replay: boolean;
+}
+
+export interface OrganizationCreditsAutoReloadUpdateInput {
+  enabled: boolean;
+  threshold_cents: number;
+  reload_amount_cents: number;
+  monthly_limit_cents: number;
+  currency: string;
+  stripe_payment_method_id?: string;
+}
+
+export interface OrganizationCreditsUserPolicyUpdateInput {
+  is_enabled: boolean;
+  mode: "allocated" | "organization_pool" | "disabled";
+  monthly_limit_cents: number;
+  auto_reload_enabled: boolean;
+  auto_reload_threshold_cents: number;
+  auto_reload_amount_cents: number;
+  auto_reload_monthly_limit_cents: number;
+  currency: string;
+}
+
+export interface OrganizationCreditsUserAllocateInput {
+  amount_cents: number;
+  reference?: string;
+  description?: string;
+}
+
 export interface OrganizationCreditsResponse {
   organization_id: number;
   balance_cents: number;
   currency: string;
   has_spendable_credits: boolean;
   auto_reload: OrganizationCreditsAutoReloadConfig;
+  actions?: {
+    refresh_balance?: OrganizationCreditsActionDescriptor;
+    purchase_checkout?: OrganizationCreditsActionDescriptor;
+    update_auto_reload?: OrganizationCreditsActionDescriptor;
+    load_auto_reload?: OrganizationCreditsActionDescriptor;
+    list_user_credits?: OrganizationCreditsActionDescriptor;
+  };
+  forms?: {
+    purchase_checkout?: OrganizationCreditsFormDescriptor;
+    auto_reload?: OrganizationCreditsFormDescriptor;
+  };
 }
 
 export type OrganizationLoginSessionAuthSource = "django_session" | "jwt";
@@ -347,6 +501,10 @@ interface CurrentUserDetailsPayload {
   organization?: {
     id?: number;
   };
+}
+
+export function isAdminRequestError(error: unknown): error is AdminRequestError {
+  return error instanceof AdminRequestError;
 }
 
 export async function listOrganizationUsers({
@@ -477,11 +635,107 @@ export function listOrganizationSubscriptionSeats(organizationId: number) {
   );
 }
 
+export function buildOrganizationCreditsPath(organizationId: number) {
+  return `/user/api/organization/${encodeURIComponent(String(organizationId))}/credits/`;
+}
+
+export function buildOrganizationCreditsCheckoutPath(organizationId: number) {
+  return `/user/api/organization/${encodeURIComponent(String(organizationId))}/credits/checkout/`;
+}
+
+export function buildOrganizationCreditsAutoReloadPath(organizationId: number) {
+  return `/user/api/organization/${encodeURIComponent(String(organizationId))}/credits/auto-reload/`;
+}
+
+export function buildOrganizationCreditsUsersPath(organizationId: number) {
+  return `/user/api/organization/${encodeURIComponent(String(organizationId))}/credits/users/`;
+}
+
+export function buildOrganizationCreditUserPolicyPath(
+  organizationId: number,
+  userId: number,
+) {
+  return `/user/api/organization/${encodeURIComponent(String(organizationId))}/credits/users/${encodeURIComponent(String(userId))}/policy/`;
+}
+
+export function buildOrganizationCreditUserAllocatePath(
+  organizationId: number,
+  userId: number,
+) {
+  return `/user/api/organization/${encodeURIComponent(String(organizationId))}/credits/users/${encodeURIComponent(String(userId))}/allocate/`;
+}
+
 export function getOrganizationCredits(organizationId: number) {
   return requestAdminJson<OrganizationCreditsResponse>(
-    `/users/api/organization/${encodeURIComponent(String(organizationId))}/credits/`,
+    buildOrganizationCreditsPath(organizationId),
     {
       method: "GET",
+    },
+  );
+}
+
+export function getCurrentUserCredits() {
+  return requestAdminJson<UserCreditsState>("/user/api/user/credits/", {
+    method: "GET",
+  });
+}
+
+export function loadOrganizationCreditsAutoReload(path: string) {
+  return requestAdminJson<OrganizationCreditsAutoReloadConfig>(path, {
+    method: "GET",
+  });
+}
+
+export function submitOrganizationCreditsCheckout(
+  path: string,
+  payload: OrganizationCreditsCheckoutInput,
+) {
+  return requestAdminJson<OrganizationCreditsCheckoutResponse>(path, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateOrganizationCreditsAutoReload(
+  path: string,
+  payload: OrganizationCreditsAutoReloadUpdateInput,
+) {
+  return requestAdminJson<OrganizationCreditsAutoReloadConfig>(path, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listOrganizationUserCredits(path: string) {
+  return requestAdminJson<UserCreditsState[]>(path, {
+    method: "GET",
+  });
+}
+
+export function updateOrganizationUserCreditPolicy(
+  organizationId: number,
+  userId: number,
+  payload: OrganizationCreditsUserPolicyUpdateInput,
+) {
+  return requestAdminJson<OrganizationCreditsPolicy>(
+    buildOrganizationCreditUserPolicyPath(organizationId, userId),
+    {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function allocateOrganizationUserCredits(
+  organizationId: number,
+  userId: number,
+  payload: OrganizationCreditsUserAllocateInput,
+) {
+  return requestAdminJson<UserCreditsState>(
+    buildOrganizationCreditUserAllocatePath(organizationId, userId),
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
     },
   );
 }
@@ -618,11 +872,17 @@ export function importGithubOrganizationProjects(selectedIds: number[]) {
   );
 }
 
-export function createOrganizationUser(payload: OrganizationUserCreateInput) {
-  return requestAdminJson<OrganizationUserCreateResponse>("/user/api/user/", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function createOrganizationUser(
+  organizationId: number,
+  payload: OrganizationUserCreateInput,
+) {
+  return requestAdminJson<OrganizationUserCreateResponse>(
+    `/user/api/organization/${encodeURIComponent(String(organizationId))}/users/add/`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export function bulkDeleteUsers(selectedIds: number[]) {

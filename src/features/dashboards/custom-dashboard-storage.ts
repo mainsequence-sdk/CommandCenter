@@ -85,13 +85,14 @@ const MIN_SLIDE_REGION_WIDGET_COLS = 3;
 const MIN_SLIDE_REGION_WIDGET_ROWS = 2;
 
 const DEFAULT_TIME_RANGE_OPTIONS = ["15m", "1h", "6h", "24h", "7d", "30d", "90d"] as const;
-const DEFAULT_REFRESH_INTERVAL_MS = 300_000;
+const DEFAULT_REFRESH_INTERVAL_MS = 1_800_000;
 const DEFAULT_REFRESH_INTERVALS = [
   null,
   30_000,
   60_000,
   300_000,
   600_000,
+  1_800_000,
   3_600_000,
 ] as const;
 
@@ -1140,7 +1141,7 @@ export function migrateDashboardDefinition(dashboard: DashboardDefinition): Dash
       enabled: true,
       timeRange: {
         enabled: true,
-        defaultRange: "24h",
+        defaultRange: "15m",
         options: [...DEFAULT_TIME_RANGE_OPTIONS],
       },
       refresh: {
@@ -1220,7 +1221,7 @@ export function sanitizeDashboardDefinition(dashboard: DashboardDefinition): Das
       enabled: true,
       timeRange: {
         enabled: true,
-        defaultRange: "24h",
+        defaultRange: "15m",
         options: [...DEFAULT_TIME_RANGE_OPTIONS],
       },
       refresh: {
@@ -1322,7 +1323,7 @@ export function createBlankDashboard(title = "My Workspace"): DashboardDefinitio
       enabled: true,
       timeRange: {
         enabled: true,
-        defaultRange: "24h",
+        defaultRange: "15m",
         options: [...DEFAULT_TIME_RANGE_OPTIONS],
       },
       refresh: {
@@ -2704,7 +2705,7 @@ export function updateDashboardControlsState(
     enabled: dashboard.controls?.enabled ?? true,
     timeRange: {
       enabled: dashboard.controls?.timeRange?.enabled ?? true,
-      defaultRange: dashboard.controls?.timeRange?.defaultRange ?? "24h",
+      defaultRange: dashboard.controls?.timeRange?.defaultRange ?? "15m",
       options: dashboard.controls?.timeRange?.options ?? [...DEFAULT_TIME_RANGE_OPTIONS],
       selectedRange: state.timeRangeKey,
       customStartMs: state.timeRangeKey === "custom" ? state.rangeStartMs : undefined,

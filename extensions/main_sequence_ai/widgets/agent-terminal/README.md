@@ -33,8 +33,9 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
 - Selecting an agent from widget settings or from the monitor launcher immediately creates a new
   backend session through `POST /orm/api/agents/v1/agents/{agent_id}/start_new_session/` and binds
   the widget to that returned session id.
-- New widgets persist `agentId`, `agentName`, and the widget-managed `agentSessionId`. The agent
-  name lets the terminal send live chat requests without first loading history just to recover
+- New widgets persist `agentId`, `agentType`, `agentLabel`, and the widget-managed
+  `agentSessionId`. The agent type lets the terminal send live chat requests without first loading
+  history just to recover
   metadata.
 - On mount or session-id change, the widget validates interaction readiness before exposing the
   prompt. Readiness requires the normal Command Center backend detail endpoint and session history
@@ -65,7 +66,8 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
 - While the widget is being edited, the internal terminal chrome exposes the current session id as
   a direct link into the shared Main Sequence AI chat page. That authoring affordance stays hidden
   in normal non-edit canvas mode.
-- Durable widget props now include `agentId`, `agentName`, optional `loadInitialHistory`, and a
+- Durable widget props now include `agentId`, `agentType`, `agentLabel`, optional
+  `loadInitialHistory`, and a
   history refresh policy: `workspace`, `never`, or `interval`, plus interval seconds when custom
   polling is selected.
 - The widget can also persist `blockUserInput`. When enabled, the prompt remains visible and the
@@ -115,7 +117,7 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
   input is focused automatically after the widget lands on the canvas. Normal transcript refreshes
   must not keep stealing page-level focus after that initial autofocus.
 - Transcript buffers and stream state stay component-local. Durable props are limited to the
-  selected `agentId`, selected `agentName`, widget-managed `agentSessionId`, optional
+  selected `agentId`, selected `agentType`, selected `agentLabel`, widget-managed `agentSessionId`, optional
   `blockUserInput`, optional initial-history loading, the history-refresh configuration, and the
   optional refresh prompt. The published latest-assistant output lives in widget runtime state, not
   durable props.
@@ -137,8 +139,8 @@ This folder owns the `main-sequence-ai-agent-terminal` widget.
   extension-local workspace-reference contract published by the `WorkspaceReference` widget. If
   any of those contracts change, update this widget in the same change. See
   [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../../../../docs/adr/command_center/adr-widget-agent-context-bindings.md).
-- If backend widget-prop validation is strict, this widget's persisted `agentId`, `agentName`,
-  `agentSessionId`, `blockUserInput`, `loadInitialHistory`, `historyRefreshMode`,
+- If backend widget-prop validation is strict, this widget's persisted `agentId`, `agentType`,
+  `agentLabel`, `agentSessionId`, `blockUserInput`, `loadInitialHistory`, `historyRefreshMode`,
   `historyRefreshIntervalSeconds`, and `promptOnRefresh` props must be allowed by the widget-type
   sync contract as well.
 - `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing

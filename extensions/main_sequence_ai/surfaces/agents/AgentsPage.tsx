@@ -14,7 +14,6 @@ import { MainSequenceRegistryPagination } from "../../../main_sequence/common/co
 import { MainSequenceRegistrySearch } from "../../../main_sequence/common/components/MainSequenceRegistrySearch";
 import { getRegistryTableCellClassName } from "../../../main_sequence/common/components/registryTable";
 import {
-  buildAgentOptionDescription,
   fetchAgentList,
   fetchAgentSemanticSearch,
   type AgentSemanticSearchResult,
@@ -117,6 +116,8 @@ export function AgentsPage() {
 
       return [
         agent.name,
+        agent.displayLabel,
+        agent.agentType,
         agent.agent_unique_id,
         String(agent.id),
         agent.description ?? "",
@@ -334,7 +335,7 @@ export function AgentsPage() {
                   <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                     <th className="px-4 pb-2">Agent</th>
                     <th className="px-4 pb-2">Identifier</th>
-                    <th className="px-4 pb-2">Runtime</th>
+                    <th className="px-4 pb-2">Type</th>
                     <th className="px-4 pb-2">Model</th>
                     <th className="px-4 pb-2 text-right">Action</th>
                   </tr>
@@ -428,13 +429,7 @@ function AgentRow({
         </div>
       </td>
       <td className={getRegistryTableCellClassName(false)}>
-        <div className="text-foreground">{agent.engine_name || "Unknown engine"}</div>
-        <div
-          className="mt-0.5 text-muted-foreground"
-          style={{ fontSize: "var(--table-meta-font-size)" }}
-        >
-          {buildAgentOptionDescription(agent)}
-        </div>
+        <div className="text-foreground">{agent.agentType || "Unknown type"}</div>
       </td>
       <td className={getRegistryTableCellClassName(false)}>
         <div className="text-foreground">{modelSummary}</div>
@@ -444,6 +439,7 @@ function AgentRow({
           <Button
             size="sm"
             variant="outline"
+            className="h-9 min-w-[9.25rem] whitespace-nowrap rounded-full border-border/80 bg-background/55 px-3.5 text-[12px] font-medium text-foreground hover:bg-background/75"
             disabled={disabled}
             onClick={onStartSession}
           >
@@ -483,7 +479,7 @@ function SemanticAgentRow({
             <Bot className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-foreground">{agent.name}</div>
+            <div className="truncate text-sm font-semibold text-foreground">{agent.displayLabel}</div>
             <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
               {agent.agent_unique_id}
             </div>

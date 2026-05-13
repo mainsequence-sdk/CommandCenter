@@ -26,8 +26,12 @@ import {
 } from "@/app/registry/connection-type-sync";
 import { getAccessibleShellMenuEntries } from "@/apps/utils";
 import {
+  type DeleteCurrentUserAccountBlockingInvoice,
+  type DeleteCurrentUserAccountResponse,
+  deleteCurrentUserAccount,
   getCurrentUserMfaSetup,
   getCurrentUserMfaStatus,
+  isAuthRequestError,
   listCurrentUserSessions,
   requestPasswordChangeEmail,
   revokeCurrentUserSession,
@@ -38,6 +42,7 @@ import {
 } from "@/auth/api";
 import { useAuthStore } from "@/auth/auth-store";
 import { persistJwtSession } from "@/auth/jwt-auth";
+import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { useToast } from "@/components/ui/toaster";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +51,6 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getAccessProfileLabel } from "@/auth/permissions";
 import type { CommandCenterConfig } from "@/config/command-center";
 import { commandCenterConfigSource } from "@/config/command-center";
 import { env } from "@/config/env";
@@ -114,6 +118,154 @@ function formatSessionTimestamp(value: string | null) {
 
 function normalizeMfaCode(value: string) {
   return value.replace(/\D/g, "").slice(0, 6);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readTrimmedString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function readDeleteAccountBlockingInvoices(value: unknown): DeleteCurrentUserAccountBlockingInvoice[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!isRecord(entry)) {
+      return [];
+    }
+
+    const id = readTrimmedString(entry.id);
+    const status = readTrimmedString(entry.status);
+    const amountRemaining =
+      typeof entry.amount_remaining === "number" && Number.isFinite(entry.amount_remaining)
+        ? entry.amount_remaining
+        : 0;
+    const hostedInvoiceUrl = readTrimmedString(entry.hosted_invoice_url) || null;
+
+    if (!id || !status) {
+      return [];
+    }
+
+    return [{
+      id,
+      status,
+      amount_remaining: amountRemaining,
+      hosted_invoice_url: hostedInvoiceUrl,
+    }];
+  });
+}
+
+const deleteAccountSupportHref = "mailto:support@main-sequence.io?subject=Command%20Center%20account%20deletion";
+
+type DeleteAccountErrorState = {
+  title: string;
+  detail: string;
+  actionLabel?: string;
+  actionHref?: string;
+};
+
+function buildDeleteAccountErrorState(error: unknown): DeleteAccountErrorState {
+  if (isAuthRequestError(error)) {
+    if (error.status === 403) {
+      return {
+        title: "Access denied",
+        detail: "You do not have permission to delete this account.",
+      };
+    }
+
+    if (error.status === 409 && isRecord(error.payload)) {
+      const code = readTrimmedString(error.payload.code);
+      const detail = readTrimmedString(error.payload.detail) || error.message;
+
+      if (code === "account_deletion_org_policy_blocked") {
+        return {
+          title: "Upgrade required",
+          detail:
+            "This account belongs to a team workspace. Self-service deletion is only available for Starter Workspace accounts. Contact your organization admin or support.",
+          actionLabel: "Contact support",
+          actionHref: deleteAccountSupportHref,
+        };
+      }
+
+      if (code === "billing_debt_exists") {
+        const invoices = readDeleteAccountBlockingInvoices(error.payload.blocking_invoices);
+        const hostedInvoiceUrl =
+          invoices.find((invoice) => invoice.hosted_invoice_url)?.hosted_invoice_url ?? null;
+
+        return hostedInvoiceUrl
+          ? {
+              title: "Billing blocker",
+              detail:
+                "Account cannot be deleted while billing debt or pending invoices exist. Pay the outstanding invoice, then try again.",
+              actionLabel: "Pay invoice",
+              actionHref: hostedInvoiceUrl,
+            }
+          : {
+              title: "Billing blocker",
+              detail:
+                "Billing is still settling. Try again later or contact support.",
+              actionLabel: "Contact support",
+              actionHref: deleteAccountSupportHref,
+            };
+      }
+
+      if (code === "account_deletion_billing_cleanup_failed") {
+        return {
+          title: "Deletion blocked",
+          detail:
+            detail || "Account deletion could not be completed. Please contact support.",
+          actionLabel: "Contact support",
+          actionHref: deleteAccountSupportHref,
+        };
+      }
+
+      if (code.startsWith("billing_")) {
+        return {
+          title: "Billing preflight failed",
+          detail:
+            detail || "Billing checks could not be completed. Try again later or contact support.",
+          actionLabel: "Contact support",
+          actionHref: deleteAccountSupportHref,
+        };
+      }
+    }
+  }
+
+  return {
+    title: "Unable to delete account",
+    detail: error instanceof Error ? error.message : "The delete-account request failed.",
+  };
+}
+
+function renderDeleteAccountError(error: DeleteAccountErrorState | null) {
+  if (!error) {
+    return undefined;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="font-medium text-foreground">{error.title}</div>
+      <div>{error.detail}</div>
+      {error.actionLabel && error.actionHref ? (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              window.open(error.actionHref, "_blank", "noopener,noreferrer");
+            }}
+          >
+            {error.actionLabel}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function syncSessionMfaEnabled(mfaEnabled: boolean) {
@@ -222,9 +374,59 @@ function SettingsNavButton({
       )}
       onClick={onClick}
     >
-      <Icon className="h-4 w-4" />
-      {label}
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
     </button>
+  );
+}
+
+function SettingsNavGroup({
+  label,
+  collapsible = false,
+  expanded = true,
+  children,
+  onToggle,
+}: {
+  label?: string;
+  collapsible?: boolean;
+  expanded?: boolean;
+  children: ReactNode;
+  onToggle?: () => void;
+}) {
+  return (
+    <div className="space-y-1">
+      {label ? (
+        collapsible ? (
+          <button
+            type="button"
+            className={cn(
+              "flex min-h-10 w-full min-w-0 items-center gap-3 rounded-[calc(var(--radius)-4px)] px-3 py-2.5 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20",
+              expanded
+                ? "bg-white/[0.04] text-topbar-foreground"
+                : "text-muted-foreground hover:bg-white/[0.04] hover:text-topbar-foreground",
+            )}
+            onClick={onToggle}
+          >
+            <span className="min-w-0 flex-1 truncate">{label}</span>
+            <ChevronDown
+              className={cn(
+                "h-3.5 w-3.5 shrink-0 transition-transform",
+                expanded ? "rotate-0" : "-rotate-90",
+              )}
+            />
+          </button>
+        ) : (
+          <div className="px-3 pt-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground first:pt-0">
+            <span className="block truncate">{label}</span>
+          </div>
+        )
+      ) : null}
+      {expanded ? (
+        <div className={cn("space-y-1", collapsible ? "ml-3 border-l border-white/8 pl-2" : null)}>
+          {children}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1211,6 +1413,10 @@ export function SettingsDialog({
   const [activeSection, setActiveSection] = useState<SettingsSectionId>("general");
   const [showRawConfiguration, setShowRawConfiguration] = useState(false);
   const [revokingSessionId, setRevokingSessionId] = useState<number | null>(null);
+  const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<DeleteAccountErrorState | null>(
+    null,
+  );
   const [authenticatedMfaSetup, setAuthenticatedMfaSetup] =
     useState<CurrentUserMfaSetupResponse | null>(null);
   const [authenticatedMfaCode, setAuthenticatedMfaCode] = useState("");
@@ -1231,6 +1437,9 @@ export function SettingsDialog({
         description: error instanceof Error ? error.message : "The request failed.",
       });
     },
+  });
+  const deleteAccountMutation = useMutation({
+    mutationFn: deleteCurrentUserAccount,
   });
   const uploadProfilePictureMutation = useMutation({
     mutationFn: uploadCurrentUserProfilePicture,
@@ -1350,7 +1559,6 @@ export function SettingsDialog({
     mode === "platform"
       ? t("settingsDialog.adminDescription")
       : t("settingsDialog.userDescription");
-  const roleLabel = getAccessProfileLabel(user) || (mode === "platform" ? "Platform Admin" : "User");
   const activeLanguage = isSupportedLanguage(i18n.resolvedLanguage ?? i18n.language)
     ? (i18n.resolvedLanguage ?? i18n.language)
     : defaultLanguage;
@@ -1363,9 +1571,8 @@ export function SettingsDialog({
   const legacyTeam =
     user?.team && user.team !== "Unknown" ? user.team : undefined;
   const teamsValue =
-    organizationTeamNames.length > 0
-      ? organizationTeamNames.join(", ")
-      : legacyTeam ?? t("common.unavailable");
+    organizationTeamNames.length > 0 ? organizationTeamNames.join(", ") : legacyTeam ?? "";
+  const hasTeamsValue = teamsValue.trim().length > 0;
   const sessions = userSessionsQuery.data ?? [];
   const currentMfaEnabled = mfaStatusQuery.data?.mfa_enabled ?? user?.mfaEnabled;
   const activeSessionCount = sessions.filter((session) => session.is_active).length;
@@ -1382,6 +1589,16 @@ export function SettingsDialog({
     () => getAccessibleShellMenuEntries(permissions, shellMenuAudience),
     [permissions, shellMenuAudience],
   );
+  const groupedMainSequenceAiSections = useMemo(
+    () =>
+      contributedSections.filter((entry) => entry.group?.id === "main-sequence-ai"),
+    [contributedSections],
+  );
+  const otherContributedSections = useMemo(
+    () =>
+      contributedSections.filter((entry) => entry.group?.id !== "main-sequence-ai"),
+    [contributedSections],
+  );
   const configurationGroups = buildConfigurationGroups({
     config,
     authTokenUrl,
@@ -1392,6 +1609,10 @@ export function SettingsDialog({
     id: SettingsSectionId;
     label: string;
     icon: AppIcon;
+    group?: {
+      id: string;
+      label: string;
+    };
   }> = [
     { id: "general" as const, label: t("settingsDialog.generalNav"), icon: Settings2 },
     { id: "account" as const, label: t("settingsDialog.accountTitle"), icon: CircleUserRound },
@@ -1428,13 +1649,68 @@ export function SettingsDialog({
           },
         ]
       : []),
-    ...contributedSections.map((entry) => ({
+    { id: "about" as const, label: t("settingsDialog.aboutNav"), icon: Info },
+    ...otherContributedSections.map((entry) => ({
       id: entry.id,
       label: entry.label,
       icon: entry.icon ?? entry.appIcon,
+      group: entry.group
+        ? {
+            id: entry.group.id,
+            label: entry.group.label,
+          }
+        : undefined,
     })),
-    { id: "about" as const, label: t("settingsDialog.aboutNav"), icon: Info },
+    ...groupedMainSequenceAiSections.map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      icon: entry.icon ?? entry.appIcon,
+      group: entry.group
+        ? {
+            id: entry.group.id,
+            label: entry.group.label,
+          }
+        : undefined,
+    })),
   ];
+  const [expandedGroupIds, setExpandedGroupIds] = useState<Record<string, boolean>>({});
+  const navGroups = useMemo(() => {
+    const groups: Array<{
+      key: string;
+      label?: string;
+      items: typeof navItems;
+      groupId?: string;
+      collapsible?: boolean;
+    }> = [];
+
+    for (const item of navItems) {
+      const previousGroup = groups[groups.length - 1];
+
+      if (item.group) {
+        if (previousGroup?.key === `group:${item.group.id}`) {
+          previousGroup.items.push(item);
+          continue;
+        }
+
+        groups.push({
+          key: `group:${item.group.id}`,
+          label: item.group.label,
+          items: [item],
+          groupId: item.group.id,
+          collapsible: true,
+        });
+        continue;
+      }
+
+      groups.push({
+        key: `item:${item.id}`,
+        items: [item],
+        collapsible: false,
+      });
+    }
+
+    return groups;
+  }, [navItems]);
   const activeContributedSection =
     contributedSections.find((entry) => entry.id === activeSection) ?? null;
   const ActiveContributedSectionComponent = activeContributedSection?.component ?? null;
@@ -1445,6 +1721,7 @@ export function SettingsDialog({
       setShowRawConfiguration(false);
       setAuthenticatedMfaSetup(null);
       setAuthenticatedMfaCode("");
+      setExpandedGroupIds({});
     }
   }, [open, mode, requestedSectionId]);
 
@@ -1477,6 +1754,23 @@ export function SettingsDialog({
   }, [navItems, open, requestedSectionId]);
 
   useEffect(() => {
+    const activeNavItem = navItems.find((item) => item.id === activeSection);
+
+    if (!activeNavItem?.group?.id) {
+      return;
+    }
+
+    setExpandedGroupIds((current) =>
+      current[activeNavItem.group!.id]
+        ? current
+        : {
+            ...current,
+            [activeNavItem.group!.id]: true,
+          },
+    );
+  }, [activeSection, navItems]);
+
+  useEffect(() => {
     if (!open || navItems.some((item) => item.id === activeSection)) {
       return;
     }
@@ -1494,17 +1788,37 @@ export function SettingsDialog({
     >
       <div className="grid min-h-[560px] gap-0 md:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="border-b border-white/8 px-3 py-3 md:border-b-0 md:border-r md:px-4 md:py-4">
-          <nav className="space-y-1">
-            {navItems.map((item) => (
-              <SettingsNavButton
-                key={item.id}
-                active={activeSection === item.id}
-                icon={item.icon}
-                label={item.label}
-                onClick={() => {
-                  setActiveSection(item.id);
-                }}
-              />
+          <nav className="space-y-3">
+            {navGroups.map((group) => (
+              <SettingsNavGroup
+                key={group.key}
+                label={group.label}
+                collapsible={group.collapsible}
+                expanded={group.groupId ? (expandedGroupIds[group.groupId] ?? false) : true}
+                onToggle={
+                  group.groupId
+                    ? () => {
+                        setExpandedGroupIds((current) => ({
+                          ...current,
+                          [group.groupId!]: !(current[group.groupId!] ?? false),
+                        }));
+                      }
+                    : undefined
+                }
+              >
+                {group.items.map((item) => (
+                  <div key={item.id}>
+                    <SettingsNavButton
+                      active={activeSection === item.id}
+                      icon={item.icon}
+                      label={item.label}
+                      onClick={() => {
+                        setActiveSection(item.id);
+                      }}
+                    />
+                  </div>
+                ))}
+              </SettingsNavGroup>
             ))}
           </nav>
         </aside>
@@ -1557,6 +1871,24 @@ export function SettingsDialog({
                 label={t("settingsDialog.notifications")}
                 value={t("settingsDialog.notificationsOff")}
               />
+              {mode === "user" ? (
+                <SettingsRow
+                  label="Delete account"
+                  description="Permanently delete this account and all associated history and resources."
+                  value={
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      onClick={() => {
+                        setDeleteAccountDialogOpen(true);
+                      }}
+                    >
+                      Delete account
+                    </Button>
+                  }
+                />
+              ) : null}
             </SettingsSection>
           ) : null}
 
@@ -1615,14 +1947,12 @@ export function SettingsDialog({
                 label={t("settingsDialog.email")}
                 value={user?.email ?? t("common.unavailable")}
               />
-              <SettingsRow
-                label={t("settingsDialog.team")}
-                value={teamsValue}
-              />
-              <SettingsRow
-                label={t("settingsDialog.role")}
-                value={<Badge variant={mode === "platform" ? "primary" : "neutral"}>{roleLabel}</Badge>}
-              />
+              {hasTeamsValue ? (
+                <SettingsRow
+                  label={t("settingsDialog.team")}
+                  value={teamsValue}
+                />
+              ) : null}
               {!env.bypassAuth && user?.email ? (
                 <SettingsRow
                   label="Password"
@@ -2109,6 +2439,68 @@ export function SettingsDialog({
           ) : null}
         </div>
       </div>
+      <ActionConfirmationDialog
+        open={deleteAccountDialogOpen}
+        onClose={() => {
+          if (deleteAccountMutation.isPending) {
+            return;
+          }
+
+          setDeleteAccountError(null);
+          setDeleteAccountDialogOpen(false);
+        }}
+        title="Delete account"
+        actionLabel="delete"
+        objectLabel="account"
+        objectSummary={
+          <div className="space-y-1">
+            <div className="font-medium text-foreground">{user?.name ?? "Current user"}</div>
+            <div className="font-mono text-xs text-muted-foreground">
+              {user?.email ?? "No email available"}
+            </div>
+          </div>
+        }
+        description="This permanently removes your account from Command Center."
+        specialText="This will delete all history and resources. Back up your projects before deleting."
+        confirmWord="DELETE"
+        confirmButtonLabel="Delete account"
+        tone="danger"
+        error={renderDeleteAccountError(deleteAccountError)}
+        isPending={deleteAccountMutation.isPending}
+        onConfirm={async () => {
+          setDeleteAccountError(null);
+          return deleteAccountMutation.mutateAsync();
+        }}
+        onSuccess={(result) => {
+          const payload = result as DeleteCurrentUserAccountResponse;
+
+          if (payload?.code !== "account_deleted") {
+            setDeleteAccountError({
+              title: "Unable to delete account",
+              detail: "The delete-account response was not recognized.",
+            });
+            return;
+          }
+
+          useAuthStore.getState().clearLocalSession();
+          setDeleteAccountDialogOpen(false);
+          setDeleteAccountError(null);
+          onClose();
+          window.location.replace("/login?account_deleted=1");
+        }}
+        onError={(error) => {
+          if (isAuthRequestError(error) && error.status === 401) {
+            useAuthStore.getState().clearLocalSession();
+            setDeleteAccountDialogOpen(false);
+            setDeleteAccountError(null);
+            onClose();
+            window.location.replace("/login");
+            return;
+          }
+
+          setDeleteAccountError(buildDeleteAccountErrorState(error));
+        }}
+      />
     </Dialog>
   );
 }

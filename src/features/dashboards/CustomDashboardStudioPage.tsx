@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { useNavigate } from "react-router-dom";
+import { create } from "zustand";
 import GridLayout, {
   verticalCompactor,
   type Layout as ReactGridLayoutLayout,
@@ -97,6 +98,7 @@ import type {
   DashboardSlideRegionId,
   DashboardWidgetPlacement,
   ResolvedDashboardDefinition,
+  ResolvedDashboardWidgetInstance,
   ResolvedDashboardWidgetLayout,
 } from "@/dashboards/types";
 import { cn, titleCase } from "@/lib/utils";
@@ -481,6 +483,34 @@ interface ActiveCrossHostTransferDrag {
   lastClientY: number | null;
 }
 
+type RuntimeWidgetStateOverrides = Record<string, Record<string, unknown> | null>;
+
+function runtimeStateEquals(left: unknown, right: unknown) {
+  if (Object.is(left, right)) {
+    return true;
+  }
+
+  try {
+    return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+  } catch {
+    return false;
+  }
+}
+
+function applyRuntimeStateOverride(
+  instance: ResolvedDashboardWidgetInstance,
+  overrides: RuntimeWidgetStateOverrides,
+) {
+  if (!Object.prototype.hasOwnProperty.call(overrides, instance.id)) {
+    return instance;
+  }
+
+  return {
+    ...instance,
+    runtimeState: overrides[instance.id] ?? undefined,
+  };
+}
+
 function getGridMetrics(
   gridElement: HTMLDivElement | null,
   grid: { columns: number; gap: number; rowHeight: number },
@@ -627,7 +657,7 @@ function CatalogScopeButton({
     <button
       type="button"
       className={cn(
-        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium uppercase tracking-[0.16em] transition-colors",
+        "inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[10px] font-medium uppercase tracking-[0.12em] leading-none transition-colors",
         active
           ? "border-primary/40 bg-primary/10 text-primary"
           : "border-border/70 bg-background/35 text-muted-foreground hover:bg-muted/40 hover:text-foreground",
@@ -637,7 +667,7 @@ function CatalogScopeButton({
       <span>{label}</span>
       <span
         className={cn(
-          "rounded-full px-1.5 py-0.5 text-[10px] tracking-[0.12em]",
+          "inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] leading-none tracking-[0.08em]",
           active ? "bg-primary/14 text-primary" : "bg-muted/70 text-muted-foreground",
         )}
       >
@@ -869,6 +899,262 @@ function WorkspaceSnapshotToolbarControl({
   );
 }
 
+type DashboardWidgetSettingsTabId = "settings" | "bindings" | "connection";
+
+type DashboardWidgetSettingsTarget = {
+  widgetId: string;
+  tab: DashboardWidgetSettingsTabId;
+  routeBacked: boolean;
+};
+
+interface DashboardWidgetSettingsOverlayStore {
+  target: DashboardWidgetSettingsTarget | null;
+  close: () => void;
+  openLocal: (widgetId: string, tab?: DashboardWidgetSettingsTabId) => void;
+  openRoute: (widgetId: string, tab?: DashboardWidgetSettingsTabId) => void;
+}
+
+const useDashboardWidgetSettingsOverlayStore =
+  create<DashboardWidgetSettingsOverlayStore>((set) => ({
+    target: null,
+    close: () => {
+      set({ target: null });
+    },
+    openLocal: (widgetId, tab = "settings") => {
+      set({
+        target: {
+          widgetId,
+          tab,
+          routeBacked: false,
+        },
+      });
+    },
+    openRoute: (widgetId, tab = "settings") => {
+      set({
+        target: {
+          widgetId,
+          tab,
+          routeBacked: true,
+        },
+      });
+    },
+  }));
+
+function getWidgetSettingsTargetKey(target: DashboardWidgetSettingsTarget | null) {
+  return target ? `${target.widgetId}:${target.tab}:${target.routeBacked ? "route" : "local"}` : null;
+}
+
+function InstantWidgetSettingsOverlayShell({
+  activeTab,
+  dashboardTitle,
+  instanceTitle,
+  isSaving,
+  onClose,
+  selectedWorkspaceDirty,
+  widget,
+  widgetId,
+}: {
+  activeTab: DashboardWidgetSettingsTabId;
+  dashboardTitle: string;
+  instanceTitle: string;
+  isSaving: boolean;
+  onClose: () => void;
+  selectedWorkspaceDirty: boolean;
+  widget: WidgetDefinition | null;
+  widgetId: string;
+}) {
+  return (
+    <div className="absolute inset-0 z-[70] overflow-hidden bg-background/92 backdrop-blur-xl">
+      <div className="h-full overflow-y-auto px-4 py-4 pb-10 md:px-6 md:py-6">
+        <div className="mx-auto max-w-6xl space-y-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-3">
+              <Button variant="outline" onClick={onClose}>
+                <X className="h-4 w-4" />
+                Return to dashboard
+              </Button>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="neutral" className="border border-border/70 bg-card/55">
+                    {dashboardTitle}
+                  </Badge>
+                  {widget ? <Badge variant="neutral">{widget.kind}</Badge> : null}
+                  {widget ? <Badge variant="neutral">{widget.source}</Badge> : null}
+                </div>
+                <div className="space-y-1">
+                  <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                    {instanceTitle}
+                  </h1>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                      Widget ID
+                    </span>
+                    <code className="rounded-full border border-border/70 bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
+                      {widgetId}
+                    </code>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {isSaving ? (
+                <WorkspaceSavingStatus />
+              ) : selectedWorkspaceDirty ? (
+                <Badge variant="warning">Unsaved changes</Badge>
+              ) : (
+                <Badge variant="success">Workspace saved</Badge>
+              )}
+              <Button disabled>
+                <Save className="h-4 w-4" />
+                Save workspace
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Widget settings sections">
+            {(["settings", "bindings", "connection"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium capitalize",
+                  activeTab === tab
+                    ? "border-border/80 bg-card text-foreground shadow-sm"
+                    : "border-transparent bg-background/40 text-muted-foreground",
+                )}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-4 rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/88 p-5 shadow-[var(--shadow-panel)] backdrop-blur">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              Opening settings
+            </div>
+            <div className="grid gap-3 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <div className="space-y-3">
+                <div className="h-10 rounded-[calc(var(--radius)-8px)] bg-muted/45" />
+                <div className="h-10 rounded-[calc(var(--radius)-8px)] bg-muted/35" />
+                <div className="h-24 rounded-[calc(var(--radius)-8px)] bg-muted/30" />
+              </div>
+              <div className="min-h-[220px] rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/30" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WidgetSettingsOverlayLayer({
+  dashboard,
+  isSaving,
+  onRequestRouteClose,
+  selectedWorkspaceDirty,
+}: {
+  dashboard: DashboardDefinition;
+  isSaving: boolean;
+  onRequestRouteClose: () => void;
+  selectedWorkspaceDirty: boolean;
+}) {
+  const target = useDashboardWidgetSettingsOverlayStore((state) => state.target);
+  const closeOverlay = useDashboardWidgetSettingsOverlayStore((state) => state.close);
+  const openLocalOverlay = useDashboardWidgetSettingsOverlayStore((state) => state.openLocal);
+  const targetKey = getWidgetSettingsTargetKey(target);
+  const [hydratedTargetKey, setHydratedTargetKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let animationFrameId: number | undefined;
+    let cancelled = false;
+
+    if (!targetKey) {
+      setHydratedTargetKey(null);
+      return undefined;
+    }
+
+    setHydratedTargetKey(null);
+
+    const markHydrated = () => {
+      if (!cancelled) {
+        setHydratedTargetKey(targetKey);
+      }
+    };
+
+    if (
+      typeof window !== "undefined" &&
+      typeof window.requestAnimationFrame === "function"
+    ) {
+      animationFrameId = window.requestAnimationFrame(() => {
+        timeoutId = window.setTimeout(markHydrated, 0);
+      });
+    } else {
+      timeoutId = setTimeout(markHydrated, 0);
+    }
+
+    return () => {
+      cancelled = true;
+
+      if (
+        animationFrameId !== undefined &&
+        typeof window !== "undefined" &&
+        typeof window.cancelAnimationFrame === "function"
+      ) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [targetKey]);
+
+  if (!target) {
+    return null;
+  }
+
+  const instance = dashboard.widgets.find((widgetInstance) => widgetInstance.id === target.widgetId) ?? null;
+  const widget = instance ? getWidgetById(instance.widgetId) ?? null : null;
+  const close = () => {
+    const routeBacked = target.routeBacked;
+    closeOverlay();
+
+    if (routeBacked) {
+      onRequestRouteClose();
+    }
+  };
+  const bodyReady = hydratedTargetKey === targetKey;
+
+  if (!bodyReady) {
+    return (
+      <InstantWidgetSettingsOverlayShell
+        activeTab={target.tab}
+        dashboardTitle={dashboard.title}
+        instanceTitle={instance?.title ?? widget?.title ?? "Widget settings"}
+        isSaving={isSaving}
+        onClose={close}
+        selectedWorkspaceDirty={selectedWorkspaceDirty}
+        widget={widget}
+        widgetId={target.widgetId}
+      />
+    );
+  }
+
+  return (
+    <CustomWidgetSettingsPage
+      embedded
+      initialTab={target.tab}
+      widgetId={target.widgetId}
+      onRequestClose={close}
+      onRequestOpenWidgetSettings={openLocalOverlay}
+    />
+  );
+}
+
 export function CustomDashboardStudioPage({
   publicPreview = false,
   withRuntimeProviders = true,
@@ -891,11 +1177,12 @@ export function CustomDashboardStudioPage({
     selectedWorkspaceEditing,
     persistenceMode,
     requestedWidgetId,
+    requestedWidgetSettingsTab,
     snapshotMode,
     snapshotProfile,
     selectedWorkspaceView,
     workspaceSelectionPending,
-    openWidgetSettings,
+    openDashboardView,
     openWorkspaceGraph,
     openWorkspaceSettings,
     setSelectedWorkspaceEditing,
@@ -907,6 +1194,10 @@ export function CustomDashboardStudioPage({
   const effectivePermissions = renderPermissions ?? permissions;
   const backendMode = persistenceMode === "backend";
   const updateSelectedWorkspaceRef = useRef<typeof updateSelectedWorkspace | null>(null);
+  const pendingRuntimeStateWritesRef = useRef(
+    new Map<string, Record<string, unknown> | undefined>(),
+  );
+  const runtimeStateWriteFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [catalogQuery, setCatalogQuery] = useState("");
   const [catalogCategoryFilter, setCatalogCategoryFilter] = useState("all");
   const [catalogKindFilter, setCatalogKindFilter] = useState<WidgetDefinition["kind"] | "all">("all");
@@ -935,6 +1226,10 @@ export function CustomDashboardStudioPage({
   const selectedDashboardType = selectedDashboard
     ? normalizeDashboardDefinitionType(selectedDashboard.type, selectedDashboard.labels)
     : null;
+  const localRuntimeStateOverridesEnabled =
+    selectedDashboardType === "slide-studio" && !publicPreview;
+  const [runtimeStateOverridesByWidgetId, setRuntimeStateOverridesByWidgetId] =
+    useState<RuntimeWidgetStateOverrides>({});
   const publicPreviewSupported =
     !publicPreview &&
     selectedDashboardType !== null &&
@@ -958,8 +1253,127 @@ export function CustomDashboardStudioPage({
     workspaceListPath,
   } = useWorkspaceStudioSurfaceConfig();
   const registeredWidgetTypes = useRegisteredWidgetTypesCatalog();
-  const widgetSettingsOpen =
+  const routeWidgetSettingsOpen =
     selectedWorkspaceView === "widget-settings" && Boolean(requestedWidgetId);
+  const routeWidgetSettingsTab: DashboardWidgetSettingsTabId =
+    requestedWidgetSettingsTab === "bindings" || requestedWidgetSettingsTab === "connection"
+      ? requestedWidgetSettingsTab
+      : "settings";
+  const widgetSettingsRouteClosePendingRef = useRef(false);
+  const openWidgetSettingsOverlay = useDashboardWidgetSettingsOverlayStore((state) => state.openLocal);
+  const openRouteWidgetSettingsOverlay = useDashboardWidgetSettingsOverlayStore(
+    (state) => state.openRoute,
+  );
+  const closeWidgetSettingsOverlay = useDashboardWidgetSettingsOverlayStore((state) => state.close);
+
+  useEffect(() => {
+    if (widgetSettingsRouteClosePendingRef.current) {
+      if (!routeWidgetSettingsOpen) {
+        widgetSettingsRouteClosePendingRef.current = false;
+      }
+
+      return;
+    }
+
+    if (routeWidgetSettingsOpen && requestedWidgetId) {
+      const current = useDashboardWidgetSettingsOverlayStore.getState().target;
+
+      if (current && !current.routeBacked) {
+        return;
+      }
+
+      if (
+        current?.widgetId === requestedWidgetId &&
+        current.tab === routeWidgetSettingsTab &&
+        current.routeBacked
+      ) {
+        return;
+      }
+
+      openRouteWidgetSettingsOverlay(requestedWidgetId, routeWidgetSettingsTab);
+      return;
+    }
+
+    const current = useDashboardWidgetSettingsOverlayStore.getState().target;
+
+    if (current?.routeBacked) {
+      closeWidgetSettingsOverlay();
+    }
+  }, [
+    closeWidgetSettingsOverlay,
+    openRouteWidgetSettingsOverlay,
+    requestedWidgetId,
+    routeWidgetSettingsOpen,
+    routeWidgetSettingsTab,
+  ]);
+
+  const closeRouteWidgetSettingsOverlay = useCallback(() => {
+    widgetSettingsRouteClosePendingRef.current = true;
+    openDashboardView();
+  }, [openDashboardView]);
+
+  const deferredWidgetSettingsSelectionRef = useRef<{
+    animationFrameId?: number;
+    timeoutId?: ReturnType<typeof setTimeout>;
+  } | null>(null);
+  const clearDeferredWidgetSettingsSelection = useCallback(() => {
+    const pending = deferredWidgetSettingsSelectionRef.current;
+
+    if (!pending) {
+      return;
+    }
+
+    if (
+      pending.animationFrameId !== undefined &&
+      typeof window !== "undefined" &&
+      typeof window.cancelAnimationFrame === "function"
+    ) {
+      window.cancelAnimationFrame(pending.animationFrameId);
+    }
+
+    if (pending.timeoutId !== undefined) {
+      clearTimeout(pending.timeoutId);
+    }
+
+    deferredWidgetSettingsSelectionRef.current = null;
+  }, []);
+  const scheduleWidgetSettingsSelection = useCallback(
+    (instanceId: string, slideWidgetId: string | null) => {
+      clearDeferredWidgetSettingsSelection();
+
+      const commitSelection = () => {
+        deferredWidgetSettingsSelectionRef.current = null;
+        setSelectedInstanceId(instanceId);
+        setActiveSlideWidgetId(slideWidgetId);
+      };
+
+      const pending: {
+        animationFrameId?: number;
+        timeoutId?: ReturnType<typeof setTimeout>;
+      } = {};
+
+      if (
+        typeof window !== "undefined" &&
+        typeof window.requestAnimationFrame === "function"
+      ) {
+        pending.animationFrameId = window.requestAnimationFrame(() => {
+          pending.timeoutId = window.setTimeout(commitSelection, 0);
+        });
+      } else {
+        pending.timeoutId = setTimeout(commitSelection, 0);
+      }
+
+      deferredWidgetSettingsSelectionRef.current = pending;
+    },
+    [clearDeferredWidgetSettingsSelection],
+  );
+
+  useEffect(
+    () => () => {
+      clearDeferredWidgetSettingsSelection();
+    },
+    [clearDeferredWidgetSettingsSelection],
+  );
   const deferredCatalogQuery = useDeferredValue(catalogQuery);
   const kioskMode = useShellStore((state) => state.kioskMode);
   const setKioskMode = useShellStore((state) => state.setKioskMode);
@@ -1212,6 +1626,77 @@ export function CustomDashboardStudioPage({
     updateSelectedWorkspaceRef.current = updateSelectedWorkspace;
   }, [updateSelectedWorkspace]);
 
+  const flushPendingRuntimeStateWrites = useCallback(() => {
+    runtimeStateWriteFlushTimerRef.current = null;
+
+    if (pendingRuntimeStateWritesRef.current.size === 0) {
+      return;
+    }
+
+    const entries = Array.from(pendingRuntimeStateWritesRef.current.entries());
+    pendingRuntimeStateWritesRef.current.clear();
+
+    if (localRuntimeStateOverridesEnabled) {
+      setRuntimeStateOverridesByWidgetId((current) => {
+        let changed = false;
+        const next = { ...current };
+
+        entries.forEach(([instanceId, runtimeState]) => {
+          const nextRuntimeState = runtimeState ?? null;
+
+          if (runtimeStateEquals(current[instanceId] ?? null, nextRuntimeState)) {
+            return;
+          }
+
+          next[instanceId] = nextRuntimeState;
+          changed = true;
+        });
+
+        return changed ? next : current;
+      });
+      return;
+    }
+
+    updateSelectedWorkspaceUserState((dashboard) =>
+      entries.reduce(
+        (nextDashboard, [instanceId, runtimeState]) =>
+          updateDashboardWidgetRuntimeState(nextDashboard, instanceId, runtimeState),
+        dashboard,
+      ),
+      { bumpRevision: false },
+    );
+  }, [localRuntimeStateOverridesEnabled, updateSelectedWorkspaceUserState]);
+
+  const scheduleRuntimeStateWriteFlush = useCallback(() => {
+    if (runtimeStateWriteFlushTimerRef.current !== null) {
+      return;
+    }
+
+    runtimeStateWriteFlushTimerRef.current = setTimeout(flushPendingRuntimeStateWrites, 100);
+  }, [flushPendingRuntimeStateWrites]);
+
+  useEffect(
+    () => () => {
+      if (runtimeStateWriteFlushTimerRef.current !== null) {
+        clearTimeout(runtimeStateWriteFlushTimerRef.current);
+        runtimeStateWriteFlushTimerRef.current = null;
+      }
+
+      pendingRuntimeStateWritesRef.current.clear();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (runtimeStateWriteFlushTimerRef.current !== null) {
+      clearTimeout(runtimeStateWriteFlushTimerRef.current);
+      runtimeStateWriteFlushTimerRef.current = null;
+    }
+
+    pendingRuntimeStateWritesRef.current.clear();
+    setRuntimeStateOverridesByWidgetId({});
+  }, [localRuntimeStateOverridesEnabled, selectedDashboard?.id]);
+
   const previousWorkspaceIdRef = useRef<string | null>(null);
   const previousKioskModeRef = useRef(kioskMode);
 
@@ -1280,9 +1765,30 @@ export function CustomDashboardStudioPage({
     });
   }, [catalogPreferencesUserId, favoriteWidgetIds, recentWidgetIds]);
 
+  const renderedResolvedDashboard = useMemo(() => {
+    if (
+      !resolvedDashboard ||
+      !localRuntimeStateOverridesEnabled ||
+      Object.keys(runtimeStateOverridesByWidgetId).length === 0
+    ) {
+      return resolvedDashboard;
+    }
+
+    return {
+      ...resolvedDashboard,
+      widgets: resolvedDashboard.widgets.map((instance) =>
+        applyRuntimeStateOverride(instance, runtimeStateOverridesByWidgetId),
+      ),
+    } satisfies ResolvedDashboardDefinition;
+  }, [
+    localRuntimeStateOverridesEnabled,
+    resolvedDashboard,
+    runtimeStateOverridesByWidgetId,
+  ]);
+
   const resolvedWidgetInstances = useMemo(
     () =>
-      resolvedDashboard?.widgets
+      renderedResolvedDashboard?.widgets
         .map((instance) => {
           const widget = getWidgetById(instance.widgetId);
 
@@ -1294,7 +1800,7 @@ export function CustomDashboardStudioPage({
             : instance;
         })
         ?? [],
-    [resolvedDashboard?.widgets],
+    [renderedResolvedDashboard?.widgets],
   );
   const canvasWidgets = useMemo(
     () => resolvedWidgetInstances.filter((widget) => !resolveWidgetSidebarOnly(widget.presentation)),
@@ -1870,20 +2376,20 @@ export function CustomDashboardStudioPage({
   useEffect(() => {
     if (
       selectedInstanceId &&
-      !resolvedDashboard?.widgets.some((widget) => widget.id === selectedInstanceId)
+      !renderedResolvedDashboard?.widgets.some((widget) => widget.id === selectedInstanceId)
     ) {
       setSelectedInstanceId(null);
     }
-  }, [resolvedDashboard, selectedInstanceId]);
+  }, [renderedResolvedDashboard, selectedInstanceId]);
 
   useEffect(() => {
     if (
       activeSlideWidgetId &&
-      !resolvedDashboard?.widgets.some((widget) => widget.id === activeSlideWidgetId)
+      !renderedResolvedDashboard?.widgets.some((widget) => widget.id === activeSlideWidgetId)
     ) {
       setActiveSlideWidgetId(null);
     }
-  }, [activeSlideWidgetId, resolvedDashboard]);
+  }, [activeSlideWidgetId, renderedResolvedDashboard]);
 
   useEffect(() => {
     if (!slideRegionComposer) {
@@ -1895,7 +2401,7 @@ export function CustomDashboardStudioPage({
       return;
     }
 
-    const slideStillExists = resolvedDashboard?.widgets.some(
+    const slideStillExists = renderedResolvedDashboard?.widgets.some(
       (widget) => widget.id === slideRegionComposer.slideWidgetId,
     );
 
@@ -1904,7 +2410,7 @@ export function CustomDashboardStudioPage({
     }
 
     setSlideRegionComposer(null);
-  }, [editMode, resolvedDashboard, slideRegionComposer]);
+  }, [editMode, renderedResolvedDashboard, slideRegionComposer]);
 
   const hoveredPlacementBounds = useMemo(() => {
     if (!hoveredPlacement || !measuredGridMetrics || !activeCatalogDrag) {
@@ -2124,12 +2630,10 @@ export function CustomDashboardStudioPage({
       instanceId: string,
       runtimeState: Record<string, unknown> | undefined,
     ) => {
-      updateSelectedWorkspaceUserState((dashboard) =>
-        updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
-        { bumpRevision: false },
-      );
+      pendingRuntimeStateWritesRef.current.set(instanceId, runtimeState);
+      scheduleRuntimeStateWriteFlush();
     },
-    [updateSelectedWorkspaceUserState],
+    [scheduleRuntimeStateWriteFlush],
   );
   const slideRegionBrowserWidgetFilter = useCallback(
     (widget: WidgetDefinition) =>
@@ -2451,14 +2955,12 @@ export function CustomDashboardStudioPage({
               setActiveSlideWidgetId(instanceId);
             }}
             onOpenSettings={(instanceId) => {
-              setSelectedInstanceId(instanceId);
-              setActiveSlideWidgetId(instanceId);
-              openWidgetSettings(instanceId);
+              openWidgetSettingsOverlay(instanceId);
+              scheduleWidgetSettingsSelection(instanceId, instanceId);
             }}
             onOpenBindings={(instanceId) => {
-              setSelectedInstanceId(instanceId);
-              setActiveSlideWidgetId(instanceId);
-              openWidgetSettings(instanceId, "bindings");
+              openWidgetSettingsOverlay(instanceId, "bindings");
+              scheduleWidgetSettingsSelection(instanceId, instanceId);
             }}
           />
         );
@@ -2528,14 +3030,18 @@ export function CustomDashboardStudioPage({
             setActiveSlideWidgetId(instance.slidePlacement?.slideWidgetId ?? null);
           }}
           onOpenSettings={(instanceId) => {
-            setSelectedInstanceId(instanceId);
-            setActiveSlideWidgetId(instance.slidePlacement?.slideWidgetId ?? null);
-            openWidgetSettings(instanceId);
+            openWidgetSettingsOverlay(instanceId);
+            scheduleWidgetSettingsSelection(
+              instanceId,
+              instance.slidePlacement?.slideWidgetId ?? null,
+            );
           }}
           onOpenBindings={(instanceId) => {
-            setSelectedInstanceId(instanceId);
-            setActiveSlideWidgetId(instance.slidePlacement?.slideWidgetId ?? null);
-            openWidgetSettings(instanceId, "bindings");
+            openWidgetSettingsOverlay(instanceId, "bindings");
+            scheduleWidgetSettingsSelection(
+              instanceId,
+              instance.slidePlacement?.slideWidgetId ?? null,
+            );
           }}
           rowCollapsed={isWorkspaceRowCollapsed(instance)}
           rowChildCount={rowChildCountById.get(instance.id) ?? 0}
@@ -2558,8 +3064,9 @@ export function CustomDashboardStudioPage({
     [
       editMode,
       handleWidgetRuntimeStateChange,
-      openWidgetSettings,
+      openWidgetSettingsOverlay,
       rowChildCountById,
+      scheduleWidgetSettingsSelection,
       selectedInstanceId,
       slidePlacedWidgetsBySlideRegion,
       updateSelectedWorkspace,
@@ -2627,11 +3134,11 @@ export function CustomDashboardStudioPage({
     );
   }
 
-  if (!selectedDashboard || !resolvedDashboard) {
+  if (!selectedDashboard || !resolvedDashboard || !renderedResolvedDashboard) {
     return null;
   }
 
-  const railWidgets = resolvedDashboard.widgets.flatMap((instance) => {
+  const railWidgets = renderedResolvedDashboard.widgets.flatMap((instance) => {
     const widget = getWidgetById(instance.widgetId);
     const required = [
       ...(widget?.requiredPermissions ?? []),
@@ -2750,9 +3257,8 @@ export function CustomDashboardStudioPage({
     dashboardMenuHidden,
     editMode,
     layoutKind,
-    resolvedDashboard?.widgets.length,
+    renderedResolvedDashboard?.widgets.length,
     visibleCompanionCandidates.length,
-    widgetSettingsOpen,
   ]);
 
   const content = (
@@ -2782,8 +3288,8 @@ export function CustomDashboardStudioPage({
               onProgressChange: handleCanvasScrollProgressChange,
             } : undefined}
             onOpenWidget={(instanceId) => {
-              setSelectedInstanceId(instanceId);
-              openWidgetSettings(instanceId);
+              openWidgetSettingsOverlay(instanceId);
+              scheduleWidgetSettingsSelection(instanceId, null);
             }}
           />
         ) : publicPreview ? (
@@ -2802,11 +3308,7 @@ export function CustomDashboardStudioPage({
         ) : null}
 
         <div
-          className={cn(
-            "relative h-full min-h-full",
-            widgetSettingsOpen ? "pointer-events-none select-none" : undefined,
-          )}
-          aria-hidden={widgetSettingsOpen}
+          className="relative h-full min-h-full"
         >
 
         <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
@@ -2939,7 +3441,7 @@ export function CustomDashboardStudioPage({
                     {editMode ? (
                       <WorkspaceSnapshotToolbarControl
                         dashboard={selectedDashboard}
-                        resolvedDashboard={resolvedDashboard}
+                        resolvedDashboard={renderedResolvedDashboard}
                         permissions={effectivePermissions}
                         profile={snapshotProfile}
                       />
@@ -3016,7 +3518,7 @@ export function CustomDashboardStudioPage({
               />
             ) : null}
 
-            {resolvedDashboard.widgets.length === 0 ? (
+            {renderedResolvedDashboard.widgets.length === 0 ? (
               <div className="absolute inset-x-0 top-0 flex min-h-[160px] items-center justify-center">
                 <div className="rounded-full border border-border/70 bg-card/82 px-4 py-2 text-xs uppercase tracking-[0.2em] text-muted-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl">
                   Use the toolbar to add components
@@ -3352,7 +3854,7 @@ export function CustomDashboardStudioPage({
                 <CatalogScopeButton
                   active={catalogScope === "browse"}
                   count={allowedWidgets.length}
-                  label="Browse"
+                  label="All"
                   onClick={() => {
                     setCatalogScope("browse");
                   }}
@@ -3560,7 +4062,7 @@ export function CustomDashboardStudioPage({
           }}
           placementClassName={dashboardMenuHidden ? "right-4 top-4 bottom-4" : "right-4 top-16 bottom-4"}
           scopeId={selectedDashboard.id}
-          widgets={resolvedDashboard.widgets}
+          widgets={renderedResolvedDashboard.widgets}
         />
 
         {activeCatalogDrag ? (
@@ -3582,7 +4084,12 @@ export function CustomDashboardStudioPage({
             </div>
             ) : null}
         </div>
-        {widgetSettingsOpen ? <CustomWidgetSettingsPage embedded /> : null}
+        <WidgetSettingsOverlayLayer
+          dashboard={selectedDashboard}
+          isSaving={isSaving}
+          onRequestRouteClose={closeRouteWidgetSettingsOverlay}
+          selectedWorkspaceDirty={selectedWorkspaceDirty}
+        />
         <SavedWidgetSaveDialog
           dashboard={selectedDashboard}
           instanceId={savedWidgetSaveTargetId}
@@ -3613,7 +4120,11 @@ export function CustomDashboardStudioPage({
   );
 
   if (!withRuntimeProviders) {
-    return content;
+    return localRuntimeStateOverridesEnabled ? (
+      <DashboardWidgetDependenciesProvider widgets={renderedResolvedDashboard.widgets}>
+        {content}
+      </DashboardWidgetDependenciesProvider>
+    ) : content;
   }
 
   return (
@@ -3627,14 +4138,14 @@ export function CustomDashboardStudioPage({
       }}
       onStateCommit={commitSelectedWorkspaceControlsState}
     >
-      <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
+      <DashboardWidgetRegistryProvider widgets={renderedResolvedDashboard.widgets}>
         <DashboardWidgetExecutionProvider
           activeSurface="dashboard"
           scopeId={selectedDashboard.id}
-          widgets={resolvedDashboard.widgets}
+          widgets={renderedResolvedDashboard.widgets}
           writeRuntimeState={handleWidgetRuntimeStateChange}
         >
-          <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
+          <DashboardWidgetDependenciesProvider widgets={renderedResolvedDashboard.widgets}>
             {content}
           </DashboardWidgetDependenciesProvider>
         </DashboardWidgetExecutionProvider>

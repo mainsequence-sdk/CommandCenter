@@ -4,8 +4,9 @@ import { MainSequenceAiError, withMainSequenceAiErrorSource } from "./error-sour
 export interface AgentSessionApiRecord {
   id: number;
   agent_session?: number;
-  agent?: number;
-  agent_name?: string;
+  agent?: number | AgentSessionApiAgent;
+  agent_type: string;
+  agent_name: string;
   parent_step?: number | null;
   sequence?: number;
   step_type?: string;
@@ -36,6 +37,11 @@ export interface AgentSessionApiRecord {
     owner_user: number;
     is_locked: boolean;
   }>;
+}
+
+export interface AgentSessionApiAgent {
+  id?: number | null;
+  name?: string | null;
 }
 
 export type AgentSessionSerializedRecord = AgentSessionApiRecord & Record<string, unknown>;
@@ -224,6 +230,34 @@ function buildAgentSessionCreationErrorMessage(payload: unknown) {
 
 export function getAgentSessionRecordSessionId(record: AgentSessionApiRecord) {
   return String(record.agent_session || record.id);
+}
+
+export function getAgentSessionRecordAgentId(record: AgentSessionApiRecord) {
+  if (typeof record.agent === "number" && Number.isFinite(record.agent)) {
+    return record.agent;
+  }
+
+  if (record.agent && typeof record.agent === "object" && !Array.isArray(record.agent)) {
+    return typeof record.agent.id === "number" && Number.isFinite(record.agent.id)
+      ? record.agent.id
+      : null;
+  }
+
+  return null;
+}
+
+export function getAgentSessionRecordAgentName(record: AgentSessionApiRecord) {
+  const agentName = record.agent_name?.trim();
+
+  if (agentName) {
+    return agentName;
+  }
+
+  if (record.agent && typeof record.agent === "object" && !Array.isArray(record.agent)) {
+    return record.agent.name?.trim() || "";
+  }
+
+  return "";
 }
 
 export function getAgentSessionRecordTitle(record: AgentSessionApiRecord) {

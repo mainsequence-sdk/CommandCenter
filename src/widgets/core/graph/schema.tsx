@@ -55,6 +55,30 @@ const timeAxisModeOptions: PickerOption[] = [
   },
 ];
 
+const timeQuantizationOptions: PickerOption[] = [
+  {
+    value: "auto",
+    label: "Auto",
+    description: "Use raw timestamps on ECharts and 1-second buckets on TradingView.",
+  },
+  {
+    value: "raw",
+    label: "Raw",
+    description: "Keep exact timestamps when the provider supports them. TradingView falls back to 1 second.",
+  },
+  { value: "1s", label: "1 second", description: "Bucket intraday points into 1-second windows." },
+  { value: "5s", label: "5 seconds", description: "Bucket intraday points into 5-second windows." },
+  { value: "15s", label: "15 seconds", description: "Bucket intraday points into 15-second windows." },
+  { value: "30s", label: "30 seconds", description: "Bucket intraday points into 30-second windows." },
+  { value: "1m", label: "1 minute", description: "Bucket intraday points into 1-minute windows." },
+  { value: "5m", label: "5 minutes", description: "Bucket intraday points into 5-minute windows." },
+  { value: "15m", label: "15 minutes", description: "Bucket intraday points into 15-minute windows." },
+  { value: "30m", label: "30 minutes", description: "Bucket intraday points into 30-minute windows." },
+  { value: "1h", label: "1 hour", description: "Bucket intraday points into 1-hour windows." },
+  { value: "4h", label: "4 hours", description: "Bucket intraday points into 4-hour windows." },
+  { value: "1d", label: "1 day", description: "Bucket points into UTC day windows." },
+];
+
 function PickerFieldSetting({
   value,
   onChange,
@@ -417,6 +441,43 @@ export const graphSettingsSchema: WidgetSettingsSchema<
             });
           }}
           options={timeAxisModeOptions}
+          placeholder="Auto"
+          disabled={!editable}
+        />
+      ),
+    },
+    {
+      id: "timeQuantization",
+      label: "Time quantization",
+      description:
+        "Bucket datetime points before plotting. TradingView requires at least 1-second timestamps; raw sub-second ticks need ECharts.",
+      settingsColumnSpan: 1,
+      sectionId: "field-mapping",
+      isVisible: ({ context }) => !context.hasNoData,
+      renderSettings: ({ draftProps, onDraftPropsChange, editable, context }) => (
+        <PickerFieldSetting
+          value={context.resolvedConfig.timeQuantization}
+          onChange={(value) => {
+            onDraftPropsChange({
+              ...draftProps,
+              timeQuantization:
+                value === "raw" ||
+                value === "1s" ||
+                value === "5s" ||
+                value === "15s" ||
+                value === "30s" ||
+                value === "1m" ||
+                value === "5m" ||
+                value === "15m" ||
+                value === "30m" ||
+                value === "1h" ||
+                value === "4h" ||
+                value === "1d"
+                  ? value
+                  : "auto",
+            });
+          }}
+          options={timeQuantizationOptions}
           placeholder="Auto"
           disabled={!editable}
         />

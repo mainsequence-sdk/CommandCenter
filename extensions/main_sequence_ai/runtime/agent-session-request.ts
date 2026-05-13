@@ -12,7 +12,7 @@ export interface AgentSessionRunConfigRequestBody {
 }
 
 interface AgentSessionRequestBodyFragmentOptions {
-  agentName: string;
+  agentType: string;
   context?: unknown;
   model?: AgentSessionModelRequestBody | null;
   newChat?: boolean;
@@ -46,7 +46,7 @@ function normalizeSessionPayload(value: unknown) {
 }
 
 export function buildAgentSessionRequestBodyFragment({
-  agentName,
+  agentType,
   context,
   model,
   newChat = false,
@@ -57,16 +57,16 @@ export function buildAgentSessionRequestBodyFragment({
   userId,
   workflowKey,
 }: AgentSessionRequestBodyFragmentOptions) {
-  const normalizedAgentName = normalizeNonEmptyString(agentName);
+  const normalizedAgentType = normalizeNonEmptyString(agentType);
 
-  if (!normalizedAgentName) {
-    throw new Error("Agent session requests require a non-empty agent name.");
+  if (!normalizedAgentType) {
+    throw new Error("Agent session requests require a non-empty agent type.");
   }
 
   const normalizedSessionId = normalizeNonEmptyString(sessionId);
   const normalizedThreadId = normalizeNonEmptyString(threadId);
   const normalizedUserId = normalizeNonEmptyString(userId);
-  const normalizedWorkflowKey = normalizeNonEmptyString(workflowKey) ?? normalizedAgentName;
+  const normalizedWorkflowKey = normalizeNonEmptyString(workflowKey) ?? normalizedAgentType;
   const normalizedModelSource =
     model === null ? null : normalizeNonEmptyString(model?.source);
   const normalizedModelValue =
@@ -82,7 +82,7 @@ export function buildAgentSessionRequestBodyFragment({
 
   return {
     ...(newChat ? { newChat: true } : {}),
-    agentName: normalizedAgentName,
+    agentType: normalizedAgentType,
     ...(model === null
       ? { model: null }
       : normalizedModelSource && normalizedModelValue

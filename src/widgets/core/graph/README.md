@@ -51,6 +51,9 @@ This folder owns the core `graph` widget. It renders canonical
   `upstreamDelta` frames. For explicit `seedData`/`liveUpdates` bindings, the graph now owns a
   bounded local queue per series and applies incremental publications into that queue instead of
   rebuilding from the source widget's retained stream history on every live tick.
+- Graph live-update retention intentionally ignores source-side merge keys such as `symbol`.
+  Source widgets may retain only the latest row per entity, but the graph appends incoming live rows
+  into its own time window and lets duplicate X values replace the matching chart point.
 - Runtime rendering, settings previews, and agent snapshots now all normalize the resolved source
   frame through the same graph-specific dataset adapter before they derive fields or chart series.
   Keep those surfaces on one normalized row shape so preview diagnostics and mounted chart output do
@@ -63,9 +66,14 @@ This folder owns the core `graph` widget. It renders canonical
   overlay instead of blinking back to a blank skeleton.
 - Authors must explicitly choose X and Y fields; grouping is optional and explicit.
 - Provider selection is local to the widget: TradingView Lightweight Charts or ECharts.
+- Time axis interpretation and time quantization are separate controls:
+  - `timeAxisMode` decides whether the X field should be treated as daily dates or full timestamps.
+  - `timeQuantization` decides whether datetime points stay raw or are bucketed before rendering.
 - Provider behavior differs for high-frequency datetime streams:
-  - ECharts keeps full millisecond-resolution points.
-  - TradingView collapses same-second datetime points to the latest point in that second.
+  - ECharts can keep full millisecond-resolution points when `timeQuantization` is `raw`.
+  - TradingView Lightweight Charts only accepts second-based UTC timestamps, so `raw` falls back to 1-second buckets on that provider.
+- Explicit bucket choices such as `1s`, `5s`, `1m`, or `1h` are chart-local and apply before the
+  renderer sees the points, regardless of provider.
 - Shared-axis grouped charts now expose a persisted `stackSeries` render option:
   - ECharts uses native `series.stack` rendering for line, area, and bar charts.
   - TradingView Lightweight Charts does not expose a stack flag, so the adapter projects the
@@ -109,6 +117,8 @@ This folder owns the core `graph` widget. It renders canonical
   TradingView cumulative projection stays correct.
 - Keep Y-axis display formatting renderer-agnostic. These controls are display-only and must not
   mutate upstream rows, normalized series values, or published runtime data.
+- Keep time quantization provider-aware. Do not imply that TradingView can render raw sub-second
+  ticks when the underlying library only accepts second-resolution timestamps.
 - Avoid reintroducing graph-local time-series semantics or upstream metadata-driven auto-mapping.
 - Avoid adding connection-specific or Main Sequence-specific backend calls here.
 - Bump `widgetVersion` when props, accepted input behavior, registry metadata, or user-facing authoring semantics change.

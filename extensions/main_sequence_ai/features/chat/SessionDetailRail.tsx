@@ -11,20 +11,20 @@ import {
 
 function normalizeSessionSecondaryLabel({
   agentUniqueId,
-  displayName,
-  requestName,
+  displayLabel,
+  requestAgentType,
 }: {
   agentUniqueId: string | null;
-  displayName: string | null;
-  requestName: string | null;
+  displayLabel: string | null;
+  requestAgentType: string | null;
 }) {
-  const normalizedRequestName = requestName?.trim() || null;
-  const candidates = [displayName, agentUniqueId]
+  const normalizedRequestAgentType = requestAgentType?.trim() || null;
+  const candidates = [displayLabel, agentUniqueId]
     .map((value) => value?.trim() || null)
     .filter((value): value is string => Boolean(value));
 
   return (
-    candidates.find((value) => value !== normalizedRequestName) ??
+    candidates.find((value) => value !== normalizedRequestAgentType) ??
     null
   );
 }
@@ -105,8 +105,8 @@ export function SessionDetailRail() {
   const thinkingSummary = buildThinkingSummaryLabel(activeSessionSummary);
   const secondaryLabel = normalizeSessionSecondaryLabel({
     agentUniqueId: activeSessionSummary.agentUniqueId,
-    displayName: activeSessionSummary.displayName,
-    requestName: activeSessionSummary.requestName,
+    displayLabel: activeSessionSummary.displayLabel,
+    requestAgentType: activeSessionSummary.requestAgentType,
   });
   const summaryCard = (
     <div className="flex items-start justify-between gap-3">
@@ -115,7 +115,7 @@ export function SessionDetailRail() {
           {isProjectAgentRail ? "Project Agent Session" : "Conversation With"}
         </div>
         <div className="font-mono text-sm font-semibold text-primary">
-          {activeSessionSummary.requestName}
+          {activeSessionSummary.requestAgentType}
         </div>
         {secondaryLabel ? (
           <div className="font-mono text-xs text-muted-foreground">

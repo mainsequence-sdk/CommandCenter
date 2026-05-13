@@ -166,6 +166,7 @@ export function StatisticWidgetSettings({
   const sourceBinding = useResolvedTabularWidgetSourceBinding({
     props: draftProps,
     currentWidgetInstanceId: instanceId,
+    resolvedInputs,
   });
   const linkedDataset = useMemo(
     () =>

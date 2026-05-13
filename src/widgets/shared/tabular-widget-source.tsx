@@ -22,6 +22,7 @@ import {
   useRuntimeDataStore,
 } from "@/widgets/shared/runtime-data-store";
 import type {
+  ResolvedWidgetInputs,
   WidgetFieldDefinition,
   WidgetFieldSection,
   WidgetSettingsSchema,
@@ -925,15 +926,20 @@ export function useResolvedTabularWidgetSourceBinding<
 >({
   props,
   currentWidgetInstanceId,
+  resolvedInputs,
 }: {
   props: TProps;
   currentWidgetInstanceId?: string;
+  resolvedInputs?: ResolvedWidgetInputs;
 }): ResolvedTabularWidgetSourceBinding {
   const widgetRegistry = useDashboardWidgetRegistry();
   const runtimeDataStore = useRuntimeDataStore();
-  const resolvedSourceInput = useResolvedWidgetInput(currentWidgetInstanceId, TABULAR_SOURCE_INPUT_ID);
-  const resolvedSeedInput = useResolvedWidgetInput(currentWidgetInstanceId, incrementalSeedInputId);
-  const resolvedLiveInput = useResolvedWidgetInput(currentWidgetInstanceId, incrementalLiveUpdatesInputId);
+  const resolvedSourceInputFromContext = useResolvedWidgetInput(currentWidgetInstanceId, TABULAR_SOURCE_INPUT_ID);
+  const resolvedSeedInputFromContext = useResolvedWidgetInput(currentWidgetInstanceId, incrementalSeedInputId);
+  const resolvedLiveInputFromContext = useResolvedWidgetInput(currentWidgetInstanceId, incrementalLiveUpdatesInputId);
+  const resolvedSourceInput = resolvedInputs?.[TABULAR_SOURCE_INPUT_ID] ?? resolvedSourceInputFromContext;
+  const resolvedSeedInput = resolvedInputs?.[incrementalSeedInputId] ?? resolvedSeedInputFromContext;
+  const resolvedLiveInput = resolvedInputs?.[incrementalLiveUpdatesInputId] ?? resolvedLiveInputFromContext;
   const normalizedReference = useMemo(
     () => normalizeTabularWidgetSourceReferenceProps(props),
     [props],
@@ -1113,14 +1119,20 @@ export function useTabularWidgetSourceControllerContext<
 >({
   props,
   currentWidgetInstanceId,
+  resolvedInputs,
   resolveConfig,
 }: {
   props: TProps;
   currentWidgetInstanceId?: string;
   queryKeyScope: string;
+  resolvedInputs?: ResolvedWidgetInputs;
   resolveConfig: (props: TProps, detail?: TabularSourceDetail | null) => TResolvedConfig;
 }): TabularWidgetSourceControllerContext<TResolvedConfig> {
-  const sourceBinding = useResolvedTabularWidgetSourceBinding({ props, currentWidgetInstanceId });
+  const sourceBinding = useResolvedTabularWidgetSourceBinding({
+    props,
+    currentWidgetInstanceId,
+    resolvedInputs,
+  });
   const resolvedConfig = useMemo(
     () => resolveConfig({ ...props, ...sourceBinding.resolvedSourceProps }),
     [props, resolveConfig, sourceBinding.resolvedSourceProps],

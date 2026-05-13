@@ -8,7 +8,7 @@ import {
 import { MainSequenceAiError } from "./error-source";
 
 const rawEnv = import.meta.env as Record<string, string | undefined>;
-const projectExecutorRequestName = "mainsequence-project-executor";
+const projectExecutorAgentType = "mainsequence-project-executor";
 const assistantExecutorProxyPrefix = "/__assistant_executor__";
 
 export interface MainSequenceAiResolvedAssistantAccess {
@@ -66,17 +66,17 @@ export function isMainSequenceAiAssistantProxyMode() {
   return Boolean(rawEnv.VITE_ASSISTANT_UI_PROXY_TARGET?.trim());
 }
 
-export function isMainSequenceProjectExecutorAgentRequestName(
+export function isMainSequenceProjectExecutorAgentType(
   value: string | null | undefined,
 ) {
-  return value?.trim().toLowerCase() === projectExecutorRequestName;
+  return value?.trim().toLowerCase() === projectExecutorAgentType;
 }
 
-export function resolveMainSequenceAiAssistantEndpointForAgentRequestName(
-  agentRequestName: string | null | undefined,
+export function resolveMainSequenceAiAssistantEndpointForAgentType(
+  agentType: string | null | undefined,
 ): string | undefined {
   if (isMainSequenceAiAssistantProxyMode()) {
-    if (isMainSequenceProjectExecutorAgentRequestName(agentRequestName)) {
+    if (isMainSequenceProjectExecutorAgentType(agentType)) {
       if (rawEnv.VITE_ASSISTANT_UI_EXECUTOR_TARGET?.trim()) {
         return normalizeMainSequenceAiAssistantEndpoint(assistantExecutorProxyPrefix);
       }

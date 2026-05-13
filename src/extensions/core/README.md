@@ -6,11 +6,13 @@ This extension owns the built-in registry entries that ship with Command Center 
 
 - `index.ts`: registers the core apps, dashboard surfaces, theme presets, and current widget catalog state.
 - `apps/`: page surfaces that are owned by the core extension, including Access RBAC and Admin.
+- `UserCreditsSettingsSection.tsx`: shared user-settings section for personal credits and billing state.
 
 ## Current Responsibilities
 
 - the `Workspaces` app and its local-development workspace builder flows
 - the admin-facing built-in apps
+- the shared user-settings `Credits & Billing` section for personal credit state
 - the live core widget catalog, currently `markdown-note`, `app-component`, and the collapsible `workspace-row`
 - bundled theme presets that belong to the shell
 
@@ -37,6 +39,9 @@ This extension owns the built-in registry entries that ship with Command Center 
 - Core-owned app surfaces now also own assistant-facing summaries and action lists through
   `assistantContext` in `index.ts`; keep that metadata aligned with the real UX when surface
   behavior changes.
+- Core also contributes the shared user-settings `Credits & Billing` section through
+  an internal shell-settings host app; keep that section user-scoped and avoid mixing it back
+  into organization-admin billing screens.
 - Workspaces feature implementation lives in `src/features/dashboards/`; keep that folder's
   `README.md` and `docs/workspaces.md` updated when the workspace model or UX changes.
 - The `Workspaces` app is feature-flagged at runtime through `VITE_INCLUDE_WORKSPACES`; keep registry behavior and docs aligned if that flag changes scope.

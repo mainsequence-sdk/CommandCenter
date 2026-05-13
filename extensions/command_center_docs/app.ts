@@ -1,11 +1,9 @@
 import {
   Bot,
   BookOpenText,
-  Cable,
   Command,
   Gauge,
-  KeyRound,
-  LifeBuoy,
+  ShieldCheck,
   PanelsTopLeft,
   Rows3,
   Puzzle,
@@ -20,17 +18,14 @@ import { documentationPages } from "./content/docsContent";
 
 const pageIcons = {
   "getting-started": Gauge,
-  applications: BookOpenText,
   workspaces: PanelsTopLeft,
   "slide-studio": Rows3,
   "agents-monitor": Bot,
   widgets: Puzzle,
-  "main-sequence-foundry": Command,
-  "main-sequence-markets": LineChart,
+  foundry: Command,
+  markets: LineChart,
   "main-sequence-ai": Sparkles,
-  "connections-app": Cable,
-  permissions: KeyRound,
-  troubleshooting: LifeBuoy,
+  "organization-admin": ShieldCheck,
 } as const;
 
 export const commandCenterDocsApp: AppDefinition = {
@@ -48,6 +43,7 @@ export const commandCenterDocsApp: AppDefinition = {
     navLabel: page.navLabel,
     description: page.description,
     icon: pageIcons[page.id as keyof typeof pageIcons],
+    hidden: page.hiddenInShellNavigation,
     ...defineSurfaceAssistantContext({
       summary: `User is reading the Command Center documentation page: ${page.title}.`,
       availableActions: [

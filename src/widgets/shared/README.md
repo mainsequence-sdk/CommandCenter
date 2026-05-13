@@ -9,8 +9,10 @@ This directory contains reusable widget presentation primitives that are shared 
   treatment derived from shared execution state plus widget runtime state.
 - `chrome.ts`: shared helpers for widget chrome options such as per-instance header visibility, plus shared widget-shell markers used by themes to style widget containers consistently.
 - `widget-settings.tsx`: shared settings trigger plus the reusable full-page settings panel used to edit widget instances outside the old modal flow. It also exports the shared duplicate trigger used by workspace widget chrome.
+- `widget-setting-reference-control.tsx`: compact inline reference affordance used by shared settings surfaces. It keeps widget title and schema-backed setting references in the field that owns the literal value instead of generating a second authoring surface under the bindings tab.
 - `WidgetSourceExplorer.tsx`: reusable source widget/source output explorer used by binding UIs. It keeps bindings port-to-port while layering collection-item selection, nested value exploration, transform selection, compatibility messaging, a collapsed-by-default preview disclosure, and a richer source-widget picker (instance label + widget type + widget id) on top of structured output descriptors. Binding panels can use it for both widget-authored outputs and platform-synthesized existing-state outputs such as widget title, props, and runtime state.
-- `WidgetBindingPanel.tsx`: shared bindings editor for widget inputs. It now keeps noisy metadata such as input-effect details behind collapsed-by-default disclosures so the main binding flow stays scannable.
+- `WidgetBindingPanel.tsx`: shared bindings editor for true widget IO inputs. It now keeps noisy metadata such as input-effect details behind collapsed-by-default disclosures so the main binding flow stays scannable.
+  Input sections are intentionally rendered with prominent primary-toned headers so labels such as `Seed data` and `Live updates` read as the dominant structure in the page.
 - `picker-field.tsx`: shared picker/listbox field used by widget settings that need searchable
   option sets without depending on an extension-specific component.
 - `tabular-frame-source.ts`: shared generic tabular-frame contract, value descriptor, and
@@ -37,7 +39,8 @@ This directory contains reusable widget presentation primitives that are shared 
   managed-connection adapter.
 - `ManagedConnectionConsumerPanel.tsx`: reusable `Bindings -> Connection` settings surface for
   managed `connection-query` and `connection-stream-query` consumers. It reuses the standard
-  connection authoring surfaces and writes back through the widget-specific adapter.
+  connection authoring surfaces, publishes managed WebSocket preview runtime state back into the
+  owning widget preview, and writes back through the widget-specific adapter.
 - `chart-data-source.ts`: shared renderer-neutral chart-data contract helper for
   `core.chart_data@v1`, including value-descriptor metadata and frame normalization for backend
   adapters that return chart-ready data rather than source time-series data.
@@ -96,6 +99,13 @@ This directory contains reusable widget presentation primitives that are shared 
 - Shared binding surfaces now also support platform-owned setting targets. A widget instance can
   bind upstream values into its existing display title or discovered saved prop paths without the
   widget definition declaring one bespoke input per setting field.
+- Shared settings surfaces should treat those platform-owned setting bindings as an authoring detail,
+  not as a second primary configuration screen. When a setting is schema-backed, keep its literal
+  control in place and surface the reference mode through the compact inline link affordance
+  instead of duplicating the setting under the bindings tab.
+- The separate bindings tab is now for true widget IO only. Shared settings surfaces hide all
+  synthetic title/prop-path targets there so users do not have to choose between editing one
+  setting in two different places.
 - Array outputs are not flattened into pseudo-ports by the shared binding layer. The explorer keeps the graph edge anchored to the source output port, then optionally applies ordered binding transforms such as `select-array-item` followed by `extract-path`.
 - Generic table-like widget bindings should use `tabular-frame-source.ts` instead of inventing extension-specific row contracts. Keep source-specific metadata nested under `source` and keep field schemas limited to generic metadata like `key`, `label`, `type`, `description`, and `nullable`.
 - Large runtime datasets should move through `runtime-data-store.tsx` references instead of being

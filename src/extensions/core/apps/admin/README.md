@@ -22,7 +22,8 @@ Current surfaces in this folder:
 - `AdminActivePlansPage.tsx`: organization subscription inventory and per-user plan assignments
   backed by `/user/api/organization/<id>/active-plans/` with inline assign/remove seat controls
   plus a `Manage seats` modal loaded from `/user/api/organization/<id>/subscription-seats/`
-  and submitted to the matching org-scoped POST checkout endpoint
+  and submitted to the matching org-scoped POST checkout endpoint, including explicit upgrade
+  handling for the `organization_plan_assignment_upgrade_required` assignment-gating response
 - `AdminLoginSessionsPage.tsx`: organization-scoped login-session registry backed by
   `/user/api/organization/<id>/login-sessions/` with search, auth-source/state filters, paginated
   results, and per-session revoke action through the matching org-scoped revoke endpoint
@@ -34,8 +35,9 @@ Current surfaces in this folder:
   with a summary header from `/orm/api/pods/billing/summary/`, `datetime-local`
   range filters, and quick date presets
 - `AdminManageCreditsPage.tsx`: organization credit overview backed by
-  `/users/api/organization/<id>/credits/` with current balance, spendable state, and
-  auto-reload configuration details
+  `/user/api/organization/<id>/credits/` with action-driven prepaid-credit checkout,
+  editable auto-reload settings, and org-admin per-user credit-budget management backed by the
+  matching `/user/api/organization/<id>/credits/` sub-actions
 
 Maintenance notes:
 
@@ -49,5 +51,16 @@ Maintenance notes:
 - Keep organization user bulk actions aligned with `/user/api/user/` backend endpoints and
   their confirmation semantics
 - Billing surfaces currently span both pod-manager billing endpoints and the org-admin
-  `/users/api/organization/<id>/credits/` credit endpoints; keep that split explicit in the
+  `/user/api/organization/<id>/credits/` credit endpoints; keep that split explicit in the
   page-level API helpers instead of normalizing paths ad hoc in components
+- Credit-management UI must display money in dollars while submitting integer cents to the
+  backend, and should prefer action/form URLs returned by the organization credits endpoint over
+  re-deriving those paths in the page component
+- The `Manage seats` dialog must treat the
+  `organization_seat_management_upgrade_required` 403 contract from
+  `/user/api/organization/<id>/subscription-seats/` as an explicit upgrade state, not a generic
+  access error or a derived role/group heuristic
+- Active-plan assignment POST failures from
+  `/user/api/organization/<id>/active-plans/<user_id>/` must surface the backend
+  `organization_plan_assignment_upgrade_required` title/detail/upgrade message directly instead of
+  collapsing them into a generic toast

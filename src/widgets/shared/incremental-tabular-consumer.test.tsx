@@ -179,11 +179,13 @@ interface SnapshotState {
 }
 
 function HarnessContent({
+  liveMergeKeyFields,
   resolvedInputs,
   runtimeRowSelector,
   onSnapshot,
   onRuntimeStateEvent,
 }: {
+  liveMergeKeyFields?: string[];
   resolvedInputs?: ResolvedWidgetInputs;
   runtimeRowSelector?: RuntimeRowSelector;
   onSnapshot: (snapshot: SnapshotState) => void;
@@ -192,6 +194,7 @@ function HarnessContent({
   const [runtimeState, setRuntimeState] = useState<Record<string, unknown> | undefined>(undefined);
   const bindingState = useIncrementalTabularConsumerBindingState({
     instanceId: "consumer-1",
+    liveMergeKeyFields,
     onRuntimeStateChange: (nextRuntimeState) => {
       setRuntimeState(nextRuntimeState);
       onRuntimeStateEvent?.(nextRuntimeState);
@@ -214,12 +217,14 @@ function HarnessContent({
 }
 
 function Harness({
+  liveMergeKeyFields,
   resolvedInputs,
   runtimeDataStore,
   runtimeRowSelector,
   onSnapshot,
   onRuntimeStateEvent,
 }: {
+  liveMergeKeyFields?: string[];
   resolvedInputs?: ResolvedWidgetInputs;
   runtimeDataStore?: RuntimeDataStore;
   runtimeRowSelector?: RuntimeRowSelector;
@@ -228,6 +233,7 @@ function Harness({
 }) {
   const content = (
     <HarnessContent
+      liveMergeKeyFields={liveMergeKeyFields}
       resolvedInputs={resolvedInputs}
       runtimeRowSelector={runtimeRowSelector}
       onSnapshot={onSnapshot}
@@ -257,6 +263,7 @@ interface HarnessDriver {
 function createHarness(
   runtimeDataStore?: RuntimeDataStore,
   runtimeRowSelector?: RuntimeRowSelector,
+  liveMergeKeyFields?: string[],
 ): HarnessDriver {
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -269,6 +276,7 @@ function createHarness(
       await act(async () => {
         root.render(
           <Harness
+            liveMergeKeyFields={liveMergeKeyFields}
             resolvedInputs={resolvedInputs}
             runtimeDataStore={runtimeDataStore}
             runtimeRowSelector={runtimeRowSelector}
@@ -426,6 +434,72 @@ describe("incremental tabular consumer", () => {
     ]);
   });
 
+  it("can append live updates even when source diagnostics advertise merge keys", async () => {
+    const harness = createHarness(undefined, undefined, []);
+    harnesses.push(harness);
+
+    await harness.render({
+      [TABULAR_LIVE_UPDATES_INPUT_ID]: buildUpdatesInput({
+        inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+        publicationRole: "update",
+        sourceRunId: "ws-run-append-for-chart",
+        baseRows: [
+          {
+            time: "2026-04-29T00:00:00.000Z",
+            value: 1,
+            symbol: "BTCUSDT",
+          },
+        ],
+        deltaRows: [
+          {
+            time: "2026-04-29T00:00:00.000Z",
+            value: 1,
+            symbol: "BTCUSDT",
+          },
+        ],
+        updatedAtMs: 100,
+        mergeKeyFields: ["symbol"],
+      }),
+    });
+
+    await harness.render({
+      [TABULAR_LIVE_UPDATES_INPUT_ID]: buildUpdatesInput({
+        inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+        publicationRole: "update",
+        sourceRunId: "ws-run-append-for-chart",
+        baseRows: [
+          {
+            time: "2026-04-29T00:01:00.000Z",
+            value: 2,
+            symbol: "BTCUSDT",
+          },
+        ],
+        deltaRows: [
+          {
+            time: "2026-04-29T00:01:00.000Z",
+            value: 2,
+            symbol: "BTCUSDT",
+          },
+        ],
+        updatedAtMs: 200,
+        mergeKeyFields: ["symbol"],
+      }),
+    });
+
+    expect(harness.getSnapshot()?.dataset?.rows).toEqual([
+      {
+        time: "2026-04-29T00:00:00.000Z",
+        value: 1,
+        symbol: "BTCUSDT",
+      },
+      {
+        time: "2026-04-29T00:01:00.000Z",
+        value: 2,
+        symbol: "BTCUSDT",
+      },
+    ]);
+  });
+
   it("keeps the seed baseline when live updates restart with a new sourceRunId", async () => {
     const harness = createHarness();
     harnesses.push(harness);
@@ -561,6 +635,58 @@ describe("incremental tabular consumer", () => {
     await harness.render(resolvedInputs);
 
     expect(harness.getRuntimeEventCount()).toBe(runtimeEventCountAfterFirstRender);
+  });
+
+  it("does not republish by-value publications when only updatedAtMs changes", async () => {
+    const harness = createHarness();
+    harnesses.push(harness);
+
+    await harness.render({
+      [TABULAR_SEED_INPUT_ID]: buildSeedInput(
+        TABULAR_SEED_INPUT_ID,
+        [{ time: "2026-04-29T00:00:00.000Z", value: 1 }],
+        100,
+      ),
+      [TABULAR_LIVE_UPDATES_INPUT_ID]: buildUpdatesInput({
+        inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+        publicationRole: "update",
+        sourceRunId: "ws-run-volatile-timestamp",
+        baseRows: [
+          { time: "2026-04-29T00:00:00.000Z", value: 1 },
+          { time: "2026-04-29T00:01:00.000Z", value: 2 },
+        ],
+        deltaRows: [{ time: "2026-04-29T00:01:00.000Z", value: 2 }],
+        updatedAtMs: 200,
+        mergeKeyFields: ["time"],
+      }),
+    });
+    const runtimeEventCountAfterFirstRender = harness.getRuntimeEventCount();
+
+    await harness.render({
+      [TABULAR_SEED_INPUT_ID]: buildSeedInput(
+        TABULAR_SEED_INPUT_ID,
+        [{ time: "2026-04-29T00:00:00.000Z", value: 1 }],
+        900,
+      ),
+      [TABULAR_LIVE_UPDATES_INPUT_ID]: buildUpdatesInput({
+        inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+        publicationRole: "update",
+        sourceRunId: "ws-run-volatile-timestamp",
+        baseRows: [
+          { time: "2026-04-29T00:00:00.000Z", value: 1 },
+          { time: "2026-04-29T00:01:00.000Z", value: 2 },
+        ],
+        deltaRows: [{ time: "2026-04-29T00:01:00.000Z", value: 2 }],
+        updatedAtMs: 901,
+        mergeKeyFields: ["time"],
+      }),
+    });
+
+    expect(harness.getRuntimeEventCount()).toBe(runtimeEventCountAfterFirstRender);
+    expect(harness.getSnapshot()?.dataset?.rows).toEqual([
+      { time: "2026-04-29T00:00:00.000Z", value: 1 },
+      { time: "2026-04-29T00:01:00.000Z", value: 2 },
+    ]);
   });
 
   it("does not republish equivalent ref-backed live state on a stable rerender", async () => {

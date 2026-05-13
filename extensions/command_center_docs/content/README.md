@@ -14,4 +14,14 @@ extension.
 
 ## Navigation
 
-Add new pages to `docsContent.ts` so they appear as Documentation app surfaces.
+Add new pages to `docsContent.ts` so they appear in the shared documentation registry.
+
+Organize the markdown files by the same top-level section structure used by the documentation menu.
+Each top-level section should own its own subdirectory under `content/`.
+
+Keep the navigation application-first:
+
+- top-level sections are limited to the approved documentation applications
+- each top-level section owns an ordered submenu
+- child pages should be ordered inside the owning application
+- generated child pages should stay aligned with the real application surface structure

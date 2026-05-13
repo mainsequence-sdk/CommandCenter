@@ -36,6 +36,11 @@ export function normalizeAgentImageDriftRecord(value: unknown): AgentImageDriftR
             matches: typeof check.matches === "boolean" ? check.matches : null,
             has_drift: check.has_drift === true,
             reason: normalizeString(check.reason),
+            message: normalizeString(check.message),
+            autoheal_supported:
+              typeof check.autoheal_supported === "boolean" ? check.autoheal_supported : null,
+            autoheal_mode: normalizeString(check.autoheal_mode),
+            autoheal_message: normalizeString(check.autoheal_message),
             expected_image_uri: normalizeString(check.expected_image_uri),
             actual_image_uri: normalizeString(check.actual_image_uri),
           };
@@ -47,6 +52,9 @@ export function normalizeAgentImageDriftRecord(value: unknown): AgentImageDriftR
     agent_kind: normalizeString(candidate.agent_kind),
     available: candidate.available === true,
     has_drift: candidate.has_drift === true,
+    autoheal_available:
+      typeof candidate.autoheal_available === "boolean" ? candidate.autoheal_available : null,
+    autoheal_message: normalizeString(candidate.autoheal_message),
     checks,
     detail: normalizeString(candidate.detail),
   };

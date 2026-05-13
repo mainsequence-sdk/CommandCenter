@@ -37,6 +37,11 @@ KPI-style statistic cards for a bound `core.tabular_frame@v1` dataset or a widge
   managed source widget. Managed WebSocket streaming also requires a streamable connection path.
 - When the upstream source publishes incremental metadata, the statistic consumes the retained
   full `upstreamBase` frame and recomputes the cards as a snapshot.
+- In managed WebSocket authoring, the widget preview should read the accumulated incremental
+  consumer dataset, not a single latest update frame.
+- Live stream statistics keep a consumer-owned row window and ignore source-side entity merge keys
+  such as `symbol`, so row-count and aggregate KPIs can reflect the stream history instead of only
+  the latest row per entity.
 - Field pickers are populated from the bound dataset's `columns`, `fields`, and representative rows.
 - `max`, `min`, `sum`, and `mean` require a numeric value field. `count` can count rows without a value field.
 

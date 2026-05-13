@@ -33,6 +33,20 @@ export type GraphChartType = "line" | "area" | "bar" | "markers";
 export type GraphViewMode = "chart" | "table";
 export type GraphSeriesAxisMode = "shared" | "separate";
 export type GraphTimeAxisMode = "auto" | "date" | "datetime";
+export type GraphTimeQuantizationMode =
+  | "auto"
+  | "raw"
+  | "1s"
+  | "5s"
+  | "15s"
+  | "30s"
+  | "1m"
+  | "5m"
+  | "15m"
+  | "30m"
+  | "1h"
+  | "4h"
+  | "1d";
 export type GraphNormalizationAnchor = number | "series-start" | null;
 export type GraphAuthoringSourceMode = "bound" | "connection" | "connection-stream";
 export type GraphLineStyle =
@@ -69,6 +83,7 @@ export interface GraphWidgetProps
   seriesAxisMode?: GraphSeriesAxisMode;
   seriesOverrides?: GraphSeriesOverrides;
   timeAxisMode?: GraphTimeAxisMode;
+  timeQuantization?: GraphTimeQuantizationMode;
   xField?: string;
   yAxisDecimals?: number;
   yAxisScaleZeros?: number;
@@ -92,6 +107,7 @@ export interface ResolvedGraphConfig extends ResolvedTabularWidgetSourceConfig {
   seriesAxisMode: GraphSeriesAxisMode;
   seriesOverrides?: GraphSeriesOverrides;
   timeAxisMode: GraphTimeAxisMode;
+  timeQuantization: GraphTimeQuantizationMode;
   xField?: string;
   yAxisDecimals?: number;
   yAxisScaleZeros: number;
@@ -122,6 +138,14 @@ export interface GraphChartSeriesResult {
   series: GraphSeries[];
 }
 
+export interface ResolvedGraphTimeQuantization {
+  bucketMs: number | null;
+  effectiveMode: Exclude<GraphTimeQuantizationMode, "auto">;
+  label: string;
+  providerLimited: boolean;
+  requestedMode: GraphTimeQuantizationMode;
+}
+
 export interface IncrementalGraphSeriesUpdateResult {
   deltaSeries: GraphSeries[];
   result: GraphSeriesResult;
@@ -133,6 +157,35 @@ const defaultVisualizerMaxSeries = 8;
 const defaultVisualizerMarkerSizePx = 8;
 const defaultVisualizerMinBarSpacingPx = 0.01;
 const hexColorPattern = /^#(?:[0-9a-fA-F]{6})$/;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const GRAPH_TIME_QUANTIZATION_BUCKET_MS = {
+  "1s": 1_000,
+  "5s": 5_000,
+  "15s": 15_000,
+  "30s": 30_000,
+  "1m": 60_000,
+  "5m": 5 * 60_000,
+  "15m": 15 * 60_000,
+  "30m": 30 * 60_000,
+  "1h": 60 * 60_000,
+  "4h": 4 * 60 * 60_000,
+  "1d": DAY_MS,
+} satisfies Record<Exclude<GraphTimeQuantizationMode, "auto" | "raw">, number>;
+const GRAPH_TIME_QUANTIZATION_LABEL = {
+  auto: "Auto",
+  raw: "Raw timestamps",
+  "1s": "1 second",
+  "5s": "5 seconds",
+  "15s": "15 seconds",
+  "30s": "30 seconds",
+  "1m": "1 minute",
+  "5m": "5 minutes",
+  "15m": "15 minutes",
+  "30m": "30 minutes",
+  "1h": "1 hour",
+  "4h": "4 hours",
+  "1d": "1 day",
+} satisfies Record<GraphTimeQuantizationMode, string>;
 
 function uniqueStrings(values: Array<string | null | undefined>) {
   const seen = new Set<string>();
@@ -204,6 +257,26 @@ function normalizeOptionalInteger(
 
 function normalizeTimeAxisMode(value: unknown): GraphTimeAxisMode {
   return value === "date" || value === "datetime" ? value : "auto";
+}
+
+function normalizeTimeQuantizationMode(value: unknown): GraphTimeQuantizationMode {
+  switch (value) {
+    case "raw":
+    case "1s":
+    case "5s":
+    case "15s":
+    case "30s":
+    case "1m":
+    case "5m":
+    case "15m":
+    case "30m":
+    case "1h":
+    case "4h":
+    case "1d":
+      return value;
+    default:
+      return "auto";
+  }
 }
 
 export function normalizeGraphAuthoringSourceMode(value: unknown): GraphAuthoringSourceMode {
@@ -350,6 +423,7 @@ export function resolveGraphConfig(
   const stackSeries = normalizeStackSeries(props.stackSeries);
   const seriesOverrides = normalizeSeriesOverrides(props.seriesOverrides);
   const timeAxisMode = normalizeTimeAxisMode(props.timeAxisMode);
+  const timeQuantization = normalizeTimeQuantizationMode(props.timeQuantization);
   const yAxisDecimals = normalizeYAxisDecimals(props.yAxisDecimals);
   const yAxisScaleZeros = normalizeYAxisScaleZeros(props.yAxisScaleZeros);
   const yAxisSuffix = normalizeYAxisSuffix(props.yAxisSuffix);
@@ -378,6 +452,7 @@ export function resolveGraphConfig(
     seriesAxisMode,
     seriesOverrides,
     availableFields,
+    timeQuantization,
     yAxisDecimals,
     yAxisScaleZeros,
     yAxisSuffix,
@@ -426,6 +501,7 @@ export function normalizeGraphProps(
     seriesAxisMode: resolved.seriesAxisMode,
     seriesOverrides: resolved.seriesOverrides,
     timeAxisMode: resolved.timeAxisMode,
+    timeQuantization: resolved.timeQuantization,
     yAxisDecimals: resolved.yAxisDecimals,
     yAxisScaleZeros: resolved.yAxisScaleZeros,
     yAxisSuffix: resolved.yAxisSuffix,
@@ -586,6 +662,85 @@ function isDateOnlyTimeString(value: string) {
 
 export function formatGraphUtcDateKey(timestampMs: number) {
   return new Date(timestampMs).toISOString().slice(0, 10);
+}
+
+export function resolveGraphTimeQuantization(
+  config: Pick<ResolvedGraphConfig, "provider" | "timeQuantization">,
+  timeAxisMode: Exclude<GraphTimeAxisMode, "auto">,
+): ResolvedGraphTimeQuantization {
+  if (timeAxisMode === "date") {
+    return {
+      bucketMs: DAY_MS,
+      effectiveMode: "1d",
+      label: GRAPH_TIME_QUANTIZATION_LABEL["1d"],
+      providerLimited: false,
+      requestedMode: config.timeQuantization,
+    };
+  }
+
+  if (config.timeQuantization === "auto") {
+    const effectiveMode = config.provider === "echarts" ? "raw" : "1s";
+
+    return {
+      bucketMs: effectiveMode === "raw" ? null : GRAPH_TIME_QUANTIZATION_BUCKET_MS[effectiveMode],
+      effectiveMode,
+      label: GRAPH_TIME_QUANTIZATION_LABEL[effectiveMode],
+      providerLimited: false,
+      requestedMode: config.timeQuantization,
+    };
+  }
+
+  if (config.timeQuantization === "raw") {
+    if (config.provider === "echarts") {
+      return {
+        bucketMs: null,
+        effectiveMode: "raw",
+        label: GRAPH_TIME_QUANTIZATION_LABEL.raw,
+        providerLimited: false,
+        requestedMode: config.timeQuantization,
+      };
+    }
+
+    return {
+      bucketMs: GRAPH_TIME_QUANTIZATION_BUCKET_MS["1s"],
+      effectiveMode: "1s",
+      label: GRAPH_TIME_QUANTIZATION_LABEL["1s"],
+      providerLimited: true,
+      requestedMode: config.timeQuantization,
+    };
+  }
+
+  return {
+    bucketMs: GRAPH_TIME_QUANTIZATION_BUCKET_MS[config.timeQuantization],
+    effectiveMode: config.timeQuantization,
+    label: GRAPH_TIME_QUANTIZATION_LABEL[config.timeQuantization],
+    providerLimited: false,
+    requestedMode: config.timeQuantization,
+  };
+}
+
+export function formatGraphTimestampLabel(
+  timestampMs: number,
+  input: {
+    includeSeconds?: boolean;
+    timeAxisMode: Exclude<GraphTimeAxisMode, "auto">;
+    timeQuantization: ResolvedGraphTimeQuantization;
+  },
+) {
+  if (input.timeAxisMode === "date" || input.timeQuantization.bucketMs === DAY_MS) {
+    return formatGraphUtcDateKey(timestampMs);
+  }
+
+  const includeSeconds =
+    input.includeSeconds ||
+    input.timeQuantization.bucketMs === null ||
+    input.timeQuantization.bucketMs < 60_000;
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: includeSeconds ? "2-digit" : undefined,
+  }).format(new Date(timestampMs));
 }
 
 export function resolveGraphEffectiveTimeAxisMode(
@@ -1102,8 +1257,14 @@ export function buildGraphChartSeries(
   series: GraphSeries[],
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto"> = "datetime",
   provider: GraphProvider = "tradingview",
+  timeQuantization: GraphTimeQuantizationMode = "auto",
 ): GraphChartSeriesResult {
-  if (provider === "echarts") {
+  const resolvedTimeQuantization = resolveGraphTimeQuantization(
+    { provider, timeQuantization },
+    timeAxisMode,
+  );
+
+  if (resolvedTimeQuantization.bucketMs === null) {
     return {
       series: series.map((entry) => ({
         ...entry,
@@ -1124,13 +1285,17 @@ export function buildGraphChartSeries(
 
     sortedPoints.forEach((point) => {
       const bucketKey =
-        timeAxisMode === "date"
+        timeAxisMode === "date" || resolvedTimeQuantization.bucketMs === DAY_MS
           ? formatGraphUtcDateKey(point.time)
-          : String(Math.floor(point.time / 1000));
+          : String(
+              Math.floor(point.time / resolvedTimeQuantization.bucketMs!) *
+                resolvedTimeQuantization.bucketMs!,
+            );
       const bucketTime =
-        timeAxisMode === "date"
+        timeAxisMode === "date" || resolvedTimeQuantization.bucketMs === DAY_MS
           ? Date.parse(bucketKey)
-          : Math.floor(point.time / 1000) * 1000;
+          : Math.floor(point.time / resolvedTimeQuantization.bucketMs!) *
+            resolvedTimeQuantization.bucketMs!;
 
       if (pointsByBucket.has(bucketKey)) {
         collapsedPointCount += 1;

@@ -188,7 +188,9 @@ export function ManagedConnectionConsumerPanel({
           draftPresentation={resolvedConnectionPresentation}
           editable={editable}
           controllerContext={undefined}
+          onPreviewRuntimeStateChange={onPreviewRuntimeStateChange}
           onInstanceTitleChange={() => {}}
+          previewRuntimeState={previewRuntimeState}
           onDraftPropsChange={(nextEmbeddedConnectionQuery) => {
             const nextProps = adapter.setEmbeddedConnectionQuery(
               adapter.setSourceMode(draftProps, adapter.streamConnectionMode ?? adapter.connectionMode),
@@ -245,6 +247,7 @@ export function ManagedConnectionConsumerPanel({
         connectionPathSettings={useTypedQueryEditor ? undefined : (
           <WidgetSchemaForm
             widget={connectionQueryWidgetDefinition!}
+            instanceId={matchingManagedConnectionSource?.id ?? `${instanceId}:connection-query-draft`}
             draftProps={embeddedConnectionQueryProps}
             onDraftPropsChange={(nextEmbeddedConnectionQuery) => {
               const nextProps = adapter.setEmbeddedConnectionQuery(

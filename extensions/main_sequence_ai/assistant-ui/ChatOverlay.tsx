@@ -13,15 +13,15 @@ export function ChatOverlay({
   const { activeSessionSummary, closeRail, expandToPage, railExperience } = useChatFeature();
   const isDocked = mode === "docked";
   const isProjectAgentRail = railExperience === "project-agent";
-  const activeRequestName = activeSessionSummary?.requestName?.trim().toLowerCase() || null;
+  const activeRequestAgentType = activeSessionSummary?.requestAgentType?.trim().toLowerCase() || null;
   const isCommandCenterOrchestratorSession = activeSessionSummary
-    ? activeSessionSummary.isDefaultCommandCenterSession || activeRequestName === "astro-orchestrator"
+    ? activeSessionSummary.isDefaultCommandCenterSession || activeRequestAgentType === "astro-orchestrator"
     : false;
   const showDefaultSessionWarning = activeSessionSummary
     ? !isProjectAgentRail && !isCommandCenterOrchestratorSession
     : false;
   const warningLabel = activeSessionSummary
-    ? activeSessionSummary.requestName || activeSessionSummary.displayName || "another session"
+    ? activeSessionSummary.requestAgentType || "selected session"
     : "another session";
   const railTitle = isProjectAgentRail ? "Project Agent" : "Main Sequence AI";
   const railSubtitle = isProjectAgentRail
@@ -31,10 +31,7 @@ export function ChatOverlay({
     activeSessionSummary?.sessionDisplayId?.trim() ||
     activeSessionSummary?.sessionId?.trim() ||
     null;
-  const activeSessionLabel =
-    activeSessionSummary?.displayName?.trim() ||
-    activeSessionSummary?.requestName?.trim() ||
-    null;
+  const activeSessionLabel = activeSessionSummary?.displayLabel?.trim() || null;
   const projectAgentSessionSummary = activeSessionDisplayId
     ? `Session ${activeSessionDisplayId}${activeSessionLabel ? ` · ${activeSessionLabel}` : ""}`
     : activeSessionLabel;

@@ -18,7 +18,7 @@ import { startNewAgentSessionRequest } from "../../runtime/agent-sessions-api";
 import { AgentTerminalAgentPicker } from "./AgentTerminalAgentPicker";
 import {
   getAgentTerminalAllowedAgentsLabel,
-  isAgentTerminalAllowedAgentName,
+  isAgentTerminalAllowedAgentType,
 } from "./agentTerminalAgents";
 import {
   DEFAULT_AGENT_TERMINAL_HISTORY_REFRESH_INTERVAL_SECONDS,
@@ -34,6 +34,7 @@ import {
 
 export function AgentTerminalWidgetSettings({
   widget,
+  instanceId,
   instanceTitle,
   draftProps,
   draftPresentation,
@@ -50,7 +51,8 @@ export function AgentTerminalWidgetSettings({
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
   const normalizedProps = normalizeAgentTerminalWidgetProps(draftProps);
   const agentId = normalizedProps.agentId ?? "";
-  const agentName = normalizedProps.agentName ?? "";
+  const agentType = normalizedProps.agentType ?? "";
+  const agentLabel = normalizedProps.agentLabel ?? "";
   const sessionId = normalizedProps.agentSessionId ?? "";
   const blockUserInput = normalizedProps.blockUserInput === true;
   const loadInitialHistory = normalizedProps.loadInitialHistory === true;
@@ -62,7 +64,7 @@ export function AgentTerminalWidgetSettings({
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [showAgentPicker, setShowAgentPicker] = useState(!sessionId);
-  const currentAgentAllowed = isAgentTerminalAllowedAgentName(agentName);
+  const currentAgentAllowed = isAgentTerminalAllowedAgentType(agentType);
   const canRecycleSession =
     editable && !isCreatingSession && currentAgentAllowed && /^\d+$/.test(agentId);
 
@@ -72,7 +74,7 @@ export function AgentTerminalWidgetSettings({
     }
   }, [sessionId]);
 
-  function shouldReplaceTitle(nextPreviousSessionId: string, nextAgentName: string) {
+  function shouldReplaceTitle(nextPreviousSessionId: string, nextAgentLabel: string) {
     const trimmedTitle = instanceTitle.trim();
 
     return (
@@ -80,7 +82,7 @@ export function AgentTerminalWidgetSettings({
       trimmedTitle === widget.title ||
       trimmedTitle.startsWith("Agent Terminal (") ||
       (nextPreviousSessionId && trimmedTitle.endsWith(`(${nextPreviousSessionId})`)) ||
-      trimmedTitle === `${nextAgentName} Terminal`
+      trimmedTitle === `${nextAgentLabel} Terminal`
     );
   }
 
@@ -88,11 +90,12 @@ export function AgentTerminalWidgetSettings({
     onDraftPropsChange({
       ...normalizedProps,
       agentId: undefined,
-      agentName: undefined,
+      agentType: undefined,
+      agentLabel: undefined,
       agentSessionId: undefined,
     });
 
-    if (shouldReplaceTitle(sessionId, agentName)) {
+    if (shouldReplaceTitle(sessionId, agentLabel)) {
       onInstanceTitleChange(buildAgentTerminalWidgetTitle());
     }
 
@@ -102,10 +105,12 @@ export function AgentTerminalWidgetSettings({
 
   async function createManagedSession({
     agentId: nextAgentId,
-    agentName: nextAgentName,
+    agentType: nextAgentType,
+    agentLabel: nextAgentLabel,
   }: {
     agentId: number;
-    agentName: string;
+    agentType: string;
+    agentLabel: string;
   }) {
     if (isCreatingSession) {
       return;
@@ -125,14 +130,15 @@ export function AgentTerminalWidgetSettings({
       onDraftPropsChange({
         ...normalizedProps,
         agentId: String(nextAgentId),
-        agentName: nextAgentName,
+        agentType: nextAgentType,
+        agentLabel: nextAgentLabel,
         agentSessionId: nextSessionId,
       });
 
-      if (shouldReplaceTitle(sessionId, nextAgentName)) {
+      if (shouldReplaceTitle(sessionId, nextAgentLabel)) {
         onInstanceTitleChange(
           buildAgentTerminalSessionWidgetTitle({
-            agentName: nextAgentName,
+            agentLabel: nextAgentLabel,
             sessionId: nextSessionId,
           }),
         );
@@ -141,7 +147,7 @@ export function AgentTerminalWidgetSettings({
       setShowAgentPicker(false);
       toast({
         title: "Agent session created",
-        description: `${nextAgentName} session ${nextSessionId} is now bound to this widget.`,
+        description: `${nextAgentLabel} session ${nextSessionId} is now bound to this widget.`,
         variant: "success",
       });
     } catch (error) {
@@ -189,7 +195,7 @@ export function AgentTerminalWidgetSettings({
                   Current binding
                 </div>
                 <div className="text-sm font-medium text-foreground">
-                  {agentName || "Agent session"}
+                  {agentLabel || agentType || "Agent session"}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="neutral" className="border border-border/70 bg-card/55">
@@ -219,7 +225,8 @@ export function AgentTerminalWidgetSettings({
                   onClick={() => {
                     void createManagedSession({
                       agentId: Number(agentId),
-                      agentName,
+                      agentType,
+                      agentLabel: agentLabel || agentType,
                     });
                   }}
                 >
@@ -264,7 +271,8 @@ export function AgentTerminalWidgetSettings({
             onSelect={(agent) => {
               void createManagedSession({
                 agentId: agent.id,
-                agentName: agent.name,
+                agentType: agent.agentType,
+                agentLabel: agent.displayLabel,
               });
             }}
           />
@@ -397,6 +405,7 @@ export function AgentTerminalWidgetSettings({
       {widget.schema ? (
         <WidgetSchemaForm
           widget={widget}
+          instanceId={instanceId}
           draftProps={normalizedProps}
           onDraftPropsChange={onDraftPropsChange}
           draftPresentation={draftPresentation}

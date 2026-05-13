@@ -665,6 +665,35 @@ export function handleMockAuthRequest(
     };
   }
 
+  if (pathname === "/user/api/user/delete-account/" && method === "DELETE") {
+    const user = accessToken ? resolveMockUserFromAccessToken(accessToken) : null;
+
+    if (!user) {
+      throw new Error(getMockUnauthorizedMessage());
+    }
+
+    mockAuthState.users = mockAuthState.users.filter((entry) => entry.id !== user.id);
+
+    for (const session of mockTrackedSessions) {
+      if (session.user_id === user.id && session.is_active) {
+        revokeTrackedSession(session, "Account deleted by current user.");
+      }
+    }
+
+    for (const [setupToken, setup] of mockMfaSetups.entries()) {
+      if (setup.userId === user.id) {
+        mockMfaSetups.delete(setupToken);
+      }
+    }
+
+    return {
+      detail: "Account deleted.",
+      code: "account_deleted",
+      deleted_user_id: Number.parseInt(user.id, 10),
+      deleted_organization: true,
+    };
+  }
+
   if (
     pathname ===
       new URL(commandCenterConfig.auth.websocketTicketUrl, window.location.origin).pathname &&

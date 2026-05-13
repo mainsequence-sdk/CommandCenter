@@ -8,8 +8,10 @@ import {
   buildConnectionStreamPreviewState,
   type ConnectionStreamPreviewState,
 } from "@/connections/connectionStreamPreview";
+import { useConnectionRuntimeEntry } from "@/connections/connection-runtime-store";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import { ConnectionQueryResponsePreview } from "@/connections/ConnectionQueryResponsePreview";
+import { useRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import {
   isConnectionQueryModelStreamable,
   type ConnectionQueryModel,
@@ -17,6 +19,7 @@ import {
 import {
   buildConnectionStreamQueryLifecycleFrame,
   buildConnectionStreamQueryRequest,
+  buildConnectionStreamQueryRuntimeKey,
   buildConnectionStreamQueryValidationError,
   createConnectionStreamQueryWidgetRuntimeSession,
   normalizeConnectionStreamQueryProps,
@@ -179,6 +182,7 @@ export interface ConnectionStreamQueryTestPanelProps {
   editable?: boolean;
   value: ConnectionStreamQueryWidgetProps;
   queryModel?: ConnectionQueryModel;
+  onPreviewRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   sourceWidgetId?: string;
   runButtonLabel?: string;
   resultDescription?: string;
@@ -189,12 +193,14 @@ export function ConnectionStreamQueryTestPanel({
   editable = true,
   value,
   queryModel,
+  onPreviewRuntimeStateChange,
   sourceWidgetId,
   runButtonLabel = "Test stream",
   resultDescription = "Preview of the latest normalized frame received from the WebSocket stream.",
   resultTitle = "Stream preview",
 }: ConnectionStreamQueryTestPanelProps) {
   const dashboardControls = useDashboardControls();
+  const runtimeDataStore = useRuntimeDataStore();
   const sessionRef = useRef<ConnectionStreamQueryRuntimeSession | null>(null);
   const normalizedProps = useMemo(
     () => normalizeConnectionStreamQueryProps(value),
@@ -222,6 +228,16 @@ export function ConnectionStreamQueryTestPanel({
     () => formatJson(previewRequest),
     [previewRequest],
   );
+  const activeRuntimeKey = useMemo(
+    () =>
+      previewRequest
+        ? buildConnectionStreamQueryRuntimeKey({
+            request: previewRequest,
+          })
+        : undefined,
+    [previewRequest],
+  );
+  const activeRuntimeEntry = useConnectionRuntimeEntry(activeRuntimeKey);
   const validationError = buildConnectionStreamQueryValidationError({
     props: normalizedProps,
     queryModel,
@@ -301,11 +317,12 @@ export function ConnectionStreamQueryTestPanel({
   useEffect(() => {
     closeActiveSession("connection stream preview changed");
     setPreviewBuffer(null);
+    onPreviewRuntimeStateChange?.(undefined);
     setPreviewState({
       status: "idle",
       frame: null,
     });
-  }, [closeActiveSession, requestSignature]);
+  }, [closeActiveSession, onPreviewRuntimeStateChange, requestSignature]);
 
   useEffect(() => {
     return () => {
@@ -317,6 +334,7 @@ export function ConnectionStreamQueryTestPanel({
   function startPreview() {
     if (validationError || !previewRequest || !isConnectionQueryModelStreamable(queryModel)) {
       setPreviewBuffer(null);
+      onPreviewRuntimeStateChange?.(undefined);
       setPreviewState({
         status: "error",
         frame: null,
@@ -328,6 +346,7 @@ export function ConnectionStreamQueryTestPanel({
     closeActiveSession("connection stream preview restarted");
     setDebugEvents([]);
     setPreviewBuffer(null);
+    onPreviewRuntimeStateChange?.(undefined);
     if (import.meta.env.DEV) {
       console.debug("[connection-stream-test] subscribe payload", {
         payload: {
@@ -369,13 +388,16 @@ export function ConnectionStreamQueryTestPanel({
             frame,
             error: frame.error,
           });
+          onPreviewRuntimeStateChange?.(frame as unknown as Record<string, unknown>);
         },
         options: {
           onLifecycleEvent: appendDebugEvent,
+          runtimeDataStore,
         },
       });
     } catch (error) {
       setPreviewBuffer(null);
+      onPreviewRuntimeStateChange?.(undefined);
       setPreviewState({
         status: "error",
         frame: null,
@@ -397,6 +419,101 @@ export function ConnectionStreamQueryTestPanel({
     : previewState.status === "connecting" || previewState.status === "reconnecting"
       ? "Cancel connect"
       : "Stop";
+  const activeRuntimeFrame = activeRuntimeEntry?.runtimeState as
+    | ConnectionStreamQueryRuntimeState
+    | undefined;
+  const showActiveRuntime =
+    Boolean(activeRuntimeEntry) &&
+    activeRuntimeEntry?.sessionKind === "live" &&
+    (
+      activeRuntimeEntry.activeOwnerCount > 0 ||
+      activeRuntimeEntry.status === "connecting" ||
+      activeRuntimeEntry.status === "live" ||
+      activeRuntimeEntry.status === "reconnecting" ||
+      activeRuntimeEntry.status === "error"
+    );
+
+  if (showActiveRuntime && activeRuntimeEntry) {
+    const rowCount =
+      activeRuntimeEntry.rowCount ??
+      activeRuntimeFrame?.rows.length ??
+      0;
+    const columnCount =
+      activeRuntimeEntry.columnCount ??
+      activeRuntimeFrame?.columns.length ??
+      0;
+
+    return (
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Active workspace stream</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              This connection request is already owned by the workspace runtime. Settings is reading
+              the live session instead of opening a second test socket.
+            </p>
+          </div>
+          <div className={["rounded-full border px-3 py-1 text-xs font-medium", getStatusTone(activeRuntimeEntry.status)].join(" ")}>
+            {formatStatusLabel(activeRuntimeEntry.status)}
+          </div>
+        </div>
+
+        <div className={["rounded-[calc(var(--radius)-6px)] border p-3", getStatusTone(activeRuntimeEntry.status)].join(" ")}>
+          <div className="grid gap-2 md:grid-cols-4">
+            <StatusMetric
+              label="Runtime owners"
+              value={activeRuntimeEntry.activeOwnerCount.toLocaleString()}
+            />
+            <StatusMetric
+              label="Rows"
+              value={rowCount.toLocaleString()}
+            />
+            <StatusMetric
+              label="Columns"
+              value={columnCount.toLocaleString()}
+            />
+            <StatusMetric
+              label="Last message"
+              value={formatTimestamp(activeRuntimeEntry.lastMessageAtMs)}
+            />
+          </div>
+          <div className="mt-2 grid gap-2 md:grid-cols-4">
+            <StatusMetric
+              label="Heartbeat"
+              value={formatTimestamp(activeRuntimeEntry.lastHeartbeatAtMs)}
+            />
+            <StatusMetric
+              label="Retry attempts"
+              value={String(activeRuntimeEntry.reconnectAttemptCount ?? 0)}
+            />
+            <StatusMetric
+              label="Next retry"
+              value={formatTimestamp(activeRuntimeEntry.nextRetryAtMs)}
+            />
+            <StatusMetric
+              label="Runtime key"
+              value={activeRuntimeEntry.key}
+            />
+          </div>
+          {activeRuntimeEntry.error ? (
+            <div className="mt-3 flex items-start gap-2 rounded-[calc(var(--radius)-8px)] border border-danger/35 bg-danger/8 px-3 py-2 text-xs text-danger">
+              <Activity className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{activeRuntimeEntry.error}</span>
+            </div>
+          ) : null}
+        </div>
+
+        {activeRuntimeFrame ? (
+          <ConnectionQueryResponsePreview
+            frame={activeRuntimeFrame}
+            description="Latest normalized frame published by the active workspace stream."
+            emptyMessage="The active stream has not published rows yet."
+            title="Active stream data"
+          />
+        ) : null}
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-3">

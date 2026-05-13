@@ -112,7 +112,7 @@ function CatalogScopeButton({
     <button
       type="button"
       className={cn(
-        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium uppercase tracking-[0.16em] transition-colors",
+        "inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[10px] font-medium uppercase tracking-[0.12em] leading-none transition-colors",
         active
           ? "border-primary/40 bg-primary/10 text-primary"
           : "border-border/70 bg-background/35 text-muted-foreground hover:bg-muted/40 hover:text-foreground",
@@ -122,7 +122,7 @@ function CatalogScopeButton({
       <span>{label}</span>
       <span
         className={cn(
-          "rounded-full px-1.5 py-0.5 text-[10px] tracking-[0.12em]",
+          "inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] leading-none tracking-[0.08em]",
           active ? "bg-primary/14 text-primary" : "bg-muted/70 text-muted-foreground",
         )}
       >
@@ -608,7 +608,7 @@ export function WorkspaceComponentBrowser({
             <CatalogScopeButton
               active={catalogScope === "browse"}
               count={allowedWidgets.length}
-              label="Browse"
+              label="All"
               onClick={() => {
                 setCatalogScope("browse");
               }}

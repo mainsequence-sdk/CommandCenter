@@ -12,6 +12,7 @@ import {
   inferWidgetValueDescriptor,
   listWidgetValueDescriptorPaths,
 } from "@/dashboards/widget-binding-transforms";
+import { isWidgetReferenceTargetInputId } from "@/dashboards/widget-instance-references";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { normalizeWidgetInstanceBindings } from "@/dashboards/widget-dependencies";
 import type {
@@ -139,6 +140,45 @@ function serializeBindingsSignature(bindings: WidgetInstanceBindings | undefined
   return JSON.stringify(bindings ?? null);
 }
 
+function normalizeBindingDraftRowsForComparison(
+  draftRowsByInputId: Record<string, BindingDraftRow[]>,
+): Record<string, BindingDraftRow[]> {
+  return Object.fromEntries(
+    Object.entries(draftRowsByInputId).flatMap(([inputId, rows]) => {
+      const normalizedRows = rows.filter(
+        (row) => row.binding !== undefined || row.selectedSourceWidgetId.trim().length > 0,
+      );
+
+      if (normalizedRows.length === 0) {
+        return [];
+      }
+
+      return [[inputId, normalizedRows] as const];
+    }),
+  );
+}
+
+function serializeBindingDraftRowsSignature(
+  draftRowsByInputId: Record<string, BindingDraftRow[]>,
+) {
+  return JSON.stringify(normalizeBindingDraftRowsForComparison(draftRowsByInputId));
+}
+
+function filterBindings(
+  bindings: WidgetInstanceBindings | undefined,
+  predicate: (inputId: string) => boolean,
+) {
+  if (!bindings) {
+    return undefined;
+  }
+
+  return normalizeWidgetInstanceBindings(
+    Object.fromEntries(
+      Object.entries(bindings).filter(([inputId]) => predicate(inputId)),
+    ) as WidgetInstanceBindings,
+  );
+}
+
 function descriptorCanProduceAcceptedContract(
   descriptor: WidgetValueDescriptor | undefined,
   acceptedContracts: WidgetContractId[],
@@ -195,16 +235,31 @@ export function WidgetBindingPanel({
 }) {
   const dependencies = useDashboardWidgetDependencies();
   const resolvedIo = useResolvedWidgetIo(instance.id);
+  const inputs = useMemo(
+    () =>
+      (resolvedIo?.inputs ?? widget.io?.inputs ?? []).filter(
+        (input) => !isWidgetReferenceTargetInputId(input.id),
+      ),
+    [resolvedIo?.inputs, widget.io?.inputs],
+  );
   const initialBindings = useMemo(
     () => normalizeWidgetInstanceBindings(instance.bindings),
     [instance.bindings],
   );
-  const initialBindingsSignature = useMemo(
-    () => serializeBindingsSignature(initialBindings),
+  const initialEditableBindings = useMemo(
+    () => filterBindings(initialBindings, (inputId) => !isWidgetReferenceTargetInputId(inputId)),
     [initialBindings],
   );
+  const preservedReferenceBindings = useMemo(
+    () => filterBindings(initialBindings, isWidgetReferenceTargetInputId),
+    [initialBindings],
+  );
+  const initialBindingsSignature = useMemo(
+    () => serializeBindingsSignature(initialEditableBindings),
+    [initialEditableBindings],
+  );
   const initialBindingDraftRows = useMemo(
-    () => buildInitialBindingDraftRows(initialBindings),
+    () => buildInitialBindingDraftRows(initialEditableBindings),
     [initialBindingsSignature],
   );
   const [draftBindingRowsByInputId, setDraftBindingRowsByInputId] =
@@ -218,10 +273,13 @@ export function WidgetBindingPanel({
     setDraftBindingRowsByInputId(initialBindingDraftRows);
   }, [initialBindingDraftRows, initialBindingsSignature, instance.id]);
 
-  const inputs = resolvedIo?.inputs ?? widget.io?.inputs ?? [];
   const draftBindings = useMemo(
     () => buildBindingsFromDraftRows(draftBindingRowsByInputId, inputs),
     [draftBindingRowsByInputId, inputs],
+  );
+  const draftBindingRowsSignature = useMemo(
+    () => serializeBindingDraftRowsSignature(draftBindingRowsByInputId),
+    [draftBindingRowsByInputId],
   );
 
   const sourceWidgetsByInputId = useMemo(() => {
@@ -306,7 +364,15 @@ export function WidgetBindingPanel({
   }, [sourceWidgetsByInputId]);
 
   const dirty =
-    JSON.stringify(draftBindings ?? null) !== JSON.stringify(initialBindings ?? null);
+    JSON.stringify(draftBindings ?? null) !== JSON.stringify(initialEditableBindings ?? null);
+  const emptyBindingsSignature = useMemo(() => serializeBindingsSignature(undefined), []);
+  const emptyBindingDraftRowsSignature = useMemo(
+    () => serializeBindingDraftRowsSignature({}),
+    [],
+  );
+  const hasCommittedEditableBindings = initialBindingsSignature !== emptyBindingsSignature;
+  const hasDraftBindingRows = draftBindingRowsSignature !== emptyBindingDraftRowsSignature;
+  const canResetBindings = hasCommittedEditableBindings || hasDraftBindingRows;
 
   return (
     <section className="overflow-hidden rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/88 shadow-[var(--shadow-panel)] backdrop-blur">
@@ -343,13 +409,18 @@ export function WidgetBindingPanel({
               className="space-y-4 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-4"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="space-y-1">
+                <div className="min-w-0 flex-1 rounded-[calc(var(--radius)-8px)] border border-primary/20 bg-primary/[0.06] px-3 py-3">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-primary/80">
+                    Input
+                  </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-sm font-medium text-topbar-foreground">{input.label}</div>
+                    <h3 className="text-lg font-semibold tracking-tight text-primary">
+                      {input.label}
+                    </h3>
                     {input.required ? <Badge variant="warning">Required</Badge> : null}
                     {input.cardinality === "many" ? <Badge variant="secondary">Multiple</Badge> : null}
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     Accepts {input.accepts.join(", ")}
                   </p>
                 </div>
@@ -496,15 +567,18 @@ export function WidgetBindingPanel({
             <Button
               variant="outline"
               onClick={() => {
-                setDraftBindingRowsByInputId(initialBindingDraftRows);
+                setDraftBindingRowsByInputId({});
               }}
-              disabled={!editable || !dirty}
+              disabled={!editable || !canResetBindings}
             >
               Reset bindings
             </Button>
             <Button
               onClick={() => {
-                const normalizedBindings = normalizeWidgetInstanceBindings(draftBindings);
+                const normalizedBindings = normalizeWidgetInstanceBindings({
+                  ...(preservedReferenceBindings ?? {}),
+                  ...(draftBindings ?? {}),
+                });
                 onBindingsChange(normalizedBindings);
               }}
               disabled={!editable || !dirty}

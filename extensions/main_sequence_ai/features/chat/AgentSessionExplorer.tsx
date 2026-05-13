@@ -50,7 +50,7 @@ export function AgentSessionExplorer({
   const navigate = useNavigate();
   const location = useLocation();
   const {
-    activeAgentName,
+    activeAgentType,
     agentSessions,
     currentSessionId,
     deleteAgentSession,
@@ -191,7 +191,7 @@ export function AgentSessionExplorer({
           />
         </div>
         <div className="mt-2 px-1 text-xs text-muted-foreground">
-          Conversation with <span className="font-mono text-foreground">{activeAgentName}</span>
+          Conversation with <span className="font-mono text-foreground">{activeAgentType}</span>
         </div>
       </div>
 
@@ -247,7 +247,7 @@ export function AgentSessionExplorer({
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium text-foreground">
-                          {agent.name}
+                          {agent.displayLabel}
                         </div>
                         <div className="mt-1 truncate text-xs text-muted-foreground">
                           {buildAgentOptionDescription(agent)}
@@ -290,6 +290,8 @@ export function AgentSessionExplorer({
               {agentSessions.length > 0 ? (
                 agentSessions.map((session) => {
                   const active = session.id === currentSessionId;
+                  const agentType = session.agent?.requestAgentType?.trim() || "";
+                  const agentName = session.agent?.name?.trim() || agentType;
 
                   return (
                     <div
@@ -322,8 +324,13 @@ export function AgentSessionExplorer({
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                               <div className="truncate text-sm font-medium text-foreground">
-                                {session.agent?.requestName || session.agent?.name || "Unassigned agent"}
+                                {agentName}
                               </div>
+                              {agentType ? (
+                                <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                                  {agentType}
+                                </div>
+                              ) : null}
                               <div className="mt-1 truncate text-xs text-muted-foreground">
                                 <span className="font-mono">Session ID: {session.id}</span>
                               </div>

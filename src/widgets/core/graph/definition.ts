@@ -25,9 +25,12 @@ import {
   buildGraphSeries,
   resolveGraphConfig,
   resolveGraphDatasetFrame,
+  resolveGraphEffectiveTimeAxisMode,
   type GraphWidgetProps,
 } from "./graphModel";
 import { graphSettingsSchema } from "./schema";
+
+const GRAPH_LIVE_UPDATE_MERGE_KEY_FIELDS: string[] = [];
 
 function resolveSourceDataset(
   input: {
@@ -36,7 +39,10 @@ function resolveSourceDataset(
     runtimeDataStore?: RuntimeDataStore | null;
   },
 ) {
-  const incrementalFrame = resolveIncrementalTabularOutputFrame(input);
+  const incrementalFrame = resolveIncrementalTabularOutputFrame({
+    ...input,
+    liveMergeKeyFields: GRAPH_LIVE_UPDATE_MERGE_KEY_FIELDS,
+  });
 
   if (incrementalFrame) {
     return incrementalFrame;
@@ -81,7 +87,7 @@ const graphTabularFieldEffects = [
 
 export const graphWidget = defineWidget<GraphWidgetProps>({
   id: "graph",
-  widgetVersion: "3.3.0",
+  widgetVersion: "3.4.0",
   title: "Graph",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -99,6 +105,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
     limit: 500,
     maxSeries: 8,
     minBarSpacingPx: 0.01,
+    timeQuantization: "auto",
     yAxisScaleZeros: 0,
   },
   mockProps: {
@@ -111,6 +118,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
     limit: 500,
     maxSeries: 8,
     minBarSpacingPx: 0.01,
+    timeQuantization: "auto",
     yAxisScaleZeros: 0,
   },
   io: {
@@ -149,10 +157,15 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
     });
     const config = resolveGraphConfig(props, null, fieldOptions);
     const rawSeries = buildGraphSeries(resolvedGraphDataset?.rows ?? [], config);
+    const effectiveTimeAxisMode = resolveGraphEffectiveTimeAxisMode(
+      config,
+      resolvedGraphDataset?.rows ?? [],
+    );
     const chartSeries = buildGraphChartSeries(
       rawSeries.series,
-      config.timeAxisMode === "date" ? "date" : "datetime",
+      effectiveTimeAxisMode,
       config.provider,
+      config.timeQuantization,
     );
 
     return {
@@ -183,6 +196,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
           groupField: config.groupField,
           seriesAxisMode: config.seriesAxisMode,
           timeAxisMode: config.timeAxisMode,
+          timeQuantization: config.timeQuantization,
           yAxisDecimals: config.yAxisDecimals,
           yAxisScaleZeros: config.yAxisScaleZeros,
           yAxisSuffix: config.yAxisSuffix,
@@ -222,7 +236,8 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
         "Managed HTTP connections bind the hidden source dataset output to seedData. Managed WebSocket connections bind the hidden source updates output to liveUpdates.",
         "This widget does not infer field mappings from upstream time-series metadata.",
         "For explicit live updates, tail-safe updates use the graph-local rolling queue and delta renderer path. Queue trims, history rewrites, and normalization fall back to snapshot refresh for correctness.",
-        "ECharts keeps full millisecond datetime points for high-frequency streams. TradingView collapses same-second datetime points to the latest point in that second.",
+        "Time axis mode only chooses date versus datetime interpretation. Time quantization is a separate chart-local setting.",
+        "ECharts can keep raw millisecond datetime points when Time quantization is Raw. TradingView requires at least 1-second timestamps and quantizes raw datetime streams to 1-second buckets.",
         "Max points per series bounds the graph's rendered series and ref-backed consumer row view; source-side retention still controls how much retained data the upstream source keeps.",
         "When grouping is enabled, Max series limits how many grouped series render at once; remaining groups are dropped deterministically by point count.",
         "Stacked mode is a shared-axis visualization option. ECharts uses native series stacking. TradingView renders the same stacked view through cumulative shared-axis projection because Lightweight Charts does not expose a stack flag.",
@@ -246,6 +261,7 @@ export const graphWidget = defineWidget<GraphWidgetProps>({
       supportedProviders: ["tradingview", "echarts"],
       supportedChartTypes: ["line", "area", "bar", "markers"],
       supportedTimeAxisModes: ["auto", "date", "datetime"],
+      supportsTimeQuantization: true,
       supportsPointLimit: true,
       supportsMaxSeriesLimit: true,
       supportsStackedSeries: true,

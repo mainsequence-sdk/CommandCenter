@@ -9,7 +9,6 @@ describe("session history provenance", () => {
       session: {
         sessionId: "87",
         threadId: "87",
-        agentName: "mainsequence-project-executor",
         agentId: 25,
         agentSessionId: 87,
         status: "running",

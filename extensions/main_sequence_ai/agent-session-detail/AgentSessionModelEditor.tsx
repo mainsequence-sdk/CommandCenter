@@ -13,7 +13,7 @@ import {
   fetchAvailableRunConfigOptions,
 } from "../runtime/available-models-api";
 import { patchAgentSessionModelConfig } from "../runtime/agent-sessions-api";
-import { resolveMainSequenceAiAssistantEndpointForAgentRequestName } from "../runtime/assistant-endpoint";
+import { resolveMainSequenceAiAssistantEndpointForAgentType } from "../runtime/assistant-endpoint";
 import type { AgentSessionDetailSnapshot } from "./model";
 import { SessionField, SessionSection } from "./sessionDetailUi";
 
@@ -137,11 +137,11 @@ export function AgentSessionModelEditor({
     void (async () => {
       try {
         const options = await fetchAvailableRunConfigOptions({
-          assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
-            detail?.context.requestName ?? null,
+          assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentType(
+            detail?.context.requestAgentType ?? null,
           ),
           cacheKey: buildAvailableRunConfigCacheKey({
-            agentRequestName: detail?.context.requestName ?? null,
+            agentType: detail?.context.requestAgentType ?? null,
             userId: sessionUserId,
           }),
           sessionId: detail?.sessionId ?? null,
@@ -176,7 +176,7 @@ export function AgentSessionModelEditor({
     return () => {
       controller.abort();
     };
-  }, [detail?.context.requestName, detail?.sessionId, sessionToken, sessionTokenType, sessionUserId]);
+  }, [detail?.context.requestAgentType, detail?.sessionId, sessionToken, sessionTokenType, sessionUserId]);
 
   useEffect(() => {
     if (!core || availableProviders.length === 0 || availableModels.length === 0) {

@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { getAppPath } from "@/apps/utils";
@@ -8,8 +8,10 @@ import { cn } from "@/lib/utils";
 
 import {
   documentationNavSections,
+  documentationPageAliases,
   documentationPageMap,
   getAdjacentDocumentationPages,
+  getDocumentationNavSection,
   getDocumentationPageLocation,
   type DocumentationNavItem,
   type DocumentationPageContent,
@@ -28,11 +30,17 @@ function transformDocumentationHref(href: string) {
 
   const [path = "", hash] = href.split("#");
   const normalizedPageId = path
-    .replace(/^\.\//, "")
-    .replace(/\.md$/, "");
+    .replace(/\.md$/, "")
+    .split("/")
+    .filter(Boolean)
+    .at(-1) ?? "";
+  const resolvedPageId =
+    documentationPageMap.has(normalizedPageId)
+      ? normalizedPageId
+      : documentationPageAliases.get(normalizedPageId);
 
-  if (documentationPageMap.has(normalizedPageId)) {
-    return `${getDocumentationPath(normalizedPageId)}${hash ? `#${hash}` : ""}`;
+  if (resolvedPageId && documentationPageMap.has(resolvedPageId)) {
+    return `${getDocumentationPath(resolvedPageId)}${hash ? `#${hash}` : ""}`;
   }
 
   return href;
@@ -48,7 +56,64 @@ export function createDocumentationPage(pageId: string) {
   return DocumentationSurface;
 }
 
-function DocumentationTreeItems({
+function DocumentationSectionsSidebar({ activeSectionId }: { activeSectionId: string }) {
+  return (
+    <aside className="xl:sticky xl:top-5 xl:self-start">
+      <div className="rounded-[var(--radius)] border border-border/70 bg-card/82 p-3 shadow-[var(--shadow-panel)]">
+        <div className="px-2 pb-3">
+          <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+            Documentation
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Application-first guides for signed-in Command Center users.
+          </p>
+        </div>
+
+        <nav className="space-y-2">
+          {documentationNavSections.map((section) => {
+            const active = section.id === activeSectionId;
+
+            return (
+              <Link
+                key={section.id}
+                to={getDocumentationPath(section.landingPageId)}
+                className={cn(
+                  "block rounded-[calc(var(--radius)-8px)] border px-3 py-3 transition-colors",
+                  active
+                    ? "border-primary/35 bg-primary/10 text-foreground"
+                    : "border-border/60 bg-background/35 text-muted-foreground hover:border-border hover:text-foreground",
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <span
+                    className={cn(
+                      "mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-transform",
+                      active
+                        ? "border-primary/35 bg-primary/10 text-foreground"
+                        : "border-border/60 bg-background/40 text-muted-foreground",
+                    )}
+                  >
+                    <ChevronRight className={cn("h-3.5 w-3.5", active && "rotate-90")} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-foreground">
+                      {section.title}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                      {section.description}
+                    </span>
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+    </aside>
+  );
+}
+
+function DocumentationSubmenuItems({
   activePageId,
   items,
   level = 0,
@@ -58,21 +123,26 @@ function DocumentationTreeItems({
   level?: number;
 }) {
   return (
-    <div className={cn("space-y-1", level > 0 && "mt-2 ml-3 border-l border-border/60 pl-3")}>
+    <div className={cn("space-y-1", level > 0 && "mt-2 pl-3")}>
       {items.map((item) => {
         if (item.type === "group") {
           return (
-            <div key={item.id} className="py-1">
-              <div className="text-[11px] font-semibold text-foreground">{item.title}</div>
+            <section
+              key={item.id}
+              className="rounded-[calc(var(--radius)-8px)] border border-border/55 bg-background/28 px-3 py-3"
+            >
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {item.title}
+              </div>
               {item.description ? (
-                <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{item.description}</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.description}</p>
               ) : null}
-              <DocumentationTreeItems
+              <DocumentationSubmenuItems
                 activePageId={activePageId}
                 items={item.items}
                 level={level + 1}
               />
-            </div>
+            </section>
           );
         }
 
@@ -89,14 +159,14 @@ function DocumentationTreeItems({
             key={page.id}
             to={getDocumentationPath(page.id)}
             className={cn(
-              "block border-l-2 py-1.5 pl-3 pr-2 transition-colors",
+              "block rounded-[calc(var(--radius)-8px)] border px-3 py-2.5 transition-colors",
               active
-                ? "border-primary bg-primary/6 text-foreground"
-                : "border-transparent text-muted-foreground hover:border-border/70 hover:text-foreground",
+                ? "border-primary/35 bg-primary/10 text-foreground"
+                : "border-border/55 bg-background/20 text-muted-foreground hover:border-border hover:text-foreground",
             )}
           >
-            <span className="block text-sm font-medium">{page.navLabel}</span>
-            <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+            <span className="block text-sm font-medium text-foreground">{page.navLabel}</span>
+            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
               {page.description}
             </span>
           </Link>
@@ -106,24 +176,30 @@ function DocumentationTreeItems({
   );
 }
 
-function DocumentationTreeNav({ activePageId }: { activePageId: string }) {
-  return (
-    <aside className="lg:sticky lg:top-5 lg:self-start">
-      <div className="border-b border-border/60 pb-5 lg:border-r lg:border-b-0 lg:pr-6 lg:pb-0">
-        <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-          Documentation
-        </div>
+function DocumentationSubmenuSidebar({
+  activePageId,
+  sectionId,
+}: {
+  activePageId: string;
+  sectionId: string;
+}) {
+  const section = getDocumentationNavSection(sectionId);
 
-        <nav className="mt-5 space-y-6">
-          {documentationNavSections.map((section) => (
-            <section key={section.id}>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                {section.title}
-              </div>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">{section.description}</p>
-              <DocumentationTreeItems activePageId={activePageId} items={section.items} />
-            </section>
-          ))}
+  if (!section) {
+    return null;
+  }
+
+  return (
+    <aside className="xl:sticky xl:top-5 xl:self-start">
+      <div className="rounded-[var(--radius)] border border-border/70 bg-card/82 p-3 shadow-[var(--shadow-panel)]">
+        <div className="border-b border-border/60 px-2 pb-3">
+          <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+            {section.title}
+          </div>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{section.description}</p>
+        </div>
+        <nav className="mt-3">
+          <DocumentationSubmenuItems activePageId={activePageId} items={section.items} />
         </nav>
       </div>
     </aside>
@@ -161,6 +237,7 @@ export function DocumentationPage({ pageId }: { pageId: string }) {
   const fallbackPage = documentationPageMap.get("getting-started");
   const resolvedPage = page ?? fallbackPage;
   const location = resolvedPage ? getDocumentationPageLocation(resolvedPage.id) : null;
+  const activeSectionId = location?.section.id ?? "getting-started";
   const { previousPage, nextPage } = resolvedPage
     ? getAdjacentDocumentationPages(resolvedPage.id)
     : { previousPage: undefined, nextPage: undefined };
@@ -170,18 +247,19 @@ export function DocumentationPage({ pageId }: { pageId: string }) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-5 md:px-6 lg:px-8">
+    <div className="mx-auto flex w-full max-w-[1840px] flex-col gap-6 px-4 py-5 md:px-6 xl:px-8">
       <PageHeader
         eyebrow={location?.group?.title ?? location?.section.title ?? "Documentation"}
         title={resolvedPage.title}
         description={resolvedPage.description}
       />
 
-      <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
-        <DocumentationTreeNav activePageId={resolvedPage.id} />
+      <div className="grid gap-6 xl:grid-cols-[220px_320px_minmax(0,1fr)] 2xl:grid-cols-[240px_360px_minmax(0,1fr)]">
+        <DocumentationSectionsSidebar activeSectionId={activeSectionId} />
+        <DocumentationSubmenuSidebar activePageId={resolvedPage.id} sectionId={activeSectionId} />
 
         <main className="min-w-0">
-          <article className="rounded-[var(--radius)] border border-border/75 bg-card/85 px-5 py-5 shadow-[var(--shadow-panel)] md:px-7 md:py-7">
+          <article className="rounded-[var(--radius)] border border-border/75 bg-card/85 px-6 py-6 shadow-[var(--shadow-panel)] md:px-8 md:py-8">
             <MarkdownContent
               content={resolvedPage.content}
               transformHref={transformDocumentationHref}

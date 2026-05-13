@@ -19,14 +19,13 @@ import {
   fetchProjectExecutorAgentServiceByProject,
   fetchProjectImages,
   formatMainSequenceError,
-  maintainProjectExecutorAgentService,
   type ProjectExecutorAgentServiceRecord,
-  type ProjectExecutorAgentServiceMaintenanceResult,
   type ProjectImageOption,
 } from "../../../main_sequence/common/api";
 import { PickerField, type PickerOption } from "../../../main_sequence/common/components/PickerField";
 import { toProjectImageTitlePickerOption } from "../../../main_sequence/common/components/projectImagePickerOptions";
 import { fetchAgentDetail } from "../../agent-search";
+import { normalizeAgentImageDriftRecord } from "../../image-drift";
 import {
   buildAvailableRunConfigCacheKey,
   fetchAvailableRunConfigOptions,
@@ -46,7 +45,7 @@ function normalizeCatalogKey(value: string | null | undefined) {
   return typeof value === "string" && value.trim() ? value.trim().toLowerCase() : null;
 }
 
-const commandCenterAgentRequestName = "astro-orchestrator";
+const commandCenterAgentType = "astro-orchestrator";
 
 function formatProjectAgentImageStatus(image: ProjectImageOption) {
   if (image.build_error) {
@@ -108,54 +107,13 @@ function getProjectAgentImageStateBadgeVariant(result: ProjectExecutorAgentServi
   return "secondary" as const;
 }
 
-function getProjectAgentMaintenanceFeedback(result: ProjectExecutorAgentServiceMaintenanceResult) {
-  switch (result.maintenance_state) {
-    case "no_action":
-      return {
-        title: "Already up to date",
-        variant: "info" as const,
-        description:
-          result.detail?.trim() ||
-          "The project agent runtime is already using the latest compatible executor image.",
-      };
-    case "repaired_runtime":
-      return {
-        title: "Runtime repaired",
-        variant: "success" as const,
-        description:
-          result.detail?.trim() || "The project agent runtime was repaired successfully.",
-      };
-    case "switched_existing_image":
-      return {
-        title: "Updated to latest compatible executor image",
-        variant: "success" as const,
-        description:
-          result.detail?.trim() ||
-          "The project agent runtime switched to the replacement image successfully.",
-      };
-    case "building_replacement_image":
-      return {
-        title: "Building replacement image",
-        variant: "info" as const,
-        description:
-          result.detail?.trim() ||
-          "A replacement image build is in progress for this project agent runtime.",
-      };
-    case "blocked":
-      return {
-        title: "Unable to fix drift",
-        variant: "info" as const,
-        description:
-          result.detail?.trim() ||
-          "Project-agent auto-maintenance is currently blocked for this runtime.",
-      };
-    default:
-      return {
-        title: "Project agent maintenance updated",
-        variant: "info" as const,
-        description: result.detail?.trim() || "The project agent maintenance request completed.",
-      };
+function readServiceImageDrift(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
   }
+
+  const candidate = value as Record<string, unknown>;
+  return normalizeAgentImageDriftRecord(candidate.image_drift);
 }
 
 export function ProjectAgentConfigurator({
@@ -189,7 +147,7 @@ export function ProjectAgentConfigurator({
   const commandCenterModelCatalogCacheKey = useMemo(
     () =>
       buildAvailableRunConfigCacheKey({
-        agentRequestName: commandCenterAgentRequestName,
+        agentType: commandCenterAgentType,
         userId: sessionUserId,
       }),
     [sessionUserId],
@@ -241,8 +199,6 @@ export function ProjectAgentConfigurator({
     `${currentProjectAgentServiceQuery.data.agent_id}`.trim()
       ? `${currentProjectAgentServiceQuery.data.agent_id}`.trim()
       : null;
-  const executorBundleImageHasDrift =
-    currentProjectAgentServiceQuery.data?.executor_bundle_image_has_drift === true;
   const currentProjectAgentDetailQuery = useQuery({
     queryKey: ["main_sequence_ai", "project-agent", "agent-detail", currentProjectAgentId, sessionToken],
     queryFn: () =>
@@ -274,6 +230,10 @@ export function ProjectAgentConfigurator({
   const hasRuntimeModelCatalog = availableModels.length > 0;
   const currentProjectAgentProvider = currentProjectAgentDetailQuery.data?.llm_provider?.trim() || "";
   const currentProjectAgentModel = currentProjectAgentDetailQuery.data?.llm_model?.trim() || "";
+  const imageDrift = readServiceImageDrift(currentProjectAgentServiceQuery.data);
+  const driftedImageChecks = (imageDrift?.checks ?? []).filter((check) => check.has_drift === true);
+  const shouldShowImageDrift = imageDrift?.has_drift === true;
+  const imageDriftAutohealMessage = imageDrift?.autoheal_message?.trim() || null;
   const providerOptions = useMemo(
     () => availableProviders.map((entry) => ({ label: entry.label, value: entry.value })),
     [availableProviders],
@@ -411,41 +371,6 @@ export function ProjectAgentConfigurator({
       toast({
         variant: "error",
         title: "Delete project agent failed",
-        description: formatMainSequenceError(error),
-      });
-    },
-  });
-
-  const maintainProjectAgentMutation = useMutation({
-    mutationFn: async (serviceId: number) => maintainProjectExecutorAgentService(serviceId),
-    onSuccess: async (result) => {
-      if (result.runtime_image_id !== null && result.runtime_image_id !== undefined) {
-        setSelectedDeploymentImageId(String(result.runtime_image_id));
-      }
-
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "projects", "summary", projectId],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "projects", "project-agent", "service", projectId],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "projects", "project-agent", "deployment-images", projectId],
-        }),
-      ]);
-
-      const feedback = getProjectAgentMaintenanceFeedback(result);
-      toast({
-        variant: feedback.variant,
-        title: feedback.title,
-        description: feedback.description,
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: "error",
-        title: "Fix drift failed",
         description: formatMainSequenceError(error),
       });
     },
@@ -627,6 +552,38 @@ export function ProjectAgentConfigurator({
         performance.
       </div>
 
+      {shouldShowImageDrift ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-4 py-4 text-sm text-warning">
+          <div className="min-w-0 flex-1 space-y-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="text-sm font-medium text-warning">Runtime image drift detected</div>
+            </div>
+            {imageDriftAutohealMessage ? <div>{imageDriftAutohealMessage}</div> : null}
+            <div className="space-y-2">
+              {driftedImageChecks.map((check) => (
+                <div
+                  key={check.key || check.label || check.reason || check.message}
+                  className="rounded-[calc(var(--radius)-8px)] border border-warning/30 bg-background/20 px-3 py-3 text-warning"
+                >
+                  <div className="font-medium text-warning">
+                    {check.label?.trim() || check.key?.trim() || "Image drift"}
+                  </div>
+                  {check.message?.trim() ? (
+                    <div className="mt-1 text-sm">{check.message.trim()}</div>
+                  ) : null}
+                  {check.autoheal_message?.trim() ? (
+                    <div className="mt-2 rounded-[calc(var(--radius)-10px)] border border-warning/25 bg-warning/10 px-2.5 py-2 text-xs text-warning">
+                      {check.autoheal_message.trim()}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="space-y-2">
         <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
           Image
@@ -729,46 +686,6 @@ export function ProjectAgentConfigurator({
               loading={deploymentImagesQuery.isLoading}
             />
           </div>
-
-          {executorBundleImageHasDrift ? (
-            <div className="rounded-[calc(var(--radius)-8px)] border border-warning/40 bg-warning/10 px-3 py-3 text-sm text-warning">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex min-w-0 flex-1 items-start gap-2">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <div>
-                    Runtime image drift detected with the latest Astro update. The system will
-                    redeploy tonight, or you can fix the drift now.
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="border-warning/35 bg-background/35 text-warning hover:bg-background/50"
-                  disabled={
-                    maintainProjectAgentMutation.isPending ||
-                    !currentProjectAgentServiceQuery.data?.id
-                  }
-                  onClick={() => {
-                    if (!currentProjectAgentServiceQuery.data?.id) {
-                      return;
-                    }
-
-                    void maintainProjectAgentMutation.mutateAsync(currentProjectAgentServiceQuery.data.id);
-                  }}
-                >
-                  {maintainProjectAgentMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Fixing drift
-                    </>
-                  ) : (
-                    "Fix drift"
-                  )}
-                </Button>
-              </div>
-            </div>
-          ) : null}
 
           <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/22 p-3">
             <div className="mb-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">

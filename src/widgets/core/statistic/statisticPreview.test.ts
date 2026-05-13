@@ -128,6 +128,31 @@ describe("statistic preview dataset resolution", () => {
     expect(dataset).toBeNull();
   });
 
+  it("prefers the accumulated incremental dataset over a one-frame preview", () => {
+    const oneFramePreview = frame(
+      [{ timestamp: "2026-04-30T00:01:00.000Z", value: 2 }],
+      101,
+    );
+    const accumulatedDataset = frame(
+      [
+        { timestamp: "2026-04-30T00:00:00.000Z", value: 1 },
+        { timestamp: "2026-04-30T00:01:00.000Z", value: 2 },
+      ],
+      102,
+    );
+
+    const dataset = resolveStatisticLinkedDataset({
+      previewDataset: oneFramePreview,
+      incrementalActive: true,
+      incrementalDataset: accumulatedDataset,
+      incrementalConsumerDataset: null,
+      sourceDataset: null,
+      sourceConsumerDataset: null,
+    });
+
+    expect(dataset?.rows).toEqual(accumulatedDataset.rows);
+  });
+
   it("prefers the materialized source dataset over an empty ref-backed preview shell", () => {
     const store = createRuntimeDataStore("workspace-1");
     const sourceDataset = frame([{ timestamp: "2026-04-30T00:00:00.000Z", value: 1 }], 100);

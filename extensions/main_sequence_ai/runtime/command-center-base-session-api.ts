@@ -27,8 +27,8 @@ export interface CommandCenterBaseSessionHandle {
   working: boolean;
   agent: {
     id: number | null;
-    name: string | null;
-    requestName: string | null;
+    displayLabel: string | null;
+    requestAgentType: string | null;
     agentUniqueId: string | null;
     llmProvider: string | null;
     llmModel: string | null;
@@ -206,19 +206,15 @@ function normalizeCommandCenterBaseSessionHandle(
       id: normalizeNumber(
         candidate.agent_id ?? candidate.agentId ?? agentCandidate.id ?? agentCandidate.agent_id,
       ),
-      name:
-        normalizeString(candidate.actor_name) ??
-        normalizeString(agentCandidate.name) ??
+      displayLabel:
+        normalizeString(agentCandidate.display_label) ??
+        normalizeString(agentCandidate.displayLabel) ??
         normalizeString(agentCandidate.label) ??
         normalizeString(candidate.agent_label) ??
-        normalizeString(candidate.agentLabel) ??
-        normalizeString(candidate.name),
-      requestName:
-        normalizeString(candidate.agent_name) ??
-        normalizeString(candidate.agentName) ??
-        normalizeString(agentCandidate.agent_name) ??
-        normalizeString(agentCandidate.requestName) ??
-        normalizeString(agentCandidate.request_name),
+        normalizeString(candidate.agentLabel),
+      requestAgentType:
+        normalizeString(candidate.agent_type) ??
+        normalizeString(agentCandidate.agent_type),
       agentUniqueId:
         normalizeString(candidate.agent_unique_id) ??
         normalizeString(candidate.agentUniqueId) ??

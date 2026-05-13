@@ -11,6 +11,14 @@ developer documentation for maintainers.
 - `DocumentationPage.tsx`: renders a documentation surface from local content metadata.
 - `content/`: stores the user-facing Markdown guide content imported by the app.
 
+## Access Model
+
+This extension is part of the signed-in Command Center experience.
+
+- documentation is available through the normal Documentation app
+- documentation is visible to signed-in users only
+- this extension does not define a public anonymous documentation surface
+
 ## Documentation Boundary
 
 - Put general user guidance for Command Center here.
@@ -19,6 +27,20 @@ developer documentation for maintainers.
 - Put product-specific user guidance inside the owning product extension when it is not generally
   applicable to Command Center. For example, Main Sequence Foundry or Markets usage notes should
   live under `extensions/main_sequence/`.
+
+## Ownership Model
+
+The navigation model for this extension is application-first.
+
+- The left documentation rail is limited to the approved top-level sections:
+  `Getting Started`, `Workspaces`, `Foundry`, `Markets`, `Main Sequence AI`, and
+  `Organization Admin`.
+- Each top-level section opens its own ordered submenu.
+- Nested pages should be ordered inside the owning application section.
+- Foundry, Markets, and Main Sequence AI child pages should stay aligned with the real application
+  surface inventory whenever possible.
+- Avoid introducing generic documentation-only categories when the content really belongs to one
+  application or extension.
 
 ## Backend Contract
 

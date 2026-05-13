@@ -21,7 +21,11 @@ function normalizeAgentSessionId(value: string | null | undefined) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function normalizeAgentName(value: string | null | undefined) {
+function normalizeAgentLabel(value: string | null | undefined) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeAgentType(value: string | null | undefined) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
@@ -69,17 +73,17 @@ export function findAgentMonitorWorkspaceForSession(
 }
 
 export function buildAgentMonitorWorkspaceTitle({
-  agentName,
+  agentLabel,
   sessionId,
 }: {
-  agentName?: string | null;
+  agentLabel?: string | null;
   sessionId?: string | null;
 } = {}) {
-  const normalizedAgentName = normalizeAgentName(agentName);
+  const normalizedAgentLabel = normalizeAgentLabel(agentLabel);
   const normalizedSessionId = normalizeAgentSessionId(sessionId);
 
-  if (normalizedAgentName) {
-    return `${normalizedAgentName} Monitor`;
+  if (normalizedAgentLabel) {
+    return `${normalizedAgentLabel} Monitor`;
   }
 
   if (normalizedSessionId) {
@@ -91,20 +95,23 @@ export function buildAgentMonitorWorkspaceTitle({
 
 export function createAgentMonitorWorkspaceDefinition({
   agentId,
-  agentName,
+  agentType,
+  agentLabel,
   sessionId,
 }: {
   agentId?: string | number | null;
-  agentName?: string | null;
+  agentType?: string | null;
+  agentLabel?: string | null;
   sessionId?: string | null;
 } = {}) {
   const normalizedAgentId = normalizeAgentId(agentId);
   const normalizedSessionId = normalizeAgentSessionId(sessionId);
-  const normalizedAgentName = normalizeAgentName(agentName);
+  const normalizedAgentType = normalizeAgentType(agentType);
+  const normalizedAgentLabel = normalizeAgentLabel(agentLabel);
 
   let dashboard = createBlankDashboard(
     buildAgentMonitorWorkspaceTitle({
-      agentName: normalizedAgentName,
+      agentLabel: normalizedAgentLabel,
       sessionId: normalizedSessionId,
     }),
   );
@@ -128,7 +135,8 @@ export function createAgentMonitorWorkspaceDefinition({
 
   return upsertAgentTerminalWidgetForSession(dashboard, {
     agentId: normalizedAgentId,
-    agentName: normalizedAgentName,
+    agentType: normalizedAgentType,
+    agentLabel: normalizedAgentLabel,
     sessionId: normalizedSessionId,
   }).dashboard;
 }

@@ -266,7 +266,7 @@ This boundary owns a feature-local session layer that:
   session error banner
 - applies `agent_id=<selected agent id>` to the latest-sessions query after the user picks an
   agent from the session search bar
-- uses backend `agent_name` from session API records to populate the session request-name when
+- uses backend `agent_type` from session API records to populate the session request-agent-type when
   sessions are hydrated from the filtered latest-session query
 - replaces the visible latest-session list on every backend refresh instead of appending stale
   sessions from previous queries, while still preserving the active unsynced local draft session
@@ -423,12 +423,11 @@ If you do those steps, the main project should return to its pre-chat shape beca
 - The local AgentSession cache now stores a separate `runtimeSessionId`. This is the backend
   `agent_session_id` used for live request continuity and is distinct from any temporary local id
   used before the first session assignment arrives.
-- The live request also includes root `userId`, `agentName`, and
+- The live request also includes root `userId`, runtime `agentType` identity, and
   `sessionMetadata.workflow_key`.
 - For any selected existing session, the live request now includes both `sessionId` and
   `runtime_session_id`, using the selected backend session id.
-- `agentName` is taken from the session's stable request name, not from the streamed runtime
-  `agent_unique_id`.
+- The live request emits `agentType` as the runtime identity.
 - The first live request after a fresh/reset conversation includes `newChat: true`.
 - Every live request after that must include `runtime_session_id`.
 - `newChat` requests are the only live requests allowed to omit `runtime_session_id`.

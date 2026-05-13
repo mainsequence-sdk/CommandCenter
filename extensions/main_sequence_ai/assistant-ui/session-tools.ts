@@ -1,6 +1,6 @@
 export interface SessionToolsApiSession {
   sessionId: string;
-  agentName: string;
+  agentType: string;
   agentId: number | null;
   agentSessionId: string | null;
   projectId: string | null;
@@ -38,13 +38,16 @@ function normalizeSessionToolsSession(value: unknown): SessionToolsApiSession {
   const rawSessionId = candidate.sessionId;
   const rawAgentSessionId = candidate.agentSessionId;
   const rawAgentId = candidate.agentId;
+  const rawAgentType = candidate.agent_type;
 
   return {
     sessionId: typeof rawSessionId === "string" && rawSessionId.trim() ? rawSessionId.trim() : "",
-    agentName:
-      typeof candidate.agentName === "string" && candidate.agentName.trim()
-        ? candidate.agentName.trim()
-        : "",
+    agentType:
+      typeof rawAgentType === "string" && rawAgentType.trim()
+        ? rawAgentType.trim()
+        : (() => {
+            throw new Error("Session tools response missing required session.agent_type.");
+          })(),
     agentId:
       typeof rawAgentId === "number" && Number.isFinite(rawAgentId)
         ? rawAgentId

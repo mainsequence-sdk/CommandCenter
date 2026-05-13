@@ -165,9 +165,17 @@ These flows are all part of one app surface, with instance state selected throug
 - Opening the direct bindings inspector adds `?workspace=<id>&view=widget-settings&widget=<instanceId>&tab=bindings`.
 - Widget-instance settings include a direct `Widget type details` link to the canonical catalog
   detail route for the underlying widget definition.
+- Widget-instance settings now keep reference-backed title and schema-setting authoring inside the
+  existing settings controls through a compact inline link affordance. The dedicated `Bindings`
+  tab remains for true widget IO ports such as datasets and live updates. Synthetic setting/title
+  targets are intentionally hidden there.
 - Persistence is browser-local and user-scoped through `localStorage` by default.
 - If `workspaces.list_url` and `workspaces.detail_url` are configured in `config/command-center.yaml`, the studio switches to backend persistence instead of browser-local storage.
 - Saved widget instances and groups require the four `saved_widgets.*` endpoints in `config/command-center.yaml`.
+- Saved widget and saved widget group labels now follow the same unified mutation pattern as other
+  labelable entities: create/update payloads no longer send labels inline, and the frontend syncs
+  labels through the saved-widget detail `add-label/` and `remove-label/` actions derived from the
+  configured detail URLs.
 - Backend widget-type publication is no longer tied to normal user sign-in. A platform admin must
   explicitly publish the current frontend widget catalog to `widget_types.sync_url` from the
   platform `Admin Settings` modal before backend workspace validation can rely on new widget ids.
@@ -469,9 +477,26 @@ These flows are all part of one app surface, with instance state selected throug
 - `dashboard` and `widget-settings` now also share one mounted studio/runtime host. Opening widget
   settings must not unmount and recreate the canvas runtime; the settings surface renders as an
   overlay above the still-mounted studio so returning to the workspace stays immediate.
+- The studio host owns an optimistic local widget-settings target. Widget settings buttons set that
+  local overlay target synchronously without writing URL params. `view=widget-settings` URLs remain
+  accepted for direct entry and reload, but normal in-workspace opens are pure local overlay state.
+  Closing settings clears the local overlay immediately before any route cleanup.
+- The widget-settings open signal is isolated in a tiny overlay store so connection/source widget
+  runtime updates do not force the live dashboard tree to rerender before the overlay appears.
+  Dashboard selection updates and full settings body hydration are deferred until after the frosted
+  overlay shell has had a paint opportunity.
+- Widget runtime-state writes are coalesced before committing into workspace user state. Stream
+  source widgets may publish many frames per second, but the dashboard host must not synchronously
+  clone and compare the workspace tree for every WebSocket message.
+- Stream source cards must also throttle their visible runtime-entry subscription. The shared
+  connection runtime store can ingest every frame, but visible canvas chrome should update at UI
+  cadence so settings clicks are not queued behind WebSocket-status renders.
 - Widget settings should also open the shell immediately, then hydrate heavy schema/controller/
   widget-specific sections asynchronously with scoped loading placeholders. Expensive settings
   widgets must not block the full overlay from appearing.
+- The embedded settings overlay must use the already-mounted dashboard dependency/runtime providers
+  for the default settings tab. Draft dependency models are allowed only for the bindings tab, where
+  draft bindings need graph validation.
 - Workspace sidebar/rail status indicators should derive from the shared dashboard execution layer
   first and only fall back to widget-specific runtime fields when no execution state exists. They
   must not rely on one widget family writing a custom `runtimeState.status` convention to look

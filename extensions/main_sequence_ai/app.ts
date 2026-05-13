@@ -29,6 +29,11 @@ export const mainSequenceAiApp: AppDefinition = {
       description: "Configure Main Sequence AI agent behavior and defaults.",
       icon: Bot,
       order: 55,
+      group: {
+        id: "main-sequence-ai",
+        label: "Main Sequence AI",
+        order: 50,
+      },
       component: AgentSettingsSection,
     },
     {
@@ -38,6 +43,11 @@ export const mainSequenceAiApp: AppDefinition = {
       description: "Sign in or sign off provider-backed AI models.",
       icon: Sparkles,
       order: 60,
+      group: {
+        id: "main-sequence-ai",
+        label: "Main Sequence AI",
+        order: 50,
+      },
       component: ModelProviderSettingsSection,
     },
   ],

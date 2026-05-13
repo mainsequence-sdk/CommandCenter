@@ -22,6 +22,10 @@ keeps workspace editing and execution coherent.
   widget docs index.
 - If the change is architectural, add or update an ADR in [`../adr/`](../adr/README.md).
 
+## Workspace ADRs
+
+- [ADR 059: User-Instance Canonical Workspace Controls](../adr/command_center/adr-059-user-instance-canonical-workspace-controls.md)
+
 ## Guidelines
 
 - Separate user-visible authoring behavior from backend persistence proposals.

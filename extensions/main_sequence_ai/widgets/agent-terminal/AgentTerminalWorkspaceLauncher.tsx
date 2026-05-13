@@ -66,7 +66,8 @@ export function AgentTerminalWorkspaceLauncher({
         updateSelectedWorkspace((dashboard) => {
           return upsertAgentTerminalWidgetForSession(dashboard, {
             agentId: agent.id,
-            agentName: agent.name,
+            agentType: agent.agentType,
+            agentLabel: agent.displayLabel,
             sessionId,
           }).dashboard;
         });
@@ -74,15 +75,16 @@ export function AgentTerminalWorkspaceLauncher({
         toast({
           title: created ? "Agent terminal added" : "Agent terminal already present",
           description: created
-            ? `Created ${agent.name} session ${sessionId} and added it to the current workspace.`
-            : `${agent.name} session ${sessionId} is already on this workspace canvas.`,
+            ? `Created ${agent.displayLabel} session ${sessionId} and added it to the current workspace.`
+            : `${agent.displayLabel} session ${sessionId} is already on this workspace canvas.`,
           variant: "success",
         });
       } else if (createWorkspaceWhenMissing) {
         const createdDashboard = await createWorkspaceFromDefinition(
           createAgentMonitorWorkspaceDefinition({
             agentId: agent.id,
-            agentName: agent.name,
+            agentType: agent.agentType,
+            agentLabel: agent.displayLabel,
             sessionId,
           }),
         );
@@ -93,7 +95,7 @@ export function AgentTerminalWorkspaceLauncher({
 
         toast({
           title: "Agent monitor created",
-          description: `Created ${agent.name} session ${sessionId} and opened it in a new monitor workspace.`,
+          description: `Created ${agent.displayLabel} session ${sessionId} and opened it in a new monitor workspace.`,
           variant: "success",
         });
       } else {

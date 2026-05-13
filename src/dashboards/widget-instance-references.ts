@@ -31,6 +31,10 @@ export function isWidgetReferenceSourceOutputId(outputId: string) {
   return outputId.startsWith(WIDGET_REFERENCE_SOURCE_PREFIX);
 }
 
+export function isWidgetReferenceTargetInputId(inputId: string) {
+  return inputId.startsWith(WIDGET_REFERENCE_TARGET_PREFIX);
+}
+
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -60,7 +64,7 @@ function decodeReferencePath(value: string): string[] | null {
   }
 }
 
-function buildWidgetReferencePropInputId(path: string[]) {
+export function buildWidgetReferencePropInputId(path: string[]) {
   return `${WIDGET_REFERENCE_PROP_INPUT_PREFIX}${encodeReferencePath(path)}`;
 }
 

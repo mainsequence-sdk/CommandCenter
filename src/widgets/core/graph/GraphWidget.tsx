@@ -20,6 +20,7 @@ import {
   resolveGraphEffectiveTimeAxisMode,
   resolveGraphNormalizationTimeMs,
   resolveGraphStackingEnabled,
+  resolveGraphTimeQuantization,
   resolveGraphConfig,
   type GraphSeriesResult,
   type GraphWidgetProps,
@@ -46,6 +47,7 @@ interface IncrementalGraphRenderState {
 
 const GRAPH_RUNTIME_ROW_WINDOW_MULTIPLIER = 4;
 const GRAPH_RUNTIME_ROW_WINDOW_MAX_ROWS = 250_000;
+const GRAPH_LIVE_UPDATE_MERGE_KEY_FIELDS: string[] = [];
 
 function resolveGraphRuntimeRowWindowLimit(config: { limit: number; maxSeries: number }) {
   return Math.min(
@@ -91,6 +93,7 @@ export function GraphWidget({
   const sourceBinding = useResolvedTabularWidgetSourceBinding({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
+    resolvedInputs,
   });
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;
   const effectiveProps = useMemo(
@@ -121,6 +124,7 @@ export function GraphWidget({
   );
   const incrementalBinding = useIncrementalTabularConsumerBindingState({
     instanceId,
+    liveMergeKeyFields: GRAPH_LIVE_UPDATE_MERGE_KEY_FIELDS,
     onRuntimeStateChange,
     resolvedInputs,
     runtimeRetention,
@@ -363,12 +367,35 @@ export function GraphWidget({
     [resolvedConfig, sourceRows],
   );
   const chartSeriesResult = useMemo(
-    () => buildGraphChartSeries(seriesResult.series, effectiveTimeAxisMode, resolvedConfig.provider),
-    [effectiveTimeAxisMode, resolvedConfig.provider, seriesResult.series],
+    () =>
+      buildGraphChartSeries(
+        seriesResult.series,
+        effectiveTimeAxisMode,
+        resolvedConfig.provider,
+        resolvedConfig.timeQuantization,
+      ),
+    [effectiveTimeAxisMode, resolvedConfig.provider, resolvedConfig.timeQuantization, seriesResult.series],
   );
   const deltaChartSeriesResult = useMemo(
-    () => buildGraphChartSeries(deltaSeriesResult.series, effectiveTimeAxisMode, resolvedConfig.provider),
-    [deltaSeriesResult.series, effectiveTimeAxisMode, resolvedConfig.provider],
+    () =>
+      buildGraphChartSeries(
+        deltaSeriesResult.series,
+        effectiveTimeAxisMode,
+        resolvedConfig.provider,
+        resolvedConfig.timeQuantization,
+      ),
+    [deltaSeriesResult.series, effectiveTimeAxisMode, resolvedConfig.provider, resolvedConfig.timeQuantization],
+  );
+  const resolvedTimeQuantization = useMemo(
+    () =>
+      resolveGraphTimeQuantization(
+        {
+          provider: resolvedConfig.provider,
+          timeQuantization: resolvedConfig.timeQuantization,
+        },
+        effectiveTimeAxisMode,
+      ),
+    [effectiveTimeAxisMode, resolvedConfig.provider, resolvedConfig.timeQuantization],
   );
   const normalizationTimeMs = useMemo(
     () => resolveGraphNormalizationTimeMs(resolvedConfig),
@@ -385,6 +412,7 @@ export function GraphWidget({
         seriesAxisMode: resolvedConfig.seriesAxisMode,
         stackSeries: stackingEnabled,
         timeAxisMode: effectiveTimeAxisMode,
+        timeQuantization: resolvedConfig.timeQuantization,
         xField: resolvedConfig.xField,
         yAxisDecimals: resolvedConfig.yAxisDecimals,
         yAxisScaleZeros: resolvedConfig.yAxisScaleZeros,
@@ -401,6 +429,7 @@ export function GraphWidget({
       resolvedConfig.seriesAxisMode,
       stackingEnabled,
       resolvedConfig.timeAxisMode,
+      resolvedConfig.timeQuantization,
       resolvedConfig.xField,
       resolvedConfig.yAxisDecimals,
       resolvedConfig.yAxisScaleZeros,
@@ -417,12 +446,19 @@ export function GraphWidget({
       return null;
     }
 
-    return `Merged ${chartSeriesResult.collapsedPointCount.toLocaleString()} row ${
-      chartSeriesResult.collapsedPointCount === 1 ? "collision" : "collisions"
-    } that resolved to the same chart second across ${chartSeriesResult.affectedSeriesCount.toLocaleString()} ${
-      chartSeriesResult.affectedSeriesCount === 1 ? "series" : "series"
-    }. The chart keeps the latest point per second.`;
+    const providerNote = resolvedTimeQuantization.providerLimited && resolvedConfig.provider === "tradingview"
+      ? " TradingView requires at least 1-second timestamps; use ECharts for raw sub-second ticks."
+      : "";
+
+    return `Collapsed ${chartSeriesResult.collapsedPointCount.toLocaleString()} point ${
+      chartSeriesResult.collapsedPointCount === 1 ? "update" : "updates"
+    } into ${resolvedTimeQuantization.label.toLowerCase()} buckets across ${
+      chartSeriesResult.affectedSeriesCount.toLocaleString()
+    } visible ${chartSeriesResult.affectedSeriesCount === 1 ? "series" : "series"}. The chart keeps the latest point in each bucket.${providerNote}`;
   }, [
+    resolvedConfig.provider,
+    resolvedTimeQuantization.label,
+    resolvedTimeQuantization.providerLimited,
     chartSeriesResult.affectedSeriesCount,
     chartSeriesResult.collapsedPointCount,
   ]);
@@ -639,6 +675,7 @@ export function GraphWidget({
                   seriesAxisMode={resolvedConfig.seriesAxisMode}
                   stackSeries={stackingEnabled}
                   timeAxisMode={effectiveTimeAxisMode}
+                  timeQuantization={resolvedConfig.timeQuantization}
                   transparentSurface={transparentSurface}
                   updateMode={chartUpdateMode}
                   yAxisDecimals={resolvedConfig.yAxisDecimals}
@@ -658,6 +695,7 @@ export function GraphWidget({
                   seriesAxisMode={resolvedConfig.seriesAxisMode}
                   stackSeries={stackingEnabled}
                   timeAxisMode={effectiveTimeAxisMode}
+                  timeQuantization={resolvedConfig.timeQuantization}
                   transparentSurface={transparentSurface}
                   updateMode={chartUpdateMode}
                   yAxisDecimals={resolvedConfig.yAxisDecimals}

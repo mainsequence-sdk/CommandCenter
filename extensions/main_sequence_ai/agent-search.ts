@@ -8,6 +8,8 @@ import {
 export interface AgentSearchResult {
   id: number;
   name: string;
+  agentType: string;
+  displayLabel: string;
   agent_unique_id: string;
   description: string;
   status?: string;
@@ -20,6 +22,8 @@ export interface AgentSearchResult {
 export interface AgentSemanticSearchResult {
   id: number;
   name: string;
+  agentType: string;
+  displayLabel: string;
   agent_unique_id: string;
   description: string;
   semantic_score?: number | null;
@@ -34,6 +38,10 @@ export interface AgentImageDriftCheckRecord {
   matches?: boolean | null;
   has_drift?: boolean | null;
   reason?: string | null;
+  message?: string | null;
+  autoheal_supported?: boolean | null;
+  autoheal_mode?: string | null;
+  autoheal_message?: string | null;
   expected_image_uri?: string | null;
   actual_image_uri?: string | null;
 }
@@ -42,6 +50,8 @@ export interface AgentImageDriftRecord {
   agent_kind?: string | null;
   available?: boolean | null;
   has_drift?: boolean | null;
+  autoheal_available?: boolean | null;
+  autoheal_message?: string | null;
   checks?: AgentImageDriftCheckRecord[] | null;
   detail?: string | null;
 }
@@ -49,6 +59,9 @@ export interface AgentImageDriftRecord {
 export interface AgentDetailRecord {
   id: number;
   name?: string;
+  agentType: string;
+  displayLabel?: string;
+  agent_type: string;
   agent_unique_id?: string;
   description?: string | null;
   agent_card?: unknown;
@@ -68,6 +81,106 @@ export interface AgentDetailRecord {
 export type AgentSummaryResponse = SummaryResponse;
 export interface AgentRuntimeIdResponse {
   runtime_id: number | null;
+}
+
+function asRecord(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function normalizeString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : "";
+}
+
+function normalizeNullableString(value: unknown) {
+  const normalized = normalizeString(value);
+  return normalized || null;
+}
+
+function normalizeNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+}
+
+function normalizeAgentType(candidate: Record<string, unknown>) {
+  const agentType = normalizeString(candidate.agent_type);
+
+  if (!agentType) {
+    throw new Error("Agent response missing required agent_type.");
+  }
+
+  return agentType;
+}
+
+function normalizeAgentDisplayLabel(candidate: Record<string, unknown>) {
+  return (
+    normalizeString(candidate.display_label) ||
+    normalizeString(candidate.displayLabel) ||
+    normalizeString(candidate.label) ||
+    normalizeString(candidate.title)
+  );
+}
+
+function normalizeAgentSearchResult(value: unknown): AgentSearchResult {
+  const candidate = asRecord(value);
+  const agentType = normalizeAgentType(candidate);
+
+  return {
+    id: normalizeNumber(candidate.id),
+    name: normalizeString(candidate.name),
+    agentType,
+    displayLabel: normalizeAgentDisplayLabel(candidate),
+    agent_unique_id: normalizeString(candidate.agent_unique_id),
+    description: normalizeString(candidate.description),
+    status: normalizeNullableString(candidate.status) ?? undefined,
+    llm_provider: normalizeString(candidate.llm_provider),
+    llm_model: normalizeString(candidate.llm_model),
+    engine_name: normalizeString(candidate.engine_name),
+    last_run_at: normalizeNullableString(candidate.last_run_at),
+  };
+}
+
+function normalizeAgentSemanticSearchResult(value: unknown): AgentSemanticSearchResult {
+  const candidate = asRecord(value);
+  const agentType = normalizeAgentType(candidate);
+
+  return {
+    id: normalizeNumber(candidate.id),
+    name: normalizeString(candidate.name),
+    agentType,
+    displayLabel: normalizeAgentDisplayLabel(candidate),
+    agent_unique_id: normalizeString(candidate.agent_unique_id),
+    description: normalizeString(candidate.description),
+    semantic_score:
+      typeof candidate.semantic_score === "number" ? candidate.semantic_score : null,
+    text_score:
+      typeof candidate.text_score === "number" ? candidate.text_score : null,
+    combined_score:
+      typeof candidate.combined_score === "number" ? candidate.combined_score : null,
+  };
+}
+
+function normalizeAgentDetailRecord(value: unknown): AgentDetailRecord {
+  const candidate = asRecord(value);
+  const agentType = normalizeAgentType(candidate);
+
+  return {
+    ...candidate,
+    id: normalizeNumber(candidate.id),
+    name: normalizeString(candidate.name),
+    agentType,
+    displayLabel: normalizeAgentDisplayLabel(candidate),
+    agent_type: agentType,
+  } as AgentDetailRecord;
 }
 
 export function buildAgentQuickSearchUrl(query: string) {
@@ -112,6 +225,7 @@ export function buildAgentSelectionDescription(agent: AgentSearchResult) {
 
 export function buildAgentOptionDescription(agent: AgentSearchResult) {
   return [
+    agent.agentType,
     agent.agent_unique_id,
     agent.llm_provider && agent.llm_model ? `${agent.llm_provider} / ${agent.llm_model}` : null,
     agent.engine_name,
@@ -150,7 +264,8 @@ export async function fetchAgentQuickSearch({
     throw new Error(payload?.error || `Search failed with status ${response.status}.`);
   }
 
-  return (await response.json()) as AgentSearchResult[];
+  const payload = (await response.json()) as unknown;
+  return Array.isArray(payload) ? payload.map(normalizeAgentSearchResult) : [];
 }
 
 export async function fetchAgentList({
@@ -186,27 +301,33 @@ export async function fetchAgentList({
   }
 
   const payload = (await response.json()) as
-    | OffsetPaginatedList<AgentSearchResult>
-    | AgentSearchResult[];
+    | OffsetPaginatedList<unknown>
+    | unknown[];
 
   if (Array.isArray(payload)) {
+    const results = payload.map(normalizeAgentSearchResult);
+
     return {
-      count: payload.length,
+      count: results.length,
       next: null,
       previous: null,
       limit,
       offset,
-      results: payload.slice(offset, offset + limit),
+      results: results.slice(offset, offset + limit),
     } satisfies OffsetPaginatedList<AgentSearchResult>;
   }
 
+  const results = Array.isArray(payload.results)
+    ? payload.results.map(normalizeAgentSearchResult)
+    : [];
+
   return {
-    count: typeof payload.count === "number" ? payload.count : payload.results.length,
+    count: typeof payload.count === "number" ? payload.count : results.length,
     next: payload.next ?? null,
     previous: payload.previous ?? null,
     limit,
     offset,
-    results: Array.isArray(payload.results) ? payload.results : [],
+    results,
   } satisfies OffsetPaginatedList<AgentSearchResult>;
 }
 
@@ -249,7 +370,7 @@ export async function fetchAgentSemanticSearch({
 
   const payload = (await response.json()) as unknown;
 
-  return Array.isArray(payload) ? (payload as AgentSemanticSearchResult[]) : [];
+  return Array.isArray(payload) ? payload.map(normalizeAgentSemanticSearchResult) : [];
 }
 
 export async function fetchAgentDetail({
@@ -282,7 +403,7 @@ export async function fetchAgentDetail({
     throw new Error(payload?.error || `Agent detail failed with status ${response.status}.`);
   }
 
-  return (await response.json()) as AgentDetailRecord;
+  return normalizeAgentDetailRecord(await response.json());
 }
 
 export async function fetchAgentSummary({

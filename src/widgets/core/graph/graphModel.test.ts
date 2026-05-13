@@ -221,6 +221,52 @@ describe("graph incremental series projection", () => {
     ]);
   });
 
+  it("quantizes raw sub-second datetime data to 1-second buckets for tradingview", () => {
+    const sameSecondSeries = buildGraphSeries(
+      [
+        { time: "2026-04-25T00:01:00.100Z", symbol: "AAPL", value: 10 },
+        { time: "2026-04-25T00:01:00.900Z", symbol: "AAPL", value: 11 },
+      ],
+      config,
+    );
+
+    const chartSeries = buildGraphChartSeries(
+      sameSecondSeries.series,
+      "datetime",
+      "tradingview",
+      "raw",
+    );
+
+    expect(chartSeries.collapsedPointCount).toBe(1);
+    expect(chartSeries.series[0]?.points).toEqual([
+      { time: Date.parse("2026-04-25T00:01:00.000Z"), value: 11 },
+    ]);
+  });
+
+  it("applies explicit minute quantization on echarts when requested", () => {
+    const intradaySeries = buildGraphSeries(
+      [
+        { time: "2026-04-25T00:01:10.000Z", symbol: "AAPL", value: 10 },
+        { time: "2026-04-25T00:01:50.000Z", symbol: "AAPL", value: 11 },
+        { time: "2026-04-25T00:02:05.000Z", symbol: "AAPL", value: 12 },
+      ],
+      config,
+    );
+
+    const chartSeries = buildGraphChartSeries(
+      intradaySeries.series,
+      "datetime",
+      "echarts",
+      "1m",
+    );
+
+    expect(chartSeries.collapsedPointCount).toBe(1);
+    expect(chartSeries.series[0]?.points).toEqual([
+      { time: Date.parse("2026-04-25T00:01:00.000Z"), value: 11 },
+      { time: Date.parse("2026-04-25T00:02:00.000Z"), value: 12 },
+    ]);
+  });
+
   it("projects stacked series against the union of visible timestamps", () => {
     const result = buildGraphSeries(
       [

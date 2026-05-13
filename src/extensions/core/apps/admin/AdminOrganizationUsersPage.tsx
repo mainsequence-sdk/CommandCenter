@@ -3,6 +3,7 @@ import { useDeferredValue, useEffect, useEffectEvent, useMemo, useState } from "
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpDown, ChevronDown, ChevronUp, Loader2, Plus, Users } from "lucide-react";
 
+import { useAuthStore } from "@/auth/auth-store";
 import type { AppUser } from "@/auth/types";
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -19,10 +20,13 @@ import { useRegistrySelection } from "../../../../../extensions/main_sequence/co
 import { mainSequenceRegistryPageSize } from "../../../../../extensions/main_sequence/common/api";
 
 import {
+  AdminRequestError,
   bulkDeleteUsers,
   createOrganizationUser,
+  fetchCurrentOrganizationId,
   listOrganizationUsers,
   makeSelectedUsersAdministrators,
+  type OrganizationUserCreateResponse,
   removeSelectedUsersAsAdministrators,
 } from "./api";
 import { AdminSurfaceLayout } from "./shared";
@@ -45,6 +49,211 @@ function formatGroups(value?: string[]) {
 
 function formatAdminError(error: unknown) {
   return error instanceof Error ? error.message : "The user request failed.";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readTrimmedString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function readStringList(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+    : [];
+}
+
+function readPayloadMessage(value: unknown) {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  if (!Array.isArray(value)) {
+    return "";
+  }
+
+  return value
+    .filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+    .join(", ");
+}
+
+function readPayloadFieldMessage(payload: unknown, field: string) {
+  if (!isRecord(payload)) {
+    return "";
+  }
+
+  return readPayloadMessage(payload[field]);
+}
+
+function readPayloadUpgradeMessage(payload: unknown) {
+  if (!isRecord(payload) || !isRecord(payload.upgrade)) {
+    return "";
+  }
+
+  return readTrimmedString(payload.upgrade.message);
+}
+
+function normalizeCreatedOrganizationUser(payload: OrganizationUserCreateResponse): AppUser {
+  const organizationTeams = (Array.isArray(payload.teams) ? payload.teams : []).flatMap((team) => {
+    if (!isRecord(team)) {
+      return [];
+    }
+
+    const id = Number(team.id);
+    const name = readTrimmedString(team.name);
+
+    if (!Number.isFinite(id) || id <= 0 || !name) {
+      return [];
+    }
+
+    return [{
+      id,
+      name,
+      description: "",
+      is_active: true,
+    }];
+  });
+  const email = readTrimmedString(payload.email);
+  const firstName = readTrimmedString(payload.first_name);
+  const lastName = readTrimmedString(payload.last_name);
+  const name = [firstName, lastName].filter(Boolean).join(" ").trim() || email || `User ${payload.id}`;
+
+  return {
+    id: String(payload.id),
+    name,
+    email,
+    first_name: firstName || undefined,
+    last_name: lastName || undefined,
+    avatarUrl: readTrimmedString(payload.profile_picture) || undefined,
+    plan: readTrimmedString(payload.plan) || undefined,
+    team: organizationTeams[0]?.name ?? "Unknown",
+    role: "user",
+    permissions: [],
+    groups: readStringList(payload.groups),
+    organizationTeams,
+  };
+}
+
+function createdUserMatchesSearch(user: AppUser, normalizedSearchValue: string) {
+  if (!normalizedSearchValue) {
+    return true;
+  }
+
+  const haystack = [
+    user.email,
+    user.name,
+    user.first_name,
+    user.last_name,
+    user.plan,
+    ...(user.organizationTeams ?? []).map((team) => team.name),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(normalizedSearchValue.toLowerCase());
+}
+
+function formatCreatedUserSummary(user: AppUser) {
+  const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+
+  if (fullName && user.email) {
+    return `${fullName} (${user.email})`;
+  }
+
+  return user.email || user.name || `User ${user.id}`;
+}
+
+function describeCreateUserError(error: unknown) {
+  if (!error) {
+    return {
+      email: "",
+      title: "",
+      detail: "",
+    };
+  }
+
+  if (!(error instanceof AdminRequestError)) {
+    return {
+      email: "",
+      title: "User creation failed",
+      detail: formatAdminError(error),
+    };
+  }
+
+  if (error.status === 400) {
+    const emailError = readPayloadFieldMessage(error.payload, "email");
+
+    if (emailError) {
+      return {
+        email: emailError,
+        title: "",
+        detail: "",
+      };
+    }
+
+    return {
+      email: "",
+      title: "Organization validation failed",
+      detail:
+        "The organization could not add this user because the request became invalid while it was being processed.",
+    };
+  }
+
+  if (error.status === 403) {
+    const code = readPayloadFieldMessage(error.payload, "code");
+    const title = readPayloadFieldMessage(error.payload, "title");
+    const detail = readPayloadFieldMessage(error.payload, "detail");
+    const upgradeMessage = readPayloadUpgradeMessage(error.payload);
+
+    if (code === "organization_membership_upgrade_required") {
+      return {
+        email: "",
+        title: title || "Upgrade required",
+        detail: [detail, upgradeMessage || "Upgrade your organization plan to add team members."]
+          .filter((value, index, values) => value && values.indexOf(value) === index)
+          .join("\n"),
+      };
+    }
+
+    if (
+      detail.toLowerCase().includes("organization admin") ||
+      detail.toLowerCase().includes("org admin")
+    ) {
+      return {
+        email: "",
+        title: title || "Organization admin required",
+        detail: "Only organization admins can add users.",
+      };
+    }
+
+    return {
+      email: "",
+      title: title || (upgradeMessage ? "Upgrade required" : "Access denied"),
+      detail: [
+        detail || "You do not have access to add users for this organization.",
+        upgradeMessage,
+      ]
+        .filter((value, index, values) => value && values.indexOf(value) === index)
+        .join("\n"),
+    };
+  }
+
+  if (error.status === 404) {
+    return {
+      email: "",
+      title: "Access denied",
+      detail: "You do not have access to add users for this organization.",
+    };
+  }
+
+  return {
+    email: "",
+    title: "User creation failed",
+    detail: formatAdminError(error),
+  };
 }
 
 type OrganizationUserBulkAction = "delete" | "make-admins" | "remove-admins";
@@ -140,9 +349,15 @@ export function AdminOrganizationUsersPage() {
   const normalizedCreateEmail = createEmail.trim().toLowerCase();
   const normalizedCreateFirstName = createFirstName.trim();
   const normalizedCreateLastName = createLastName.trim();
+  const usersQueryKey = ["admin", "organization-users", "list", pageIndex, normalizedSearchValue] as const;
+  const organizationIdQuery = useQuery({
+    queryKey: ["admin", "organization", "id"],
+    queryFn: fetchCurrentOrganizationId,
+    staleTime: 300_000,
+  });
 
   const usersQuery = useQuery({
-    queryKey: ["admin", "organization-users", "list", pageIndex, normalizedSearchValue],
+    queryKey: usersQueryKey,
     queryFn: () =>
       listOrganizationUsers({
         limit: mainSequenceRegistryPageSize,
@@ -151,8 +366,44 @@ export function AdminOrganizationUsersPage() {
       }),
   });
   const createUserMutation = useMutation({
-    mutationFn: createOrganizationUser,
+    mutationFn: async (payload: { email: string; first_name?: string; last_name?: string }) => {
+      const organizationId =
+        typeof organizationIdQuery.data === "number"
+          ? organizationIdQuery.data
+          : await fetchCurrentOrganizationId();
+
+      return createOrganizationUser(organizationId, payload);
+    },
     onSuccess: async (result, payload) => {
+      const createdUser = normalizeCreatedOrganizationUser(result);
+
+      if (pageIndex === 0 && createdUserMatchesSearch(createdUser, normalizedSearchValue)) {
+        queryClient.setQueryData<Awaited<ReturnType<typeof listOrganizationUsers>>>(
+          usersQueryKey,
+          (current) => {
+            if (!current) {
+              return current;
+            }
+
+            const alreadyPresent = current.results.some(
+              (existingUser) => String(existingUser.id) === String(createdUser.id),
+            );
+            const remainingUsers = current.results.filter(
+              (existingUser) => String(existingUser.id) !== String(createdUser.id),
+            );
+
+            return {
+              ...current,
+              count: alreadyPresent ? current.count : current.count + 1,
+              results: [createdUser, ...remainingUsers].slice(
+                0,
+                Math.max(current.results.length, 1),
+              ),
+            };
+          },
+        );
+      }
+
       await queryClient.invalidateQueries({
         queryKey: ["admin", "organization-users"],
       });
@@ -164,14 +415,23 @@ export function AdminOrganizationUsersPage() {
 
       toast({
         variant: "success",
-        title:
-          typeof result.detail === "string" && result.detail.trim()
-            ? result.detail
-            : "User created",
-        description: payload.email,
+        title: "User created",
+        description: formatCreatedUserSummary(createdUser) || payload.email,
       });
     },
     onError: (error) => {
+      if (error instanceof AdminRequestError && error.status === 401) {
+        useAuthStore.getState().logout();
+        return;
+      }
+
+      if (
+        error instanceof AdminRequestError &&
+        (error.status === 400 || error.status === 403 || error.status === 404)
+      ) {
+        return;
+      }
+
       toast({
         variant: "error",
         title: "User creation failed",
@@ -179,6 +439,17 @@ export function AdminOrganizationUsersPage() {
       });
     },
   });
+  const createUserErrorState = useMemo(
+    () => describeCreateUserError(createUserMutation.error),
+    [createUserMutation.error],
+  );
+  const createUserErrorSummary = useMemo(
+    () =>
+      [createUserErrorState.title, createUserErrorState.detail]
+        .filter((value) => value.trim().length > 0)
+        .join("\n"),
+    [createUserErrorState.detail, createUserErrorState.title],
+  );
 
   const pageRows = usersQuery.data?.results ?? [];
   const sortedPageRows = useMemo(() => {
@@ -382,7 +653,7 @@ export function AdminOrganizationUsersPage() {
                     }}
                   >
                     <Plus className="h-4 w-4" />
-                    Add new user
+                    Add new user to organization
                   </Button>
                 </div>
               }
@@ -591,8 +862,8 @@ export function AdminOrganizationUsersPage() {
       <Dialog
         open={createDialogOpen}
         onClose={closeCreateUserDialog}
-        title="Add new user"
-        description="Enter an email address and optional first and last name to create a new user."
+        title="Add new user to organization"
+        description="Enter an email address and optional first and last name to create a new organization user."
         className="max-w-[min(560px,calc(100vw-24px))]"
       >
         <form
@@ -622,12 +893,22 @@ export function AdminOrganizationUsersPage() {
               id="admin-create-user-email"
               type="email"
               value={createEmail}
-              onChange={(event) => setCreateEmail(event.target.value)}
+              onChange={(event) => {
+                if (createUserMutation.isError) {
+                  createUserMutation.reset();
+                }
+
+                setCreateEmail(event.target.value);
+              }}
               placeholder="name@company.com"
               autoComplete="email"
               autoFocus
               disabled={createUserMutation.isPending}
+              aria-invalid={createUserErrorState.email.length > 0}
             />
+            {createUserErrorState.email ? (
+              <div className="text-sm text-danger">{createUserErrorState.email}</div>
+            ) : null}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -641,7 +922,13 @@ export function AdminOrganizationUsersPage() {
               <Input
                 id="admin-create-user-first-name"
                 value={createFirstName}
-                onChange={(event) => setCreateFirstName(event.target.value)}
+                onChange={(event) => {
+                  if (createUserMutation.isError) {
+                    createUserMutation.reset();
+                  }
+
+                  setCreateFirstName(event.target.value);
+                }}
                 placeholder="Ada"
                 autoComplete="given-name"
                 disabled={createUserMutation.isPending}
@@ -658,7 +945,13 @@ export function AdminOrganizationUsersPage() {
               <Input
                 id="admin-create-user-last-name"
                 value={createLastName}
-                onChange={(event) => setCreateLastName(event.target.value)}
+                onChange={(event) => {
+                  if (createUserMutation.isError) {
+                    createUserMutation.reset();
+                  }
+
+                  setCreateLastName(event.target.value);
+                }}
                 placeholder="Lovelace"
                 autoComplete="family-name"
                 disabled={createUserMutation.isPending}
@@ -666,9 +959,9 @@ export function AdminOrganizationUsersPage() {
             </div>
           </div>
 
-          {createUserMutation.isError ? (
+          {createUserErrorSummary ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-              {formatAdminError(createUserMutation.error)}
+              <div className="whitespace-pre-line">{createUserErrorSummary}</div>
             </div>
           ) : null}
 

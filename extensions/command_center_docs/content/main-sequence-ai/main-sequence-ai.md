@@ -1,12 +1,12 @@
 # Main Sequence AI
 
-Main Sequence AI is the assistant and agent-focused application in the shell. It combines general
+Main Sequence AI is the assistant and agent-focused application in Command Center. It combines general
 assistant interaction with agent registries, project-agent workflows, and workspace-based monitor
 flows.
 
 ## Main Areas
 
-- `Chat` for longer assistant conversations in a full-page surface.
+- `Communication` for direct chat, contextual side chat, and session-backed agent interaction.
 - `Agents` for browsing available agents and starting new sessions.
 - `Project Agents` for project-scoped agent build and deployment workflows.
 - `Agents Monitor` for workspace-based monitoring of session-driven AI activity.
@@ -18,5 +18,5 @@ workflow.
 
 ## Notes
 
-`Agents Monitor` has its own page in the `Workspace Studio` branch because it is one of the
-workspace-based authoring flows, even though the owning application is Main Sequence AI.
+`Agents Monitor` is documented as a nested page inside the `Main Sequence AI` section because it is
+an AI-owned surface that happens to reuse the workspace runtime.

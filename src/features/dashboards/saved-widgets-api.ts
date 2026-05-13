@@ -687,11 +687,61 @@ function resolveDetailPath(template: string, id: string) {
   return template.endsWith("/") ? `${template}${encodedId}/` : `${template}/${encodedId}/`;
 }
 
+function appendActionPath(detailPath: string, action: "add-label" | "remove-label") {
+  return detailPath.endsWith("/") ? `${detailPath}${action}/` : `${detailPath}/${action}/`;
+}
+
+function normalizeSavedWidgetLabels(labels: readonly string[] | undefined) {
+  return Array.from(
+    new Set(
+      (labels ?? [])
+        .map((label) => label.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+async function mutateSavedWidgetLabel(
+  detailTemplate: string,
+  id: string,
+  action: "add-label" | "remove-label",
+  label: string,
+) {
+  await requestSavedWidgetBackend(
+    appendActionPath(resolveDetailPath(detailTemplate, id), action),
+    {
+      method: "POST",
+      body: JSON.stringify({ label }),
+    },
+  );
+}
+
+async function syncSavedWidgetLabels(options: {
+  detailTemplate: string;
+  id: string;
+  nextLabels: readonly string[];
+  previousLabels?: readonly string[];
+}) {
+  const nextLabels = normalizeSavedWidgetLabels(options.nextLabels);
+  const previousLabels = normalizeSavedWidgetLabels(options.previousLabels);
+  const nextLabelSet = new Set(nextLabels);
+  const previousLabelSet = new Set(previousLabels);
+  const labelsToRemove = previousLabels.filter((label) => !nextLabelSet.has(label));
+  const labelsToAdd = nextLabels.filter((label) => !previousLabelSet.has(label));
+
+  for (const label of labelsToRemove) {
+    await mutateSavedWidgetLabel(options.detailTemplate, options.id, "remove-label", label);
+  }
+
+  for (const label of labelsToAdd) {
+    await mutateSavedWidgetLabel(options.detailTemplate, options.id, "add-label", label);
+  }
+}
+
 function serializeSavedWidgetInstanceMutationPayload(payload: SavedWidgetInstanceMutationPayload) {
   return JSON.stringify({
     title: payload.title,
     description: payload.description ?? "",
-    labels: payload.labels ?? [],
     category: payload.category ?? "Custom",
     source: payload.source ?? "user",
     schema_version: payload.schemaVersion ?? 1,
@@ -719,7 +769,6 @@ function serializeSavedWidgetGroupMutationPayload(payload: SavedWidgetGroupMutat
   return JSON.stringify({
     title: payload.title,
     description: payload.description ?? "",
-    labels: payload.labels ?? [],
     category: payload.category ?? "Custom",
     source: payload.source ?? "user",
     schema_version: payload.schemaVersion ?? 1,
@@ -731,7 +780,6 @@ function serializeSavedWidgetGroupMutationPayload(payload: SavedWidgetGroupMutat
       widget_instance: {
         title: member.widgetInstance.title,
         description: member.widgetInstance.description ?? "",
-        labels: member.widgetInstance.labels ?? [],
         category: member.widgetInstance.category ?? "Custom",
         source: member.widgetInstance.source ?? "user",
         schema_version: member.widgetInstance.schemaVersion ?? 1,
@@ -781,6 +829,44 @@ export function hasConfiguredSavedWidgetsBackend() {
     commandCenterConfig.savedWidgets.groupsListUrl.trim() &&
     commandCenterConfig.savedWidgets.groupsDetailUrl.trim(),
   );
+}
+
+export async function syncSavedWidgetInstanceLabels(
+  id: string,
+  nextLabels: readonly string[],
+  previousLabels?: readonly string[],
+) {
+  const detailPath = commandCenterConfig.savedWidgets.instancesDetailUrl.trim();
+
+  if (!detailPath) {
+    throw new Error("Saved widget instance detail endpoint is not configured.");
+  }
+
+  await syncSavedWidgetLabels({
+    detailTemplate: detailPath,
+    id,
+    nextLabels,
+    previousLabels,
+  });
+}
+
+export async function syncSavedWidgetGroupLabels(
+  id: string,
+  nextLabels: readonly string[],
+  previousLabels?: readonly string[],
+) {
+  const detailPath = commandCenterConfig.savedWidgets.groupsDetailUrl.trim();
+
+  if (!detailPath) {
+    throw new Error("Saved widget group detail endpoint is not configured.");
+  }
+
+  await syncSavedWidgetLabels({
+    detailTemplate: detailPath,
+    id,
+    nextLabels,
+    previousLabels,
+  });
 }
 
 export async function fetchSavedWidgetInstancesFromBackend() {

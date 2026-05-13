@@ -2205,6 +2205,14 @@ export interface SummaryStat {
   edit?: SummaryEditConfig;
 }
 
+export interface SummaryLabelManagement {
+  labels: string[];
+  add_label_url: string;
+  remove_label_url: string;
+}
+
+const EMPTY_SUMMARY_LABELS: string[] = [];
+
 export interface ResourceUsageChartPoint {
   time: number;
   cpu_cores: number;
@@ -2219,6 +2227,9 @@ export interface SummaryResponse<
   badges: SummaryBadge[];
   inline_fields: SummaryField[];
   highlight_fields: SummaryField[];
+  label_management?: SummaryLabelManagement;
+  // Legacy summary payload fields kept for compatibility while all summary
+  // endpoints migrate to `label_management`.
   labels?: string[];
   labelable?: boolean;
   stats: SummaryStat[];
@@ -2542,6 +2553,7 @@ export interface ProjectExecutorAgentServiceSummary {
   agent_id: number | string | null;
   is_ready: boolean;
   executor_bundle_image_has_drift?: boolean;
+  image_drift?: unknown;
   project: number;
   related_job: number | null;
   subdomain: string | null;
@@ -5883,82 +5895,52 @@ export function submitSummaryEdit(
   });
 }
 
-function buildSummaryEntityLabelMutationPath(summary: Pick<SummaryResponse, "entity">) {
-  const entityId = Number(summary.entity.id);
-
-  if (!Number.isFinite(entityId) || entityId <= 0) {
-    throw new Error("Summary entity id is invalid for label mutation.");
-  }
-
-  switch (summary.entity.type) {
-    case "workspace": {
-      const template = commandCenterConfig.workspaces.detailUrl.trim();
-      const encodedId = encodeURIComponent(String(entityId));
-      const detailPath = template.includes("{id}")
-        ? template.replace(/\{id\}/g, encodedId)
-        : template.includes(":id")
-          ? template.replace(/:id/g, encodedId)
-          : template.endsWith("/")
-            ? `${template}${encodedId}/`
-            : `${template}/${encodedId}/`;
-
-      return {
-        endpoint: detailPath,
-        path: "",
-      };
-    }
-    case "project":
-      return {
-        endpoint: commandCenterConfig.mainSequence.endpoint,
-        path: `projects/${entityId}/`,
-      };
-    case "data_node":
-    case "DynamicTableMetaData":
-      return {
-        endpoint: dynamicTableMetadataEndpoint,
-        path: `${entityId}/`,
-      };
-    case "simple_table":
-    case "SimpleTable":
-      return {
-        endpoint: simpleTableEndpoint,
-        path: `${entityId}/`,
-      };
-    default:
-      throw new Error(`Labels are not supported for summary entity type "${summary.entity.type}".`);
-  }
+export function getSummaryLabels(
+  summary: Pick<SummaryResponse, "label_management" | "labels">,
+) {
+  return summary.label_management?.labels ?? summary.labels ?? EMPTY_SUMMARY_LABELS;
 }
 
 export function canMutateSummaryLabels(
-  summary: Pick<SummaryResponse, "entity">,
+  summary: Pick<SummaryResponse, "label_management">,
 ) {
-  try {
-    buildSummaryEntityLabelMutationPath(summary);
-    return true;
-  } catch {
-    return false;
-  }
+  return Boolean(
+    summary.label_management?.add_label_url?.trim() &&
+      summary.label_management?.remove_label_url?.trim(),
+  );
 }
 
 export function addSummaryLabel(
-  summary: Pick<SummaryResponse, "entity">,
+  summary: Pick<SummaryResponse, "label_management">,
   label: string,
 ) {
-  const requestTarget = buildSummaryEntityLabelMutationPath(summary);
+  const addLabelUrl = summary.label_management?.add_label_url?.trim();
 
-  return requestJson<unknown>(requestTarget.endpoint, `${requestTarget.path}add-label/`, {
+  if (!addLabelUrl) {
+    throw new Error("Summary does not expose an add-label action.");
+  }
+
+  const requestTarget = resolveRequestTarget(addLabelUrl);
+
+  return requestJson<unknown>(requestTarget.endpoint, requestTarget.path, {
     method: "POST",
     body: JSON.stringify({ label }),
   });
 }
 
 export function removeSummaryLabel(
-  summary: Pick<SummaryResponse, "entity">,
+  summary: Pick<SummaryResponse, "label_management">,
   label: string,
 ) {
-  const requestTarget = buildSummaryEntityLabelMutationPath(summary);
+  const removeLabelUrl = summary.label_management?.remove_label_url?.trim();
 
-  return requestJson<unknown>(requestTarget.endpoint, `${requestTarget.path}remove-label/`, {
+  if (!removeLabelUrl) {
+    throw new Error("Summary does not expose a remove-label action.");
+  }
+
+  const requestTarget = resolveRequestTarget(removeLabelUrl);
+
+  return requestJson<unknown>(requestTarget.endpoint, requestTarget.path, {
     method: "POST",
     body: JSON.stringify({ label }),
   });

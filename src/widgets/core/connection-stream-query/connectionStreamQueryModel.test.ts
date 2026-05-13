@@ -10,6 +10,7 @@ import {
 } from "@/widgets/shared/runtime-data-store";
 
 import {
+  buildConnectionStreamQueryRuntimeKey,
   createConnectionStreamQueryWidgetRuntimeSession,
   normalizeConnectionStreamQueryProps,
   reduceConnectionStreamQueryMessage,
@@ -194,6 +195,56 @@ afterEach(() => {
 });
 
 describe("connection stream query runtime model", () => {
+  it("builds runtime keys from the effective stream request instead of widget instance identity", () => {
+    const request = {
+      connectionId: 42,
+      query: {
+        kind: "ticker",
+        symbols: ["BTCUSDT"],
+      },
+      requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+    };
+
+    expect(
+      buildConnectionStreamQueryRuntimeKey({
+        request,
+      }),
+    ).toBe(
+      buildConnectionStreamQueryRuntimeKey({
+        request: { ...request },
+      }),
+    );
+  });
+
+  it("omits private connection ids from public runtime keys", () => {
+    const left = buildConnectionStreamQueryRuntimeKey({
+      executionSurface: "public-workspace",
+      publicExecutionKey: "wss://public.example.test/stream",
+      request: {
+        connectionId: 42,
+        query: {
+          kind: "ticker",
+          symbols: ["BTCUSDT"],
+        },
+        requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+      },
+    });
+    const right = buildConnectionStreamQueryRuntimeKey({
+      executionSurface: "public-workspace",
+      publicExecutionKey: "wss://public.example.test/stream",
+      request: {
+        connectionId: 99,
+        query: {
+          kind: "ticker",
+          symbols: ["BTCUSDT"],
+        },
+        requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+      },
+    });
+
+    expect(left).toBe(right);
+  });
+
   it("drops credentials and route fragments from normalized stream props", () => {
     expect(
       normalizeConnectionStreamQueryProps({

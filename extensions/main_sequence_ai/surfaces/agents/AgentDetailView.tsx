@@ -642,8 +642,8 @@ export function AgentDetailView({
   const [sessionsPendingDelete, setSessionsPendingDelete] = useState<AgentSessionApiRecord[]>([]);
   const deferredSessionFilterValue = useDeferredValue(sessionFilterValue);
   const title =
-    normalizeOptionalString(detail?.name) ||
-    initialAgent?.name?.trim() ||
+    normalizeOptionalString(detail?.displayLabel) ||
+    initialAgent?.displayLabel?.trim() ||
     `Agent ${agentId}`;
   const uniqueId =
     normalizeOptionalString(detail?.agent_unique_id) ||

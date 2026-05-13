@@ -322,11 +322,13 @@ export function useCustomWorkspaceStudio() {
   }
 
   function openDashboardView() {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("view");
-    nextParams.delete("widget");
-    nextParams.delete("tab");
-    setSearchParams(nextParams);
+    setSearchParams((currentParams) => {
+      const nextParams = new URLSearchParams(currentParams);
+      nextParams.delete("view");
+      nextParams.delete("widget");
+      nextParams.delete("tab");
+      return nextParams;
+    });
   }
 
   function openWorkspaceSettings() {
@@ -347,19 +349,21 @@ export function useCustomWorkspaceStudio() {
 
   function openWidgetSettings(
     widgetId: string,
-    tab: "settings" | "bindings" = "settings",
+    tab: "settings" | "bindings" | "connection" = "settings",
   ) {
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set("view", "widget-settings");
-    nextParams.set("widget", widgetId);
+    setSearchParams((currentParams) => {
+      const nextParams = new URLSearchParams(currentParams);
+      nextParams.set("view", "widget-settings");
+      nextParams.set("widget", widgetId);
 
-    if (tab === "bindings") {
-      nextParams.set("tab", "bindings");
-    } else {
-      nextParams.delete("tab");
-    }
+      if (tab === "bindings" || tab === "connection") {
+        nextParams.set("tab", tab);
+      } else {
+        nextParams.delete("tab");
+      }
 
-    setSearchParams(nextParams);
+      return nextParams;
+    });
   }
 
   function setSelectedWorkspaceEditing(editing: boolean) {

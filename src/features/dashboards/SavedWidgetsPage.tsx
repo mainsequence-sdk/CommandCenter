@@ -20,6 +20,8 @@ import {
   fetchSavedWidgetInstanceDetailFromBackend,
   fetchSavedWidgetInstancesFromBackend,
   hasConfiguredSavedWidgetsBackend,
+  syncSavedWidgetGroupLabels,
+  syncSavedWidgetInstanceLabels,
   updateSavedWidgetGroupInBackend,
   updateSavedWidgetInstanceInBackend,
   type SavedWidgetGroupMutationPayload,
@@ -158,11 +160,12 @@ export function SavedWidgetsPage() {
         throw new Error("Select a saved widget first.");
       }
 
+      const nextLabels = parseLabels(labelsValue);
+
       if (selectedKind === "widgets" && selectedInstance) {
         const payload: SavedWidgetInstanceMutationPayload = {
           title: title.trim(),
           description,
-          labels: parseLabels(labelsValue),
           category: selectedInstance.category,
           source: selectedInstance.source,
           schemaVersion: selectedInstance.schemaVersion,
@@ -178,14 +181,26 @@ export function SavedWidgetsPage() {
           requiredPermissions: selectedInstance.requiredPermissions,
         };
 
-        return updateSavedWidgetInstanceInBackend(selectedId, payload);
+        const updatedWidget = await updateSavedWidgetInstanceInBackend(selectedId, payload);
+        let labelSyncError: string | null = null;
+
+        try {
+          await syncSavedWidgetInstanceLabels(selectedId, nextLabels, selectedInstance.labels);
+        } catch (error) {
+          labelSyncError = error instanceof Error ? error.message : "Unknown label sync error.";
+        }
+
+        return {
+          kind: "widgets" as const,
+          record: updatedWidget,
+          labelSyncError,
+        };
       }
 
       if (selectedKind === "groups" && selectedGroup) {
         const payload: SavedWidgetGroupMutationPayload = {
           title: title.trim(),
           description,
-          labels: parseLabels(labelsValue),
           category: selectedGroup.category,
           source: selectedGroup.source,
           schemaVersion: selectedGroup.schemaVersion,
@@ -194,21 +209,20 @@ export function SavedWidgetsPage() {
             memberKey: member.memberKey,
             sortOrder: member.sortOrder,
             layoutOverride: member.layoutOverride,
-              widgetInstance: {
-                title: member.widgetInstance.title,
-                description: member.widgetInstance.description,
-                labels: member.widgetInstance.labels,
-                category: member.widgetInstance.category,
-                source: member.widgetInstance.source,
-                schemaVersion: member.widgetInstance.schemaVersion,
-                widgetTypeId: member.widgetInstance.widgetTypeId,
-                instanceTitle: member.widgetInstance.instanceTitle,
-                props: member.widgetInstance.props,
-                presentation: member.widgetInstance.presentation,
-                row: toAtomicRowState(member.widgetInstance.row),
-                layout: member.widgetInstance.layout,
-                position: member.widgetInstance.position,
-                companions: member.widgetInstance.companions,
+            widgetInstance: {
+              title: member.widgetInstance.title,
+              description: member.widgetInstance.description,
+              category: member.widgetInstance.category,
+              source: member.widgetInstance.source,
+              schemaVersion: member.widgetInstance.schemaVersion,
+              widgetTypeId: member.widgetInstance.widgetTypeId,
+              instanceTitle: member.widgetInstance.instanceTitle,
+              props: member.widgetInstance.props,
+              presentation: member.widgetInstance.presentation,
+              row: toAtomicRowState(member.widgetInstance.row),
+              layout: member.widgetInstance.layout,
+              position: member.widgetInstance.position,
+              companions: member.widgetInstance.companions,
               requiredPermissions: member.widgetInstance.requiredPermissions,
             },
           })),
@@ -220,21 +234,45 @@ export function SavedWidgetsPage() {
           })),
         };
 
-        return updateSavedWidgetGroupInBackend(selectedId, payload);
+        const updatedGroup = await updateSavedWidgetGroupInBackend(selectedId, payload);
+        let labelSyncError: string | null = null;
+
+        try {
+          await syncSavedWidgetGroupLabels(selectedId, nextLabels, selectedGroup.labels);
+        } catch (error) {
+          labelSyncError = error instanceof Error ? error.message : "Unknown label sync error.";
+        }
+
+        return {
+          kind: "groups" as const,
+          record: updatedGroup,
+          labelSyncError,
+        };
       }
 
       throw new Error("Invalid saved widget selection.");
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["saved-widgets", "instances"] }),
         queryClient.invalidateQueries({ queryKey: ["saved-widgets", "groups"] }),
         queryClient.invalidateQueries({ queryKey: ["saved-widgets", selectedKind, selectedId] }),
       ]);
-      toast({
-        title: selectedKind === "widgets" ? "Saved widget updated" : "Saved widget group updated",
-        variant: "success",
-      });
+
+      if (result.labelSyncError) {
+        toast({
+          title: result.kind === "widgets"
+            ? "Saved widget updated with label sync warning"
+            : "Saved widget group updated with label sync warning",
+          description: result.labelSyncError,
+          variant: "error",
+        });
+      } else {
+        toast({
+          title: selectedKind === "widgets" ? "Saved widget updated" : "Saved widget group updated",
+          variant: "success",
+        });
+      }
     },
     onError: (error) => {
       toast({

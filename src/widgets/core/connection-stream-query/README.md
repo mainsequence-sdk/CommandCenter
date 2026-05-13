@@ -9,13 +9,15 @@ for connection query models that advertise a WebSocket stream contract.
   ownership.
 - `connectionStreamQueryModel.ts`: prop normalization, stream request building, lifecycle frames,
   compatibility dataset projection, incremental publication metadata, and WebSocket runtime session helpers.
-- `ConnectionStreamQueryWidget.tsx`: hidden/sidebar runtime mount that opens one WebSocket
-  subscription and publishes runtime state through `onRuntimeStateChange`.
+- `ConnectionStreamQueryWidget.tsx`: hidden/sidebar runtime mount that acquires one shared
+  workspace WebSocket subscription through `src/connections/connection-runtime-store.tsx` and
+  publishes runtime state through `onRuntimeStateChange`.
 - `ConnectionStreamQueryWidgetSettings.tsx`: settings wrapper around the shared connection query
   authoring surface. It filters selectable paths to streamable query models, constrains the
   connection picker to stream-capable connections, switches the shared workbench into stream
   authoring mode, reuses typed connection query editors with stream-specific copy, then renders the
-  shared stream test panel for live frame preview.
+  shared stream test panel for live frame preview. When the same request is already active in the
+  workspace runtime store, settings shows that live status instead of opening a second test socket.
 - `ConnectionStreamQueryRailSummary.tsx`: workspace rail hover summary for selected connection,
   path, backend id, and stream lifecycle.
 - `USAGE_GUIDANCE.md`: user-facing registry guidance imported by the widget definition.
@@ -31,6 +33,14 @@ for connection query models that advertise a WebSocket stream contract.
   For SPA JWT auth it first mints a short-lived handshake ticket through
   `auth.websocketTicketUrl`, then resolves the configured `ws`/`wss` endpoint and sends the
   query-shaped subscribe payload.
+- Runtime sessions are acquired through the workspace-scoped
+  `src/connections/connection-runtime-store.tsx`. The store key is based on the effective stream
+  request, so two source widgets pointed at the same connection/query payload share one browser
+  WebSocket instead of opening duplicates. Settings, rails, and passive presentation widgets observe
+  the shared store entry rather than owning their own sockets.
+- The visible source card observes the shared runtime entry at a throttled cadence. Stream frames can
+  still publish to the runtime store as they arrive, but the card must not rerender at WebSocket
+  message cadence because that blocks basic canvas interactions such as opening settings.
 - Anonymous public execution now switches to widget-scoped `publicExecution.streamUrl` metadata
   from the published public workspace payload. In that mode the widget sends the backend public
   subscribe contract exactly: `subscriptionId`, `widgetInstanceId`, `capability`, and a nested
@@ -49,10 +59,10 @@ for connection query models that advertise a WebSocket stream contract.
   - `dataset`: compatibility retained dataset for legacy consumers
   - `updates`: explicit incremental publication output for `seedData` / `liveUpdates` consumers
 - The current runtime writes retained compatibility frames and delta frames into the workspace
-  runtime data store, then publishes ref-backed runtime-state shells that also retain inline rows
-  on the source widget for cold reload and settings-preview fallback. Legacy dataset consumers keep
-  working through compatibility materialization while migrated widgets bind the `updates` output
-  directly.
+  runtime data store, then publishes lightweight ref-backed runtime-state shells. Retained rows are
+  not kept inline on the active widget runtime shell when a runtime data store is available; legacy
+  dataset consumers keep working through compatibility materialization while migrated widgets bind
+  the `updates` output directly.
 - Explore and widget settings previews still keep their own bounded stream-history buffer for
   graphing. Canonical widget runtime is separate from that preview buffer, but it can now also
   retain live rows for downstream consumers when the stream contract publishes row identity keys.
@@ -97,6 +107,8 @@ for connection query models that advertise a WebSocket stream contract.
   identity assumptions in the widget runtime.
 - Keep downstream consumers socket-agnostic. Any new lifecycle or retry metadata belongs in source
   runtime state or `source.context`, not in consumer props or binding contracts.
+- Keep WebSocket ownership in the workspace connection runtime store. Settings panels and charts
+  may observe store status, but they must not acquire sockets for an already-active stream request.
 - Managed consumer workflows that add a streaming mode should create a hidden
   `connection-stream-query` widget and bind its `updates` output to the visible consumer's
   `liveUpdates` tabular input. Historical/HTTP seed sources should remain separately bindable to

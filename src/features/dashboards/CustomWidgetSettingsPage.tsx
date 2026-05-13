@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { ArrowLeft, BookOpenText, Database, PlugZap, Save } from "lucide-react";
+import { ArrowLeft, BookOpenText, Database, Loader2, PlugZap, Save } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { getWidgetById } from "@/app/registry";
@@ -10,6 +10,8 @@ import { DashboardControlsProvider } from "@/dashboards/DashboardControls";
 import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidgetDependencies";
 import { DashboardWidgetExecutionProvider } from "@/dashboards/DashboardWidgetExecution";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
+import { isWidgetReferenceTargetInputId } from "@/dashboards/widget-instance-references";
+import { normalizeWidgetInstanceBindings } from "@/dashboards/widget-dependencies";
 import { WidgetBindingPanel } from "@/widgets/shared/WidgetBindingPanel";
 import { getWidgetDetailsPath } from "@/features/widgets/widget-explorer";
 import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
@@ -50,6 +52,10 @@ import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { WorkspaceSavingStatus } from "./WorkspaceChrome";
 import { ManagedConnectionConsumerPanel } from "@/widgets/shared/ManagedConnectionConsumerPanel";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
+import {
+  projectWidgetRuntimeUpdateOutput,
+  resolveWidgetRuntimeUpdateParts,
+} from "@/widgets/shared/runtime-update";
 import type { ResolvedWidgetInputs } from "@/widgets/types";
 
 type WidgetSettingsTabId = "settings" | "bindings" | "connection";
@@ -64,6 +70,29 @@ function cloneWidgetSettingsValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function WidgetSettingsDeferredRegion({
+  description,
+  title,
+}: {
+  description: string;
+  title: string;
+}) {
+  return (
+    <div className="space-y-4 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-4">
+      <div className="flex items-center gap-2 text-sm font-medium text-topbar-foreground">
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        {title}
+      </div>
+      <p className="text-sm text-muted-foreground">{description}</p>
+      <div className="space-y-3">
+        <div className="h-10 rounded-[calc(var(--radius)-8px)] bg-muted/45" />
+        <div className="h-24 rounded-[calc(var(--radius)-8px)] bg-muted/35" />
+        <div className="h-16 rounded-[calc(var(--radius)-8px)] bg-muted/30" />
+      </div>
+    </div>
+  );
+}
+
 function buildWidgetSettingsDraftState(
   instance: DashboardWidgetInstance,
   widget: NonNullable<ReturnType<typeof getWidgetById>>,
@@ -73,6 +102,7 @@ function buildWidgetSettingsDraftState(
   );
 
   return {
+    bindings: normalizeWidgetInstanceBindings(instance.bindings),
     presentation: resolveWidgetInstancePresentation(widget, instance.presentation),
     props: initialProps,
     title: instance.title ?? "",
@@ -96,8 +126,16 @@ function shouldRepairAppComponentBindingSpec(props: AppComponentWidgetProps) {
 
 export function CustomWidgetSettingsPage({
   embedded = false,
+  initialTab,
+  onRequestClose,
+  onRequestOpenWidgetSettings,
+  widgetId,
 }: {
   embedded?: boolean;
+  initialTab?: WidgetSettingsTabId;
+  onRequestClose?: () => void;
+  onRequestOpenWidgetSettings?: (widgetId: string, tab?: WidgetSettingsTabId) => void;
+  widgetId?: string | null;
 } = {}) {
   const {
     user,
@@ -115,6 +153,10 @@ export function CustomWidgetSettingsPage({
     updateSelectedWorkspaceUserState,
     commitSelectedWorkspaceControlsState,
   } = useCustomWorkspaceStudio();
+  const activeWidgetId = widgetId ?? requestedWidgetId;
+  const activeRequestedTab = initialTab ?? requestedWidgetSettingsTab;
+  const closeSettings = onRequestClose ?? openDashboardView;
+  const requestOpenWidgetSettings = onRequestOpenWidgetSettings ?? openWidgetSettings;
 
   if (!user) {
     return (
@@ -124,32 +166,31 @@ export function CustomWidgetSettingsPage({
     );
   }
 
-  if (!selectedDashboard || !resolvedDashboard || !requestedWidgetId) {
+  if (!selectedDashboard || !resolvedDashboard || !activeWidgetId) {
     return null;
   }
 
-  const instance = selectedDashboard.widgets.find((widget) => widget.id === requestedWidgetId) ?? null;
+  const instance = selectedDashboard.widgets.find((widget) => widget.id === activeWidgetId) ?? null;
   const widget = instance ? getWidgetById(instance.widgetId) : null;
   const backendMode = persistenceMode === "backend";
-  const resolvedWidgetIo =
-    instance && widget
-      ? widget.resolveIo?.({
-          widgetId: instance.widgetId,
-          instanceId: instance.id,
-          props: (instance.props ?? {}) as Record<string, unknown>,
-          runtimeState: instance.runtimeState,
-        }) ?? widget.io
-      : undefined;
-  const hasBindingTab = Boolean(
-    resolvedWidgetIo?.inputs?.length ||
-    widget?.io?.inputs?.length ||
-    widget?.resolveIo,
-  );
   const [draftState, setDraftState] = useState(() =>
     instance && widget ? buildWidgetSettingsDraftState(instance, widget) : null,
   );
   const effectiveDraftState =
     instance && widget ? draftState ?? buildWidgetSettingsDraftState(instance, widget) : null;
+  const resolvedWidgetIo =
+    instance && widget
+      ? widget.resolveIo?.({
+          widgetId: instance.widgetId,
+          instanceId: instance.id,
+          props: (effectiveDraftState?.props ?? instance.props ?? {}) as Record<string, unknown>,
+          runtimeState: instance.runtimeState,
+        }) ?? widget.io
+      : undefined;
+  const bindingTabInputs = (resolvedWidgetIo?.inputs ?? widget?.io?.inputs ?? []).filter(
+    (input) => !isWidgetReferenceTargetInputId(input.id),
+  );
+  const hasBindingTab = Boolean(bindingTabInputs.length);
   const managedConnectionAdapter = widget
     ? getManagedConnectionConsumerAdapter(widget.id)
     : null;
@@ -173,9 +214,9 @@ export function CustomWidgetSettingsPage({
       (managedConnectionMode || managedConnectionSource),
   );
   const requestedTab: WidgetSettingsTabId =
-    hasManagedConnectionTab && requestedWidgetSettingsTab === "connection"
+    hasManagedConnectionTab && activeRequestedTab === "connection"
       ? "connection"
-      : hasBindingTab && requestedWidgetSettingsTab === "bindings"
+      : hasBindingTab && activeRequestedTab === "bindings"
         ? "bindings"
         : "settings";
   const [activeTab, setActiveTab] = useState<WidgetSettingsTabId>(requestedTab);
@@ -319,24 +360,25 @@ export function CustomWidgetSettingsPage({
 
   const bindingPreviewInstance = useMemo(
     () =>
-      instance && effectiveDraftState
+      activeTab === "bindings" && instance && effectiveDraftState
         ? {
             ...instance,
+            bindings: effectiveDraftState.bindings,
             title: effectiveDraftState.title.trim() ? effectiveDraftState.title.trim() : undefined,
             props: effectiveDraftState.props,
             presentation: effectiveDraftState.presentation,
           }
         : null,
-    [effectiveDraftState, instance],
+    [activeTab, effectiveDraftState, instance],
   );
   const bindingPreviewWidgets = useMemo(
     () =>
-      instance && bindingPreviewInstance
+      activeTab === "bindings" && instance && bindingPreviewInstance
         ? resolvedDashboard.widgets.map((dashboardWidget) =>
             dashboardWidget.id === instance.id ? bindingPreviewInstance : dashboardWidget,
           )
         : resolvedDashboard.widgets,
-    [bindingPreviewInstance, instance, resolvedDashboard.widgets],
+    [activeTab, bindingPreviewInstance, instance, resolvedDashboard.widgets],
   );
   const currentManagedConnectionSignature = buildManagedConnectionConsumerDraftSignature(
     managedConnectionAdapter,
@@ -349,6 +391,14 @@ export function CustomWidgetSettingsPage({
   const [managedConnectionPreviewRuntimeState, setManagedConnectionPreviewRuntimeState] = useState<
     Record<string, unknown> | undefined
   >(undefined);
+  const connectionTabHydrationKey =
+    activeTab === "connection" && instance && widget
+      ? `${instance.id}:${widget.id}:connection`
+      : null;
+  const [hydratedConnectionTabKey, setHydratedConnectionTabKey] = useState<string | null>(null);
+  const connectionTabReady =
+    connectionTabHydrationKey !== null &&
+    hydratedConnectionTabKey === connectionTabHydrationKey;
   const managedConnectionPreviewResolvedInputs = useMemo<ResolvedWidgetInputs | undefined>(() => {
     if (
       !instance ||
@@ -376,6 +426,18 @@ export function CustomWidgetSettingsPage({
         ? managedConnectionSource.id
         : `${instance.id}:managed-source-preview`;
 
+    const previewOutputValue = projectWidgetRuntimeUpdateOutput(
+      managedConnectionPreviewRuntimeState,
+      {
+        sourceOutputId,
+        outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+      },
+    );
+    const previewRuntimeParts = resolveWidgetRuntimeUpdateParts<
+      Record<string, unknown>,
+      Record<string, unknown>
+    >(previewOutputValue);
+
     return {
       [sourceInputId]: {
         inputId: sourceInputId,
@@ -384,8 +446,12 @@ export function CustomWidgetSettingsPage({
         sourceWidgetId: previewSourceInstanceId,
         sourceOutputId,
         contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
-        value: managedConnectionPreviewRuntimeState,
-        upstreamBase: managedConnectionPreviewRuntimeState,
+        value: previewOutputValue,
+        upstreamBase: previewRuntimeParts.upstreamBase,
+        upstreamBaseRef: previewRuntimeParts.upstreamBaseRef,
+        upstreamDelta: previewRuntimeParts.upstreamDelta,
+        upstreamDeltaRef: previewRuntimeParts.upstreamDeltaRef,
+        upstreamUpdate: previewRuntimeParts.upstreamUpdate,
       },
     } satisfies ResolvedWidgetInputs;
   }, [
@@ -401,12 +467,58 @@ export function CustomWidgetSettingsPage({
     setManagedConnectionPreviewRuntimeState(undefined);
   }, [draftManagedConnectionSignature, instance?.id]);
 
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let animationFrameId: number | undefined;
+    let cancelled = false;
+
+    if (!connectionTabHydrationKey) {
+      setHydratedConnectionTabKey(null);
+      return undefined;
+    }
+
+    setHydratedConnectionTabKey(null);
+
+    const markReady = () => {
+      if (!cancelled) {
+        setHydratedConnectionTabKey(connectionTabHydrationKey);
+      }
+    };
+
+    if (
+      typeof window !== "undefined" &&
+      typeof window.requestAnimationFrame === "function"
+    ) {
+      animationFrameId = window.requestAnimationFrame(() => {
+        timeoutId = window.setTimeout(markReady, 0);
+      });
+    } else {
+      timeoutId = setTimeout(markReady, 0);
+    }
+
+    return () => {
+      cancelled = true;
+
+      if (
+        animationFrameId !== undefined &&
+        typeof window !== "undefined" &&
+        typeof window.cancelAnimationFrame === "function"
+      ) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [connectionTabHydrationKey]);
+
   if (!instance || !widget || !effectiveDraftState) {
     return (
       <div className="min-h-full overflow-auto px-4 py-4 md:px-6 md:py-6">
         <div className="mx-auto max-w-5xl space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <Button variant="outline" onClick={openDashboardView}>
+            <Button variant="outline" onClick={closeSettings}>
               <ArrowLeft className="h-4 w-4" />
               Return to dashboard
             </Button>
@@ -555,7 +667,34 @@ export function CustomWidgetSettingsPage({
     }
 
     updateSelectedWorkspace(() => duplication.dashboard);
-    openWidgetSettings(duplication.duplicatedInstanceId, activeTab === "bindings" ? "bindings" : "settings");
+    requestOpenWidgetSettings(
+      duplication.duplicatedInstanceId,
+      activeTab === "bindings" || activeTab === "connection" ? activeTab : "settings",
+    );
+  }
+
+  function handleBindingTabChange(bindings: DashboardWidgetInstance["bindings"]) {
+    if (!instance || !widget) {
+      return;
+    }
+
+    const normalizedBindings = normalizeWidgetInstanceBindings(bindings);
+
+    setDraftState((current) =>
+      current
+        ? {
+            ...current,
+            bindings: normalizedBindings,
+          }
+        : {
+            ...buildWidgetSettingsDraftState(instance, widget),
+            bindings: normalizedBindings,
+          },
+    );
+
+    updateSelectedWorkspace((dashboard) =>
+      updateDashboardWidgetBindings(dashboard, instance.id, bindings),
+    );
   }
 
   const pageContent = (
@@ -564,7 +703,7 @@ export function CustomWidgetSettingsPage({
         <div className="mx-auto max-w-6xl space-y-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="space-y-3">
-                    <Button variant="outline" onClick={openDashboardView}>
+                    <Button variant="outline" onClick={closeSettings}>
                       <ArrowLeft className="h-4 w-4" />
                       Return to dashboard
                     </Button>
@@ -667,6 +806,20 @@ export function CustomWidgetSettingsPage({
                       widget={widget}
                       instance={instance}
                       draftTitle={effectiveDraftState.title}
+                      draftBindings={effectiveDraftState.bindings}
+                      onDraftBindingsChange={(bindings) => {
+                        setDraftState((current) =>
+                          current
+                            ? {
+                                ...current,
+                                bindings,
+                              }
+                            : {
+                                ...buildWidgetSettingsDraftState(instance, widget),
+                                bindings,
+                              },
+                        );
+                      }}
                       onDraftTitleChange={(title) => {
                         setDraftState((current) =>
                           current
@@ -722,21 +875,25 @@ export function CustomWidgetSettingsPage({
                       }
                       showPlacementField={!instance.slidePlacement}
                       secondaryActionLabel="Return to dashboard"
-                      onClose={openDashboardView}
+                      onClose={closeSettings}
                       onDuplicate={duplicateCurrentWidget}
                       onRemove={() => {
                         updateSelectedWorkspace((dashboard) =>
                           removeDashboardWidget(dashboard, instance.id),
                         );
-                        openDashboardView();
+                        closeSettings();
                       }}
-                      onSave={({ title, props, presentation }) => {
+                      onSave={({ title, props, bindings, presentation }) => {
                         updateSelectedWorkspace((dashboard) =>
-                          updateDashboardWidgetSettings(dashboard, instance.id, {
-                            title,
-                            props,
-                            presentation,
-                          }),
+                          updateDashboardWidgetBindings(
+                            updateDashboardWidgetSettings(dashboard, instance.id, {
+                              title,
+                              props,
+                              presentation,
+                            }),
+                            instance.id,
+                            bindings,
+                          ),
                         );
                       }}
                     />
@@ -757,23 +914,41 @@ export function CustomWidgetSettingsPage({
                         ? "Edits update the current workspace draft immediately. They are not saved until you click Save workspace."
                         : "Edits update the current local workspace draft immediately. They are not saved until you click Save workspace."
                     }
+                    draftBindings={effectiveDraftState.bindings}
+                    onDraftBindingsChange={(bindings) => {
+                      setDraftState((current) =>
+                        current
+                          ? {
+                              ...current,
+                              bindings,
+                            }
+                          : {
+                              ...buildWidgetSettingsDraftState(instance, widget),
+                              bindings,
+                            },
+                      );
+                    }}
                     showPlacementField={!instance.slidePlacement}
                     secondaryActionLabel="Return to dashboard"
-                    onClose={openDashboardView}
+                    onClose={closeSettings}
                     onDuplicate={duplicateCurrentWidget}
                     onRemove={() => {
                       updateSelectedWorkspace((dashboard) =>
                         removeDashboardWidget(dashboard, instance.id),
                       );
-                      openDashboardView();
+                      closeSettings();
                     }}
-                    onSave={({ title, props, presentation }) => {
+                    onSave={({ title, props, bindings, presentation }) => {
                       updateSelectedWorkspace((dashboard) =>
-                        updateDashboardWidgetSettings(dashboard, instance.id, {
-                          title,
-                          props,
-                          presentation,
-                        }),
+                        updateDashboardWidgetBindings(
+                          updateDashboardWidgetSettings(dashboard, instance.id, {
+                            title,
+                            props,
+                            presentation,
+                          }),
+                          instance.id,
+                          bindings,
+                        ),
                       );
                     }}
                   />
@@ -855,9 +1030,7 @@ export function CustomWidgetSettingsPage({
                             instance={bindingPreviewInstance ?? instance}
                             editable
                             onBindingsChange={(bindings) => {
-                              updateSelectedWorkspace((dashboard) =>
-                                updateDashboardWidgetBindings(dashboard, instance.id, bindings),
-                              );
+                              handleBindingTabChange(bindings);
                             }}
                           />
                         </DashboardWidgetDependenciesProvider>
@@ -870,9 +1043,7 @@ export function CustomWidgetSettingsPage({
                         instance={bindingPreviewInstance ?? instance}
                         editable
                         onBindingsChange={(bindings) => {
-                          updateSelectedWorkspace((dashboard) =>
-                            updateDashboardWidgetBindings(dashboard, instance.id, bindings),
-                          );
+                          handleBindingTabChange(bindings);
                         }}
                       />
                     </DashboardWidgetDependenciesProvider>
@@ -896,19 +1067,26 @@ export function CustomWidgetSettingsPage({
                     </div>
 
                     <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
-                      <ManagedConnectionConsumerPanel
-                        adapter={managedConnectionAdapter}
-                        draftProps={managedConnectionDraftProps}
-                        editable
-                        instanceId={instance.id}
-                        instanceTitle={effectiveDraftState.title || instance.title || widget.title}
-                        onPreviewRuntimeStateChange={setManagedConnectionPreviewRuntimeState}
-                        previewRuntimeState={managedConnectionPreviewRuntimeState}
-                        widgetTitle={widget.title}
-                        onDraftPropsChange={(nextManagedConnectionProps) => {
-                          updateManagedConnectionDraft(() => nextManagedConnectionProps);
-                        }}
-                      />
+                      {connectionTabReady ? (
+                        <ManagedConnectionConsumerPanel
+                          adapter={managedConnectionAdapter}
+                          draftProps={managedConnectionDraftProps}
+                          editable
+                          instanceId={instance.id}
+                          instanceTitle={effectiveDraftState.title || instance.title || widget.title}
+                          onPreviewRuntimeStateChange={setManagedConnectionPreviewRuntimeState}
+                          previewRuntimeState={managedConnectionPreviewRuntimeState}
+                          widgetTitle={widget.title}
+                          onDraftPropsChange={(nextManagedConnectionProps) => {
+                            updateManagedConnectionDraft(() => nextManagedConnectionProps);
+                          }}
+                        />
+                      ) : (
+                        <WidgetSettingsDeferredRegion
+                          title="Loading connection editor"
+                          description="Preparing connection picker data, query controls, runtime status, and diagnostic panels after the tab opens."
+                        />
+                      )}
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 px-5 py-4 md:px-6">
@@ -969,7 +1147,7 @@ export function CustomWidgetSettingsPage({
             );
           }}
         >
-          <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
+          <DashboardWidgetDependenciesProvider widgets={bindingPreviewWidgets}>
             {pageContent}
           </DashboardWidgetDependenciesProvider>
         </DashboardWidgetExecutionProvider>

@@ -46,9 +46,7 @@ It is the AI-owned implementation of the project-agent workflow:
   even if the runtime catalog is temporarily unavailable.
 - When `GET /orm/api/agents/v1/project-executor-agent-services/by-project/<project_id>/` reports
   `executor_bundle_image_has_drift=true`, the deployment section shows a warning that the deployed
-  runtime image has drifted from the latest Astro update and offers a service-owned `Fix drift`
-  action. That action posts to
-  `/orm/api/agents/v1/project-executor-agent-services/<service_id>/maintain-runtime/`, then
-  refreshes the service summary and deployment-image list in place.
+  runtime image has drifted from the latest Astro update, plus any backend-authored drift detail
+  and auto-heal guidance.
 - GPU controls are intentionally omitted from this screen. Project-agent deployment here only edits
   CPU, memory, spot/standard capacity, and LLM settings.

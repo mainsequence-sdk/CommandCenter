@@ -14,9 +14,11 @@ import { useTheme } from "@/themes/ThemeProvider";
 import type { WidgetRuntimeUpdateMode } from "@/widgets/shared/runtime-update";
 
 import {
+  formatGraphTimestampLabel,
   buildStackedGraphSeriesProjection,
   formatGraphAxisValue,
   normalizeGraphSeries,
+  resolveGraphTimeQuantization,
 } from "./graphModel";
 import type {
   GraphChartType,
@@ -25,6 +27,8 @@ import type {
   GraphSeries,
   GraphSeriesAxisMode,
   GraphTimeAxisMode,
+  GraphTimeQuantizationMode,
+  ResolvedGraphTimeQuantization,
 } from "./graphModel";
 import { formatGraphUtcDateKey } from "./graphModel";
 
@@ -58,6 +62,7 @@ function parseEChartsAxisTimeValue(value: string | number) {
 function formatEChartsTimeAxisLabel(
   value: string | number,
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto">,
+  timeQuantization: ResolvedGraphTimeQuantization,
 ) {
   const parsedValue = parseEChartsAxisTimeValue(value);
 
@@ -69,11 +74,10 @@ function formatEChartsTimeAxisLabel(
     return formatGraphUtcDateKey(parsedValue);
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(parsedValue);
+  return formatGraphTimestampLabel(parsedValue, {
+    timeAxisMode,
+    timeQuantization,
+  });
 }
 
 function formatEChartsValueAxisLabel(value: string | number) {
@@ -137,7 +141,7 @@ function resolveSeriesValueExtent(series: readonly GraphSeries[]) {
   return { min, max };
 }
 
-function buildPaddedValueAxisBounds(series: readonly GraphSeries[]) {
+export function buildPaddedValueAxisBounds(series: readonly GraphSeries[]) {
   const extent = resolveSeriesValueExtent(series);
 
   if (!extent) {
@@ -150,13 +154,13 @@ function buildPaddedValueAxisBounds(series: readonly GraphSeries[]) {
 
   const baseSpan = extent.max - extent.min;
   const magnitude = Math.max(Math.abs(extent.max), Math.abs(extent.min), 1e-6);
+  const paddingBase = baseSpan > 0 ? baseSpan : magnitude;
+  const paddingRatio = baseSpan > 0 ? 0.08 : 0.001;
   const padding =
-    baseSpan > 0
-      ? baseSpan * 0.08
-      : magnitude * 0.08;
+    Math.max(paddingBase * paddingRatio, 1e-9);
   const paddedMin = extent.min - padding;
   const paddedMax = extent.max + padding;
-  const roughStep = Math.max((paddedMax - paddedMin) / 5, magnitude / 5, 1e-6);
+  const roughStep = Math.max((paddedMax - paddedMin) / 5, 1e-9);
   const stepMagnitude = 10 ** Math.floor(Math.log10(roughStep));
   const normalizedStep = roughStep / stepMagnitude;
   const step =
@@ -216,6 +220,7 @@ function buildSharedChartOption(args: {
   series: GraphSeries[];
   stackSeries: boolean;
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto">;
+  timeQuantization: ResolvedGraphTimeQuantization;
   tokens: Record<string, string>;
   yAxisDecimals?: number;
   yAxisScaleZeros: number;
@@ -228,6 +233,7 @@ function buildSharedChartOption(args: {
     series,
     stackSeries,
     timeAxisMode,
+    timeQuantization,
     tokens,
     xAxisType,
     yAxisDecimals,
@@ -301,7 +307,7 @@ function buildSharedChartOption(args: {
         color: tokens["muted-foreground"],
         formatter:
           xAxisType === "time"
-            ? (value: string | number) => formatEChartsTimeAxisLabel(value, timeAxisMode)
+            ? (value: string | number) => formatEChartsTimeAxisLabel(value, timeAxisMode, timeQuantization)
             : (value: string | number) => formatEChartsValueAxisLabel(value),
       },
       splitLine: {
@@ -384,6 +390,7 @@ function buildSeparateAxesChartOption(args: {
   series: GraphSeries[];
   stackSeries?: boolean;
   timeAxisMode: Exclude<GraphTimeAxisMode, "auto">;
+  timeQuantization: ResolvedGraphTimeQuantization;
   tokens: Record<string, string>;
   yAxisDecimals?: number;
   yAxisScaleZeros: number;
@@ -395,6 +402,7 @@ function buildSeparateAxesChartOption(args: {
     markerSizePx,
     series,
     timeAxisMode,
+    timeQuantization,
     tokens,
     xAxisType,
     yAxisDecimals,
@@ -472,7 +480,7 @@ function buildSeparateAxesChartOption(args: {
           show: index === series.length - 1,
           formatter:
             xAxisType === "time"
-              ? (value: string | number) => formatEChartsTimeAxisLabel(value, timeAxisMode)
+              ? (value: string | number) => formatEChartsTimeAxisLabel(value, timeAxisMode, timeQuantization)
               : (value: string | number) => formatEChartsValueAxisLabel(value),
         },
         axisTick: {
@@ -572,6 +580,7 @@ export function EChartsSeriesChart({
   seriesAxisMode = "shared",
   stackSeries = false,
   timeAxisMode = "datetime",
+  timeQuantization = "auto",
   transparentSurface = false,
   updateMode = "snapshot",
   xAxisType = "time",
@@ -590,6 +599,7 @@ export function EChartsSeriesChart({
   seriesAxisMode?: GraphSeriesAxisMode;
   stackSeries?: boolean;
   timeAxisMode?: Exclude<GraphTimeAxisMode, "auto">;
+  timeQuantization?: GraphTimeQuantizationMode;
   transparentSurface?: boolean;
   updateMode?: WidgetRuntimeUpdateMode;
   xAxisType?: "time" | "value";
@@ -633,6 +643,13 @@ export function EChartsSeriesChart({
     resolvedTokens.warning,
   ]);
   const separateAxes = seriesAxisMode === "separate" && themedSeries.length > 1;
+  const resolvedTimeQuantization = useMemo(
+    () => resolveGraphTimeQuantization(
+      { provider: "echarts", timeQuantization },
+      timeAxisMode,
+    ),
+    [timeAxisMode, timeQuantization],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -688,6 +705,7 @@ export function EChartsSeriesChart({
         series: themedSeries,
         stackSeries,
         timeAxisMode,
+        timeQuantization: resolvedTimeQuantization,
         tokens: resolvedTokens,
         xAxisType,
         yAxisDecimals,
@@ -701,6 +719,7 @@ export function EChartsSeriesChart({
           series: themedSeries,
           stackSeries,
           timeAxisMode,
+          timeQuantization: resolvedTimeQuantization,
           tokens: resolvedTokens,
           xAxisType,
           yAxisDecimals,
@@ -746,6 +765,7 @@ export function EChartsSeriesChart({
     stackSeries,
     themedSeries,
     timeAxisMode,
+    resolvedTimeQuantization,
     updateMode,
     xAxisType,
     yAxisDecimals,

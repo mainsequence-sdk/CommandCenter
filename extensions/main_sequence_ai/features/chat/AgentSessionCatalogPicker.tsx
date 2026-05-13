@@ -241,7 +241,7 @@ export function AgentSessionCatalogPicker({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium text-foreground">
-                  {selectedAgent.name}
+                  {selectedAgent.displayLabel}
                 </div>
                 <div className="mt-1 truncate text-xs text-muted-foreground">
                   {buildAgentSelectionDescription(selectedAgent)}
@@ -314,7 +314,7 @@ export function AgentSessionCatalogPicker({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium text-foreground">
-                        {agent.name}
+                        {agent.displayLabel}
                       </div>
                       <div className="mt-1 truncate text-xs text-muted-foreground">
                         {buildAgentOptionDescription(agent)}
@@ -340,7 +340,7 @@ export function AgentSessionCatalogPicker({
           <div className="text-sm font-medium text-topbar-foreground">Sessions</div>
           <p className="mt-1 text-sm text-muted-foreground">
             {selectedAgent
-              ? `Recent sessions created for ${selectedAgent.name}.`
+              ? `Recent sessions created for ${selectedAgent.displayLabel}.`
               : "Select an agent to load its recent sessions."}
           </p>
         </div>

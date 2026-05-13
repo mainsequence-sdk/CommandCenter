@@ -27,6 +27,22 @@ export interface AuthDetailResponse {
   detail: string;
 }
 
+export class AuthRequestError extends Error {
+  status: number;
+  payload: unknown;
+
+  constructor(status: number, payload: unknown, message: string) {
+    super(message);
+    this.name = "AuthRequestError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
+export function isAuthRequestError(error: unknown): error is AuthRequestError {
+  return error instanceof AuthRequestError;
+}
+
 export interface SocialLoginProvidersResponse {
   providers: string[];
   provider_details?: SocialLoginProviderDetailResponse[];
@@ -147,6 +163,40 @@ export interface WebSocketTicketResponse {
 export interface CurrentUserProfilePictureResponse {
   id: number;
   profile_picture: string;
+}
+
+export interface DeleteCurrentUserAccountResponse {
+  detail: string;
+  code: "account_deleted";
+  deleted_user_id: number;
+  deleted_organization: boolean;
+}
+
+export interface DeleteCurrentUserAccountBlockingInvoice {
+  id: string;
+  status: string;
+  amount_remaining: number;
+  hosted_invoice_url: string | null;
+}
+
+export interface DeleteCurrentUserAccountOrgPolicyBlockedPayload {
+  detail: string;
+  code: "account_deletion_org_policy_blocked";
+  organization_kind: string;
+  allowed_organization_kind: string;
+}
+
+export interface DeleteCurrentUserAccountBillingDebtPayload {
+  detail: string;
+  code: "billing_debt_exists";
+  blocking_invoices: DeleteCurrentUserAccountBlockingInvoice[];
+  blocking_consumption_record_ids: number[];
+  blocking_credit_transaction_ids: number[];
+}
+
+export interface DeleteCurrentUserAccountBillingCleanupFailedPayload {
+  detail: string;
+  code: "account_deletion_billing_cleanup_failed";
 }
 
 export const DEFAULT_WEBSOCKET_TICKET_AUDIENCE = "command_center_ws";
@@ -281,7 +331,9 @@ async function requestAuthJson<T>(
   const payload = await readResponsePayload(response);
 
   if (!response.ok) {
-    throw new Error(
+    throw new AuthRequestError(
+      response.status,
+      payload,
       readErrorMessage(payload) || `Authentication request failed with ${response.status}.`,
     );
   }
@@ -399,6 +451,15 @@ export function confirmPasswordReset(input: PasswordResetConfirmInput) {
 export function requestPasswordChangeEmail() {
   return requestAuthJson<AuthDetailResponse>("/user/api/user/request-password-change/", {
     method: "POST",
+    body: JSON.stringify({}),
+  }, {
+    requiresAuth: true,
+  });
+}
+
+export function deleteCurrentUserAccount() {
+  return requestAuthJson<DeleteCurrentUserAccountResponse>("/user/api/user/delete-account/", {
+    method: "DELETE",
     body: JSON.stringify({}),
   }, {
     requiresAuth: true,

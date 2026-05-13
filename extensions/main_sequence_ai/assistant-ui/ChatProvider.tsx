@@ -29,7 +29,7 @@ import {
   resolveAgentSessionDisplayId,
   resolveAgentSessionLabel,
   resolveAgentSessionLookupId,
-  resolveAgentSessionRequestName,
+  resolveAgentSessionRequestAgentType,
   type ActiveSessionSummary,
   type AgentSessionDetailSnapshot,
 } from "../agent-session-detail/model";
@@ -52,7 +52,7 @@ import {
 import {
   clearMainSequenceAiResolvedRuntimeAccess,
   fetchMainSequenceAiAssistantResponse,
-  resolveMainSequenceAiAssistantEndpointForAgentRequestName,
+  resolveMainSequenceAiAssistantEndpointForAgentType,
 } from "../runtime/assistant-endpoint";
 import {
   createErrorAgentSessionReadiness,
@@ -74,7 +74,6 @@ import {
   createDefaultAgentSessionAgent,
   createEmptyAgentSession,
   DEFAULT_AGENT_LABEL,
-  DEFAULT_AGENT_NAME,
   promoteAgentSessionFromStream,
   readAgentSessions,
   summarizeAgentSession,
@@ -115,8 +114,8 @@ import {
 
 interface ChatFeatureContextValue {
   activeAgentLabel: string;
-  activeAgentName: string;
-  activeAgentRequestName: string;
+  activeAgentType: string;
+  activeRequestAgentType: string;
   activeSessionDetail: AgentSessionDetailSnapshot | null;
   activeSessionSummary: ActiveSessionSummary | null;
   activeSessionReadiness: AgentSessionInteractionReadiness;
@@ -478,14 +477,14 @@ function buildModelCatalogSignature({
 }
 
 function buildChatAvailableModelsCacheKey({
-  agentRequestName,
+  agentType,
   userId,
 }: {
-  agentRequestName: string | null | undefined;
+  agentType: string | null | undefined;
   userId?: string | null;
 }) {
   return buildAvailableRunConfigCacheKey({
-    agentRequestName,
+    agentType,
     userId,
   });
 }
@@ -533,9 +532,10 @@ function createFallbackAgentSessionAgentFromId({
 
   return {
     ...nextAgent,
-    name: label?.trim() || normalizedAgentId || DEFAULT_AGENT_LABEL,
-    requestName: normalizedAgentId || DEFAULT_AGENT_NAME,
-    agentUniqueId: normalizedAgentId || DEFAULT_AGENT_NAME,
+    name: label?.trim() || nextAgent.name,
+    displayLabel: label?.trim() || "",
+    requestAgentType: "",
+    agentUniqueId: normalizedAgentId,
   };
 }
 
@@ -871,12 +871,12 @@ export function ChatProvider({
     },
     [selectedSession],
   );
-  const activeAgentName = useMemo(
-    () => selectedSession?.agent?.requestName || selectedSession?.agent?.name || DEFAULT_AGENT_NAME,
+  const activeAgentType = useMemo(
+    () => selectedSession?.agent?.requestAgentType || "",
     [selectedSession],
   );
-  const activeAgentRequestName = useMemo(
-    () => resolveAgentSessionRequestName(selectedSession),
+  const activeRequestAgentType = useMemo(
+    () => resolveAgentSessionRequestAgentType(selectedSession),
     [selectedSession],
   );
   const activeAgentLabel = useMemo(
@@ -886,31 +886,31 @@ export function ChatProvider({
   const availableModelsSessionId = activeSession?.id ?? null;
   const shouldDeferSessionBoundModelLoading =
     shouldAvoidImplicitSessionSelection && !availableModelsSessionId;
-  const availableModelsAgentRequestName = useMemo(
-    () => resolveAgentSessionRequestName(activeSession ?? selectedSession),
+  const availableModelsAgentType = useMemo(
+    () => resolveAgentSessionRequestAgentType(activeSession ?? selectedSession),
     [
-      activeSession?.agent?.requestName,
+      activeSession?.agent?.requestAgentType,
       activeSession?.id,
-      selectedSession?.agent?.requestName,
+      selectedSession?.agent?.requestAgentType,
       selectedSession?.id,
     ],
   );
   const availableModelsAssistantEndpoint = useMemo(
     () =>
-      resolveMainSequenceAiAssistantEndpointForAgentRequestName(
-        availableModelsAgentRequestName,
+      resolveMainSequenceAiAssistantEndpointForAgentType(
+        availableModelsAgentType,
       ),
-    [availableModelsAgentRequestName],
+    [availableModelsAgentType],
   );
   const hasAvailableModelsSessionId = Boolean(availableModelsSessionId);
   const availableModelsCacheKey = useMemo(
     () =>
       buildChatAvailableModelsCacheKey({
-        agentRequestName: availableModelsAgentRequestName,
+        agentType: availableModelsAgentType,
         userId: sessionUserId,
       }),
     [
-      availableModelsAgentRequestName,
+      availableModelsAgentType,
       sessionUserId,
     ],
   );
@@ -2917,10 +2917,7 @@ export function ChatProvider({
                   agent: {
                     ...nextAgent,
                     id: snapshot.session.agentId ?? nextAgent.id,
-                    requestName:
-                      snapshot.session.agentName || nextAgent.requestName,
-                    name:
-                      nextAgent.name || snapshot.session.agentName || DEFAULT_AGENT_LABEL,
+                    displayLabel: nextAgent.displayLabel,
                   },
                 };
 
@@ -3070,10 +3067,10 @@ export function ChatProvider({
     fetch: async (_input, init) => {
       const activeSession = activeSessionRef.current;
       const currentSessionId = resolveAgentSessionLookupId(activeSession);
-      const requestName = resolveAgentSessionRequestName(activeSession);
+      const agentType = resolveAgentSessionRequestAgentType(activeSession);
       const { resolvedAccess, response, url } = await fetchMainSequenceAiAssistantResponse({
-        assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
-          requestName,
+        assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentType(
+          agentType,
         ),
         currentSessionId,
         requestPath: "/api/chat",
@@ -3086,7 +3083,7 @@ export function ChatProvider({
         console.info("[main_sequence_ai] /api/chat resolved endpoint", {
           assistantEndpoint: resolvedAccess.assistantEndpoint,
           mode: resolvedAccess.mode,
-          requestName,
+          agentType,
           runtimeTarget: "agent-runtime",
           sessionId: currentSessionId,
           url,
@@ -3154,7 +3151,7 @@ export function ChatProvider({
 
       return {
         ...buildAgentSessionRequestBodyFragment({
-          agentName: resolveAgentSessionRequestName(selectedSession),
+          agentType: resolveAgentSessionRequestAgentType(selectedSession),
           context: chatContext,
           newChat: isNewChatRequest,
           runConfig: selectedReasoningEffort
@@ -3167,7 +3164,7 @@ export function ChatProvider({
           threadId:
             !isNewChatRequest ? activeSession?.threadId ?? currentSessionIdRef.current : null,
           userId: sessionUserId,
-          workflowKey: activeAgentRequestName,
+          workflowKey: activeRequestAgentType,
         }),
       };
     },
@@ -3383,8 +3380,8 @@ export function ChatProvider({
 
     try {
       const cancelPromise = cancelChatSession({
-        assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentRequestName(
-          resolveAgentSessionRequestName(activeSession),
+        assistantEndpoint: resolveMainSequenceAiAssistantEndpointForAgentType(
+          resolveAgentSessionRequestAgentType(activeSession),
         ),
         body: {
           runtimeSessionId,
@@ -3545,8 +3542,8 @@ export function ChatProvider({
   const value = useMemo<ChatFeatureContextValue>(
     () => ({
       activeAgentLabel,
-      activeAgentName,
-      activeAgentRequestName,
+      activeAgentType,
+      activeRequestAgentType,
       activeSessionDetail,
       activeSessionSummary,
       activeSessionReadiness,
@@ -3600,8 +3597,8 @@ export function ChatProvider({
     }),
     [
       activeAgentLabel,
-      activeAgentName,
-      activeAgentRequestName,
+      activeAgentType,
+      activeRequestAgentType,
       activeSessionDetail,
       activeSessionSummary,
       activeSessionReadiness,

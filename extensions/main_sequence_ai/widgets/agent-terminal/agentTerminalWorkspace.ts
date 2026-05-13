@@ -14,7 +14,11 @@ export const AGENT_TERMINAL_AUTO_FOCUS_RUNTIME_KEY = "autoFocusPromptNonce";
 const AGENT_TERMINAL_SPAWN_COLS = 14;
 const AGENT_TERMINAL_SPAWN_ROWS = 16;
 
-function normalizeAgentName(value: string | null | undefined) {
+function normalizeAgentLabel(value: string | null | undefined) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeAgentType(value: string | null | undefined) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
@@ -30,30 +34,30 @@ function normalizeAgentSessionId(value: string | null | undefined) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-export function buildAgentTerminalWidgetTitle(agentName?: string | null) {
-  const normalizedAgentName = normalizeAgentName(agentName);
-  return normalizedAgentName ? `${normalizedAgentName} Terminal` : "Agent Terminal";
+export function buildAgentTerminalWidgetTitle(agentLabel?: string | null) {
+  const normalizedAgentLabel = normalizeAgentLabel(agentLabel);
+  return normalizedAgentLabel ? `${normalizedAgentLabel} Terminal` : "Agent Terminal";
 }
 
 export function buildAgentTerminalSessionWidgetTitle({
-  agentName,
+  agentLabel,
   sessionId,
 }: {
-  agentName?: string | null;
+  agentLabel?: string | null;
   sessionId?: string | null;
 }) {
-  const normalizedAgentName = normalizeAgentName(agentName);
+  const normalizedAgentLabel = normalizeAgentLabel(agentLabel);
   const normalizedSessionId = normalizeAgentSessionId(sessionId);
 
-  if (normalizedAgentName && normalizedSessionId) {
-    return `${normalizedAgentName} (${normalizedSessionId})`;
+  if (normalizedAgentLabel && normalizedSessionId) {
+    return `${normalizedAgentLabel} (${normalizedSessionId})`;
   }
 
   if (normalizedSessionId) {
     return `Agent Terminal (${normalizedSessionId})`;
   }
 
-  return buildAgentTerminalWidgetTitle(normalizedAgentName);
+  return buildAgentTerminalWidgetTitle(normalizedAgentLabel);
 }
 
 function resolveAgentTerminalWidget(dashboard: DashboardDefinition) {
@@ -121,17 +125,20 @@ export function upsertAgentTerminalWidgetForSession(
   dashboard: DashboardDefinition,
   {
     agentId,
-    agentName,
+    agentType,
+    agentLabel,
     sessionId,
   }: {
     agentId?: string | number | null;
-    agentName?: string | null;
+    agentType?: string | null;
+    agentLabel?: string | null;
     sessionId: string;
   },
 ) {
   const normalizedAgentId = normalizeAgentId(agentId);
   const normalizedSessionId = normalizeAgentSessionId(sessionId);
-  const normalizedAgentName = normalizeAgentName(agentName);
+  const normalizedAgentType = normalizeAgentType(agentType);
+  const normalizedAgentLabel = normalizeAgentLabel(agentLabel);
 
   if (!normalizedSessionId) {
     throw new Error("Agent Terminal widgets require a non-empty AgentSession id.");
@@ -139,7 +146,7 @@ export function upsertAgentTerminalWidgetForSession(
 
   const existing = findAgentTerminalWidgetForSession(dashboard, normalizedSessionId);
   const nextTitle = buildAgentTerminalSessionWidgetTitle({
-    agentName: normalizedAgentName,
+    agentLabel: normalizedAgentLabel,
     sessionId: normalizedSessionId,
   });
 
@@ -150,7 +157,8 @@ export function upsertAgentTerminalWidgetForSession(
     const nextProps = normalizeAgentTerminalWidgetProps({
       ...currentProps,
       ...(normalizedAgentId ? { agentId: normalizedAgentId } : {}),
-      ...(normalizedAgentName ? { agentName: normalizedAgentName } : {}),
+      ...(normalizedAgentType ? { agentType: normalizedAgentType } : {}),
+      ...(normalizedAgentLabel ? { agentLabel: normalizedAgentLabel } : {}),
       agentSessionId: normalizedSessionId,
     });
     const shouldUpdateTitle = existing.title !== nextTitle;
@@ -179,7 +187,8 @@ export function upsertAgentTerminalWidgetForSession(
         appendedDashboard.widgets.find((widget) => widget.id === instanceId)?.props ?? {}
       ),
       ...(normalizedAgentId ? { agentId: normalizedAgentId } : {}),
-      ...(normalizedAgentName ? { agentName: normalizedAgentName } : {}),
+      ...(normalizedAgentType ? { agentType: normalizedAgentType } : {}),
+      ...(normalizedAgentLabel ? { agentLabel: normalizedAgentLabel } : {}),
       agentSessionId: normalizedSessionId,
     }),
   });

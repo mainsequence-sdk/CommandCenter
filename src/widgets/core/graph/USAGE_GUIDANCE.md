@@ -6,7 +6,7 @@ Line, area, bar, or markers-only chart for canonical `core.tabular_frame@v1` see
 
 - Use when a tabular dataset should be rendered as a line, area, bar, or markers-only chart.
 - Use when rows can be mapped to an X field, a numeric Y field, and an optional grouping field.
-- Use when the chart needs local provider choice, chart type, stacked-vs-overlay rendering, marker size, max grouped-series count, max plotted points per series, series normalization, axis mode, Y-axis scaling/decimals/suffix, or per-series color and line-style overrides.
+- Use when the chart needs local provider choice, chart type, stacked-vs-overlay rendering, marker size, max grouped-series count, max plotted points per series, series normalization, axis mode, datetime quantization, Y-axis scaling/decimals/suffix, or per-series color and line-style overrides.
 - Use the managed connection flow when one chart should own its own query or stream without adding a visible standalone source widget to the rail.
 
 ## whenNotToUse
@@ -27,7 +27,7 @@ Line, area, bar, or markers-only chart for canonical `core.tabular_frame@v1` see
   - HTTP managed source -> `dataset` to `seedData`
   - WS managed source -> `updates` to `liveUpdates`
 - Choose X and Y fields that match the intended chart.
-- Optionally choose a grouping field, provider, chart type, shared-axis stacked mode, `Max points per series`, `Max series`, normalization, series-axis mode, and Y-axis display formatting. Leave `Normalize at` blank to rebase each series from its first visible usable point.
+- Optionally choose a grouping field, provider, chart type, shared-axis stacked mode, `Max points per series`, `Max series`, normalization, series-axis mode, `Time quantization`, and Y-axis display formatting. Leave `Normalize at` blank to rebase each series from its first visible usable point.
 - Inspect the resolved source schema before finalizing field mappings. Field pickers and chart rendering resolve from the effective seed/live state, including when those bindings point at a hidden managed source widget.
 - Settings previews, field selectors, and the mounted widget all read the same graph-normalized
   dataset frame, so chartability checks should stay consistent between authoring and runtime.
@@ -40,6 +40,8 @@ Line, area, bar, or markers-only chart for canonical `core.tabular_frame@v1` see
   `upstreamDelta`. For explicit `seedData`/`liveUpdates` bindings, the graph keeps its own bounded
   per-series queue from those publications instead of rebuilding from the source widget's retained
   stream history on every tick.
+- Graph live-update history ignores source-side merge keys such as `symbol`; source widgets can
+  retain the latest entity state while the graph appends live rows into its own time window.
 - `Max points per series` trims the rendered window and the graph's ref-backed consumer view. It
   does not delete older rows from the upstream source dataset.
 - For live stream-backed graphs, `Max points per series` behaves like a rolling queue per series:
@@ -52,9 +54,11 @@ Line, area, bar, or markers-only chart for canonical `core.tabular_frame@v1` see
 - Managed connection authoring is still not a graph runtime path. The graph renders only from resolved `seedData` and `liveUpdates` bindings, whether the hidden source is request/response or WebSocket-backed.
 - The graph does not auto-map fields from upstream time-series metadata; you must set the field mapping explicitly.
 - Ambiguous date strings can make the inferred time axis behave unexpectedly.
+- `Time axis mode` and `Time quantization` are separate controls. One chooses date vs datetime interpretation; the other controls how datetime points are bucketed before plotting.
 - Provider matters for high-frequency datetime data:
-  - ECharts keeps full millisecond points.
-  - TradingView collapses same-second datetime points to the latest point in that second.
+  - ECharts can keep raw millisecond points when `Time quantization` is `Raw`.
+  - TradingView requires at least 1-second timestamps, so `Raw` falls back to 1-second buckets on that provider.
+- Explicit quantization buckets such as `1s`, `5s`, `1m`, and `1h` apply before rendering and are chart-local; they do not mutate upstream source rows.
 - Stacked mode only applies on a shared axis and is hidden for `Markers`.
 - ECharts uses native stacked series rendering. TradingView renders the same stacked result by
   projecting cumulative shared-axis values because Lightweight Charts does not expose a stack flag.

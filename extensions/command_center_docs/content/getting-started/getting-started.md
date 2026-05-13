@@ -1,6 +1,6 @@
 # Getting Started
 
-Command Center is an application shell for building operational workflows from apps, workspaces,
+Command Center is a platform for building operational workflows from apps, workspaces,
 widgets, and connections. Use this guide when you want to understand what the product does and
 where to start.
 
@@ -11,8 +11,8 @@ where to start.
 - Widgets are reusable blocks such as tables, charts, notes, connection queries, and embedded app
   panels.
 - Connections expose external or backend-managed data sources to widgets.
-- Each application area has its own job. Read [Applications](./applications.md) when you need the
-  current shell map and the difference between applications and extensions.
+- Each application area has its own job. Use the documentation tree to open the application you are
+  working in.
 - Permissions decide which apps, surfaces, widgets, and actions a user can access.
 
 ## Recommended First Path
@@ -26,12 +26,14 @@ where to start.
 
 ## Where To Go Next
 
-- Read [Workspaces](./workspaces.md) for general-purpose operational canvases.
-- Read [Slide Studio](./slide-studio.md) for presentation decks.
-- Read [Agents Monitor](./agents-monitor.md) for session-driven AI workspaces.
-- Read [Widgets](./widgets.md) when choosing building blocks.
-- Read [Connections](./connections-app.md) when you need the admin-facing connection application.
-- Read [Permissions](./permissions.md) if an app or action is not visible.
+- Read [Workspaces](../workspaces/workspaces.md) for general-purpose operational canvases.
+- Read [Foundry](../foundry/foundry.md) for backend resource operations.
+- Read [Markets](../markets/markets.md) for asset and portfolio workflows.
+- Read [Main Sequence AI](../main-sequence-ai/main-sequence-ai.md) for assistant and agent-owned flows.
+- Read [Slide Studio](../workspaces/slide-studio.md) for presentation decks.
+- Read [Agents Monitor](../main-sequence-ai/agents-monitor.md) for session-driven AI workspaces.
+- Read [Widgets](../workspaces/widgets.md) when choosing building blocks.
+- Read `Organization Admin` when the current task is organization-scoped administration.
 
 ## What Belongs Elsewhere
 

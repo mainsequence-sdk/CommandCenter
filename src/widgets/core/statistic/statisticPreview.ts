@@ -123,6 +123,7 @@ export function resolveStatisticSettingsDataset(
 ) {
   const incrementalDataset = resolveIncrementalTabularOutputFrame({
     resolvedInputs,
+    liveMergeKeyFields: [],
   });
 
   return incrementalDataset ?? resolveStatisticSourceDataset(resolvedInputs);
@@ -142,12 +143,17 @@ export function resolveStatisticLinkedDataset(input: {
     previewDataset.rows.length === 0 &&
     Boolean(getRuntimeDataRef(previewDataset));
 
-  if (previewDataset && !previewIsEmptyRefShell) {
-    return previewDataset;
+  if (input.incrementalActive) {
+    return (
+      input.incrementalDataset ??
+      input.incrementalConsumerDataset ??
+      (previewIsEmptyRefShell ? null : previewDataset) ??
+      null
+    );
   }
 
-  if (input.incrementalActive) {
-    return input.incrementalDataset ?? input.incrementalConsumerDataset ?? previewDataset ?? null;
+  if (previewDataset && !previewIsEmptyRefShell) {
+    return previewDataset;
   }
 
   return input.sourceDataset ?? input.sourceConsumerDataset ?? previewDataset ?? null;

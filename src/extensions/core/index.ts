@@ -2,6 +2,7 @@ import {
   KeyRound,
   LayoutTemplate,
   ShieldCheck,
+  Wallet,
 } from "lucide-react";
 
 import type { AppExtension } from "@/app/registry/types";
@@ -20,6 +21,7 @@ import { AdminLoginSessionsPage } from "@/extensions/core/apps/admin/AdminLoginS
 import { AdminManageCreditsPage } from "@/extensions/core/apps/admin/AdminManageCreditsPage";
 import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOrganizationUsersPage";
 import { AdminWidgetConfigurationsPage } from "@/extensions/core/apps/admin/AdminWidgetConfigurationsPage";
+import { UserCreditsSettingsSection } from "@/extensions/core/UserCreditsSettingsSection";
 import { SavedWidgetsPage } from "@/features/dashboards/SavedWidgetsPage";
 import { SlideStudioPage } from "@/features/dashboards/SlideStudioPage";
 import { WorkspacesPage } from "@/features/dashboards/WorkspacesPage";
@@ -48,7 +50,7 @@ import { tableWidget } from "@/widgets/core/table/definition";
 import { workspaceRowWidget } from "@/widgets/core/workspace-row/definition";
 import { workspaceSlideWidget } from "@/widgets/core/workspace-slide/definition";
 
-const workspaceStudioApp: AppDefinition = {
+export const workspaceStudioApp: AppDefinition = {
   id: "workspace-studio",
   title: "Workspaces",
   description: "User-scoped workspace builder with local development persistence.",
@@ -237,7 +239,41 @@ const workspaceStudioApp: AppDefinition = {
   ],
 };
 
-const adminApp: AppDefinition = {
+function HiddenShellSettingsHostPage() {
+  return null;
+}
+
+const shellSettingsHostApp: AppDefinition = {
+  id: "shell-settings-host",
+  title: "Shell Settings",
+  description: "Internal host for shared shell settings contributions.",
+  source: "core",
+  icon: KeyRound,
+  defaultSurfaceId: "hidden",
+  shellMenuContributions: [
+    {
+      id: "user-credits",
+      audience: "user",
+      label: "Credits & Billing",
+      description: "Review your personal credit balance and current spending policy.",
+      icon: Wallet,
+      order: 30,
+      component: UserCreditsSettingsSection,
+    },
+  ],
+  surfaces: [
+    {
+      id: "hidden",
+      title: "Hidden",
+      description: "Internal host surface for shell settings contributions.",
+      kind: "page",
+      hidden: true,
+      component: HiddenShellSettingsHostPage,
+    },
+  ],
+};
+
+export const adminApp: AppDefinition = {
   id: "admin",
   title: "Organization Admin",
   description: "Organization-scoped administration for users, plans, billing, and provider integrations.",
@@ -424,14 +460,14 @@ const adminApp: AppDefinition = {
       id: "manage-credits",
       title: "Manage Credits",
       navLabel: "Manage Credits",
-      description: "Review organization credit balance and current credit auto-reload settings.",
+      description: "Review organization credit balance, auto-reload settings, and user budget allocations.",
       ...defineSurfaceAssistantContext({
         summary:
-          "User is on Manage Credits. This page is intended for reviewing organization prepaid credits and current auto-reload state.",
+          "User is on Manage Credits. This page is intended for reviewing organization prepaid credits, auto-reload state, and user budget allocations.",
         availableActions: [
           "Review organization credit balance",
           "Inspect auto-reload status",
-          "Check whether spendable credits are available",
+          "Allocate or update per-user credit budgets",
         ],
       }),
       kind: "page",
@@ -469,7 +505,7 @@ const accessTeamsSection = {
   order: 35,
 };
 
-const accessRbacApp: AppDefinition = {
+export const accessRbacApp: AppDefinition = {
   id: "access-rbac",
   title: "Access & RBAC",
   description: "Organization access governance for policy review, assignments, inspection, and entitlement coverage.",
@@ -618,7 +654,7 @@ const coreExtension: AppExtension = {
     workspaceRowWidget,
     workspaceSlideWidget,
   ],
-  apps: [workspaceStudioApp, adminApp, accessRbacApp],
+  apps: [workspaceStudioApp, shellSettingsHostApp, adminApp, accessRbacApp],
   themes: [
     mainSequenceSpaceTheme,
     mainSequenceTheme,

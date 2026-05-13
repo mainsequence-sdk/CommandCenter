@@ -1,25 +1,25 @@
 import type { AgentSearchResult } from "../../agent-search";
 
-export const AGENT_TERMINAL_ALLOWED_AGENT_REQUEST_NAMES = ["astro-orchestrator"] as const;
+export const AGENT_TERMINAL_ALLOWED_AGENT_TYPES = ["astro-orchestrator"] as const;
 
-function normalizeAgentName(value: string | null | undefined) {
+function normalizeAgentType(value: string | null | undefined) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-export function isAgentTerminalAllowedAgentName(value: string | null | undefined) {
-  const normalized = normalizeAgentName(value);
+export function isAgentTerminalAllowedAgentType(value: string | null | undefined) {
+  const normalized = normalizeAgentType(value);
 
   if (!normalized) {
     return false;
   }
 
-  return AGENT_TERMINAL_ALLOWED_AGENT_REQUEST_NAMES.includes(
-    normalized as (typeof AGENT_TERMINAL_ALLOWED_AGENT_REQUEST_NAMES)[number],
+  return AGENT_TERMINAL_ALLOWED_AGENT_TYPES.includes(
+    normalized as (typeof AGENT_TERMINAL_ALLOWED_AGENT_TYPES)[number],
   );
 }
 
-export function isAgentTerminalAllowedAgent(agent: Pick<AgentSearchResult, "name">) {
-  return isAgentTerminalAllowedAgentName(agent.name);
+export function isAgentTerminalAllowedAgent(agent: Pick<AgentSearchResult, "agentType">) {
+  return isAgentTerminalAllowedAgentType(agent.agentType);
 }
 
 export function filterAgentTerminalAllowedAgents(agents: readonly AgentSearchResult[]) {
@@ -27,5 +27,5 @@ export function filterAgentTerminalAllowedAgents(agents: readonly AgentSearchRes
 }
 
 export function getAgentTerminalAllowedAgentsLabel() {
-  return AGENT_TERMINAL_ALLOWED_AGENT_REQUEST_NAMES.join(", ");
+  return AGENT_TERMINAL_ALLOWED_AGENT_TYPES.join(", ");
 }

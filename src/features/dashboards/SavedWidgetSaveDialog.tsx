@@ -20,6 +20,8 @@ import {
   createSavedWidgetGroupInBackend,
   createSavedWidgetInstanceInBackend,
   hasConfiguredSavedWidgetsBackend,
+  syncSavedWidgetGroupLabels,
+  syncSavedWidgetInstanceLabels,
 } from "./saved-widgets-api";
 
 function parseLabels(rawValue: string) {
@@ -102,7 +104,21 @@ export function SavedWidgetSaveDialog({
           throw new Error("Unable to build the saved widget group payload.");
         }
 
-        return createSavedWidgetGroupInBackend(payload);
+        const createdGroup = await createSavedWidgetGroupInBackend(payload);
+        let labelSyncError: string | null = null;
+
+        if (labels.length > 0) {
+          try {
+            await syncSavedWidgetGroupLabels(createdGroup.id, labels);
+          } catch (error) {
+            labelSyncError = error instanceof Error ? error.message : "Unknown label sync error.";
+          }
+        }
+
+        return {
+          kind: "group" as const,
+          labelSyncError,
+        };
       }
 
       const payload = buildSavedWidgetInstancePayloadFromDashboard(dashboard, instanceId, {
@@ -115,15 +131,41 @@ export function SavedWidgetSaveDialog({
         throw new Error("Unable to build the saved widget payload.");
       }
 
-      return createSavedWidgetInstanceInBackend(payload);
+      const createdWidget = await createSavedWidgetInstanceInBackend(payload);
+      let labelSyncError: string | null = null;
+
+      if (labels.length > 0) {
+        try {
+          await syncSavedWidgetInstanceLabels(createdWidget.id, labels);
+        } catch (error) {
+          labelSyncError = error instanceof Error ? error.message : "Unknown label sync error.";
+        }
+      }
+
+      return {
+        kind: "widget" as const,
+        labelSyncError,
+      };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ["saved-widgets", "instances"] });
       void queryClient.invalidateQueries({ queryKey: ["saved-widgets", "groups"] });
-      toast({
-        title: saveMode === "group" ? "Saved widget group created" : "Saved widget created",
-        variant: "success",
-      });
+
+      if (result.labelSyncError) {
+        toast({
+          title: result.kind === "group"
+            ? "Saved widget group created with label sync warning"
+            : "Saved widget created with label sync warning",
+          description: result.labelSyncError,
+          variant: "error",
+        });
+      } else {
+        toast({
+          title: saveMode === "group" ? "Saved widget group created" : "Saved widget created",
+          variant: "success",
+        });
+      }
+
       onClose();
     },
     onError: (error) => {

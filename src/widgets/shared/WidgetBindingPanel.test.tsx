@@ -325,6 +325,10 @@ function getApplyBindingsButton(container: HTMLElement) {
   return findButtonByText(container, "Apply bindings");
 }
 
+function getResetBindingsButton(container: HTMLElement) {
+  return findButtonByText(container, "Reset bindings");
+}
+
 function getSourceWidgetValue(container: HTMLElement) {
   return getSourceWidgetTrigger(container)?.textContent ?? "";
 }
@@ -581,6 +585,47 @@ describe("WidgetBindingPanel", () => {
         sourceOutputId: "dataset",
       },
     });
+  });
+
+  it("lets users reset an already committed binding", async () => {
+    const harness = createHarness(
+      buildWidgets({
+        consumerBindings: {
+          sourceData: {
+            sourceWidgetId: "http-1",
+            sourceOutputId: "dataset",
+          },
+        },
+      }),
+    );
+    harnesses.push(harness);
+
+    await harness.render(
+      buildWidgets({
+        consumerBindings: {
+          sourceData: {
+            sourceWidgetId: "http-1",
+            sourceOutputId: "dataset",
+          },
+        },
+      }),
+    );
+
+    const resetButton = getResetBindingsButton(harness.container) as HTMLButtonElement | null;
+    expect(resetButton?.disabled).toBe(false);
+
+    await act(async () => {
+      click(resetButton);
+    });
+
+    const applyButton = getApplyBindingsButton(harness.container) as HTMLButtonElement | null;
+    expect(applyButton?.disabled).toBe(false);
+
+    await act(async () => {
+      click(applyButton);
+    });
+
+    expect(harness.getLatestBindings()).toBeUndefined();
   });
 
   it("keeps secondary websocket sources selectable after another websocket source goes live", async () => {

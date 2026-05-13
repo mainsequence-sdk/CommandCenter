@@ -40,6 +40,7 @@ export function ConnectionQueryWidgetSettings({
       connectionPathSettings={useTypedQueryEditor ? undefined : (
         <WidgetSchemaForm
           widget={widget}
+          instanceId={instanceId}
           draftProps={draftProps}
           onDraftPropsChange={onDraftPropsChange}
           draftPresentation={draftPresentation}

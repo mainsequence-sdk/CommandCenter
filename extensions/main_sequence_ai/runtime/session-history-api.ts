@@ -10,7 +10,6 @@ function createEmptySessionHistorySnapshot(sessionId: string): SessionHistorySna
   const session: SessionHistoryApiSession = {
     sessionId,
     threadId: null,
-    agentName: "",
     agentId: null,
     agentSessionId: sessionId,
     status: "completed",

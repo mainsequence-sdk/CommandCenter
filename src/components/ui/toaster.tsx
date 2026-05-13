@@ -26,6 +26,9 @@ interface ToastState {
   dismiss: (id: string) => void;
 }
 
+const DEFAULT_TOAST_DURATION_MS = 4500;
+const ERROR_TOAST_DURATION_MS = 9000;
+
 const toastTimeouts = new Map<string, number>();
 
 function dismissToast(id: string) {
@@ -41,7 +44,15 @@ function dismissToast(id: string) {
   }));
 }
 
-function scheduleToastDismiss(id: string, duration = 4500) {
+function resolveToastDuration(input: ToastInput) {
+  if (typeof input.duration === "number") {
+    return input.duration;
+  }
+
+  return input.variant === "error" ? ERROR_TOAST_DURATION_MS : DEFAULT_TOAST_DURATION_MS;
+}
+
+function scheduleToastDismiss(id: string, duration = DEFAULT_TOAST_DURATION_MS) {
   if (typeof window === "undefined" || duration <= 0) {
     return;
   }
@@ -78,7 +89,7 @@ export const useToastStore = create<ToastState>((set) => ({
       toasts: [...current.toasts, nextToast].slice(-5),
     }));
 
-    scheduleToastDismiss(id, input.duration);
+    scheduleToastDismiss(id, resolveToastDuration(input));
 
     return id;
   },
