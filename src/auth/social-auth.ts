@@ -215,33 +215,15 @@ export async function createSocialAuthStartRequest(input: {
 export function parseSocialAuthCallback(searchParams: URLSearchParams): SocialAuthCallbackPayload {
   const state = readString(searchParams.get("state"));
 
-  const error = readString(searchParams.get("error"));
-  if (error) {
-    const errorCode = readString(searchParams.get("error_code")) || error;
-    const errorDescription =
-      readString(searchParams.get("error_description")) ||
-      readString(searchParams.get("message")) ||
-      readString(searchParams.get("detail"));
-    const errorLabel =
-      errorCode === error ? errorCode : `${errorCode} (${error})`;
-    return {
-      type: "error",
-      state,
-      error,
-      errorCode,
-      errorDescription: errorDescription || undefined,
-      detail: errorDescription
-        ? `Social sign-in failed: ${errorLabel}. ${errorDescription}`
-        : `Social sign-in failed: ${errorLabel}.`,
-    };
-  }
-
   const signupStatus = readString(searchParams.get("signup_status"));
-  if (signupStatus === "waitlisted") {
-    const signupCode = readString(searchParams.get("signup_code"));
+  const signupCode = readString(searchParams.get("signup_code"));
+  if (signupStatus === "waitlisted" && signupCode === "signup_waitlisted") {
     const waitlistStatus = readString(searchParams.get("waitlist_status"));
     const waitlistEntryId = readString(searchParams.get("waitlist_entry_id"));
-    const email = readString(searchParams.get("email"));
+    const rawEmail = readString(searchParams.get("email"));
+    const email = rawEmail.toLowerCase().endsWith("@no-email.main-sequence.io")
+      ? ""
+      : rawEmail;
     const detail = readString(searchParams.get("message"));
 
     if (!state || !detail) {
@@ -254,27 +236,11 @@ export function parseSocialAuthCallback(searchParams: URLSearchParams): SocialAu
     return {
       type: "waitlisted",
       state,
-      signupCode: signupCode || "signup_waitlisted",
+      signupCode,
       waitlistStatus: waitlistStatus || "waiting",
       waitlistEntryId,
       email: email || undefined,
       detail,
-    };
-  }
-
-  const code = readString(searchParams.get("code"));
-  if (code) {
-    if (!state) {
-      return {
-        type: "invalid",
-        detail: "Social sign-in returned a code without the required state value.",
-      };
-    }
-
-    return {
-      type: "code",
-      code,
-      state,
     };
   }
 
@@ -313,6 +279,43 @@ export function parseSocialAuthCallback(searchParams: URLSearchParams): SocialAu
       setupToken,
       setupUrl,
       setupVerifyUrl,
+    };
+  }
+
+  const code = readString(searchParams.get("code"));
+  if (code) {
+    if (!state) {
+      return {
+        type: "invalid",
+        detail: "Social sign-in returned a code without the required state value.",
+      };
+    }
+
+    return {
+      type: "code",
+      code,
+      state,
+    };
+  }
+
+  const error = readString(searchParams.get("error"));
+  if (error) {
+    const errorCode = readString(searchParams.get("error_code")) || error;
+    const errorDescription =
+      readString(searchParams.get("error_description")) ||
+      readString(searchParams.get("message")) ||
+      readString(searchParams.get("detail"));
+    const errorLabel =
+      errorCode === error ? errorCode : `${errorCode} (${error})`;
+    return {
+      type: "error",
+      state,
+      error,
+      errorCode,
+      errorDescription: errorDescription || undefined,
+      detail: errorDescription
+        ? `Social sign-in failed: ${errorLabel}. ${errorDescription}`
+        : `Social sign-in failed: ${errorLabel}.`,
     };
   }
 

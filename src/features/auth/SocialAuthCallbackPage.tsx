@@ -46,6 +46,13 @@ interface SocialWaitlistRegistration {
   waitlistEntryId: string;
 }
 
+interface SocialCallbackErrorDetails {
+  error: string;
+  errorCode: string;
+  state: string;
+  errorDescription?: string;
+}
+
 function normalizeMfaCode(value: string) {
   return value.replace(/\D/g, "").slice(0, 6);
 }
@@ -74,6 +81,8 @@ export function SocialAuthCallbackPage() {
   const [mfaSetupChallenge, setMfaSetupChallenge] = useState<SocialMfaSetupChallenge | null>(null);
   const [waitlistRegistration, setWaitlistRegistration] =
     useState<SocialWaitlistRegistration | null>(null);
+  const [callbackErrorDetails, setCallbackErrorDetails] =
+    useState<SocialCallbackErrorDetails | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +91,7 @@ export function SocialAuthCallbackPage() {
       const callbackPayload = parseSocialAuthCallback(new URLSearchParams(location.search));
 
       if (callbackPayload.type === "invalid") {
+        setCallbackErrorDetails(null);
         setCallbackError(callbackPayload.detail);
         setUiState("error");
         return;
@@ -101,31 +111,36 @@ export function SocialAuthCallbackPage() {
       }
 
       if (callbackPayload.type === "error") {
+        setCallbackErrorDetails({
+          error: callbackPayload.error,
+          errorCode: callbackPayload.errorCode,
+          state: callbackPayload.state,
+          errorDescription: callbackPayload.errorDescription,
+        });
         console.error("[social-auth-callback]", {
           error: callbackPayload.error,
           errorCode: callbackPayload.errorCode,
           errorDescription: callbackPayload.errorDescription,
           hasState: Boolean(callbackPayload.state),
         });
+        clearPendingSocialAuthSession();
+        setPendingSession(null);
+        setCallbackError(callbackPayload.detail);
+        setUiState("error");
+        return;
       }
 
       const pending = readPendingSocialAuthSession();
 
       if (!pending || pending.state !== callbackPayload.state) {
         clearPendingSocialAuthSession();
+        setCallbackErrorDetails(null);
         setCallbackError("Social sign-in state is missing or expired. Start again from the login page.");
         setUiState("error");
         return;
       }
 
       setPendingSession(pending);
-
-      if (callbackPayload.type === "error") {
-        clearPendingSocialAuthSession();
-        setCallbackError(callbackPayload.detail);
-        setUiState("error");
-        return;
-      }
 
       if (callbackPayload.type === "code") {
         const didLogin = await completeSocialLogin({
@@ -146,6 +161,7 @@ export function SocialAuthCallbackPage() {
         }
 
         clearPendingSocialAuthSession();
+        setCallbackErrorDetails(null);
         setCallbackError(
           useAuthStore.getState().error || "Unable to complete social sign-in.",
         );
@@ -182,6 +198,7 @@ export function SocialAuthCallbackPage() {
         }
 
         setCallbackError(readErrorMessage(error));
+        setCallbackErrorDetails(null);
         setUiState("error");
       }
     }
@@ -198,6 +215,7 @@ export function SocialAuthCallbackPage() {
 
     if (!mfaVerifyUrl) {
       setCallbackError("MFA verification URL is missing.");
+      setCallbackErrorDetails(null);
       setUiState("error");
       return;
     }
@@ -414,6 +432,19 @@ export function SocialAuthCallbackPage() {
                 <div className="rounded-[calc(var(--radius)-6px)] border border-destructive/40 bg-destructive/8 px-3 py-3 text-sm text-destructive">
                   {callbackError || "The social login callback could not be completed."}
                 </div>
+                {callbackErrorDetails ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/45 px-3 py-3 text-xs text-muted-foreground">
+                    <div>
+                      Error: <span className="font-mono text-foreground">{callbackErrorDetails.error}</span>
+                    </div>
+                    <div className="mt-1">
+                      Code: <span className="font-mono text-foreground">{callbackErrorDetails.errorCode}</span>
+                    </div>
+                    <div className="mt-1">
+                      State: <span className="font-mono text-foreground">{callbackErrorDetails.state || "missing"}</span>
+                    </div>
+                  </div>
+                ) : null}
                 <Button type="button" className="w-full" onClick={returnToLogin}>
                   Back to sign in
                 </Button>
@@ -432,6 +463,18 @@ export function SocialAuthCallbackPage() {
                       {waitlistRegistration.email}
                     </div>
                   ) : null}
+                  <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
+                    {waitlistRegistration?.waitlistStatus ? (
+                      <div>
+                        Status: <span className="font-mono text-foreground">{waitlistRegistration.waitlistStatus}</span>
+                      </div>
+                    ) : null}
+                    {waitlistRegistration?.waitlistEntryId ? (
+                      <div>
+                        Entry ID: <span className="font-mono text-foreground">{waitlistRegistration.waitlistEntryId}</span>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
                 <Button type="button" className="w-full" onClick={returnToLogin}>
                   Back to sign in

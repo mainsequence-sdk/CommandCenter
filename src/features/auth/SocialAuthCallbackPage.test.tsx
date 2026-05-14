@@ -116,4 +116,42 @@ describe("SocialAuthCallbackPage", () => {
     expect(completeSocialLogin).not.toHaveBeenCalled();
     expect(applyJwtResponse).not.toHaveBeenCalled();
   });
+
+  it("treats waitlist callback as terminal even when provider error fields are present", async () => {
+    const completeSocialLogin = vi.fn().mockResolvedValue(true);
+    const applyJwtResponse = vi.fn().mockResolvedValue(true);
+
+    useAuthStore.setState({
+      completeSocialLogin,
+      applyJwtResponse,
+    });
+
+    await act(async () => {
+      root.render(
+        <CommandCenterConfigProvider>
+          <ThemeProvider>
+            <MemoryRouter
+              initialEntries={[
+                "/auth/callback?signup_status=waitlisted&signup_code=signup_waitlisted&waitlist_status=waiting&waitlist_entry_id=42&email=github_123%40no-email.main-sequence.io&message=Thank%20you%20for%20registering.&error=social_auth_failed&error_code=unknown&state=abc123",
+              ]}
+            >
+              <Routes>
+                <Route path="/auth/callback" element={<SocialAuthCallbackPage />} />
+              </Routes>
+            </MemoryRouter>
+          </ThemeProvider>
+        </CommandCenterConfigProvider>,
+      );
+      await flushEffects();
+    });
+
+    expect(container.textContent).toContain("Waitlist confirmed");
+    expect(container.textContent).toContain("Thank you for registering.");
+    expect(container.textContent).toContain("Status:");
+    expect(container.textContent).toContain("Entry ID:");
+    expect(container.textContent).not.toContain("Social sign-in failed");
+    expect(container.textContent).not.toContain("@no-email.main-sequence.io");
+    expect(completeSocialLogin).not.toHaveBeenCalled();
+    expect(applyJwtResponse).not.toHaveBeenCalled();
+  });
 });

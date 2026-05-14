@@ -149,6 +149,56 @@ describe("social auth provider discovery", () => {
 });
 
 describe("social auth callback parsing", () => {
+  it("prioritizes waitlist callbacks over provider error fields", () => {
+    expect(
+      parseSocialAuthCallback(
+        new URLSearchParams(
+          "?signup_status=waitlisted&signup_code=signup_waitlisted&waitlist_status=waiting&waitlist_entry_id=42&email=user@example.com&message=Thank%20you&error=social_auth_failed&error_code=unknown&state=waitlist-state",
+        ),
+      ),
+    ).toEqual({
+      type: "waitlisted",
+      state: "waitlist-state",
+      signupCode: "signup_waitlisted",
+      waitlistStatus: "waiting",
+      waitlistEntryId: "42",
+      email: "user@example.com",
+      detail: "Thank you",
+    });
+  });
+
+  it("hides synthetic provider emails from waitlist callbacks", () => {
+    expect(
+      parseSocialAuthCallback(
+        new URLSearchParams(
+          "?signup_status=waitlisted&signup_code=signup_waitlisted&waitlist_status=waiting&waitlist_entry_id=42&email=github_123%40no-email.main-sequence.io&message=Thank%20you&state=waitlist-state",
+        ),
+      ),
+    ).toEqual({
+      type: "waitlisted",
+      state: "waitlist-state",
+      signupCode: "signup_waitlisted",
+      waitlistStatus: "waiting",
+      waitlistEntryId: "42",
+      email: undefined,
+      detail: "Thank you",
+    });
+  });
+
+  it("prioritizes MFA callbacks over provider error fields", () => {
+    expect(
+      parseSocialAuthCallback(
+        new URLSearchParams(
+          "?mfa_required=true&mfa_verify_url=http://localhost:8000/auth/browser/mfa/verify/&error=social_auth_failed&error_code=unknown&state=mfa-state",
+        ),
+      ),
+    ).toEqual({
+      type: "mfa_required",
+      state: "mfa-state",
+      mfaVerifyUrl: "http://localhost:8000/auth/browser/mfa/verify/",
+    });
+  });
+
   it("parses a successful code callback", () => {
     expect(
       parseSocialAuthCallback(new URLSearchParams("?code=abc123&state=state-social")),

@@ -14,8 +14,9 @@ This feature owns unauthenticated sign-in and password-reset entry points for th
 
 - The reset flow uses `/user/api/user/password-reset/`, `/validate/`, and `/confirm/`.
 - The login screen now discovers visible social providers from `GET /auth/social/providers/`
-  and uses `provider_details[].start_action.url` as the preferred backend-owned entry point for
-  each provider, falling back to `provider_details[].start_url` only for older responses.
+  and uses `provider_details[].start_action.url` as the backend-owned entry point for each social
+  provider. It must not reconstruct provider start URLs or fall back to `/user/allauth/`,
+  `/auth/social/{provider}/callback/`, or backend-root URLs.
 - Email signup availability also comes from that same discovery payload. The frontend must not
   render self-service signup unless `provider_details[]` contains `id === "email"` with
   `kind === "email_signup"`.
@@ -39,8 +40,11 @@ This feature owns unauthenticated sign-in and password-reset entry points for th
   exchanges the short-lived code at `POST /auth/social/token/`, then persists the standard local
   JWT session bundle used by password login.
 - The same callback route also handles social-signup waitlist redirects. When the backend returns
-  `signup_status=waitlisted`, the frontend must show the backend message, must not call
-  `/auth/social/token/`, and must not treat the callback as a login success or as an error.
+  `signup_status=waitlisted` with `signup_code=signup_waitlisted`, the frontend must show the
+  backend message, must not call `/auth/social/token/`, and must not treat the callback as a login
+  success or as an error. The callback parser intentionally prioritizes waitlist first, then MFA,
+  then code exchange, then provider error fields, and it hides synthetic
+  `@no-email.main-sequence.io` emails.
 - Social MFA continuation is browser-session based: `mfa_required` callbacks post to
   `/auth/browser/mfa/verify/` with browser credentials, while `mfa_setup_required` callbacks use
   `/user/api/user/mfa/setup/` and `/user/api/user/mfa/setup/verify/`, then follow the returned

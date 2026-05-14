@@ -17,9 +17,10 @@ Shared authentication client code for Command Center.
 
 - Keep `api.ts` endpoint helpers aligned with backend auth route semantics instead of deriving
   ad hoc URLs in UI components.
-- Social provider discovery is action-driven. Prefer `provider_details[].start_action.url` and
+- Social provider discovery is action-driven. Use `provider_details[].start_action.url` and
   `flow.token_exchange_action.url`, keep `provider_details[].oauth_callback_url` as OAuth-provider
-  registration metadata only, and never route the frontend social flow through `/user/allauth/`.
+  registration metadata only, and never route the frontend social flow through `/user/allauth/`,
+  `/auth/social/{provider}/callback/`, or backend-root URLs.
 - The same discovery payload is also the source of truth for email signup. Only expose self-service
   signup when `provider_details[]` includes the `email` provider with `kind: email_signup`, and
   use the returned submit/verify/resend action URLs instead of reconstructing `/auth/signup/...`

@@ -455,15 +455,11 @@ export async function listSocialLoginProviders() {
       return Boolean(
         provider &&
           typeof provider.id === "string" &&
-          (typeof provider.start_action?.url === "string" ||
-            typeof provider.start_url === "string"),
+          typeof provider.start_action?.url === "string",
       );
     })
     .map((provider) => {
-      const startUrl =
-        readActionUrl(provider.start_action, "GET") ||
-        readActionUrl(provider.submit_action, "POST") ||
-        (typeof provider.start_url === "string" ? provider.start_url.trim() : "");
+      const startUrl = readActionUrl(provider.start_action, "GET");
 
       return {
         id: provider.id.trim(),
