@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import {
   getEmailSignupConstructionMaterial,
+  joinWaitlistEmail,
   listSocialLoginProviders,
   resendEmailSignup,
   submitEmailSignup,
@@ -91,6 +92,9 @@ export function LoginPage() {
   const [signupPendingEmail, setSignupPendingEmail] = useState("");
   const [signupNotice, setSignupNotice] = useState<string | null>(null);
   const [signupError, setSignupError] = useState<string | null>(null);
+  const [waitlistEmail, setWaitlistEmail] = useState("");
+  const [waitlistNotice, setWaitlistNotice] = useState<string | null>(null);
+  const [waitlistError, setWaitlistError] = useState<string | null>(null);
   const [socialAuthError, setSocialAuthError] = useState<string | null>(null);
   const [activeSocialProviderId, setActiveSocialProviderId] = useState<string | null>(null);
   const accountDeleted = useMemo(
@@ -130,6 +134,7 @@ export function LoginPage() {
             ? "Verify code"
             : "Sign in";
   const visibleError = socialAuthError ?? error;
+  const canJoinWaitlist = Boolean(waitlistEmail.trim());
 
   const socialProvidersQuery = useQuery({
     queryKey: ["auth", "social-providers"],
@@ -234,6 +239,27 @@ export function LoginPage() {
       );
     },
   });
+  const waitlistEmailMutation = useMutation({
+    mutationFn: () =>
+      joinWaitlistEmail({
+        email: waitlistEmail.trim(),
+      }),
+    onSuccess: (result) => {
+      setWaitlistNotice(
+        result.message?.trim() ||
+          (result.created
+            ? "You are on the waitlist."
+            : "That email is already on the waitlist."),
+      );
+      setWaitlistError(null);
+    },
+    onError: (error) => {
+      setWaitlistNotice(null);
+      setWaitlistError(
+        error instanceof Error ? error.message : "Unable to join the waitlist.",
+      );
+    },
+  });
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -299,6 +325,14 @@ export function LoginPage() {
           : "Unable to start social sign-in.",
       );
     }
+  }
+
+  function submitWaitlistEmail() {
+    if (!canJoinWaitlist || waitlistEmailMutation.isPending) {
+      return;
+    }
+
+    void waitlistEmailMutation.mutateAsync();
   }
 
   function resetChallengeAndInputs() {
@@ -550,7 +584,8 @@ export function LoginPage() {
                       </Button>
                     ) : null}
 
-                    {showSocialLoginSection && visibleSocialProviders.length > 0 ? (
+                    {showSocialLoginSection &&
+                    (visibleSocialProviders.length > 0 || emailSignupProvider) ? (
                       <>
                         <div className="flex items-center gap-3 py-1">
                           <Separator className="flex-1" />
@@ -585,19 +620,80 @@ export function LoginPage() {
                               </Button>
                             );
                           })}
+
+                          {emailSignupProvider ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="w-full justify-start"
+                              disabled={isSubmitting || activeSocialProviderId !== null}
+                              onClick={openSignupView}
+                            >
+                              <SocialProviderIcon providerId="email" className="h-4 w-4" />
+                              <span>Create Account with email</span>
+                            </Button>
+                          ) : null}
                         </div>
                       </>
                     ) : null}
 
-                    {showSocialLoginSection && emailSignupProvider ? (
-                      <div className="pt-2 text-center">
-                        <button
-                          type="button"
-                          className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
-                          onClick={openSignupView}
-                        >
-                          Create account with email
-                        </button>
+                    {showSocialLoginSection ? (
+                      <div className="space-y-2 pt-2">
+                        <div className="flex items-center gap-3 py-1">
+                          <Separator className="flex-1" />
+                          <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                            Waitlist
+                          </span>
+                          <Separator className="flex-1" />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Input
+                            type="email"
+                            value={waitlistEmail}
+                            onChange={(event) => {
+                              setWaitlistEmail(event.target.value);
+                              setWaitlistNotice(null);
+                              setWaitlistError(null);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") {
+                                event.preventDefault();
+                                submitWaitlistEmail();
+                              }
+                            }}
+                            placeholder="person@example.com"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            autoComplete="email"
+                            spellCheck={false}
+                            disabled={waitlistEmailMutation.isPending}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            disabled={!canJoinWaitlist || waitlistEmailMutation.isPending}
+                            onClick={submitWaitlistEmail}
+                          >
+                            {waitlistEmailMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : null}
+                            Join the Waitlist!
+                          </Button>
+                        </div>
+
+                        {waitlistNotice ? (
+                          <div className="rounded-[calc(var(--radius)-6px)] border border-success/35 bg-success/10 px-3 py-2 text-sm text-success">
+                            {waitlistNotice}
+                          </div>
+                        ) : null}
+
+                        {waitlistError ? (
+                          <div className="rounded-[calc(var(--radius)-6px)] border border-destructive/40 bg-destructive/8 px-3 py-2 text-sm text-destructive">
+                            {waitlistError}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </form>

@@ -72,7 +72,7 @@ export function ResetPasswordPage() {
             <div className="space-y-2">
               <div className="flex justify-center">
                 <Badge variant="neutral">
-                  {hasResetToken ? "Reset password" : "Forgot password"}
+                  {hasResetToken ? "Reset password" : "Change your password"}
                 </Badge>
               </div>
               <CardTitle className="text-2xl">

@@ -296,6 +296,17 @@ export interface EmailSignupResendResponse {
   verification_required?: boolean;
 }
 
+export interface WaitlistEmailInput {
+  email: string;
+}
+
+export interface WaitlistEmailResponse {
+  email: string;
+  created_at: string;
+  created: boolean;
+  message?: string;
+}
+
 export const DEFAULT_WEBSOCKET_TICKET_AUDIENCE = "command_center_ws";
 
 async function readResponsePayload(response: Response) {
@@ -625,6 +636,13 @@ export function verifyEmailSignup(url: string, input: EmailSignupVerifyInput) {
 
 export function resendEmailSignup(url: string, input: EmailSignupResendInput) {
   return requestAuthJson<EmailSignupResendResponse>(url, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function joinWaitlistEmail(input: WaitlistEmailInput) {
+  return requestAuthJson<WaitlistEmailResponse>("/user/api/waitlist-email/", {
     method: "POST",
     body: JSON.stringify(input),
   });

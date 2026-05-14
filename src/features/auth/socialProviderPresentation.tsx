@@ -1,4 +1,4 @@
-import { Github, Globe } from "lucide-react";
+import { Github, Globe, Mail } from "lucide-react";
 
 function GoogleIcon({ className }: { className?: string }) {
   return (
@@ -39,6 +39,10 @@ export function formatSocialProviderName(providerId: string) {
     return "Google";
   }
 
+  if (normalizedProviderId === "email") {
+    return "Email";
+  }
+
   return normalizedProviderId
     .split(/[\s_-]+/)
     .filter(Boolean)
@@ -61,6 +65,10 @@ export function SocialProviderIcon({
 
   if (normalizedProviderId === "github") {
     return <Github className={className} />;
+  }
+
+  if (normalizedProviderId === "email") {
+    return <Mail className={className} />;
   }
 
   return <Globe className={className} />;
