@@ -373,10 +373,7 @@ export function LoginPage() {
             {isAuthBootstrapLoading ? (
               <div className="flex min-h-72 flex-col items-center justify-center gap-3 text-center">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <div className="text-sm font-medium text-foreground">Loading sign-in options</div>
-                <div className="max-w-xs text-sm text-muted-foreground">
-                  Waiting for the authentication backend to return the available sign-in methods.
-                </div>
+                <div className="text-sm font-medium text-foreground">Loading Command Center</div>
               </div>
             ) : (
               <>
