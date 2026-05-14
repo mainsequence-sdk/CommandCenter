@@ -307,55 +307,141 @@ When a managed connection draft matches an existing hidden source widget and act
 Connection tab should show the active store status for that hidden source. It should not require a
 separate test to prove that the hidden source works.
 
+## Implementation Compliance Snapshot
+
+As of 2026-05-13, the implementation is only partially compliant with this ADR.
+
+Legend:
+
+- `Compliant`: implemented in current code and aligned with this ADR
+- `Partial`: implemented in shape, but missing behavior, hardening, or tests
+- `Non-compliant`: current behavior contradicts this ADR
+- `Unverified`: not proven by code inspection or regression tests yet
+
+### Current Compliant Areas
+
+- `dashboard` and `widget-settings` are treated as the same runtime surface in
+  `WorkspaceStudioCanvasHost`; route-backed `widget-settings` maps to dashboard runtime ownership
+  instead of creating a separate workspace runtime.
+- Embedded widget settings no longer creates its own `DashboardWidgetExecutionProvider`,
+  `DashboardControlsProvider`, or full-page `DashboardWidgetDependenciesProvider`.
+- A workspace-scoped `ConnectionRuntimeStore` exists beside `RuntimeDataStore`, and
+  `connection-stream-query` can acquire live WebSocket sessions through that store.
+- `WidgetSettingsPanel` has a deferred region mechanism for preview and advanced settings work
+  after the initial panel render.
+- Same-widget settings reopens now use a fresh overlay generation id, so stale body hydration state
+  cannot skip the instant shell for the next open.
+- `connection-stream-query` settings now keeps stream diagnostics/test controls opt-in and uses a
+  lightweight runtime summary on the default settings path.
+- `connection-stream-query` uses demo-only shared panel preview so settings preview cannot acquire a
+  live WebSocket runtime owner for the real draft request.
+
+### Current Partial Areas
+
+- The connection runtime store exposes active status and owner metadata, but stream runtime state is
+  still written back through workspace widget runtime-state updates, so active streams can keep the
+  dashboard tree busy while the user clicks settings.
+- `ConnectionStreamQueryTestPanel` shows active store status when a matching active entry exists,
+  and it is now opt-in from settings, but no regression test proves it cannot affect canonical
+  runtime ownership.
+- Binding-tab draft dependency work is scoped better than before, but no lazy/scoped dependency
+  resolver exists for one-widget reads.
+
+### Current Non-Compliant Areas
+
+- Opening settings can still occur while live stream runtime-state writes are flushing into
+  workspace state, which violates the requirement that settings open must not scale with every live
+  runtime payload.
+
+### Current Unverified Areas
+
+- No regression test proves canvas widgets stay mounted when `view=widget-settings` opens.
+- No regression test proves opening settings for a stream-backed workspace does not close the
+  existing stream session and does not create a second session.
+- No regression test proves two widgets with the same effective stream request share one WebSocket.
+- No regression test proves charts/passive widgets do not open WebSockets when bound to an active
+  stream source.
+- No regression test proves settings subscribes read-only to an active stream store entry.
+- No regression test proves closing settings does not decrement or release the runtime-owner
+  subscription.
+- No timing instrumentation currently proves overlay shell paint is independent from dependency
+  model creation, preview mount, controller context resolution, and widget-specific settings mount.
+
 ## Implementation Tasks
 
-- [ ] Add instrumentation around widget settings open:
+- [ ] Add instrumentation around widget settings open. Status: not implemented.
   - route state update to overlay shell paint
   - dependency model creation
   - preview mount
   - controller context resolution
   - widget-specific settings mount
 - [ ] Add a regression test proving canvas widgets stay mounted when `view=widget-settings` opens.
+  Status: not implemented.
 - [ ] Add a WebSocket regression test proving opening settings for a stream-backed workspace does
-  not close the existing stream session and does not create a second session.
-- [ ] Add a shared `ConnectionRuntimeStore` provider under the workspace runtime provider stack.
-- [ ] Move `connection-stream-query` session acquisition into the shared connection runtime store.
+  not close the existing stream session and does not create a second session. Status: not
+  implemented.
+- [x] Add a shared `ConnectionRuntimeStore` provider under the workspace runtime provider stack.
+  Status: implemented.
+- [x] Move `connection-stream-query` session acquisition into the shared connection runtime store.
+  Status: partially implemented; the widget acquires through the store when a provider exists, but
+  fallback direct session creation remains.
 - [ ] Replace module-local active-session ownership with store-backed acquire/release semantics,
-  leaving any module-level guard as defensive-only.
-- [ ] Define a stable connection runtime key builder for private and public stream requests.
+  leaving any module-level guard as defensive-only. Status: partial; ownership is store-backed in
+  normal workspace runtime, but the fallback path and tests still need hardening.
+- [x] Define a stable connection runtime key builder for private and public stream requests. Status:
+  partially implemented; the key builder exists, but its sharing guarantees are not covered by
+  regression tests.
 - [ ] Add tests proving two widgets with the same effective stream request share one WebSocket.
+  Status: not implemented.
 - [ ] Add tests proving charts/passive widgets do not open WebSockets when bound to an active stream
-  source.
-- [ ] Add tests proving settings subscribes read-only to an active stream store entry.
+  source. Status: not implemented.
+- [ ] Add tests proving settings subscribes read-only to an active stream store entry. Status: not
+  implemented.
 - [ ] Add tests proving closing settings does not decrement or release the runtime-owner
-  subscription.
+  subscription. Status: not implemented.
 - [ ] Add tests proving a draft diagnostic stream uses a separate preview key and cannot replace the
-  canonical active entry.
-- [ ] Split `CustomWidgetSettingsPage` into immediate shell and deferred body components.
-- [ ] Remove the embedded settings page's fresh full-page `DashboardWidgetDependenciesProvider`.
-- [ ] Use the parent dependency provider for persisted settings-tab reads.
-- [ ] Create draft dependency providers only inside the bindings/managed-connection paths that need
-  draft graph validation.
+  canonical active entry. Status: not implemented.
+- [ ] Split `CustomWidgetSettingsPage` into immediate shell and deferred body components. Status:
+  partial; an external instant shell exists and same-widget reopen no longer bypasses it, but the
+  page body remains monolithic.
+- [x] Remove the embedded settings page's fresh full-page `DashboardWidgetDependenciesProvider`.
+  Status: implemented for the embedded overlay path.
+- [x] Use the parent dependency provider for persisted settings-tab reads. Status: implemented for
+  the embedded overlay path.
+- [x] Create draft dependency providers only inside the bindings/managed-connection paths that need
+  draft graph validation. Status: partially implemented; the bindings path is scoped to the active
+  bindings tab, but the lazy one-widget resolver is still missing.
 - [ ] Add a lazy or scoped dependency-resolution API so one-widget settings reads do not eagerly
-  build the full workspace graph.
-- [ ] Defer `WidgetSettingsPanel` preview mount until after first paint.
-- [ ] Defer `WidgetSettingsAdvancedSections` controller and custom settings work behind localized
-  placeholders.
-- [ ] Make widget-specific test panels opt-in where they perform network, stream, discovery, or
-  large schema work.
-- [ ] Update `connection-stream-query` settings so opening the settings page reads live runtime
-  state without owning the WebSocket lifecycle.
-- [ ] Update `ConnectionStreamQueryTestPanel` so it is hidden or secondary when a matching active
-  store entry already exists.
+  build the full workspace graph. Status: not implemented.
+- [x] Defer `WidgetSettingsPanel` preview mount until after first paint. Status: implemented in the
+  shared panel; stream widgets can now opt into demo-only preview policy.
+- [x] Defer `WidgetSettingsAdvancedSections` controller and custom settings work behind localized
+  placeholders. Status: implemented in the shared panel; same-widget overlay reopen no longer
+  bypasses the outer shell.
+- [x] Make widget-specific test panels opt-in where they perform network, stream, discovery, or
+  large schema work. Status: implemented for `connection-stream-query`; other widgets are
+  unverified.
+- [x] Update `connection-stream-query` settings so opening the settings page reads live runtime
+  state without owning the WebSocket lifecycle. Status: implemented for the default settings path;
+  diagnostics remain explicit and opt-in.
+- [x] Update `ConnectionStreamQueryTestPanel` so it is hidden or secondary when a matching active
+  store entry already exists. Status: implemented for settings open; the panel now mounts only after
+  the user opens diagnostics and observes active runtime through a throttled store read.
 - [ ] Update managed connection settings so an active hidden source shows live store status instead
-  of requiring a test.
+  of requiring a test. Status: unverified.
 - [ ] Ensure `dashboard` and `widget-settings` do not change provider keys or error-boundary reset
-  keys in a way that remounts the workspace runtime.
+  keys in a way that remounts the workspace runtime. Status: implemented by runtime surface mapping,
+  but missing regression tests.
 - [ ] Add tests for returning from widget settings to dashboard without surface-return hydration.
+  Status: not implemented.
 - [ ] Add timing assertions or debug traces that make accidental whole-workspace settings work
-  visible in development.
+  visible in development. Status: not implemented.
 - [ ] Update [src/features/dashboards/README.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/src/features/dashboards/README.md) with the finalized implementation rules.
+  Status: partial; overlay generation and runtime ownership rules are documented, but remaining
+  runtime-state flush work is not finalized.
 - [ ] Update [src/widgets/shared/README.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/src/widgets/shared/README.md) if shared settings panel ownership or preview behavior changes.
+  Status: implemented for `settingsPreviewMode`; pending further updates if shared panel ownership
+  changes again.
 
 ## Guardrails
 

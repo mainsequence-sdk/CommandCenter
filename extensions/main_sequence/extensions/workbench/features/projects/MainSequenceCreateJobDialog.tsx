@@ -20,6 +20,12 @@ import {
   createDynamicProjectImagePickerOption,
   toProjectImagePickerOption,
 } from "../../../../common/components/projectImagePickerOptions";
+import {
+  buildMainSequenceCostEstimateResources,
+  MainSequenceCapacityToggle,
+  MainSequenceResourceField,
+  MainSequenceResourceRequirementsSection,
+} from "../../../../common/components/MainSequenceResourceRequirementsSection";
 
 function getDefaultJobName(filePath: string) {
   const fileName = filePath.split("/").filter(Boolean).at(-1) ?? "job";
@@ -154,6 +160,23 @@ export function MainSequenceCreateJobDialog({
       })),
     [availableGpuTypesQuery.data],
   );
+  const costEstimateResources = useMemo(
+    () =>
+      buildMainSequenceCostEstimateResources({
+        cpuRequest: formState.cpuRequest,
+        memoryRequest: formState.memoryRequest,
+        gpuRequest: formState.gpuRequest,
+        gpuType: formState.gpuType,
+        spot: formState.spot,
+      }),
+    [
+      formState.cpuRequest,
+      formState.gpuRequest,
+      formState.gpuType,
+      formState.memoryRequest,
+      formState.spot,
+    ],
+  );
 
   const parsedCpu = Number(formState.cpuRequest);
   const parsedMemory = Number(formState.memoryRequest);
@@ -249,7 +272,7 @@ export function MainSequenceCreateJobDialog({
           </div>
 
           <div className="rounded-[24px] border border-border/70 bg-background/18 p-5">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(220px,0.6fr)_minmax(220px,0.6fr)]">
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,0.4fr)]">
               <div className="space-y-2">
                 <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                   Execution image
@@ -269,88 +292,11 @@ export function MainSequenceCreateJobDialog({
                   emptyMessage="No ready images available."
                   loading={projectImagesQuery.isLoading}
                 />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  CPU
-                </label>
-                <PickerField
-                  value={formState.cpuRequest}
-                  onChange={(value) => {
-                    createJobMutation.reset();
-                    setFormState((current) => ({
-                      ...current,
-                      cpuRequest: value,
-                    }));
-                  }}
-                  options={cpuOptions}
-                  placeholder="Select CPU"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  Memory
-                </label>
-                <PickerField
-                  value={formState.memoryRequest}
-                  onChange={(value) => {
-                    createJobMutation.reset();
-                    setFormState((current) => ({
-                      ...current,
-                      memoryRequest: value,
-                    }));
-                  }}
-                  options={memoryOptions}
-                  placeholder="Select memory"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border border-border/70 bg-background/18 p-5">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(220px,0.55fr)_minmax(220px,0.75fr)_minmax(220px,0.6fr)_auto]">
-              <div className="space-y-2">
-                <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  GPUs
-                </label>
-                <PickerField
-                  value={formState.gpuRequest}
-                  onChange={(value) => {
-                    createJobMutation.reset();
-                    setFormState((current) => ({
-                      ...current,
-                      gpuRequest: value,
-                      gpuType: value ? current.gpuType : "",
-                    }));
-                  }}
-                  options={gpuCountOptions}
-                  placeholder="No GPU"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  GPU type
-                </label>
-                <PickerField
-                  value={formState.gpuType}
-                  onChange={(value) => {
-                    createJobMutation.reset();
-                    setFormState((current) => ({
-                      ...current,
-                      gpuType: value,
-                    }));
-                  }}
-                  options={gpuTypeOptions}
-                  placeholder="Select GPU type"
-                  searchPlaceholder="Search GPU types"
-                  emptyMessage="No GPU types available."
-                  searchable={false}
-                  loading={availableGpuTypesQuery.isLoading}
-                  disabled={!formState.gpuRequest}
-                />
+                {formState.relatedImageId ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="neutral">Pinned image</Badge>
+                  </div>
+                ) : null}
               </div>
 
               <div className="space-y-2">
@@ -371,56 +317,92 @@ export function MainSequenceCreateJobDialog({
                   required
                 />
               </div>
-
-              <div className="space-y-2">
-                <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                  Capacity
-                </label>
-                <div className="flex h-11 items-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-1">
-                  <button
-                    type="button"
-                    className={
-                      formState.spot
-                        ? "flex-1 rounded-[calc(var(--radius)-8px)] bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
-                        : "flex-1 rounded-[calc(var(--radius)-8px)] px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                    }
-                    onClick={() => {
-                      createJobMutation.reset();
-                      setFormState((current) => ({
-                        ...current,
-                        spot: true,
-                      }));
-                    }}
-                  >
-                    Spot
-                  </button>
-                  <button
-                    type="button"
-                    className={
-                      !formState.spot
-                        ? "flex-1 rounded-[calc(var(--radius)-8px)] bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
-                        : "flex-1 rounded-[calc(var(--radius)-8px)] px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                    }
-                    onClick={() => {
-                      createJobMutation.reset();
-                      setFormState((current) => ({
-                        ...current,
-                        spot: false,
-                      }));
-                    }}
-                  >
-                    Standard
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
 
-          {formState.relatedImageId ? (
-            <div className="flex items-center gap-2">
-              <Badge variant="neutral">Pinned image</Badge>
-            </div>
-          ) : null}
+          <MainSequenceResourceRequirementsSection
+            costEstimate={{ resources: costEstimateResources }}
+            gridClassName="md:grid-cols-2 xl:grid-cols-3"
+          >
+            <MainSequenceResourceField label="CPU">
+              <PickerField
+                value={formState.cpuRequest}
+                onChange={(value) => {
+                  createJobMutation.reset();
+                  setFormState((current) => ({
+                    ...current,
+                    cpuRequest: value,
+                  }));
+                }}
+                options={cpuOptions}
+                placeholder="Select CPU"
+              />
+            </MainSequenceResourceField>
+
+            <MainSequenceResourceField label="Memory">
+              <PickerField
+                value={formState.memoryRequest}
+                onChange={(value) => {
+                  createJobMutation.reset();
+                  setFormState((current) => ({
+                    ...current,
+                    memoryRequest: value,
+                  }));
+                }}
+                options={memoryOptions}
+                placeholder="Select memory"
+              />
+            </MainSequenceResourceField>
+
+            <MainSequenceResourceField label="GPUs">
+              <PickerField
+                value={formState.gpuRequest}
+                onChange={(value) => {
+                  createJobMutation.reset();
+                  setFormState((current) => ({
+                    ...current,
+                    gpuRequest: value,
+                    gpuType: value ? current.gpuType : "",
+                  }));
+                }}
+                options={gpuCountOptions}
+                placeholder="No GPU"
+              />
+            </MainSequenceResourceField>
+
+            <MainSequenceResourceField label="GPU type">
+              <PickerField
+                value={formState.gpuType}
+                onChange={(value) => {
+                  createJobMutation.reset();
+                  setFormState((current) => ({
+                    ...current,
+                    gpuType: value,
+                  }));
+                }}
+                options={gpuTypeOptions}
+                placeholder="Select GPU type"
+                searchPlaceholder="Search GPU types"
+                emptyMessage="No GPU types available."
+                searchable={false}
+                loading={availableGpuTypesQuery.isLoading}
+                disabled={!formState.gpuRequest}
+              />
+            </MainSequenceResourceField>
+
+            <MainSequenceResourceField label="Capacity">
+              <MainSequenceCapacityToggle
+                spot={formState.spot}
+                onChange={(spot) => {
+                  createJobMutation.reset();
+                  setFormState((current) => ({
+                    ...current,
+                    spot,
+                  }));
+                }}
+              />
+            </MainSequenceResourceField>
+          </MainSequenceResourceRequirementsSection>
 
           {projectImagesQuery.isError ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">

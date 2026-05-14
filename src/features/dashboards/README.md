@@ -481,6 +481,9 @@ These flows are all part of one app surface, with instance state selected throug
   local overlay target synchronously without writing URL params. `view=widget-settings` URLs remain
   accepted for direct entry and reload, but normal in-workspace opens are pure local overlay state.
   Closing settings clears the local overlay immediately before any route cleanup.
+- Each widget-settings open receives a fresh overlay generation id. Reopening the same widget and
+  same tab must still paint the instant shell first; stale body-hydration state from the previous
+  open must never let the heavy settings body mount synchronously on the click path.
 - The widget-settings open signal is isolated in a tiny overlay store so connection/source widget
   runtime updates do not force the live dashboard tree to rerender before the overlay appears.
   Dashboard selection updates and full settings body hydration are deferred until after the frosted

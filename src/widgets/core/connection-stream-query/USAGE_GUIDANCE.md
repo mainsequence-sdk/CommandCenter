@@ -35,6 +35,8 @@ Large retained frames are stored in the workspace runtime data store and carried
 - The widget stores connection/query selection and stream merge settings only; credentials and provider URLs must stay on the backend connection instance.
 - Runtime state should carry stream lifecycle plus runtime data refs. Do not rely on active source widgets keeping retained rows inline; materialize rows through the shared runtime data store when row data is needed.
 - Widget settings read an active workspace stream from the shared connection runtime store. If the same request is already live, settings should show that status instead of requiring a separate test stream.
+- Stream diagnostics and test controls are opt-in from settings. Opening settings should show lightweight active runtime status first and must not automatically mount a live diagnostic stream panel.
+- The shared settings panel uses demo-only preview for this source widget so previewing settings does not open a second runtime owner for the real draft request.
 - The visible source card should observe shared stream status at a throttled cadence, not per WebSocket frame. High-frequency streams must not make settings buttons or canvas controls wait behind status-card rerenders.
 - Delta frames must keep the same schema as the retained frame. A schema change is treated as a stream error so consumers do not render mixed columns.
 - Live-capable widgets should bind `liveUpdates` to this widget's `updates` output. `seedData` reacts only to seed publications, while `liveUpdates` continues applying seed/update publications from the stream.

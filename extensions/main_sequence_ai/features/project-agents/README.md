@@ -49,4 +49,6 @@ It is the AI-owned implementation of the project-agent workflow:
   runtime image has drifted from the latest Astro update, plus any backend-authored drift detail
   and auto-heal guidance.
 - GPU controls are intentionally omitted from this screen. Project-agent deployment here only edits
-  CPU, memory, spot/standard capacity, and LLM settings.
+  CPU, memory, spot/standard capacity, and LLM settings. The CPU, memory, and capacity controls
+  use the shared Main Sequence resource-requirements section so this screen matches the project job
+  and resource-release creation flows, including the shared billing estimate action.

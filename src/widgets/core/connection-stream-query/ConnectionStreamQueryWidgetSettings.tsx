@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { getConnectionTypeById } from "@/app/registry";
-import { Loader2 } from "lucide-react";
+import { Activity, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { QueryStringListField } from "@/connections/components/ConnectionQueryEditorFields";
 import {
   resolveConnectionStreamAuthoringCopy,
   resolveConnectionStreamAuthoringQueryModels,
 } from "@/connections/connectionAuthoringContract";
+import {
+  useThrottledConnectionRuntimeEntry,
+  type ConnectionRuntimeEntrySnapshot,
+} from "@/connections/connection-runtime-store";
 import { resolveConnectionRefSelection } from "@/connections/connectionRefResolution";
 import { ConnectionQuerySettingsSurface } from "@/connections/ConnectionQuerySettingsSurface";
 import { ConnectionStreamQueryTestPanel } from "@/connections/ConnectionStreamQueryTestPanel";
 import { isConnectionQueryModelStreamable } from "@/connections/types";
 import { useConnectionInstances } from "@/connections/hooks";
+import { useDashboardControls } from "@/dashboards/DashboardControls";
 import { useDashboardWidgetRegistry } from "@/dashboards/DashboardWidgetRegistry";
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
@@ -19,6 +25,8 @@ import type { ConnectionQueryWidgetProps } from "@/widgets/core/connection-query
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import {
+  buildConnectionStreamQueryRequest,
+  buildConnectionStreamQueryRuntimeKey,
   normalizeConnectionStreamQueryProps,
   normalizeConnectionStreamQueryRuntimeState,
   type ConnectionStreamQueryWidgetProps,
@@ -28,6 +36,106 @@ type Props = WidgetSettingsComponentProps<ConnectionStreamQueryWidgetProps> & {
   onPreviewRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   previewRuntimeState?: Record<string, unknown>;
 };
+
+function formatStreamStatusLabel(status: string) {
+  return status.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatStreamTimestamp(value: number | undefined) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? new Date(value).toLocaleTimeString()
+    : "none";
+}
+
+function getStreamStatusTone(status: string) {
+  if (status === "error") {
+    return "border-danger/35 bg-danger/8 text-danger";
+  }
+
+  if (status === "live") {
+    return "border-emerald-500/30 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300";
+  }
+
+  if (status === "connecting" || status === "reconnecting") {
+    return "border-warning/35 bg-warning/10 text-warning";
+  }
+
+  return "border-border/70 bg-background/35 text-muted-foreground";
+}
+
+function RuntimeSummaryMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/35 px-3 py-2">
+      <div className="text-[11px] font-medium uppercase tracking-normal text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 truncate text-xs text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function ActiveStreamRuntimeSummary({
+  entry,
+}: {
+  entry: ConnectionRuntimeEntrySnapshot | undefined;
+}) {
+  if (!entry) {
+    return (
+      <section className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-4">
+        <div className="text-sm font-medium text-topbar-foreground">Workspace stream</div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          No active workspace stream matches this draft request.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-medium text-topbar-foreground">Workspace stream</div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Reading the active runtime entry without opening a settings-owned socket.
+          </p>
+        </div>
+        <div className={["rounded-full border px-3 py-1 text-xs font-medium", getStreamStatusTone(entry.status)].join(" ")}>
+          {formatStreamStatusLabel(entry.status)}
+        </div>
+      </div>
+      <div className="grid gap-2 md:grid-cols-4">
+        <RuntimeSummaryMetric
+          label="Owners"
+          value={entry.activeOwnerCount.toLocaleString()}
+        />
+        <RuntimeSummaryMetric
+          label="Rows"
+          value={(entry.rowCount ?? 0).toLocaleString()}
+        />
+        <RuntimeSummaryMetric
+          label="Columns"
+          value={(entry.columnCount ?? 0).toLocaleString()}
+        />
+        <RuntimeSummaryMetric
+          label="Last message"
+          value={formatStreamTimestamp(entry.lastMessageAtMs)}
+        />
+      </div>
+      {entry.error ? (
+        <div className="flex items-start gap-2 rounded-[calc(var(--radius)-8px)] border border-danger/35 bg-danger/8 px-3 py-2 text-xs text-danger">
+          <Activity className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{entry.error}</span>
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
 function RetentionMaxRowsInput({
   disabled,
@@ -74,6 +182,7 @@ export function ConnectionStreamQueryWidgetSettings({
   onDraftPresentationChange,
   previewRuntimeState,
 }: Props) {
+  const dashboardControls = useDashboardControls();
   const widgetRegistry = useDashboardWidgetRegistry();
   const connectionInstancesQuery = useConnectionInstances();
   const currentWidget = widgetRegistry.find((entry) => entry.id === instanceId) ?? null;
@@ -108,6 +217,34 @@ export function ConnectionStreamQueryWidgetSettings({
     : [];
   const supportsRetainedAccumulation = streamModes.length > 0;
   const useTypedQueryEditor = Boolean(selectedConnectionType?.queryEditor);
+  const dashboardState = useMemo(
+    () => ({
+      timeRangeKey: dashboardControls.timeRangeKey,
+      rangeStartMs: dashboardControls.rangeStartMs,
+      rangeEndMs: dashboardControls.rangeEndMs,
+      refreshIntervalMs: dashboardControls.refreshIntervalMs,
+    }),
+    [
+      dashboardControls.rangeEndMs,
+      dashboardControls.rangeStartMs,
+      dashboardControls.refreshIntervalMs,
+      dashboardControls.timeRangeKey,
+    ],
+  );
+  const activeRuntimeKey = useMemo(() => {
+    const request = buildConnectionStreamQueryRequest(
+      normalizedDraftProps,
+      dashboardState,
+      selectedQueryModel,
+    );
+
+    return request
+      ? buildConnectionStreamQueryRuntimeKey({
+          request,
+        })
+      : undefined;
+  }, [dashboardState, normalizedDraftProps, selectedQueryModel]);
+  const activeRuntimeEntry = useThrottledConnectionRuntimeEntry(activeRuntimeKey, 1000);
   const effectiveRuntimeState = currentWidget?.runtimeState ?? previewRuntimeState;
   const runtimeFrame = normalizeConnectionStreamQueryRuntimeState(effectiveRuntimeState);
   const streamCopy = resolveConnectionStreamAuthoringCopy(selectedConnectionType);
@@ -117,6 +254,7 @@ export function ConnectionStreamQueryWidgetSettings({
     normalizedDraftProps.connectionRef?.typeId ?? "",
     normalizedDraftProps.queryModelId ?? "",
   ].join(":");
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [hydratedTestPanelKey, setHydratedTestPanelKey] = useState<string | null>(null);
   const testPanelReady = hydratedTestPanelKey === testPanelHydrationKey;
   const fieldSuggestions = [
@@ -177,6 +315,10 @@ export function ConnectionStreamQueryWidgetSettings({
         clearTimeout(timeoutId);
       }
     };
+  }, [testPanelHydrationKey]);
+
+  useEffect(() => {
+    setDiagnosticsOpen(false);
   }, [testPanelHydrationKey]);
 
   return (
@@ -247,26 +389,48 @@ export function ConnectionStreamQueryWidgetSettings({
         </section>
       ) : null}
 
-      {testPanelReady ? (
-        <ConnectionStreamQueryTestPanel
-          editable={editable}
-          value={normalizedDraftProps}
-          queryModel={selectedQueryModel}
-          onPreviewRuntimeStateChange={onPreviewRuntimeStateChange}
-          sourceWidgetId={instanceId}
-          runButtonLabel={streamCopy.runButtonLabel}
-          resultDescription={streamCopy.resultDescription}
-          resultTitle={streamCopy.resultTitle}
-        />
+      <ActiveStreamRuntimeSummary entry={activeRuntimeEntry} />
+
+      {diagnosticsOpen ? (
+        testPanelReady ? (
+          <ConnectionStreamQueryTestPanel
+            editable={editable}
+            value={normalizedDraftProps}
+            queryModel={selectedQueryModel}
+            onPreviewRuntimeStateChange={onPreviewRuntimeStateChange}
+            sourceWidgetId={instanceId}
+            runButtonLabel={streamCopy.runButtonLabel}
+            resultDescription={streamCopy.resultDescription}
+            resultTitle={streamCopy.resultTitle}
+          />
+        ) : (
+          <section className="space-y-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-topbar-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              Loading stream diagnostics
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Preparing optional test controls after the editor opens.
+            </p>
+          </section>
+        )
       ) : (
-        <section className="space-y-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-topbar-foreground">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            Loading stream diagnostics
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-4">
+          <div>
+            <div className="text-sm font-medium text-topbar-foreground">Stream diagnostics</div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Optional live request diagnostics stay closed until needed.
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Preparing active stream status and optional test controls after the editor opens.
-          </p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setDiagnosticsOpen(true);
+            }}
+          >
+            Open diagnostics
+          </Button>
         </section>
       )}
     </div>

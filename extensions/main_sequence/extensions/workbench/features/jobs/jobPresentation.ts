@@ -158,27 +158,6 @@ export function buildJobSummary(
         },
       },
       {
-        key: "capacity",
-        label: "Capacity",
-        value: formatCapacity(job),
-        meta: job.spot ? "Interruptible compute capacity." : "Standard compute capacity.",
-        kind: "text",
-        tone: job.spot ? "warning" : undefined,
-        edit: {
-          enabled: true,
-          editor: "toggle",
-          submit: {
-            method: "PATCH",
-            path: `job/${job.id}/`,
-            field: "spot",
-          },
-          trueLabel: "Spot",
-          falseLabel: "Standard",
-          trueValue: true,
-          falseValue: false,
-        },
-      },
-      {
         key: "runtime",
         label: "Runtime",
         value: formatRuntime(job),
@@ -198,6 +177,27 @@ export function buildJobSummary(
       },
     ],
     stats: [
+      {
+        key: "capacity",
+        label: "Capacity",
+        display: formatCapacity(job),
+        value: job.spot,
+        kind: "text",
+        info: job.spot ? "Interruptible compute capacity." : "Standard compute capacity.",
+        edit: {
+          enabled: true,
+          editor: "toggle",
+          submit: {
+            method: "PATCH",
+            path: `job/${job.id}/`,
+            field: "spot",
+          },
+          trueLabel: "Spot",
+          falseLabel: "Standard",
+          trueValue: true,
+          falseValue: false,
+        },
+      },
       {
         key: "cpu_request",
         label: "CPU",

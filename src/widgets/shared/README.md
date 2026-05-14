@@ -83,6 +83,12 @@ This directory contains reusable widget presentation primitives that are shared 
   settings surface switches to an isolated demo draft instead of the real widget draft. Shared
   controls, schema-backed controls, custom settings components, and the top panel preview should
   all read and write the demo draft only.
+- Widget definitions can set `settingsPreviewMode: "demo-only"` when the real draft preview would
+  acquire live runtime ownership, perform network work, or subscribe to high-frequency sources.
+  Demo-only preview keeps the panel preview mounted against widget-provided mock data and prevents
+  the shared preview from using the real draft request.
+- Widget definitions can set `settingsPreviewMode: "none"` when no shared panel preview should
+  render for that widget.
 - Demo mode must never mutate the persisted widget draft or call the host draft mutation callbacks.
   It is an in-memory authoring sandbox for the open settings session. The shared panel disables
   save while demo mode is active to keep that boundary explicit.

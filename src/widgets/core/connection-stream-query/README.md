@@ -15,9 +15,9 @@ for connection query models that advertise a WebSocket stream contract.
 - `ConnectionStreamQueryWidgetSettings.tsx`: settings wrapper around the shared connection query
   authoring surface. It filters selectable paths to streamable query models, constrains the
   connection picker to stream-capable connections, switches the shared workbench into stream
-  authoring mode, reuses typed connection query editors with stream-specific copy, then renders the
-  shared stream test panel for live frame preview. When the same request is already active in the
-  workspace runtime store, settings shows that live status instead of opening a second test socket.
+  authoring mode, reuses typed connection query editors with stream-specific copy, then renders a
+  lightweight active runtime summary. The shared stream diagnostic/test panel is opt-in so opening
+  settings does not subscribe to high-frequency live diagnostics or open a second test socket.
 - `ConnectionStreamQueryRailSummary.tsx`: workspace rail hover summary for selected connection,
   path, backend id, and stream lifecycle.
 - `USAGE_GUIDANCE.md`: user-facing registry guidance imported by the widget definition.
@@ -66,6 +66,9 @@ for connection query models that advertise a WebSocket stream contract.
 - Explore and widget settings previews still keep their own bounded stream-history buffer for
   graphing. Canonical widget runtime is separate from that preview buffer, but it can now also
   retain live rows for downstream consumers when the stream contract publishes row identity keys.
+- The shared widget settings panel uses demo-only preview mode for this source widget. Settings
+  must not mount a live preview instance for the real draft request because that preview would be a
+  second runtime owner for the same stream.
 - Downstream widgets should prefer the `updates` port when they need live incremental behavior.
   `seedData` now reacts only to seed publications; `liveUpdates` consumes ongoing seed/update
   publications. Consumers remain socket-agnostic and read only the normalized frame contract plus

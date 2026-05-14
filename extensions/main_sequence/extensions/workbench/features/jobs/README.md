@@ -11,3 +11,5 @@ This feature contains job and run exploration screens for Main Sequence executio
 ## Notes
 
 - Keep job-specific formatting and exploration behavior in this folder unless it is reused broadly across the extension.
+- Job detail summaries keep capacity, CPU, memory, and GPU fields together in the editable resource
+  stats group. Runtime stays with the execution metadata instead of being treated as a resource.

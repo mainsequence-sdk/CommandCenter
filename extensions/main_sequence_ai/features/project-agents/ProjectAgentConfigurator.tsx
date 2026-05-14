@@ -23,6 +23,12 @@ import {
   type ProjectImageOption,
 } from "../../../main_sequence/common/api";
 import { PickerField, type PickerOption } from "../../../main_sequence/common/components/PickerField";
+import {
+  buildMainSequenceCostEstimateResources,
+  MainSequenceCapacityToggle,
+  MainSequenceResourceField,
+  MainSequenceResourceRequirementsSection,
+} from "../../../main_sequence/common/components/MainSequenceResourceRequirementsSection";
 import { toProjectImageTitlePickerOption } from "../../../main_sequence/common/components/projectImagePickerOptions";
 import { fetchAgentDetail } from "../../agent-search";
 import { normalizeAgentImageDriftRecord } from "../../image-drift";
@@ -276,6 +282,15 @@ export function ProjectAgentConfigurator({
     selectedDeploymentModel &&
       (!selectedDeploymentModel.auth?.required || selectedDeploymentModel.auth.usable),
   ) || Boolean(!hasRuntimeModelCatalog && resolvedLlmProvider && resolvedLlmModelId);
+  const costEstimateResources = useMemo(
+    () =>
+      buildMainSequenceCostEstimateResources({
+        cpuRequest: computeState.cpuRequest,
+        memoryRequest: computeState.memoryRequest,
+        spot: computeState.spot,
+      }),
+    [computeState.cpuRequest, computeState.memoryRequest, computeState.spot],
+  );
 
   const buildAgentImageMutation = useMutation({
     mutationFn: (input: { project_id: number; project_related_image_id: number }) =>
@@ -781,115 +796,74 @@ export function ProjectAgentConfigurator({
             ) : null}
           </div>
 
-          <div className="space-y-3 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/22 p-3">
-            <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              Resources
-            </div>
+          <MainSequenceResourceRequirementsSection
+            costEstimate={{ resources: costEstimateResources }}
+            gridClassName="md:grid-cols-2 xl:grid-cols-5"
+          >
+            <MainSequenceResourceField label="CPU request">
+              <Input
+                value={computeState.cpuRequest}
+                onChange={(event) =>
+                  setComputeState((current) => ({
+                    ...current,
+                    cpuRequest: event.target.value,
+                  }))
+                }
+                placeholder="250m"
+              />
+            </MainSequenceResourceField>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/22 p-3">
-                <div className="mb-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  CPU
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">Request</label>
-                    <Input
-                      value={computeState.cpuRequest}
-                      onChange={(event) =>
-                        setComputeState((current) => ({
-                          ...current,
-                          cpuRequest: event.target.value,
-                        }))
-                      }
-                      placeholder="250m"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">Limit</label>
-                    <Input
-                      value={computeState.cpuLimit}
-                      onChange={(event) =>
-                        setComputeState((current) => ({
-                          ...current,
-                          cpuLimit: event.target.value,
-                        }))
-                      }
-                      placeholder="1000m"
-                    />
-                  </div>
-                </div>
-              </div>
+            <MainSequenceResourceField label="CPU limit">
+              <Input
+                value={computeState.cpuLimit}
+                onChange={(event) =>
+                  setComputeState((current) => ({
+                    ...current,
+                    cpuLimit: event.target.value,
+                  }))
+                }
+                placeholder="1000m"
+              />
+            </MainSequenceResourceField>
 
-              <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/22 p-3">
-                <div className="mb-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Memory
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">Request</label>
-                    <Input
-                      value={computeState.memoryRequest}
-                      onChange={(event) =>
-                        setComputeState((current) => ({
-                          ...current,
-                          memoryRequest: event.target.value,
-                        }))
-                      }
-                      placeholder="512Mi"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">Limit</label>
-                    <Input
-                      value={computeState.memoryLimit}
-                      onChange={(event) =>
-                        setComputeState((current) => ({
-                          ...current,
-                          memoryLimit: event.target.value,
-                        }))
-                      }
-                      placeholder="2Gi"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <MainSequenceResourceField label="Memory request">
+              <Input
+                value={computeState.memoryRequest}
+                onChange={(event) =>
+                  setComputeState((current) => ({
+                    ...current,
+                    memoryRequest: event.target.value,
+                  }))
+                }
+                placeholder="512Mi"
+              />
+            </MainSequenceResourceField>
 
-            <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/22 p-3">
-              <div className="mb-3 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                Capacity
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={computeState.spot ? "default" : "outline"}
-                  onClick={() =>
-                    setComputeState((current) => ({
-                      ...current,
-                      spot: true,
-                    }))
-                  }
-                >
-                  Spot
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={!computeState.spot ? "default" : "outline"}
-                  onClick={() =>
-                    setComputeState((current) => ({
-                      ...current,
-                      spot: false,
-                    }))
-                  }
-                >
-                  Standard
-                </Button>
-              </div>
-            </div>
-          </div>
+            <MainSequenceResourceField label="Memory limit">
+              <Input
+                value={computeState.memoryLimit}
+                onChange={(event) =>
+                  setComputeState((current) => ({
+                    ...current,
+                    memoryLimit: event.target.value,
+                  }))
+                }
+                placeholder="2Gi"
+              />
+            </MainSequenceResourceField>
+
+            <MainSequenceResourceField label="Capacity">
+              <MainSequenceCapacityToggle
+                spot={computeState.spot}
+                onChange={(spot) =>
+                  setComputeState((current) => ({
+                    ...current,
+                    spot,
+                  }))
+                }
+              />
+            </MainSequenceResourceField>
+          </MainSequenceResourceRequirementsSection>
         </div>
 
         {hasRuntimeModelCatalog && !llmSelectionIsValid ? (

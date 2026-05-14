@@ -142,6 +142,7 @@ export const connectionStreamQueryWidget = defineWidget<ConnectionStreamQueryWid
   fixedPlacementMode: "sidebar",
   schema: connectionQuerySettingsSchema as WidgetSettingsSchema<ConnectionStreamQueryWidgetProps>,
   settingsSchemaPlacement: "custom",
+  settingsPreviewMode: "demo-only",
   workspaceRuntimeMode: "execution-owner",
   buildAgentSnapshot: ({ props, runtimeState }) => {
     const normalizedProps = normalizeConnectionStreamQueryProps(props);

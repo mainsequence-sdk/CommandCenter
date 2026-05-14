@@ -46,24 +46,73 @@ export function isAuthRequestError(error: unknown): error is AuthRequestError {
 export interface SocialLoginProvidersResponse {
   providers: string[];
   provider_details?: SocialLoginProviderDetailResponse[];
+  flow?: SocialLoginProviderFlowResponse;
 }
 
 export interface SocialLoginProviderDetailResponse {
   id: string;
   name: string;
+  kind?: string;
   start_url: string;
+  oauth_callback_url?: string;
+  start_action?: SocialLoginActionResponse;
+  submit_action?: SocialLoginActionResponse;
+  verify_action?: SocialLoginActionResponse;
+  resend_action?: SocialLoginActionResponse;
+}
+
+export interface SocialLoginActionQueryParameterResponse {
+  name: string;
+  required?: boolean;
+  source?: string;
+  description?: string;
+}
+
+export interface SocialLoginActionResponse {
+  method: string;
+  url: string;
+  query_parameters?: SocialLoginActionQueryParameterResponse[];
+  content_type?: string;
+  body_parameters?: SocialLoginActionQueryParameterResponse[];
+}
+
+export interface SocialLoginProviderFlowResponse {
+  type?: string;
+  provider_oauth_callback?: {
+    route_template?: string;
+    registration_rule?: string;
+  };
+  frontend_callback?: {
+    query_parameter?: string;
+    success_query_parameters?: string[];
+    error_query_parameters?: string[];
+    mfa_query_parameters?: string[];
+  };
+  token_exchange_action?: SocialLoginActionResponse;
+  legacy_allauth?: {
+    allowed_for_frontend_social_login?: boolean;
+    avoid_url_prefix?: string;
+  };
 }
 
 export interface SocialLoginProviderDescriptor {
   id: string;
   name: string;
+  kind?: string;
   startUrl: string;
+  oauthCallbackUrl?: string;
+  startAction?: SocialLoginActionResponse;
+  submitAction?: SocialLoginActionResponse;
+  verifyAction?: SocialLoginActionResponse;
+  resendAction?: SocialLoginActionResponse;
+  tokenExchangeUrl: string;
 }
 
 export interface SocialAuthTokenExchangeInput {
   code: string;
   code_verifier: string;
   redirect_uri: string;
+  token_exchange_url?: string;
 }
 
 export interface SocialAuthTokenExchangeResponse {
@@ -197,6 +246,54 @@ export interface DeleteCurrentUserAccountBillingDebtPayload {
 export interface DeleteCurrentUserAccountBillingCleanupFailedPayload {
   detail: string;
   code: "account_deletion_billing_cleanup_failed";
+}
+
+export interface EmailSignupStartInput {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+}
+
+export interface EmailSignupStartResponse {
+  code: "email_verification_required";
+  detail: string;
+  email: string;
+  verification_required: boolean;
+}
+
+export interface EmailSignupVerifyInput {
+  token: string;
+}
+
+export interface EmailSignupVerifyResponse {
+  code: "signup_complete";
+  detail: string;
+  user: {
+    id: number;
+    email: string;
+  };
+  organization: {
+    id: number;
+    uid: string;
+    name: string;
+    plan_display_name: string;
+  };
+  tokens: {
+    access: string;
+    refresh: string;
+  };
+}
+
+export interface EmailSignupResendInput {
+  email: string;
+}
+
+export interface EmailSignupResendResponse {
+  detail: string;
+  code?: string;
+  email?: string;
+  verification_required?: boolean;
 }
 
 export const DEFAULT_WEBSOCKET_TICKET_AUDIENCE = "command_center_ws";
@@ -350,21 +447,60 @@ export function requestPasswordReset(input: PasswordResetRequestInput) {
 
 export async function listSocialLoginProviders() {
   const payload = await requestAuthJson<SocialLoginProvidersResponse>("/auth/social/providers/");
+  const tokenExchangeUrl =
+    readActionUrl(payload.flow?.token_exchange_action, "POST") || "/auth/social/token/";
 
   return (payload.provider_details ?? [])
     .filter((provider): provider is SocialLoginProviderDetailResponse => {
       return Boolean(
         provider &&
           typeof provider.id === "string" &&
-          typeof provider.start_url === "string",
+          (typeof provider.start_action?.url === "string" ||
+            typeof provider.start_url === "string"),
       );
     })
-    .map((provider) => ({
-      id: provider.id.trim(),
-      name: typeof provider.name === "string" && provider.name.trim() ? provider.name.trim() : provider.id.trim(),
-      startUrl: provider.start_url.trim(),
-    }))
+    .map((provider) => {
+      const startUrl =
+        readActionUrl(provider.start_action, "GET") ||
+        readActionUrl(provider.submit_action, "POST") ||
+        (typeof provider.start_url === "string" ? provider.start_url.trim() : "");
+
+      return {
+        id: provider.id.trim(),
+        name:
+          typeof provider.name === "string" && provider.name.trim()
+            ? provider.name.trim()
+            : provider.id.trim(),
+        kind: typeof provider.kind === "string" && provider.kind.trim() ? provider.kind.trim() : undefined,
+        startUrl,
+        oauthCallbackUrl:
+          typeof provider.oauth_callback_url === "string" && provider.oauth_callback_url.trim()
+            ? provider.oauth_callback_url.trim()
+            : undefined,
+        startAction: provider.start_action,
+        submitAction: provider.submit_action,
+        verifyAction: provider.verify_action,
+        resendAction: provider.resend_action,
+        tokenExchangeUrl,
+      };
+    })
     .filter((provider) => provider.id && provider.startUrl);
+}
+
+function readActionUrl(action: SocialLoginActionResponse | undefined, expectedMethod: string) {
+  if (!action || typeof action.url !== "string" || !action.url.trim()) {
+    return "";
+  }
+
+  if (
+    typeof action.method === "string" &&
+    action.method.trim() &&
+    action.method.trim().toUpperCase() !== expectedMethod
+  ) {
+    return "";
+  }
+
+  return action.url.trim();
 }
 
 export function buildSocialLoginStartUrl(
@@ -389,10 +525,15 @@ export function buildSocialLoginStartUrl(
 }
 
 export function exchangeSocialAuthCode(input: SocialAuthTokenExchangeInput) {
-  return requestAuthJson<SocialAuthTokenExchangeResponse>("/auth/social/token/", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  const { token_exchange_url: tokenExchangeUrl, ...payload } = input;
+
+  return requestAuthJson<SocialAuthTokenExchangeResponse>(
+    tokenExchangeUrl?.trim() || "/auth/social/token/",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export function verifyBrowserMfaChallenge(url: string, input: BrowserMfaVerifyInput) {
@@ -463,6 +604,33 @@ export function deleteCurrentUserAccount() {
     body: JSON.stringify({}),
   }, {
     requiresAuth: true,
+  });
+}
+
+export function getEmailSignupConstructionMaterial(url: string) {
+  return requestAuthJson<Record<string, unknown>>(url, {
+    method: "GET",
+  });
+}
+
+export function submitEmailSignup(url: string, input: EmailSignupStartInput) {
+  return requestAuthJson<EmailSignupStartResponse>(url, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function verifyEmailSignup(url: string, input: EmailSignupVerifyInput) {
+  return requestAuthJson<EmailSignupVerifyResponse>(url, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function resendEmailSignup(url: string, input: EmailSignupResendInput) {
+  return requestAuthJson<EmailSignupResendResponse>(url, {
+    method: "POST",
+    body: JSON.stringify(input),
   });
 }
 

@@ -14,6 +14,7 @@ const sourceTableConfigurationEndpoint = "/orm/api/ts_manager/source_table_confi
 const simpleTableEndpoint = "/orm/api/ts_manager/simple_table/";
 const localTimeSerieEndpoint = "/orm/api/ts_manager/local_time_serie/";
 const availableGpuTypesEndpoint = "/orm/api/pods/billing/available-gpu-types/";
+const billingEstimateEndpoint = "/orm/api/pods/billing/estimate-runtime-cost/";
 const mainSequenceConnectionsEndpoint = "/orm/api/connections/";
 const assetEndpoint = "/orm/api/assets/asset/";
 const assetCategoryEndpoint = "/orm/api/assets/asset-category/";
@@ -2520,6 +2521,35 @@ export interface CreateProjectExecutorAgentServiceInput {
   gpu_request?: string;
   gpu_type?: string;
   spot?: boolean;
+}
+
+export interface BillingEstimateResources {
+  cpu: number;
+  memory: number;
+  gpu_request: number;
+  gpu_type: string | null;
+  spot: boolean;
+}
+
+export interface BillingEstimateInput {
+  source: "job-run" | "autopilot";
+  source_details?: {
+    cluster_id?: number | null;
+    resources: BillingEstimateResources;
+  };
+}
+
+export interface BillingEstimateResponse {
+  total_estimate: number | string;
+  rates: {
+    cpu?: number | string | null;
+    mem?: number | string | null;
+    gpu?: number | string | null;
+    storage?: number | string | null;
+  };
+  details?: {
+    units?: string | null;
+  };
 }
 
 export interface ProjectExecutorAgentServiceRecord {
@@ -5528,6 +5558,13 @@ export function createProjectImage(input: CreateProjectImageInput) {
 
 export function createResourceRelease(input: CreateResourceReleaseInput) {
   return requestJson<ResourceReleaseRecord>(commandCenterConfig.mainSequence.endpoint, "resource-release/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function estimateBillingCost(input: BillingEstimateInput) {
+  return requestJson<BillingEstimateResponse>(billingEstimateEndpoint, "", {
     method: "POST",
     body: JSON.stringify(input),
   });

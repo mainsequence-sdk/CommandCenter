@@ -563,6 +563,7 @@ export interface WidgetDefinition<TProps extends Record<string, unknown> = Recor
   bodyMode?: "default" | "none";
   schema?: WidgetSettingsSchema<TProps, any>;
   settingsSchemaPlacement?: "auto" | "custom";
+  settingsPreviewMode?: "default" | "demo-only" | "none";
   controller?: WidgetController<TProps, any>;
   headerComponent?: ComponentType<WidgetHeaderComponentProps<TProps>>;
   headerActions?: ComponentType<WidgetHeaderActionsProps<TProps>>;

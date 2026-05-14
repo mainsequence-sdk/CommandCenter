@@ -1,8 +1,9 @@
 /** @vitest-environment jsdom */
 /** @vitest-environment-options {"url":"http://localhost:5173/login"} */
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { listSocialLoginProviders } from "@/auth/api";
 import {
   clearPendingSocialAuthSession,
   createSocialAuthStartRequest,
@@ -23,6 +24,7 @@ describe("social auth pending session", () => {
       codeVerifier: "verifier-123",
       redirectUri: "http://localhost:5173/auth/callback",
       redirectTarget: "/app/connections/explore",
+      tokenExchangeUrl: "http://localhost:8000/auth/social/token/",
       createdAt: Date.now(),
     });
 
@@ -32,6 +34,7 @@ describe("social auth pending session", () => {
       codeVerifier: "verifier-123",
       redirectUri: "http://localhost:5173/auth/callback",
       redirectTarget: "/app/connections/explore",
+      tokenExchangeUrl: "http://localhost:8000/auth/social/token/",
       createdAt: expect.any(Number),
     });
   });
@@ -43,6 +46,7 @@ describe("social auth pending session", () => {
       codeVerifier: "stale-verifier",
       redirectUri: "http://localhost:5173/auth/callback",
       redirectTarget: "/app",
+      tokenExchangeUrl: "http://localhost:8000/auth/social/token/",
       createdAt: Date.now() - 16 * 60_000,
     });
 
@@ -54,6 +58,7 @@ describe("social auth pending session", () => {
       providerId: "google",
       providerStartUrl: "http://127.0.0.1:8000/auth/social/google/start/",
       redirectTarget: "/app/access-rbac/overview",
+      tokenExchangeUrl: "http://127.0.0.1:8000/auth/social/token/",
     });
 
     const startUrl = new URL(result.startUrl);
@@ -64,7 +69,82 @@ describe("social auth pending session", () => {
     expect(startUrl.searchParams.get("code_challenge_method")).toBe("S256");
     expect(startUrl.searchParams.get("state")).toBe(result.pending.state);
     expect(startUrl.searchParams.get("code_challenge")).toBeTruthy();
+    expect(result.pending.tokenExchangeUrl).toBe("http://127.0.0.1:8000/auth/social/token/");
     expect(readPendingSocialAuthSession()).toEqual(result.pending);
+  });
+});
+
+describe("social auth provider discovery", () => {
+  const fetchMock = vi.fn<typeof fetch>();
+
+  afterEach(() => {
+    fetchMock.mockReset();
+    vi.unstubAllGlobals();
+  });
+
+  it("uses backend action URLs from the provider discovery workflow", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          providers: ["github"],
+          provider_details: [
+            {
+              id: "github",
+              name: "GitHub",
+              start_url: "http://localhost:8000/legacy/start/",
+              oauth_callback_url: "http://localhost:8000/auth/social/github/callback/",
+              start_action: {
+                method: "GET",
+                url: "http://localhost:8000/auth/social/github/start/",
+                query_parameters: [
+                  { name: "redirect_uri", required: true, source: "frontend_callback_url" },
+                  { name: "state", required: true, source: "frontend_generated_state" },
+                  { name: "code_challenge", required: true, source: "frontend_generated_pkce_challenge" },
+                  { name: "code_challenge_method", required: true, source: "constant" },
+                ],
+              },
+            },
+          ],
+          flow: {
+            type: "oauth2_authorization_code_pkce",
+            token_exchange_action: {
+              method: "POST",
+              url: "http://localhost:8000/auth/social/token/",
+              content_type: "application/json",
+            },
+            legacy_allauth: {
+              allowed_for_frontend_social_login: false,
+              avoid_url_prefix: "/user/allauth/",
+            },
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    await expect(listSocialLoginProviders()).resolves.toEqual([
+      {
+        id: "github",
+        name: "GitHub",
+        startUrl: "http://localhost:8000/auth/social/github/start/",
+        oauthCallbackUrl: "http://localhost:8000/auth/social/github/callback/",
+        startAction: {
+          method: "GET",
+          url: "http://localhost:8000/auth/social/github/start/",
+          query_parameters: [
+            { name: "redirect_uri", required: true, source: "frontend_callback_url" },
+            { name: "state", required: true, source: "frontend_generated_state" },
+            { name: "code_challenge", required: true, source: "frontend_generated_pkce_challenge" },
+            { name: "code_challenge_method", required: true, source: "constant" },
+          ],
+        },
+        tokenExchangeUrl: "http://localhost:8000/auth/social/token/",
+      },
+    ]);
   });
 });
 
@@ -121,6 +201,24 @@ describe("social auth callback parsing", () => {
       state: "error-state",
       errorCode: "access_denied",
       detail: "Social sign-in failed: access_denied.",
+    });
+  });
+
+  it("parses a waitlist callback", () => {
+    expect(
+      parseSocialAuthCallback(
+        new URLSearchParams(
+          "?signup_status=waitlisted&signup_code=signup_waitlisted&waitlist_status=waiting&waitlist_entry_id=42&email=user@example.com&message=Thank%20you...&state=waitlist-state",
+        ),
+      ),
+    ).toEqual({
+      type: "waitlisted",
+      state: "waitlist-state",
+      signupCode: "signup_waitlisted",
+      waitlistStatus: "waiting",
+      waitlistEntryId: "42",
+      email: "user@example.com",
+      detail: "Thank you...",
     });
   });
 });

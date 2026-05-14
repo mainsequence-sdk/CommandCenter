@@ -8,7 +8,7 @@ import {
   buildConnectionStreamPreviewState,
   type ConnectionStreamPreviewState,
 } from "@/connections/connectionStreamPreview";
-import { useConnectionRuntimeEntry } from "@/connections/connection-runtime-store";
+import { useThrottledConnectionRuntimeEntry } from "@/connections/connection-runtime-store";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import { ConnectionQueryResponsePreview } from "@/connections/ConnectionQueryResponsePreview";
 import { useRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
@@ -237,7 +237,7 @@ export function ConnectionStreamQueryTestPanel({
         : undefined,
     [previewRequest],
   );
-  const activeRuntimeEntry = useConnectionRuntimeEntry(activeRuntimeKey);
+  const activeRuntimeEntry = useThrottledConnectionRuntimeEntry(activeRuntimeKey, 1000);
   const validationError = buildConnectionStreamQueryValidationError({
     props: normalizedProps,
     queryModel,

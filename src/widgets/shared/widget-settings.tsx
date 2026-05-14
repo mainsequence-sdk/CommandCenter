@@ -301,6 +301,7 @@ function WidgetPanelPreview<
   instanceId,
   instanceTitle,
   onDemoModeChange,
+  demoModeLocked = false,
   onRuntimeStateChange,
   previewResolvedInputs,
   previewRuntimeState,
@@ -313,6 +314,7 @@ function WidgetPanelPreview<
   instanceId: string;
   instanceTitle: string;
   onDemoModeChange: (nextValue: boolean) => void;
+  demoModeLocked?: boolean;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   previewResolvedInputs?: ResolvedWidgetInputs;
   previewRuntimeState?: Record<string, unknown>;
@@ -337,7 +339,9 @@ function WidgetPanelPreview<
           <div>
             <div className="text-sm font-medium text-topbar-foreground">Panel preview</div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Live preview of the widget panel with the current draft settings.
+              {demoModeLocked
+                ? "Demo preview of the widget panel without opening live runtime sessions."
+                : "Live preview of the widget panel with the current draft settings."}
             </p>
           </div>
           <label className="inline-flex items-center gap-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/70 px-3 py-2 text-sm text-foreground">
@@ -345,12 +349,14 @@ function WidgetPanelPreview<
               type="checkbox"
               className="h-4 w-4 rounded border-border bg-transparent accent-primary"
               checked={demoMode}
-              disabled={!hasDemoPreview}
+              disabled={!hasDemoPreview || demoModeLocked}
               onChange={(event) => {
                 onDemoModeChange(event.target.checked);
               }}
             />
-            <span className="font-medium">Demo data for preview</span>
+            <span className="font-medium">
+              {demoModeLocked ? "Demo preview" : "Demo data for preview"}
+            </span>
           </label>
         </div>
         {demoMode ? (
@@ -614,6 +620,8 @@ export function WidgetSettingsPanel<
   const [internalDraftPresentation, setInternalDraftPresentation] = useState<WidgetInstancePresentation>(
     initialPresentation,
   );
+  const settingsPreviewMode = widget.settingsPreviewMode ?? "default";
+  const demoOnlyPreview = settingsPreviewMode === "demo-only";
   const [useDemoData, setUseDemoData] = useState(false);
   const [demoDraftTitle, setDemoDraftTitle] = useState(mockTitle);
   const [demoDraftProps, setDemoDraftProps] = useState<TProps>(mockProps);
@@ -633,6 +641,7 @@ export function WidgetSettingsPanel<
     ? draftPresentation
     : internalDraftPresentation;
   const demoModeActive = useDemoData && hasDemoPreview;
+  const previewDemoMode = (demoModeActive || demoOnlyPreview) && hasDemoPreview;
   const activeInstanceTitle = demoModeActive ? demoDraftTitle : instanceTitle;
   const activeDraftProps = demoModeActive ? demoDraftProps : resolvedDraftProps;
   const activeDraftBindings = resolvedDraftBindings;
@@ -696,7 +705,10 @@ export function WidgetSettingsPanel<
   const transparentSurface = resolveWidgetTransparentSurface(effectiveActiveDraftPresentation);
   const sidebarOnly = effectiveActiveDraftPresentation.placementMode === "sidebar";
   const hasAdvancedSections = Boolean(widget.schema || SettingsComponent);
-  const showPanelPreview = !isWorkspaceRowWidgetId(widget.id);
+  const showPanelPreview =
+    settingsPreviewMode !== "none" &&
+    !isWorkspaceRowWidgetId(widget.id) &&
+    (!demoOnlyPreview || hasDemoPreview);
   const titleReferenceInput = useMemo(
     () => (resolvedIo?.inputs ?? []).find((input) => input.id === WIDGET_REFERENCE_TITLE_INPUT_ID),
     [resolvedIo?.inputs],
@@ -1107,16 +1119,27 @@ export function WidgetSettingsPanel<
         {showPanelPreview ? (
           deferredRegionsReady ? (
             <WidgetPanelPreview
-              demoMode={demoModeActive}
+              demoMode={previewDemoMode}
+              demoModeLocked={demoOnlyPreview}
               hasDemoPreview={hasDemoPreview}
               instanceId={instance.id}
-              instanceTitle={activeInstanceTitle.trim() || (demoModeActive ? mockTitle : widget.title)}
+              instanceTitle={
+                (previewDemoMode ? demoDraftTitle : activeInstanceTitle).trim() ||
+                (previewDemoMode ? mockTitle : widget.title)
+              }
               onDemoModeChange={setUseDemoData}
-              onRuntimeStateChange={demoModeActive ? setDemoDraftRuntimeState : undefined}
-              previewResolvedInputs={activeResolvedInputs}
-              previewRuntimeState={activePreviewRuntimeState}
-              props={activeDraftProps}
-              presentation={effectiveActiveDraftPresentation}
+              onRuntimeStateChange={previewDemoMode ? setDemoDraftRuntimeState : undefined}
+              previewResolvedInputs={previewDemoMode ? mockResolvedInputs : activeResolvedInputs}
+              previewRuntimeState={previewDemoMode ? demoDraftRuntimeState : activePreviewRuntimeState}
+              props={previewDemoMode ? demoDraftProps : activeDraftProps}
+              presentation={
+                previewDemoMode
+                  ? {
+                      ...demoDraftPresentation,
+                      placementMode: fixedPlacementMode ?? demoDraftPresentation.placementMode,
+                    }
+                  : effectiveActiveDraftPresentation
+              }
               widget={widget}
             />
           ) : (

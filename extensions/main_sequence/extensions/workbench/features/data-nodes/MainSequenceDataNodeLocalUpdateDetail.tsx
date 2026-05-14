@@ -33,6 +33,11 @@ import {
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
+import {
+  buildMainSequenceCostEstimateResources,
+  MainSequenceResourceField,
+  MainSequenceResourceRequirementsSection,
+} from "../../../../common/components/MainSequenceResourceRequirementsSection";
 import { MainSequenceLocalUpdateDependencyGraph } from "./MainSequenceLocalUpdateDependencyGraph";
 
 export type LocalUpdateDetailTabId = "details" | "graphs" | "historical-updates" | "logs";
@@ -414,6 +419,16 @@ export function MainSequenceDataNodeLocalUpdateDetail({
   )
     ? (selectedTabId as LocalUpdateDetailTabId)
     : "details";
+  const costEstimateResources = useMemo(
+    () =>
+      buildMainSequenceCostEstimateResources({
+        cpuRequest: runConfigurationForm.requiredCpus,
+        memoryRequest: 0,
+        gpuRequest: runConfigurationForm.requiredGpus,
+        spot: false,
+      }),
+    [runConfigurationForm.requiredCpus, runConfigurationForm.requiredGpus],
+  );
 
   const summaryQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "local_updates", "summary", localTimeSerieId],
@@ -683,11 +698,11 @@ export function MainSequenceDataNodeLocalUpdateDetail({
                         Retry on error
                       </label>
 
-                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <label className="space-y-2">
-                          <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            CPU
-                          </span>
+                      <MainSequenceResourceRequirementsSection
+                        costEstimate={{ resources: costEstimateResources }}
+                        gridClassName="md:grid-cols-2"
+                      >
+                        <MainSequenceResourceField label="CPU">
                           <Input
                             value={runConfigurationForm.requiredCpus}
                             onChange={(event) =>
@@ -697,11 +712,8 @@ export function MainSequenceDataNodeLocalUpdateDetail({
                               }))
                             }
                           />
-                        </label>
-                        <label className="space-y-2">
-                          <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            GPU
-                          </span>
+                        </MainSequenceResourceField>
+                        <MainSequenceResourceField label="GPU">
                           <Input
                             value={runConfigurationForm.requiredGpus}
                             onChange={(event) =>
@@ -711,7 +723,10 @@ export function MainSequenceDataNodeLocalUpdateDetail({
                               }))
                             }
                           />
-                        </label>
+                        </MainSequenceResourceField>
+                      </MainSequenceResourceRequirementsSection>
+
+                      <div className="grid gap-4 md:grid-cols-2">
                         <label className="space-y-2">
                           <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                             Retry wait (seconds)

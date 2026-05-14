@@ -3429,9 +3429,46 @@ function handlePermissions(route: string, method: string, init?: RequestInit) {
   return undefined;
 }
 
-function handleSharedResources(route: string, method: string, searchParams: URLSearchParams) {
+function handleSharedResources(
+  route: string,
+  method: string,
+  searchParams: URLSearchParams,
+  init?: RequestInit,
+) {
   if (route === "/billing/available-gpu-types/" && method === "GET") {
     return paginate(state.availableGpuTypes, searchParams.get("limit"), searchParams.get("offset"));
+  }
+
+  if (route === "/billing/estimate-runtime-cost/" && method === "POST") {
+    const body = parseBody(init) as
+      | {
+          source_details?: {
+            resources?: {
+              cpu?: unknown;
+              memory?: unknown;
+              gpu_request?: unknown;
+            };
+          };
+        }
+      | null;
+    const resources = body?.source_details?.resources ?? {};
+    const cpu = readNumber(resources.cpu);
+    const memory = readNumber(resources.memory);
+    const gpuRequest = readNumber(resources.gpu_request);
+    const rates = {
+      cpu: Number((cpu * 0.04).toFixed(5)),
+      mem: Number((memory * 0.006).toFixed(5)),
+      gpu: Number((gpuRequest * 1.2).toFixed(5)),
+      storage: 0,
+    };
+
+    return {
+      total_estimate: Number((rates.cpu + rates.mem + rates.gpu + rates.storage).toFixed(5)),
+      rates,
+      details: {
+        units: "USD/hour",
+      },
+    };
   }
 
   return undefined;
@@ -3495,7 +3532,7 @@ export function getMainSequenceMockResponse<T>({
     handleResources(route, method, url.searchParams, init) ??
     handleJobs(route, method, url.searchParams, init) ??
     handlePermissions(route, method, init) ??
-    handleSharedResources(route, method, url.searchParams) ??
+    handleSharedResources(route, method, url.searchParams, init) ??
     undefined
   ) as T | undefined;
 }

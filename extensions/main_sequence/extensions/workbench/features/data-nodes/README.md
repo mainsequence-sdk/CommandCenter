@@ -20,3 +20,7 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
 - Data-node detail navigation is URL-backed: `msDataNodeTab` selects the top-level detail tab, while `msLocalUpdateId` and `msLocalUpdateTab` drive the nested local-update detail view.
 - The surface also accepts standalone local-update deep links with `msLocalUpdateId` even when `msDataNodeId` is absent; this is used by cross-app links from Markets portfolio summaries.
 - The detail header exposes a `Delete Tail Data` action. It loads SourceTableConfiguration stats for multi-index tables, lets the user scope the delete to selected identifiers, and sends the suffix delete through `dynamic_table/<id>/delete_after_date/`.
+- Local-update run configuration uses the shared Main Sequence resource-requirements block for
+  CPU/GPU requirements, keeping resource controls separate from retry, timeout, and schedule
+  controls. The same block exposes the shared billing estimate action with zero memory and standard
+  capacity because this backend contract only exposes CPU/GPU requirements for local updates.

@@ -56,6 +56,12 @@ import { PickerField, type PickerOption } from "../../../../common/components/Pi
 import { toProjectImagePickerOption } from "../../../../common/components/projectImagePickerOptions";
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
+import {
+  buildMainSequenceCostEstimateResources,
+  MainSequenceCapacityToggle,
+  MainSequenceResourceField,
+  MainSequenceResourceRequirementsSection,
+} from "../../../../common/components/MainSequenceResourceRequirementsSection";
 import { MainSequenceSelectionCheckbox } from "../../../../common/components/MainSequenceSelectionCheckbox";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
 import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelection";
@@ -1184,6 +1190,23 @@ export function MainSequenceProjectResourceReleasesTab({
       : "Create resource release";
   const createDialogVisible = createDialogOpen && Boolean(createReleaseKind);
   const parsedGpuRequest = computeState.gpuRequest ? Number(computeState.gpuRequest) : undefined;
+  const costEstimateResources = useMemo(
+    () =>
+      buildMainSequenceCostEstimateResources({
+        cpuRequest: computeState.cpuRequest,
+        memoryRequest: computeState.memoryRequest,
+        gpuRequest: computeState.gpuRequest,
+        gpuType: computeState.gpuType,
+        spot: computeState.spot,
+      }),
+    [
+      computeState.cpuRequest,
+      computeState.gpuRequest,
+      computeState.gpuType,
+      computeState.memoryRequest,
+      computeState.spot,
+    ],
+  );
   const gpuSelectionIsValid =
     (!computeState.gpuRequest && !computeState.gpuType.trim()) ||
     (Boolean(computeState.gpuRequest) &&
@@ -1679,11 +1702,11 @@ export function MainSequenceProjectResourceReleasesTab({
             </div>
           ) : null}
 
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
-            <div className="space-y-2">
-              <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                CPU
-              </label>
+          <MainSequenceResourceRequirementsSection
+            costEstimate={{ resources: costEstimateResources }}
+            gridClassName="md:grid-cols-2 xl:grid-cols-3"
+          >
+            <MainSequenceResourceField label="CPU">
               <Input
                 value={computeState.cpuRequest}
                 onChange={(event) => {
@@ -1695,12 +1718,9 @@ export function MainSequenceProjectResourceReleasesTab({
                 }}
                 placeholder="100m"
               />
-            </div>
+            </MainSequenceResourceField>
 
-            <div className="space-y-2">
-              <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                Memory
-              </label>
+            <MainSequenceResourceField label="Memory">
               <Input
                 value={computeState.memoryRequest}
                 onChange={(event) => {
@@ -1712,52 +1732,9 @@ export function MainSequenceProjectResourceReleasesTab({
                 }}
                 placeholder="512Mi"
               />
-            </div>
+            </MainSequenceResourceField>
 
-            <div className="space-y-2">
-              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                Capacity
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={computeState.spot ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => {
-                    createResourceReleaseMutation.reset();
-                    setComputeState((current) => ({
-                      ...current,
-                      spot: true,
-                    }));
-                  }}
-                >
-                  Spot
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={!computeState.spot ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => {
-                    createResourceReleaseMutation.reset();
-                    setComputeState((current) => ({
-                      ...current,
-                      spot: false,
-                    }));
-                  }}
-                >
-                  Standard
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                GPUs
-              </div>
+            <MainSequenceResourceField label="GPUs">
               <PickerField
                 value={computeState.gpuRequest}
                 onChange={(value) => {
@@ -1771,12 +1748,9 @@ export function MainSequenceProjectResourceReleasesTab({
                 options={gpuCountOptions}
                 placeholder="No GPU"
               />
-            </div>
+            </MainSequenceResourceField>
 
-            <div className="space-y-2">
-              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                GPU type
-              </div>
+            <MainSequenceResourceField label="GPU type">
               <PickerField
                 value={computeState.gpuType}
                 onChange={(value) => {
@@ -1794,8 +1768,21 @@ export function MainSequenceProjectResourceReleasesTab({
                 loading={availableGpuTypesQuery.isLoading}
                 disabled={!computeState.gpuRequest}
               />
-            </div>
-          </div>
+            </MainSequenceResourceField>
+
+            <MainSequenceResourceField label="Capacity">
+              <MainSequenceCapacityToggle
+                spot={computeState.spot}
+                onChange={(spot) => {
+                  createResourceReleaseMutation.reset();
+                  setComputeState((current) => ({
+                    ...current,
+                    spot,
+                  }));
+                }}
+              />
+            </MainSequenceResourceField>
+          </MainSequenceResourceRequirementsSection>
 
           {!gpuSelectionIsValid ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">

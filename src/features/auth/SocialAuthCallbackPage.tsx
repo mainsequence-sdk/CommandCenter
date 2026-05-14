@@ -28,7 +28,7 @@ import { Input } from "@/components/ui/input";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
 import { formatSocialProviderName } from "@/features/auth/socialProviderPresentation";
 
-type CallbackUiState = "resolving" | "mfa_verify" | "mfa_setup" | "error";
+type CallbackUiState = "resolving" | "mfa_verify" | "mfa_setup" | "waitlisted" | "error";
 
 interface SocialMfaSetupChallenge {
   detail: string;
@@ -37,6 +37,13 @@ interface SocialMfaSetupChallenge {
   setupVerifyUrl: string;
   qrPngBase64?: string;
   manualEntryKey?: string;
+}
+
+interface SocialWaitlistRegistration {
+  detail: string;
+  email?: string;
+  waitlistStatus: string;
+  waitlistEntryId: string;
 }
 
 function normalizeMfaCode(value: string) {
@@ -65,6 +72,8 @@ export function SocialAuthCallbackPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mfaVerifyUrl, setMfaVerifyUrl] = useState("");
   const [mfaSetupChallenge, setMfaSetupChallenge] = useState<SocialMfaSetupChallenge | null>(null);
+  const [waitlistRegistration, setWaitlistRegistration] =
+    useState<SocialWaitlistRegistration | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +84,19 @@ export function SocialAuthCallbackPage() {
       if (callbackPayload.type === "invalid") {
         setCallbackError(callbackPayload.detail);
         setUiState("error");
+        return;
+      }
+
+      if (callbackPayload.type === "waitlisted") {
+        clearPendingSocialAuthSession();
+        setPendingSession(null);
+        setWaitlistRegistration({
+          detail: callbackPayload.detail,
+          email: callbackPayload.email,
+          waitlistStatus: callbackPayload.waitlistStatus,
+          waitlistEntryId: callbackPayload.waitlistEntryId,
+        });
+        setUiState("waitlisted");
         return;
       }
 
@@ -101,6 +123,7 @@ export function SocialAuthCallbackPage() {
           code: callbackPayload.code,
           code_verifier: pending.codeVerifier,
           redirect_uri: pending.redirectUri,
+          token_exchange_url: pending.tokenExchangeUrl,
         });
 
         if (cancelled) {
@@ -254,6 +277,8 @@ export function SocialAuthCallbackPage() {
                   ? "Verify sign-in"
                   : uiState === "mfa_setup"
                     ? "Set up MFA"
+                    : uiState === "waitlisted"
+                      ? "Waitlist confirmed"
                     : uiState === "error"
                       ? "Sign-in unavailable"
                       : "Completing sign-in"}
@@ -263,6 +288,8 @@ export function SocialAuthCallbackPage() {
                   ? `Enter the authenticator code for your ${app.shortName} account.`
                   : uiState === "mfa_setup"
                     ? `Finish multi-factor setup before ${providerName} sign-in can complete.`
+                    : uiState === "waitlisted"
+                      ? "Your registration was accepted into the waitlist."
                     : uiState === "error"
                       ? "The browser could not complete the social login callback."
                       : `Finalizing ${providerName} sign-in for ${app.shortName}.`}
@@ -377,6 +404,25 @@ export function SocialAuthCallbackPage() {
               <>
                 <div className="rounded-[calc(var(--radius)-6px)] border border-destructive/40 bg-destructive/8 px-3 py-3 text-sm text-destructive">
                   {callbackError || "The social login callback could not be completed."}
+                </div>
+                <Button type="button" className="w-full" onClick={returnToLogin}>
+                  Back to sign in
+                </Button>
+              </>
+            ) : null}
+
+            {uiState === "waitlisted" ? (
+              <>
+                <div className="rounded-[calc(var(--radius)-6px)] border border-primary/25 bg-primary/8 px-4 py-4 text-sm text-foreground">
+                  <div className="font-medium text-foreground">Registration received</div>
+                  <div className="mt-2 text-muted-foreground">
+                    {waitlistRegistration?.detail}
+                  </div>
+                  {waitlistRegistration?.email ? (
+                    <div className="mt-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/45 px-3 py-2 font-mono text-xs text-foreground">
+                      {waitlistRegistration.email}
+                    </div>
+                  ) : null}
                 </div>
                 <Button type="button" className="w-full" onClick={returnToLogin}>
                   Back to sign in

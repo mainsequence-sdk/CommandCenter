@@ -902,12 +902,14 @@ function WorkspaceSnapshotToolbarControl({
 type DashboardWidgetSettingsTabId = "settings" | "bindings" | "connection";
 
 type DashboardWidgetSettingsTarget = {
+  openId: number;
   widgetId: string;
   tab: DashboardWidgetSettingsTabId;
   routeBacked: boolean;
 };
 
 interface DashboardWidgetSettingsOverlayStore {
+  openSequence: number;
   target: DashboardWidgetSettingsTarget | null;
   close: () => void;
   openLocal: (widgetId: string, tab?: DashboardWidgetSettingsTabId) => void;
@@ -916,32 +918,47 @@ interface DashboardWidgetSettingsOverlayStore {
 
 const useDashboardWidgetSettingsOverlayStore =
   create<DashboardWidgetSettingsOverlayStore>((set) => ({
+    openSequence: 0,
     target: null,
     close: () => {
       set({ target: null });
     },
     openLocal: (widgetId, tab = "settings") => {
-      set({
-        target: {
-          widgetId,
-          tab,
-          routeBacked: false,
-        },
+      set((state) => {
+        const openId = state.openSequence + 1;
+
+        return {
+          openSequence: openId,
+          target: {
+            openId,
+            widgetId,
+            tab,
+            routeBacked: false,
+          },
+        };
       });
     },
     openRoute: (widgetId, tab = "settings") => {
-      set({
-        target: {
-          widgetId,
-          tab,
-          routeBacked: true,
-        },
+      set((state) => {
+        const openId = state.openSequence + 1;
+
+        return {
+          openSequence: openId,
+          target: {
+            openId,
+            widgetId,
+            tab,
+            routeBacked: true,
+          },
+        };
       });
     },
   }));
 
 function getWidgetSettingsTargetKey(target: DashboardWidgetSettingsTarget | null) {
-  return target ? `${target.widgetId}:${target.tab}:${target.routeBacked ? "route" : "local"}` : null;
+  return target
+    ? `${target.openId}:${target.widgetId}:${target.tab}:${target.routeBacked ? "route" : "local"}`
+    : null;
 }
 
 function InstantWidgetSettingsOverlayShell({
@@ -1121,6 +1138,7 @@ function WidgetSettingsOverlayLayer({
   const widget = instance ? getWidgetById(instance.widgetId) ?? null : null;
   const close = () => {
     const routeBacked = target.routeBacked;
+    setHydratedTargetKey(null);
     closeOverlay();
 
     if (routeBacked) {

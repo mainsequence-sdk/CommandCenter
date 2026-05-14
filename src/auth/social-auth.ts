@@ -9,6 +9,7 @@ export interface PendingSocialAuthSession {
   codeVerifier: string;
   redirectUri: string;
   redirectTarget: string;
+  tokenExchangeUrl: string;
   createdAt: number;
 }
 
@@ -34,6 +35,15 @@ export type SocialAuthCallbackPayload =
       type: "error";
       state: string;
       errorCode: string;
+      detail: string;
+    }
+  | {
+      type: "waitlisted";
+      state: string;
+      signupCode: string;
+      waitlistStatus: string;
+      waitlistEntryId: string;
+      email?: string;
       detail: string;
     }
   | {
@@ -77,6 +87,7 @@ function toPendingSocialAuthSession(value: unknown): PendingSocialAuthSession | 
   const codeVerifier = readString(value.codeVerifier);
   const redirectUri = readString(value.redirectUri);
   const redirectTarget = readString(value.redirectTarget) || "/app";
+  const tokenExchangeUrl = readString(value.tokenExchangeUrl) || "/auth/social/token/";
   const createdAt =
     typeof value.createdAt === "number" && Number.isFinite(value.createdAt)
       ? value.createdAt
@@ -92,6 +103,7 @@ function toPendingSocialAuthSession(value: unknown): PendingSocialAuthSession | 
     codeVerifier,
     redirectUri,
     redirectTarget,
+    tokenExchangeUrl,
     createdAt,
   };
 }
@@ -170,6 +182,7 @@ export async function createSocialAuthStartRequest(input: {
   providerId: string;
   providerStartUrl: string;
   redirectTarget: string;
+  tokenExchangeUrl?: string;
 }) {
   const redirectUri = buildSocialAuthCallbackUrl();
   const state = randomBase64Url(24);
@@ -181,6 +194,7 @@ export async function createSocialAuthStartRequest(input: {
     codeVerifier,
     redirectUri,
     redirectTarget: input.redirectTarget || "/app",
+    tokenExchangeUrl: input.tokenExchangeUrl?.trim() || "/auth/social/token/",
     createdAt: Date.now(),
   };
 
@@ -207,6 +221,32 @@ export function parseSocialAuthCallback(searchParams: URLSearchParams): SocialAu
       state,
       errorCode,
       detail: `Social sign-in failed: ${errorCode}.`,
+    };
+  }
+
+  const signupStatus = readString(searchParams.get("signup_status"));
+  if (signupStatus === "waitlisted") {
+    const signupCode = readString(searchParams.get("signup_code"));
+    const waitlistStatus = readString(searchParams.get("waitlist_status"));
+    const waitlistEntryId = readString(searchParams.get("waitlist_entry_id"));
+    const email = readString(searchParams.get("email"));
+    const detail = readString(searchParams.get("message"));
+
+    if (!state || !detail) {
+      return {
+        type: "invalid",
+        detail: "Social signup waitlist callback was missing required fields.",
+      };
+    }
+
+    return {
+      type: "waitlisted",
+      state,
+      signupCode: signupCode || "signup_waitlisted",
+      waitlistStatus: waitlistStatus || "waiting",
+      waitlistEntryId,
+      email: email || undefined,
+      detail,
     };
   }
 

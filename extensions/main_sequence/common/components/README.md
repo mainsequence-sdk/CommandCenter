@@ -10,6 +10,11 @@ This folder contains reusable UI building blocks shared by nested Main Sequence 
 - `MainSequencePermissionsTab.tsx`: permissions management UI for shareable entities, backed by searchable transfer lists for view and edit assignment workflows. It accepts either numeric or string object ids, and it assumes the shared Main Sequence permission contract where the caller provides an object root and object id while the API layer supplies the configured permission suffixes.
 - `MainSequenceRegistryPagination.tsx`: pagination control used by registry-style tables.
 - `MainSequenceRegistrySearch.tsx`: shared search input used by registry screens.
+- `MainSequenceResourceRequirementsSection.tsx`: shared resource-requirements form section,
+  field wrapper, and Spot/Standard toggle used by Main Sequence job, release, and agent
+  creation/deployment forms. It also owns the shared secondary `Estimate cost` action that posts
+  resource selections to `/orm/api/pods/billing/estimate-runtime-cost/` and renders total, CPU,
+  memory, and GPU costs using the backend-provided units.
 - `MainSequenceSelectionCheckbox.tsx`: table-selection checkbox helper.
 - `PickerField.tsx`: searchable picker/dropdown used by forms and dialogs.
 - `physicalDataSourceIcons.ts`: local class-type to icon resolver used by the physical data source

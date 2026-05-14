@@ -733,6 +733,25 @@ export function ChatProvider({
     directLaunchSessionIdRef.current = null;
     setDirectLaunchSessionId(null);
   }, []);
+  const finishCommandCenterBootstrapRequest = useCallback((controller: AbortController) => {
+    if (commandCenterBootstrapRequestRef.current !== controller) {
+      return;
+    }
+
+    commandCenterBootstrapRequestRef.current = null;
+    setIsCreatingAgentSession(false);
+  }, []);
+  const cancelCommandCenterBootstrapRequest = useCallback(() => {
+    const controller = commandCenterBootstrapRequestRef.current;
+
+    if (!controller) {
+      return;
+    }
+
+    commandCenterBootstrapRequestRef.current = null;
+    controller.abort();
+    setIsCreatingAgentSession(false);
+  }, []);
   const preserveCommandCenterSelection = useCallback(() => {
     if (directLaunchSessionIdRef.current === currentSessionIdRef.current) {
       return;
@@ -1132,9 +1151,14 @@ export function ChatProvider({
     setHasAttemptedLatestSessionsBootstrap(false);
     setSessionRuntimeAccessMetaBySessionId({});
     loadedSessionIdRef.current = null;
-    commandCenterBootstrapRequestRef.current?.abort();
+    cancelCommandCenterBootstrapRequest();
     commandCenterBootstrapAttemptKeyRef.current = null;
-  }, [requestedChatSessionId, sessionUserId, shouldAvoidImplicitSessionSelection]);
+  }, [
+    cancelCommandCenterBootstrapRequest,
+    requestedChatSessionId,
+    sessionUserId,
+    shouldAvoidImplicitSessionSelection,
+  ]);
 
   useEffect(() => {
     if (env.useMockData) {
@@ -1544,17 +1568,12 @@ export function ChatProvider({
 
         setLatestSessionsError(`Command Center could not start the orchestrator session. ${detail}`);
       } finally {
-        if (!controller.signal.aborted) {
-          setIsCreatingAgentSession(false);
-        }
-
-        if (commandCenterBootstrapRequestRef.current === controller) {
-          commandCenterBootstrapRequestRef.current = null;
-        }
+        finishCommandCenterBootstrapRequest(controller);
       }
     })();
   }, [
     agentSessions,
+    finishCommandCenterBootstrapRequest,
     hasAttemptedLatestSessionsBootstrap,
     isCreatingAgentSession,
     isEmbeddedProjectAgent,
@@ -1594,6 +1613,7 @@ export function ChatProvider({
       env.useMockData ||
       !sessionToken ||
       isCreatingAgentSession ||
+      latestSessionsError ||
       commandCenterBootstrapRequestRef.current
     ) {
       return;
@@ -1644,31 +1664,19 @@ export function ChatProvider({
 
         setLatestSessionsError(`Command Center could not load the orchestrator session. ${detail}`);
       } finally {
-        if (!controller.signal.aborted) {
-          setIsCreatingAgentSession(false);
-        }
-
-        if (commandCenterBootstrapRequestRef.current === controller) {
-          commandCenterBootstrapRequestRef.current = null;
-        }
+        finishCommandCenterBootstrapRequest(controller);
       }
     })();
-
-    return () => {
-      controller.abort();
-
-      if (commandCenterBootstrapRequestRef.current === controller) {
-        commandCenterBootstrapRequestRef.current = null;
-      }
-    };
   }, [
     agentSessions.length,
     commandCenterBaseSessionId,
     currentSessionId,
+    finishCommandCenterBootstrapRequest,
     isCreatingAgentSession,
     isEmbeddedProjectAgent,
     isProjectAgentRail,
     isRailOpen,
+    latestSessionsError,
     location.pathname,
     sessionToken,
     sessionTokenType,

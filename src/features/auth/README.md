@@ -14,12 +14,33 @@ This feature owns unauthenticated sign-in and password-reset entry points for th
 
 - The reset flow uses `/user/api/user/password-reset/`, `/validate/`, and `/confirm/`.
 - The login screen now discovers visible social providers from `GET /auth/social/providers/`
-  and uses `provider_details[].start_url` as the backend-owned entry point for each provider.
+  and uses `provider_details[].start_action.url` as the preferred backend-owned entry point for
+  each provider, falling back to `provider_details[].start_url` only for older responses.
+- Email signup availability also comes from that same discovery payload. The frontend must not
+  render self-service signup unless `provider_details[]` contains `id === "email"` with
+  `kind === "email_signup"`.
+- The production login page now waits for that social-provider discovery request to resolve before
+  rendering the full password/social sign-in surface, so the available auth methods do not pop in
+  after the page has already painted.
+- When the email signup provider is present, the production login page exposes an inline
+  sign-up + verification flow that posts to the backend-owned `submit_action`, `verify_action`,
+  and `resend_action` URLs returned by discovery, then bootstraps the standard JWT session from
+  `signup_complete.tokens`.
 - Social sign-in uses the public `/auth/social/<provider>/start/` PKCE contract with a top-level
   browser navigation, not a popup or background fetch.
+- Provider discovery owns the PKCE workflow metadata: the frontend sends the local `/auth/callback`
+  as `redirect_uri`, stores the discovery `flow.token_exchange_action.url` with the pending PKCE
+  state, and posts the final code exchange there after the frontend callback receives `code` and
+  `state`.
+- `provider_details[].oauth_callback_url` is provider-registration metadata only. The frontend must
+  not use it as its `redirect_uri`, and `/user/allauth/` URLs are not part of this social-login
+  frontend flow.
 - The frontend callback at `/auth/callback` validates the stored `state` and `code_verifier`,
   exchanges the short-lived code at `POST /auth/social/token/`, then persists the standard local
   JWT session bundle used by password login.
+- The same callback route also handles social-signup waitlist redirects. When the backend returns
+  `signup_status=waitlisted`, the frontend must show the backend message, must not call
+  `/auth/social/token/`, and must not treat the callback as a login success or as an error.
 - Social MFA continuation is browser-session based: `mfa_required` callbacks post to
   `/auth/browser/mfa/verify/` with browser credentials, while `mfa_setup_required` callbacks use
   `/user/api/user/mfa/setup/` and `/user/api/user/mfa/setup/verify/`, then follow the returned

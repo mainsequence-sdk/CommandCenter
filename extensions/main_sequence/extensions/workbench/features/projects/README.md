@@ -85,4 +85,10 @@ This feature owns the Main Sequence project registry and project detail experien
 - The project images tab polls every 60 seconds only while the current page still contains a building image, and those rows render a spinner instead of a warning pill.
 - The project images tab displays backend-provided image `tags` in the list view and includes those tags in the local filter.
 - Job creation and resource release creation share the same project-image picker formatting, including backend-provided image tags in picker descriptions and search keywords.
+- Job creation, resource release creation, and project-agent release creation use the shared Main
+  Sequence resource-requirements block so CPU, memory, GPU, and capacity controls stay
+  grouped consistently instead of being split across unrelated form sections.
+- Those resource-requirements blocks expose the shared `Estimate cost` action, which sends the
+  selected CPU, memory, GPU, GPU type, and capacity mode to the billing estimate endpoint and shows
+  the total plus CPU/memory/GPU rates.
 - The create-project dialog auto-selects the first available data source and default base image once form options load.

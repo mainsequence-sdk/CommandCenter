@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-import { listSocialLoginProviders } from "@/auth/api";
+import {
+  getEmailSignupConstructionMaterial,
+  listSocialLoginProviders,
+  resendEmailSignup,
+  submitEmailSignup,
+  verifyEmailSignup,
+} from "@/auth/api";
 import { useAuthStore } from "@/auth/auth-store";
 import { getMockAuthHint } from "@/auth/mock-jwt-auth";
 import { getRoleLabel } from "@/auth/permissions";
@@ -43,11 +49,15 @@ function resolveRedirectTarget(
   return `${pathname}${search}${hash}` || "/app";
 }
 
+type AuthView = "signin" | "signup";
+type EmailSignupPhase = "signup" | "verify";
+
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const login = useAuthStore((state) => state.login);
   const completeMfaSetup = useAuthStore((state) => state.completeMfaSetup);
+  const applyJwtResponse = useAuthStore((state) => state.applyJwtResponse);
   const challenge = useAuthStore((state) => state.challenge);
   const resetLoginState = useAuthStore((state) => state.resetLoginState);
   const status = useAuthStore((state) => state.status);
@@ -70,6 +80,17 @@ export function LoginPage() {
   const [role, setRole] = useState<BuiltinAppRole>("org_admin");
   const [mfaCode, setMfaCode] = useState("");
   const [setupCode, setSetupCode] = useState("");
+  const [authView, setAuthView] = useState<AuthView>("signin");
+  const [emailSignupPhase, setEmailSignupPhase] = useState<EmailSignupPhase>("signup");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupPasswordConfirm, setSignupPasswordConfirm] = useState("");
+  const [signupFirstName, setSignupFirstName] = useState("");
+  const [signupLastName, setSignupLastName] = useState("");
+  const [signupVerificationToken, setSignupVerificationToken] = useState("");
+  const [signupPendingEmail, setSignupPendingEmail] = useState("");
+  const [signupNotice, setSignupNotice] = useState<string | null>(null);
+  const [signupError, setSignupError] = useState<string | null>(null);
   const [socialAuthError, setSocialAuthError] = useState<string | null>(null);
   const [activeSocialProviderId, setActiveSocialProviderId] = useState<string | null>(null);
   const accountDeleted = useMemo(
@@ -117,7 +138,102 @@ export function LoginPage() {
     retry: false,
     staleTime: 60_000,
   });
-  const visibleSocialProviders = socialProvidersQuery.data ?? [];
+  const discoveredProviders = socialProvidersQuery.data ?? [];
+  const emailSignupProvider = useMemo(
+    () =>
+      discoveredProviders.find(
+        (provider) =>
+          provider.id === "email" &&
+          provider.kind === "email_signup" &&
+          Boolean(provider.submitAction?.url) &&
+          Boolean(provider.verifyAction?.url) &&
+          Boolean(provider.resendAction?.url),
+      ) ?? null,
+    [discoveredProviders],
+  );
+  const visibleSocialProviders = useMemo(
+    () =>
+      discoveredProviders.filter(
+        (provider) => !(provider.id === "email" || provider.kind === "email_signup"),
+      ),
+    [discoveredProviders],
+  );
+  const emailSignupConstructionUrl = useMemo(() => {
+    if (!emailSignupProvider) {
+      return "";
+    }
+
+    return emailSignupProvider.startAction?.url?.trim() || emailSignupProvider.startUrl.trim();
+  }, [emailSignupProvider]);
+  const isAuthBootstrapLoading = showSocialLoginSection && socialProvidersQuery.isLoading;
+  const emailSignupConstructionQuery = useQuery({
+    queryKey: ["auth", "email-signup", emailSignupConstructionUrl],
+    queryFn: () => getEmailSignupConstructionMaterial(emailSignupConstructionUrl),
+    enabled: authView === "signup" && Boolean(emailSignupConstructionUrl),
+    retry: false,
+    staleTime: 60_000,
+  });
+  const emailSignupMutation = useMutation({
+    mutationFn: () =>
+      submitEmailSignup(emailSignupProvider?.submitAction?.url ?? "", {
+        email: signupEmail.trim(),
+        password: signupPassword,
+        first_name: signupFirstName.trim(),
+        last_name: signupLastName.trim(),
+      }),
+    onSuccess: (result) => {
+      setSignupPendingEmail(result.email);
+      setSignupNotice(result.detail);
+      setSignupError(null);
+      setSignupVerificationToken("");
+      setEmailSignupPhase("verify");
+    },
+    onError: (error) => {
+      setSignupError(
+        error instanceof Error ? error.message : "Unable to start email signup.",
+      );
+    },
+  });
+  const verifyEmailSignupMutation = useMutation({
+    mutationFn: () =>
+      verifyEmailSignup(emailSignupProvider?.verifyAction?.url ?? "", {
+        token: signupVerificationToken.trim(),
+      }),
+    onSuccess: async (result) => {
+      setSignupError(null);
+      const didApply = await applyJwtResponse({
+        access: result.tokens.access,
+        refresh: result.tokens.refresh,
+      });
+
+      if (didApply) {
+        navigate(redirectTarget, { replace: true });
+        return;
+      }
+
+      setSignupError("Signup completed, but the session could not be started.");
+    },
+    onError: (error) => {
+      setSignupError(
+        error instanceof Error ? error.message : "Unable to verify the signup token.",
+      );
+    },
+  });
+  const resendEmailSignupMutation = useMutation({
+    mutationFn: () =>
+      resendEmailSignup(emailSignupProvider?.resendAction?.url ?? "", {
+        email: signupPendingEmail.trim() || signupEmail.trim(),
+      }),
+    onSuccess: (result) => {
+      setSignupNotice(result.detail || "Verification email sent.");
+      setSignupError(null);
+    },
+    onError: (error) => {
+      setSignupError(
+        error instanceof Error ? error.message : "Unable to resend the verification email.",
+      );
+    },
+  });
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -134,6 +250,12 @@ export function LoginPage() {
       setSetupCode("");
     }
   }, [isMfaRequired, isMfaSetupRequired]);
+
+  useEffect(() => {
+    if (authView === "signup" && !emailSignupProvider) {
+      setAuthView("signin");
+    }
+  }, [authView, emailSignupProvider]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -156,7 +278,7 @@ export function LoginPage() {
     }
   }
 
-  async function startSocialLogin(provider: { id: string; startUrl: string }) {
+  async function startSocialLogin(provider: { id: string; startUrl: string; tokenExchangeUrl?: string }) {
     setSocialAuthError(null);
     resetLoginState();
     setActiveSocialProviderId(provider.id);
@@ -166,6 +288,7 @@ export function LoginPage() {
         providerId: provider.id,
         providerStartUrl: provider.startUrl,
         redirectTarget,
+        tokenExchangeUrl: provider.tokenExchangeUrl,
       });
       window.location.assign(startUrl);
     } catch (error) {
@@ -186,6 +309,38 @@ export function LoginPage() {
     setActiveSocialProviderId(null);
   }
 
+  function resetSignupState() {
+    setEmailSignupPhase("signup");
+    setSignupEmail("");
+    setSignupPassword("");
+    setSignupPasswordConfirm("");
+    setSignupFirstName("");
+    setSignupLastName("");
+    setSignupVerificationToken("");
+    setSignupPendingEmail("");
+    setSignupNotice(null);
+    setSignupError(null);
+    emailSignupMutation.reset();
+    verifyEmailSignupMutation.reset();
+    resendEmailSignupMutation.reset();
+  }
+
+  function openSignupView() {
+    resetChallengeAndInputs();
+    setSocialAuthError(null);
+    setAuthView("signup");
+    setEmailSignupPhase("signup");
+    setSignupNotice(null);
+    setSignupError(null);
+  }
+
+  function openSignInView() {
+    setSocialAuthError(null);
+    resetLoginState();
+    resetSignupState();
+    setAuthView("signin");
+  }
+
   return (
     <div className="min-h-screen bg-background px-6 py-10 text-foreground">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-[440px] items-center justify-center">
@@ -193,241 +348,489 @@ export function LoginPage() {
           <CardHeader className="space-y-6 text-center">
             <BrandWordmark className="justify-center" imageClassName="h-12 w-auto sm:h-14" />
             <div className="space-y-2">
-              <CardTitle className="text-2xl">Sign in</CardTitle>
+              <CardTitle className="text-2xl">
+                {authView === "signup"
+                  ? emailSignupPhase === "verify"
+                    ? "Verify your email"
+                    : "Create account"
+                  : "Sign in"}
+              </CardTitle>
               {isBypassAuth ? (
                 <CardDescription>
                   {`Bypass auth for local development in ${app.shortName}.`}
                 </CardDescription>
               ) : isMockAuth ? (
                 <CardDescription>Demo version of {app.shortName}.</CardDescription>
+              ) : authView === "signup" && emailSignupPhase === "verify" ? (
+                <CardDescription>
+                  Finish email verification to activate your Starter Workspace.
+                </CardDescription>
               ) : null}
             </div>
           </CardHeader>
 
           <CardContent>
-            {accountDeleted ? (
-              <div className="mb-4 rounded-[calc(var(--radius)-6px)] border border-success/30 bg-success/10 px-3 py-3 text-sm text-foreground">
-                <div className="font-medium text-foreground">Account deleted</div>
-                <div className="mt-1 text-muted-foreground">
-                  Your account was deleted successfully.
+            {isAuthBootstrapLoading ? (
+              <div className="flex min-h-72 flex-col items-center justify-center gap-3 text-center">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <div className="text-sm font-medium text-foreground">Loading sign-in options</div>
+                <div className="max-w-xs text-sm text-muted-foreground">
+                  Waiting for the authentication backend to return the available sign-in methods.
                 </div>
               </div>
-            ) : null}
-            <form className="space-y-4" autoComplete="off" onSubmit={handleSubmit}>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">
-                  {auth.identifierLabel}
-                </label>
-                <Input
-                  name="auth-identifier"
-                  value={identifier}
-                  onChange={(event) => {
-                    if (challenge) {
-                      resetChallengeAndInputs();
-                    }
-                    setSocialAuthError(null);
-                    setIdentifier(event.target.value);
-                  }}
-                  placeholder={auth.identifierPlaceholder}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-foreground">Password</label>
-                <PasswordInput
-                  name="auth-password"
-                  value={password}
-                  onChange={(event) => {
-                    if (challenge) {
-                      resetChallengeAndInputs();
-                    }
-                    setSocialAuthError(null);
-                    setPassword(event.target.value);
-                  }}
-                  placeholder={isBypassAuth ? "demo" : "Enter your password"}
-                  autoComplete="new-password"
-                  data-1p-ignore="true"
-                  data-form-type="other"
-                  data-lpignore="true"
-                />
-              </div>
-
-              {isMfaRequired ? (
-                <div className="rounded-[calc(var(--radius)-6px)] border border-primary/25 bg-primary/8 px-3 py-3 text-sm text-foreground">
-                  <div className="font-medium">Authenticator code required</div>
-                  <div className="mt-1 text-muted-foreground">{mfaVerifyChallenge?.detail}</div>
-                </div>
-              ) : null}
-
-              {isMfaSetupRequired ? (
-                <div className="rounded-[calc(var(--radius)-6px)] border border-primary/25 bg-primary/8 p-4">
-                  <div className="text-sm font-medium text-foreground">
-                    Multi-factor setup required
-                  </div>
-                  <div className="mt-1 text-sm text-muted-foreground">{mfaSetupChallenge?.detail}</div>
-                  {mfaSetupChallenge?.qrPngBase64 ? (
-                    <img
-                      src={`data:image/png;base64,${mfaSetupChallenge.qrPngBase64}`}
-                      alt="MFA setup QR code"
-                      className="mt-4 h-40 w-40 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-white p-2"
-                    />
-                  ) : null}
-                  {mfaSetupChallenge?.manualEntryKey ? (
-                    <div className="mt-4">
-                      <div className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                        Manual entry key
-                      </div>
-                      <div className="mt-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/80 px-3 py-2 font-mono text-sm text-foreground">
-                        {mfaSetupChallenge.manualEntryKey}
-                      </div>
+            ) : (
+              <>
+                {accountDeleted && authView === "signin" ? (
+                  <div className="mb-4 rounded-[calc(var(--radius)-6px)] border border-success/30 bg-success/10 px-3 py-3 text-sm text-foreground">
+                    <div className="font-medium text-foreground">Account deleted</div>
+                    <div className="mt-1 text-muted-foreground">
+                      Your account was deleted successfully.
                     </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {isMfaRequired ? (
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">Authenticator code</label>
-                  <Input
-                    name="auth-mfa-code"
-                    value={mfaCode}
-                    onChange={(event) => setMfaCode(normalizeMfaCode(event.target.value))}
-                    placeholder="123456"
-                    autoComplete="one-time-code"
-                    inputMode="numeric"
-                    maxLength={6}
-                  />
-                </div>
-              ) : null}
-
-              {isMfaSetupRequired ? (
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">
-                    First authenticator code
-                  </label>
-                  <Input
-                    name="auth-mfa-setup-code"
-                    value={setupCode}
-                    onChange={(event) => setSetupCode(normalizeMfaCode(event.target.value))}
-                    placeholder="123456"
-                    autoComplete="one-time-code"
-                    inputMode="numeric"
-                    maxLength={6}
-                  />
-                </div>
-              ) : null}
-
-              {!isBypassAuth && !isMfaSetupRequired ? (
-                <div className="flex justify-end">
-                  <Link
-                    to="/reset-password"
-                    className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
-                  >
-                    Change your password
-                  </Link>
-                </div>
-              ) : null}
-
-              {isBypassAuth ? (
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-foreground">Access class</label>
-                  <select
-                    value={role}
-                    onChange={(event) => {
-                      const nextRole = event.target.value as BuiltinAppRole;
-                      resetChallengeAndInputs();
-                      setRole(nextRole);
-                      setIdentifier(`${nextRole}@mainsequence.local`);
-                    }}
-                    className="h-10 w-full rounded-[calc(var(--radius)-6px)] border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  >
-                    {builtinAppRoles.map((option) => (
-                      <option key={option} value={option}>
-                        {getRoleLabel(option)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
-
-              {visibleError ? (
-                <div className="rounded-[calc(var(--radius)-6px)] border border-destructive/40 bg-destructive/8 px-3 py-2 text-sm text-destructive">
-                  {visibleError}
-                </div>
-              ) : null}
-
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {submitLabel}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-
-              {challenge ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  disabled={isSubmitting}
-                  onClick={resetChallengeAndInputs}
-                >
-                  Start over
-                </Button>
-              ) : null}
-
-              {showSocialLoginSection && visibleSocialProviders.length > 0 ? (
-                <>
-                  <div className="flex items-center gap-3 py-1">
-                    <Separator className="flex-1" />
-                    <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                      Or continue with
-                    </span>
-                    <Separator className="flex-1" />
                   </div>
+                ) : null}
+                {authView === "signin" ? (
+                  <form className="space-y-4" autoComplete="off" onSubmit={handleSubmit}>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-foreground">
+                        {auth.identifierLabel}
+                      </label>
+                      <Input
+                        name="auth-identifier"
+                        value={identifier}
+                        onChange={(event) => {
+                          if (challenge) {
+                            resetChallengeAndInputs();
+                          }
+                          setSocialAuthError(null);
+                          setIdentifier(event.target.value);
+                        }}
+                        placeholder={auth.identifierPlaceholder}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    {visibleSocialProviders.map((provider) => {
-                      const isActive = activeSocialProviderId === provider.id;
-                      const providerName = provider.name || formatSocialProviderName(provider.id);
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-foreground">Password</label>
+                      <PasswordInput
+                        name="auth-password"
+                        value={password}
+                        onChange={(event) => {
+                          if (challenge) {
+                            resetChallengeAndInputs();
+                          }
+                          setSocialAuthError(null);
+                          setPassword(event.target.value);
+                        }}
+                        placeholder={isBypassAuth ? "demo" : "Enter your password"}
+                        autoComplete="new-password"
+                        data-1p-ignore="true"
+                        data-form-type="other"
+                        data-lpignore="true"
+                      />
+                    </div>
 
-                      return (
+                    {isMfaRequired ? (
+                      <div className="rounded-[calc(var(--radius)-6px)] border border-primary/25 bg-primary/8 px-3 py-3 text-sm text-foreground">
+                        <div className="font-medium">Authenticator code required</div>
+                        <div className="mt-1 text-muted-foreground">{mfaVerifyChallenge?.detail}</div>
+                      </div>
+                    ) : null}
+
+                    {isMfaSetupRequired ? (
+                      <div className="rounded-[calc(var(--radius)-6px)] border border-primary/25 bg-primary/8 p-4">
+                        <div className="text-sm font-medium text-foreground">
+                          Multi-factor setup required
+                        </div>
+                        <div className="mt-1 text-sm text-muted-foreground">{mfaSetupChallenge?.detail}</div>
+                        {mfaSetupChallenge?.qrPngBase64 ? (
+                          <img
+                            src={`data:image/png;base64,${mfaSetupChallenge.qrPngBase64}`}
+                            alt="MFA setup QR code"
+                            className="mt-4 h-40 w-40 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-white p-2"
+                          />
+                        ) : null}
+                        {mfaSetupChallenge?.manualEntryKey ? (
+                          <div className="mt-4">
+                            <div className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                              Manual entry key
+                            </div>
+                            <div className="mt-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/80 px-3 py-2 font-mono text-sm text-foreground">
+                              {mfaSetupChallenge.manualEntryKey}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {isMfaRequired ? (
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-medium text-foreground">Authenticator code</label>
+                        <Input
+                          name="auth-mfa-code"
+                          value={mfaCode}
+                          onChange={(event) => setMfaCode(normalizeMfaCode(event.target.value))}
+                          placeholder="123456"
+                          autoComplete="one-time-code"
+                          inputMode="numeric"
+                          maxLength={6}
+                        />
+                      </div>
+                    ) : null}
+
+                    {isMfaSetupRequired ? (
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-medium text-foreground">
+                          First authenticator code
+                        </label>
+                        <Input
+                          name="auth-mfa-setup-code"
+                          value={setupCode}
+                          onChange={(event) => setSetupCode(normalizeMfaCode(event.target.value))}
+                          placeholder="123456"
+                          autoComplete="one-time-code"
+                          inputMode="numeric"
+                          maxLength={6}
+                        />
+                      </div>
+                    ) : null}
+
+                    {!isBypassAuth && !isMfaSetupRequired ? (
+                      <div className="flex justify-end">
+                        <Link
+                          to="/reset-password"
+                          className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
+                        >
+                          Change your password
+                        </Link>
+                      </div>
+                    ) : null}
+
+                    {isBypassAuth ? (
+                      <div className="space-y-1.5">
+                        <label className="text-sm font-medium text-foreground">Access class</label>
+                        <select
+                          value={role}
+                          onChange={(event) => {
+                            const nextRole = event.target.value as BuiltinAppRole;
+                            resetChallengeAndInputs();
+                            setRole(nextRole);
+                            setIdentifier(`${nextRole}@mainsequence.local`);
+                          }}
+                          className="h-10 w-full rounded-[calc(var(--radius)-6px)] border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        >
+                          {builtinAppRoles.map((option) => (
+                            <option key={option} value={option}>
+                              {getRoleLabel(option)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : null}
+
+                    {visibleError ? (
+                      <div className="rounded-[calc(var(--radius)-6px)] border border-destructive/40 bg-destructive/8 px-3 py-2 text-sm text-destructive">
+                        {visibleError}
+                      </div>
+                    ) : null}
+
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {submitLabel}
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+
+                    {challenge ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        disabled={isSubmitting}
+                        onClick={resetChallengeAndInputs}
+                      >
+                        Start over
+                      </Button>
+                    ) : null}
+
+                    {showSocialLoginSection && visibleSocialProviders.length > 0 ? (
+                      <>
+                        <div className="flex items-center gap-3 py-1">
+                          <Separator className="flex-1" />
+                          <span className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                            Or continue with
+                          </span>
+                          <Separator className="flex-1" />
+                        </div>
+
+                        <div className="space-y-2">
+                          {visibleSocialProviders.map((provider) => {
+                            const isActive = activeSocialProviderId === provider.id;
+                            const providerName = provider.name || formatSocialProviderName(provider.id);
+
+                            return (
+                              <Button
+                                key={provider.id}
+                                type="button"
+                                variant="outline"
+                                className="w-full justify-start"
+                                disabled={isSubmitting || activeSocialProviderId !== null}
+                                onClick={() => {
+                                  void startSocialLogin(provider);
+                                }}
+                              >
+                                {isActive ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <SocialProviderIcon providerId={provider.id} className="h-4 w-4" />
+                                )}
+                                <span>{isActive ? `Connecting to ${providerName}...` : `Continue with ${providerName}`}</span>
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    ) : null}
+
+                    {showSocialLoginSection && emailSignupProvider ? (
+                      <div className="pt-2 text-center">
+                        <button
+                          type="button"
+                          className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
+                          onClick={openSignupView}
+                        >
+                          Create account with email
+                        </button>
+                      </div>
+                    ) : null}
+                  </form>
+                ) : (
+                  <form
+                    className="space-y-4"
+                    autoComplete="off"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+
+                      if (emailSignupPhase === "signup") {
+                        if (signupPassword !== signupPasswordConfirm) {
+                          setSignupError("Passwords do not match.");
+                          return;
+                        }
+
+                        void emailSignupMutation.mutateAsync();
+                        return;
+                      }
+
+                      void verifyEmailSignupMutation.mutateAsync();
+                    }}
+                  >
+                    {emailSignupConstructionQuery.isLoading ? (
+                      <div className="rounded-[calc(var(--radius)-6px)] border border-primary/25 bg-primary/8 px-3 py-3 text-sm text-foreground">
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading signup options
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {emailSignupConstructionQuery.isError ? (
+                      <div className="rounded-[calc(var(--radius)-6px)] border border-destructive/40 bg-destructive/8 px-3 py-2 text-sm text-destructive">
+                        {emailSignupConstructionQuery.error instanceof Error
+                          ? emailSignupConstructionQuery.error.message
+                          : "Email signup is not available right now."}
+                      </div>
+                    ) : null}
+
+                    {signupNotice ? (
+                      <div className="rounded-[calc(var(--radius)-6px)] border border-primary/25 bg-primary/8 px-3 py-3 text-sm text-foreground">
+                        {signupNotice}
+                      </div>
+                    ) : null}
+
+                    {signupError ? (
+                      <div className="rounded-[calc(var(--radius)-6px)] border border-destructive/40 bg-destructive/8 px-3 py-2 text-sm text-destructive">
+                        {signupError}
+                      </div>
+                    ) : null}
+
+                    {emailSignupPhase === "signup" ? (
+                      <>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-foreground">First name</label>
+                            <Input
+                              name="signup-first-name"
+                              value={signupFirstName}
+                              onChange={(event) => {
+                                setSignupError(null);
+                                setSignupFirstName(event.target.value);
+                              }}
+                              placeholder="Ada"
+                              autoComplete="given-name"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-foreground">Last name</label>
+                            <Input
+                              name="signup-last-name"
+                              value={signupLastName}
+                              onChange={(event) => {
+                                setSignupError(null);
+                                setSignupLastName(event.target.value);
+                              }}
+                              placeholder="Lovelace"
+                              autoComplete="family-name"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-foreground">Email</label>
+                          <Input
+                            name="signup-email"
+                            value={signupEmail}
+                            onChange={(event) => {
+                              setSignupError(null);
+                              setSignupEmail(event.target.value);
+                            }}
+                            placeholder="user@example.com"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            autoComplete="email"
+                            spellCheck={false}
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-foreground">Password</label>
+                          <PasswordInput
+                            name="signup-password"
+                            value={signupPassword}
+                            onChange={(event) => {
+                              setSignupError(null);
+                              setSignupPassword(event.target.value);
+                            }}
+                            placeholder="Create a password"
+                            autoComplete="new-password"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-foreground">
+                            Confirm password
+                          </label>
+                          <PasswordInput
+                            name="signup-password-confirm"
+                            value={signupPasswordConfirm}
+                            onChange={(event) => {
+                              setSignupError(null);
+                              setSignupPasswordConfirm(event.target.value);
+                            }}
+                            placeholder="Write your password again"
+                            autoComplete="new-password"
+                          />
+                        </div>
+
                         <Button
-                          key={provider.id}
+                          type="submit"
+                          className="w-full"
+                          disabled={
+                            emailSignupMutation.isPending ||
+                            emailSignupConstructionQuery.isLoading ||
+                            emailSignupConstructionQuery.isError ||
+                            !signupEmail.trim() ||
+                            !signupPassword.trim() ||
+                            !signupPasswordConfirm.trim() ||
+                            signupPassword !== signupPasswordConfirm ||
+                            !signupFirstName.trim() ||
+                            !signupLastName.trim()
+                          }
+                        >
+                          {emailSignupMutation.isPending ? "Creating account..." : "Create account"}
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
+                          Verifying <span className="font-medium text-foreground">{signupPendingEmail || signupEmail}</span>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-foreground">Verification token</label>
+                          <Input
+                            name="signup-verification-token"
+                            value={signupVerificationToken}
+                            onChange={(event) => {
+                              setSignupError(null);
+                              setSignupVerificationToken(event.target.value);
+                            }}
+                            placeholder="Paste the email verification token"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            autoComplete="off"
+                            spellCheck={false}
+                          />
+                        </div>
+
+                        <Button
+                          type="submit"
+                          className="w-full"
+                          disabled={
+                            verifyEmailSignupMutation.isPending ||
+                            !signupVerificationToken.trim()
+                          }
+                        >
+                          {verifyEmailSignupMutation.isPending ? "Verifying..." : "Verify email"}
+                          <ArrowRight className="h-4 w-4" />
+                        </Button>
+
+                        <Button
                           type="button"
                           variant="outline"
-                          className="w-full justify-start"
-                          disabled={isSubmitting || activeSocialProviderId !== null}
+                          className="w-full"
+                          disabled={
+                            resendEmailSignupMutation.isPending ||
+                            !(signupPendingEmail.trim() || signupEmail.trim())
+                          }
                           onClick={() => {
-                            void startSocialLogin(provider);
+                            void resendEmailSignupMutation.mutateAsync();
                           }}
                         >
-                          {isActive ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <SocialProviderIcon providerId={provider.id} className="h-4 w-4" />
-                          )}
-                          <span>{isActive ? `Connecting to ${providerName}...` : `Continue with ${providerName}`}</span>
+                          {resendEmailSignupMutation.isPending ? "Resending..." : "Resend verification email"}
                         </Button>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : null}
-            </form>
+                      </>
+                    )}
 
-            {isBypassAuth ? (
-              <div className="mt-5 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
-                <span className="font-mono text-foreground">VITE_BYPASS_AUTH=true</span> is
-                enabled. Authentication is bypassed locally and the selected built-in role is used
-                for RBAC.
-              </div>
-            ) : isMockAuth && mockAuthHint ? (
-              <div className="mt-5 rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
-                <span className="font-semibold uppercase tracking-[0.16em]">Demo version</span>
-              </div>
-            ) : null}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full"
+                      disabled={
+                        emailSignupMutation.isPending ||
+                        verifyEmailSignupMutation.isPending ||
+                        resendEmailSignupMutation.isPending
+                      }
+                      onClick={openSignInView}
+                    >
+                      Back to sign in
+                    </Button>
+                  </form>
+                )}
+
+                {isBypassAuth ? (
+                  <div className="mt-5 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
+                    <span className="font-mono text-foreground">VITE_BYPASS_AUTH=true</span> is
+                    enabled. Authentication is bypassed locally and the selected built-in role is used
+                    for RBAC.
+                  </div>
+                ) : isMockAuth && mockAuthHint ? (
+                  <div className="mt-5 rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
+                    <span className="font-semibold uppercase tracking-[0.16em]">Demo version</span>
+                  </div>
+                ) : null}
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
