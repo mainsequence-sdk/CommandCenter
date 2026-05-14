@@ -199,8 +199,27 @@ describe("social auth callback parsing", () => {
     ).toEqual({
       type: "error",
       state: "error-state",
+      error: "social_auth_failed",
       errorCode: "access_denied",
-      detail: "Social sign-in failed: access_denied.",
+      errorDescription: undefined,
+      detail: "Social sign-in failed: access_denied (social_auth_failed).",
+    });
+  });
+
+  it("includes provider error detail when the callback provides it", () => {
+    expect(
+      parseSocialAuthCallback(
+        new URLSearchParams(
+          "?error=social_auth_failed&error_code=unknown&error_description=Provider%20rejected%20the%20request&state=error-state",
+        ),
+      ),
+    ).toEqual({
+      type: "error",
+      state: "error-state",
+      error: "social_auth_failed",
+      errorCode: "unknown",
+      errorDescription: "Provider rejected the request",
+      detail: "Social sign-in failed: unknown (social_auth_failed). Provider rejected the request",
     });
   });
 

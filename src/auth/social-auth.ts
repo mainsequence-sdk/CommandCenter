@@ -34,7 +34,9 @@ export type SocialAuthCallbackPayload =
   | {
       type: "error";
       state: string;
+      error: string;
       errorCode: string;
+      errorDescription?: string;
       detail: string;
     }
   | {
@@ -216,11 +218,21 @@ export function parseSocialAuthCallback(searchParams: URLSearchParams): SocialAu
   const error = readString(searchParams.get("error"));
   if (error) {
     const errorCode = readString(searchParams.get("error_code")) || error;
+    const errorDescription =
+      readString(searchParams.get("error_description")) ||
+      readString(searchParams.get("message")) ||
+      readString(searchParams.get("detail"));
+    const errorLabel =
+      errorCode === error ? errorCode : `${errorCode} (${error})`;
     return {
       type: "error",
       state,
+      error,
       errorCode,
-      detail: `Social sign-in failed: ${errorCode}.`,
+      errorDescription: errorDescription || undefined,
+      detail: errorDescription
+        ? `Social sign-in failed: ${errorLabel}. ${errorDescription}`
+        : `Social sign-in failed: ${errorLabel}.`,
     };
   }
 

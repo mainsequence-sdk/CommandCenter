@@ -100,6 +100,15 @@ export function SocialAuthCallbackPage() {
         return;
       }
 
+      if (callbackPayload.type === "error") {
+        console.error("[social-auth-callback]", {
+          error: callbackPayload.error,
+          errorCode: callbackPayload.errorCode,
+          errorDescription: callbackPayload.errorDescription,
+          hasState: Boolean(callbackPayload.state),
+        });
+      }
+
       const pending = readPendingSocialAuthSession();
 
       if (!pending || pending.state !== callbackPayload.state) {

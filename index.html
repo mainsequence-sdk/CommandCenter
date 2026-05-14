@@ -31,7 +31,6 @@
             : rawGoogleTagId.trim();
 
         if (googleTagId) {
-          console.info("[google-tag] VITE_GOOGLE_TAG_ID read:", googleTagId);
           const script = document.createElement("script");
           script.async = true;
           script.src =
@@ -46,8 +45,6 @@
           window.gtag("config", googleTagId);
           return;
         }
-
-        console.warn("[google-tag] VITE_GOOGLE_TAG_ID not read");
       })();
     </script>
   </head>
