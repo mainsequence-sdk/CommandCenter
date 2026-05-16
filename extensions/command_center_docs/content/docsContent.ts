@@ -12,6 +12,7 @@ import mainSequenceAiContent from "./main-sequence-ai/main-sequence-ai.md?raw";
 import projectAgentsContent from "./main-sequence-ai/project-agents.md?raw";
 import mainSequenceMarketsContent from "./markets/markets.md?raw";
 import organizationAdminContent from "./organization-admin/organization-admin.md?raw";
+import rbacContent from "./organization-admin/rbac.md?raw";
 import organizationAdminTbdContent from "./organization-admin/tbd.md?raw";
 import slideStudioContent from "./workspaces/slide-studio.md?raw";
 import widgetsContent from "./workspaces/widgets.md?raw";
@@ -301,6 +302,15 @@ const staticPages: DocumentationPageContent[] = [
     sectionId: "organization-admin",
   },
   {
+    id: "rbac",
+    title: "RBAC",
+    navLabel: "RBAC",
+    description: "Understand platform permissions and Main Sequence object-level access.",
+    content: rbacContent,
+    sectionId: "organization-admin",
+    hiddenInShellNavigation: true,
+  },
+  {
     id: "organization-admin-tbd",
     title: "TBD",
     navLabel: "TBD",
@@ -410,6 +420,7 @@ export const documentationNavSections: readonly DocumentationNavSection[] = [
     landingPageId: "organization-admin",
     items: [
       { type: "page", pageId: "organization-admin" },
+      { type: "page", pageId: "rbac" },
       { type: "page", pageId: "organization-admin-tbd" },
     ],
   },

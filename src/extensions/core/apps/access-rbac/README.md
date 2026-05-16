@@ -20,8 +20,15 @@ Notable behavior:
 
 - Access & RBAC is organization-admin-facing. It no longer shares the same access gate as the
   platform-only `Admin Settings` modal.
+- The conceptual RBAC overview now lives in the Documentation app under
+  `Organization Admin -> RBAC`. The legacy `/app/access-rbac/overview` route is retained only as a
+  redirect, and `Overview` is no longer part of the normal Access & RBAC navigation.
 - The `Policies` surface is now backed by `/api/v1/command_center/access-policies/` and only
-  exposes visible Command Center shell policies. Hidden admin-class policies stay backend-only.
+  exposes visible Command Center shell policies. System policies remain backend-owned and
+  read-only in the frontend editor, while hidden admin-class policies stay backend-only.
+- Backend policy/bootstrap flows should derive app and surface coverage from the generated access
+  catalog in `src/app/registry/access-catalog-sync.ts`, which includes all registered surfaces,
+  including hidden deep-link surfaces.
 - The shell app gates now use app-level permissions: `workspaces:view`,
   `main_sequence_markets:view`, and `main_sequence_foundry:view`.
 - The `User access inspector` surface now edits `/api/v1/command_center/users/<user_id>/shell-access/`

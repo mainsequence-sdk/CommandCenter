@@ -77,7 +77,7 @@ const builtinOrgAdminPolicyDetails = {
     "Organization-admin-only shell access for users who should only see organization administration surfaces.",
   permissions: ["org_admin:view", WORKSPACES_PUBLISH_PERMISSION],
   isSystem: true,
-  isEditable: true,
+  isEditable: false,
   isVisible: true,
 } as const;
 export const BUILTIN_ACCESS_POLICY_DETAILS = {
@@ -88,7 +88,7 @@ export const BUILTIN_ACCESS_POLICY_DETAILS = {
       "Base shell access for users who should only see Workspaces and Main Sequence Markets.",
     permissions: ["workspaces:view", "main_sequence_markets:view"],
     isSystem: true,
-    isEditable: true,
+    isEditable: false,
     isVisible: true,
   },
   "dev-user": {
@@ -103,7 +103,7 @@ export const BUILTIN_ACCESS_POLICY_DETAILS = {
       ...PROMETHEUS_CONNECTION_PERMISSIONS,
     ],
     isSystem: true,
-    isEditable: true,
+    isEditable: false,
     isVisible: true,
   },
   "org-admin-user": {

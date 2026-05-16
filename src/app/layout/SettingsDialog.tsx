@@ -20,6 +20,11 @@ import {
   type WidgetTypeSyncResponse,
 } from "@/app/registry/widget-type-sync";
 import {
+  buildAccessCatalogDraft,
+  syncAccessCatalog,
+  type AccessCatalogSyncResponse,
+} from "@/app/registry/access-catalog-sync";
+import {
   buildConnectionTypeSyncDraft,
   syncConnectionTypes,
   type ConnectionTypeSyncResponse,
@@ -960,6 +965,253 @@ function ConnectionRegistrySettingsSection({
   );
 }
 
+function AccessCatalogSettingsSection({
+  syncUrl,
+}: {
+  syncUrl: string;
+}) {
+  const { toast } = useToast();
+  const draftQuery = useQuery({
+    queryKey: ["access-catalog", "sync-payload"],
+    queryFn: buildAccessCatalogDraft,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const [lastResult, setLastResult] = useState<AccessCatalogSyncResponse | null>(null);
+  const appIdsPreview = useMemo(
+    () => (draftQuery.data?.payload.apps ?? []).map((app) => app.appId),
+    [draftQuery.data?.payload.apps],
+  );
+  const surfacePreview = useMemo(
+    () =>
+      (draftQuery.data?.payload.surfaces ?? []).slice(0, 16).map((surface) => ({
+        appId: surface.appId,
+        surfaceId: surface.surfaceId,
+        kind: surface.kind,
+        hidden: surface.hidden,
+        routePath: surface.routePath,
+        effectiveRequiredPermissions: surface.effectiveRequiredPermissions,
+      })),
+    [draftQuery.data?.payload.surfaces],
+  );
+  const permissionIdsPreview = useMemo(
+    () => (draftQuery.data?.payload.permissions ?? []).map((permission) => permission.id),
+    [draftQuery.data?.payload.permissions],
+  );
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const nextDraft = await buildAccessCatalogDraft();
+      return {
+        draft: nextDraft,
+        result: await syncAccessCatalog(nextDraft.payload),
+      };
+    },
+    onSuccess: ({ result }) => {
+      setLastResult(result);
+      void draftQuery.refetch();
+      toast({
+        variant: "success",
+        title: "Access catalog published",
+        description:
+          result.status === "synced"
+            ? `Created ${result.created ?? 0}, updated ${result.updated ?? 0}, deactivated ${result.deactivated ?? 0}.`
+            : "Backend access catalog already matched the current frontend manifest.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Access catalog publish failed",
+        description:
+          error instanceof Error ? error.message : "Unable to publish access catalog.",
+      });
+    },
+  });
+
+  return (
+    <SettingsSection
+      title="Access catalog"
+      description="Publish the generated frontend access catalog to the backend so shell policy tooling can derive apps, surfaces, and permissions from one registry manifest."
+    >
+      <SettingsRow
+        label="Sync endpoint"
+        description="Backend endpoint that receives the versioned access catalog manifest."
+        value={
+          <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+            {syncUrl || "Not configured"}
+          </span>
+        }
+      />
+      <SettingsRow
+        label="Manifest"
+        description="Generated preview from the current app registry, including hidden deep-link surfaces."
+        value={
+          draftQuery.isLoading ? (
+            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Building manifest
+            </span>
+          ) : draftQuery.isError ? (
+            <span className="text-sm text-danger">
+              {draftQuery.error instanceof Error
+                ? draftQuery.error.message
+                : "Unable to build access catalog manifest."}
+            </span>
+          ) : (
+            <div className="space-y-2 text-right">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Badge variant="neutral">
+                  {(draftQuery.data?.payload.apps.length ?? 0).toLocaleString()} apps
+                </Badge>
+                <Badge variant="neutral">
+                  {(draftQuery.data?.payload.surfaces.length ?? 0).toLocaleString()} surfaces
+                </Badge>
+                <Badge variant="neutral">
+                  {(draftQuery.data?.payload.permissions.length ?? 0).toLocaleString()} permissions
+                </Badge>
+                <Badge
+                  variant={
+                    (draftQuery.data?.validationIssues.length ?? 0) > 0 ? "warning" : "neutral"
+                  }
+                >
+                  {(draftQuery.data?.validationIssues.length ?? 0).toLocaleString()} issues
+                </Badge>
+              </div>
+              <div className="font-mono text-[11px] text-muted-foreground">
+                {draftQuery.data?.payload.registryVersion ?? "—"}
+              </div>
+            </div>
+          )
+        }
+      />
+      <SettingsRow
+        label="Checksum"
+        description="Backend no-op protection for identical access catalog manifests."
+        value={
+          <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
+            {draftQuery.data?.payload.checksum ?? "Unavailable"}
+          </span>
+        }
+      />
+      <SettingsRow
+        label="Publish"
+        description="This writes the current frontend access catalog to the backend access-catalog registry."
+        value={
+          <div className="flex flex-col items-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                syncMutation.mutate();
+              }}
+              disabled={
+                !syncUrl.trim() ||
+                draftQuery.isLoading ||
+                draftQuery.isError ||
+                (draftQuery.data?.validationIssues.length ?? 0) > 0 ||
+                draftQuery.isFetching ||
+                syncMutation.isPending
+              }
+            >
+              {syncMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Publishing
+                </>
+              ) : (
+                "Publish access catalog"
+              )}
+            </Button>
+            <div className="text-xs text-muted-foreground">
+              {lastResult
+                ? `Last result: ${lastResult.status} at ${formatRegistrySyncTimestamp(lastResult.lastSyncedAt)}`
+                : "No publish has been run from this session yet."}
+            </div>
+          </div>
+        }
+      />
+
+      <div className="space-y-4 py-4">
+        {(draftQuery.data?.validationIssues.length ?? 0) > 0 ? (
+          <div className="rounded-[calc(var(--radius)-4px)] border border-warning/40 bg-warning/10 p-4">
+            <div className="text-sm font-medium text-topbar-foreground">Manifest validation issues</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              Publication stays disabled until access catalog metadata is valid.
+            </div>
+            <div className="mt-3">
+              <SettingsCodeBlock
+                value={(draftQuery.data?.validationIssues ?? [])
+                  .map((issue) => `[${issue.section}] ${issue.message}`)
+                  .join("\n")}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
+          <div className="text-sm font-medium text-topbar-foreground">App id preview</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            All app ids included in the generated access catalog.
+          </div>
+          <div className="mt-3">
+            <SettingsCodeBlock value={appIdsPreview.join("\n") || "No apps available."} />
+          </div>
+        </div>
+
+        <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
+          <div className="text-sm font-medium text-topbar-foreground">Surface preview</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            First 16 generated surfaces, including hidden deep-link routes and effective required permissions.
+          </div>
+          <div className="mt-3">
+            <SettingsCodeBlock
+              value={
+                surfacePreview.length > 0
+                  ? JSON.stringify(surfacePreview, null, 2)
+                  : "No surfaces available."
+              }
+            />
+          </div>
+        </div>
+
+        <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
+          <div className="text-sm font-medium text-topbar-foreground">Permission id preview</div>
+          <div className="mt-1 text-sm text-muted-foreground">
+            Generated permission catalog ids resolved from core and app-defined permission definitions.
+          </div>
+          <div className="mt-3">
+            <SettingsCodeBlock
+              value={permissionIdsPreview.join("\n") || "No permissions available."}
+            />
+          </div>
+        </div>
+
+        {lastResult ? (
+          <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
+            <div className="text-sm font-medium text-topbar-foreground">Last publish result</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge variant={lastResult.status === "synced" ? "primary" : "neutral"}>
+                {lastResult.status}
+              </Badge>
+              {typeof lastResult.created === "number" ? (
+                <Badge variant="neutral">Created: {lastResult.created}</Badge>
+              ) : null}
+              {typeof lastResult.updated === "number" ? (
+                <Badge variant="neutral">Updated: {lastResult.updated}</Badge>
+              ) : null}
+              {typeof lastResult.deactivated === "number" ? (
+                <Badge variant="neutral">Deactivated: {lastResult.deactivated}</Badge>
+              ) : null}
+              {typeof lastResult.total === "number" ? (
+                <Badge variant="neutral">Total: {lastResult.total}</Badge>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </SettingsSection>
+  );
+}
+
 interface SettingsConfigFieldSpec {
   label: string;
   value: string;
@@ -1646,6 +1898,11 @@ export function SettingsDialog({
             id: "connection-registry" as const,
             label: "Connection Registry",
             icon: Cable,
+          },
+          {
+            id: "access-catalog" as const,
+            label: "Access Catalog",
+            icon: ShieldCheck,
           },
         ]
       : []),
@@ -2383,6 +2640,12 @@ export function SettingsDialog({
 
           {mode === "platform" && activeSection === "connection-registry" ? (
             <ConnectionRegistrySettingsSection syncUrl={config.connections.types.syncUrl} />
+          ) : null}
+
+          {mode === "platform" && activeSection === "access-catalog" ? (
+            <AccessCatalogSettingsSection
+              syncUrl={config.commandCenterAccess.accessCatalog.syncUrl}
+            />
           ) : null}
 
           {activeSection === "about" ? (

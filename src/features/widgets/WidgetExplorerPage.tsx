@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo, type ComponentType, type ReactNode } from "react";
 
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
@@ -9,9 +9,23 @@ import { hasAllPermissions } from "@/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import {
+  resolveWidgetMockPresentation,
+  resolveWidgetMockProps,
+  resolveWidgetMockResolvedInputs,
+  resolveWidgetMockRuntimeState,
+  resolveWidgetMockTitle,
+  WidgetPreviewModeBoundary,
+} from "@/features/widgets/widget-explorer";
 import { cn, titleCase } from "@/lib/utils";
+import { WidgetErrorBoundary } from "@/widgets/shared/widget-error-boundary";
+import { WidgetFrame } from "@/widgets/shared/widget-frame";
 import { useRegisteredWidgetTypesCatalog } from "@/widgets/registered-widget-types-api";
-import type { WidgetDefinition, WidgetFieldDefinition } from "@/widgets/types";
+import type {
+  WidgetComponentProps,
+  WidgetDefinition,
+  WidgetFieldDefinition,
+} from "@/widgets/types";
 
 const catalogPath = "/app/workspace-studio/widget-catalog";
 
@@ -134,6 +148,90 @@ function formatFieldMeta(field: WidgetFieldDefinition<Record<string, unknown>, u
   return items.join(" | ");
 }
 
+function hasCatalogDemoPreview(widget: WidgetDefinition) {
+  return widget.mockProps !== undefined ||
+    widget.exampleProps !== undefined ||
+    widget.mockTitle !== undefined ||
+    widget.mockPresentation !== undefined ||
+    widget.mockResolvedInputs !== undefined ||
+    widget.mockRuntimeState !== undefined;
+}
+
+export function WidgetCatalogDemoPreview({
+  widget,
+}: {
+  widget: WidgetDefinition<Record<string, unknown>>;
+}) {
+  const hasDemoPreview = hasCatalogDemoPreview(widget);
+  const previewTitle = useMemo(() => resolveWidgetMockTitle(widget), [widget]);
+  const previewProps = useMemo(() => resolveWidgetMockProps(widget), [widget]);
+  const previewPresentation = useMemo(() => resolveWidgetMockPresentation(widget), [widget]);
+  const previewResolvedInputs = useMemo(() => resolveWidgetMockResolvedInputs(widget), [widget]);
+  const previewRuntimeState = useMemo(() => resolveWidgetMockRuntimeState(widget), [widget]);
+  const PreviewComponent = widget.component as ComponentType<
+    WidgetComponentProps<Record<string, unknown>>
+  >;
+  const previewInstanceId = `${widget.id}::catalog-demo-preview`;
+
+  if (!hasDemoPreview) {
+    return null;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Demo Preview</CardTitle>
+        <CardDescription>
+          Widget-rendered catalog preview using the widget&apos;s bundled mock data.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <WidgetPreviewModeBoundary
+          fallback={
+            <div className="h-[460px] rounded-[var(--radius)] border border-border/70 bg-muted/25" />
+          }
+        >
+          <div className="h-[460px] min-h-0">
+            <WidgetFrame
+              widget={widget}
+              instanceId={previewInstanceId}
+              instance={{
+                title: previewTitle,
+                props: previewProps,
+              }}
+              presentation={previewPresentation}
+              runtimeState={previewRuntimeState}
+              showDragHandle={false}
+              showExplorerTrigger={false}
+              showHeader
+              showHeaderMeta={false}
+              style={{ height: "100%" }}
+            >
+              <WidgetErrorBoundary
+                widgetId={widget.id}
+                widgetTitle={previewTitle}
+                instanceId={previewInstanceId}
+                surface="canvas"
+              >
+                <PreviewComponent
+                  widget={widget}
+                  instanceId={previewInstanceId}
+                  instanceTitle={previewTitle}
+                  props={previewProps}
+                  presentation={previewPresentation}
+                  runtimeState={previewRuntimeState}
+                  resolvedInputs={previewResolvedInputs}
+                  editable={false}
+                />
+              </WidgetErrorBoundary>
+            </WidgetFrame>
+          </div>
+        </WidgetPreviewModeBoundary>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function WidgetExplorerPage() {
   const { widgetId = "" } = useParams();
   const widget = widgetId ? getWidgetById(widgetId) : undefined;
@@ -226,6 +324,8 @@ export function WidgetExplorerPage() {
             </Link>
           }
         />
+
+        <WidgetCatalogDemoPreview widget={widget as WidgetDefinition<Record<string, unknown>>} />
 
         {usageGuidance ? (
           <Card>

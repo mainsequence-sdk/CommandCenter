@@ -28,12 +28,20 @@ Current surfaces in this folder:
   `/user/api/organization/<id>/login-sessions/` with search, auth-source/state filters, paginated
   results, and per-session revoke action through the matching org-scoped revoke endpoint
 - `AdminGithubOrganizationsPage.tsx`: GitHub organization registry backed by the pod-manager
-  `github-organization` endpoint with connect-start, bulk delete, and project-import actions
+  `github-organization` endpoint with connect-start, bulk delete, and organization-click
+  repository discovery through `/orm/api/pods/github-organization/{id}/repositories/` plus
+  selective project import through `/orm/api/pods/github-organization/{id}/repositories/import/`
 - `AdminInvoicesPage.tsx`: billing invoice registry backed by `/orm/api/pods/billing/invoices/`
   with cursor pagination, `origin_url` fallback support, and View/PDF invoice actions
 - `AdminBillingDetailsPage.tsx`: billing usage table backed by `/orm/api/pods/billing/usage/`
   with a summary header from `/orm/api/pods/billing/summary/`, `datetime-local`
   range filters, and quick date presets
+- `AdminHostedResourcesPage.tsx`: billing-owned hosted infrastructure surface with local tab
+  navigation. The first `Databases` tab is wired to the hosted Timescale billing catalog and
+  expects plan-driven CRUD around
+  `/orm/api/pods/mainsequence-hosted/billing/hosted-resources/timescaledb-databases/` plus the
+  matching `/plans/` endpoint, whose catalog is grouped by provider and flattened locally for the
+  picker UI.
 - `AdminManageCreditsPage.tsx`: organization credit overview backed by
   `/user/api/organization/<id>/credits/` with action-driven prepaid-credit checkout,
   editable auto-reload settings, and org-admin per-user credit-budget management backed by the

@@ -9,5 +9,8 @@ Use this area when the task is about:
 - organization widget configuration
 - governance or platform access review
 
-Detailed usage pages for this section are still being structured. For now, treat this section as
-the landing area for future Organization Admin documentation.
+Use the `RBAC` page in this section when the current question is about access rules, effective
+permissions, or the split between Command Center platform access and Main Sequence object access.
+
+Detailed usage pages for the rest of Organization Admin are still being structured. For now, treat
+this page as the landing area for the broader administration documentation.

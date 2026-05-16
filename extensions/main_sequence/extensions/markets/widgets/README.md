@@ -4,6 +4,10 @@ This folder contains widget definitions and widget-owned presentation components
 
 ## Widgets
 
+- [`asset-screener/`](./asset-screener/README.md): dense `Asset Screener` table widget that consumes
+  latest snapshot, historical reference-point, history-series, and live-update lanes. It is tagged
+  as a workspace runtime `consumer` and evaluates generic tabular frames against shared Markets
+  asset models.
 - [`curve-plot/`](./curve-plot/README.md): live `Curve Plot` widget that renders bound tabular
   curve datasets with mapped maturity/value fields and Lightweight Charts. It is tagged as a
   workspace runtime `consumer`.
@@ -20,12 +24,14 @@ This folder contains widget definitions and widget-owned presentation components
 
 ## Browser Grouping
 
-- `Curve Plot`, `Zero Curve`, `OHLC Bars`, `Positions Table`, and `Portfolio
+- `Asset Screener`, `Curve Plot`, `Zero Curve`, `OHLC Bars`, `Positions Table`, and `Portfolio
   Weights` should all appear under the `Main Sequence Markets` widget-browser category.
 
 ## Rules
 
 - Keep Markets-specific widgets here, not in `../../common/`.
+- Shared Markets asset, price, reference-point, and history-series models belong in
+  `../widget-contracts/` so multiple Markets widgets can reuse one internal interpretation layer.
 - Mock-only demo widgets belong in `extensions/demo/widgets/` instead of the live markets
   extension.
 - Shared low-level UI primitives belong in `../../common/components/`.

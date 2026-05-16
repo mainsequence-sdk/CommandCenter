@@ -262,7 +262,7 @@ export function RbacPolicyStudio({
   }
 
   async function handleSave() {
-    if (!draft) {
+    if (!draft || !draft.isEditable) {
       return;
     }
 
@@ -329,8 +329,8 @@ export function RbacPolicyStudio({
           <div className="space-y-1.5">
             <CardTitle>Shell policy studio</CardTitle>
             <CardDescription>
-              Define reusable Command Center permission bundles. Visible built-in baselines remain
-              built-in, and org admins can edit them here.
+              Define reusable Command Center permission bundles. System policies remain visible for
+              inspection but stay read-only in this editor.
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -464,7 +464,9 @@ export function RbacPolicyStudio({
                 <div className="space-y-1.5">
                   <CardTitle>{draft.label}</CardTitle>
                   <CardDescription>
-                    Update the shell-facing policy definition and save when ready.
+                    {draft.isEditable
+                      ? "Update the shell-facing policy definition and save when ready."
+                      : "This system policy is read-only. Create a custom policy if you need a different permission bundle."}
                   </CardDescription>
                 </div>
                 {!draft.isNew && draft.isEditable && !draft.isSystem ? (

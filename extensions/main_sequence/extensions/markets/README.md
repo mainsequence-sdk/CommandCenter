@@ -7,8 +7,11 @@ This nested extension is the separate application shell for market-facing Main S
 - `index.ts`: registers the Markets extension.
 - `app.ts`: declares the `AppDefinition` for `main_sequence_markets`.
 - `features/`: Markets surfaces and feature-owned workflows.
+- `widget-contracts/`: Markets-scoped data models and adapters shared by market widgets,
+  including internal asset snapshot, reference-point, and history-series semantics over generic
+  tabular frames.
 - `widgets/`: Markets-owned widgets that can also be reused by Markets surfaces, including the live
-  `Curve Plot`, `Zero Curve`, `Positions Table`, and the reusable `Portfolio Weights`
+  `Asset Screener`, `Curve Plot`, `Zero Curve`, `Positions Table`, and the reusable `Portfolio Weights`
   table module.
 
 ## Current Surfaces
@@ -28,6 +31,8 @@ This nested extension is the separate application shell for market-facing Main S
 ## Dependencies
 
 - Shared Main Sequence UI, hooks, and API helpers come from `../../common/`.
+- Markets-specific widget data models live in `widget-contracts/`; keep asset and price semantics
+  scoped there unless another Main Sequence extension also needs the same interpretation layer.
 - The live `Curve Plot` and `Zero Curve` widgets currently reuse the existing Workbench
   DataNode-source helpers so they can bind to a `Data Node` widget runtime without introducing a
   second source contract.

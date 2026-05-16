@@ -202,11 +202,40 @@ export interface GithubOrganizationBulkDeleteResponse {
   deleted_count: number;
 }
 
-export interface GithubOrganizationImportProjectsResponse {
-  detail: string;
-  matched_count: number;
-  created_count: number;
-  project_names: string[];
+export interface GithubOrganizationRepositoryRecord {
+  github_repository_id: number;
+  name: string;
+  full_name?: string;
+  clone_url?: string | null;
+  ssh_url?: string | null;
+  default_branch?: string | null;
+  is_private?: boolean;
+  existing_git_repository_id?: number | null;
+  existing_project_id?: number | null;
+  suggested_project_name?: string | null;
+}
+
+export interface GithubOrganizationRepositoryListResponse {
+  repositories: GithubOrganizationRepositoryRecord[];
+}
+
+export interface GithubOrganizationImportRepositoryInput {
+  github_repository_id: number;
+  full_name: string;
+  project_name: string;
+}
+
+export interface GithubOrganizationImportRepositoryResult {
+  full_name: string;
+  project_name: string;
+  status: string;
+  project_id: number | null;
+  git_repository_id: number | null;
+  detail?: string;
+}
+
+export interface GithubOrganizationImportRepositoriesResponse {
+  results: GithubOrganizationImportRepositoryResult[];
 }
 
 export interface GithubOrganizationConnectStartResponse {
@@ -254,6 +283,97 @@ export interface BillingUsageColumnDef {
 export interface BillingUsageResponse {
   rows: BillingUsageRow[];
   columnDefs: BillingUsageColumnDef[];
+}
+
+export interface HostedTimescaleDatabaseCloudRegion {
+  code: string;
+  label: string;
+}
+
+export interface HostedTimescaleDatabasePrice {
+  amount: string;
+  currency: string;
+  display: string;
+}
+
+export interface HostedTimescaleDatabasePlan {
+  code: string;
+  name: string;
+  cloud_region: HostedTimescaleDatabaseCloudRegion;
+  vms: number;
+  cpu_per_vm: number;
+  memory_per_vm_gb: number;
+  storage_gb: number;
+  monthly_price: HostedTimescaleDatabasePrice;
+  recommended: boolean;
+  available: boolean;
+}
+
+export interface HostedTimescaleDatabasePlanProvider {
+  code: string;
+  name: string;
+  default_plan_code: string;
+  plans: HostedTimescaleDatabasePlan[];
+}
+
+export interface HostedTimescaleDatabasePlansResponse {
+  resource_kind: string;
+  title: string;
+  providers: Record<string, HostedTimescaleDatabasePlanProvider>;
+}
+
+export interface HostedTimescaleDatabaseRecord extends Record<string, unknown> {
+  id?: number | string;
+  uid?: string;
+  name?: string;
+  title?: string;
+  label?: string;
+  display_name?: string;
+  database_name?: string;
+  status?: string;
+  status_label?: string;
+  state?: string;
+  plan_code?: string;
+  current_plan_code?: string;
+  plan_name?: string;
+  current_plan_name?: string;
+  region?: string;
+  created_at?: string;
+  updated_at?: string;
+  monthly_price?: Partial<HostedTimescaleDatabasePrice> | null;
+  cloud_region?: Partial<HostedTimescaleDatabaseCloudRegion> | string | null;
+  plan?: Partial<HostedTimescaleDatabasePlan> | null;
+}
+
+export interface HostedTimescaleDatabasesResponse {
+  resource_kind?: string;
+  provider?: string;
+  title?: string;
+  count: number;
+  results: HostedTimescaleDatabaseRecord[];
+}
+
+export interface HostedTimescaleDatabaseCreateResponse {
+  detail: string;
+  id: number;
+  display_name: string;
+  resource_plan_code: string;
+  dynamic_table_data_source_id: number;
+  hosted_resource: {
+    kind: string;
+    provider: string;
+    managed_service_visible: boolean;
+  };
+}
+
+export interface HostedTimescaleDatabaseCreateInput {
+  display_name: string;
+  description?: string | null;
+  resource_plan_code: string;
+}
+
+export interface HostedTimescaleDatabaseUpdateInput {
+  plan_code: string;
 }
 
 export interface OrganizationActivePlanItem {
@@ -606,6 +726,97 @@ export function listBillingUsage({
   );
 }
 
+const hostedTimescaleDatabasesBasePath =
+  "/orm/api/pods/mainsequence-hosted/billing/hosted-resources/timescaledb-databases/";
+
+type HostedTimescaleDatabasesPayload =
+  | HostedTimescaleDatabaseRecord[]
+  | (PaginatedResponse<HostedTimescaleDatabaseRecord> & {
+      resource_kind?: string;
+      provider?: string;
+      title?: string;
+      items?: HostedTimescaleDatabaseRecord[];
+      databases?: HostedTimescaleDatabaseRecord[];
+      rows?: HostedTimescaleDatabaseRecord[];
+    });
+
+function normalizeHostedTimescaleDatabasesPayload(
+  payload: HostedTimescaleDatabasesPayload,
+): HostedTimescaleDatabasesResponse {
+  if (Array.isArray(payload)) {
+    return {
+      count: payload.length,
+      results: payload,
+    };
+  }
+
+  const results =
+    payload.results ??
+    payload.items ??
+    payload.databases ??
+    payload.rows ??
+    [];
+
+  return {
+    resource_kind: payload.resource_kind,
+    provider: payload.provider,
+    title: payload.title,
+    count: typeof payload.count === "number" ? payload.count : results.length,
+    results,
+  };
+}
+
+export function listHostedTimescaleDatabasePlans() {
+  return requestAdminJson<HostedTimescaleDatabasePlansResponse>(
+    `${hostedTimescaleDatabasesBasePath}plans/`,
+    {
+      method: "GET",
+    },
+  );
+}
+
+export async function listHostedTimescaleDatabases() {
+  const payload = await requestAdminJson<HostedTimescaleDatabasesPayload>(
+    hostedTimescaleDatabasesBasePath,
+    {
+      method: "GET",
+    },
+  );
+
+  return normalizeHostedTimescaleDatabasesPayload(payload);
+}
+
+export function createHostedTimescaleDatabase(payload: HostedTimescaleDatabaseCreateInput) {
+  return requestAdminJson<HostedTimescaleDatabaseCreateResponse>(hostedTimescaleDatabasesBasePath, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateHostedTimescaleDatabase(
+  databaseId: number | string,
+  payload: HostedTimescaleDatabaseUpdateInput,
+) {
+  const detailPath = `${hostedTimescaleDatabasesBasePath}${encodeURIComponent(String(databaseId))}/`;
+  const body = JSON.stringify(payload);
+
+  try {
+    return await requestAdminJson<HostedTimescaleDatabaseRecord>(detailPath, {
+      method: "PATCH",
+      body,
+    });
+  } catch (error) {
+    if (!(error instanceof AdminRequestError) || (error.status !== 404 && error.status !== 405)) {
+      throw error;
+    }
+  }
+
+  return requestAdminJson<HostedTimescaleDatabaseRecord>(detailPath, {
+    method: "PUT",
+    body,
+  });
+}
+
 export async function fetchCurrentOrganizationId() {
   const payload = await requestAdminJson<CurrentUserDetailsPayload>("/user/api/user/get_user_details/");
   const organizationId = payload.organization?.id;
@@ -860,13 +1071,104 @@ export function bulkDeleteGithubOrganizations(selectedIds: number[]) {
   );
 }
 
-export function importGithubOrganizationProjects(selectedIds: number[]) {
-  return requestAdminJson<GithubOrganizationImportProjectsResponse>(
-    "/orm/api/pods/github-organization/import-projects/",
+function normalizeGithubRepositoryRecord(value: unknown): GithubOrganizationRepositoryRecord | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const githubRepositoryId =
+    typeof record.github_repository_id === "number"
+      ? record.github_repository_id
+      : typeof record.github_repository_id === "string"
+        ? Number(record.github_repository_id)
+        : NaN;
+  const fullName =
+    (typeof record.full_name === "string" && record.full_name.trim()) ||
+    (typeof record.fullName === "string" && record.fullName.trim()) ||
+    "";
+  const name =
+    (typeof record.name === "string" && record.name.trim()) ||
+    fullName.split("/").at(-1)?.trim() ||
+    "";
+
+  if (!name || !Number.isFinite(githubRepositoryId) || githubRepositoryId <= 0) {
+    return null;
+  }
+
+  return {
+    github_repository_id: githubRepositoryId,
+    name,
+    full_name: fullName || undefined,
+    clone_url:
+      typeof record.clone_url === "string" && record.clone_url.trim() ? record.clone_url.trim() : null,
+    ssh_url: typeof record.ssh_url === "string" && record.ssh_url.trim() ? record.ssh_url.trim() : null,
+    default_branch:
+      typeof record.default_branch === "string" && record.default_branch.trim()
+        ? record.default_branch.trim()
+        : typeof record.defaultBranch === "string" && record.defaultBranch.trim()
+          ? record.defaultBranch.trim()
+          : null,
+    is_private:
+      typeof record.is_private === "boolean"
+        ? record.is_private
+        : typeof record.private === "boolean"
+          ? record.private
+          : false,
+    existing_git_repository_id:
+      typeof record.existing_git_repository_id === "number"
+        ? record.existing_git_repository_id
+        : null,
+    existing_project_id:
+      typeof record.existing_project_id === "number" ? record.existing_project_id : null,
+    suggested_project_name:
+      typeof record.suggested_project_name === "string" && record.suggested_project_name.trim()
+        ? record.suggested_project_name.trim()
+        : null,
+  };
+}
+
+function normalizeGithubRepositoryPayload(payload: unknown): GithubOrganizationRepositoryListResponse {
+  const candidates = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === "object"
+      ? [
+          (payload as Record<string, unknown>).repositories,
+          (payload as Record<string, unknown>).repos,
+          (payload as Record<string, unknown>).results,
+          (payload as Record<string, unknown>).items,
+          (payload as Record<string, unknown>).project_names,
+        ].find(Array.isArray) ?? []
+      : [];
+
+  const repositories = (Array.isArray(candidates) ? candidates : [])
+    .map((entry) => normalizeGithubRepositoryRecord(entry))
+    .filter((entry): entry is GithubOrganizationRepositoryRecord => entry !== null);
+
+  return { repositories };
+}
+
+export async function listGithubOrganizationRepositories(organizationId: number) {
+  const payload = await requestAdminJson<unknown>(
+    `/orm/api/pods/github-organization/${encodeURIComponent(String(organizationId))}/repositories/`,
+    {
+      method: "GET",
+    },
+  );
+
+  return normalizeGithubRepositoryPayload(payload);
+}
+
+export function importGithubOrganizationRepositories(
+  organizationId: number,
+  repositories: GithubOrganizationImportRepositoryInput[],
+) {
+  return requestAdminJson<GithubOrganizationImportRepositoriesResponse>(
+    `/orm/api/pods/github-organization/${encodeURIComponent(String(organizationId))}/repositories/import/`,
     {
       method: "POST",
       body: JSON.stringify({
-        ids: selectedIds,
+        repositories,
       }),
     },
   );

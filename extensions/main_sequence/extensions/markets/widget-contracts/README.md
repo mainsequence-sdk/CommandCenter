@@ -1,0 +1,30 @@
+# Markets Widget Contracts
+
+This directory owns shared, Markets-scoped data models and adapters used by Main Sequence Markets
+widgets. These models are intentionally local to the Markets extension so core widgets and
+connections do not depend on market-specific asset, price, and reference-point semantics.
+
+## Entry Points
+
+- `marketAssetFrames.ts`: shared Asset Screener data structures, internal lane-role metadata,
+  adapters from `core.tabular_frame@v1`, and derived row helpers.
+
+## Notes
+
+- Market visualization widgets should import shared asset models from this directory instead of
+  defining their own asset identity, reference-point, history-series, or live-update shapes.
+- Asset Screener semantics are internal widget lane roles over generic `core.tabular_frame@v1`
+  inputs. Connections should not publish or advertise Asset Screener-specific market contracts.
+- Dynamic metric columns are represented as semantic `valueKey`s such as `price`, `volume`,
+  `marketCap`, or `peRatio`; widget column config chooses which value keys to render.
+- Row-local computed metrics can be described in `meta.tableTransforms.computedColumns`. The
+  adapter computes those fields before applying Markets semantic roles, which lets generic frames
+  publish `last_price` and `previous_close` while the widget derives `oneDayReturn`.
+- Compact terminal visuals can be described in `meta.tableVisuals.columns` and inline
+  `sparklineSeries` field roles. This is widget-side interpretation metadata over a generic table,
+  not a connection-specific output contract.
+- Runtime ownership stays with Connection Query, Connection Stream Query, and Tabular Transform.
+  Consumers such as Asset Screener should adapt bound frames and live updates, not fetch backend
+  data or open WebSockets directly.
+- Large source frames should continue to live in the workspace runtime data store when available;
+  screener runtime state should carry refs and summary metadata once the widget is implemented.

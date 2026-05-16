@@ -141,6 +141,9 @@ export interface CommandCenterConfig {
     };
   };
   commandCenterAccess: {
+    accessCatalog: {
+      syncUrl: string;
+    };
     accessPolicies: {
       listUrl: string;
       detailUrl: string;
@@ -303,6 +306,9 @@ interface DefaultCommandCenterConfig {
     };
   };
   command_center_access: {
+    access_catalog: {
+      sync_url: string;
+    };
     access_policies: {
       list_url: string;
       detail_url: string;
@@ -466,6 +472,9 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
     },
   },
   command_center_access: {
+    access_catalog: {
+      sync_url: "/api/v1/command_center/access-catalog/sync/",
+    },
     access_policies: {
       list_url: "/api/v1/command_center/access-policies/",
       detail_url: "/api/v1/command_center/access-policies/{id}/",
@@ -621,6 +630,7 @@ const parsedConnections = getNestedObject(parsedConfig, "connections");
 const parsedAuth = getNestedObject(parsedConfig, "auth");
 const parsedAccessRbac = getNestedObject(parsedConfig, "access_rbac");
 const parsedCommandCenterAccess = getNestedObject(parsedConfig, "command_center_access");
+const parsedCommandCenterAccessCatalog = getNestedObject(parsedCommandCenterAccess, "access_catalog");
 const parsedMainSequence = getNestedObject(parsedConfig, "main_sequence");
 const parsedNotifications = getNestedObject(parsedConfig, "notifications");
 const parsedAuthJwt = getNestedObject(parsedAuth, "jwt");
@@ -974,6 +984,12 @@ export const commandCenterConfig: CommandCenterConfig = {
     },
   },
   commandCenterAccess: {
+    accessCatalog: {
+      syncUrl: readString(
+        parsedCommandCenterAccessCatalog.sync_url,
+        defaultRawConfig.command_center_access.access_catalog.sync_url,
+      ),
+    },
     accessPolicies: {
       listUrl: readString(
         parsedCommandCenterAccessPolicies.list_url,

@@ -115,7 +115,7 @@ export const router = createBrowserRouter([
         path: "access",
         element: (
           <PermissionRoute anyOf={["org_admin:view"]}>
-            <Navigate to="/app/access-rbac/overview" replace />
+            <Navigate to="/app/access-rbac" replace />
           </PermissionRoute>
         ),
       },

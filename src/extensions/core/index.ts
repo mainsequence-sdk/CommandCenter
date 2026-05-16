@@ -16,6 +16,7 @@ import { AccessRbacTeamsPage } from "@/extensions/core/apps/access-rbac/AccessRb
 import { AdminActivePlansPage } from "@/extensions/core/apps/admin/AdminActivePlansPage";
 import { AdminBillingDetailsPage } from "@/extensions/core/apps/admin/AdminBillingDetailsPage";
 import { AdminGithubOrganizationsPage } from "@/extensions/core/apps/admin/AdminGithubOrganizationsPage";
+import { AdminHostedResourcesPage } from "@/extensions/core/apps/admin/AdminHostedResourcesPage";
 import { AdminInvoicesPage } from "@/extensions/core/apps/admin/AdminInvoicesPage";
 import { AdminLoginSessionsPage } from "@/extensions/core/apps/admin/AdminLoginSessionsPage";
 import { AdminManageCreditsPage } from "@/extensions/core/apps/admin/AdminManageCreditsPage";
@@ -457,6 +458,31 @@ export const adminApp: AppDefinition = {
       component: AdminBillingDetailsPage,
     },
     {
+      id: "hosted-resources",
+      title: "Hosted Resources",
+      navLabel: "Hosted Resources",
+      description: "Organization-hosted infrastructure inventory grouped by resource type.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Hosted Resources. This page is intended for reviewing organization-hosted infrastructure grouped by billing resource type.",
+        availableActions: [
+          "Review hosted resource categories",
+          "Inspect organization-managed database inventory",
+          "Open future hosted infrastructure tabs",
+        ],
+      }),
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["org_admin:view"],
+      navigationSection: {
+        id: "billing",
+        label: "Billing",
+        description: "Organization billing records and payment configuration.",
+        order: 45,
+      },
+      component: AdminHostedResourcesPage,
+    },
+    {
       id: "manage-credits",
       title: "Manage Credits",
       navLabel: "Manage Credits",
@@ -514,20 +540,20 @@ export const accessRbacApp: AppDefinition = {
   navigationPlacement: "admin-menu",
   topNavigationStyle: "hidden",
   requiredPermissions: ["org_admin:view"],
-  defaultSurfaceId: "overview",
+  defaultSurfaceId: "policies",
   surfaces: [
     {
       id: "overview",
       title: "Overview",
       navLabel: "Overview",
       description: "Governance model, role layers, and how resource assignments fit into the platform.",
+      hidden: true,
       ...defineSurfaceAssistantContext({
         summary:
-          "User is on the Access & RBAC overview. This page explains the governance model, role layers, and platform access structure.",
+          "User opened the legacy Access & RBAC overview route, which now redirects to the documentation page for RBAC concepts.",
         availableActions: [
-          "Review the governance model",
-          "Inspect role-layer concepts",
-          "Navigate to policy and coverage pages",
+          "Read RBAC documentation",
+          "Return to policy and coverage pages",
         ],
       }),
       kind: "page",
