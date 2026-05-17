@@ -92,6 +92,153 @@ The stable relationship is `assetKey + valueKey + observedAt/sequence`.
   use inline `sparklineSeries` history when present, then may fall back to ordered reference points
   plus latest.
 
+## metadataCapabilities
+
+The widget understands three optional metadata blocks on any bound `core.tabular_frame@v1` frame.
+These blocks are interpreted by the Asset Screener only. They are not new connection output
+contracts.
+
+### `meta.marketAsset`
+
+Use `meta.marketAsset` to describe market semantics for generic table columns:
+
+```json
+{
+  "marketAsset": {
+    "role": "snapshot",
+    "fieldRoles": [
+      { "field": "asset_id", "role": "assetKey" },
+      { "field": "time", "role": "observedAt" },
+      { "field": "last_price", "role": "value", "valueKey": "price" }
+    ]
+  }
+}
+```
+
+Supported frame roles:
+
+- `snapshot`: latest seed rows and live update rows.
+- `reference-points`: long-form historical reference rows.
+- `history-series`: bounded ordered history rows.
+
+Supported field roles:
+
+- Identity roles: `assetKey`, `symbol`, `displayName`, `exchange`, `currency`, `country`,
+  `assetClass`, `sector`, `industry`, `group`, `tags`.
+- Observation roles: `observedAt`, `sequence`, `quality`.
+- Reference roles: `referenceKey`, `referenceLabel`, `referenceKind`, `offsetUnit`, `offsetValue`.
+- Value roles: `value`, `referenceValue`, `sparklineSeries`.
+
+Role attributes:
+
+- `field` is the source column name.
+- `role` is the semantic role.
+- `valueKey` is required for `value`, `referenceValue`, and `sparklineSeries`; examples are
+  `price`, `volume`, `marketCap`, and `oneDayReturn`.
+- `referenceKey` is required for `referenceValue`; examples are `previousClose`, `oneMonthAgo`,
+  `yearStart`, and `oneYearAgo`.
+- `encoding` is supported on `sparklineSeries`: `csv-number`, `json-number-array`, or
+  `number-array`.
+- `order` is supported on `sparklineSeries`: `oldest-to-newest` or `newest-to-oldest`. If omitted,
+  the encoded order is treated as oldest-to-newest.
+
+Explicit widget field mappings take precedence over `meta.marketAsset`. Metadata takes precedence
+over naming heuristics.
+
+### `meta.tableTransforms`
+
+Use `meta.tableTransforms.computedColumns` to derive row-local fields before market semantic
+adaptation:
+
+```json
+{
+  "tableTransforms": {
+    "computedColumns": [
+      {
+        "id": "one_day_return",
+        "label": "1D %",
+        "type": "number",
+        "expression": {
+          "op": "percentChange",
+          "current": { "field": "last_price" },
+          "reference": { "field": "previous_close" }
+        }
+      }
+    ]
+  }
+}
+```
+
+Supported expression forms:
+
+- `{ "field": "field_name" }`
+- `{ "value": 123 }`
+- `{ "op": "percentChange", "current": expression, "reference": expression }`
+- `{ "op": "difference", "left": expression, "right": expression }`
+- `{ "op": "subtract", "left": expression, "right": expression }`
+- `{ "op": "ratio", "numerator": expression, "denominator": expression }`
+- `{ "op": "divide", "numerator": expression, "denominator": expression }`
+- `{ "op": "add", "args": [expression, expression] }`
+- `{ "op": "multiply", "args": [expression, expression] }`
+
+Transform rules:
+
+- Computed fields are added to each row before `meta.marketAsset.fieldRoles` are evaluated.
+- A computed field can become a normal `value` role by adding a matching field role.
+- Computations are row-local only; they cannot read referenceData, historyData, previous rows, or
+  backend state.
+- Missing or non-numeric operands produce `null` for numeric operations.
+- Division by zero produces `null`.
+
+### `meta.tableVisuals`
+
+Use `meta.tableVisuals.columns` to attach display hints to source or computed fields:
+
+```json
+{
+  "tableVisuals": {
+    "columns": {
+      "one_day_return": {
+        "format": "percent",
+        "colorScale": {
+          "negative": "red",
+          "neutral": "muted",
+          "positive": "green"
+        },
+        "range": {
+          "min": -10,
+          "max": 10,
+          "midpoint": 0
+        }
+      },
+      "price_sparkline": {
+        "kind": "sparkline",
+        "encoding": "csv-number",
+        "order": "oldest-to-newest"
+      }
+    }
+  }
+}
+```
+
+Supported visual fields:
+
+- `format`: `number`, `price`, `percent`, `volume`, or `currency`.
+- `kind`: `sparkline`, `bar`, or `heatmap`.
+- `encoding`: `csv-number`, `json-number-array`, or `number-array`.
+- `order`: `oldest-to-newest` or `newest-to-oldest`.
+- `colorScale.negative`, `colorScale.neutral`, and `colorScale.positive`.
+- `range.min`, `range.max`, `range.midpoint`, and `range.clamp`.
+
+Current renderer behavior:
+
+- `format` can supply the display format when the widget column does not specify one.
+- `colorScale` can supply positive, negative, and neutral value tone for numeric value columns.
+- `range`, `kind: "bar"`, and `kind: "heatmap"` are preserved in the runtime model for Markets
+  widgets, but the first screener renderer does not yet draw bar or heatmap cells.
+- For inline sparkline parsing, put `encoding` and `order` on the `sparklineSeries` field role in
+  `meta.marketAsset`; duplicate them in `tableVisuals` only as display/readability guidance.
+
 ## seedDataSnapshotExample
 
 Bind this to `seedData` from a `dataset` output:

@@ -23,6 +23,10 @@ connections do not depend on market-specific asset, price, and reference-point s
 - Compact terminal visuals can be described in `meta.tableVisuals.columns` and inline
   `sparklineSeries` field roles. This is widget-side interpretation metadata over a generic table,
   not a connection-specific output contract.
+- Metadata precedence is explicit widget field mappings first, Markets metadata second, and
+  field-name heuristics last.
+- `meta.tableVisuals` is deliberately descriptive. The shared runtime model preserves all supported
+  visual metadata, but individual widgets decide which hints they render immediately.
 - Runtime ownership stays with Connection Query, Connection Stream Query, and Tabular Transform.
   Consumers such as Asset Screener should adapt bound frames and live updates, not fetch backend
   data or open WebSockets directly.

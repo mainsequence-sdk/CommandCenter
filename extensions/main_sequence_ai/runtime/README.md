@@ -66,11 +66,11 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   is set. Otherwise agent-runtime calls use `runtime_access.rpc_url` plus
   `Authorization: Bearer <runtime_access.token>`.
 - When both `VITE_ASSISTANT_UI_PROXY_TARGET` and `VITE_ASSISTANT_UI_EXECUTOR_TARGET` are set,
-  proxy-mode session traffic can branch by agent request name: sessions for
-  `mainsequence-project-executor` use the dedicated executor proxy path, while other sessions keep
+  proxy-mode session traffic can branch by agent type: sessions for
+  `project-executor` use the dedicated executor proxy path, while other sessions keep
   using the standard assistant proxy path.
 - When `VITE_ASSISTANT_UI_PROXY_TARGET` is set but `VITE_ASSISTANT_UI_EXECUTOR_TARGET` is not,
-  `mainsequence-project-executor` session-bound requests must fall back to per-session
+  `project-executor` session-bound requests must fall back to per-session
   `resolve_runtime_access/` instead of being forced onto the standard `/__assistant__` proxy.
 - The Vite dev server must only mount `/__assistant_executor__` when
   `VITE_ASSISTANT_UI_EXECUTOR_TARGET` is explicitly configured. It must not silently fall back to

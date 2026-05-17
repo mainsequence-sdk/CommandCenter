@@ -47,6 +47,22 @@ Transforms run before `meta.marketAsset` semantic adaptation, so a row-local cal
 Visual metadata is row-shape guidance for compact visuals and ranges; it is not a connection
 contract.
 
+## Metadata Capabilities
+
+- `meta.marketAsset.role` selects how the frame is adapted: `snapshot`, `reference-points`, or
+  `history-series`.
+- `meta.marketAsset.fieldRoles` maps generic columns to identity, observation, reference, value,
+  inline `referenceValue`, and inline `sparklineSeries` semantics.
+- `meta.tableTransforms.computedColumns` adds row-local derived fields before field roles are
+  evaluated. Supported numeric operators are `percentChange`, `difference`/`subtract`,
+  `ratio`/`divide`, `add`, and `multiply`.
+- `meta.tableVisuals.columns` carries display hints for formats, color scales, ranges, and compact
+  visual encodings. The current renderer consumes `format` and `colorScale`; range, bar, and heatmap
+  hints remain available in the runtime model for future Markets widgets.
+- Explicit widget field mappings win over metadata. Metadata wins over field-name heuristics.
+- Inline `sparklineSeries` parsing uses the encoding and order on the field role itself; duplicate
+  visual metadata is descriptive and preserved, but not required for parsing.
+
 ## Generic Field Mapping Examples
 
 Latest snapshot frames usually bind to `seedData` from a `dataset` output:

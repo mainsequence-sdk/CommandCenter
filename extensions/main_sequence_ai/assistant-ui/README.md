@@ -300,7 +300,7 @@ proxy endpoint and the per-session runtime-access request sends
 through the selected session's `resolve_runtime_access` contract and use the returned
 `runtime_access.rpc_url` plus runtime-scoped bearer token.
 When `VITE_ASSISTANT_UI_EXECUTOR_TARGET` is also set, session-bound proxy traffic branches by
-request name: `mainsequence-project-executor` sessions use the dedicated executor proxy route,
+agent type: `project-executor` sessions use the dedicated executor proxy route,
 while all other sessions stay on the standard assistant proxy route.
 
 ### Backend Adapter

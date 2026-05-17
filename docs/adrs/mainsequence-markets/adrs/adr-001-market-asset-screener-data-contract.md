@@ -517,12 +517,23 @@ interface MarketTableVisualsMetadata {
 
 Rules:
 
+- Explicit widget field mappings take precedence over Markets metadata. Markets metadata takes
+  precedence over field-name heuristics.
+- `meta.marketAsset.fieldRoles` supports inline `referenceValue` and `sparklineSeries` roles in
+  addition to normal identity, observation, reference, and value roles.
 - Computed columns are row-local and deterministic; they do not query backend state.
 - Computed columns run before `meta.marketAsset.fieldRoles`, so derived fields can become normal
   semantic `valueKey`s.
+- Supported transform operations are `percentChange`, `difference`/`subtract`, `ratio`/`divide`,
+  `add`, and `multiply`, plus literal field/value expressions.
+- Missing operands, non-numeric operands in numeric operations, and division by zero resolve to
+  `null`.
 - Inline sparkline cells are for compact visual context. Bind `historyData` when a widget needs a
   larger ordered series.
 - Visual metadata is guidance for the Markets widget, not a new connection output contract.
+- The first screener renderer consumes visual `format` and `colorScale`; `range`, `bar`, and
+  `heatmap` hints are preserved for Markets runtime consumers but are not yet rendered as dedicated
+  cells.
 
 ## Source Shape Requirements
 

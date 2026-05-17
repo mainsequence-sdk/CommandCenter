@@ -8,7 +8,7 @@ import {
 import { MainSequenceAiError } from "./error-source";
 
 const rawEnv = import.meta.env as Record<string, string | undefined>;
-const projectExecutorAgentType = "mainsequence-project-executor";
+const projectExecutorAgentType = "project-executor";
 const assistantExecutorProxyPrefix = "/__assistant_executor__";
 
 export interface MainSequenceAiResolvedAssistantAccess {
