@@ -6,11 +6,15 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 ## Entry Points
 
 - `definition.ts`: core widget definition, IO metadata, registry contract, agent snapshot, and settings/component wiring.
-- `TableWidget.tsx`: runtime table renderer backed by AG Grid Community.
-- `TableWidgetSettings.tsx`: settings editor for source binding status, manual rows, compact per-column schema controls, collapsible advanced formatting, datetime display patterns, value labels, and numeric rules.
+- `TableWidget.tsx`: source/binding owner for the generic table widget. It resolves bound,
+  manual, connection, and incremental table sources, then delegates rendering to `TableFrameView`.
+- `TableFrameView.tsx`: reusable AG Grid-backed table frame renderer for table-backed widgets.
+  It owns table-native formatting, threshold rules, heatmaps, data bars, gauges, quick filtering,
+  schema validation display, and optional per-column custom cell renderers.
+- `TableWidgetSettings.tsx`: settings editor for source binding status, manual rows, compact per-column schema controls, selection outputs, collapsible advanced formatting, datetime display patterns, value labels, and numeric rules.
 - `managedConnectionConsumer.ts`: shared managed-connection adapter that lets the generic widget-settings route create one hidden `connection-query` or `connection-stream-query` source for this table.
 - `ManualTableEditor.tsx`: spreadsheet-style editor for manual display rows.
-- `tableModel.ts`: table configuration normalization, frame adaptation, schema resolution, formatting helpers, datetime parsing/rendering, and validation.
+- `tableModel.ts`: table configuration normalization, frame adaptation, schema resolution, selection output resolution, formatting helpers, datetime parsing/rendering, and validation.
 - `USAGE_GUIDANCE.md`: registry-synced authoring guidance.
 
 ## Behavior
@@ -28,6 +32,10 @@ datasets, plus a manual table editor that also republishes one canonical tabular
   source publishes retained base plus delta metadata. The table currently renders the retained
   snapshot; it does not apply row deltas imperatively.
 - The widget always publishes one `core.tabular_frame@v1` output on `dataset`.
+- Optional interaction outputs publish the current user selection: `selectedRows` as a filtered
+  `core.tabular_frame@v1`, plus `activeRow`, `activeCell`, and `activeCellValue` as JSON values.
+  Selection state is stored in widget runtime state so downstream consumers can resolve outputs
+  without mutating the underlying dataset.
 - Both canvas rendering and downstream output publication now normalize bound-source state through
   the shared upstream consumer contract before applying table-specific schema or formatting logic.
   That keeps invalid bindings, awaiting upstream publication, loading, empty success, and errors
@@ -52,13 +60,27 @@ datasets, plus a manual table editor that also republishes one canonical tabular
   nanoseconds automatically. Advanced column settings may provide a local-time input pattern when
   auto parsing is ambiguous, and an output pattern for display. Supported pattern tokens are
   `yyyy`, `yy`, `MM`, `M`, `dd`, `d`, `HH`, `H`, `hh`, `h`, `mm`, `m`, `ss`, `s`, `SSS`, and `a`.
-- Formatting is presentation-only and never mutates the published tabular frame.
+- Formatting and selection are presentation/runtime concerns and never mutate the published
+  `dataset` tabular frame.
+- `TableFrameView` is the reusable table presentation layer. Domain-specific widgets should adapt
+  their domain model into a resolved table frame and table-native display config, then use this
+  view instead of implementing another grid.
+- The global quick filter and AG Grid floating column filters are separately configurable. Quick
+  filter searches across the rendered row values from the toolbar; column filters expose the
+  per-column searchable/filterable header controls.
+- `TableFrameView` supports domain-specific presentation flags. The generic Table widget keeps
+  the card surface and floating column filters; specialized consumers such as Asset Screener can
+  opt into a transparent surface and disable per-column filters while still reusing table
+  formatting, conditional rules, and custom cell rendering.
 
 ## Maintenance Constraints
 
 - Keep the registered id as `table`.
 - Keep accepted input aligned with `core.tabular_frame@v1`.
-- Keep the published output aligned with `core.tabular_frame@v1`.
+- Keep the primary published output aligned with `core.tabular_frame@v1`; selection-specific JSON
+  outputs must remain derived from runtime interaction state.
+- Selection state is local workspace runtime state. Backend registry sync needs the extra output
+  metadata, but the canonical tabular dataset contract is unchanged.
 - Do not reintroduce table-owned date-range or source-resolution runtime behavior; execution and
   refresh belong upstream to Connection Query and Tabular Transform.
 - Keep AG Grid usage inside the community feature set unless a future change explicitly documents

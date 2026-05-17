@@ -14,10 +14,14 @@ const externalModules = import.meta.glob(
 );
 const modules = { ...internalModules, ...externalModules };
 
-function uniqueById<T extends { id: string }>(items: T[]) {
+function uniqueById<T extends { id: string }>(items: Array<T | null | undefined>) {
   const map = new Map<string, T>();
 
   items.forEach((item) => {
+    if (!item) {
+      return;
+    }
+
     if (!map.has(item.id)) {
       map.set(item.id, item);
     }

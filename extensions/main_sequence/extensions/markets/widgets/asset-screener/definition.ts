@@ -6,12 +6,8 @@ import { defineWidget } from "@/widgets/types";
 import {
   buildMarketAssetFrameSemanticMeta,
   buildMarketTableFrameMeta,
-  MARKET_ASSET_HISTORY_SERIES_FRAME_ROLE,
-  MARKET_ASSET_REFERENCE_POINTS_FRAME_ROLE,
   MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
-  MARKET_ASSET_SCREENER_HISTORY_INPUT_ID,
   MARKET_ASSET_SCREENER_LIVE_UPDATES_INPUT_ID,
-  MARKET_ASSET_SCREENER_REFERENCE_INPUT_ID,
   MARKET_ASSET_SCREENER_SEED_INPUT_ID,
   MARKET_ASSET_SCREENER_INPUT_CONTRACTS,
 } from "../../widget-contracts/marketAssetFrames";
@@ -30,47 +26,59 @@ const updatesOutputId = "updates";
 const mockSeedData = {
   status: "ready",
   columns: [
-    "asset_id",
-    "symbol",
+    "unique_identifier",
+    "Symbol",
     "display_name",
     "sector",
     "time",
     "last_price",
     "previous_close",
+    "one_month_ago",
+    "year_start",
+    "one_year_ago",
     "volume",
     "price_sparkline",
   ],
   rows: [
     {
-      asset_id: "asset:AAPL",
-      symbol: "AAPL",
+      unique_identifier: "uid:AAPL",
+      Symbol: "AAPL",
       display_name: "Apple Inc.",
       sector: "Technology",
       time: "2026-05-16T13:00:00.000Z",
       last_price: 110,
       previous_close: 100,
+      one_month_ago: 96,
+      year_start: 88,
+      one_year_ago: 82,
       volume: 42_000_000,
       price_sparkline: "101,104,106,108,107,110",
     },
     {
-      asset_id: "asset:MSFT",
-      symbol: "MSFT",
+      unique_identifier: "uid:MSFT",
+      Symbol: "MSFT",
       display_name: "Microsoft Corp.",
       sector: "Technology",
       time: "2026-05-16T13:00:00.000Z",
       last_price: 204,
       previous_close: 210,
+      one_month_ago: 190,
+      year_start: 178,
+      one_year_ago: 165,
       volume: 31_000_000,
       price_sparkline: "196,199,201,205,202,204",
     },
     {
-      asset_id: "asset:JPM",
-      symbol: "JPM",
+      unique_identifier: "uid:JPM",
+      Symbol: "JPM",
       display_name: "JPMorgan Chase",
       sector: "Financials",
       time: "2026-05-16T13:00:00.000Z",
       last_price: 158,
       previous_close: 151,
+      one_month_ago: 149,
+      year_start: 141,
+      one_year_ago: 137,
       volume: 12_000_000,
       price_sparkline: "151,153,156,155,157,158",
     },
@@ -79,16 +87,22 @@ const mockSeedData = {
     ...buildMarketAssetFrameSemanticMeta({
       role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
       fieldRoles: [
-        { field: "asset_id", role: "assetKey" },
-        { field: "symbol", role: "symbol" },
+        { field: "unique_identifier", role: "assetKey" },
+        { field: "Symbol", role: "symbol" },
         { field: "display_name", role: "displayName" },
         { field: "sector", role: "sector" },
         { field: "time", role: "observedAt" },
         { field: "last_price", role: "value", valueKey: "price" },
         { field: "volume", role: "value", valueKey: "volume" },
         { field: "previous_close", role: "referenceValue", referenceKey: "previousClose", valueKey: "price" },
+        { field: "one_month_ago", role: "referenceValue", referenceKey: "oneMonthAgo", valueKey: "price" },
+        { field: "year_start", role: "referenceValue", referenceKey: "yearStart", valueKey: "price" },
+        { field: "one_year_ago", role: "referenceValue", referenceKey: "oneYearAgo", valueKey: "price" },
         { field: "price_sparkline", role: "sparklineSeries", valueKey: "price", encoding: "csv-number" },
         { field: "one_day_return", role: "value", valueKey: "oneDayReturn" },
+        { field: "one_month_return", role: "value", valueKey: "oneMonthReturn" },
+        { field: "ytd_return", role: "value", valueKey: "ytdReturn" },
+        { field: "one_year_return", role: "value", valueKey: "oneYearReturn" },
       ],
     }),
     ...buildMarketTableFrameMeta({
@@ -96,7 +110,7 @@ const mockSeedData = {
         computedColumns: [
           {
             id: "one_day_return",
-            label: "1D %",
+            label: "1D",
             type: "number",
             expression: {
               op: "percentChange",
@@ -104,22 +118,79 @@ const mockSeedData = {
               reference: { field: "previous_close" },
             },
           },
+          {
+            id: "one_month_return",
+            label: "1M",
+            type: "number",
+            expression: {
+              op: "percentChange",
+              current: { field: "last_price" },
+              reference: { field: "one_month_ago" },
+            },
+          },
+          {
+            id: "ytd_return",
+            label: "YTD",
+            type: "number",
+            expression: {
+              op: "percentChange",
+              current: { field: "last_price" },
+              reference: { field: "year_start" },
+            },
+          },
+          {
+            id: "one_year_return",
+            label: "1Y",
+            type: "number",
+            expression: {
+              op: "percentChange",
+              current: { field: "last_price" },
+              reference: { field: "one_year_ago" },
+            },
+          },
         ],
       },
       tableVisuals: {
         columns: {
+          last_price: {
+            format: "price",
+          },
           one_day_return: {
             format: "percent",
-            colorScale: {
-              negative: "red",
-              neutral: "muted",
-              positive: "green",
-            },
-            range: {
-              min: -10,
-              max: 10,
-              midpoint: 0,
-            },
+            thresholds: [
+              { operator: "lt", value: 0, tone: "warning" },
+              { operator: "eq", value: 0, tone: "neutral" },
+              { operator: "gt", value: 0, tone: "success" },
+            ],
+            heatmap: true,
+            gradientMode: "fill",
+            visualRangeMode: "fixed",
+            visualMin: -10,
+            visualMax: 10,
+          },
+          one_month_return: {
+            format: "percent",
+            thresholds: [
+              { operator: "lt", value: 0, tone: "warning" },
+              { operator: "eq", value: 0, tone: "neutral" },
+              { operator: "gt", value: 0, tone: "success" },
+            ],
+          },
+          ytd_return: {
+            format: "percent",
+            thresholds: [
+              { operator: "lt", value: 0, tone: "warning" },
+              { operator: "eq", value: 0, tone: "neutral" },
+              { operator: "gt", value: 0, tone: "success" },
+            ],
+          },
+          one_year_return: {
+            format: "percent",
+            thresholds: [
+              { operator: "lt", value: 0, tone: "warning" },
+              { operator: "eq", value: 0, tone: "neutral" },
+              { operator: "gt", value: 0, tone: "success" },
+            ],
           },
           price_sparkline: {
             kind: "sparkline",
@@ -136,76 +207,9 @@ const mockSeedData = {
   },
 };
 
-const mockReferenceData = {
-  status: "ready",
-  columns: ["asset_id", "reference_key", "observed_at", "close"],
-  rows: [
-    { asset_id: "asset:AAPL", reference_key: "previousClose", observed_at: "2026-05-15T20:00:00.000Z", close: 100 },
-    { asset_id: "asset:AAPL", reference_key: "oneMonthAgo", observed_at: "2026-04-16T20:00:00.000Z", close: 96 },
-    { asset_id: "asset:AAPL", reference_key: "yearStart", observed_at: "2026-01-02T20:00:00.000Z", close: 88 },
-    { asset_id: "asset:AAPL", reference_key: "oneYearAgo", observed_at: "2025-05-16T20:00:00.000Z", close: 82 },
-    { asset_id: "asset:MSFT", reference_key: "previousClose", observed_at: "2026-05-15T20:00:00.000Z", close: 210 },
-    { asset_id: "asset:MSFT", reference_key: "oneMonthAgo", observed_at: "2026-04-16T20:00:00.000Z", close: 190 },
-    { asset_id: "asset:MSFT", reference_key: "yearStart", observed_at: "2026-01-02T20:00:00.000Z", close: 178 },
-    { asset_id: "asset:MSFT", reference_key: "oneYearAgo", observed_at: "2025-05-16T20:00:00.000Z", close: 165 },
-    { asset_id: "asset:JPM", reference_key: "previousClose", observed_at: "2026-05-15T20:00:00.000Z", close: 151 },
-    { asset_id: "asset:JPM", reference_key: "oneMonthAgo", observed_at: "2026-04-16T20:00:00.000Z", close: 149 },
-    { asset_id: "asset:JPM", reference_key: "yearStart", observed_at: "2026-01-02T20:00:00.000Z", close: 141 },
-    { asset_id: "asset:JPM", reference_key: "oneYearAgo", observed_at: "2025-05-16T20:00:00.000Z", close: 137 },
-  ],
-  meta: buildMarketAssetFrameSemanticMeta({
-    role: MARKET_ASSET_REFERENCE_POINTS_FRAME_ROLE,
-    fieldRoles: [
-      { field: "asset_id", role: "assetKey" },
-      { field: "reference_key", role: "referenceKey" },
-      { field: "observed_at", role: "observedAt" },
-      { field: "close", role: "value", valueKey: "price" },
-    ],
-  }),
-  source: {
-    kind: "mock-market-reference-points",
-    updatedAtMs: 1_779_000_000_000,
-  },
-};
-
-const mockHistoryData = {
-  status: "ready",
-  columns: ["asset_id", "symbol", "observed_at", "close"],
-  rows: [
-    { asset_id: "asset:AAPL", symbol: "AAPL", observed_at: "2026-05-10T20:00:00.000Z", close: 101 },
-    { asset_id: "asset:AAPL", symbol: "AAPL", observed_at: "2026-05-11T20:00:00.000Z", close: 104 },
-    { asset_id: "asset:AAPL", symbol: "AAPL", observed_at: "2026-05-12T20:00:00.000Z", close: 106 },
-    { asset_id: "asset:AAPL", symbol: "AAPL", observed_at: "2026-05-13T20:00:00.000Z", close: 108 },
-    { asset_id: "asset:AAPL", symbol: "AAPL", observed_at: "2026-05-14T20:00:00.000Z", close: 107 },
-    { asset_id: "asset:MSFT", symbol: "MSFT", observed_at: "2026-05-10T20:00:00.000Z", close: 196 },
-    { asset_id: "asset:MSFT", symbol: "MSFT", observed_at: "2026-05-11T20:00:00.000Z", close: 199 },
-    { asset_id: "asset:MSFT", symbol: "MSFT", observed_at: "2026-05-12T20:00:00.000Z", close: 201 },
-    { asset_id: "asset:MSFT", symbol: "MSFT", observed_at: "2026-05-13T20:00:00.000Z", close: 205 },
-    { asset_id: "asset:MSFT", symbol: "MSFT", observed_at: "2026-05-14T20:00:00.000Z", close: 202 },
-    { asset_id: "asset:JPM", symbol: "JPM", observed_at: "2026-05-10T20:00:00.000Z", close: 151 },
-    { asset_id: "asset:JPM", symbol: "JPM", observed_at: "2026-05-11T20:00:00.000Z", close: 153 },
-    { asset_id: "asset:JPM", symbol: "JPM", observed_at: "2026-05-12T20:00:00.000Z", close: 156 },
-    { asset_id: "asset:JPM", symbol: "JPM", observed_at: "2026-05-13T20:00:00.000Z", close: 155 },
-    { asset_id: "asset:JPM", symbol: "JPM", observed_at: "2026-05-14T20:00:00.000Z", close: 157 },
-  ],
-  meta: buildMarketAssetFrameSemanticMeta({
-    role: MARKET_ASSET_HISTORY_SERIES_FRAME_ROLE,
-    fieldRoles: [
-      { field: "asset_id", role: "assetKey" },
-      { field: "symbol", role: "symbol" },
-      { field: "observed_at", role: "observedAt" },
-      { field: "close", role: "value", valueKey: "price" },
-    ],
-  }),
-  source: {
-    kind: "mock-market-history-series",
-    updatedAtMs: 1_779_000_000_000,
-  },
-};
-
 export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScreenerWidgetProps>({
   id: "ms-markets-asset-screener",
-  widgetVersion: "1.2.0",
+  widgetVersion: "1.6.1",
   title: "Asset Screener",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
@@ -219,8 +223,6 @@ export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScr
   mockRuntimeState: {
     marketAssetScreenerDemoFrames: {
       seedData: mockSeedData,
-      referenceData: mockReferenceData,
-      historyData: mockHistoryData,
     },
   },
   io: {
@@ -242,44 +244,12 @@ export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScr
         ],
       },
       {
-        id: MARKET_ASSET_SCREENER_REFERENCE_INPUT_ID,
-        label: "Reference data",
-        accepts: [...MARKET_ASSET_SCREENER_INPUT_CONTRACTS],
-        acceptedOutputIds: [datasetOutputId],
-        required: false,
-        description: "Historical reference points used for return calculations.",
-        effects: [
-          {
-            kind: "drives-render",
-            sourcePath: "rows",
-            target: { kind: "render", id: "asset-screener" },
-            description: "Reference rows provide historical baselines for calculated columns.",
-          },
-        ],
-      },
-      {
-        id: MARKET_ASSET_SCREENER_HISTORY_INPUT_ID,
-        label: "History data",
-        accepts: [...MARKET_ASSET_SCREENER_INPUT_CONTRACTS],
-        acceptedOutputIds: [datasetOutputId],
-        required: false,
-        description: "Bounded historical series used for trend sparklines.",
-        effects: [
-          {
-            kind: "drives-render",
-            sourcePath: "rows",
-            target: { kind: "render", id: "asset-screener" },
-            description: "History rows provide ordered value series for sparkline columns.",
-          },
-        ],
-      },
-      {
         id: MARKET_ASSET_SCREENER_LIVE_UPDATES_INPUT_ID,
         label: "Live updates",
         accepts: [...MARKET_ASSET_SCREENER_INPUT_CONTRACTS],
         acceptedOutputIds: [updatesOutputId],
         required: false,
-        description: "Incremental latest updates that recalculate columns against reference data.",
+        description: "Incremental latest updates that recalculate columns against seeded references.",
         effects: [
           {
             kind: "drives-render",
@@ -308,13 +278,14 @@ export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScr
       displayKind: "table",
       state: state.filteredRows.length > 0 ? "ready" : state.hasAnyBinding ? "empty" : "idle",
       summary: state.filteredRows.length > 0
-        ? `${state.filteredRows.length.toLocaleString()} assets rendered with ${props.columns?.length ?? 0} configured columns.`
-        : "Asset Screener is waiting for seedData and referenceData bindings.",
+        ? `${state.filteredRows.length.toLocaleString()} assets rendered with ${state.columns.length} configured columns.`
+        : "Asset Screener is waiting for a seedData binding.",
       data: {
         widgetRole: "presentation",
         contentType: "market-asset-screener",
         rowCount: state.filteredRows.length,
-        columns: props.columns?.map((column) => ({
+        columnConfigSource: state.columnConfigSource,
+        columns: state.columns.map((column) => ({
           id: column.id,
           label: column.label,
           kind: column.kind,
@@ -331,34 +302,32 @@ export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScr
     configuration: {
       mode: "custom-settings",
       summary:
-        "Configures a dense market asset screener with latest, reference-point, history-series, and live-update lanes.",
+        "Configures a dense market asset screener from a semantic seed snapshot plus optional live updates.",
       requiredSetupSteps: [
-        "Bind latest snapshot rows to seedData.",
-        "Bind historical reference-point rows to referenceData, or mark inline referenceValue fields on seedData.",
-        "Optionally bind bounded historical series rows to historyData for trend sparklines.",
+        "Bind the full semantic snapshot to seedData, or click Add connection to create a hidden managed source.",
+        "Put referenceValue and sparklineSeries fields in seedData metadata.",
         "Optionally bind WebSocket or incremental latest rows to liveUpdates.",
       ],
       configurationNotes: [
         "Generic tabular frames can use explicit field mappings or meta.marketAsset field roles.",
         "Row-local meta.tableTransforms can compute derived value keys before market semantic adaptation.",
         "Columns are dynamic view config over stable value keys such as price, volume, or marketCap.",
+        "Managed connection mode still uses generic connection-query or connection-stream-query widgets; it does not create a market-specific connection contract.",
       ],
     },
     runtime: {
       refreshPolicy: "not-applicable",
       executionTriggers: [],
       executionSummary:
-        "Consumes bound market data and derives rows locally without opening backend requests or WebSockets.",
+        "Consumes bound or hidden managed source data and derives rows locally; connection-query and connection-stream-query remain the request/WebSocket owners.",
     },
     io: {
       mode: "consumer",
       summary:
-        "Consumes seedData, referenceData, historyData, and liveUpdates lanes to derive latest values, return columns, and sparkline columns.",
+        "Consumes seedData and optional liveUpdates to derive latest values, return columns, and sparkline columns.",
       inputContracts: [...MARKET_ASSET_SCREENER_INPUT_CONTRACTS],
       ioNotes: [
-        "seedData initializes latest state and may carry inline referenceValue or sparklineSeries fields.",
-        "referenceData supplies historical baselines.",
-        "historyData supplies ordered value series for sparkline columns.",
+        "seedData initializes latest state and carries referenceValue or sparklineSeries fields.",
         "liveUpdates mutates latest state only.",
       ],
     },
@@ -366,7 +335,9 @@ export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScr
       supportsDynamicColumns: true,
       supportsHistorySeries: true,
       supportsLiveUpdates: true,
+      supportsManagedConnectionSource: true,
       supportsReferencePoints: true,
+      supportedSourceModes: ["bound", "connection", "connection-stream"],
       supportsVirtualizedRows: true,
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),

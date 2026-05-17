@@ -532,7 +532,7 @@ export function WidgetSettingsPanel<
   onDuplicate,
   onRemove,
   onSave,
-  panelDescription = "Adjust the display title and widget props for this instance.",
+  panelDescription = "Adjust the card title and widget props for this instance.",
   panelTitle,
   previewResolvedInputsOverride,
   previewRuntimeStateOverride,
@@ -540,7 +540,6 @@ export function WidgetSettingsPanel<
   showPlacementField = true,
   widget,
   } = props;
-  const resolvedPanelTitle = panelTitle ?? `${instance.title ?? widget.title} Settings`;
   const controlledBindings = Object.prototype.hasOwnProperty.call(props, "draftBindings");
   const resolvedInitialProps = useMemo(
     () => cloneWidgetProps((instance.props ?? widget.exampleProps ?? {}) as TProps),
@@ -643,6 +642,9 @@ export function WidgetSettingsPanel<
   const demoModeActive = useDemoData && hasDemoPreview;
   const previewDemoMode = (demoModeActive || demoOnlyPreview) && hasDemoPreview;
   const activeInstanceTitle = demoModeActive ? demoDraftTitle : instanceTitle;
+  const activeCardTitle = activeInstanceTitle.trim();
+  const resolvedPanelTitle =
+    panelTitle ?? (activeCardTitle ? `${activeCardTitle} Settings` : "Card settings");
   const activeDraftProps = demoModeActive ? demoDraftProps : resolvedDraftProps;
   const activeDraftBindings = resolvedDraftBindings;
   const activeDraftPresentation = demoModeActive
@@ -1031,9 +1033,9 @@ export function WidgetSettingsPanel<
         <section className="space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-medium text-topbar-foreground">Display title</div>
+              <div className="text-sm font-medium text-topbar-foreground">Card title</div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Leave blank to fall back to the widget default title.
+                This is the title shown in the workspace card header.
               </p>
             </div>
             {titleReferenceInput ? (
@@ -1061,7 +1063,7 @@ export function WidgetSettingsPanel<
                 setInternalInstanceTitle(event.target.value);
               }
             }}
-            placeholder={widget.title}
+            placeholder="Card title"
             readOnly={!editable || Boolean(titleReferenceBinding)}
           />
         </section>
@@ -1125,7 +1127,7 @@ export function WidgetSettingsPanel<
               instanceId={instance.id}
               instanceTitle={
                 (previewDemoMode ? demoDraftTitle : activeInstanceTitle).trim() ||
-                (previewDemoMode ? mockTitle : widget.title)
+                (previewDemoMode ? mockTitle : "Card preview")
               }
               onDemoModeChange={setUseDemoData}
               onRuntimeStateChange={previewDemoMode ? setDemoDraftRuntimeState : undefined}

@@ -1152,7 +1152,7 @@ function WidgetSettingsOverlayLayer({
       <InstantWidgetSettingsOverlayShell
         activeTab={target.tab}
         dashboardTitle={dashboard.title}
-        instanceTitle={instance?.title ?? widget?.title ?? "Widget settings"}
+        instanceTitle={instance?.title?.trim() || "Untitled card"}
         isSaving={isSaving}
         onClose={close}
         selectedWorkspaceDirty={selectedWorkspaceDirty}

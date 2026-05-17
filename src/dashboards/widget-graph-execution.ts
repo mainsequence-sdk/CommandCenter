@@ -85,6 +85,47 @@ function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function stableJsonStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableJsonStringify(entry)).join(",")}]`;
+  }
+
+  if (isPlainRecord(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJsonStringify(value[key])}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value) ?? String(value);
+}
+
+function buildRuntimeStateResolutionSignature(runtimeState: unknown) {
+  if (!isPlainRecord(runtimeState)) {
+    return runtimeState === undefined ? "undefined" : typeof runtimeState;
+  }
+
+  const source = isPlainRecord(runtimeState.source) ? runtimeState.source : undefined;
+
+  return stableJsonStringify({
+    status: typeof runtimeState.status === "string" ? runtimeState.status : undefined,
+    error: typeof runtimeState.error === "string" ? runtimeState.error : undefined,
+    traceId: typeof runtimeState.traceId === "string" ? runtimeState.traceId : undefined,
+    columns: Array.isArray(runtimeState.columns) ? runtimeState.columns : undefined,
+    rowCount: Array.isArray(runtimeState.rows) ? runtimeState.rows.length : undefined,
+    fieldCount: Array.isArray(runtimeState.fields) ? runtimeState.fields.length : undefined,
+    source: source
+      ? {
+          kind: typeof source.kind === "string" ? source.kind : undefined,
+          id: typeof source.id === "string" || typeof source.id === "number"
+            ? source.id
+            : undefined,
+          updatedAtMs: typeof source.updatedAtMs === "number" ? source.updatedAtMs : undefined,
+        }
+      : undefined,
+  });
+}
+
 function flattenResolvedInputs(
   resolvedInputs: ResolvedWidgetInputs | undefined,
 ): ResolvedWidgetInput[] {
@@ -357,6 +398,15 @@ function collectUpstreamResolutionSignatures(
       ].join(":"),
     );
 
+    const executableSignature = buildExecutableResolutionSignature(
+      input.sourceWidgetId,
+      snapshot,
+    );
+
+    if (executableSignature) {
+      signatures.add(executableSignature);
+    }
+
     collectUpstreamResolutionSignatures(
       input.sourceWidgetId,
       snapshot,
@@ -366,6 +416,52 @@ function collectUpstreamResolutionSignatures(
   }
 
   return signatures;
+}
+
+function buildExecutableResolutionSignature(
+  instanceId: string,
+  snapshot: DashboardExecutionSnapshot,
+) {
+  const instance = snapshot.getInstance(instanceId);
+  const definition = snapshot.getDefinition(instanceId);
+
+  if (!instance || !definition?.execution) {
+    return null;
+  }
+
+  const resolvedInputs = snapshot.dependencies.resolveInputs(instanceId);
+  const effectiveState = resolveReferenceBackedWidgetState({
+    instanceTitle: instance.title,
+    props: (instance.props ?? {}) as Record<string, unknown>,
+    resolvedInputs,
+  });
+  const context = {
+    executionSurface: "private-dashboard",
+    widgetId: instance.widgetId,
+    instanceId,
+    reason: "manual-recalculate",
+    props: effectiveState.props,
+    runtimeState: instance.runtimeState,
+    publicExecution: instance.publicExecution,
+    resolvedInputs,
+  } satisfies WidgetExecutionContext;
+  let executionKey: string | undefined;
+
+  try {
+    executionKey = definition.execution.getExecutionKey?.(context);
+  } catch {
+    executionKey = undefined;
+  }
+
+  return [
+    "exec",
+    instanceId,
+    instance.widgetId,
+    executionKey ?? "",
+    stableJsonStringify(effectiveState.props ?? {}),
+    stableJsonStringify(instance.publicExecution ?? null),
+    buildRuntimeStateResolutionSignature(instance.runtimeState),
+  ].join(":");
 }
 
 function collectExecutionOrder(

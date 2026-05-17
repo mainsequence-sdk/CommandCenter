@@ -63,11 +63,16 @@ export type TableWidgetAlign = "auto" | "left" | "center" | "right";
 export type TableWidgetPinned = "none" | "left" | "right";
 export type TableWidgetOperator = "gt" | "gte" | "lt" | "lte" | "eq";
 export type TableWidgetTone = "neutral" | "primary" | "success" | "warning" | "danger";
+export type TableWidgetSelectionMode = "none" | "single-row" | "multi-row" | "cell";
 
 export type TableWidgetCellValue = number | string | boolean | null;
 export type TableWidgetRow = Record<string, TableWidgetCellValue>;
 export type TableWidgetFrameRow = TableWidgetCellValue[];
 export const TABLE_WIDGET_DATASET_OUTPUT_ID = "dataset";
+export const TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID = "selectedRows";
+export const TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID = "activeRow";
+export const TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID = "activeCell";
+export const TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID = "activeCellValue";
 
 export interface TableWidgetColumnSchema {
   key: string;
@@ -128,6 +133,29 @@ export interface TableWidgetConditionalRule {
   backgroundColor?: string;
 }
 
+export interface TableWidgetActiveCellSelection {
+  rowKey?: string;
+  rowIndex: number;
+  columnKey: string;
+  value: unknown;
+}
+
+export interface TableWidgetSelectionState {
+  mode: TableWidgetSelectionMode;
+  selectedRowKeys: string[];
+  selectedRowIndices: number[];
+  activeRowKey?: string;
+  activeRowIndex?: number;
+  activeCell?: TableWidgetActiveCellSelection;
+  updatedAtMs: number;
+}
+
+export interface TableWidgetInteractionRuntimeState {
+  interaction?: {
+    selection?: TableWidgetSelectionState;
+  };
+}
+
 export interface TableWidgetProps
   extends Record<string, unknown>,
     TabularWidgetSourceReferenceProps {
@@ -148,12 +176,16 @@ export interface TableWidgetProps
   density?: TableWidgetDensity;
   showToolbar?: boolean;
   showSearch?: boolean;
+  showColumnFilters?: boolean;
   zebraRows?: boolean;
   pagination?: boolean;
   pageSize?: number;
   columnOverrides?: Record<string, TableWidgetColumnOverride>;
   valueLabels?: TableWidgetValueLabel[];
   conditionalRules?: TableWidgetConditionalRule[];
+  selectionMode?: TableWidgetSelectionMode;
+  selectionKeyFields?: string[];
+  publishSelectionOutputs?: boolean;
 }
 
 export function resolveTableWidgetSourceInput(
@@ -408,12 +440,16 @@ export interface ResolvedTableWidgetProps {
   density: TableWidgetDensity;
   showToolbar: boolean;
   showSearch: boolean;
+  showColumnFilters: boolean;
   zebraRows: boolean;
   pagination: boolean;
   pageSize: number;
   columnOverrides: Record<string, TableWidgetColumnOverride>;
   valueLabels: TableWidgetValueLabel[];
   conditionalRules: TableWidgetConditionalRule[];
+  selectionMode: TableWidgetSelectionMode;
+  selectionKeyFields: string[];
+  publishSelectionOutputs: boolean;
 }
 
 export interface TableWidgetResolvedFrameInput {
@@ -1018,6 +1054,347 @@ function normalizeUniqueIdentifierList(value: unknown) {
   );
 
   return normalizedValues.length > 0 ? normalizedValues : undefined;
+}
+
+export function normalizeTableWidgetSelectionMode(value: unknown): TableWidgetSelectionMode {
+  return value === "single-row" ||
+    value === "multi-row" ||
+    value === "cell"
+    ? value
+    : "none";
+}
+
+export const tableWidgetSelectionModeOptions: Array<{
+  value: TableWidgetSelectionMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "none",
+    label: "Off",
+    description: "Rows and cells are not published as interaction outputs.",
+  },
+  {
+    value: "single-row",
+    label: "Single row",
+    description: "One selected row is published to downstream widgets.",
+  },
+  {
+    value: "multi-row",
+    label: "Multi row",
+    description: "Multiple selected rows are published to downstream widgets.",
+  },
+  {
+    value: "cell",
+    label: "Cell",
+    description: "The clicked cell, its value, and its row are published to downstream widgets.",
+  },
+];
+
+function normalizeSelectionKeyFields(value: unknown) {
+  return normalizeUniqueIdentifierList(value) ?? [];
+}
+
+function normalizeRowIndex(value: unknown) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+function normalizeRowIndices(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return [...new Set(value.flatMap((entry) => {
+    const index = normalizeRowIndex(entry);
+    return index == null ? [] : [index];
+  }))];
+}
+
+function normalizeRowKeys(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return uniqueStrings(
+    value.map((entry) =>
+      typeof entry === "string" || typeof entry === "number" || typeof entry === "boolean"
+        ? String(entry).trim()
+        : "",
+    ),
+  );
+}
+
+function normalizeOptionalRowKey(value: unknown) {
+  if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
+    return undefined;
+  }
+
+  const normalized = String(value).trim();
+  return normalized || undefined;
+}
+
+function normalizeActiveCellSelection(value: unknown): TableWidgetActiveCellSelection | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const rowIndex = normalizeRowIndex(value.rowIndex);
+  const columnKey = typeof value.columnKey === "string" ? value.columnKey.trim() : "";
+
+  if (rowIndex == null || !columnKey) {
+    return undefined;
+  }
+
+  return {
+    rowKey: normalizeOptionalRowKey(value.rowKey),
+    rowIndex,
+    columnKey,
+    value: value.value,
+  };
+}
+
+export function normalizeTableWidgetSelectionState(
+  runtimeState: unknown,
+): TableWidgetSelectionState {
+  const selection = isPlainRecord(runtimeState)
+    ? isPlainRecord(runtimeState.interaction)
+      ? runtimeState.interaction.selection
+      : undefined
+    : undefined;
+  const record = isPlainRecord(selection) ? selection : {};
+  const activeRowIndex = normalizeRowIndex(record.activeRowIndex);
+
+  return {
+    mode: normalizeTableWidgetSelectionMode(record.mode),
+    selectedRowKeys: normalizeRowKeys(record.selectedRowKeys),
+    selectedRowIndices: normalizeRowIndices(record.selectedRowIndices),
+    activeRowKey: normalizeOptionalRowKey(record.activeRowKey),
+    activeRowIndex,
+    activeCell: normalizeActiveCellSelection(record.activeCell),
+    updatedAtMs:
+      typeof record.updatedAtMs === "number" && Number.isFinite(record.updatedAtMs)
+        ? record.updatedAtMs
+        : 0,
+  };
+}
+
+export function withTableWidgetSelectionRuntimeState(
+  runtimeState: Record<string, unknown> | undefined,
+  selection: TableWidgetSelectionState,
+): Record<string, unknown> {
+  const base = isPlainRecord(runtimeState) ? runtimeState : {};
+  const interaction = isPlainRecord(base.interaction) ? base.interaction : {};
+
+  return {
+    ...base,
+    interaction: {
+      ...interaction,
+      selection,
+    },
+  };
+}
+
+function stableSelectionValue(value: unknown): unknown {
+  if (value === undefined) {
+    return null;
+  }
+
+  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(JSON.stringify(value)) as unknown;
+  } catch {
+    return String(value);
+  }
+}
+
+export function buildTableWidgetRowKey(
+  row: Record<string, unknown> | undefined,
+  keyFields: readonly string[],
+) {
+  if (!row || keyFields.length === 0) {
+    return undefined;
+  }
+
+  return JSON.stringify(keyFields.map((field) => stableSelectionValue(row[field])));
+}
+
+export function resolveTableWidgetSelectionKeyFields(
+  props: Pick<TableWidgetProps, "selectionKeyFields" | "uniqueIdentifierList">,
+  frame?: Pick<TabularFrameSourceV1, "columns" | "source"> | null,
+) {
+  const explicit = normalizeSelectionKeyFields(props.selectionKeyFields);
+
+  if (explicit.length > 0) {
+    return explicit;
+  }
+
+  const propIdentifiers = normalizeSelectionKeyFields(props.uniqueIdentifierList);
+
+  if (propIdentifiers.length > 0) {
+    return propIdentifiers;
+  }
+
+  const sourceContext = isPlainRecord(frame?.source?.context) ? frame.source.context : undefined;
+  const sourceIdentifiers = normalizeSelectionKeyFields(sourceContext?.uniqueIdentifierList);
+
+  if (sourceIdentifiers.length > 0) {
+    return sourceIdentifiers;
+  }
+
+  return [];
+}
+
+function resolveRowsBySelection(
+  frame: TabularFrameSourceV1,
+  props: Pick<TableWidgetProps, "selectionKeyFields" | "uniqueIdentifierList">,
+  selection: TableWidgetSelectionState,
+) {
+  const keyFields = resolveTableWidgetSelectionKeyFields(props, frame);
+  const selectedKeySet = new Set(selection.selectedRowKeys);
+  const selectedIndexSet = new Set(selection.selectedRowIndices);
+
+  if (keyFields.length > 0 && selectedKeySet.size > 0) {
+    return frame.rows.filter((row) => {
+      const rowKey = buildTableWidgetRowKey(row, keyFields);
+      return rowKey ? selectedKeySet.has(rowKey) : false;
+    });
+  }
+
+  return frame.rows.filter((_, index) => selectedIndexSet.has(index));
+}
+
+function resolveActiveRow(
+  frame: TabularFrameSourceV1,
+  props: Pick<TableWidgetProps, "selectionKeyFields" | "uniqueIdentifierList">,
+  selection: TableWidgetSelectionState,
+  options: { includeActiveCellFallback?: boolean } = {},
+) {
+  const keyFields = resolveTableWidgetSelectionKeyFields(props, frame);
+  const activeRowKey =
+    selection.activeRowKey ??
+    (options.includeActiveCellFallback ? selection.activeCell?.rowKey : undefined);
+
+  if (keyFields.length > 0 && activeRowKey) {
+    const row = frame.rows.find((entry) => buildTableWidgetRowKey(entry, keyFields) === activeRowKey);
+
+    if (row) {
+      return row;
+    }
+  }
+
+  const activeRowIndex =
+    selection.activeRowIndex ??
+    (options.includeActiveCellFallback ? selection.activeCell?.rowIndex : undefined);
+  return activeRowIndex == null ? null : frame.rows[activeRowIndex] ?? null;
+}
+
+function selectedRowsSource(frame: TabularFrameSourceV1, selectedRows: Array<Record<string, unknown>>) {
+  return {
+    kind: "table-widget-selection",
+    label: "Selected table rows",
+    context: {
+      sourceKind: frame.source?.kind,
+      selectedRowCount: selectedRows.length,
+    },
+  } satisfies TabularFrameSourceV1["source"];
+}
+
+export function resolveTableWidgetSelectedRowsOutput(
+  props: TableWidgetProps,
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+  runtimeState?: unknown,
+  runtimeDataStore?: RuntimeDataStore | null,
+): TabularFrameSourceV1 {
+  const frame = resolveTableWidgetOutput(props, resolvedInputs, runtimeState, runtimeDataStore);
+  const normalizedProps = resolveTableWidgetPropsWithFrame(props);
+  const selection = normalizeTableWidgetSelectionState(runtimeState);
+  const selectionEnabled =
+    normalizedProps.publishSelectionOutputs && normalizedProps.selectionMode !== "none";
+  const selectedRows = selectionEnabled
+    ? resolveRowsBySelection(frame, normalizedProps, selection)
+    : [];
+
+  return {
+    ...frame,
+    status: frame.status === "error" ? "error" : frame.status === "loading" ? "loading" : "ready",
+    rows: selectedRows,
+    source: selectedRowsSource(frame, selectedRows),
+  };
+}
+
+export function resolveTableWidgetActiveRowOutput(
+  props: TableWidgetProps,
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+  runtimeState?: unknown,
+  runtimeDataStore?: RuntimeDataStore | null,
+) {
+  const frame = resolveTableWidgetOutput(props, resolvedInputs, runtimeState, runtimeDataStore);
+  const normalizedProps = resolveTableWidgetPropsWithFrame(props);
+
+  if (!normalizedProps.publishSelectionOutputs || normalizedProps.selectionMode === "none") {
+    return null;
+  }
+
+  return resolveActiveRow(
+    frame,
+    normalizedProps,
+    normalizeTableWidgetSelectionState(runtimeState),
+    { includeActiveCellFallback: normalizedProps.selectionMode === "cell" },
+  );
+}
+
+export function resolveTableWidgetActiveCellOutput(
+  props: TableWidgetProps,
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+  runtimeState?: unknown,
+  runtimeDataStore?: RuntimeDataStore | null,
+) {
+  const frame = resolveTableWidgetOutput(props, resolvedInputs, runtimeState, runtimeDataStore);
+  const normalizedProps = resolveTableWidgetPropsWithFrame(props);
+
+  if (!normalizedProps.publishSelectionOutputs || normalizedProps.selectionMode !== "cell") {
+    return null;
+  }
+
+  const selection = normalizeTableWidgetSelectionState(runtimeState);
+  const activeCell = selection.activeCell;
+
+  if (!activeCell) {
+    return null;
+  }
+
+  const row = resolveActiveRow(frame, normalizedProps, selection, {
+    includeActiveCellFallback: true,
+  });
+  const value = row ? row[activeCell.columnKey] : activeCell.value;
+
+  return {
+    rowKey: activeCell.rowKey,
+    rowIndex: activeCell.rowIndex,
+    columnKey: activeCell.columnKey,
+    value: value ?? null,
+    row,
+  };
+}
+
+export function resolveTableWidgetActiveCellValueOutput(
+  props: TableWidgetProps,
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+  runtimeState?: unknown,
+  runtimeDataStore?: RuntimeDataStore | null,
+) {
+  const activeCell = resolveTableWidgetActiveCellOutput(
+    props,
+    resolvedInputs,
+    runtimeState,
+    runtimeDataStore,
+  );
+
+  return activeCell ? activeCell.value ?? null : null;
 }
 
 function inferRemoteColumnFormatFromKey(
@@ -1811,6 +2188,7 @@ export function resolveTableWidgetPropsWithFrame(
     density: migratedProps.density === "compact" ? "compact" : "comfortable",
     showToolbar: migratedProps.showToolbar !== false,
     showSearch: migratedProps.showSearch !== false,
+    showColumnFilters: migratedProps.showColumnFilters !== false,
     zebraRows: migratedProps.zebraRows !== false,
     pagination: migratedProps.pagination !== false,
     pageSize:
@@ -1828,6 +2206,9 @@ export function resolveTableWidgetPropsWithFrame(
           .map((entry) => normalizeConditionalRule(entry))
           .filter((entry): entry is TableWidgetConditionalRule => Boolean(entry))
       : [],
+    selectionMode: normalizeTableWidgetSelectionMode(migratedProps.selectionMode),
+    selectionKeyFields: normalizeSelectionKeyFields(migratedProps.selectionKeyFields),
+    publishSelectionOutputs: migratedProps.publishSelectionOutputs !== false,
   };
 }
 
@@ -2246,10 +2627,14 @@ export const tableWidgetDefaultProps: TableWidgetProps = {
   density: "comfortable",
   showToolbar: true,
   showSearch: true,
+  showColumnFilters: true,
   zebraRows: true,
   pagination: true,
   pageSize: 10,
   columnOverrides: {},
   valueLabels: [],
   conditionalRules: [],
+  selectionMode: "none",
+  selectionKeyFields: [],
+  publishSelectionOutputs: true,
 };

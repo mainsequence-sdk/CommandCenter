@@ -7,7 +7,6 @@ import { resolveManagedConnectionQuerySource } from "@/connections/managedConnec
 import { useDashboardWidgetRegistry } from "@/dashboards/DashboardWidgetRegistry";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { PickerField } from "@/widgets/shared/picker-field";
 import { useTheme } from "@/themes/ThemeProvider";
 import {
   widgetTightFormButtonGroupClass,
@@ -59,16 +58,26 @@ import {
   tableWidgetOperatorOptions,
   tableWidgetPinnedOptions,
   tableWidgetRangeModeOptions,
+  tableWidgetSelectionModeOptions,
   tableWidgetToneOptions,
   type TableWidgetColumnSchema,
   type TableWidgetColumnOverride,
   type TableWidgetConditionalRule,
+  type TableWidgetResolvedFrameInput,
   type ResolvedTableWidgetColumnConfig,
+  type TableWidgetSelectionMode,
   type TableWidgetProps,
   type TableWidgetSchemaValidationIssue,
   type TableWidgetTone,
   type TableWidgetValueLabel,
 } from "./tableModel";
+
+export interface TableWidgetSettingsOptions {
+  presentationFrameInput?: TableWidgetResolvedFrameInput | null;
+  presentationOnly?: boolean;
+  resetLabel?: string;
+  onReset?: () => void;
+}
 
 const sectionClass = widgetTightFormSectionClass;
 const insetSectionClass = widgetTightFormInsetSectionClass;
@@ -85,7 +94,9 @@ const tableFieldHelp = {
   tableSourceMode: "Selects whether this table formats a bound dataset, owns a hidden connection source, owns a hidden WebSocket stream source, or renders manually authored rows stored on this table widget.",
   sourceBinding: "Shows the upstream Connection Query or transform widget bound to this table. The binding supplies one canonical tabular dataset; this widget only formats it.",
   pageSize: "Sets how many rows AG Grid shows per page when pagination is enabled.",
-  surfaceToggles: "Turns optional table surface features on or off without changing the upstream dataset.",
+  surfaceToggles: "Turns optional table surface features on or off without changing the upstream dataset. Quick filter is the global toolbar search; column filters add searchable per-column filter controls.",
+  selectionMode: "Controls whether table clicks publish selected rows or active cell outputs for downstream widgets.",
+  selectionKeyFields: "Optional stable field keys used to keep selections mapped to the same rows after refreshes, sorting, or upstream updates. Leave blank to use row indexes.",
   columnKey: "Maps this table column to an incoming field key from the bound dataset frame.",
   columnLabel: "Overrides the header text shown for this column.",
   columnFormat: "Controls how values are parsed and displayed. Text enables value chips; numeric formats enable decimals, compact numbers, heatmaps, data bars, gauges, and thresholds.",
@@ -131,6 +142,17 @@ function normalizeColor(value: string | undefined) {
 
   const trimmed = value.trim();
   return hexColorPattern.test(trimmed) ? trimmed.toLowerCase() : undefined;
+}
+
+function parseSelectionKeyFields(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(/[\n,]+/)
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    ),
+  );
 }
 
 function normalizeColumnOverride(override: TableWidgetColumnOverride) {
@@ -335,7 +357,11 @@ export function TableWidgetSettings({
   editable,
   onDraftPropsChange,
   resolvedInputs,
-}: WidgetSettingsComponentProps<TableWidgetProps>) {
+  presentationFrameInput,
+  presentationOnly = false,
+  resetLabel = "Reset widget defaults",
+  onReset,
+}: WidgetSettingsComponentProps<TableWidgetProps> & TableWidgetSettingsOptions) {
   const { resolvedTokens } = useTheme();
   const widgetRegistry = useDashboardWidgetRegistry();
   const managedConnectionSource = useMemo(
@@ -343,9 +369,9 @@ export function TableWidgetSettings({
     [instanceId, widgetRegistry],
   );
   const resolvedDraft = resolveTableWidgetProps(draftProps);
-  const tableSourceMode = normalizeTableSourceMode(
-    (draftProps as TableWidgetProps).tableSourceMode,
-  );
+  const tableSourceMode = presentationOnly
+    ? "bound"
+    : normalizeTableSourceMode((draftProps as TableWidgetProps).tableSourceMode);
   const isManualTableMode = tableSourceMode === "manual";
   const isConnectionTableMode = tableSourceMode === "connection" || tableSourceMode === "connection-stream";
   const isStreamConnectionTableMode = tableSourceMode === "connection-stream";
@@ -371,18 +397,21 @@ export function TableWidgetSettings({
       ? widgetRegistry.find((widget) => widget.id === sourceWidgetId) ?? null
       : null;
   }, [resolvedSourceInput?.sourceWidgetId, widgetRegistry]);
-  const frameColumnsSource = linkedDataset?.columns ?? [];
-  const frameRowsSource = linkedDataset?.rows ?? [];
+  const frameColumnsSource = presentationFrameInput?.columns ?? linkedDataset?.columns ?? [];
+  const frameRowsSource = presentationFrameInput
+    ? buildTableWidgetRowObjects(presentationFrameInput.columns, presentationFrameInput.rows)
+    : linkedDataset?.rows ?? [];
 
   const remoteFrameInput = useMemo(
     () =>
-      buildTableWidgetFrameFromRemoteData(
-        null,
-        frameRowsSource,
-        frameColumnsSource,
-        linkedDataset?.fields ?? [],
-      ),
-    [frameColumnsSource, frameRowsSource, linkedDataset?.fields],
+      presentationFrameInput ??
+        buildTableWidgetFrameFromRemoteData(
+          null,
+          frameRowsSource,
+          frameColumnsSource,
+          linkedDataset?.fields ?? [],
+        ),
+    [frameColumnsSource, frameRowsSource, linkedDataset?.fields, presentationFrameInput],
   );
   const scopedDraft = useMemo(
     () => stripLegacyTableSourceFields(draftProps),
@@ -417,7 +446,9 @@ export function TableWidgetSettings({
   const resolvedColumns = resolveTableWidgetColumns(resolvedScopedDraft);
   const hasResolvedSource = isManualTableMode
     ? resolvedScopedDraft.columns.length > 0
-    : hasRenderableLinkedDataset;
+    : presentationOnly
+      ? remoteFrameInput.columns.length > 0 || remoteFrameInput.schemaFallback.length > 0
+      : hasRenderableLinkedDataset;
   const displayedColumns = hasResolvedSource ? resolvedColumns : [];
   const textFormattedColumns = displayedColumns.filter((column) => column.format === "text");
   const numericFormattedColumns = displayedColumns.filter((column) =>
@@ -439,8 +470,19 @@ export function TableWidgetSettings({
             provenance: "manual" as const,
             reason: "Authored in the Table manual table mode.",
           }))
-        : linkedDataset?.fields ?? [],
-    [isManualTableMode, linkedDataset?.fields, manualFrameInput.schemaFallback],
+        : presentationFrameInput?.schemaFallback.map((column) => ({
+            key: column.key,
+            label: column.label,
+            type: column.format === "datetime"
+              ? ("datetime" as const)
+              : isTableWidgetNumericFormat(column.format)
+                ? ("number" as const)
+                : ("string" as const),
+            description: column.description,
+            provenance: "derived" as const,
+            reason: "Derived from the domain widget's table-backed frame.",
+          })) ?? linkedDataset?.fields ?? [],
+    [isManualTableMode, linkedDataset?.fields, manualFrameInput.schemaFallback, presentationFrameInput?.schemaFallback],
   );
   const shouldShowSchemaValidation =
     hasResolvedSource &&
@@ -616,10 +658,14 @@ export function TableWidgetSettings({
           variant="outline"
           disabled={!editable}
           onClick={() => {
-            onDraftPropsChange(tableWidgetDefaultProps);
+            if (onReset) {
+              onReset();
+            } else {
+              onDraftPropsChange(tableWidgetDefaultProps);
+            }
           }}
         >
-          Reset widget defaults
+          {resetLabel}
         </Button>
       </div>
 
@@ -641,41 +687,45 @@ export function TableWidgetSettings({
         <div>
           <div className={titleClass}>Table options</div>
           <p className={descriptionClass}>
-            Point the table at a tabular source, then control how the incoming fields
-            should render.
+            {presentationOnly
+              ? "Control how the derived table frame renders without changing the upstream source binding."
+              : "Point the table at a tabular source, then control how the incoming fields should render."}
           </p>
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <div className={fieldClass}>
-            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.tableSourceMode}>
-              Table data
-            </WidgetSettingFieldLabel>
-            <Select
-              className={selectClass}
-              value={tableSourceMode}
-              disabled={!editable}
-              onChange={(event) => {
-                const nextSourceMode = normalizeTableSourceMode(event.target.value);
+          {!presentationOnly ? (
+            <div className={fieldClass}>
+              <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.tableSourceMode}>
+                Table data
+              </WidgetSettingFieldLabel>
+              <Select
+                className={selectClass}
+                value={tableSourceMode}
+                disabled={!editable}
+                onChange={(event) => {
+                  const nextSourceMode = normalizeTableSourceMode(event.target.value);
 
-                commit({
-                  ...scopedDraft,
-                  tableSourceMode: nextSourceMode,
-                  schema: [],
-                  columnOverrides: {},
-                  valueLabels: [],
-                  conditionalRules: [],
-                });
-              }}
-            >
-              <option value="bound">Bound dataset</option>
-              <option value="connection">Connection query</option>
-              <option value="connection-stream">Stream connection</option>
-              <option value="manual">Manual table</option>
-            </Select>
-          </div>
+                  commit({
+                    ...scopedDraft,
+                    tableSourceMode: nextSourceMode,
+                    schema: [],
+                    columnOverrides: {},
+                    valueLabels: [],
+                    conditionalRules: [],
+                  });
+                }}
+              >
+                <option value="bound">Bound dataset</option>
+                <option value="connection">Connection query</option>
+                <option value="connection-stream">Stream connection</option>
+                <option value="manual">Manual table</option>
+              </Select>
+            </div>
+          ) : null}
 
-          <div className="space-y-2 md:col-span-2">
+          {!presentationOnly ? (
+            <div className="space-y-2 md:col-span-2">
             {isManualTableMode ? (
               <ManualTableEditor
                 columns={manualColumns}
@@ -786,7 +836,8 @@ export function TableWidgetSettings({
 
               </div>
             )}
-          </div>
+            </div>
+          ) : null}
 
           <div className={fieldClass}>
             <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.density}>
@@ -876,7 +927,21 @@ export function TableWidgetSettings({
                   });
                 }}
               >
-                Search
+                Quick filter
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={resolvedDraft.showColumnFilters ? "default" : "outline"}
+                disabled={!editable}
+                onClick={() => {
+                  commit({
+                    ...scopedDraft,
+                    showColumnFilters: !resolvedDraft.showColumnFilters,
+                  });
+                }}
+              >
+                Column filters
               </Button>
               <Button
                 type="button"
@@ -897,10 +962,76 @@ export function TableWidgetSettings({
         </div>
       </section>
 
+      <section className={sectionClass}>
+        <div>
+          <div className={titleClass}>Selection outputs</div>
+          <p className={descriptionClass}>
+            Publish user selections from this table so downstream widgets can react to selected rows, the active row, or the active cell.
+          </p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className={fieldClass}>
+            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.selectionMode}>
+              Selection mode
+            </WidgetSettingFieldLabel>
+            <Select
+              className={selectClass}
+              value={resolvedScopedDraft.selectionMode}
+              disabled={!editable}
+              onChange={(event) => {
+                const nextMode = event.target.value as TableWidgetSelectionMode;
+                commit({
+                  ...scopedDraft,
+                  selectionMode: nextMode,
+                });
+              }}
+            >
+              {tableWidgetSelectionModeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+            <p className={descriptionClass}>
+              {tableWidgetSelectionModeOptions.find((option) => option.value === resolvedScopedDraft.selectionMode)?.description}
+            </p>
+          </div>
+
+          <div className={fieldClass}>
+            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.selectionKeyFields}>
+              Stable row key fields
+            </WidgetSettingFieldLabel>
+            <Input
+              className={inputClass}
+              value={resolvedScopedDraft.selectionKeyFields.join(", ")}
+              disabled={!editable || resolvedScopedDraft.selectionMode === "none"}
+              placeholder={displayedColumns.length > 0 ? displayedColumns.slice(0, 3).map((column) => column.key).join(", ") : "id"}
+              onChange={(event) => {
+                commit({
+                  ...scopedDraft,
+                  selectionKeyFields: parseSelectionKeyFields(event.target.value),
+                });
+              }}
+            />
+            {displayedColumns.length > 0 ? (
+              <p className={descriptionClass}>
+                Available fields: {displayedColumns.slice(0, 8).map((column) => column.key).join(", ")}
+                {displayedColumns.length > 8 ? ", ..." : ""}
+              </p>
+            ) : (
+              <p className={descriptionClass}>Bind a dataset or add manual columns to choose stable key fields.</p>
+            )}
+          </div>
+        </div>
+      </section>
+
       <TabularFieldSchemaInspector
-        title={isManualTableMode ? "Manual field schema" : "Incoming field schema"}
+        title={presentationOnly ? "Derived table schema" : isManualTableMode ? "Manual field schema" : "Incoming field schema"}
         description={
-          isManualTableMode
+          presentationOnly
+            ? "Inspect the table schema derived from the domain widget before local table formatting is applied."
+            : isManualTableMode
             ? "Inspect the manual table schema before local column formatting is applied."
             : "Inspect the resolved source schema this table receives before local column formatting is applied."
         }

@@ -300,6 +300,8 @@ These flows are all part of one app surface, with instance state selected throug
   inputs, including normal non-edit viewing, so canvas users can jump straight into the upstream
   source explorer without first opening the generic settings tab.
 - In canvas edit mode, widget cards keep the same header height as view mode; drag uses the existing header band and edit actions fade in without adding extra layout chrome.
+- Workspace widget cards are square-edged workspace surfaces. Do not add rounded card corners or
+  curved drag-handle corners to the canvas widget shell.
 - Non-row widgets in `custom` can now resize all the way down to a single grid column and a single
   grid row. Row widgets keep their fixed full-width, fixed-height behavior.
 - Newly added non-row widgets now spawn from one shared workspace starter footprint instead of

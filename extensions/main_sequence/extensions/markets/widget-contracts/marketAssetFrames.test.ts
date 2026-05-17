@@ -48,31 +48,30 @@ describe("marketAssetFrames", () => {
     expect(history.fieldRoles.some((role) => role.role === "observedAt" && role.required)).toBe(true);
   });
 
-  it("builds a screener runtime model from latest, reference, and live tabular frames", () => {
+  it("builds a screener runtime model from seed metadata and live tabular frames", () => {
     const seed = frame({
-      columns: ["asset_id", "symbol", "time", "last_price", "sector"],
+      columns: ["asset_id", "symbol", "time", "last_price", "previous_close", "sector"],
       rows: [
         {
           asset_id: "asset:AAPL",
           symbol: "AAPL",
           time: "2026-05-16T13:00:00.000Z",
           last_price: 110,
+          previous_close: 100,
           sector: "Technology",
         },
       ],
       updatedAtMs: 1000,
-    });
-    const references = frame({
-      columns: ["asset_id", "reference_key", "observed_at", "close"],
-      rows: [
-        {
-          asset_id: "asset:AAPL",
-          reference_key: "previousClose",
-          observed_at: "2026-05-15T20:00:00.000Z",
-          close: 100,
-        },
-      ],
-      updatedAtMs: 1100,
+      meta: buildMarketAssetFrameSemanticMeta({
+        role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
+        fieldRoles: [
+          { field: "asset_id", role: "assetKey" },
+          { field: "symbol", role: "symbol" },
+          { field: "time", role: "observedAt" },
+          { field: "last_price", role: "value", valueKey: "price" },
+          { field: "previous_close", role: "referenceValue", referenceKey: "previousClose", valueKey: "price" },
+        ],
+      }),
     });
     const live = frame({
       columns: ["asset_id", "time", "last_price"],
@@ -110,25 +109,7 @@ describe("marketAssetFrames", () => {
 
     const runtime = buildMarketAssetScreenerRuntimeModelFromTabularFrames({
       seedData: seed,
-      referenceData: references,
       liveUpdates: live,
-      seedMapping: {
-        assetKeyField: "asset_id",
-        symbolField: "symbol",
-        sectorField: "sector",
-        observedAtField: "time",
-        valueFields: {
-          price: "last_price",
-        },
-      },
-      referenceMapping: {
-        assetKeyField: "asset_id",
-        referenceKeyField: "reference_key",
-        observedAtField: "observed_at",
-        valueFields: {
-          price: "close",
-        },
-      },
       liveMapping: {
         assetKeyField: "asset_id",
         observedAtField: "time",

@@ -539,15 +539,20 @@ function formatValidationIssues(issues: ConnectionTypeSyncValidationIssue[]) {
     .join(" ");
 }
 
+function shouldSyncConnectionType(connection: AnyConnectionTypeDefinition) {
+  return connection.registrySync !== "local-only";
+}
+
 export async function buildConnectionTypeSyncDraft(): Promise<ConnectionTypeSyncDraft> {
-  const validationIssues = [...appRegistry.connections]
+  const syncableConnections = [...appRegistry.connections].filter(shouldSyncConnectionType);
+  const validationIssues = syncableConnections
     .flatMap((connection) => validateConnectionTypeForSync(connection))
     .sort((left, right) =>
       left.typeId === right.typeId
         ? left.section.localeCompare(right.section)
         : left.typeId.localeCompare(right.typeId),
     );
-  const connections = [...appRegistry.connections]
+  const connections = syncableConnections
     .map((connection) => projectConnectionTypeForSync(connection))
     .sort((left, right) => left.typeId.localeCompare(right.typeId));
 

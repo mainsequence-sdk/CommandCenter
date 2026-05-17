@@ -992,7 +992,7 @@ function DashboardCanvasSurface({
                     </div>
                     <div className="space-y-1">
                       <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                        {settingsInstance.title ?? settingsWidget.title}
+                        {settingsInstance.title?.trim() || "Untitled card"}
                       </h2>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -1013,11 +1013,10 @@ function DashboardCanvasSurface({
               <WidgetSettingsPanel
                 widget={settingsWidget}
                 instance={settingsInstance}
-                panelTitle={`${settingsInstance.title ?? settingsWidget.title} Settings`}
                 panelDescription={
                   settingsInstance.slidePlacement
-                    ? "Adjust the display title, schema fields, and advanced widget props for this slide-contained widget. Slide region membership is managed by the workspace slide layout."
-                    : "Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
+                    ? "Adjust the card title, schema fields, and advanced widget props for this slide-contained widget. Slide region membership is managed by the workspace slide layout."
+                    : "Adjust the card title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
                 }
                 persistenceNote="Edits update this page immediately and are lost when you refresh or leave the page."
                 showPlacementField={!settingsInstance.slidePlacement}

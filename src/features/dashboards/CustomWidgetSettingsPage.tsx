@@ -530,6 +530,10 @@ export function CustomWidgetSettingsPage({
       </div>
     );
   }
+  const settingsInstance = instance;
+  const settingsWidget = widget;
+  const cardTitle =
+    effectiveDraftState.title.trim() || settingsInstance.title?.trim() || "Untitled card";
   const managedConnectionDirty =
     Boolean(managedConnectionAdapter) &&
     draftManagedConnectionSignature !== currentManagedConnectionSignature;
@@ -697,6 +701,20 @@ export function CustomWidgetSettingsPage({
     );
   }
 
+  function handleDraftTitleChange(title: string) {
+    setDraftState((current) =>
+      current
+        ? {
+            ...current,
+            title,
+          }
+        : {
+            ...buildWidgetSettingsDraftState(settingsInstance, settingsWidget),
+            title,
+          },
+    );
+  }
+
   const pageContent = (
     <div className="relative h-full overflow-hidden">
       <div className="h-full overflow-y-auto px-4 py-4 pb-10 md:px-6 md:py-6">
@@ -717,7 +735,7 @@ export function CustomWidgetSettingsPage({
                       </div>
                       <div className="space-y-1">
                         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-                          {instance.title ?? widget.title}
+                          {cardTitle}
                         </h1>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -739,6 +757,24 @@ export function CustomWidgetSettingsPage({
                     ) : (
                       <Badge variant="success">Workspace saved</Badge>
                     )}
+                    {managedConnectionAdapter ? (
+                      managedConnectionMode ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setActiveTab("connection");
+                          }}
+                        >
+                          <PlugZap className="h-4 w-4" />
+                          Open connection
+                        </Button>
+                      ) : (
+                        <Button variant="outline" onClick={stageManagedConnection}>
+                          <PlugZap className="h-4 w-4" />
+                          Add connection
+                        </Button>
+                      )
+                    ) : null}
                     <Link
                       to={getWidgetDetailsPath(widget.id)}
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border bg-card/80 px-4 py-2 text-sm font-medium text-card-foreground transition-all hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
@@ -820,19 +856,7 @@ export function CustomWidgetSettingsPage({
                               },
                         );
                       }}
-                      onDraftTitleChange={(title) => {
-                        setDraftState((current) =>
-                          current
-                            ? {
-                                ...current,
-                                title,
-                              }
-                            : {
-                                ...buildWidgetSettingsDraftState(instance, widget),
-                                title,
-                              },
-                        );
-                      }}
+                      onDraftTitleChange={handleDraftTitleChange}
                       draftProps={effectiveDraftState.props}
                       onDraftPropsChange={(props) => {
                         setDraftState((current) =>
@@ -861,11 +885,10 @@ export function CustomWidgetSettingsPage({
                               },
                         );
                       }}
-                      panelTitle={`${instance.title ?? widget.title} Settings`}
                       panelDescription={
                         instance.slidePlacement
-                          ? "Adjust the display title, schema fields, and advanced widget props for this slide-contained widget. Slide region membership is managed by the workspace slide layout."
-                          : "Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
+                          ? "Adjust the card title, schema fields, and advanced widget props for this slide-contained widget. Slide region membership is managed by the workspace slide layout."
+                          : "Adjust the card title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
                       }
                       previewResolvedInputsOverride={managedConnectionPreviewResolvedInputs}
                       persistenceNote={
@@ -902,11 +925,12 @@ export function CustomWidgetSettingsPage({
                   <WidgetSettingsPanel
                     widget={widget}
                     instance={instance}
-                    panelTitle={`${instance.title ?? widget.title} Settings`}
+                    draftTitle={effectiveDraftState.title}
+                    onDraftTitleChange={handleDraftTitleChange}
                     panelDescription={
                       instance.slidePlacement
-                        ? "Adjust the display title, schema fields, and advanced widget props for this slide-contained widget. Slide region membership is managed by the workspace slide layout."
-                        : "Adjust the display title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
+                        ? "Adjust the card title, schema fields, and advanced widget props for this slide-contained widget. Slide region membership is managed by the workspace slide layout."
+                        : "Adjust the card title, shared presentation, schema fields, and advanced widget props for this dashboard instance."
                     }
                     previewResolvedInputsOverride={managedConnectionPreviewResolvedInputs}
                     persistenceNote={

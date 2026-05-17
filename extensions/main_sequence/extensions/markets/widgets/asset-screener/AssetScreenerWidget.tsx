@@ -1,12 +1,26 @@
-import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, Database, Search } from "lucide-react";
+import { useMemo } from "react";
+import { AlertTriangle, Database } from "lucide-react";
 
-import { Input } from "@/components/ui/input";
-import type { WidgetComponentProps } from "@/widgets/types";
+import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
+import {
+  TableFrameView,
+  type ResolvedTableWidgetProps,
+  type TableFrameCustomCellRenderer,
+  type TableWidgetCellValue,
+  type TableWidgetColumnOverride,
+  type TableWidgetColumnSchema,
+  type TableWidgetConditionalRule,
+  type TableWidgetFrameRow,
+  type TableWidgetRow,
+  type TableWidgetTone,
+} from "@/widgets/core/table/TableFrameView";
+import type { TableWidgetProps } from "@/widgets/core/table/tableModel";
+import type { ResolvedWidgetInput, ResolvedWidgetInputs, WidgetComponentProps } from "@/widgets/types";
 
 import {
   normalizeAssetScreenerProps,
   resolveAssetScreenerState,
+  type MainSequenceAssetScreenerDensity,
   type MainSequenceAssetScreenerWidgetProps,
 } from "./assetScreenerModel";
 import type {
@@ -14,135 +28,398 @@ import type {
   MarketAssetScreenerRow,
   MarketAssetScalarValue,
   MarketAssetValuePoint,
+  MarketTableVisualColumnMetadata,
+} from "../../widget-contracts/marketAssetFrames";
+import {
+  MARKET_ASSET_SCREENER_LIVE_UPDATES_INPUT_ID,
+  MARKET_ASSET_SCREENER_SEED_INPUT_ID,
 } from "../../widget-contracts/marketAssetFrames";
 
 type Props = WidgetComponentProps<MainSequenceAssetScreenerWidgetProps>;
 
-interface RenderEntry {
-  id: string;
-  kind: "group" | "row";
-  groupLabel?: string;
-  row?: MarketAssetScreenerRow;
-  count?: number;
+interface AssetScreenerTableFrame {
+  columns: string[];
+  rows: TableWidgetFrameRow[];
+  schemaFallback: TableWidgetColumnSchema[];
+  sourceLabel?: string;
 }
 
-function formatNumber(value: number, options?: Intl.NumberFormatOptions) {
-  return new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: 2,
-    minimumFractionDigits: 0,
-    ...options,
-  }).format(value);
+function firstResolvedInput(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+  inputId: string,
+) {
+  const input = resolvedInputs?.[inputId];
+  return Array.isArray(input) ? input.find((entry) => entry.status === "valid") ?? input[0] : input;
+}
+
+function isIdleFrame(value: unknown) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      "status" in value &&
+      (value as { status?: unknown }).status === "idle",
+  );
+}
+
+function inputRequiresPassiveUpstreamResolution(input: ResolvedWidgetInput | undefined) {
+  if (!input || input.status !== "valid" || !input.sourceWidgetId) {
+    return false;
+  }
+
+  const hasPublishedValue =
+    input.upstreamBase !== undefined ||
+    input.upstreamBaseRef !== undefined ||
+    input.value !== undefined ||
+    input.valueRef !== undefined ||
+    input.upstreamDelta !== undefined ||
+    input.upstreamDeltaRef !== undefined;
+
+  if (!hasPublishedValue) {
+    return true;
+  }
+
+  return isIdleFrame(input.upstreamBase) || isIdleFrame(input.value) || isIdleFrame(input.upstreamDelta);
+}
+
+function assetScreenerRequiresUpstreamResolution(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+) {
+  return inputRequiresPassiveUpstreamResolution(
+    firstResolvedInput(resolvedInputs, MARKET_ASSET_SCREENER_SEED_INPUT_ID),
+  ) || inputRequiresPassiveUpstreamResolution(
+    firstResolvedInput(resolvedInputs, MARKET_ASSET_SCREENER_LIVE_UPDATES_INPUT_ID),
+  );
+}
+
+function normalizeTableCellValue(value: MarketAssetScalarValue | undefined): TableWidgetCellValue {
+  if (value === undefined) {
+    return null;
+  }
+
+  return value;
 }
 
 function getColumnVisual(row: MarketAssetScreenerRow, column: MarketAssetScreenerColumn) {
   if (column.kind === "asset-field") {
-    return row.visuals[column.id] ?? row.visuals[String(column.field)];
+    return column.visual ?? row.visuals[column.id] ?? row.visuals[String(column.field)];
   }
 
   if (column.kind === "sparkline") {
-    return row.visuals[column.id] ?? row.visuals[column.valueField];
+    return column.visual ?? row.visuals[column.id] ?? row.visuals[column.valueField];
   }
 
-  return row.visuals[column.id] ?? row.visuals[column.valueField];
+  return column.visual ?? row.visuals[column.id] ?? row.visuals[column.valueField];
 }
 
-function formatValue(
-  value: MarketAssetScalarValue | undefined,
+function getSourceColumnVisual(
+  rows: MarketAssetScreenerRow[],
   column: MarketAssetScreenerColumn,
-  row: MarketAssetScreenerRow,
 ) {
-  if (value === null || value === undefined) {
-    return "—";
-  }
+  return column.visual ?? rows.map((row) => getColumnVisual(row, column)).find(Boolean);
+}
 
-  if (typeof value !== "number") {
-    return String(value);
-  }
-
-  const format = ("format" in column ? column.format : undefined) ?? getColumnVisual(row, column)?.format;
+function tableFormatForColumn(
+  column: MarketAssetScreenerColumn,
+  visual: MarketTableVisualColumnMetadata | undefined,
+): TableWidgetColumnSchema["format"] {
+  const format = ("format" in column ? column.format : undefined) ?? visual?.format;
 
   if (format === "percent") {
-    return `${formatNumber(value, {
-      maximumFractionDigits: 2,
-      minimumFractionDigits: 2,
-    })}%`;
-  }
-
-  if (format === "currency" || format === "price") {
-    return formatNumber(value, {
-      maximumFractionDigits: 2,
-      minimumFractionDigits: 2,
-    });
+    return "percent";
   }
 
   if (format === "volume") {
-    return formatNumber(value, {
-      notation: "compact",
-      maximumFractionDigits: 1,
+    return "number";
+  }
+
+  if (format === "number" || format === "price" || format === "currency") {
+    return "number";
+  }
+
+  return column.kind === "asset-field" || column.kind === "sparkline" ? "text" : "number";
+}
+
+function isTableColumnSchema(value: unknown): value is TableWidgetColumnSchema {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      typeof (value as { key?: unknown }).key === "string" &&
+      typeof (value as { label?: unknown }).label === "string",
+  );
+}
+
+function resolveTableSchemaWithInstanceSettings(
+  schemaFallback: TableWidgetColumnSchema[],
+  tableSettings: Partial<TableWidgetProps> | undefined,
+) {
+  if (!Array.isArray(tableSettings?.schema)) {
+    return schemaFallback;
+  }
+
+  const savedSchemaByKey = new Map(
+    tableSettings.schema
+      .filter(isTableColumnSchema)
+      .map((column) => [column.key, column] as const),
+  );
+
+  return schemaFallback.map((column) => {
+    const savedColumn = savedSchemaByKey.get(column.key);
+
+    return savedColumn
+      ? {
+          ...column,
+          ...savedColumn,
+          key: column.key,
+        }
+      : column;
+  });
+}
+
+function tableValueForColumn(
+  row: MarketAssetScreenerRow,
+  column: MarketAssetScreenerColumn,
+): TableWidgetCellValue {
+  if (column.kind === "sparkline") {
+    return row.asset.assetKey;
+  }
+
+  return normalizeTableCellValue(row.metrics[column.id]);
+}
+
+function tableToneForMarketTone(tone: string | undefined): TableWidgetTone | undefined {
+  if (
+    tone === "neutral" ||
+    tone === "primary" ||
+    tone === "success" ||
+    tone === "warning" ||
+    tone === "danger"
+  ) {
+    return tone;
+  }
+
+  if (tone === "muted") {
+    return "neutral";
+  }
+
+  return undefined;
+}
+
+function buildLegacyColorScaleRules(
+  columnId: string,
+  visual: MarketTableVisualColumnMetadata | undefined,
+) {
+  const colorScale = visual?.colorScale;
+
+  if (!colorScale) {
+    return [];
+  }
+
+  const rules: TableWidgetConditionalRule[] = [];
+  const negativeTone = tableToneForMarketTone(colorScale.negative);
+  const neutralTone = tableToneForMarketTone(colorScale.neutral);
+  const positiveTone = tableToneForMarketTone(colorScale.positive);
+
+  if (negativeTone) {
+    rules.push({
+      id: `${columnId}:negative`,
+      columnKey: columnId,
+      operator: "lt",
+      value: 0,
+      tone: negativeTone,
     });
   }
 
-  return formatNumber(value);
-}
-
-function getColumnValue(row: MarketAssetScreenerRow, column: MarketAssetScreenerColumn) {
-  return row.metrics[column.id];
-}
-
-function getMetricTone(value: MarketAssetScalarValue | undefined, row: MarketAssetScreenerRow, column: MarketAssetScreenerColumn) {
-  const colorScale = getColumnVisual(row, column)?.colorScale;
-
-  if (typeof value !== "number") {
-    return "text-foreground";
+  if (neutralTone) {
+    rules.push({
+      id: `${columnId}:neutral`,
+      columnKey: columnId,
+      operator: "eq",
+      value: 0,
+      tone: neutralTone,
+    });
   }
 
-  if (value === 0) {
-    return colorScale?.neutral === "muted" ? "text-muted-foreground" : "text-foreground";
+  if (positiveTone) {
+    rules.push({
+      id: `${columnId}:positive`,
+      columnKey: columnId,
+      operator: "gt",
+      value: 0,
+      tone: positiveTone,
+    });
   }
 
-  if (value > 0) {
-    return colorScale?.positive === "green" || !colorScale?.positive ? "text-emerald-400" : "text-foreground";
-  }
-
-  return colorScale?.negative === "red" || !colorScale?.negative ? "text-rose-400" : "text-foreground";
+  return rules;
 }
 
-function buildRenderEntries(
-  rows: MarketAssetScreenerRow[],
-  groupBy: string | undefined,
+function buildTableThresholdRules(
+  columnId: string,
+  visual: MarketTableVisualColumnMetadata | undefined,
 ) {
-  if (!groupBy) {
-    return rows.map<RenderEntry>((row) => ({
-      id: `row:${row.asset.assetKey}`,
-      kind: "row",
-      row,
-    }));
+  if (!visual?.thresholds?.length) {
+    return [];
   }
 
-  const groups = new Map<string, MarketAssetScreenerRow[]>();
+  return visual.thresholds.map<TableWidgetConditionalRule>((rule, index) => ({
+    backgroundColor: rule.backgroundColor,
+    columnKey: columnId,
+    id: rule.id ?? `${columnId}:threshold:${index}`,
+    operator: rule.operator,
+    textColor: rule.textColor,
+    tone: rule.tone,
+    value: rule.value,
+  }));
+}
 
-  rows.forEach((row) => {
-    const groupValue = row.asset[groupBy as keyof typeof row.asset];
-    const groupLabel = typeof groupValue === "string" && groupValue.trim()
-      ? groupValue.trim()
-      : "Other";
+function buildColumnOverride(
+  column: MarketAssetScreenerColumn,
+  visual: MarketTableVisualColumnMetadata | undefined,
+): TableWidgetColumnOverride {
+  const override: TableWidgetColumnOverride = {
+    align: column.kind === "asset-field" || column.kind === "sparkline" ? "left" : "right",
+    compact: visual?.format === "volume",
+    format: tableFormatForColumn(column, visual),
+    label: column.label,
+  };
 
-    groups.set(groupLabel, [...(groups.get(groupLabel) ?? []), row]);
+  override.barMode = visual?.barMode ?? (visual?.kind === "bar" ? "fill" : undefined);
+  override.gradientMode = visual?.gradientMode ?? (visual?.kind === "heatmap" ? "fill" : undefined);
+  override.gaugeMode = visual?.gaugeMode;
+  override.heatmap = visual?.heatmap ?? (visual?.kind === "heatmap" ? true : undefined);
+  override.heatmapPalette = visual?.heatmapPalette;
+
+  if (
+    visual?.range &&
+    typeof visual.range.min === "number" &&
+    typeof visual.range.max === "number" &&
+    Number.isFinite(visual.range.min) &&
+    Number.isFinite(visual.range.max)
+  ) {
+    override.visualRangeMode = "fixed";
+    override.visualMin = visual.range.min;
+    override.visualMax = visual.range.max;
+  }
+
+  if (visual?.visualRangeMode) {
+    override.visualRangeMode = visual.visualRangeMode;
+  }
+
+  if (typeof visual?.visualMin === "number" && Number.isFinite(visual.visualMin)) {
+    override.visualMin = visual.visualMin;
+  }
+
+  if (typeof visual?.visualMax === "number" && Number.isFinite(visual.visualMax)) {
+    override.visualMax = visual.visualMax;
+  }
+
+  return override;
+}
+
+export function buildAssetScreenerTableFrame({
+  columns,
+  rows,
+}: {
+  columns: MarketAssetScreenerColumn[];
+  rows: MarketAssetScreenerRow[];
+}): {
+  frame: AssetScreenerTableFrame;
+  rowObjects: TableWidgetRow[];
+} {
+  const columnIds = columns.map((column) => column.id);
+  const schemaFallback = columns.map<TableWidgetColumnSchema>((column) => {
+    const visual = getSourceColumnVisual(rows, column);
+    const format = tableFormatForColumn(column, visual);
+
+    return {
+      key: column.id,
+      label: column.label,
+      format,
+      minWidth: column.width ?? (column.kind === "asset-field" ? 120 : 96),
+      categorical: column.kind === "asset-field",
+      heatmapEligible: format === "number" || format === "percent" || format === "currency" || format === "bps",
+      compact: visual?.format === "volume",
+    };
   });
+  const frameRows = rows.map((row) =>
+    columns.map((column) => tableValueForColumn(row, column)),
+  );
+  const rowObjects = rows.map<TableWidgetRow>((row, rowIndex) => ({
+    __assetKey: row.asset.assetKey,
+    ...Object.fromEntries(
+      columns.map((column, columnIndex) => [column.id, frameRows[rowIndex]?.[columnIndex] ?? null]),
+    ),
+  }));
 
-  return Array.from(groups.entries()).flatMap<RenderEntry>(([groupLabel, groupRows]) => [
-    {
-      id: `group:${groupLabel}`,
-      kind: "group",
-      groupLabel,
-      count: groupRows.length,
+  return {
+    frame: {
+      columns: columnIds,
+      rows: frameRows,
+      schemaFallback,
+      sourceLabel: "Market asset screener",
     },
-    ...groupRows.map<RenderEntry>((row) => ({
-      id: `row:${groupLabel}:${row.asset.assetKey}`,
-      kind: "row",
-      row,
-    })),
-  ]);
+    rowObjects,
+  };
+}
+
+export function buildAssetScreenerResolvedTableProps({
+  columns,
+  density,
+  frame,
+  rows,
+  tableSettings,
+}: {
+  columns: MarketAssetScreenerColumn[];
+  density: MainSequenceAssetScreenerDensity | undefined;
+  frame: AssetScreenerTableFrame;
+  rows: MarketAssetScreenerRow[];
+  tableSettings?: Partial<TableWidgetProps>;
+}): ResolvedTableWidgetProps {
+  const sourceColumnOverrides = Object.fromEntries(
+    columns.map((column) => {
+      const visual = getSourceColumnVisual(rows, column);
+      return [column.id, buildColumnOverride(column, visual)] as const;
+    }),
+  );
+  const sourceConditionalRules = columns.flatMap((column) => {
+    const visual = getSourceColumnVisual(rows, column);
+    const thresholdRules = buildTableThresholdRules(column.id, visual);
+
+    return thresholdRules.length > 0
+      ? thresholdRules
+      : buildLegacyColorScaleRules(column.id, visual);
+  });
+  const densityOverride =
+    tableSettings?.density === "comfortable" || tableSettings?.density === "compact"
+      ? tableSettings.density
+      : undefined;
+  const pageSize =
+    typeof tableSettings?.pageSize === "number" && Number.isFinite(tableSettings.pageSize)
+      ? Math.max(5, Math.min(Math.trunc(tableSettings.pageSize), 200))
+      : 100;
+
+  return {
+    columns: frame.columns,
+    rows: frame.rows,
+    schema: resolveTableSchemaWithInstanceSettings(frame.schemaFallback, tableSettings),
+    density: densityOverride ?? (density === "comfortable" ? "comfortable" : "compact"),
+    showToolbar: tableSettings?.showToolbar !== false,
+    showSearch: tableSettings?.showSearch !== false,
+    showColumnFilters: tableSettings?.showColumnFilters !== false,
+    zebraRows: tableSettings?.zebraRows === true,
+    pagination: tableSettings?.pagination === true,
+    pageSize,
+    columnOverrides: {
+      ...sourceColumnOverrides,
+      ...(tableSettings?.columnOverrides ?? {}),
+    },
+    valueLabels: Array.isArray(tableSettings?.valueLabels) ? tableSettings.valueLabels : [],
+    conditionalRules: [
+      ...sourceConditionalRules,
+      ...(Array.isArray(tableSettings?.conditionalRules) ? tableSettings.conditionalRules : []),
+    ],
+  };
 }
 
 function getSparklinePath(values: number[], width: number, height: number) {
@@ -174,7 +451,7 @@ function pointSortValue(point: MarketAssetValuePoint) {
   return 0;
 }
 
-function buildSparklineValues(row: MarketAssetScreenerRow, valueField: string) {
+export function buildSparklineValues(row: MarketAssetScreenerRow, valueField: string) {
   const referencePoints = Object.values(row.references).filter(
     (point): point is NonNullable<typeof point> => Boolean(point),
   );
@@ -238,44 +515,54 @@ function Sparkline({
   );
 }
 
-function Cell({
-  column,
-  row,
+function buildSparklineCellRenderers({
+  columns,
+  rows,
 }: {
-  column: MarketAssetScreenerColumn;
-  row: MarketAssetScreenerRow;
+  columns: MarketAssetScreenerColumn[];
+  rows: MarketAssetScreenerRow[];
 }) {
-  if (column.kind === "sparkline") {
-    return (
-      <div className="text-primary">
-        <Sparkline row={row} valueField={column.valueField} />
-      </div>
-    );
-  }
+  const rowByAssetKey = new Map(rows.map((row) => [row.asset.assetKey, row]));
 
-  const value = getColumnValue(row, column);
-  const numericTone =
-    column.kind === "return" || column.kind === "latest-value" || column.kind === "reference-value"
-      ? getMetricTone(value, row, column)
-      : "text-foreground";
+  return Object.fromEntries(
+    columns.flatMap((column) => {
+      if (column.kind !== "sparkline") {
+        return [];
+      }
 
-  return (
-    <span className={numericTone}>
-      {formatValue(value, column, row)}
-    </span>
+      const renderer: TableFrameCustomCellRenderer = ({ value }) => {
+        const row = typeof value === "string" ? rowByAssetKey.get(value) : undefined;
+
+        if (!row) {
+          return <span className="text-muted-foreground">—</span>;
+        }
+
+        return (
+          <div className="flex h-full w-full items-center overflow-hidden text-primary">
+            <Sparkline row={row} valueField={column.valueField} />
+          </div>
+        );
+      };
+
+      return [[column.id, renderer] as const];
+    }),
   );
 }
 
 export function AssetScreenerWidget({
+  instanceTitle,
+  instanceId,
   props,
   resolvedInputs,
   runtimeState,
   runtimeDataStore,
-  onPropsChange,
 }: Props) {
   const normalizedProps = normalizeAssetScreenerProps(props);
-  const [scrollTop, setScrollTop] = useState(0);
-  const bodyRef = useRef<HTMLDivElement | null>(null);
+
+  useResolveWidgetUpstream(instanceId, {
+    enabled: assetScreenerRequiresUpstreamResolution(resolvedInputs),
+  });
+
   const state = useMemo(
     () =>
       resolveAssetScreenerState({
@@ -288,34 +575,61 @@ export function AssetScreenerWidget({
       }),
     [normalizedProps, resolvedInputs, runtimeDataStore, runtimeState],
   );
-  const entries = useMemo(
-    () => buildRenderEntries(state.filteredRows, normalizedProps.groupBy),
-    [normalizedProps.groupBy, state.filteredRows],
+  const tableFrame = useMemo(
+    () =>
+      buildAssetScreenerTableFrame({
+        columns: state.columns,
+        rows: state.filteredRows,
+      }),
+    [state.columns, state.filteredRows],
   );
-  const columns = normalizedProps.columns ?? [];
-  const rowHeight = normalizedProps.density === "comfortable" ? 34 : 28;
-  const headerHeight = 34;
-  const overscan = 8;
-  const viewportHeight = bodyRef.current?.clientHeight ?? 360;
-  const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
-  const endIndex = Math.min(
-    entries.length,
-    Math.ceil((scrollTop + viewportHeight) / rowHeight) + overscan,
+  const resolvedTableProps = useMemo(
+    () =>
+      buildAssetScreenerResolvedTableProps({
+        columns: state.columns,
+        density: normalizedProps.density,
+        frame: tableFrame.frame,
+        rows: state.filteredRows,
+        tableSettings: normalizedProps.table,
+      }),
+    [normalizedProps.density, normalizedProps.table, state.columns, state.filteredRows, tableFrame.frame],
   );
-  const visibleEntries = entries.slice(startIndex, endIndex);
-  const topPadding = startIndex * rowHeight;
-  const bottomPadding = Math.max(0, (entries.length - endIndex) * rowHeight);
-  const filterText = normalizedProps.filterText ?? "";
+  const customCellRenderers = useMemo(
+    () =>
+      buildSparklineCellRenderers({
+        columns: state.columns,
+        rows: state.filteredRows,
+      }),
+    [state.columns, state.filteredRows],
+  );
+  const cardTitle = instanceTitle?.trim();
 
   if (!state.hasAnyBinding && state.rows.length === 0) {
     return (
-      <div className="flex h-full min-h-[260px] flex-col items-center justify-center gap-3 rounded-[var(--radius)] border border-dashed border-border/70 bg-background/35 p-6 text-center">
+      <div className="flex h-full min-h-[260px] flex-col items-center justify-center gap-3 rounded-none border border-dashed border-border/70 bg-transparent p-6 text-center">
         <Database className="h-9 w-9 text-muted-foreground" />
         <div className="space-y-1">
           <div className="text-sm font-medium text-foreground">Bind market asset data</div>
           <div className="max-w-md text-xs text-muted-foreground">
-            Connect latest snapshot data to seedData, historical reference points to referenceData,
-            and live price or quote updates to liveUpdates.
+            Connect the full semantic market snapshot to seedData and optional live price or quote
+            updates to liveUpdates.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.columns.length === 0) {
+    return (
+      <div className="flex h-full min-h-[260px] flex-col items-center justify-center gap-3 rounded-none border border-dashed border-border/70 bg-transparent p-6 text-center">
+        <Database className="h-9 w-9 text-muted-foreground" />
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">
+            {cardTitle || "Asset screener"}
+          </div>
+          <div className="max-w-md text-xs text-muted-foreground">
+            No source columns are available yet. Publish `meta.tableVisuals.columns`, market field
+            roles, or save instance override columns in settings.
           </div>
         </div>
       </div>
@@ -323,117 +637,30 @@ export function AssetScreenerWidget({
   }
 
   return (
-    <div className="flex h-full min-h-[260px] flex-col overflow-hidden rounded-[var(--radius)] border border-border/70 bg-background/80">
-      <div className="flex flex-wrap items-center gap-2 border-b border-border/70 bg-card/80 px-3 py-2">
-        <div className="mr-auto min-w-0">
-          <div className="truncate text-sm font-semibold text-foreground">Asset Screener</div>
-          <div className="text-[11px] text-muted-foreground">
-            {state.filteredRows.length.toLocaleString()} of {state.rows.length.toLocaleString()} assets
-          </div>
-        </div>
-        <label className="relative flex min-w-[180px] max-w-[280px] flex-1 items-center">
-          <Search className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            className="h-8 pl-7 text-xs"
-            value={filterText}
-            placeholder="Filter assets"
-            onChange={(event) => {
-              onPropsChange?.({
-                ...normalizedProps,
-                filterText: event.target.value,
-              });
-            }}
-          />
-        </label>
-      </div>
-      <div
-        className="grid border-b border-border/70 bg-muted/35 text-[11px] font-medium uppercase tracking-normal text-muted-foreground"
-        style={{
-          gridTemplateColumns: columns.map((column) => `${column.width ?? 110}px`).join(" "),
-          minHeight: headerHeight,
-        }}
-      >
-        {columns.map((column) => (
-          <button
-            key={column.id}
-            className="flex items-center border-r border-border/50 px-2 text-left last:border-r-0 hover:bg-muted/60"
-            type="button"
-            onClick={() => {
-              const currentSort = normalizedProps.sort;
-              const nextDirection =
-                currentSort?.columnId === column.id && currentSort.direction === "desc"
-                  ? "asc"
-                  : "desc";
-
-              onPropsChange?.({
-                ...normalizedProps,
-                sort: {
-                  columnId: column.id,
-                  direction: nextDirection,
-                },
-              });
-            }}
-          >
-            <span className="truncate">{column.label}</span>
-          </button>
-        ))}
-      </div>
-      <div
-        ref={bodyRef}
-        className="min-h-0 flex-1 overflow-auto text-xs"
-        onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-      >
-        <div style={{ height: topPadding }} />
-        {visibleEntries.map((entry) => {
-          if (entry.kind === "group") {
-            return (
-              <div
-                key={entry.id}
-                className="flex items-center border-b border-border/60 bg-muted/45 px-2 text-[11px] font-semibold uppercase tracking-normal text-muted-foreground"
-                style={{ height: rowHeight }}
-              >
-                <span className="truncate">{entry.groupLabel}</span>
-                <span className="ml-2 rounded border border-border/60 px-1.5 py-0.5 text-[10px]">
-                  {entry.count}
-                </span>
+    <div className="flex h-full min-h-[260px] flex-col">
+      <div className="min-h-0 flex-1">
+        <TableFrameView
+          customCellRenderers={customCellRenderers}
+          emptyMessage="No assets match the current bindings and filters."
+          quickFilterPlaceholder="Filter assets"
+          resolvedProps={resolvedTableProps}
+          rowObjects={tableFrame.rowObjects}
+          showColumnFilters={false}
+          surface="transparent"
+          toolbarStart={
+            <div className="min-w-0">
+              {cardTitle ? (
+                <div className="truncate text-sm font-semibold text-foreground">{cardTitle}</div>
+              ) : null}
+              <div className="text-[11px] text-muted-foreground">
+                {state.filteredRows.length.toLocaleString()} of {state.rows.length.toLocaleString()} assets
               </div>
-            );
-          }
-
-          const row = entry.row!;
-
-          return (
-            <div
-              key={entry.id}
-              className="grid border-b border-border/35 text-foreground odd:bg-background/35 hover:bg-muted/40"
-              style={{
-                gridTemplateColumns: columns.map((column) => `${column.width ?? 110}px`).join(" "),
-                height: rowHeight,
-              }}
-            >
-              {columns.map((column) => (
-                <div
-                  key={column.id}
-                  className="flex min-w-0 items-center border-r border-border/35 px-2 last:border-r-0"
-                  title={String(getColumnValue(row, column) ?? "")}
-                >
-                  <div className="truncate">
-                    <Cell column={column} row={row} />
-                  </div>
-                </div>
-              ))}
             </div>
-          );
-        })}
-        <div style={{ height: bottomPadding }} />
-        {entries.length === 0 ? (
-          <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
-            No assets match the current bindings and filters.
-          </div>
-        ) : null}
+          }
+        />
       </div>
       {normalizedProps.showDiagnostics && state.runtimeModel.warnings.length > 0 ? (
-        <div className="flex items-start gap-2 border-t border-border/70 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+        <div className="flex items-start gap-2 border-x border-b border-border/70 bg-warning/10 px-3 py-2 text-[11px] text-warning">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <div className="line-clamp-2">
             {state.runtimeModel.warnings.slice(0, 3).join(" ")}

@@ -605,7 +605,7 @@ export function WorkspaceCanvasWidgetCard({
             <div
               className={cn(
                 dragHandleClassName,
-                "flex h-5 w-5 items-center justify-center rounded-none rounded-br-[10px] border-b border-r border-border/70 bg-background/92 text-muted-foreground shadow-[var(--shadow-panel)] backdrop-blur-md cursor-grab select-none active:cursor-grabbing",
+                "flex h-5 w-5 items-center justify-center rounded-none border-b border-r border-border/70 bg-background/92 text-muted-foreground shadow-[var(--shadow-panel)] backdrop-blur-md cursor-grab select-none active:cursor-grabbing",
               )}
               data-widget-grid-handle="true"
               title={`Drag ${title}`}

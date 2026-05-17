@@ -262,6 +262,7 @@ export interface ConnectionTypeDefinition<
   authoringContract?: ConnectionAuthoringContract;
   physicalDataSource?: ConnectionPhysicalDataSourceMetadata;
   usageGuidance?: string;
+  registrySync?: "backend" | "local-only";
   examples?: Array<{
     title: string;
     publicConfig?: Partial<TPublicConfig>;

@@ -8,6 +8,7 @@ import {
 export const MARKET_ASSET_SNAPSHOT_FRAME_ROLE = "snapshot" as const;
 export const MARKET_ASSET_REFERENCE_POINTS_FRAME_ROLE = "reference-points" as const;
 export const MARKET_ASSET_HISTORY_SERIES_FRAME_ROLE = "history-series" as const;
+export const MARKET_ASSET_REQUIRED_SEED_COLUMNS = ["unique_identifier", "Symbol"] as const;
 
 export const MARKET_ASSET_FRAME_ROLES = [
   MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
@@ -104,9 +105,9 @@ export interface MarketTableTransformsMetadata {
 }
 
 export interface MarketTableColorScaleMetadata {
-  negative?: "red" | string;
+  negative?: "warning" | "danger" | string;
   neutral?: "muted" | string;
-  positive?: "green" | string;
+  positive?: "success" | string;
 }
 
 export interface MarketTableRangeMetadata {
@@ -116,13 +117,50 @@ export interface MarketTableRangeMetadata {
   clamp?: boolean;
 }
 
+export type MarketTableVisualTone = "neutral" | "primary" | "success" | "warning" | "danger";
+export type MarketTableVisualOperator = "gt" | "gte" | "lt" | "lte" | "eq";
+export type MarketTableVisualBarMode = "none" | "fill";
+export type MarketTableVisualGradientMode = "none" | "fill";
+export type MarketTableVisualHeatmapPalette =
+  | "auto"
+  | "viridis"
+  | "plasma"
+  | "inferno"
+  | "magma"
+  | "turbo"
+  | "jet"
+  | "blue-white-red"
+  | "red-yellow-green";
+export type MarketTableVisualGaugeMode = "none" | "ring";
+export type MarketTableVisualRangeMode = "auto" | "fixed";
+
+export interface MarketTableThresholdRuleMetadata {
+  backgroundColor?: string;
+  id?: string;
+  operator: MarketTableVisualOperator;
+  textColor?: string;
+  tone?: MarketTableVisualTone;
+  value: number;
+}
+
 export interface MarketTableVisualColumnMetadata {
+  label?: string;
   format?: "number" | "price" | "percent" | "volume" | "currency";
   colorScale?: MarketTableColorScaleMetadata;
   range?: MarketTableRangeMetadata;
+  thresholds?: MarketTableThresholdRuleMetadata[];
+  heatmap?: boolean;
+  barMode?: MarketTableVisualBarMode;
+  gradientMode?: MarketTableVisualGradientMode;
+  heatmapPalette?: MarketTableVisualHeatmapPalette;
+  gaugeMode?: MarketTableVisualGaugeMode;
+  visualRangeMode?: MarketTableVisualRangeMode;
+  visualMin?: number;
+  visualMax?: number;
   kind?: "sparkline" | "bar" | "heatmap";
   encoding?: MarketAssetSparklineSeriesEncoding;
   order?: MarketAssetSparklineSeriesOrder;
+  width?: number;
 }
 
 export interface MarketTableVisualsMetadata {
@@ -202,6 +240,7 @@ export type MarketAssetScreenerColumn =
       field: keyof MarketAssetIdentity | string;
       width?: number;
       groupable?: boolean;
+      visual?: MarketTableVisualColumnMetadata;
     }
   | {
       id: string;
@@ -210,6 +249,7 @@ export type MarketAssetScreenerColumn =
       valueField: string;
       format?: "number" | "price" | "percent" | "volume" | "currency";
       width?: number;
+      visual?: MarketTableVisualColumnMetadata;
     }
   | {
       id: string;
@@ -219,6 +259,7 @@ export type MarketAssetScreenerColumn =
       valueField: string;
       format?: "number" | "price" | "percent" | "volume" | "currency";
       width?: number;
+      visual?: MarketTableVisualColumnMetadata;
     }
   | {
       id: string;
@@ -229,6 +270,7 @@ export type MarketAssetScreenerColumn =
       returnMode: "absolute" | "percent";
       format?: "number" | "price" | "percent" | "volume" | "currency";
       width?: number;
+      visual?: MarketTableVisualColumnMetadata;
     }
   | {
       id: string;
@@ -237,6 +279,7 @@ export type MarketAssetScreenerColumn =
       valueField: string;
       historyKey?: string;
       width?: number;
+      visual?: MarketTableVisualColumnMetadata;
     };
 
 export interface MarketAssetFieldRoleMetadata {
@@ -334,9 +377,9 @@ export interface MarketAssetHistorySeriesAdapterResult {
 
 export interface BuildMarketAssetScreenerRuntimeModelInput {
   seedData?: TabularFrameSourceV1 | null;
-  referenceData?: TabularFrameSourceV1 | null;
+  referenceFrame?: TabularFrameSourceV1 | null;
   liveUpdates?: TabularFrameSourceV1 | null;
-  historyData?: TabularFrameSourceV1 | null;
+  historyFrame?: TabularFrameSourceV1 | null;
   seedMapping?: MarketAssetSnapshotFieldMapping;
   referenceMapping?: MarketAssetReferencePointsFieldMapping;
   liveMapping?: MarketAssetSnapshotFieldMapping;
@@ -494,7 +537,7 @@ export const MARKET_ASSET_FRAME_ROLE_METADATA = {
       ...valueRoleMetadata,
     ],
     notes: [
-      "Used for the referenceData lane.",
+      "Used by internal long-form reference adapters and future Markets widgets.",
       "Reference keys are formula identifiers, not display labels.",
     ],
   },
@@ -1045,6 +1088,52 @@ function normalizeTableVisualKind(value: unknown): MarketTableVisualColumnMetada
   return value === "sparkline" || value === "bar" || value === "heatmap" ? value : undefined;
 }
 
+function normalizeTableVisualTone(value: unknown): MarketTableVisualTone | undefined {
+  return value === "neutral" ||
+    value === "primary" ||
+    value === "success" ||
+    value === "warning" ||
+    value === "danger"
+    ? value
+    : undefined;
+}
+
+function normalizeTableVisualOperator(value: unknown): MarketTableVisualOperator | undefined {
+  return value === "gt" || value === "gte" || value === "lt" || value === "lte" || value === "eq"
+    ? value
+    : undefined;
+}
+
+function normalizeTableVisualBarMode(value: unknown): MarketTableVisualBarMode | undefined {
+  return value === "none" || value === "fill" ? value : undefined;
+}
+
+function normalizeTableVisualGradientMode(value: unknown): MarketTableVisualGradientMode | undefined {
+  return value === "none" || value === "fill" ? value : undefined;
+}
+
+function normalizeTableVisualHeatmapPalette(value: unknown): MarketTableVisualHeatmapPalette | undefined {
+  return value === "auto" ||
+    value === "viridis" ||
+    value === "plasma" ||
+    value === "inferno" ||
+    value === "magma" ||
+    value === "turbo" ||
+    value === "jet" ||
+    value === "blue-white-red" ||
+    value === "red-yellow-green"
+    ? value
+    : undefined;
+}
+
+function normalizeTableVisualGaugeMode(value: unknown): MarketTableVisualGaugeMode | undefined {
+  return value === "none" || value === "ring" ? value : undefined;
+}
+
+function normalizeTableVisualRangeMode(value: unknown): MarketTableVisualRangeMode | undefined {
+  return value === "auto" || value === "fixed" ? value : undefined;
+}
+
 function normalizeFiniteNumber(value: unknown) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
@@ -1084,18 +1173,56 @@ function normalizeRangeMetadata(value: unknown): MarketTableRangeMetadata | unde
     : undefined;
 }
 
+function normalizeThresholdRuleMetadata(value: unknown): MarketTableThresholdRuleMetadata | undefined {
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  const operator = normalizeTableVisualOperator(value.operator);
+  const numericValue = normalizeFiniteNumber(value.value);
+
+  if (!operator || numericValue === undefined) {
+    return undefined;
+  }
+
+  return {
+    backgroundColor: normalizeString(value.backgroundColor),
+    id: normalizeString(value.id),
+    operator,
+    textColor: normalizeString(value.textColor),
+    tone: normalizeTableVisualTone(value.tone),
+    value: numericValue,
+  };
+}
+
 function normalizeTableVisualColumnMetadata(value: unknown): MarketTableVisualColumnMetadata | null {
   if (!isPlainRecord(value)) {
     return null;
   }
 
+  const thresholds = Array.isArray(value.thresholds)
+    ? value.thresholds
+        .map((entry) => normalizeThresholdRuleMetadata(entry))
+        .filter((entry): entry is MarketTableThresholdRuleMetadata => Boolean(entry))
+    : undefined;
   const metadata = {
+    label: normalizeString(value.label),
     format: normalizeTableVisualFormat(value.format),
     colorScale: normalizeColorScale(value.colorScale),
     range: normalizeRangeMetadata(value.range),
+    thresholds: thresholds && thresholds.length > 0 ? thresholds : undefined,
+    heatmap: typeof value.heatmap === "boolean" ? value.heatmap : undefined,
+    barMode: normalizeTableVisualBarMode(value.barMode),
+    gradientMode: normalizeTableVisualGradientMode(value.gradientMode),
+    heatmapPalette: normalizeTableVisualHeatmapPalette(value.heatmapPalette),
+    gaugeMode: normalizeTableVisualGaugeMode(value.gaugeMode),
+    visualRangeMode: normalizeTableVisualRangeMode(value.visualRangeMode),
+    visualMin: normalizeFiniteNumber(value.visualMin),
+    visualMax: normalizeFiniteNumber(value.visualMax),
     kind: normalizeTableVisualKind(value.kind),
     encoding: normalizeSparklineSeriesEncoding(value.encoding),
     order: normalizeSparklineSeriesOrder(value.order),
+    width: normalizeFiniteNumber(value.width),
   } satisfies MarketTableVisualColumnMetadata;
 
   return Object.values(metadata).some((entry) => entry !== undefined) ? metadata : null;
@@ -1918,6 +2045,9 @@ function sourceTimestamp(frame: TabularFrameSourceV1) {
 export function adaptMarketAssetSnapshotFrame(
   frameInput: TabularFrameSourceV1 | null | undefined,
   mapping?: MarketAssetSnapshotFieldMapping,
+  options: {
+    enforceSeedColumns?: boolean;
+  } = {},
 ): MarketAssetSnapshotAdapterResult {
   const frame = normalizeFrame(frameInput);
 
@@ -1955,6 +2085,27 @@ export function adaptMarketAssetSnapshotFrame(
   const historyByKey: Record<MarketAssetKey, MarketAssetValuePoint[]> = {};
   const visualsByKey: Record<MarketAssetKey, Record<string, MarketTableVisualColumnMetadata>> = {};
   const sourceRunId = resolveSourceRunId(frame);
+  const missingSeedColumns = options.enforceSeedColumns
+    ? [
+        ...(!frame.columns.includes("unique_identifier") ? ["unique_identifier"] : []),
+        ...(!frame.columns.some((column) => normalizeFieldNameForMatch(column) === "symbol") ? ["Symbol"] : []),
+      ]
+    : [];
+
+  if (missingSeedColumns.length > 0) {
+    return {
+      assetsByKey,
+      latestByKey,
+      referencesByKey,
+      historyByKey,
+      visualsByKey,
+      warnings: [
+        `Seed frame is missing required column${missingSeedColumns.length === 1 ? "" : "s"}: ${missingSeedColumns.join(", ")}.`,
+      ],
+      sourceRunId,
+      updatedAtMs: sourceTimestamp(frame),
+    };
+  }
 
   if (!resolvedMapping.assetKeyField) {
     return {
@@ -2420,7 +2571,9 @@ export function buildMarketAssetScreenerRuntimeModelFromTabularFrames(
     : emptyRuntimeModel();
 
   if (input.seedData) {
-    const seed = adaptMarketAssetSnapshotFrame(input.seedData, input.seedMapping);
+    const seed = adaptMarketAssetSnapshotFrame(input.seedData, input.seedMapping, {
+      enforceSeedColumns: true,
+    });
     model.assetsByKey = mergeAssets(model.assetsByKey, seed.assetsByKey);
     model.latestByKey = seed.latestByKey;
     model.referencesByKey = mergeReferencesByKey(model.referencesByKey, seed.referencesByKey);
@@ -2431,9 +2584,9 @@ export function buildMarketAssetScreenerRuntimeModelFromTabularFrames(
     model.warnings.push(...seed.warnings);
   }
 
-  if (input.referenceData) {
+  if (input.referenceFrame) {
     const references = adaptMarketAssetReferencePointsFrame(
-      input.referenceData,
+      input.referenceFrame,
       input.referenceMapping,
     );
     model.assetsByKey = mergeAssets(model.assetsByKey, references.assetsByKey);
@@ -2443,8 +2596,8 @@ export function buildMarketAssetScreenerRuntimeModelFromTabularFrames(
     model.warnings.push(...references.warnings);
   }
 
-  if (input.historyData) {
-    const history = adaptMarketAssetHistorySeriesFrame(input.historyData, input.historyMapping);
+  if (input.historyFrame) {
+    const history = adaptMarketAssetHistorySeriesFrame(input.historyFrame, input.historyMapping);
     model.assetsByKey = mergeAssets(model.assetsByKey, history.assetsByKey);
     model.historyByKey = mergeHistoryByKey(model.historyByKey, history.historyByKey);
     model.sourceState.historyRunId = history.sourceRunId;
@@ -2598,8 +2751,6 @@ export function deriveMarketAssetScreenerRows(
 }
 
 export const MARKET_ASSET_SCREENER_SEED_INPUT_ID = "seedData" as const;
-export const MARKET_ASSET_SCREENER_REFERENCE_INPUT_ID = "referenceData" as const;
-export const MARKET_ASSET_SCREENER_HISTORY_INPUT_ID = "historyData" as const;
 export const MARKET_ASSET_SCREENER_LIVE_UPDATES_INPUT_ID = "liveUpdates" as const;
 export const MARKET_ASSET_SCREENER_DATASET_OUTPUT_ID = "dataset" as const;
 export const MARKET_ASSET_SCREENER_INPUT_CONTRACTS = [

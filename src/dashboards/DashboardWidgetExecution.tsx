@@ -300,6 +300,8 @@ export function DashboardWidgetExecutionProvider({
     surfaceReturnHydrationPending,
   });
 
+  widgetsRef.current = widgets;
+
   useEffect(() => {
     mountedRef.current = true;
 
@@ -1049,6 +1051,7 @@ export function DashboardWidgetExecutionProvider({
       publicWorkspaceToken,
       runtimeDataStore,
       scopeId,
+      widgets,
     ],
   );
 

@@ -12,6 +12,15 @@ import {
   type DashboardRequestTraceMeta,
 } from "@/dashboards/dashboard-request-trace";
 import { resolveConnectionRefSelection } from "@/connections/connectionRefResolution";
+import {
+  buildMockApiConnectionInstance,
+  executeMockApiConnectionQuery,
+  isMockApiConnectionId,
+  isMockApiConnectionRef,
+  testMockApiConnection,
+  withMockApiConnectionInstance,
+  withMockApiConnectionType,
+} from "@/connections/mock-api";
 import { assertConnectionQueryModelStreamable } from "@/connections/types";
 import type {
   ConnectionId,
@@ -933,22 +942,22 @@ export async function fetchConnectionTypes(): Promise<AnyConnectionTypeDefinitio
   const path = commandCenterConfig.connections.types.listUrl.trim();
 
   if (env.useMockData || !path) {
-    return [];
+    return withMockApiConnectionType([]);
   }
 
   const payload = await requestJson<unknown>(path);
-  return normalizeListPayload<AnyConnectionTypeDefinition>(payload);
+  return withMockApiConnectionType(normalizeListPayload<AnyConnectionTypeDefinition>(payload));
 }
 
 export async function fetchConnectionInstances(): Promise<ConnectionInstance[]> {
   const path = commandCenterConfig.connections.instances.listUrl.trim();
 
   if (env.useMockData || !path) {
-    return [];
+    return withMockApiConnectionInstance([]);
   }
 
   const payload = await requestJson<unknown>(path);
-  return normalizeConnectionInstanceList(payload);
+  return withMockApiConnectionInstance(normalizeConnectionInstanceList(payload));
 }
 
 export async function resolveConnectionRefFromInstances(
@@ -958,6 +967,16 @@ export async function resolveConnectionRefFromInstances(
     allowFetch?: boolean;
   },
 ) {
+  if (isMockApiConnectionRef(requestedRef)) {
+    const instance = buildMockApiConnectionInstance();
+
+    return {
+      connectionRef: { id: instance.id, typeId: instance.typeId },
+      connectionInstance: instance,
+      repaired: false,
+    };
+  }
+
   let backendInstances: ConnectionInstance[] = [];
 
   if (options?.allowFetch !== false) {
@@ -1040,6 +1059,10 @@ export function deleteConnectionInstance(id: ConnectionId) {
 }
 
 export function testConnection(id: ConnectionId) {
+  if (isMockApiConnectionId(id)) {
+    return testMockApiConnection();
+  }
+
   const template = commandCenterConfig.connections.instances.testUrl.trim();
   return requestJson<ConnectionHealthResult>(applyTemplate(template, { id }), {
     method: "POST",
@@ -1057,6 +1080,12 @@ export function queryConnection<
     signal?: AbortSignal;
   },
 ) {
+  if (isMockApiConnectionId(request.connectionId)) {
+    return executeMockApiConnectionQuery(
+      request as unknown as ConnectionQueryRequest<Record<string, unknown>>,
+    ) as Promise<TResponse>;
+  }
+
   const template = commandCenterConfig.connections.instances.queryUrl.trim();
   return requestJson<TResponse>(
     applyTemplate(template, { id: request.connectionId }),

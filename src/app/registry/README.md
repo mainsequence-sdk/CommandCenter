@@ -54,6 +54,8 @@ types.
 - Backend widget-type publication is now an explicit platform-admin action. Normal sign-in and app bootstrap must not write widget registry state to the backend.
 - Backend connection-type publication is also an explicit platform-admin action. The shared
   Connections app treats active backend connection types as the user-facing availability gate.
+- Connection definitions marked `registrySync: "local-only"` are runtime-only frontend shims. They
+  may appear in local pickers but must be excluded from backend connection-type sync payloads.
 - Access-policy bootstrap should treat the access catalog as generated registry metadata. Hidden
   deep-link surfaces remain part of that catalog so backend policy tooling can reason about every
   registered surface, not only browsable navigation entries.

@@ -2190,6 +2190,8 @@ export interface SummaryField {
   kind: string;
   meta?: string;
   icon?: string;
+  image?: string;
+  image_alt?: string;
   tone?: string;
   info?: string;
   href?: string;

@@ -145,7 +145,7 @@ export function WidgetFrame({
           ? "group flex h-full min-h-0 flex-col overflow-visible rounded-none border-none bg-transparent text-card-foreground shadow-none backdrop-blur-0"
           : transparentSurface
             ? "group flex h-full min-h-0 flex-col overflow-visible rounded-none border-none bg-transparent text-card-foreground shadow-none backdrop-blur-0"
-            : "group flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius)] border border-border/80 bg-card/88 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur",
+            : "group flex h-full min-h-0 flex-col overflow-hidden rounded-none border border-border/80 bg-card/88 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur",
         shellLoading && !dividerPresentation && !transparentSurface
           ? "border-primary/35 shadow-[0_0_0_1px_hsl(var(--primary)/0.08),var(--shadow-panel)]"
           : undefined,
@@ -258,10 +258,10 @@ export function LockedWidgetFrame({
       style={style}
       className={cn(
         widgetShellClassName,
-        "flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius)] border border-dashed border-border/80 bg-card/60 p-4 text-card-foreground",
+        "flex h-full min-h-0 flex-col overflow-hidden rounded-none border border-dashed border-border/80 bg-card/60 p-4 text-card-foreground",
       )}
     >
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-border/60 bg-muted/20 p-6 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-none border border-border/60 bg-muted/20 p-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-danger/10 text-danger">
           <Lock className="h-5 w-5" />
         </div>
@@ -289,7 +289,7 @@ export function MissingWidgetFrame({
       style={style}
       className={cn(
         widgetShellClassName,
-        "relative flex h-full min-h-0 flex-col overflow-hidden rounded-[var(--radius)] border border-dashed border-danger/40 bg-danger/5 p-3 text-card-foreground",
+        "relative flex h-full min-h-0 flex-col overflow-hidden rounded-none border border-dashed border-danger/40 bg-danger/5 p-3 text-card-foreground",
       )}
     >
       {onRemove ? (
@@ -307,7 +307,7 @@ export function MissingWidgetFrame({
         </div>
       ) : null}
 
-      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-danger/20 bg-danger/8 p-4 text-center">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-none border border-danger/20 bg-danger/8 p-4 text-center">
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-danger/12 text-danger">
           <AlertTriangle className="h-5 w-5" />
         </div>

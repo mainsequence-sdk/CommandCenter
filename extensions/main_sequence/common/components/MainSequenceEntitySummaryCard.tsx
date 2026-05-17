@@ -116,6 +116,26 @@ function getSummaryFieldIcon(field: SummaryField) {
   return field.icon ? summaryFieldIconMap[field.icon] : undefined;
 }
 
+function SummaryFieldLead({
+  field,
+}: {
+  field: SummaryField;
+}) {
+  if (field.image) {
+    return (
+      <img
+        src={field.image}
+        alt={field.image_alt ?? field.label}
+        className="h-3.5 w-3.5 flex-none rounded-[2px] object-contain"
+      />
+    );
+  }
+
+  const Icon = getSummaryFieldIcon(field);
+
+  return Icon ? <Icon className="h-3.5 w-3.5 flex-none" /> : null;
+}
+
 function getSummaryValue(value: SummaryField["value"] | SummaryStat["value"]) {
   if (value === null || value === undefined || value === "") {
     return "Not available";
@@ -192,7 +212,7 @@ function SummaryHighlightField({
   onEdit?: () => void;
   onClick?: () => void;
 }) {
-  const Icon = getSummaryFieldIcon(field);
+  const hasLead = Boolean(field.image || field.icon);
   const value = getSummaryValue(field.value);
   const valueClassName = field.tone ? summaryToneToTextClassName(field.tone) : "text-foreground";
   const buttonClassName = `${valueClassName} mt-1.5 inline-flex max-w-full items-center gap-1.5 text-left text-sm font-medium underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary`;
@@ -202,7 +222,7 @@ function SummaryHighlightField({
       <div className="min-w-0">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-          {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+          {hasLead ? <SummaryFieldLead field={field} /> : null}
           <span>{field.label}</span>
           {field.info ? (
             <span
@@ -390,9 +410,9 @@ export function MainSequenceEntitySummaryCard({
               <CardTitle className="text-lg">{summary.entity.title}</CardTitle>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 {summary.inline_fields.map((field) => {
-                  const Icon = getSummaryFieldIcon(field);
+                  const hasLead = Boolean(field.image || field.icon);
                   const fieldValue = getSummaryValue(field.value);
-                  const showLabel = !Icon || field.kind === "code";
+                  const showLabel = !hasLead || field.kind === "code";
                   const isClickable = Boolean(field.href && onFieldLinkClick);
                   const valueClassName =
                     field.kind === "code"
@@ -412,7 +432,7 @@ export function MainSequenceEntitySummaryCard({
                           onClick={() => onFieldLinkClick?.(field)}
                           title={field.meta || fieldValue}
                         >
-                          {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+                          {hasLead ? <SummaryFieldLead field={field} /> : null}
                           {showLabel ? <span>{field.label}</span> : null}
                           <span className={valueClassName} title={field.meta || fieldValue}>
                             {field.kind === "code" ? truncateMiddle(fieldValue, 44) : fieldValue}
@@ -420,7 +440,7 @@ export function MainSequenceEntitySummaryCard({
                         </button>
                       ) : (
                         <>
-                          {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+                          {hasLead ? <SummaryFieldLead field={field} /> : null}
                           {showLabel ? <span>{field.label}</span> : null}
                           <span className={valueClassName} title={field.meta || fieldValue}>
                             {field.kind === "code" ? truncateMiddle(fieldValue, 44) : fieldValue}

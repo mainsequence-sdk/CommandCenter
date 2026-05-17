@@ -55,21 +55,27 @@ import {
 import { MainSequenceDataNodeLocalTimeSeriesTab } from "./MainSequenceDataNodeLocalTimeSeriesTab";
 import { MainSequenceDataNodePoliciesTab } from "./MainSequenceDataNodePoliciesTab";
 import { MainSequenceDataNodeSnapshotTab } from "./MainSequenceDataNodeSnapshotTab";
+import {
+  buildDataNodeEngineFieldDecoration,
+  decorateDataNodeSummaryWithEngineIcon,
+  isTimescaleDataNodeEngineClassType,
+  resolveDataNodeEngineClassType,
+} from "./dataNodeSummary";
 
 const mainSequenceDataNodeIdParam = "msDataNodeId";
 const mainSequenceDataNodeTabParam = "msDataNodeTab";
 const mainSequenceLocalUpdateIdParam = "msLocalUpdateId";
 const mainSequenceLocalUpdateTabParam = "msLocalUpdateTab";
 const dataNodePermissionsObjectUrl = "/orm/api/ts_manager/dynamic_table";
-const dataNodeDetailTabs = [
+const allDataNodeDetailTabs = [
   { id: "details", label: "Details" },
   { id: "description", label: "Description" },
   { id: "data-snapshot", label: "Data Snapshot" },
   { id: "local-time-series", label: "Local Update" },
-  { id: "policies", label: "Policies" },
+  { id: "policies", label: "TimeScale Policies" },
   { id: "permissions", label: "Permissions" },
 ] as const;
-type DataNodeDetailTabId = (typeof dataNodeDetailTabs)[number]["id"];
+type DataNodeDetailTabId = (typeof allDataNodeDetailTabs)[number]["id"];
 const defaultDataNodeDetailTabId: DataNodeDetailTabId = "details";
 
 type DataNodeBulkActionKind =
@@ -307,6 +313,11 @@ function getDataNodeIdentifierIndexName(dataNodeDetail?: DataNodeDetail | null) 
 }
 
 function buildFallbackDataNodeSummary(dataNode: DataNodeSummary): EntitySummaryHeader {
+  const dataSourceDecoration = buildDataNodeEngineFieldDecoration(
+    dataNode,
+    getDataSourceLabel(dataNode),
+  );
+
   return {
     entity: {
       id: dataNode.id,
@@ -332,6 +343,8 @@ function buildFallbackDataNodeSummary(dataNode: DataNodeSummary): EntitySummaryH
         label: "Data Source",
         value: getDataSourceLabel(dataNode),
         kind: "text",
+        image: dataSourceDecoration?.image,
+        image_alt: dataSourceDecoration?.image_alt,
       },
       {
         key: "frequency",
@@ -365,7 +378,11 @@ function getGeneratedSearchDocument(summary?: EntitySummaryHeader | null) {
 }
 
 function isDataNodeDetailTabId(value: string | null): value is DataNodeDetailTabId {
-  return dataNodeDetailTabs.some((tab) => tab.id === value);
+  return allDataNodeDetailTabs.some((tab) => tab.id === value);
+}
+
+function buildAvailableDataNodeDetailTabs(includeTimeScalePolicies: boolean) {
+  return allDataNodeDetailTabs.filter((tab) => includeTimeScalePolicies || tab.id !== "policies");
 }
 
 export function MainSequenceDataNodesPage() {
@@ -401,11 +418,8 @@ export function MainSequenceDataNodesPage() {
   const isLocalUpdateDetailOpen =
     Number.isFinite(selectedLocalUpdateId) && selectedLocalUpdateId > 0;
   const isStandaloneLocalUpdateDetailOpen = isLocalUpdateDetailOpen && !isDataNodeDetailOpen;
-  const selectedDetailTabId: DataNodeDetailTabId = isLocalUpdateDetailOpen
-    ? "local-time-series"
-    : isDataNodeDetailTabId(requestedDetailTabId)
-      ? requestedDetailTabId
-      : defaultDataNodeDetailTabId;
+  const requestedDataNodeDetailTabId =
+    isDataNodeDetailTabId(requestedDetailTabId) ? requestedDetailTabId : defaultDataNodeDetailTabId;
 
   const dataNodesQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "list", dataNodesPageIndex],
@@ -503,9 +517,33 @@ export function MainSequenceDataNodesPage() {
     () => (dataNodesQuery.data?.results ?? []).find((dataNode) => dataNode.id === selectedDataNodeId) ?? null,
     [dataNodesQuery.data?.results, selectedDataNodeId],
   );
-  const dataNodeSummary =
-    dataNodeSummaryQuery.data ??
-    (selectedDataNodeFromList ? buildFallbackDataNodeSummary(selectedDataNodeFromList) : null);
+  const dataNodeEngineClassType = useMemo(
+    () => resolveDataNodeEngineClassType(dataNodeDetailQuery.data ?? selectedDataNodeFromList),
+    [dataNodeDetailQuery.data, selectedDataNodeFromList],
+  );
+  const hasResolvedDataNodeEngineType =
+    Boolean(selectedDataNodeFromList) || dataNodeDetailQuery.isSuccess || dataNodeDetailQuery.isError;
+  const includeTimeScalePolicies =
+    isTimescaleDataNodeEngineClassType(dataNodeEngineClassType) ||
+    (!hasResolvedDataNodeEngineType && requestedDataNodeDetailTabId === "policies");
+  const dataNodeDetailTabs = useMemo(
+    () => buildAvailableDataNodeDetailTabs(includeTimeScalePolicies),
+    [includeTimeScalePolicies],
+  );
+  const selectedDetailTabId: DataNodeDetailTabId = isLocalUpdateDetailOpen
+    ? "local-time-series"
+    : dataNodeDetailTabs.some((tab) => tab.id === requestedDataNodeDetailTabId)
+      ? requestedDataNodeDetailTabId
+      : defaultDataNodeDetailTabId;
+  const dataNodeSummary = useMemo(() => {
+    const baseSummary =
+      dataNodeSummaryQuery.data ??
+      (selectedDataNodeFromList ? buildFallbackDataNodeSummary(selectedDataNodeFromList) : null);
+
+    return baseSummary
+      ? decorateDataNodeSummaryWithEngineIcon(baseSummary, dataNodeDetailQuery.data)
+      : null;
+  }, [dataNodeDetailQuery.data, dataNodeSummaryQuery.data, selectedDataNodeFromList]);
   const dataNodeTitle =
     dataNodeSummary?.entity.title ??
     selectedDataNodeFromList?.storage_hash ??
@@ -734,6 +772,22 @@ export function MainSequenceDataNodesPage() {
       dataNodes: selectedItems,
     });
   }
+
+  useEffect(() => {
+    if (
+      !isLocalUpdateDetailOpen &&
+      hasResolvedDataNodeEngineType &&
+      requestedDataNodeDetailTabId === "policies" &&
+      !isTimescaleDataNodeEngineClassType(dataNodeEngineClassType)
+    ) {
+      selectDataNodeDetailTab(defaultDataNodeDetailTabId);
+    }
+  }, [
+    dataNodeEngineClassType,
+    hasResolvedDataNodeEngineType,
+    isLocalUpdateDetailOpen,
+    requestedDataNodeDetailTabId,
+  ]);
 
   useEffect(() => {
     if (!deleteTailDialogOpen) {

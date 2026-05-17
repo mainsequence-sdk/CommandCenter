@@ -78,9 +78,13 @@ connection ADR. Connections are platform data-access resources, not widgets.
   uses Command Center public config names like `database` and `username`; physical model fields are
   translated by the backend.
 - Widgets and workspaces should store stable `ConnectionRef` values: `{ id, typeId }`.
-- The core connection layer must not fabricate system/default connection instances such as
-  `prometheus-default` for widgets, Explore, or picker surfaces. Connection selection and runtime
-  execution use backend-owned instances only.
+- The core connection layer must not fabricate production system/default connection instances such
+  as `prometheus-default` for widgets, Explore, or picker surfaces. Connection selection and
+  runtime execution use backend-owned instances only.
+- The exception is an explicit frontend compatibility shim marked `registrySync: "local-only"`.
+  `command_center.mock_api` uses this path to provide one documented local mock instance for
+  JSON-backed widget and connection-query prototyping. It must never be included in backend
+  connection-type sync.
 - When a saved widget ref points at a stale or malformed connection id but still names a valid
   connection type, the shared workbench repairs that ref to a resolvable backend/default backend
   instance of the same type before running preview requests. If the saved ref is a retired

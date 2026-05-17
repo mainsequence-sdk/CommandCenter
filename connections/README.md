@@ -18,6 +18,8 @@ API clients, hooks, and picker components.
   and economic-data icon.
 - `massive/`: Massive Market Data connection metadata, catalog-backed config/query editors, and
   Explore shell.
+- `mock-api/`: frontend-only local Mock API connection for JSON-backed query prototyping. This
+  type is always available locally and is deliberately excluded from backend registry sync.
 - `prometheus/`: Prometheus connection metadata and its custom Explore shell.
 - `postgresql/`: PostgreSQL connection metadata and its custom SQL Explore shell.
 - `timescaledb/`: TimescaleDB connection metadata that reuses the PostgreSQL-compatible
@@ -30,7 +32,9 @@ API clients, hooks, and picker components.
   `appRegistry.connections`.
 - Custom connections do not create sidebar apps by themselves. Users interact with them through the
   shared Connections app after the backend registry has synced and activated the type.
-- Connection instances, secrets, health, query execution, and authorization remain backend-owned.
+- Connection instances, secrets, health, query execution, and authorization remain backend-owned
+  unless a connection type is explicitly marked `registrySync: "local-only"` for a frontend
+  compatibility shim such as Mock API.
 
 ## Maintenance Constraints
 
@@ -38,3 +42,5 @@ API clients, hooks, and picker components.
 - Do not register apps, widgets, dashboards, or shell menu entries from this directory.
 - Add a README beside every custom connection implementation so ownership and backend expectations
   are clear.
+- Local-only connection types must document why they bypass backend registry sync and must keep
+  their query execution isolated from production adapter paths.

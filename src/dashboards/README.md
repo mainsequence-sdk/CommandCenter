@@ -137,6 +137,10 @@ surfaces and the editable workspace studio.
   provider instead of triggering requests locally. Widgets should ask for upstream resolution
   through `useResolveWidgetUpstream(...)`; they should not build their own request fingerprints or
   hand-roll graph traversal logic.
+- Upstream resolution request keys include executable upstream source configuration and compact
+  runtime identity, not just binding topology. When a managed connection source is created, edited,
+  or has its runtime cleared, passive consumers can request the normal graph execution path again
+  without a widget-specific publisher.
 - The dependency model now also supports derived output publication. Output resolvers can consume
   `resolvedInputs`, which lets intermediate republisher widgets expose fresh downstream values
   immediately after an upstream request/computation resolves instead of waiting for a mounted

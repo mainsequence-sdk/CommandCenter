@@ -4,6 +4,7 @@ import type { AnyConnectionTypeDefinition, ConnectionQueryModel } from "@/connec
 
 import {
   CONNECTION_REGISTRY_VERSION,
+  buildConnectionTypeSyncDraft,
   projectConnectionTypeForSync,
   validateConnectionTypeForSync,
 } from "./connection-type-sync";
@@ -75,6 +76,16 @@ describe("connection type sync metadata", () => {
         description: "Streams test market data.",
       },
     });
+  });
+
+  it("excludes local-only connection shims from the backend sync payload", async () => {
+    const draft = await buildConnectionTypeSyncDraft();
+
+    expect(
+      draft.payload.connections.some(
+        (connection) => connection.typeId === "command_center.mock_api",
+      ),
+    ).toBe(false);
   });
 
   it("requires stream capability when any query model advertises stream metadata", () => {

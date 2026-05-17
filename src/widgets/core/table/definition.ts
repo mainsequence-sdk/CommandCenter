@@ -5,6 +5,7 @@ import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
 } from "@/widgets/shared/tabular-frame-source";
+import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 import { defineWidget } from "@/widgets/types";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
@@ -22,9 +23,17 @@ import { TableWidget } from "./TableWidget";
 import { TableWidgetSettings } from "./TableWidgetSettings";
 import {
   TABLE_WIDGET_DATASET_OUTPUT_ID,
+  TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
+  TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
+  TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
+  TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
   type TableWidgetCellValue,
   buildTableWidgetRowObjects,
+  resolveTableWidgetActiveCellOutput,
+  resolveTableWidgetActiveCellValueOutput,
+  resolveTableWidgetActiveRowOutput,
   resolveTableWidgetOutput,
+  resolveTableWidgetSelectedRowsOutput,
   resolveTableWidgetSourceDataset,
   tableWidgetDefaultProps,
   resolveTableWidgetColumns,
@@ -32,16 +41,22 @@ import {
   type TableWidgetProps,
 } from "./tableModel";
 
+const TABLE_WIDGET_JSON_VALUE_DESCRIPTOR = {
+  kind: "unknown",
+  contract: CORE_VALUE_JSON_CONTRACT,
+  description: "JSON value derived from table interaction runtime state.",
+} as const;
+
 export const tableWidget = defineWidget<TableWidgetProps>({
   id: "table",
-  widgetVersion: "3.0.1",
+  widgetVersion: "3.1.0",
   title: "Table",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
   kind: "table",
   source: "core",
   requiredPermissions: ["workspaces:view"],
-  tags: ["tabular", "grid", "ag-grid", "formatter", "table"],
+  tags: ["tabular", "grid", "ag-grid", "formatter", "table", "selection"],
   exampleProps: tableWidgetDefaultProps,
   mockProps: {
     ...tableWidgetDefaultProps,
@@ -112,6 +127,66 @@ export const tableWidget = defineWidget<TableWidgetProps>({
         valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
         resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
           resolveTableWidgetOutput(
+            props as TableWidgetProps,
+            resolvedInputs,
+            runtimeState,
+            runtimeDataStore,
+          ),
+      },
+      {
+        id: TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
+        label: "Selected rows",
+        contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        description:
+          "Publishes the current table frame filtered to the rows selected by the user.",
+        valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
+        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
+          resolveTableWidgetSelectedRowsOutput(
+            props as TableWidgetProps,
+            resolvedInputs,
+            runtimeState,
+            runtimeDataStore,
+          ),
+      },
+      {
+        id: TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
+        label: "Active row",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description:
+          "Publishes the current active row object selected in the table, or null.",
+        valueDescriptor: TABLE_WIDGET_JSON_VALUE_DESCRIPTOR,
+        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
+          resolveTableWidgetActiveRowOutput(
+            props as TableWidgetProps,
+            resolvedInputs,
+            runtimeState,
+            runtimeDataStore,
+          ),
+      },
+      {
+        id: TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
+        label: "Active cell",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description:
+          "Publishes the current active cell with row index, column key, value, and row payload.",
+        valueDescriptor: TABLE_WIDGET_JSON_VALUE_DESCRIPTOR,
+        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
+          resolveTableWidgetActiveCellOutput(
+            props as TableWidgetProps,
+            resolvedInputs,
+            runtimeState,
+            runtimeDataStore,
+          ),
+      },
+      {
+        id: TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
+        label: "Active cell value",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description:
+          "Publishes the current active cell value, or null when no cell is active.",
+        valueDescriptor: TABLE_WIDGET_JSON_VALUE_DESCRIPTOR,
+        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
+          resolveTableWidgetActiveCellValueOutput(
             props as TableWidgetProps,
             resolvedInputs,
             runtimeState,
@@ -216,6 +291,7 @@ export const tableWidget = defineWidget<TableWidgetProps>({
           pageSize: resolvedProps.pageSize,
           density: resolvedProps.density,
           showSearch: resolvedProps.showSearch,
+          showColumnFilters: resolvedProps.showColumnFilters,
           zebraRows: resolvedProps.zebraRows,
         },
       },
@@ -243,12 +319,14 @@ export const tableWidget = defineWidget<TableWidgetProps>({
     io: {
       mode: "static",
       summary:
-        "Consumes one canonical tabular frame and always publishes one canonical tabular frame that downstream widgets can bind to.",
+        "Consumes one canonical tabular frame and publishes the full dataset plus optional user selection outputs for downstream widgets.",
       inputContracts: [TABULAR_SOURCE_CONTRACT],
-      outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
+      outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT, CORE_VALUE_JSON_CONTRACT],
       ioNotes: [
         "seedData initializes or replaces the local table frame. liveUpdates applies incremental publications when bound.",
         "Display formatting, hidden columns, and value styling do not mutate the published dataset.",
+        "selectedRows republishes the current frame filtered to the selected rows when selection mode is enabled.",
+        "activeRow, activeCell, and activeCellValue publish JSON interaction state derived from the user's current table selection.",
       ],
     },
     capabilities: {
@@ -288,11 +366,20 @@ export const tableWidget = defineWidget<TableWidgetProps>({
       ],
       tableControls: [
         "toolbar",
-        "search",
+        "quickFilter",
+        "columnFilters",
         "zebraRows",
         "pagination",
         "pageSize",
         "density",
+        "selectionMode",
+        "stableSelectionKeys",
+      ],
+      interactionOutputs: [
+        TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
+        TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
+        TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
+        TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
       ],
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),

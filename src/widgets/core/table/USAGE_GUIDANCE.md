@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidden connection source, or manually authored rows, with one canonical `core.tabular_frame@v1` output.
+Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidden connection source, or manually authored rows, with one canonical dataset output and optional row/cell selection outputs for downstream composition.
 
 ## whenToUse
 
@@ -10,6 +10,7 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
   `connection-stream-query` source instead of sharing a visible upstream source widget.
 - Use manual mode only for display-only rows that should not become a reusable dataset source.
 - Use it as a lightweight tabular source when a downstream widget should consume the table's canonical underlying rows.
+- Enable selection outputs when downstream widgets should react to selected row(s), the active row, or a clicked cell value.
 
 ## whenNotToUse
 
@@ -26,9 +27,34 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - For manual mode, define columns and rows in the table editor. Manual rows are stored in this table widget's props and are published as the table `dataset` output.
 - Inspect the incoming field schema before editing columns. Prefer upstream `fields` metadata when available; otherwise the table infers labels, types, and numeric eligibility from the current row sample.
 - Configure table-level presentation first. In the per-column editor, the default row keeps only key, label, format, and visibility inline; expand `Advanced` when a column needs descriptions, pinning, Date/time input or output patterns, numeric visuals, or display overrides.
+- Use `Quick filter` when users need one global search box across rendered rows. Turn it off for denser table embeds.
+- Use `Column filters` when users need searchable per-column filter controls in the table header.
 - Use the `Date/time` column format for epoch timestamps or date strings that should be rendered as readable dates. Auto parsing handles ISO-like strings plus epoch seconds, milliseconds, microseconds, and nanoseconds. Set `Input format` only when auto parsing is ambiguous; set `Output format` to control the rendered text.
 - Date/time pattern tokens include `yyyy`, `yy`, `MM`, `M`, `dd`, `d`, `HH`, `H`, `hh`, `h`, `mm`, `m`, `ss`, `s`, `SSS`, and `a`. Example: input `dd/MM/yyyy HH:mm:ss` and output `yyyy-MM-dd HH:mm:ss`.
 - Bind downstream widgets to the table `dataset` output when they should consume the same canonical tabular frame.
+- To compose dashboards from table interaction, enable `Selection outputs`, choose single-row,
+  multi-row, or cell mode, and bind downstream widgets to `selectedRows`, `activeRow`,
+  `activeCell`, or `activeCellValue`.
+- Configure `Stable row key fields` with durable source fields such as `id`, `symbol`, or another
+  unique identifier when selections must survive refreshes, sorting, or incoming row updates.
+
+## inputPorts
+
+- `seedData`: optional `core.tabular_frame@v1` input. Initializes or replaces the table frame.
+- `liveUpdates`: optional `core.tabular_frame@v1` updates input. Applies explicit incremental row publications when bound.
+
+## outputPorts
+
+- `dataset`: `core.tabular_frame@v1`. Publishes the current canonical table dataset before display-only formatting, hiding, or selection.
+- `selectedRows`: `core.tabular_frame@v1`. Publishes the current canonical table frame filtered to the selected row(s). Returns an empty ready frame when selection is enabled but no rows are selected.
+- `activeRow`: `core.value.json@v1`. Publishes the active row object, or `null` when no row is active.
+- `activeCell`: `core.value.json@v1`. Publishes `{ rowKey, rowIndex, columnKey, value, row }` for the clicked cell, or `null`.
+- `activeCellValue`: `core.value.json@v1`. Publishes only the active cell value, or `null`.
+
+## runtimeOwnership
+
+- The table is a consumer. Source loading belongs to upstream Connection Query, Connection Stream Query, or Tabular Transform widgets.
+- Selection outputs are local UI runtime state. They do not change source rows, saved manual rows, or the primary `dataset` output.
 
 ## blockingRequirements
 
@@ -45,6 +71,7 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Column `key` values must match fields present in the incoming frame.
 - Numeric visuals require numeric source values and usable bounds.
 - Date/time formatting requires values that can be parsed automatically or by the configured input pattern.
+- Stable selection key fields should point at fields that are present in the canonical dataset. Without them, selection outputs fall back to row indexes.
 
 ## commonPitfalls
 
@@ -57,3 +84,5 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Changing the upstream transform can change the output columns. Reset columns from the current frame when the saved column schema no longer matches the incoming row shape.
 - Prefix and suffix are literal display text. Do not use them to convert units or change numeric scale upstream.
 - Date/time formatting is presentation-only. It does not convert the published `dataset` output values for downstream widgets.
+- Row-index selection fallback can point at a different row after an upstream resort, filter, or refresh. Use stable row key fields for production compositions.
+- Cell mode publishes the active cell outputs. Row modes publish `selectedRows` and `activeRow`; `activeCell` stays `null` until cell mode records a clicked cell.

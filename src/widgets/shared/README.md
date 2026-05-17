@@ -36,7 +36,8 @@ This directory contains reusable widget presentation primitives that are shared 
 - `managed-connection-consumer.ts`: shared adapter contract plus draft/apply helpers for widgets
   that own a hidden managed `connection-query` or `connection-stream-query` source.
 - `managed-connection-consumer-registry.ts`: registry lookup for widgets that implement the shared
-  managed-connection adapter.
+  managed-connection adapter, including extension-owned adapters such as the Main Sequence Markets
+  Asset Screener.
 - `ManagedConnectionConsumerPanel.tsx`: reusable `Bindings -> Connection` settings surface for
   managed `connection-query` and `connection-stream-query` consumers. It reuses the standard
   connection authoring surfaces, publishes managed WebSocket preview runtime state back into the
@@ -70,6 +71,9 @@ This directory contains reusable widget presentation primitives that are shared 
 ## Notable behavior
 
 - Settings are intentionally instance-scoped: the shared panel edits the current dashboard widget instance, not the underlying widget definition.
+- The shared settings panel treats the instance title as the workspace card title. Settings
+  headings, preview titles, and the title input should follow that card title instead of falling
+  back to the widget definition title, which is only the reusable type label.
 - The shared settings panel is generic by default and can be extended per widget through `WidgetDefinition.schema`, `WidgetDefinition.controller`, and `WidgetDefinition.settingsComponent`.
 - The shared settings panel now renders a top-level panel preview for normal panel-style widgets.
   The preview uses the live widget component with the current draft props and draft presentation
@@ -103,7 +107,7 @@ This directory contains reusable widget presentation primitives that are shared 
   contract-shaped demo input.
 - Structured output exploration belongs in the shared source explorer contract, not in widget-specific binding hacks. Widgets should expose `valueDescriptor` metadata on outputs, and shared binding surfaces should consume that metadata to render whole-output binding, array-item selection, and nested-field extraction consistently. When a descriptor is generic but a runtime value is already available, the explorer may infer temporary nested paths from that value so API-driven JSON outputs remain bindable.
 - Shared binding surfaces now also support platform-owned setting targets. A widget instance can
-  bind upstream values into its existing display title or discovered saved prop paths without the
+  bind upstream values into its existing card title or discovered saved prop paths without the
   widget definition declaring one bespoke input per setting field.
 - Shared settings surfaces should treat those platform-owned setting bindings as an authoring detail,
   not as a second primary configuration screen. When a setting is schema-backed, keep its literal

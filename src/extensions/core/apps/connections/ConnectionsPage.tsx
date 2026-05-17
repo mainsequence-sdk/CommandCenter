@@ -33,6 +33,7 @@ import { ConnectionPicker } from "@/connections/components/ConnectionPicker";
 import { ConnectionTypeIcon } from "@/connections/components/ConnectionTypeIcon";
 import { ConnectionExploreSurface } from "@/connections/ConnectionExploreSurface";
 import { useConnectionInstances, useConnectionTypes } from "@/connections/hooks";
+import { isMockApiConnectionInstance } from "@/connections/mock-api";
 import type {
   AnyConnectionTypeDefinition,
   ConnectionConfigSchema,
@@ -897,6 +898,7 @@ function ConnectionInstanceRow({
     },
   });
   const secureFieldCount = Object.keys(instance.secureFields).length;
+  const isLocalMock = isMockApiConnectionInstance(instance);
 
   return (
     <div
@@ -946,9 +948,10 @@ function ConnectionInstanceRow({
           size="sm"
           variant="outline"
           className="min-w-[4rem] whitespace-nowrap"
+          disabled={isLocalMock}
           onClick={onEdit}
         >
-          Edit
+          {isLocalMock ? "Local" : "Edit"}
         </Button>
         <Button
           type="button"
@@ -1226,6 +1229,7 @@ function AddNewConnectionContent() {
     () =>
       (typesQuery.data ?? [])
         .filter(isActiveBackendType)
+        .filter((connection) => connection.registrySync !== "local-only")
         .map((connection) => hydrateConnectionRuntime(connection))
         .sort((left, right) => left.title.localeCompare(right.title)),
     [typesQuery.data],

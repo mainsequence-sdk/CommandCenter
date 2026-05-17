@@ -15,6 +15,8 @@ connections do not depend on market-specific asset, price, and reference-point s
   defining their own asset identity, reference-point, history-series, or live-update shapes.
 - Asset Screener semantics are internal widget lane roles over generic `core.tabular_frame@v1`
   inputs. Connections should not publish or advertise Asset Screener-specific market contracts.
+- The public Asset Screener widget bindings are `seedData` and optional `liveUpdates`; historical
+  baselines and compact trends are seeded through inline metadata on the seed frame.
 - Dynamic metric columns are represented as semantic `valueKey`s such as `price`, `volume`,
   `marketCap`, or `peRatio`; widget column config chooses which value keys to render.
 - Row-local computed metrics can be described in `meta.tableTransforms.computedColumns`. The
@@ -23,6 +25,12 @@ connections do not depend on market-specific asset, price, and reference-point s
 - Compact terminal visuals can be described in `meta.tableVisuals.columns` and inline
   `sparklineSeries` field roles. This is widget-side interpretation metadata over a generic table,
   not a connection-specific output contract.
+- `meta.tableVisuals.columns` can also propose the default widget column configuration. Widget
+  settings should show that derived configuration even when market field-role metadata is absent;
+  `meta.marketAsset.fieldRoles` and optional `meta.tableTransforms.computedColumns` refine the
+  mapping when present. Instance-level column overrides remain local widget props and take
+  precedence. Derived columns should carry the source visual metadata on a `visual` property so
+  theme-tone color scales and compact visual hints are not hidden outside settings.
 - Metadata precedence is explicit widget field mappings first, Markets metadata second, and
   field-name heuristics last.
 - `meta.tableVisuals` is deliberately descriptive. The shared runtime model preserves all supported

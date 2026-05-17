@@ -24,3 +24,11 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
   CPU/GPU requirements, keeping resource controls separate from retry, timeout, and schedule
   controls. The same block exposes the shared billing estimate action with zero memory and standard
   capacity because this backend contract only exposes CPU/GPU requirements for local updates.
+- The data-node summary header decorates the summary `engine` field with the canonical source icon
+  from the detail payload (`data_source.related_resource_class_type`). The summary endpoint still
+  provides the display label, while the detail endpoint supplies the stable class type used for the
+  icon mapping.
+- The `TimeScale Policies` tab is only exposed for data nodes whose canonical source class resolves
+  to a Timescale engine (`timescale_db` or `timescale_db_remote`). Deep links to
+  `msDataNodeTab=policies` fall back to the default detail tab when the selected data node is not
+  Timescale-backed.

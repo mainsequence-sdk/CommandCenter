@@ -116,7 +116,10 @@ Use these local docs before reading the implementation in code:
 - App-owned surfaces should override widget size in their own layout/container implementation when a
   route needs a specific presentation. Do not push route-specific size requirements back into the
   reusable widget definition.
-- The shared settings modal supports title overrides, shared widget chrome options such as `showHeader`, and raw JSON prop editing for any widget instance.
+- The shared settings panel supports card-title overrides, shared widget chrome options such as
+  `showHeader`, and raw JSON prop editing for any widget instance. The card title is instance
+  state; widget definition titles are reusable type labels and should not be shown as the edited
+  card title in settings.
 - `showHeader` is the single shared header-visibility contract for workspace widget cards. The
   workspace host now preserves that choice in both edit and view mode instead of forcing headers
   back on during editing.

@@ -147,6 +147,22 @@ function statisticWidget(
   };
 }
 
+function assetScreenerWidget(
+  id: string,
+  position?: { x: number; y: number },
+): DashboardWidgetInstance {
+  return {
+    id,
+    widgetId: "ms-markets-asset-screener",
+    title: id,
+    layout: {
+      cols: 14,
+      rows: 8,
+    },
+    position,
+  };
+}
+
 function slideWidget(
   id: string,
   position?: { x: number; y: number },
@@ -1457,6 +1473,41 @@ describe("custom dashboard storage managed widgets", () => {
       },
       queryModelId: "promql-range",
     });
+    expect(owner?.bindings).toMatchObject({
+      seedData: {
+        sourceWidgetId: managedSource?.id,
+        sourceOutputId: "dataset",
+      },
+    });
+  });
+
+  it("creates and binds a managed connection-query source when Asset Screener connection mode is saved", () => {
+    const dashboard = dashboardWithWidgets([
+      assetScreenerWidget("screener-1", { x: 0, y: 0 }),
+    ]);
+
+    const updated = updateDashboardWidgetSettings(dashboard, "screener-1", {
+      title: "Global equity monitor",
+      props: {
+        assetScreenerSourceMode: "connection",
+        embeddedConnectionQuery: {
+          connectionRef: {
+            id: 88,
+            typeId: "market-data",
+          },
+          queryModelId: "latest-assets",
+        },
+      },
+    });
+
+    const managedSource = findManagedDashboardWidget(updated, {
+      ownerInstanceId: "screener-1",
+      role: "embedded-connection-source",
+    });
+    const owner = updated.widgets.find((widget) => widget.id === "screener-1");
+
+    expect(managedSource?.widgetId).toBe("connection-query");
+    expect(managedSource?.title).toBe("Global equity monitor Source");
     expect(owner?.bindings).toMatchObject({
       seedData: {
         sourceWidgetId: managedSource?.id,
