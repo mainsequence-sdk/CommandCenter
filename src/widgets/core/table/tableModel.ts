@@ -78,6 +78,7 @@ export const TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID = "selectedRows";
 export const TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID = "activeRow";
 export const TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID = "activeCell";
 export const TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID = "activeCellValue";
+export const TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID = "selectedCellValues";
 
 export interface TableWidgetColumnSchema {
   key: string;
@@ -152,6 +153,7 @@ export interface TableWidgetSelectionState {
   activeRowKey?: string;
   activeRowIndex?: number;
   activeCell?: TableWidgetActiveCellSelection;
+  selectedCells: TableWidgetActiveCellSelection[];
   implicitMode?: boolean;
   updatedAtMs: number;
 }
@@ -1334,7 +1336,8 @@ export const tableWidgetSelectionModeOptions: Array<{
   {
     value: "cell",
     label: "Cell",
-    description: "The clicked cell, its value, and its row are published to downstream widgets.",
+    description:
+      "The active cell, its value, its row, and the list of selected cell values are published to downstream widgets.",
   },
 ];
 
@@ -1401,6 +1404,34 @@ function normalizeActiveCellSelection(value: unknown): TableWidgetActiveCellSele
   };
 }
 
+function normalizeSelectedCellSelections(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const normalized: TableWidgetActiveCellSelection[] = [];
+
+  value.forEach((entry) => {
+    const cell = normalizeActiveCellSelection(entry);
+
+    if (!cell) {
+      return;
+    }
+
+    const key = `${cell.rowKey ?? cell.rowIndex}:${cell.columnKey}`;
+
+    if (seen.has(key)) {
+      return;
+    }
+
+    seen.add(key);
+    normalized.push(cell);
+  });
+
+  return normalized;
+}
+
 export function normalizeTableWidgetSelectionState(
   runtimeState: unknown,
 ): TableWidgetSelectionState {
@@ -1419,6 +1450,7 @@ export function normalizeTableWidgetSelectionState(
     activeRowKey: normalizeOptionalRowKey(record.activeRowKey),
     activeRowIndex,
     activeCell: normalizeActiveCellSelection(record.activeCell),
+    selectedCells: normalizeSelectedCellSelections(record.selectedCells),
     implicitMode: record.implicitMode === true,
     updatedAtMs:
       typeof record.updatedAtMs === "number" && Number.isFinite(record.updatedAtMs)
@@ -1524,6 +1556,14 @@ function resolveRowsBySelection(
   const selectedKeySet = new Set(selection.selectedRowKeys);
   const selectedIndexSet = new Set(selection.selectedRowIndices);
 
+  selection.selectedCells.forEach((cell) => {
+    if (cell.rowKey) {
+      selectedKeySet.add(cell.rowKey);
+    }
+
+    selectedIndexSet.add(cell.rowIndex);
+  });
+
   if (keyFields.length > 0 && selectedKeySet.size > 0) {
     return frame.rows.filter((row) => {
       const rowKey = buildTableWidgetRowKey(row, keyFields);
@@ -1557,6 +1597,35 @@ function resolveActiveRow(
     selection.activeRowIndex ??
     (options.includeActiveCellFallback ? selection.activeCell?.rowIndex : undefined);
   return activeRowIndex == null ? null : frame.rows[activeRowIndex] ?? null;
+}
+
+function resolveSelectionCellValue(
+  frame: TabularFrameSourceV1,
+  props: Pick<TableWidgetProps, "selectionKeyFields" | "uniqueIdentifierList">,
+  cell: TableWidgetActiveCellSelection,
+) {
+  const keyFields = resolveTableWidgetSelectionKeyFields(props, frame);
+
+  if (keyFields.length > 0 && cell.rowKey) {
+    const row = frame.rows.find((entry) => buildTableWidgetRowKey(entry, keyFields) === cell.rowKey);
+
+    if (row) {
+      return row[cell.columnKey] ?? null;
+    }
+  }
+
+  const row = frame.rows[cell.rowIndex];
+  return row ? row[cell.columnKey] ?? null : cell.value ?? null;
+}
+
+function resolveSelectedCells(
+  selection: TableWidgetSelectionState,
+) {
+  if (selection.selectedCells.length > 0) {
+    return selection.selectedCells;
+  }
+
+  return selection.activeCell ? [selection.activeCell] : [];
 }
 
 function selectedRowsSource(frame: TabularFrameSourceV1, selectedRows: Array<Record<string, unknown>>) {
@@ -1678,6 +1747,29 @@ export function resolveTableWidgetActiveCellValueOutput(
   );
 
   return activeCell ? activeCell.value ?? null : null;
+}
+
+export function resolveTableWidgetSelectedCellValuesOutput(
+  props: TableWidgetProps,
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+  runtimeState?: unknown,
+  runtimeDataStore?: RuntimeDataStore | null,
+) {
+  const frame = resolveTableWidgetOutput(props, resolvedInputs, runtimeState, runtimeDataStore);
+  const normalizedProps = resolveTableWidgetPropsWithFrame(props);
+  const selection = normalizeTableWidgetSelectionState(runtimeState);
+  const effectiveSelectionMode = resolveEffectivePublishedSelectionMode(
+    normalizedProps,
+    selection,
+  );
+
+  if (effectiveSelectionMode === "none" || selection.mode !== effectiveSelectionMode) {
+    return [];
+  }
+
+  return resolveSelectedCells(selection).map((cell) =>
+    resolveSelectionCellValue(frame, normalizedProps, cell),
+  );
 }
 
 function inferRemoteColumnFormatFromKey(

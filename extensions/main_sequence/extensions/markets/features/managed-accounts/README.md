@@ -25,20 +25,31 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
   `extensions/main_sequence/common/api/index.ts`:
   - list: `/orm/api/assets/account/`
   - summary: `/orm/api/assets/account/{id}/summary/`
+- The registry list intentionally stays narrow to the current list contract. It should only rely on:
+  - `account_name` / `display_name`
+  - `execution_venue`
+  - `is_paper`
+  - `account_is_active`
+- Do not infer broker names, account numbers, account types, or venue display labels from the list
+  payload unless the backend contract explicitly adds them.
 - The create flow assumes:
   - `POST /orm/api/assets/account/`
   - required payload fields: `account_name`, `execution_venue`
   - optional payload fields: `is_paper`, `valuation_translation_table`,
     `holdings_data_source`
+- The list surface also supports deleting selected accounts through:
+  - `DELETE /orm/api/assets/account/{id}/`
 - The create modal also depends on option loaders at:
   - `GET /orm/api/assets/execution_venue/`
   - `GET /orm/api/assets/asset-translation-tables/`
   - `GET /orm/api/connections/data_source/`
 - Client-side validation treats `account_name` as unique and requires a holdings data source only
   when no organization default data source is visible in the loaded options payload.
-- If the backend later adds edit or delete flows, keep them in this feature instead of overloading
-  the shared API layer without a concrete UI contract.
-- `Holdings` and `Rebalance` tabs are intentionally scaffolded UI surfaces. They need explicit
-  backend-backed datasets before they should render real account content.
+- If the backend later adds edit flows or a dedicated bulk-delete account contract, keep them in
+  this feature instead of overloading the shared API layer without a concrete UI contract.
+- `Holdings` now exposes a local `Update holdings` entry point that mounts the inline-editable
+  positions widget directly inside the account detail page. This is a page-local editor only; it
+  does not persist to a managed-account backend endpoint yet.
+- `Rebalance` remains a scaffolded UI surface until explicit backend-backed rebalance data exists.
 - Keep the detail view generic enough to tolerate additive backend fields, but do not silently
   infer destructive actions or edit semantics from arbitrary payload keys.

@@ -41,6 +41,11 @@ The navigation model for this extension is application-first.
   surface inventory whenever possible.
 - Avoid introducing generic documentation-only categories when the content really belongs to one
   application or extension.
+- The in-page docs layout should render only one internal navigation rail at a time. Multi-page
+  sections use the current section submenu, while single-page sections can fall back to the
+  top-level documentation directory.
+- Keep the docs surface visually flatter than the main app shell. Avoid stacking card containers
+  around the section rails and article body unless a callout truly needs separation.
 
 ## Backend Contract
 

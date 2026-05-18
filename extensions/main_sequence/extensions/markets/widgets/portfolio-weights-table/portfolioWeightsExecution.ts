@@ -9,6 +9,7 @@ import {
   fetchTargetPortfolioWeightsPositionDetails,
 } from "../../../../common/api";
 import {
+  normalizePortfolioWeightsDataMode,
   normalizePortfolioWeightsRuntimeState,
   normalizePortfolioWeightsTargetId,
   normalizePortfolioWeightsVariant,
@@ -30,10 +31,23 @@ function buildPortfolioWeightsRuntimeState(
 export async function executePortfolioWeightsWidget(
   context: WidgetExecutionContext<PortfolioWeightsWidgetProps>,
 ): Promise<WidgetExecutionResult> {
-  const requestTraceMeta = buildDashboardExecutionRequestTraceMeta(context);
   const props = (context.targetOverrides?.props ?? context.props) as PortfolioWeightsWidgetProps;
+  const dataMode = normalizePortfolioWeightsDataMode(props);
   const targetPortfolioId = normalizePortfolioWeightsTargetId(props);
   const variant = normalizePortfolioWeightsVariant(props.variant);
+
+  if (dataMode === "inline") {
+    return {
+      status: "skipped",
+      runtimeStatePatch: buildPortfolioWeightsRuntimeState(context.runtimeState, {
+        status: "idle",
+        error: undefined,
+        targetPortfolioId: undefined,
+        variant: "positions",
+        payload: undefined,
+      }),
+    };
+  }
 
   if (targetPortfolioId <= 0) {
     return {
@@ -49,6 +63,7 @@ export async function executePortfolioWeightsWidget(
   }
 
   try {
+    const requestTraceMeta = buildDashboardExecutionRequestTraceMeta(context);
     const payload = await fetchTargetPortfolioWeightsPositionDetails(
       targetPortfolioId,
       requestTraceMeta,
@@ -82,6 +97,9 @@ export async function executePortfolioWeightsWidget(
 
 export const portfolioWeightsExecutionDefinition = {
   canExecute: (context) =>
+    normalizePortfolioWeightsDataMode(
+      (context.targetOverrides?.props ?? context.props) as PortfolioWeightsWidgetProps,
+    ) !== "inline" &&
     normalizePortfolioWeightsTargetId(
       (context.targetOverrides?.props ?? context.props) as PortfolioWeightsWidgetProps,
     ) > 0,

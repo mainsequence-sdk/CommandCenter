@@ -14,26 +14,65 @@ import {
   type PortfolioWeightsTableVariant,
 } from "./PortfolioWeightsTable";
 import {
+  normalizePortfolioWeightsDataMode,
+  normalizePortfolioWeightsInlineRows,
   normalizePortfolioWeightsRuntimeState,
   normalizePortfolioWeightsTargetId,
   normalizePortfolioWeightsVariant,
   type PortfolioWeightsWidgetProps,
 } from "./portfolioWeightsRuntime";
+import { PortfolioWeightsInlineEditor } from "./PortfolioWeightsInlineEditor";
 
 type Props = WidgetComponentProps<PortfolioWeightsWidgetProps>;
 
-export function PortfolioWeightsWidget({ instanceId, props, runtimeState }: Props) {
+export function PortfolioWeightsWidget({
+  instanceId,
+  props,
+  runtimeState,
+  editable = false,
+  onPropsChange,
+}: Props) {
   const executionState = useWidgetExecutionState(instanceId);
+  const dataMode = normalizePortfolioWeightsDataMode(props);
   const targetPortfolioId = normalizePortfolioWeightsTargetId(props);
-  const variant: PortfolioWeightsTableVariant = normalizePortfolioWeightsVariant(props.variant);
+  const variant: PortfolioWeightsTableVariant =
+    dataMode === "inline" ? "positions" : normalizePortfolioWeightsVariant(props.variant);
   const tableMinWidth =
     typeof props.tableMinWidth === "number" ? props.tableMinWidth : variant === "summary" ? 680 : 760;
   const normalizedRuntimeState = normalizePortfolioWeightsRuntimeState(runtimeState);
   const payload = normalizedRuntimeState.payload;
+  const inlineRows = normalizePortfolioWeightsInlineRows(props.inlineRows);
   const isLoading =
-    executionState?.status === "running" ||
-    normalizedRuntimeState.status === "loading" ||
-    (!payload && targetPortfolioId > 0 && normalizedRuntimeState.status !== "error");
+    (dataMode !== "inline" &&
+      executionState?.status === "running") ||
+    (dataMode !== "inline" &&
+      normalizedRuntimeState.status === "loading") ||
+    (dataMode !== "inline" &&
+      !payload &&
+      targetPortfolioId > 0 &&
+      normalizedRuntimeState.status !== "error");
+
+  if (dataMode === "inline") {
+    return (
+      <PortfolioWeightsInlineEditor
+        rows={inlineRows}
+        editable={editable && props.editableInPlace === true}
+        onRowsChange={
+          onPropsChange
+            ? (nextRows) => {
+                onPropsChange({
+                  ...props,
+                  editableInPlace: true,
+                  dataMode: "inline",
+                  variant: "positions",
+                  inlineRows: nextRows,
+                });
+              }
+            : undefined
+        }
+      />
+    );
+  }
 
   if (!Number.isFinite(targetPortfolioId) || targetPortfolioId <= 0) {
     return (

@@ -37,6 +37,11 @@ Widgets can pass data to each other. A source widget produces output, and a down
 that output through a binding. This is how one query can drive a chart, table, statistic, or
 transformation without duplicating the query configuration.
 
+Reference variables are the setting-level version of this idea. They let a live value from one
+widget, such as the selected row in a table, drive a specific field or title in another widget.
+Use the `Reference Variables` page when a workspace needs click-to-filter behavior or one widget
+selection should update another widget's query.
+
 ## Workspace Settings
 
 Workspace settings are used for metadata, layout controls, labels, import/export flows, sharing, and

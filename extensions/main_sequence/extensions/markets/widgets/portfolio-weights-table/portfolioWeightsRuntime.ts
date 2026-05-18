@@ -3,11 +3,31 @@ import type {
   TargetPortfolioWeightsPositionDetailsResponse,
 } from "../../../../common/api";
 
+export type PortfolioWeightsDataMode = "portfolio" | "inline";
+export type PortfolioWeightsInlinePositionType =
+  | "weight_notional_exposure"
+  | "units"
+  | "constant_notional";
+
+export interface PortfolioWeightsInlineRow extends Record<string, unknown> {
+  rowId: string;
+  assetId: number;
+  assetName?: string;
+  assetTicker?: string;
+  uniqueIdentifier?: string;
+  figi?: string;
+  positionType: PortfolioWeightsInlinePositionType;
+  positionValue: number;
+}
+
 export interface PortfolioWeightsWidgetProps extends Record<string, unknown> {
   portfolioId?: number;
   targetPortfolioId?: number;
   variant?: "summary" | "positions";
   tableMinWidth?: number;
+  editableInPlace?: boolean;
+  dataMode?: PortfolioWeightsDataMode;
+  inlineRows?: PortfolioWeightsInlineRow[];
 }
 
 export interface PortfolioWeightsWidgetRuntimeState extends Record<string, unknown> {
@@ -21,6 +41,103 @@ export interface PortfolioWeightsWidgetRuntimeState extends Record<string, unkno
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizePortfolioWeightsInlinePositionType(
+  value: unknown,
+): PortfolioWeightsInlinePositionType {
+  return value === "units" || value === "constant_notional"
+    ? value
+    : "weight_notional_exposure";
+}
+
+function normalizePortfolioWeightsInlinePositionValue(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return 0;
+}
+
+export function normalizePortfolioWeightsInlineRows(
+  value: unknown,
+): PortfolioWeightsInlineRow[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.reduce<PortfolioWeightsInlineRow[]>((rows, entry, index) => {
+      if (!isPlainRecord(entry)) {
+        return rows;
+      }
+
+      const assetId = Number(entry.assetId);
+
+      if (!Number.isFinite(assetId) || assetId <= 0) {
+        return rows;
+      }
+
+      const rowId =
+        typeof entry.rowId === "string" && entry.rowId.trim()
+          ? entry.rowId.trim()
+          : `inline-position-${Math.trunc(assetId)}-${index + 1}`;
+
+      rows.push({
+        rowId,
+        assetId: Math.trunc(assetId),
+        assetName:
+          typeof entry.assetName === "string" && entry.assetName.trim()
+            ? entry.assetName.trim()
+            : undefined,
+        assetTicker:
+          typeof entry.assetTicker === "string" && entry.assetTicker.trim()
+            ? entry.assetTicker.trim()
+            : undefined,
+        uniqueIdentifier:
+          typeof entry.uniqueIdentifier === "string" && entry.uniqueIdentifier.trim()
+            ? entry.uniqueIdentifier.trim()
+            : undefined,
+        figi:
+          typeof entry.figi === "string" && entry.figi.trim()
+            ? entry.figi.trim()
+            : undefined,
+        positionType: normalizePortfolioWeightsInlinePositionType(entry.positionType),
+        positionValue: normalizePortfolioWeightsInlinePositionValue(entry.positionValue),
+      });
+
+      return rows;
+    }, []);
+}
+
+export function buildPortfolioWeightsInlineDisplayRows(
+  rows: PortfolioWeightsInlineRow[],
+): Array<Record<string, unknown>> {
+  return rows.map((row) => ({
+    id: row.assetId,
+    asset_id: row.assetId,
+    asset_name: row.assetName || `Asset ${row.assetId}`,
+    asset_ticker: row.assetTicker || null,
+    unique_identifier: row.uniqueIdentifier || null,
+    figi: row.figi || row.uniqueIdentifier || null,
+    position_type: row.positionType,
+    position_value: row.positionValue,
+  }));
+}
+
+export function normalizePortfolioWeightsDataMode(
+  props: Pick<PortfolioWeightsWidgetProps, "dataMode" | "editableInPlace">,
+): PortfolioWeightsDataMode {
+  return props.dataMode === "inline" || props.editableInPlace === true
+    ? "inline"
+    : "portfolio";
 }
 
 function normalizePortfolioWeightsPayload(

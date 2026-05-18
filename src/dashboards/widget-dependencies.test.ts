@@ -22,6 +22,7 @@ import { defineWidget, type WidgetDefinition } from "@/widgets/types";
 
 import { createDashboardWidgetDependencyModel } from "./widget-dependencies";
 import {
+  buildWidgetReferencePropInputId,
   WIDGET_REFERENCE_TITLE_INPUT_ID,
   resolveReferenceBackedWidgetState,
 } from "./widget-instance-references";
@@ -404,6 +405,49 @@ describe("createDashboardWidgetDependencyModel", () => {
         },
       }),
     ]);
+  });
+
+  it("resolves expression-authored connection query props before their generated binding has been persisted", () => {
+    const widgets: DashboardWidgetInstance[] = [
+      widget({
+        id: "query-1",
+        widgetId: "connection-query",
+        props: {
+          query: {
+            kind: "binance-usdm-futures-ohlc",
+            symbols: ["$(SOURCE-1).ACTIVEROW.SYMBOL"],
+            interval: "1m",
+          },
+        },
+      }),
+      widget({
+        id: "source-1",
+        widgetId: "json-interaction-source",
+        runtimeState: {
+          row: {
+            Symbol: "ETHUSDT",
+          },
+        },
+      }),
+    ];
+
+    const model = createDashboardWidgetDependencyModel(widgets, resolveWidgetDefinition);
+    const resolvedInputs = model.resolveInputs("query-1");
+
+    expect(resolvedInputs?.[buildWidgetReferencePropInputId(["query", "symbols"])]).toMatchObject({
+      status: "valid",
+      value: "ETHUSDT",
+    });
+    expect(
+      resolveReferenceBackedWidgetState({
+        props: widgets[0]?.props,
+        resolvedInputs,
+      }).props,
+    ).toMatchObject({
+      query: {
+        symbols: ["ETHUSDT"],
+      },
+    });
   });
 
   it("infers object fields from unknown JSON interaction outputs for path references", () => {

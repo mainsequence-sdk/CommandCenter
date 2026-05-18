@@ -630,24 +630,6 @@ export function DashboardWidgetExecutionProvider({
 
     widgetsRef.current = input.afterWidgets;
 
-    if (import.meta.env.DEV) {
-      console.debug("[widget-variable-commit]", {
-        changedWidgetId: input.changedWidgetId,
-        changedVariableEntries: plan.changedVariableEntries,
-        affectedConsumerWidgetIds: plan.affectedConsumerWidgetIds,
-        passiveConsumerWidgetIds: plan.passiveConsumerWidgetIds,
-        managedExecutableSourceWidgetIds: plan.managedExecutableSourceWidgetIds,
-        executableTargetWidgetIds: plan.executableTargetWidgetIds,
-        executableTargetOverrideWidgetIds: Object.keys(plan.executableTargetOverridesByWidgetId),
-        executableTargetOverridesByWidgetId: Object.fromEntries(
-          Object.entries(plan.executableTargetOverridesByWidgetId).map(([widgetId, overrides]) => [
-            widgetId,
-            serializeExecutionOverrides(overrides),
-          ]),
-        ),
-      });
-    }
-
     if (plan.changedVariableEntries.length === 0) {
       return {
         status: "skipped",

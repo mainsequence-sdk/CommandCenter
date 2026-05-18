@@ -10,7 +10,7 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
   `connection-stream-query` source instead of sharing a visible upstream source widget.
 - Use manual mode only for display-only rows that should not become a reusable dataset source.
 - Use it as a lightweight tabular source when a downstream widget should consume the table's canonical underlying rows.
-- Enable selection outputs when downstream widgets should react to selected row(s), the active row, or a clicked cell value.
+- Enable selection outputs when downstream widgets should react to selected row(s), the active row, a clicked cell value, or the ordered list of selected cell values.
 
 ## whenNotToUse
 
@@ -42,9 +42,10 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Bind downstream widgets to the table `dataset` output when they should consume the same canonical tabular frame.
 - To compose dashboards from table interaction, enable `Selection outputs`, choose single-row,
   multi-row, or cell mode, and bind downstream widgets to `selectedRows`, `activeRow`,
-  `activeCell`, or `activeCellValue`.
+  `activeCell`, `activeCellValue`, or `selectedCellValues`.
 - Shared widget settings can also reference those outputs directly with exact expressions such as
-  `$(table-1).activeRow.symbol`, `$(table-1).activeCellValue`, or
+  `$(table-1).activeRow.symbol`, `$(table-1).activeCellValue`,
+  `$(table-1).selectedCellValues[0]`, or
   `$(table-1).selectedRows.rows[0].symbol` when a downstream setting should compile to a canonical
   binding instead of using the picker UI.
 - Configure `Stable row key fields` with durable source fields such as `id`, `symbol`, or another
@@ -62,11 +63,13 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - `activeRow`: `core.value.json@v1`. Publishes the active row object, or `null` when no row is active.
 - `activeCell`: `core.value.json@v1`. Publishes `{ rowKey, rowIndex, columnKey, value, row }` for the clicked cell, or `null`.
 - `activeCellValue`: `core.value.json@v1`. Publishes only the active cell value, or `null`.
+- `selectedCellValues`: `core.value.json@v1`. Publishes an ordered list of selected cell values. Row selection clicks return the active clicked cell as a one-item array; cell selection mode returns the selected cell range.
 
 ## runtimeOwnership
 
 - The table is a consumer. Source loading belongs to upstream Connection Query, Connection Stream Query, or Tabular Transform widgets.
 - Selection outputs are local UI runtime state. They do not change source rows, saved manual rows, or the primary `dataset` output.
+- `selectedCellValues` and the cell-driven `selectedRows` fallback are derived from frontend-managed selection runtime state. They do not mutate source data or saved widget props.
 
 ## blockingRequirements
 
@@ -97,4 +100,4 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Prefix and suffix are literal display text. Do not use them to convert units or change numeric scale upstream.
 - Date/time formatting is presentation-only. It does not convert the published `dataset` output values for downstream widgets.
 - Row-index selection fallback can point at a different row after an upstream resort, filter, or refresh. Use stable row key fields for production compositions.
-- Cell clicks publish `activeCell` and `activeCellValue` in row and cell selection modes. Row modes also publish `selectedRows` and `activeRow`. `none` disables manual selection outputs by default, but the runtime may infer the minimal interaction mode when a downstream widget reference actively consumes one of the table interaction outputs.
+- Cell clicks publish `activeCell`, `activeCellValue`, and a one-item `selectedCellValues` list in row and cell selection modes. In `cell` mode, range selection publishes the ordered `selectedCellValues` range and marks the touched rows as the effective `selectedRows` output. Row modes also publish `selectedRows` and `activeRow`. `none` disables manual selection outputs by default, but the runtime may infer the minimal interaction mode when a downstream widget reference actively consumes one of the table interaction outputs.

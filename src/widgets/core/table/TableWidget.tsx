@@ -16,6 +16,7 @@ import {
   TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
   TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
   TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
+  TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID,
   TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
   resolveTableWidgetProps,
   resolveTableWidgetPropsWithFrame,
@@ -42,7 +43,8 @@ function resolveImplicitSelectionMode(
 
   if (
     outputIds.has(TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID) ||
-    outputIds.has(TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID)
+    outputIds.has(TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID) ||
+    outputIds.has(TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID)
   ) {
     return "cell";
   }

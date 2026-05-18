@@ -10,10 +10,11 @@ keeps workspace editing and execution coherent.
 ## Read This Section First
 
 1. [Workspace Overview](./overview.md)
-2. [Dashboard Layouts](./dashboard-layouts.md)
-3. [Workspace Backend Model](./backend-model.md)
-4. [Workspace Runtime Performance Remediation](./runtime-performance-remediation.md)
-5. [Workspace Settings Headless Runtime Investigation](./settings-headless-runtime-investigation.md)
+2. [Reference Variables](./reference-variables.md)
+3. [Dashboard Layouts](./dashboard-layouts.md)
+4. [Workspace Backend Model](./backend-model.md)
+5. [Workspace Runtime Performance Remediation](./runtime-performance-remediation.md)
+6. [Workspace Settings Headless Runtime Investigation](./settings-headless-runtime-investigation.md)
 
 ## How To Extend Workspaces
 
@@ -33,3 +34,6 @@ keeps workspace editing and execution coherent.
   scattering them under ADRs or generic platform docs.
 - When a new workspace capability depends on one widget family, document both the workspace contract
   here and the widget contract in the local widget `README.md`.
+- Reference-variable changes must document both the persisted binding contract and the runtime
+  refresh path, because a valid saved graph can still fail if the coordinator is not mounted in the
+  active workspace host.

@@ -520,12 +520,9 @@ export interface ManagedAccountListRow extends Record<string, unknown> {
   account_name?: string | null;
   display_name?: string | null;
   name?: string | null;
-  account_number?: string | null;
-  broker_name?: string | null;
-  execution_venue_name?: string | null;
-  account_type?: string | null;
-  currency?: string | null;
-  status?: string | null;
+  execution_venue?: number | string | null;
+  is_paper?: boolean | null;
+  account_is_active?: boolean | null;
   creation_date?: string | null;
   created_at?: string | null;
 }
@@ -3690,6 +3687,16 @@ export function createManagedAccount(input: CreateManagedAccountInput) {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function deleteManagedAccount(managedAccountId: number) {
+  return requestJson<Record<string, unknown> | null>(
+    managedAccountEndpoint,
+    `${managedAccountId}/`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export async function listManagedAccountHoldingsDataSources({

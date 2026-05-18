@@ -29,10 +29,9 @@ export function getManagedAccountTitle(account?: ManagedAccountRecord | null) {
 }
 
 export function getManagedAccountSubtitle(account?: ManagedAccountRecord | null) {
-  return (
-    account?.broker_name?.trim() ||
-    account?.account_number?.trim() ||
-    account?.execution_venue_name?.trim() ||
-    ""
-  );
+  if (account?.execution_venue != null && String(account.execution_venue).trim()) {
+    return `Execution venue ${String(account.execution_venue).trim()}`;
+  }
+
+  return "";
 }

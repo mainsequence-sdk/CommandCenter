@@ -14,6 +14,7 @@ import mainSequenceMarketsContent from "./markets/markets.md?raw";
 import organizationAdminContent from "./organization-admin/organization-admin.md?raw";
 import rbacContent from "./organization-admin/rbac.md?raw";
 import organizationAdminTbdContent from "./organization-admin/tbd.md?raw";
+import referenceVariablesContent from "./workspaces/reference-variables.md?raw";
 import slideStudioContent from "./workspaces/slide-studio.md?raw";
 import widgetsContent from "./workspaces/widgets.md?raw";
 import workspacesContent from "./workspaces/workspaces.md?raw";
@@ -252,6 +253,15 @@ const staticPages: DocumentationPageContent[] = [
     hiddenInShellNavigation: true,
   },
   {
+    id: "reference-variables",
+    title: "Reference Variables",
+    navLabel: "Reference Variables",
+    description: "Use live values from one widget to drive another widget setting.",
+    content: referenceVariablesContent,
+    sectionId: "workspaces",
+    hiddenInShellNavigation: true,
+  },
+  {
     id: "slide-studio",
     title: "Slide Studio",
     navLabel: "Slide Studio",
@@ -373,6 +383,7 @@ export const documentationNavSections: readonly DocumentationNavSection[] = [
     items: [
       { type: "page", pageId: "workspaces" },
       { type: "page", pageId: "widgets" },
+      { type: "page", pageId: "reference-variables" },
       { type: "page", pageId: "slide-studio" },
     ],
   },

@@ -16,6 +16,21 @@ import { MainSequenceDataGrid } from "../../../../common/components/MainSequence
 
 export type PortfolioWeightsTableVariant = "summary" | "positions";
 
+export function formatPortfolioWeightPositionTypeLabel(value: unknown) {
+  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+
+  switch (normalized) {
+    case "weight_notional_exposure":
+      return "Weight from Notional Exposure";
+    case "units":
+      return "Units";
+    case "constant_notional":
+      return "Constant Notional";
+    default:
+      return typeof value === "string" && value.trim() ? value.trim() : "Not available";
+  }
+}
+
 export interface PortfolioWeightsTableProps {
   columnDefs: TargetPortfolioWeightsPositionColumnDef[];
   rows: Array<Record<string, unknown>>;
@@ -454,157 +469,12 @@ function getPortfolioWeightPositionRowValue(row: Record<string, unknown>) {
     : "Not available";
 }
 
-const collapsedPositionFieldKeys = new Set([
-  "asset_name",
-  "name",
-  "asset_ticker",
-  "ticker",
-  "unique_identifier",
-  "uid",
-  "position_type",
-  "new_position_type",
-  "type",
-  "position_side",
-  "side",
-  "position_value",
-  "new_position_value",
-  "weight",
-  "target_weight",
-  "value",
-  "position",
-]);
-
-function getPortfolioWeightPositionExpandedFields(row: Record<string, unknown>) {
-  const scalarFields: Array<{ key: string; label: string; value: string }> = [];
-  const structuredFields: Array<{ key: string; label: string; value: unknown }> = [];
-
-  for (const [key, rawValue] of Object.entries(row)) {
-    if (collapsedPositionFieldKeys.has(key) || rawValue === null || rawValue === undefined || rawValue === "") {
-      continue;
-    }
-
-    const label = formatPortfolioWeightsColumnLabel(key);
-
-    if (isRecord(rawValue) || Array.isArray(rawValue)) {
-      structuredFields.push({
-        key,
-        label,
-        value: rawValue,
-      });
-      continue;
-    }
-
-    scalarFields.push({
-      key,
-      label,
-      value: formatPortfolioWeightsCellValue(rawValue, key),
-    });
+function safeFormatPortfolioWeightsJson(value: unknown) {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
   }
-
-  return { scalarFields, structuredFields };
-}
-
-function PortfolioWeightsNestedValue({
-  value,
-  fieldKey,
-  depth = 0,
-}: {
-  value: unknown;
-  fieldKey?: string;
-  depth?: number;
-}) {
-  if (value === null || value === undefined || value === "") {
-    return <div className="text-sm text-muted-foreground">Not available</div>;
-  }
-
-  if (depth >= 4) {
-    return (
-      <div className="text-sm text-foreground">
-        {formatPortfolioWeightsCellValue(value, fieldKey)}
-      </div>
-    );
-  }
-
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return <div className="text-sm text-muted-foreground">No items</div>;
-    }
-
-    if (value.every((entry) => isPrimitiveValue(entry))) {
-      return (
-        <div className="flex flex-wrap gap-2">
-          {value.map((entry, index) => (
-            <div
-              key={`${fieldKey ?? "value"}-${index}`}
-              className="rounded-[calc(var(--radius)-10px)] border border-border/50 bg-card/65 px-2.5 py-1 text-xs text-foreground"
-            >
-              {formatPortfolioWeightsCellValue(entry, fieldKey)}
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-3">
-        {value.map((entry, index) => (
-          <div
-            key={`${fieldKey ?? "value"}-${index}`}
-            className="rounded-[calc(var(--radius)-8px)] border border-border/50 bg-card/65 px-3 py-3"
-          >
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              Item {index + 1}
-            </div>
-            <div className="mt-2">
-              <PortfolioWeightsNestedValue
-                value={entry}
-                fieldKey={fieldKey}
-                depth={depth + 1}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (isRecord(value)) {
-    const entries = Object.entries(value).filter(
-      ([, entryValue]) => entryValue !== null && entryValue !== undefined && entryValue !== "",
-    );
-
-    if (entries.length === 0) {
-      return <div className="text-sm text-muted-foreground">No fields</div>;
-    }
-
-    return (
-      <div className="grid gap-3 md:grid-cols-2">
-        {entries.map(([key, entryValue]) => (
-          <div
-            key={key}
-            className="rounded-[calc(var(--radius)-8px)] border border-border/50 bg-card/65 px-3 py-3"
-          >
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              {formatPortfolioWeightsColumnLabel(key)}
-            </div>
-            <div className="mt-2">
-              <PortfolioWeightsNestedValue
-                value={entryValue}
-                fieldKey={key}
-                depth={depth + 1}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="text-sm text-foreground">
-      {formatPortfolioWeightsCellValue(value, fieldKey)}
-    </div>
-  );
 }
 
 function getPortfolioWeightsColumns(
@@ -697,7 +567,9 @@ function buildPreferredPositionColumns(): ColumnDef<Record<string, unknown>>[] {
       id: "position_type",
       header: "Position Type",
       cell: ({ row }) => (
-        <div className="text-sm text-foreground">{getPortfolioWeightPositionRowType(row.original)}</div>
+        <div className="text-sm text-foreground">
+          {formatPortfolioWeightPositionTypeLabel(getPortfolioWeightPositionRowType(row.original))}
+        </div>
       ),
     },
     {
@@ -715,53 +587,16 @@ function PortfolioWeightPositionExpandedContent({
 }: {
   row: Record<string, unknown>;
 }) {
-  const { scalarFields, structuredFields } = getPortfolioWeightPositionExpandedFields(row);
-
-  if (scalarFields.length === 0 && structuredFields.length === 0) {
-    return (
-      <div className="text-sm text-muted-foreground">
-        No additional position details were returned for this row.
-      </div>
-    );
-  }
+  const formattedJson = safeFormatPortfolioWeightsJson(row);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
-      <div className="min-w-0 space-y-3">
-        {scalarFields.length > 0 ? (
-          <div className="rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/50 px-3 py-3">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              Additional Fields
-            </div>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              {scalarFields.map((field) => (
-                <div key={field.key} className="rounded-[calc(var(--radius)-8px)] border border-border/50 bg-card/65 px-3 py-3">
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                    {field.label}
-                  </div>
-                  <div className="mt-2 text-sm text-foreground">{field.value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
+    <div className="overflow-hidden rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/50">
+      <div className="border-b border-border/60 px-3 py-2 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+        Position JSON
       </div>
-
-      <aside className="space-y-3">
-        {structuredFields.map((field) => (
-          <div
-            key={field.key}
-            className="rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/50 px-3 py-3"
-          >
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              {field.label}
-            </div>
-            <div className="mt-2">
-              <PortfolioWeightsNestedValue value={field.value} fieldKey={field.key} />
-            </div>
-          </div>
-        ))}
-      </aside>
+      <pre className="overflow-x-auto px-3 py-3 font-mono text-[12px] leading-5 text-foreground whitespace-pre-wrap break-words">
+        {formattedJson}
+      </pre>
     </div>
   );
 }
@@ -793,7 +628,7 @@ function PortfolioWeightAssetExpandedContent({
     {
       key: "position_type",
       label: "Position Type",
-      value: getPortfolioWeightPositionType(positionDetail),
+      value: formatPortfolioWeightPositionTypeLabel(getPortfolioWeightPositionType(positionDetail)),
     },
     {
       key: "position_value",

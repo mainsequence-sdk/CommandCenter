@@ -200,6 +200,39 @@ function buildWidgetSettingsDraftState(
   };
 }
 
+export function buildWidgetSettingsDependencyPreview(input: {
+  activeTab: WidgetSettingsTabId;
+  draftState: ReturnType<typeof buildWidgetSettingsDraftState> | null;
+  instance: DashboardWidgetInstance | null;
+  managedConnectionDraftProps?: Record<string, unknown>;
+  widgets: DashboardWidgetInstance[];
+}) {
+  const previewInstance =
+    input.instance && input.draftState
+      ? {
+          ...input.instance,
+          bindings: input.draftState.bindings,
+          title: input.draftState.title.trim() ? input.draftState.title.trim() : undefined,
+          props:
+            input.activeTab === "connection" && input.managedConnectionDraftProps
+              ? input.managedConnectionDraftProps
+              : input.draftState.props,
+          presentation: input.draftState.presentation,
+        }
+      : null;
+  const previewWidgets =
+    input.instance && previewInstance
+      ? input.widgets.map((dashboardWidget) =>
+          dashboardWidget.id === input.instance?.id ? previewInstance : dashboardWidget,
+        )
+      : input.widgets;
+
+  return {
+    previewInstance,
+    previewWidgets,
+  };
+}
+
 function shouldRepairAppComponentBindingSpec(props: AppComponentWidgetProps) {
   const bindingSpec = props.bindingSpec;
 
@@ -459,30 +492,19 @@ export function CustomWidgetSettingsPage({
     };
   }, [activeTab, resolvedDashboard.widgets, updateSelectedWorkspace]);
 
-  const bindingPreviewInstance = useMemo(
+  const {
+    previewInstance: bindingPreviewInstance,
+    previewWidgets: bindingPreviewWidgets,
+  } = useMemo(
     () =>
-      (activeTab === "bindings" || activeTab === "connection") && instance && effectiveDraftState
-        ? {
-            ...instance,
-            bindings: effectiveDraftState.bindings,
-            title: effectiveDraftState.title.trim() ? effectiveDraftState.title.trim() : undefined,
-            props:
-              activeTab === "connection" && managedConnectionDraftProps
-                ? managedConnectionDraftProps
-                : effectiveDraftState.props,
-            presentation: effectiveDraftState.presentation,
-          }
-        : null,
-    [activeTab, effectiveDraftState, instance, managedConnectionDraftProps],
-  );
-  const bindingPreviewWidgets = useMemo(
-    () =>
-      (activeTab === "bindings" || activeTab === "connection") && instance && bindingPreviewInstance
-        ? resolvedDashboard.widgets.map((dashboardWidget) =>
-            dashboardWidget.id === instance.id ? bindingPreviewInstance : dashboardWidget,
-          )
-        : resolvedDashboard.widgets,
-    [activeTab, bindingPreviewInstance, instance, resolvedDashboard.widgets],
+      buildWidgetSettingsDependencyPreview({
+        activeTab,
+        draftState: effectiveDraftState,
+        instance,
+        managedConnectionDraftProps,
+        widgets: resolvedDashboard.widgets,
+      }),
+    [activeTab, effectiveDraftState, instance, managedConnectionDraftProps, resolvedDashboard.widgets],
   );
   const currentManagedConnectionSignature = buildManagedConnectionConsumerDraftSignature(
     managedConnectionAdapter,
@@ -670,15 +692,16 @@ export function CustomWidgetSettingsPage({
       const base = current ?? buildWidgetSettingsDraftState(instance, widget);
       const currentProps = (base.props ?? {}) as Record<string, unknown>;
       const nextProps = updater(currentProps);
+      const reconciledBindings = reconcileManagedConnectionDraftBindings({
+        bindings: base.bindings,
+        currentProps,
+        nextProps,
+        title: base.title,
+      });
 
       return {
         ...base,
-        bindings: reconcileManagedConnectionDraftBindings({
-          bindings: base.bindings,
-          currentProps,
-          nextProps,
-          title: base.title,
-        }),
+        bindings: reconciledBindings,
         props: nextProps,
       };
     });
@@ -1084,6 +1107,34 @@ export function CustomWidgetSettingsPage({
                     instance={instance}
                     draftTitle={effectiveDraftState.title}
                     onDraftTitleChange={handleDraftTitleChange}
+                    draftProps={effectiveDraftState.props}
+                    onDraftPropsChange={(props) => {
+                      setDraftState((current) =>
+                        current
+                          ? {
+                              ...current,
+                              props,
+                            }
+                          : {
+                              ...buildWidgetSettingsDraftState(instance, widget),
+                              props,
+                            },
+                      );
+                    }}
+                    draftPresentation={effectiveDraftState.presentation}
+                    onDraftPresentationChange={(presentation) => {
+                      setDraftState((current) =>
+                        current
+                          ? {
+                              ...current,
+                              presentation,
+                            }
+                          : {
+                              ...buildWidgetSettingsDraftState(instance, widget),
+                              presentation,
+                            },
+                      );
+                    }}
                     panelDescription={
                       instance.slidePlacement
                         ? "Adjust the card title, schema fields, and advanced widget props for this slide-contained widget. Slide region membership is managed by the workspace slide layout."
@@ -1291,7 +1342,9 @@ export function CustomWidgetSettingsPage({
   if (embedded) {
     return (
       <div className="absolute inset-0 z-[70] overflow-hidden bg-background/92 backdrop-blur-xl">
-        {pageContent}
+        <DashboardWidgetDependenciesProvider widgets={bindingPreviewWidgets}>
+          {pageContent}
+        </DashboardWidgetDependenciesProvider>
       </div>
     );
   }

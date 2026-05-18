@@ -151,13 +151,16 @@ export function ManagedAccountEditorDialog({
 
   const holdingsDataSourceOptions = useMemo<PickerOption[]>(
     () => [
-      {
-        value: "",
-        label: hasDefaultHoldingsDataSource ? "Use organization default" : "Select a holdings data source",
-        description: hasDefaultHoldingsDataSource
-          ? "Leave empty to use the organization default holdings data source."
-          : "Choose a holdings data source explicitly when no default exists.",
-      },
+      ...(hasDefaultHoldingsDataSource
+        ? [
+            {
+              value: "",
+              label: "Use organization default",
+              description:
+                "Leave empty to use the organization default holdings data source.",
+            } satisfies PickerOption,
+          ]
+        : []),
       ...holdingsDataSourceRows.map((source) => ({
         value: String(source.id),
         label: source.display_name?.trim() || `Data source ${source.id}`,

@@ -33,10 +33,13 @@ datasets, plus a manual table editor that also republishes one canonical tabular
   snapshot; it does not apply row deltas imperatively.
 - The widget always publishes one `core.tabular_frame@v1` output on `dataset`.
 - Optional interaction outputs publish the current user selection: `selectedRows` as a filtered
-  `core.tabular_frame@v1`, plus `activeRow`, `activeCell`, and `activeCellValue` as JSON values.
-  Cell clicks populate `activeCell` and `activeCellValue` in both row and cell selection modes.
-  Selection state is stored in widget runtime state so downstream consumers can resolve outputs
-  without mutating the underlying dataset.
+  `core.tabular_frame@v1`, plus `activeRow`, `activeCell`, `activeCellValue`, and
+  `selectedCellValues` as JSON values. Cell clicks populate `activeCell`, `activeCellValue`, and
+  `selectedCellValues` in row and cell selection modes. Row modes publish the active clicked cell
+  as a one-item `selectedCellValues` list; cell-range selection in `cell` mode publishes the
+  ordered selected-cell list and expands `selectedRows` to the distinct rows touched by the active
+  cell selection. Selection state is stored in widget runtime state so downstream consumers can
+  resolve outputs without mutating the underlying dataset.
 - When saved `selectionMode` is still `none` but a downstream widget reference actively consumes a
   table interaction output, the runtime infers the minimal interaction mode needed for that
   consumer so clicks can still drive `activeCellValue`, `activeRow`, or `selectedRows` without a
@@ -44,6 +47,7 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 - Those outputs are also reachable from shared settings through the exact widget reference syntax,
   for example `$(table-1).activeRow.symbol` for one selected row field or
   `$(table-1).selectedRows.rows[0].symbol` when a downstream setting needs the first selected row.
+  `$(table-1).selectedCellValues[0]` resolves the first value from the current cell selection.
 - Both canvas rendering and downstream output publication now normalize bound-source state through
   the shared upstream consumer contract before applying table-specific schema or formatting logic.
   That keeps invalid bindings, awaiting upstream publication, loading, empty success, and errors
@@ -102,9 +106,12 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 - Keep the primary published output aligned with `core.tabular_frame@v1`; selection-specific JSON
   outputs must remain derived from runtime interaction state.
 - Table interaction runtime state now includes one frontend-owned implicit-mode flag so consumer
-  driven selection can stay runtime-only even when saved `selectionMode` remains `none`.
-- Selection state is local workspace runtime state. Backend registry sync needs the extra output
-  metadata, but the canonical tabular dataset contract is unchanged.
+  driven selection can stay runtime-only even when saved `selectionMode` remains `none`. It also
+  stores the ordered `selectedCells` list used to resolve `selectedCellValues` and cell-driven
+  row selection.
+- Selection state is local workspace runtime state. Backend registry sync picks up the extra
+  output metadata through the existing widget-type manifest, but the canonical tabular dataset
+  contract is unchanged and persisted widget props are unchanged.
 - Do not reintroduce table-owned date-range or source-resolution runtime behavior; execution and
   refresh belong upstream to Connection Query and Tabular Transform.
 - Keep AG Grid usage inside the community feature set unless a future change explicitly documents

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -14,6 +14,9 @@ import {
   formatMainSequenceError,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
+import { portfolioWeightsWidget } from "../../widgets/portfolio-weights-table/definition";
+import { PortfolioWeightsWidget } from "../../widgets/portfolio-weights-table/PortfolioWeightsWidget";
+import type { PortfolioWeightsWidgetProps } from "../../widgets/portfolio-weights-table/portfolioWeightsRuntime";
 import { getManagedAccountsListPath } from "./managedAccountShared";
 
 export const managedAccountDetailTabs = [
@@ -25,6 +28,13 @@ export type ManagedAccountDetailTabId =
   (typeof managedAccountDetailTabs)[number]["id"];
 
 const defaultManagedAccountDetailTabId: ManagedAccountDetailTabId = "holdings";
+
+const initialManagedAccountHoldingsEditorProps: PortfolioWeightsWidgetProps = {
+  editableInPlace: true,
+  dataMode: "inline",
+  variant: "positions",
+  inlineRows: [],
+};
 
 function isManagedAccountDetailTabId(
   value: string | null,
@@ -51,6 +61,10 @@ export function MainSequenceManagedAccountDetailPage() {
   const selectedTabId = isManagedAccountDetailTabId(searchParams.get("accountTab"))
     ? searchParams.get("accountTab")
     : defaultManagedAccountDetailTabId;
+  const [holdingsEditorVisible, setHoldingsEditorVisible] = useState(false);
+  const [holdingsEditorProps, setHoldingsEditorProps] = useState<PortfolioWeightsWidgetProps>(
+    initialManagedAccountHoldingsEditorProps,
+  );
 
   const managedAccountSummaryQuery = useQuery({
     queryKey: ["main_sequence", "managed_accounts", "summary", managedAccountId],
@@ -153,15 +167,39 @@ export function MainSequenceManagedAccountDetailPage() {
         <CardContent className="pt-5">
           {selectedTabId === "holdings" ? (
             <Card variant="nested">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Holdings</CardTitle>
-                <CardDescription>
-                  Holdings content has not been connected to an account endpoint yet.
-                </CardDescription>
+              <CardHeader className="border-b border-border/70 pb-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <CardTitle className="text-base">Holdings</CardTitle>
+                    <CardDescription>
+                      Use the inline positions editor to draft or review holdings before a dedicated account holdings endpoint exists.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={holdingsEditorVisible ? "outline" : "default"}
+                    onClick={() => {
+                      setHoldingsEditorVisible((current) => !current);
+                    }}
+                  >
+                    {holdingsEditorVisible ? "Hide holdings editor" : "Update holdings"}
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent className="pt-0 text-sm text-muted-foreground">
-                Add the managed-account holdings dataset here when the backend exposes the account
-                holdings view.
+              <CardContent className="pt-5">
+                {holdingsEditorVisible ? (
+                  <PortfolioWeightsWidget
+                    widget={portfolioWeightsWidget}
+                    props={holdingsEditorProps}
+                    editable
+                    onPropsChange={setHoldingsEditorProps}
+                  />
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    Open <span className="font-medium text-foreground">Update holdings</span> to
+                    edit positions directly in this account view.
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : (

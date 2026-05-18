@@ -1,9 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
-import type { PortfolioWeightsWidgetProps } from "./portfolioWeightsRuntime";
+import {
+  normalizePortfolioWeightsDataMode,
+  type PortfolioWeightsWidgetProps,
+} from "./portfolioWeightsRuntime";
 
 function normalizeTargetPortfolioId(value: string) {
   const parsed = Number(value);
@@ -20,25 +24,66 @@ export function PortfolioWeightsWidgetSettings({
   editable,
   onDraftPropsChange,
 }: WidgetSettingsComponentProps<PortfolioWeightsWidgetProps>) {
+  const dataMode = normalizePortfolioWeightsDataMode(draftProps);
+  const editableInPlace = dataMode === "inline";
   const portfolioId =
     Number.isFinite(Number(draftProps.portfolioId ?? draftProps.targetPortfolioId)) &&
     Number(draftProps.portfolioId ?? draftProps.targetPortfolioId) > 0
       ? String(Math.trunc(Number(draftProps.portfolioId ?? draftProps.targetPortfolioId)))
       : "";
-  const variant = draftProps.variant === "summary" ? "summary" : "positions";
+  const variant = editableInPlace
+    ? "positions"
+    : draftProps.variant === "summary"
+      ? "summary"
+      : "positions";
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="neutral">Portfolio widget</Badge>
         <span className="text-sm text-muted-foreground">
-          Configure the target portfolio source and choose whether this instance shows summary weights or position details.
+          Configure either a backend portfolio source or an inline editable positions table for this instance.
         </span>
+      </div>
+
+      <div className="space-y-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/45 p-4">
+        <WidgetSettingFieldLabel
+          help="Inline mode stores positions directly in widget props and lets workspace authors add assets and edit rows on the canvas. It disables the backend portfolio fetch and always uses the positions view."
+          required={false}
+          textClassName="text-sm font-medium text-topbar-foreground"
+        >
+          Editable in place
+        </WidgetSettingFieldLabel>
+        <label className="flex items-center gap-3 text-sm text-foreground">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border border-input bg-card/70 accent-primary"
+            checked={editableInPlace}
+            disabled={!editable}
+            onChange={(event) => {
+              const nextEditableInPlace = event.target.checked;
+              onDraftPropsChange({
+                ...draftProps,
+                editableInPlace: nextEditableInPlace,
+                dataMode: nextEditableInPlace ? "inline" : "portfolio",
+                variant: nextEditableInPlace ? "positions" : draftProps.variant,
+              });
+            }}
+          />
+          <span>
+            Edit positions directly on the canvas instead of configuring them in settings.
+          </span>
+        </label>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <label className="space-y-2">
-          <span className="text-sm font-medium text-topbar-foreground">Portfolio id</span>
+          <WidgetSettingFieldLabel
+            help="Used only in portfolio mode. The widget will fetch positions from the Markets portfolio weights endpoint for this portfolio id."
+            textClassName="text-sm font-medium text-topbar-foreground"
+          >
+            Portfolio id
+          </WidgetSettingFieldLabel>
           <Input
             type="number"
             min="1"
@@ -46,7 +91,7 @@ export function PortfolioWeightsWidgetSettings({
             inputMode="numeric"
             placeholder="1"
             value={portfolioId}
-            readOnly={!editable}
+            readOnly={!editable || editableInPlace}
             onChange={(event) => {
               onDraftPropsChange({
                 ...draftProps,
@@ -55,15 +100,22 @@ export function PortfolioWeightsWidgetSettings({
             }}
           />
           <p className="text-sm text-muted-foreground">
-            Use the portfolio id from the Markets portfolios surface.
+            {editableInPlace
+              ? "Inline mode ignores the portfolio id and uses locally authored rows."
+              : "Use the portfolio id from the Markets portfolios surface."}
           </p>
         </label>
 
         <label className="space-y-2">
-          <span className="text-sm font-medium text-topbar-foreground">Variant</span>
+          <WidgetSettingFieldLabel
+            help="Portfolio mode can render either summary weights or detailed positions. Inline mode always renders position details because those rows are authored directly in the widget."
+            textClassName="text-sm font-medium text-topbar-foreground"
+          >
+            Variant
+          </WidgetSettingFieldLabel>
           <Select
             value={variant}
-            disabled={!editable}
+            disabled={!editable || editableInPlace}
             onChange={(event) => {
               onDraftPropsChange({
                 ...draftProps,
@@ -75,7 +127,9 @@ export function PortfolioWeightsWidgetSettings({
             <option value="summary">Weights summary</option>
           </Select>
           <p className="text-sm text-muted-foreground">
-            Summary shows expandable asset rows. Position details uses the fixed five-column market view.
+            {editableInPlace
+              ? "Inline mode always uses position details so rows can be edited directly on the canvas."
+              : "Summary shows expandable asset rows. Position details uses the fixed five-column market view."}
           </p>
         </label>
       </div>

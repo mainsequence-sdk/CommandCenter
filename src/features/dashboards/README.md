@@ -35,9 +35,15 @@ These flows are all part of one app surface, with instance state selected throug
 - `WorkspaceCanvasWidgetHost.tsx`: shared widget renderer used by both the root canvas host and the slide subgrid host so widget chrome, headers, actions, inline edit gating, and body rendering stay identical across both layout hosts.
 - `WorkspaceSlideSubgridHost.tsx`: slide-only body-stage layout host. It keeps slide-contained widgets on a separate subgrid from the root canvas while shrinking slide row height to fit the active body bounds instead of letting slide widgets overflow.
 - `WorkspaceRenderErrorBoundary.tsx`: workspace-level recovery surface used when malformed or unsupported workspace data breaks canvas or graph rendering. It keeps a readable error UI in front of the user and preserves a route back into workspace settings for JSON export/import recovery.
-- `CustomDashboardStudioPage.tsx`: full-bleed workspace canvas editor with widget drag, resize, controls, and save flow.
+- `CustomDashboardStudioPage.tsx`: full-bleed workspace canvas editor with widget drag, resize,
+  controls, and save flow. It also owns workspace-local runtime-state write batching and the
+  variable-refresh coordinator that turns source widget runtime changes, such as table row
+  selection, into reference-variable commits through the active dashboard execution provider.
 - `CustomWorkspaceGraphPage.tsx`: route-level React Flow editor for workspace widget bindings.
-- `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected workspace widget.
+- `CustomWidgetSettingsPage.tsx`: full-width widget-instance settings view for a selected
+  workspace widget. It must resolve settings dependencies from the current draft widget props and
+  bindings in both route and embedded overlay modes so reference-backed fields do not rehydrate
+  from stale saved graph edges while the user is editing.
 - `CustomWorkspaceSettingsPage.tsx`: model editor for workspace metadata such as title,
   description, labels, backend-only sharing permissions, and a dedicated publishing tab for
   authenticated public preview plus public-link lifecycle controls. Public-link lifecycle actions
@@ -217,6 +223,13 @@ These flows are all part of one app surface, with instance state selected throug
 - Background widget runtime publication should not count as an authored unsaved change. Runtime
   state still updates the mounted workspace draft so tiles and downstream bindings stay live, but
   the save indicator is reserved for explicit workspace edits and persisted user-state changes.
+- Runtime-state writes that change active reference-variable sources must also queue and drain a
+  variable refresh in the same mounted workspace host. `WorkspaceStudioCanvasHost` supplies the
+  dashboard runtime providers and renders `CustomDashboardStudioPage` with
+  `withRuntimeProviders={false}`, so the page must still mount
+  `WorkspaceRuntimeVariableRefreshCoordinator` in that branch. Otherwise table-driven reference
+  variables update the source runtime state but never re-execute affected connection-query widgets
+  or downstream consumers.
 - The workspace index should not scan every stored workspace draft to decide whether the current
   surface is dirty. Unsaved-state indicators are scoped to the currently selected workspace only.
 - Workspace normalization is now split by boundary. Load/import paths still run the full migration

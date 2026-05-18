@@ -60,6 +60,8 @@ surfaces and the editable workspace studio.
   incremental tabular publications. It now also owns commit-scoped
   `executeVariableDrivenWidgetCommit(...)` scheduling so saved widget title/prop changes rerender
   passive variable consumers in memory and only enqueue affected executable downstream branches.
+  Workspace runtime-state changes can also enter that same commit path when the active studio host
+  queues a variable refresh for a changed source widget.
 - `dashboard-request-trace.ts`: shared refresh-cycle request trace store. Execution-driven
   widgets and component-side widget queries can attach request metadata there so graph/debug
   surfaces inspect one canonical refresh request log instead of inventing local endpoint trackers.
@@ -148,7 +150,9 @@ surfaces and the editable workspace studio.
 - Variable-driven settings commits are narrower than `executeWidgetFlow(...)`. They should compare
   only active referenced source values after a committed save/apply action, let passive consumers
   rerender through dependency resolution, and then schedule only the affected executable
-  downstream targets. Unsaved draft typing must not trigger that path.
+  downstream targets. Runtime-state-driven source updates, such as table selection changes, use the
+  same commit path after the workspace host has written the new source runtime state. Unsaved draft
+  typing must not trigger that path.
 - For `AppComponent`, missing required request arguments fail during execution-time request
   building, not during topology discovery. The AppComponent error path now clears response-derived
   outputs for that failed run so deeper widgets in the same linear chain stop instead of consuming

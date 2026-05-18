@@ -231,11 +231,22 @@ export function getWidgetValueAtPath(value: unknown, path: string[]): unknown {
   let currentValue = value;
 
   for (const segment of path) {
-    if (!isPlainRecord(currentValue) || !(segment in currentValue)) {
+    if (!isPlainRecord(currentValue)) {
       return undefined;
     }
 
-    currentValue = currentValue[segment];
+    const resolvedSegment =
+      segment in currentValue
+        ? segment
+        : Object.keys(currentValue).find(
+            (key) => key.toLowerCase() === segment.toLowerCase(),
+          );
+
+    if (!resolvedSegment) {
+      return undefined;
+    }
+
+    currentValue = currentValue[resolvedSegment];
   }
 
   return currentValue;
@@ -259,7 +270,8 @@ export function getWidgetValueDescriptorAtPath(
     return undefined;
   }
 
-  const field = descriptor.fields.find((entry) => entry.key === head);
+  const field = descriptor.fields.find((entry) => entry.key === head) ??
+    descriptor.fields.find((entry) => entry.key.toLowerCase() === head.toLowerCase());
 
   if (!field) {
     return undefined;

@@ -14,20 +14,38 @@ type MockGridColumn = {
   colId?: string;
   field?: string;
 };
+type MockGridFocusedCell = {
+  rowIndex: number;
+  column: { getColId: () => string };
+};
+type MockGridCellRange = {
+  startRow?: { rowIndex: number };
+  endRow?: { rowIndex: number };
+  columns: Array<{ getColId: () => string }>;
+  startColumn: { getColId: () => string };
+};
+type MockGridApi = {
+  getCellRanges: () => MockGridCellRange[] | null;
+  getDisplayedRowAtIndex: (index: number) => { data?: MockGridRow } | null;
+  getFocusedCell: () => MockGridFocusedCell | null;
+  getSelectedRows: () => MockGridRow[];
+};
 type MockAgGridReactProps = {
+  cellSelection?: boolean;
   columnDefs?: MockGridColumn[];
   onCellClicked?: (event: {
-    api?: {
-      getSelectedRows: () => MockGridRow[];
-    };
+    api?: MockGridApi;
     colDef: MockGridColumn;
     column: { getColId: () => string };
     data: MockGridRow;
   }) => void;
+  onCellSelectionChanged?: (event: {
+    api: MockGridApi;
+    finished: boolean;
+    started: boolean;
+  }) => void;
   onSelectionChanged?: (event: {
-    api: {
-      getSelectedRows: () => MockGridRow[];
-    };
+    api: MockGridApi;
   }) => void;
   rowData?: MockGridRow[];
 };
@@ -41,6 +59,19 @@ vi.mock("ag-grid-react", async () => {
     AgGridReact: (props: MockAgGridReactProps) => {
       const rows = props.rowData ?? [];
       const columns = props.columnDefs ?? [];
+      const buildApi = (
+        selectedRows: MockGridRow[],
+        focusedCell: MockGridFocusedCell | null,
+        cellRanges: MockGridCellRange[],
+      ): MockGridApi => ({
+        getCellRanges: () => cellRanges,
+        getDisplayedRowAtIndex: (index: number) => {
+          const row = rows[index];
+          return row ? { data: row } : null;
+        },
+        getFocusedCell: () => focusedCell,
+        getSelectedRows: () => selectedRows,
+      });
 
       return React.createElement(
         "div",
@@ -54,9 +85,7 @@ vi.mock("ag-grid-react", async () => {
               type: "button",
               onClick: () => {
                 props.onSelectionChanged?.({
-                  api: {
-                    getSelectedRows: () => [row],
-                  },
+                  api: buildApi([row], null, []),
                 });
               },
             },
@@ -71,13 +100,49 @@ vi.mock("ag-grid-react", async () => {
             type: "button",
             onClick: () => {
               props.onSelectionChanged?.({
-                api: {
-                  getSelectedRows: () => rows.slice(0, 2),
-                },
+                api: buildApi(rows.slice(0, 2), null, []),
               });
             },
           },
           "Select multiple rows",
+        ),
+        React.createElement(
+          "button",
+          {
+            key: "select-cell-range-0-1-name",
+            "data-testid": "select-cell-range-0-1-name",
+            type: "button",
+            onClick: () => {
+              props.onCellSelectionChanged?.({
+                api: buildApi(
+                  [],
+                  {
+                    rowIndex: 1,
+                    column: {
+                      getColId: () => "name",
+                    },
+                  },
+                  [
+                    {
+                      startRow: { rowIndex: 0 },
+                      endRow: { rowIndex: 1 },
+                      columns: [
+                        {
+                          getColId: () => "name",
+                        },
+                      ],
+                      startColumn: {
+                        getColId: () => "name",
+                      },
+                    },
+                  ],
+                ),
+                finished: true,
+                started: true,
+              });
+            },
+          },
+          "Select cell range 0-1 name",
         ),
         ...rows.flatMap((row, rowIndex) =>
           columns.map((column) => {
@@ -90,16 +155,45 @@ vi.mock("ag-grid-react", async () => {
                 "data-testid": `cell-${rowIndex}-${columnKey}`,
                 type: "button",
                 onClick: () => {
-                  props.onCellClicked?.({
-                    api: {
-                      getSelectedRows: () => [row],
+                  const api = buildApi(
+                    [row],
+                    {
+                      rowIndex,
+                      column: {
+                        getColId: () => column.colId ?? column.field ?? "",
+                      },
                     },
+                    [
+                      {
+                        startRow: { rowIndex },
+                        endRow: { rowIndex },
+                        columns: [
+                          {
+                            getColId: () => column.colId ?? column.field ?? "",
+                          },
+                        ],
+                        startColumn: {
+                          getColId: () => column.colId ?? column.field ?? "",
+                        },
+                      },
+                    ],
+                  );
+
+                  props.onCellClicked?.({
+                    api,
                     colDef: column,
                     column: {
                       getColId: () => column.colId ?? column.field ?? "",
                     },
                     data: row,
                   });
+                  if (props.cellSelection) {
+                    props.onCellSelectionChanged?.({
+                      api,
+                      finished: true,
+                      started: true,
+                    });
+                  }
                 },
               },
               `Cell ${rowIndex} ${columnKey}`,
@@ -317,6 +411,51 @@ describe("TableFrameView selection publishing", () => {
         columnKey: "score",
         value: 20,
       },
+      selectedCells: [
+        {
+          rowKey: '["b"]',
+          rowIndex: 1,
+          columnKey: "score",
+          value: 20,
+        },
+      ],
+    });
+  });
+
+  it("publishes multi-cell range state in cell mode", async () => {
+    const harness = createHarness("cell");
+    harnesses.push(harness);
+
+    await harness.render();
+    await harness.click("select-cell-range-0-1-name");
+
+    expect(harness.selectionEvents).toHaveLength(1);
+    expect(harness.selectionEvents[0]).toMatchObject({
+      mode: "cell",
+      selectedRowKeys: ['["a"]', '["b"]'],
+      selectedRowIndices: [0, 1],
+      activeRowKey: '["b"]',
+      activeRowIndex: 1,
+      activeCell: {
+        rowKey: '["b"]',
+        rowIndex: 1,
+        columnKey: "name",
+        value: "Beta",
+      },
+      selectedCells: [
+        {
+          rowKey: '["a"]',
+          rowIndex: 0,
+          columnKey: "name",
+          value: "Alpha",
+        },
+        {
+          rowKey: '["b"]',
+          rowIndex: 1,
+          columnKey: "name",
+          value: "Beta",
+        },
+      ],
     });
   });
 });

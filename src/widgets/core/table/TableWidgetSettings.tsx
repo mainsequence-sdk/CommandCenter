@@ -104,7 +104,7 @@ const tableFieldHelp = {
   sourceBinding: "Shows the upstream Connection Query or transform widget bound to this table. The binding supplies one canonical tabular dataset; this widget only formats it.",
   pageSize: "Sets how many rows AG Grid shows per page when pagination is enabled.",
   surfaceToggles: "Turns optional table surface features on or off without changing the upstream dataset. Quick filter is the global toolbar search; column filters add searchable per-column filter controls.",
-  selectionMode: "Controls whether table clicks publish selected rows or active cell outputs for downstream widgets. When this stays off, the runtime can still infer the minimal interaction mode if a downstream widget reference actively consumes one of the table interaction outputs.",
+  selectionMode: "Controls whether table clicks publish selected rows, the active row, the active cell, or the selected cell values list for downstream widgets. When this stays off, the runtime can still infer the minimal interaction mode if a downstream widget reference actively consumes one of the table interaction outputs.",
   selectionKeyFields: "Optional stable field keys used to keep selections mapped to the same rows after refreshes, sorting, or upstream updates. Leave blank to use row indexes.",
   columnKey: "Maps this table column to an incoming field key from the bound dataset frame.",
   columnLabel: "Overrides the header text shown for this column.",
@@ -1097,7 +1097,7 @@ export function TableWidgetSettings({
         <div>
           <div className={titleClass}>Selection outputs</div>
           <p className={descriptionClass}>
-            Publish user selections from this table so downstream widgets can react to selected rows, the active row, or the active cell.
+            Publish user selections from this table so downstream widgets can react to selected rows, the active row, the active cell, or the selected cell values list.
           </p>
         </div>
 

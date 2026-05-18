@@ -1997,11 +1997,8 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
           account.account_name,
           account.display_name,
           account.name,
-          account.account_number,
-          account.broker_name,
-          account.execution_venue_name,
-          account.account_type,
-          account.status,
+          account.execution_venue,
+          account.account_is_active,
         ],
         searchParams.get("search"),
       ),
@@ -2024,9 +2021,6 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       account_name: readString(body.account_name) || `Account ${nextId}`,
       display_name: readString(body.display_name) || readString(body.account_name) || `Account ${nextId}`,
       execution_venue: executionVenueId || null,
-      execution_venue_name:
-        readOptionalString((executionVenue as Record<string, unknown> | null)?.name) ||
-        readOptionalString((executionVenue as Record<string, unknown> | null)?.symbol),
       valuation_translation_table: valuationTranslationTableId || null,
       valuation_translation_table_name: readOptionalString(
         (valuationTranslationTable as Record<string, unknown> | null)?.unique_identifier,
@@ -2035,7 +2029,7 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       holdings_data_source_name:
         readOptionalString((holdingsDataSource as Record<string, unknown> | null)?.display_name),
       is_paper: typeof body.is_paper === "boolean" ? body.is_paper : true,
-      status: "Active",
+      account_is_active: true,
       creation_date: new Date().toISOString(),
     };
     state.managedAccounts.unshift(createdAccount);
@@ -2048,11 +2042,23 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     return findById(state.managedAccounts, Number(detailMatch[1]));
   }
 
+  if (detailMatch && method === "DELETE") {
+    const accountId = Number(detailMatch[1]);
+    state.managedAccounts = state.managedAccounts.filter(
+      (account) => readNumber(account.id) !== accountId,
+    );
+    return {
+      detail: "Managed account removed from mock state.",
+      deleted_count: 1,
+    };
+  }
+
   const summaryMatch = route.match(/^\/orm\/api\/assets\/account\/(\d+)\/summary\/$/);
 
   if (summaryMatch && method === "GET") {
     const accountId = Number(summaryMatch[1]);
     const account = findById(state.managedAccounts, accountId);
+    const executionVenue = findById(state.executionVenues, readNumber(account?.execution_venue));
 
     if (!account) {
       return undefined;
@@ -2071,15 +2077,15 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       badges: [
         {
           key: "account-type",
-          label: readString(account.account_type) || "Managed Account",
+          label: "Managed Account",
           tone: "neutral",
         },
-        ...(readString(account.status)
+        ...(typeof account.account_is_active === "boolean"
           ? [
               {
                 key: "account-status",
-                label: readString(account.status),
-                tone: readString(account.status).toLowerCase() === "active" ? "success" : "warning",
+                label: readBoolean(account.account_is_active) ? "Active" : "Inactive",
+                tone: readBoolean(account.account_is_active) ? "success" : "warning",
               },
             ]
           : []),
@@ -2091,16 +2097,6 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
           value: String(accountId),
           kind: "code",
         },
-        ...(readString(account.account_number)
-          ? [
-              {
-                key: "account_number",
-                label: "Account Number",
-                value: readString(account.account_number),
-                kind: "text",
-              },
-            ]
-          : []),
         ...(readString(account.creation_date)
           ? [
               {
@@ -2114,9 +2110,14 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       ],
       highlight_fields: [
         {
-          key: "execution_venue_name",
+          key: "execution_venue",
           label: "Execution Venue",
-          value: readString(account.execution_venue_name) || "Not available",
+          value:
+            readOptionalString((executionVenue as Record<string, unknown> | null)?.name) ||
+            readOptionalString((executionVenue as Record<string, unknown> | null)?.symbol) ||
+            (readNumber(account.execution_venue) > 0
+              ? String(readNumber(account.execution_venue))
+              : "Not available"),
           kind: "text",
         },
         {

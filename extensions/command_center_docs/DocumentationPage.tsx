@@ -59,56 +59,50 @@ export function createDocumentationPage(pageId: string) {
 function DocumentationSectionsSidebar({ activeSectionId }: { activeSectionId: string }) {
   return (
     <aside className="xl:sticky xl:top-5 xl:self-start">
-      <div className="rounded-[var(--radius)] border border-border/70 bg-card/82 p-3 shadow-[var(--shadow-panel)]">
-        <div className="px-2 pb-3">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-            Documentation
-          </div>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Application-first guides for signed-in Command Center users.
-          </p>
+      <div className="px-2">
+        <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+          Documentation
         </div>
-
-        <nav className="space-y-2">
-          {documentationNavSections.map((section) => {
-            const active = section.id === activeSectionId;
-
-            return (
-              <Link
-                key={section.id}
-                to={getDocumentationPath(section.landingPageId)}
-                className={cn(
-                  "block rounded-[calc(var(--radius)-8px)] border px-3 py-3 transition-colors",
-                  active
-                    ? "border-primary/35 bg-primary/10 text-foreground"
-                    : "border-border/60 bg-background/35 text-muted-foreground hover:border-border hover:text-foreground",
-                )}
-              >
-                <div className="flex items-start gap-3">
-                  <span
-                    className={cn(
-                      "mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-transform",
-                      active
-                        ? "border-primary/35 bg-primary/10 text-foreground"
-                        : "border-border/60 bg-background/40 text-muted-foreground",
-                    )}
-                  >
-                    <ChevronRight className={cn("h-3.5 w-3.5", active && "rotate-90")} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-foreground">
-                      {section.title}
-                    </span>
-                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                      {section.description}
-                    </span>
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </nav>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Application-first guides for signed-in Command Center users.
+        </p>
       </div>
+
+      <nav className="mt-4 space-y-1">
+        {documentationNavSections.map((section) => {
+          const active = section.id === activeSectionId;
+
+          return (
+            <Link
+              key={section.id}
+              to={getDocumentationPath(section.landingPageId)}
+              className={cn(
+                "block border-l pl-4 py-2.5 transition-colors",
+                active
+                  ? "border-primary text-foreground"
+                  : "border-border/50 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+              )}
+            >
+              <div className="flex items-start gap-2">
+                <ChevronRight
+                  className={cn(
+                    "mt-0.5 h-3.5 w-3.5 shrink-0 transition-transform",
+                    active && "rotate-90 text-primary",
+                  )}
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-foreground">
+                    {section.title}
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                    {section.description}
+                  </span>
+                </span>
+              </div>
+            </Link>
+          );
+        })}
+      </nav>
     </aside>
   );
 }
@@ -127,10 +121,7 @@ function DocumentationSubmenuItems({
       {items.map((item) => {
         if (item.type === "group") {
           return (
-            <section
-              key={item.id}
-              className="rounded-[calc(var(--radius)-8px)] border border-border/55 bg-background/28 px-3 py-3"
-            >
+            <section key={item.id} className="border-l border-border/45 pl-3 py-2">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {item.title}
               </div>
@@ -159,10 +150,10 @@ function DocumentationSubmenuItems({
             key={page.id}
             to={getDocumentationPath(page.id)}
             className={cn(
-              "block rounded-[calc(var(--radius)-8px)] border px-3 py-2.5 transition-colors",
+              "block border-l pl-3 py-2.5 transition-colors",
               active
-                ? "border-primary/35 bg-primary/10 text-foreground"
-                : "border-border/55 bg-background/20 text-muted-foreground hover:border-border hover:text-foreground",
+                ? "border-primary text-foreground"
+                : "border-border/45 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
             )}
           >
             <span className="block text-sm font-medium text-foreground">{page.navLabel}</span>
@@ -191,17 +182,15 @@ function DocumentationSubmenuSidebar({
 
   return (
     <aside className="xl:sticky xl:top-5 xl:self-start">
-      <div className="rounded-[var(--radius)] border border-border/70 bg-card/82 p-3 shadow-[var(--shadow-panel)]">
-        <div className="border-b border-border/60 px-2 pb-3">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-            {section.title}
-          </div>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">{section.description}</p>
+      <div className="px-2">
+        <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
+          {section.title}
         </div>
-        <nav className="mt-3">
-          <DocumentationSubmenuItems activePageId={activePageId} items={section.items} />
-        </nav>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{section.description}</p>
       </div>
+      <nav className="mt-4">
+        <DocumentationSubmenuItems activePageId={activePageId} items={section.items} />
+      </nav>
     </aside>
   );
 }
@@ -238,6 +227,9 @@ export function DocumentationPage({ pageId }: { pageId: string }) {
   const resolvedPage = page ?? fallbackPage;
   const location = resolvedPage ? getDocumentationPageLocation(resolvedPage.id) : null;
   const activeSectionId = location?.section.id ?? "getting-started";
+  const activeSection = location?.section ?? getDocumentationNavSection(activeSectionId);
+  const showSectionDirectorySidebar = !activeSection || activeSection.items.length <= 1;
+  const showSectionSubmenuSidebar = Boolean(activeSection && activeSection.items.length > 1);
   const { previousPage, nextPage } = resolvedPage
     ? getAdjacentDocumentationPages(resolvedPage.id)
     : { previousPage: undefined, nextPage: undefined };
@@ -254,12 +246,22 @@ export function DocumentationPage({ pageId }: { pageId: string }) {
         description={resolvedPage.description}
       />
 
-      <div className="grid gap-6 xl:grid-cols-[220px_320px_minmax(0,1fr)] 2xl:grid-cols-[240px_360px_minmax(0,1fr)]">
-        <DocumentationSectionsSidebar activeSectionId={activeSectionId} />
-        <DocumentationSubmenuSidebar activePageId={resolvedPage.id} sectionId={activeSectionId} />
+      <div
+        className={cn(
+          "grid gap-6",
+          (showSectionDirectorySidebar || showSectionSubmenuSidebar) &&
+            "xl:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]",
+        )}
+      >
+        {showSectionDirectorySidebar ? (
+          <DocumentationSectionsSidebar activeSectionId={activeSectionId} />
+        ) : null}
+        {showSectionSubmenuSidebar ? (
+          <DocumentationSubmenuSidebar activePageId={resolvedPage.id} sectionId={activeSectionId} />
+        ) : null}
 
         <main className="min-w-0">
-          <article className="rounded-[var(--radius)] border border-border/75 bg-card/85 px-6 py-6 shadow-[var(--shadow-panel)] md:px-8 md:py-8">
+          <article className="px-1 md:px-2">
             <MarkdownContent
               content={resolvedPage.content}
               transformHref={transformDocumentationHref}

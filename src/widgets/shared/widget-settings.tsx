@@ -732,14 +732,16 @@ export function WidgetSettingsPanel<
   const activeCardTitleLabel = activeTitleReferenceToken?.label ?? activeCardTitle;
   const resolvedPanelTitle =
     panelTitle ?? (activeCardTitleLabel ? `${activeCardTitleLabel} Settings` : "Card settings");
+  const referenceExpressionTitle = controlledTitle ? instanceTitle : initialTitle;
+  const referenceExpressionProps = controlledProps ? resolvedDraftProps : initialProps;
   const initialReferenceExpressions = useMemo(
     () =>
       deriveWidgetReferenceExpressionBindings({
-        title: initialTitle,
-        props: initialProps,
+        title: referenceExpressionTitle,
+        props: referenceExpressionProps,
         sourceWidgets: referenceLanguageSourceWidgets,
       }),
-    [initialProps, initialTitle, referenceLanguageSourceWidgets],
+    [referenceExpressionProps, referenceExpressionTitle, referenceLanguageSourceWidgets],
   );
   const initialBindingsWithExpressions = useMemo(
     () =>

@@ -18,7 +18,8 @@ ownership documentation in this developer docs tree or the nearest module `READM
   and notifications.
 - [Apps](./apps/README.md): app and surface model, routing, and navigation.
 - [Auth](./auth/README.md): backend integration and authentication boundaries.
-- [Workspaces](./workspaces/README.md): workspace model, layout, persistence, and runtime notes.
+- [Workspaces](./workspaces/README.md): workspace model, reference variables, layout,
+  persistence, and runtime notes.
 - [Widgets](./widgets/README.md): widget concepts plus links to widget-local implementation docs.
 - [Connections](./connections/README.md): connection model, extension workflow, and backend
   adapter contracts.

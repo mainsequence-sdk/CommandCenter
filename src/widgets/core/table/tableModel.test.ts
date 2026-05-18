@@ -13,11 +13,13 @@ import {
   TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
   TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
   TABLE_WIDGET_DATASET_OUTPUT_ID,
+  TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID,
   TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
   resolveTableWidgetActiveCellOutput,
   resolveTableWidgetActiveCellValueOutput,
   resolveTableWidgetActiveRowOutput,
   resolveTableWidgetOutput,
+  resolveTableWidgetSelectedCellValuesOutput,
   resolveTableWidgetProps,
   resolveTableWidgetSelectedRowsOutput,
   parseTableWidgetDateTimeValue,
@@ -108,6 +110,14 @@ describe("table widget selection outputs", () => {
             columnKey: "score",
             value: 30,
           },
+          selectedCells: [
+            {
+              rowKey: selectedKey,
+              rowIndex: 2,
+              columnKey: "score",
+              value: 30,
+            },
+          ],
           updatedAtMs: 1,
         },
       },
@@ -152,6 +162,14 @@ describe("table widget selection outputs", () => {
             columnKey: "name",
             value: "Beta",
           },
+          selectedCells: [
+            {
+              rowKey: selectedKey,
+              rowIndex: 1,
+              columnKey: "name",
+              value: "Beta",
+            },
+          ],
           updatedAtMs: 1,
         },
       },
@@ -175,6 +193,9 @@ describe("table widget selection outputs", () => {
       },
     });
     expect(resolveTableWidgetActiveCellValueOutput(props, undefined, runtimeState)).toBe("Beta");
+    expect(resolveTableWidgetSelectedCellValuesOutput(props, undefined, runtimeState)).toEqual([
+      "Beta",
+    ]);
   });
 
   it("does not publish selections when selection mode is off", () => {
@@ -216,6 +237,14 @@ describe("table widget selection outputs", () => {
             columnKey: "name",
             value: "Beta",
           },
+          selectedCells: [
+            {
+              rowKey: selectedKey,
+              rowIndex: 1,
+              columnKey: "name",
+              value: "Beta",
+            },
+          ],
           updatedAtMs: 1,
         },
       },
@@ -242,6 +271,52 @@ describe("table widget selection outputs", () => {
       },
     });
     expect(resolveTableWidgetActiveCellValueOutput(props, undefined, runtimeState)).toBe("Beta");
+  });
+
+  it("publishes selected cell values as an ordered JSON list", () => {
+    const alphaKey = buildTableWidgetRowKey({ id: "a" }, ["id"]);
+    const betaKey = buildTableWidgetRowKey({ id: "b" }, ["id"]);
+    const props: TableWidgetProps = {
+      ...manualTableProps,
+      selectionMode: "cell",
+    };
+    const runtimeState = {
+      interaction: {
+        selection: {
+          mode: "cell",
+          selectedRowKeys: [alphaKey, betaKey].filter((value): value is string => Boolean(value)),
+          selectedRowIndices: [0, 1],
+          activeRowKey: betaKey,
+          activeRowIndex: 1,
+          activeCell: {
+            rowKey: betaKey,
+            rowIndex: 1,
+            columnKey: "name",
+            value: "Beta",
+          },
+          selectedCells: [
+            {
+              rowKey: alphaKey,
+              rowIndex: 0,
+              columnKey: "name",
+              value: "Alpha",
+            },
+            {
+              rowKey: betaKey,
+              rowIndex: 1,
+              columnKey: "name",
+              value: "Beta",
+            },
+          ],
+          updatedAtMs: 1,
+        },
+      },
+    };
+
+    expect(resolveTableWidgetSelectedCellValuesOutput(props, undefined, runtimeState)).toEqual([
+      "Alpha",
+      "Beta",
+    ]);
   });
 
   it("keeps the full dataset output unchanged by selection state", () => {
@@ -444,5 +519,6 @@ describe("table widget definition selection outputs", () => {
     expect(outputContracts.get(TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID)).toBe(CORE_VALUE_JSON_CONTRACT);
     expect(outputContracts.get(TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID)).toBe(CORE_VALUE_JSON_CONTRACT);
     expect(outputContracts.get(TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID)).toBe(CORE_VALUE_JSON_CONTRACT);
+    expect(outputContracts.get(TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID)).toBe(CORE_VALUE_JSON_CONTRACT);
   });
 });

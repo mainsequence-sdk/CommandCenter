@@ -27,12 +27,14 @@ import {
   TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
   TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
   TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
+  TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID,
   type TableWidgetCellValue,
   buildTableWidgetRowObjects,
   resolveTableWidgetActiveCellOutput,
   resolveTableWidgetActiveCellValueOutput,
   resolveTableWidgetActiveRowOutput,
   resolveTableWidgetOutput,
+  resolveTableWidgetSelectedCellValuesOutput,
   resolveTableWidgetSelectedRowsOutput,
   resolveTableWidgetSourceDataset,
   tableWidgetDefaultProps,
@@ -47,9 +49,16 @@ const TABLE_WIDGET_JSON_VALUE_DESCRIPTOR = {
   description: "JSON value derived from table interaction runtime state.",
 } as const;
 
+const TABLE_WIDGET_JSON_VALUE_ARRAY_DESCRIPTOR = {
+  kind: "array",
+  contract: CORE_VALUE_JSON_CONTRACT,
+  description: "JSON list derived from table interaction runtime state.",
+  items: TABLE_WIDGET_JSON_VALUE_DESCRIPTOR,
+} as const;
+
 export const tableWidget = defineWidget<TableWidgetProps>({
   id: "table",
-  widgetVersion: "3.2.0",
+  widgetVersion: "3.3.0",
   title: "Table",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -193,6 +202,21 @@ export const tableWidget = defineWidget<TableWidgetProps>({
             runtimeDataStore,
           ),
       },
+      {
+        id: TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID,
+        label: "Selected cell values",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description:
+          "Publishes the current selected cell values as an ordered JSON list. Row selection clicks publish the active cell as a one-item list; cell selection publishes the selected cell range.",
+        valueDescriptor: TABLE_WIDGET_JSON_VALUE_ARRAY_DESCRIPTOR,
+        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
+          resolveTableWidgetSelectedCellValuesOutput(
+            props as TableWidgetProps,
+            resolvedInputs,
+            runtimeState,
+            runtimeDataStore,
+          ),
+      },
     ],
   },
   workspaceRuntimeMode: "consumer",
@@ -327,6 +351,7 @@ export const tableWidget = defineWidget<TableWidgetProps>({
         "Display formatting, hidden columns, and value styling do not mutate the published dataset.",
         "selectedRows republishes the current frame filtered to the selected rows when selection mode is enabled.",
         "activeRow, activeCell, and activeCellValue publish JSON interaction state derived from the user's current table selection.",
+        "selectedCellValues publishes an ordered list: one active clicked cell in row modes, or the selected cell range in cell mode.",
       ],
     },
     capabilities: {
@@ -380,6 +405,7 @@ export const tableWidget = defineWidget<TableWidgetProps>({
         TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
         TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
         TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
+        TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID,
       ],
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),

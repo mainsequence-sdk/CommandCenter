@@ -3,39 +3,27 @@
     "id": 5001,
     "account_name": "Alpha Rates Book",
     "display_name": "Alpha Rates Book",
-    "account_number": "AR-001",
-    "broker_name": "Interactive Brokers",
-    "execution_venue_name": "CME",
-    "account_type": "Futures",
-    "currency": "USD",
-    "status": "Active",
-    "creation_date": "2025-01-15T09:30:00Z",
-    "description": "Primary rates trading account for systematic macro allocations."
+    "execution_venue": 1001,
+    "is_paper": true,
+    "account_is_active": true,
+    "creation_date": "2025-01-15T09:30:00Z"
   },
   {
     "id": 5002,
     "account_name": "Macro Overlay Book",
     "display_name": "Macro Overlay Book",
-    "account_number": "MO-014",
-    "broker_name": "Goldman Sachs",
-    "execution_venue_name": "NYSE",
-    "account_type": "Cash",
-    "currency": "USD",
-    "status": "Active",
-    "creation_date": "2025-02-07T13:00:00Z",
-    "description": "Equity and ETF overlay account used by tactical rotation mandates."
+    "execution_venue": 1002,
+    "is_paper": false,
+    "account_is_active": true,
+    "creation_date": "2025-02-07T13:00:00Z"
   },
   {
     "id": 5003,
     "account_name": "Commodities Overlay",
     "display_name": "Commodities Overlay",
-    "account_number": "CO-221",
-    "broker_name": "JP Morgan",
-    "execution_venue_name": "NYMEX",
-    "account_type": "Futures",
-    "currency": "USD",
-    "status": "Restricted",
-    "creation_date": "2025-03-03T16:45:00Z",
-    "description": "Commodity sleeve account with exchange-specific trading restrictions."
+    "execution_venue": 1003,
+    "is_paper": true,
+    "account_is_active": false,
+    "creation_date": "2025-03-03T16:45:00Z"
   }
 ]
