@@ -40,7 +40,11 @@ function resolveSourceValueDescriptor(source: {
   if (source.value !== undefined) {
     const rawInferredDescriptor = inferWidgetValueDescriptor(
       source.value,
-      declaredDescriptor?.contract ?? source.contractId,
+      declaredDescriptor
+        ? declaredDescriptor.kind === "unknown"
+          ? undefined
+          : declaredDescriptor.contract
+        : source.contractId,
     );
     const inferredDescriptor =
       coerceDescriptorContract(rawInferredDescriptor) ?? rawInferredDescriptor;

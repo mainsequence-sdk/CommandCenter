@@ -49,7 +49,11 @@ backend-owned connection instances.
 - The settings test action uses the same request builder as runtime execution. Workspace dates are
   read from dashboard controls; custom fixed dates are stored in props. Returned frames render
   through `src/connections/ConnectionQueryResponsePreview.tsx`, matching Data Sources Explore
-  because both surfaces use `ConnectionQueryWorkbench.tsx`.
+  because both surfaces use `ConnectionQueryWorkbench.tsx`. When a saved setting path is backed by
+  a widget reference expression, the settings request preview and test action resolve that
+  reference-backed draft value through the shared dependency layer before building the request, so
+  the preview payload matches runtime execution instead of echoing the raw `$(widget).source`
+  authoring string.
 - When the shared settings workbench runs for a real widget instance, the test action also
   publishes the resulting runtime frame back onto that widget's live runtime state. This keeps the
   widget's own runtime card, hidden managed-source consumers, and downstream `sourceData` bindings

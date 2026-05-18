@@ -110,6 +110,10 @@ Use these local docs before reading the implementation in code:
 - The shared binding model now also covers platform-owned reference targets for existing widget
   title and saved prop paths. The platform appends those generic targets automatically, so widgets
   do not need to redeclare each reusable setting field as a bespoke input port.
+- Shared widget settings also support one exact whole-value widget reference language on top of
+  that same graph model. A literal such as `$(table-1).activeRow.symbol` or
+  `$(query-source).props.query.symbols[0]` is compiled into canonical bindings instead of being
+  persisted as a second expression graph.
 - Widget settings are instance-scoped, not global to the widget definition. Two surfaces can use the same widget definition with different props.
 - App-owned surfaces can use preconfigured widget instances so users consume the widget without needing to configure it.
 - Custom dashboard and workspace flows are the place where instance settings are intended to be user-editable.

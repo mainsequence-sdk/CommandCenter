@@ -107,7 +107,8 @@ Accepted source outputs:
 
 Required logical fields:
 
-- asset join key
+- exact `unique_identifier` column for the asset join key
+- exact `Symbol` column for the canonical display symbol
 - at least one latest value field, usually price or last
 
 Optional logical fields:
@@ -356,6 +357,13 @@ generic frame metadata that already defines semantics and visuals. This keeps th
 opinionated enough to render a useful screener immediately, while preserving local instance
 overrides in the widget settings UI.
 
+Ownership clarification:
+
+- `meta.marketAsset` is Markets domain metadata owned by the Asset Screener semantic adapter.
+- `meta.tableTransforms` and `meta.tableVisuals` are shared table/tabular metadata owned by the
+  core table pipeline. The screener inherits them through its table-backed frame instead of
+  defining a private display-metadata contract.
+
 Rules:
 
 - `columnConfigMode: "source"` is the default for the Asset Screener.
@@ -388,6 +396,9 @@ Rules:
   therefore map to table-native concepts: column overrides, conditional threshold rules, visual
   ranges, data bars, heatmaps, and optional custom cells such as sparkline cells. `colorScale`
   remains only a compatibility shorthand that can be converted into table conditional rules.
+- Asset Screener settings must mount the shared core Table settings in presentation mode. The
+  screener remains responsible for seed/live source semantics, but table display configuration
+  should use the same settings surface and persisted table props as the core Table widget.
 - The shared table frame must be used in screener mode: floating per-column filters disabled and a
   transparent workspace surface. The generic Table widget can keep its card-like table controls;
   the Asset Screener must not visually degrade into a nested generic table.
@@ -403,7 +414,7 @@ Backend-driven source config example:
   "status": "ready",
   "columns": [
     "unique_identifier",
-    "ticker",
+    "Symbol",
     "sector",
     "as_of",
     "last_price",
@@ -416,7 +427,7 @@ Backend-driven source config example:
   "rows": [
     {
       "unique_identifier": "uid:AAPL",
-      "ticker": "AAPL",
+      "Symbol": "AAPL",
       "sector": "Technology",
       "as_of": "2026-05-17T14:30:00.000Z",
       "last_price": 112.25,
@@ -428,7 +439,7 @@ Backend-driven source config example:
     },
     {
       "unique_identifier": "uid:MSFT",
-      "ticker": "MSFT",
+      "Symbol": "MSFT",
       "sector": "Technology",
       "as_of": "2026-05-17T14:30:00.000Z",
       "last_price": 219.5,
@@ -444,7 +455,7 @@ Backend-driven source config example:
       "role": "snapshot",
       "fieldRoles": [
         { "field": "unique_identifier", "role": "assetKey" },
-        { "field": "ticker", "role": "symbol" },
+        { "field": "Symbol", "role": "symbol" },
         { "field": "sector", "role": "sector" },
         { "field": "as_of", "role": "observedAt" },
         { "field": "last_price", "role": "value", "valueKey": "price" },
@@ -719,10 +730,10 @@ Rules:
   `add`, and `multiply`, plus literal field/value expressions.
 - Missing operands, non-numeric operands in numeric operations, and division by zero resolve to
   `null`.
-- Visual metadata is guidance for the Markets widget, not a new connection output contract.
-- The Asset Screener is a table-backed market adapter. It derives market rows, schema, table column
-  overrides, conditional rules, and sparkline cell renderers, then delegates rendering to the core
-  table frame view.
+- Visual metadata is shared table/tabular metadata, not a new connection output contract.
+- The Asset Screener is a table-backed market adapter. It derives market rows and semantic column
+  meaning, then delegates shared table presentation metadata, schema defaults, conditional rules,
+  and rendering to the core table pipeline.
 - Visual `format`, ranges, `kind: "bar"`, and `kind: "heatmap"` are mapped into the table frame's
   formatting, visual-range, data-bar, and heatmap behavior.
 - In `columnConfigMode: "source"`, visual metadata decides which source/computed fields become
@@ -759,7 +770,7 @@ Representative `seedData` row shape:
 ```ts
 interface MarketAssetSeedRow {
   unique_identifier: string;
-  ticker: string;
+  Symbol: string;
   sector?: string;
   time?: string | number;
   last_price: number;
@@ -778,7 +789,7 @@ Representative generic field mappings:
 {
   "seed": {
     "assetKeyField": "unique_identifier",
-    "symbolField": "ticker",
+    "symbolField": "Symbol",
     "sectorField": "sector",
     "observedAtField": "time",
     "valueFields": {

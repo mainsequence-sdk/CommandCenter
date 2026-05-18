@@ -65,6 +65,7 @@ type QueryPreviewState =
 
 export interface ConnectionQueryWorkbenchProps {
   value: ConnectionQueryWidgetProps;
+  resolvedValue?: ConnectionQueryWidgetProps;
   onChange: (value: ConnectionQueryWidgetProps) => void;
   onTransportVariantChange?: (
     value: ConnectionQueryWidgetProps,
@@ -614,12 +615,14 @@ export function ConnectionQueryWorkbench({
   publishPreviewRuntimeStateToInstanceId,
   onPreviewRuntimeStateChange,
   queryModelFilter,
+  resolvedValue,
   value,
 }: ConnectionQueryWorkbenchProps) {
   const widgetExecution = useDashboardWidgetExecution();
   const connectionInstancesQuery = useConnectionInstances();
   const [previewState, setPreviewState] = useState<QueryPreviewState>({ status: "idle" });
   const normalizedValueProps = normalizeConnectionQueryProps(value);
+  const normalizedResolvedValueProps = normalizeConnectionQueryProps(resolvedValue ?? value);
   const fallbackConnectionRef = connectionInstance
     ? { id: connectionInstance.id, typeId: connectionInstance.typeId }
     : undefined;
@@ -682,22 +685,23 @@ export function ConnectionQueryWorkbench({
   const effectiveTimeRangeMode =
     queryPathUsesTimeRange
       ? workspaceDateRuntimeAvailable
-        ? normalizedProps.timeRangeMode === "fixed"
+        ? normalizedResolvedValueProps.timeRangeMode === "fixed"
           ? "fixed"
           : "dashboard"
         : "fixed"
       : "none";
   const effectiveFixedRange = useMemo(
-    () => resolveEffectiveFixedRange(normalizedProps, fixedRangeFallback ?? dashboardState),
+    () => resolveEffectiveFixedRange(normalizedResolvedValueProps, fixedRangeFallback ?? dashboardState),
     [
       dashboardState,
       fixedRangeFallback,
-      normalizedProps.fixedEndMs,
-      normalizedProps.fixedStartMs,
+      normalizedResolvedValueProps.fixedEndMs,
+      normalizedResolvedValueProps.fixedStartMs,
     ],
   );
   const effectiveProps: ConnectionQueryWidgetProps = {
-    ...normalizedProps,
+    ...normalizedResolvedValueProps,
+    connectionRef: normalizedProps.connectionRef,
     timeRangeMode: effectiveTimeRangeMode,
     ...(effectiveTimeRangeMode === "fixed" ? effectiveFixedRange : {}),
   };

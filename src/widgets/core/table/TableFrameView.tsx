@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import {
   AllCommunityModule,
@@ -73,6 +73,45 @@ export interface TableWidgetSelectionState {
   activeRowIndex?: number;
   activeCell?: TableWidgetActiveCellSelection;
   updatedAtMs: number;
+}
+
+function tableActiveCellBelongsToRow(
+  activeCell: TableWidgetActiveCellSelection | undefined,
+  row: TableFrameGridRow | null,
+) {
+  if (!activeCell || !row) {
+    return false;
+  }
+
+  if (activeCell.rowKey && row.__tableRowKey) {
+    return activeCell.rowKey === row.__tableRowKey;
+  }
+
+  return activeCell.rowIndex === row.__tableRowIndex;
+}
+
+function tableActiveCellFromFocusedCell(
+  api: GridApi<TableFrameGridRow>,
+  row: TableFrameGridRow | null,
+): TableWidgetActiveCellSelection | undefined {
+  if (!row) {
+    return undefined;
+  }
+
+  const focusedCell =
+    typeof api.getFocusedCell === "function" ? api.getFocusedCell() : null;
+  const columnKey = focusedCell?.column.getColId();
+
+  if (!columnKey || focusedCell?.rowIndex !== row.__tableRowIndex) {
+    return undefined;
+  }
+
+  return {
+    rowKey: row.__tableRowKey,
+    rowIndex: row.__tableRowIndex,
+    columnKey,
+    value: row[columnKey] ?? null,
+  };
 }
 
 export interface TableWidgetColumnSchema {
@@ -163,6 +202,9 @@ export interface ResolvedTableWidgetProps {
   columnOverrides: Record<string, TableWidgetColumnOverride>;
   valueLabels: TableWidgetValueLabel[];
   conditionalRules: TableWidgetConditionalRule[];
+  selectionMode?: TableWidgetSelectionMode;
+  selectionKeyFields?: string[];
+  publishSelectionOutputs?: boolean;
 }
 
 interface TableWidgetSchemaValidationIssue {
@@ -184,12 +226,14 @@ export interface TableFrameCustomCellRendererInput {
 
 export type TableFrameCustomCellRenderer = (
   input: TableFrameCustomCellRendererInput,
-) => ReactNode;
+) => ReactNode | undefined;
 
 export interface TableFrameViewProps {
   customCellRenderers?: Record<string, TableFrameCustomCellRenderer>;
   dataErrorMessage?: string | null;
+  debugInstanceId?: string;
   emptyMessage?: string;
+  getRowStyle?: (row: TableWidgetRow | undefined) => CSSProperties | undefined;
   isDataLoading?: boolean;
   quickFilterPlaceholder?: string;
   resolvedProps: ResolvedTableWidgetProps;
@@ -839,6 +883,38 @@ function getColumnTone(
   return numericValue >= 0 ? tokens.primary : tokens.warning;
 }
 
+export function resolveTableGaugeVisual(
+  numericValue: number,
+  range: TableFrameColumnRange,
+  conditionalRule: Pick<TableWidgetConditionalRule, "backgroundColor" | "tone"> | null,
+  tokens: ThemeTokens,
+) {
+  if (!Number.isFinite(numericValue) || numericValue === 0) {
+    return {
+      color:
+        conditionalRule?.backgroundColor ??
+        (conditionalRule?.tone ? resolveSemanticToneColor(conditionalRule.tone, tokens) : tokens.primary),
+      direction: null as "left" | "right" | null,
+      ratio: 0,
+    };
+  }
+
+  const maxAbsFromRange = range
+    ? Math.max(Math.abs(range.min), Math.abs(range.max))
+    : 0;
+  const denominator = maxAbsFromRange > 0 ? maxAbsFromRange : Math.abs(numericValue) || 1;
+
+  return {
+    color:
+      conditionalRule?.backgroundColor ??
+      (conditionalRule?.tone
+        ? resolveSemanticToneColor(conditionalRule.tone, tokens)
+        : getColumnTone(numericValue, range, tokens)),
+    direction: numericValue < 0 ? "left" as const : "right" as const,
+    ratio: clamp(Math.abs(numericValue) / denominator),
+  };
+}
+
 function getBarFillRatio(numericValue: number, range: TableFrameColumnRange) {
   if (!range) {
     return 0;
@@ -891,6 +967,31 @@ function getMatchingConditionalRule(
       (rule) => rule.columnKey === columnKey && evaluateTableWidgetRule(numericValue, rule),
     ) ?? null
   );
+}
+
+function summarizeConditionalRuleForDebug(
+  rule: TableWidgetConditionalRule | null,
+) {
+  if (!rule) {
+    return null;
+  }
+
+  return `${rule.operator}:${rule.value ?? ""}:${rule.tone ?? rule.backgroundColor ?? ""}`;
+}
+
+function resolveDebugTextColor(
+  rule: TableWidgetConditionalRule | null,
+  tokens: ThemeTokens,
+) {
+  if (rule?.textColor) {
+    return rule.textColor;
+  }
+
+  if (rule?.tone) {
+    return resolveConditionalToneStyle(rule, tokens).textColor;
+  }
+
+  return tokens.foreground;
 }
 
 function getAlignmentClasses(
@@ -1067,7 +1168,7 @@ function TableFrameCellRenderer({
   const customCellRenderer = customCellRenderers?.[columnConfig.key];
 
   if (customCellRenderer) {
-    return customCellRenderer({
+    const customContent = customCellRenderer({
       columnConfig,
       formattedValue,
       range,
@@ -1076,6 +1177,10 @@ function TableFrameCellRenderer({
       tokens,
       value: cellValue,
     });
+
+    if (customContent !== undefined) {
+      return customContent;
+    }
   }
 
   const supportsNumericFormatting = supportsNumericDisplay(columnConfig);
@@ -1111,17 +1216,19 @@ function TableFrameCellRenderer({
   }
 
   const fillRatio =
-    supportsNumericFormatting && numericValue !== null && columnConfig.barMode === "fill"
+    supportsNumericFormatting &&
+    numericValue !== null &&
+    columnConfig.barMode === "fill" &&
+    columnConfig.gaugeMode === "none"
       ? getBarFillRatio(numericValue, visualRange)
       : 0;
   const fillTone =
     numericValue !== null ? getColumnTone(numericValue, visualRange, tokens) : tokens.primary;
-  const gaugeRatio =
-    supportsNumericFormatting && numericValue !== null && columnConfig.gaugeMode === "ring"
-      ? getBarFillRatio(numericValue, visualRange)
-      : 0;
-  const gaugeCircumference = 2 * Math.PI * 9;
-  const gaugeStrokeOffset = gaugeCircumference * (1 - gaugeRatio);
+  const showGauge = supportsNumericFormatting && columnConfig.gaugeMode === "ring";
+  const gaugeVisual =
+    showGauge && numericValue !== null
+      ? resolveTableGaugeVisual(numericValue, visualRange, conditionalRule, tokens)
+      : null;
 
   return (
     <div className={`relative flex h-full w-full items-center overflow-hidden ${alignmentClasses}`}>
@@ -1138,30 +1245,49 @@ function TableFrameCellRenderer({
           }}
         />
       ) : null}
-      {columnConfig.gaugeMode === "ring" ? (
-        <span className="relative z-10 mr-2 inline-flex h-5 w-5 shrink-0 items-center justify-center">
-          <svg viewBox="0 0 24 24" className="h-5 w-5 -rotate-90">
-            <circle
-              cx="12"
-              cy="12"
-              r="9"
-              fill="none"
-              stroke={withAlpha(tokens.border, 0.9)}
-              strokeWidth="3"
+      {showGauge ? (
+        <div className="pointer-events-none absolute inset-x-2 top-1/2 z-0 h-2 -translate-y-1/2">
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              backgroundColor: withAlpha(tokens.border, 0.12),
+              boxShadow: `inset 0 0 0 1px ${withAlpha(tokens.border, 0.2)}`,
+            }}
+          />
+          {gaugeVisual && gaugeVisual.direction ? (
+            <div
+              className="absolute inset-y-0"
+              style={{
+                ...(gaugeVisual.direction === "right"
+                  ? {
+                      left: "50%",
+                      width: `${gaugeVisual.ratio * 50}%`,
+                      minWidth: gaugeVisual.ratio > 0 ? "2px" : undefined,
+                      borderRadius: "0 9999px 9999px 0",
+                      background: `linear-gradient(90deg, ${withAlpha(gaugeVisual.color, 0.88)} 0%, ${withAlpha(
+                        gaugeVisual.color,
+                        0.4,
+                      )} 100%)`,
+                    }
+                  : {
+                      right: "50%",
+                      width: `${gaugeVisual.ratio * 50}%`,
+                      minWidth: gaugeVisual.ratio > 0 ? "2px" : undefined,
+                      borderRadius: "9999px 0 0 9999px",
+                      background: `linear-gradient(90deg, ${withAlpha(gaugeVisual.color, 0.4)} 0%, ${withAlpha(
+                        gaugeVisual.color,
+                        0.88,
+                      )} 100%)`,
+                    }),
+                boxShadow: `inset 0 0 0 1px ${withAlpha(gaugeVisual.color, 0.28)}`,
+              }}
             />
-            <circle
-              cx="12"
-              cy="12"
-              r="9"
-              fill="none"
-              stroke={fillTone}
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeDasharray={gaugeCircumference}
-              strokeDashoffset={gaugeStrokeOffset}
-            />
-          </svg>
-        </span>
+          ) : null}
+          <div
+            className="absolute inset-y-0 left-1/2 z-10 w-px -translate-x-1/2"
+            style={{ backgroundColor: withAlpha(tokens.border, 0.72) }}
+          />
+        </div>
       ) : null}
       <span
         className="relative z-10 w-full truncate font-medium tabular-nums"
@@ -1177,6 +1303,7 @@ export function TableFrameView({
   customCellRenderers,
   dataErrorMessage,
   emptyMessage = "No rows were returned for the selected period.",
+  getRowStyle,
   isDataLoading = false,
   quickFilterPlaceholder = "Quick filter rows, labels, and routes",
   resolvedProps,
@@ -1190,12 +1317,14 @@ export function TableFrameView({
   tightness = mainSequenceSpaceTheme.tightness,
   toolbarStart,
   onSelectionChange,
+  debugInstanceId,
 }: TableFrameViewProps) {
   const tightnessMetrics = useMemo(() => getThemeTightnessMetrics(tightness), [tightness]);
   const [quickFilter, setQuickFilter] = useState("");
   const deferredQuickFilter = useDeferredValue(quickFilter);
   const gridApiRef = useRef<GridApi<TableFrameGridRow> | null>(null);
   const isApplyingSelectionRef = useRef(false);
+  const latestSelectionStateRef = useRef<TableWidgetSelectionState | undefined>(selectionState);
   const rowObjects = useMemo(
     () => rowObjectsOverride ?? buildTableWidgetRowObjects(resolvedProps.columns, resolvedProps.rows),
     [resolvedProps.columns, resolvedProps.rows, rowObjectsOverride],
@@ -1240,6 +1369,60 @@ export function TableFrameView({
       ) satisfies Record<string, TableFrameColumnRange>,
     [columns, rowObjects],
   );
+  useEffect(() => {
+    if (!import.meta.env.DEV || !debugInstanceId) {
+      return;
+    }
+
+    const interestingColumns = columns.filter((column) =>
+      column.gaugeMode !== "none" ||
+      column.heatmap ||
+      column.gradientMode === "fill" ||
+      resolvedProps.conditionalRules.some((rule) => rule.columnKey === column.key),
+    );
+
+    if (interestingColumns.length === 0 || rowObjects.length === 0) {
+      return;
+    }
+
+    const rows = interestingColumns.flatMap((column) => {
+      const visualRange = resolveColumnVisualRange(column, columnRanges[column.key] ?? null);
+
+      return rowObjects.flatMap((row, rowIndex) => {
+        const numericValue = getTableWidgetNumericValue(row[column.key]);
+
+        if (numericValue === null) {
+          return [];
+        }
+
+        const matchedRule = getMatchingConditionalRule(resolvedProps, column.key, numericValue);
+        const gaugeVisual =
+          column.gaugeMode !== "none"
+            ? resolveTableGaugeVisual(numericValue, visualRange, matchedRule, resolvedTokens)
+            : null;
+
+        return [{
+          rowIndex,
+          columnKey: column.key,
+          numericValue,
+          matchedRule: summarizeConditionalRuleForDebug(matchedRule),
+          textColor: resolveDebugTextColor(matchedRule, resolvedTokens),
+          gaugeColor: gaugeVisual?.color ?? null,
+          gaugeDirection: gaugeVisual?.direction ?? null,
+          gaugeRatio: gaugeVisual?.ratio ?? null,
+          rangeMin: visualRange?.min ?? null,
+          rangeMax: visualRange?.max ?? null,
+          gaugeMode: column.gaugeMode,
+          heatmap: column.heatmap,
+          gradientMode: column.gradientMode,
+        }];
+      });
+    });
+
+    console.groupCollapsed("[table:cell-visuals]", debugInstanceId);
+    console.table(rows);
+    console.groupEnd();
+  }, [columnRanges, columns, debugInstanceId, resolvedProps, resolvedTokens, rowObjects]);
   const isActiveCell = useCallback(
     (row: TableFrameGridRow | undefined, columnKey: string) => {
       if (!row || !selectionState?.activeCell || selectionMode !== "cell") {
@@ -1406,6 +1589,13 @@ export function TableFrameView({
     }),
     [selectionMode],
   );
+  const publishSelectionChange = useCallback(
+    (selection: TableWidgetSelectionState) => {
+      latestSelectionStateRef.current = selection;
+      onSelectionChange?.(selection);
+    },
+    [onSelectionChange],
+  );
   const handleSelectionChanged = useCallback(
     (event: SelectionChangedEvent<TableFrameGridRow>) => {
       if (
@@ -1419,17 +1609,28 @@ export function TableFrameView({
 
       const selectedRows = event.api.getSelectedRows();
       const activeRow = selectedRows[selectedRows.length - 1] ?? null;
-      onSelectionChange(buildSelectionState(selectedRows, activeRow));
+      const previousActiveCell = latestSelectionStateRef.current?.activeCell;
+      const activeCell = tableActiveCellBelongsToRow(previousActiveCell, activeRow)
+        ? previousActiveCell
+        : tableActiveCellFromFocusedCell(event.api, activeRow);
+
+      publishSelectionChange(buildSelectionState(selectedRows, activeRow, activeCell));
     },
-    [buildSelectionState, onSelectionChange, selectionMode],
+    [
+      buildSelectionState,
+      onSelectionChange,
+      publishSelectionChange,
+      selectionMode,
+    ],
   );
   const handleCellClicked = useCallback(
     (event: CellClickedEvent<TableFrameGridRow>) => {
-      if (selectionMode !== "cell" || !event.data || !onSelectionChange) {
+      const columnKey = event.colDef.field ?? event.column.getColId();
+
+      if (selectionMode === "none" || !event.data || !onSelectionChange) {
         return;
       }
 
-      const columnKey = event.colDef.field ?? event.column.getColId();
       if (!columnKey) {
         return;
       }
@@ -1440,10 +1641,26 @@ export function TableFrameView({
         columnKey,
         value: event.data[columnKey] ?? null,
       };
+      const selectedRows =
+        selectionMode === "multi-row" && typeof event.api?.getSelectedRows === "function"
+          ? event.api.getSelectedRows()
+          : [event.data];
+      const selectedRowsWithActive = selectedRows.some((row) =>
+        row.__tableRowKey && event.data?.__tableRowKey
+          ? row.__tableRowKey === event.data.__tableRowKey
+          : row.__tableRowIndex === event.data?.__tableRowIndex,
+      )
+        ? selectedRows
+        : [...selectedRows, event.data];
 
-      onSelectionChange(buildSelectionState([event.data], event.data, activeCell));
+      publishSelectionChange(buildSelectionState(selectedRowsWithActive, event.data, activeCell));
     },
-    [buildSelectionState, onSelectionChange, selectionMode],
+    [
+      buildSelectionState,
+      onSelectionChange,
+      publishSelectionChange,
+      selectionMode,
+    ],
   );
   const syncGridSelectionFromState = useCallback(
     (api: GridApi<TableFrameGridRow>) => {
@@ -1487,6 +1704,10 @@ export function TableFrameView({
       setQuickFilter("");
     }
   }, [quickFilter, resolvedProps.showSearch]);
+
+  useEffect(() => {
+    latestSelectionStateRef.current = selectionState;
+  }, [selectionState]);
 
   useEffect(() => {
     if (!gridApiRef.current) {
@@ -1598,22 +1819,34 @@ export function TableFrameView({
               }}
               onSelectionChanged={handleSelectionChanged}
               onCellClicked={handleCellClicked}
-              getRowStyle={() =>
-                resolvedProps.zebraRows
-                  ? undefined
-                  : {
-                      backgroundColor: transparentSurface
-                        ? "transparent"
-                        : withAlpha(resolvedTokens.card, 0.98),
-                    }
-              }
+              getRowStyle={(params) => {
+                const baseStyle =
+                  resolvedProps.zebraRows
+                    ? undefined
+                    : {
+                        backgroundColor: transparentSurface
+                          ? "transparent"
+                          : withAlpha(resolvedTokens.card, 0.98),
+                      };
+                const customStyle = getRowStyle?.(params.data);
+
+                if (!baseStyle && !customStyle) {
+                  return undefined;
+                }
+
+                return {
+                  ...baseStyle,
+                  ...customStyle,
+                };
+              }}
             />
           </div>
         )}
 
         {!isDataLoading &&
         !dataErrorMessage &&
-        rowObjects.length === 0 ? (
+        rowObjects.length === 0 &&
+        emptyMessage ? (
           <div
             className={cn(
               "border-t border-border/70 px-4 py-3 text-sm text-muted-foreground",

@@ -1,6 +1,7 @@
 import { getConnectionTypeById } from "@/app/registry";
 import { ConnectionQuerySettingsSurface } from "@/connections/ConnectionQuerySettingsSurface";
 import { useDashboardWidgetRegistry } from "@/dashboards/DashboardWidgetRegistry";
+import { resolveReferenceBackedWidgetState } from "@/dashboards/widget-instance-references";
 import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
@@ -16,6 +17,7 @@ export function ConnectionQueryWidgetSettings({
   draftPresentation,
   editable,
   controllerContext,
+  resolvedInputs,
   onDraftPropsChange,
   onDraftPresentationChange,
 }: Props) {
@@ -25,10 +27,16 @@ export function ConnectionQueryWidgetSettings({
     ? getConnectionTypeById(draftProps.connectionRef.typeId)
     : undefined;
   const useTypedQueryEditor = Boolean(selectedConnectionType?.queryEditor);
+  const resolvedDraftProps = resolveReferenceBackedWidgetState({
+    instanceTitle,
+    props: draftProps,
+    resolvedInputs,
+  }).props as ConnectionQueryWidgetProps;
 
   return (
     <ConnectionQuerySettingsSurface
       value={draftProps}
+      resolvedValue={resolvedDraftProps}
       onChange={onDraftPropsChange}
       editable={editable}
       publishPreviewRuntimeStateToInstanceId={instanceId}

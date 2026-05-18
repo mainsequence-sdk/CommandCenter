@@ -6,10 +6,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TableWidgetSettings } from "@/widgets/core/table/TableWidgetSettings";
 import type {
-  TableWidgetColumnFormat,
-  TableWidgetColumnSchema,
   TableWidgetProps,
-  TableWidgetResolvedFrameInput,
 } from "@/widgets/core/table/tableModel";
 import { useRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import {
@@ -26,10 +23,11 @@ import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import {
   normalizeAssetScreenerProps,
-  resolveAssetScreenerColumnConfigFromResolvedInputs,
+  prepareAssetScreenerColumnsForPersistence,
+  resolveAssetScreenerState,
   type MainSequenceAssetScreenerWidgetProps,
 } from "./assetScreenerModel";
-import type { MarketAssetScreenerColumn } from "../../widget-contracts/marketAssetFrames";
+import { buildAssetScreenerTableFrame } from "./AssetScreenerWidget";
 
 type Props = WidgetSettingsComponentProps<MainSequenceAssetScreenerWidgetProps>;
 
@@ -63,40 +61,6 @@ function parseJsonArray(value: string) {
   }
 }
 
-function tableFormatForScreenerColumn(
-  column: MarketAssetScreenerColumn,
-): Exclude<TableWidgetColumnFormat, "auto"> {
-  if (column.kind === "asset-field" || column.kind === "sparkline") {
-    return "text";
-  }
-
-  if ("format" in column && column.format === "percent") {
-    return "percent";
-  }
-
-  return "number";
-}
-
-function buildTableSettingsFrameInput(
-  columns: MarketAssetScreenerColumn[],
-): TableWidgetResolvedFrameInput {
-  const schemaFallback = columns.map<TableWidgetColumnSchema>((column) => ({
-    key: column.id,
-    label: column.label,
-    format: tableFormatForScreenerColumn(column),
-    minWidth: column.width,
-    categorical: column.kind === "asset-field",
-    heatmapEligible: column.kind !== "asset-field" && column.kind !== "sparkline",
-  }));
-
-  return {
-    columns: columns.map((column) => column.id),
-    rows: [],
-    schemaFallback,
-    sourceLabel: "Asset screener columns",
-  };
-}
-
 function buildTableDraftProps(
   props: MainSequenceAssetScreenerWidgetProps,
 ): TableWidgetProps {
@@ -105,11 +69,11 @@ function buildTableDraftProps(
   return {
     tableSourceMode: "bound",
     density: table.density ?? props.density ?? "compact",
-    showToolbar: table.showToolbar ?? true,
-    showSearch: table.showSearch ?? true,
+    showToolbar: false,
+    showSearch: false,
     zebraRows: table.zebraRows ?? false,
-    pagination: table.pagination ?? false,
-    pageSize: table.pageSize ?? 100,
+    pagination: false,
+    pageSize: 100,
     schema: table.schema,
     columnOverrides: table.columnOverrides,
     valueLabels: table.valueLabels,
@@ -123,11 +87,7 @@ function buildTableDraftProps(
 function pickTableSettings(value: TableWidgetProps): Partial<TableWidgetProps> {
   return {
     density: value.density,
-    showToolbar: value.showToolbar,
-    showSearch: value.showSearch,
     zebraRows: value.zebraRows,
-    pagination: value.pagination,
-    pageSize: value.pageSize,
     schema: value.schema,
     columnOverrides: value.columnOverrides,
     valueLabels: value.valueLabels,
@@ -153,20 +113,26 @@ export function AssetScreenerWidgetSettings({
 }: Props) {
   const props = normalizeAssetScreenerProps(draftProps);
   const runtimeDataStore = useRuntimeDataStore();
-  const columnConfig = useMemo(
+  const state = useMemo(
     () =>
-      resolveAssetScreenerColumnConfigFromResolvedInputs({
+      resolveAssetScreenerState({
         props,
         resolvedInputs,
         runtimeDataStore,
       }),
     [props, resolvedInputs, runtimeDataStore],
   );
-  const displayedColumns = columnConfig.columns;
-  const sourceColumns = columnConfig.sourceColumns ?? [];
+  const displayedColumns = state.columns;
+  const sourceColumns = state.sourceColumns ?? [];
   const tableFrameInput = useMemo(
-    () => buildTableSettingsFrameInput(displayedColumns),
-    [displayedColumns],
+    () =>
+      buildAssetScreenerTableFrame({
+        columns: displayedColumns,
+        rows: [],
+        sourceColumns,
+        sourceFrame: state.sourceFrame,
+      }).frame,
+    [displayedColumns, sourceColumns, state.sourceFrame],
   );
   const tableDraftProps = useMemo(
     () => buildTableDraftProps(props),
@@ -329,8 +295,8 @@ export function AssetScreenerWidgetSettings({
           <p className="text-xs text-destructive">{mappingError}</p>
         ) : (
           <p className={descriptionClass}>
-            Example: {"{"} "seed": {"{"} "assetKeyField": "symbol", "valueFields": {"{"}
-            "price": "last_price" {"}"} {"}"} {"}"}
+            Example: {"{"} "seed": {"{"} "assetKeyField": "unique_identifier",
+            "symbolField": "Symbol", "valueFields": {"{"} "price": "last_price" {"}"} {"}"} {"}"}
           </p>
         )}
       </section>
@@ -347,7 +313,7 @@ export function AssetScreenerWidgetSettings({
         <label className={fieldClass}>
           <WidgetSettingFieldLabel
             className={labelClass}
-            help="Source metadata lets the backend propose the table columns through meta.marketAsset, meta.tableTransforms, and meta.tableVisuals. Instance override saves a local copy that wins over source metadata."
+            help="Source metadata lets the backend propose the table columns through meta.marketAsset, meta.tableTransforms, and meta.tableVisuals. Instance override saves only the screener column semantics locally; shared table visuals still resolve from live source metadata or shared table settings."
           >
             Column configuration
           </WidgetSettingFieldLabel>
@@ -361,7 +327,10 @@ export function AssetScreenerWidgetSettings({
               onDraftPropsChange({
                 ...props,
                 columnConfigMode: nextMode,
-                columns: nextMode === "custom" ? displayedColumns : undefined,
+                columns:
+                  nextMode === "custom"
+                    ? prepareAssetScreenerColumnsForPersistence(displayedColumns)
+                    : undefined,
               });
             }}
           >
@@ -398,9 +367,13 @@ export function AssetScreenerWidgetSettings({
             onDraftPropsChange({
               ...props,
               columnConfigMode: "custom",
-              columns: normalizedColumns,
+              columns: prepareAssetScreenerColumnsForPersistence(normalizedColumns),
             });
-            setColumnsText(stringifyJson(normalizedColumns));
+            setColumnsText(
+              stringifyJson(
+                prepareAssetScreenerColumnsForPersistence(normalizedColumns),
+              ),
+            );
           }}
         />
         {columnsError ? (
@@ -408,9 +381,9 @@ export function AssetScreenerWidgetSettings({
         ) : (
           <p className={descriptionClass}>
             {props.columnConfigMode === "custom"
-              ? "This instance override wins over backend metadata until you switch back to Source metadata."
-              : columnConfig.source === "source"
-                ? "Derived from source metadata. Switch to Instance override to edit and save a local copy."
+              ? "This instance override owns the screener column semantics until you switch back to Source metadata. Shared table visuals still resolve from the live source or local table settings."
+              : state.columnConfigSource === "source"
+                ? "Derived from source metadata. Switch to Instance override to edit and save a local semantic copy."
                 : "No source column metadata is available yet. Bind a semantic table or switch to Instance override to define local columns."}
           </p>
         )}
@@ -420,12 +393,16 @@ export function AssetScreenerWidgetSettings({
             type="button"
             variant="outline"
             onClick={() => {
-              setColumnsText(stringifyJson(sourceColumns));
+              setColumnsText(
+                stringifyJson(
+                  prepareAssetScreenerColumnsForPersistence(sourceColumns),
+                ),
+              );
               setColumnsError(null);
               onDraftPropsChange({
                 ...props,
                 columnConfigMode: "custom",
-                columns: sourceColumns,
+                columns: prepareAssetScreenerColumnsForPersistence(sourceColumns),
               });
             }}
           >
@@ -460,6 +437,8 @@ export function AssetScreenerWidgetSettings({
           instanceTitle={instanceTitle}
           onInstanceTitleChange={onInstanceTitleChange}
           editable={editable}
+          hideToolbarSearchToggles
+          hidePaginationControls
           presentationOnly
           presentationFrameInput={tableFrameInput}
           resetLabel="Reset table settings"

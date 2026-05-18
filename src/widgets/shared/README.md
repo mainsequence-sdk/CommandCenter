@@ -9,7 +9,9 @@ This directory contains reusable widget presentation primitives that are shared 
   treatment derived from shared execution state plus widget runtime state.
 - `chrome.ts`: shared helpers for widget chrome options such as per-instance header visibility, plus shared widget-shell markers used by themes to style widget containers consistently.
 - `widget-settings.tsx`: shared settings trigger plus the reusable full-page settings panel used to edit widget instances outside the old modal flow. It also exports the shared duplicate trigger used by workspace widget chrome.
-- `widget-setting-reference-control.tsx`: compact inline reference affordance used by shared settings surfaces. It keeps widget title and schema-backed setting references in the field that owns the literal value instead of generating a second authoring surface under the bindings tab.
+  The panel now also compiles exact whole-value widget reference expressions such as
+  `$(prices-table).activeRow.symbol` from card-title and prop-path literals into canonical
+  bindings during authoring, so string-authored references still reuse the normal widget graph.
 - `WidgetSourceExplorer.tsx`: reusable source widget/source output explorer used by binding UIs. It keeps bindings port-to-port while layering collection-item selection, nested value exploration, transform selection, compatibility messaging, a collapsed-by-default preview disclosure, and a richer source-widget picker (instance label + widget type + widget id) on top of structured output descriptors. Binding panels can use it for both widget-authored outputs and platform-synthesized existing-state outputs such as widget title, props, and runtime state.
 - `WidgetBindingPanel.tsx`: shared bindings editor for true widget IO inputs. It now keeps noisy metadata such as input-effect details behind collapsed-by-default disclosures so the main binding flow stays scannable.
   Input sections are intentionally rendered with prominent primary-toned headers so labels such as `Seed data` and `Live updates` read as the dominant structure in the page.
@@ -64,6 +66,16 @@ This directory contains reusable widget presentation primitives that are shared 
 - `widget-setting-help.tsx`: shared `(i)` field-help tooltip primitives for widget settings and
   generated input forms. Use this instead of local tooltip implementations when a widget field needs
   concise inline guidance.
+- `widget-variable-reference-input.tsx`: provider and inline picker helpers that make base text
+  inputs and textareas inside widget settings aware of the whole-value widget reference language.
+  When a supported field receives `$(`, it offers referenceable workspace widgets by label, type,
+  and stable instance id, then inserts `$(widget-instance-id)` into the active field. After a widget
+  token and `.`, the same picker completes exposed source roots; after a source root and `.`, it
+  completes descriptor-backed object fields when known. Enter/Tab commits the selected completion.
+  Completed whole-value references render as removable token UI in shared base text inputs so reference values do not look like ordinary
+  literal strings. Custom settings controls that do not use the shared base inputs can opt in with
+  `ms-widget-variable-reference-input` or
+  `data-widget-variable-reference-input="true"` while inside the shared settings provider.
 - `widget-canvas-controls.tsx`: host for schema fields that are exposed as external companion cards beside a widget instance. The workspace studio still uses it to edit exposed-field state, while the shared dashboard viewer now renders companion fields through the dashboard canvas-item/runtime layout path instead of widget-local overlays.
 - `form-density.ts`: shared spacing and control-density classes for widget settings forms that need a tighter configuration surface.
   It also exposes reusable compact table-density classes for settings previews.
@@ -109,10 +121,32 @@ This directory contains reusable widget presentation primitives that are shared 
 - Shared binding surfaces now also support platform-owned setting targets. A widget instance can
   bind upstream values into its existing card title or discovered saved prop paths without the
   widget definition declaring one bespoke input per setting field.
-- Shared settings surfaces should treat those platform-owned setting bindings as an authoring detail,
-  not as a second primary configuration screen. When a setting is schema-backed, keep its literal
-  control in place and surface the reference mode through the compact inline link affordance
-  instead of duplicating the setting under the bindings tab.
+- Shared settings now support one exact whole-value reference language on top of that same binding
+  model. When the saved literal value is one widget expression such as
+  `$(table-1).activeRow.symbol`, the settings layer compiles it into the corresponding canonical
+  binding plus ordered transform steps instead of persisting a second expression graph.
+  If a saved expression is present but the generated binding is missing or stale, the settings panel
+  hydrates the generated binding into the local draft so `Save settings` is enabled and can repair
+  the widget instance.
+- Shared settings wrap the editable surface in a variable-reference input provider. Base `Input`
+  and `Textarea` controls only activate this behavior inside that provider, so non-widget forms keep
+  the normal UI behavior. Non-text input types such as numeric controls opt out. Custom text inputs
+  should use `ms-widget-variable-reference-input` only when they are part of a widget setting that
+  accepts the reference language.
+- Variable completion uses the same source-widget index as expression compilation. Source-root
+  completion is driven by declared outputs plus platform roots, and nested field completion is driven
+  by widget value descriptors or descriptors inferred from resolved runtime values.
+- Completed whole-value references should render as removable tokens in supported settings fields.
+  Tokenization is a view over the expression and canonical binding only; it must not introduce a
+  second saved value shape.
+- Shared settings surfaces should treat platform-owned setting bindings as an authoring detail, not
+  as a second primary configuration screen. When a setting is schema-backed, keep its literal control
+  in place and surface reference authoring through the variable-aware owning input with `$(`.
+- Do not add a separate inline chain/link picker beside title or schema-backed setting fields. That
+  older mechanism was removed because it created a competing settings reference workflow.
+- Expression-authored references are still editable through the owning literal field. Legacy
+  non-expression setting bindings may remain resolvable for existing workspaces, but new settings
+  reference authoring should happen in the field text through the widget-reference language.
 - The separate bindings tab is now for true widget IO only. Shared settings surfaces hide all
   synthetic title/prop-path targets there so users do not have to choose between editing one
   setting in two different places.

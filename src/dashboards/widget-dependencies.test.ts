@@ -15,9 +15,16 @@ import {
   materializeRuntimeTabularFrame,
   storeTabularFrameRuntimeState,
 } from "@/widgets/shared/runtime-data-store";
+import {
+  CORE_VALUE_JSON_CONTRACT,
+} from "@/widgets/shared/value-contracts";
 import { defineWidget, type WidgetDefinition } from "@/widgets/types";
 
 import { createDashboardWidgetDependencyModel } from "./widget-dependencies";
+import {
+  WIDGET_REFERENCE_TITLE_INPUT_ID,
+  resolveReferenceBackedWidgetState,
+} from "./widget-instance-references";
 
 const graphWidget = defineWidget({
   id: "graph",
@@ -102,10 +109,51 @@ const connectionStreamWidget = defineWidget({
   component: () => null,
 });
 
+const jsonInteractionSourceWidget = defineWidget({
+  id: "json-interaction-source",
+  widgetVersion: "1.0.0",
+  title: "JSON Interaction Source",
+  description: "JSON Interaction Source",
+  category: "Core",
+  kind: "custom",
+  source: "core",
+  io: {
+    outputs: [
+      {
+        id: "activeRow",
+        label: "Active row",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        valueDescriptor: {
+          kind: "unknown",
+          contract: CORE_VALUE_JSON_CONTRACT,
+        },
+        resolveValue: ({ runtimeState }) => runtimeState?.row,
+      },
+      {
+        id: "activeCellValue",
+        label: "Active cell value",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        valueDescriptor: {
+          kind: "unknown",
+          contract: CORE_VALUE_JSON_CONTRACT,
+        },
+        resolveValue: ({ runtimeState }) => runtimeState?.value,
+      },
+    ],
+  },
+  buildAgentSnapshot: () => ({
+    displayKind: "custom",
+    state: "idle",
+    summary: "JSON interaction source test widget.",
+  }),
+  component: () => null,
+});
+
 const widgetDefinitions = new Map<string, WidgetDefinition>([
   ["graph", graphWidget],
   ["connection-query", connectionQueryWidget],
   ["connection-stream-query", connectionStreamWidget],
+  ["json-interaction-source", jsonInteractionSourceWidget],
 ]);
 
 function resolveWidgetDefinition(widgetId: string) {
@@ -278,5 +326,125 @@ describe("createDashboardWidgetDependencyModel", () => {
       { id: "a", value: 1 },
       { id: "b", value: 2 },
     ]);
+  });
+
+  it("infers scalar contracts from unknown JSON interaction outputs for reference-backed titles", () => {
+    const widgets: DashboardWidgetInstance[] = [
+      widget({
+        id: "graph-1",
+        widgetId: "graph",
+        title: "$(source-1).activeCellValue",
+        bindings: {
+          [WIDGET_REFERENCE_TITLE_INPUT_ID]: {
+            sourceWidgetId: "source-1",
+            sourceOutputId: "activeCellValue",
+          },
+        },
+      }),
+      widget({
+        id: "source-1",
+        widgetId: "json-interaction-source",
+        runtimeState: {
+          value: "BTCUSDT",
+        },
+      }),
+    ];
+
+    const model = createDashboardWidgetDependencyModel(widgets, resolveWidgetDefinition);
+    const resolvedInputs = model.resolveInputs("graph-1");
+    const titleInput = resolvedInputs?.[WIDGET_REFERENCE_TITLE_INPUT_ID];
+    const resolvedTitleInput = Array.isArray(titleInput) ? titleInput[0] : titleInput;
+
+    expect(resolvedTitleInput).toMatchObject({
+      status: "valid",
+      contractId: "core.value.string@v1",
+      value: "BTCUSDT",
+    });
+    expect(
+      resolveReferenceBackedWidgetState({
+        instanceTitle: widgets[0]?.title,
+        props: {},
+        resolvedInputs,
+      }).title,
+    ).toBe("BTCUSDT");
+  });
+
+  it("resolves expression-authored titles even before their generated binding has been persisted", () => {
+    const widgets: DashboardWidgetInstance[] = [
+      widget({
+        id: "graph-1",
+        widgetId: "graph",
+        title: "$(source-1).activeCellValue",
+      }),
+      widget({
+        id: "source-1",
+        widgetId: "json-interaction-source",
+        runtimeState: {
+          value: "ETHUSDT",
+        },
+      }),
+    ];
+
+    const model = createDashboardWidgetDependencyModel(widgets, resolveWidgetDefinition);
+    const resolvedInputs = model.resolveInputs("graph-1");
+
+    expect(
+      resolveReferenceBackedWidgetState({
+        instanceTitle: widgets[0]?.title,
+        props: {},
+        resolvedInputs,
+      }).title,
+    ).toBe("ETHUSDT");
+    expect(model.variableRegistry.entries).toEqual([
+      expect.objectContaining({
+        key: {
+          sourceWidgetId: "source-1",
+          sourceOutputId: "activeCellValue",
+          transformSignature: "identity",
+        },
+      }),
+    ]);
+  });
+
+  it("infers object fields from unknown JSON interaction outputs for path references", () => {
+    const widgets: DashboardWidgetInstance[] = [
+      widget({
+        id: "graph-1",
+        widgetId: "graph",
+        title: "$(source-1).activeRow.symbol",
+        bindings: {
+          [WIDGET_REFERENCE_TITLE_INPUT_ID]: {
+            sourceWidgetId: "source-1",
+            sourceOutputId: "activeRow",
+            transformSteps: [
+              {
+                id: "extract-path",
+                path: ["symbol"],
+              },
+            ],
+          },
+        },
+      }),
+      widget({
+        id: "source-1",
+        widgetId: "json-interaction-source",
+        runtimeState: {
+          row: {
+            symbol: "ETHUSDT",
+          },
+        },
+      }),
+    ];
+
+    const model = createDashboardWidgetDependencyModel(widgets, resolveWidgetDefinition);
+    const resolvedInputs = model.resolveInputs("graph-1");
+    const titleInput = resolvedInputs?.[WIDGET_REFERENCE_TITLE_INPUT_ID];
+    const resolvedTitleInput = Array.isArray(titleInput) ? titleInput[0] : titleInput;
+
+    expect(resolvedTitleInput).toMatchObject({
+      status: "valid",
+      contractId: "core.value.string@v1",
+      value: "ETHUSDT",
+    });
   });
 });

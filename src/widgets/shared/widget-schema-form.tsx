@@ -2,14 +2,8 @@ import { useMemo } from "react";
 
 import { LayoutDashboard } from "lucide-react";
 
-import { useResolvedWidgetIo } from "@/dashboards/DashboardWidgetDependencies";
-import { parseWidgetReferencePropInputPath } from "@/dashboards/widget-instance-references";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import {
-  WidgetSettingReferenceControl,
-  updateSingleWidgetBinding,
-} from "@/widgets/shared/widget-setting-reference-control";
 import {
   resolveWidgetFieldState,
   updateWidgetFieldExposure,
@@ -36,11 +30,8 @@ export function WidgetSchemaForm<
   TContext = unknown,
 >({
   widget,
-  instanceId,
   draftProps,
-  draftBindings,
   draftPresentation,
-  onDraftBindingsChange,
   onDraftPropsChange,
   onDraftPresentationChange,
   editable,
@@ -58,25 +49,11 @@ export function WidgetSchemaForm<
   context: TContext;
 }) {
   const schema = widget.schema as WidgetSettingsSchema<TProps, TContext> | undefined;
-  const resolvedIo = useResolvedWidgetIo(instanceId);
   const visibleFields = useVisibleWidgetSchemaFields(widget, draftProps, editable, context);
   const visibleFieldIds = useMemo(
     () => new Set(visibleFields.map((field) => field.id)),
     [visibleFields],
   );
-  const referenceInputsByFieldId = useMemo(() => {
-    const entries = (resolvedIo?.inputs ?? []).flatMap((input) => {
-      const path = parseWidgetReferencePropInputPath(input.id);
-
-      if (!path || path.length === 0) {
-        return [];
-      }
-
-      return [[path.join("."), input] as const];
-    });
-
-    return new Map(entries);
-  }, [resolvedIo?.inputs]);
 
   if (!schema || visibleFields.length === 0) {
     return null;
@@ -113,9 +90,6 @@ export function WidgetSchemaForm<
 
                 const fieldState = resolveWidgetFieldState(draftPresentation, field, index);
                 const canPop = field.pop?.canPop === true;
-                const referenceInput = referenceInputsByFieldId.get(field.id);
-                const referenceBinding = referenceInput ? draftBindings?.[referenceInput.id] : undefined;
-                const referenceActive = Boolean(referenceBinding);
 
                 return (
                   <div
@@ -134,20 +108,6 @@ export function WidgetSchemaForm<
                       </WidgetSettingFieldLabel>
 
                       <div className="flex items-center gap-2">
-                        {referenceInput && onDraftBindingsChange ? (
-                          <WidgetSettingReferenceControl
-                            editable={editable}
-                            instanceId={instanceId}
-                            input={referenceInput}
-                            value={referenceBinding}
-                            onBindingChange={(binding) => {
-                              onDraftBindingsChange(
-                                updateSingleWidgetBinding(draftBindings, referenceInput.id, binding),
-                              );
-                            }}
-                          />
-                        ) : null}
-
                         {canPop ? (
                           <Button
                             type="button"
@@ -187,12 +147,7 @@ export function WidgetSchemaForm<
                       </div>
                     </div>
 
-                    <div
-                      className={cn(
-                        "min-h-0",
-                        referenceActive ? "pointer-events-none opacity-60" : undefined,
-                      )}
-                    >
+                    <div className="min-h-0">
                       <SettingsRenderer
                         field={field}
                         widget={widget}
@@ -200,7 +155,7 @@ export function WidgetSchemaForm<
                         onDraftPropsChange={onDraftPropsChange}
                         draftPresentation={draftPresentation}
                         onDraftPresentationChange={onDraftPresentationChange}
-                        editable={editable && !referenceActive}
+                        editable={editable}
                         context={context}
                       />
                     </div>

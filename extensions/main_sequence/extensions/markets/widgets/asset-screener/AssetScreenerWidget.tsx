@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { AlertTriangle, Database } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { Database } from "lucide-react";
 
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import {
@@ -7,14 +7,21 @@ import {
   type ResolvedTableWidgetProps,
   type TableFrameCustomCellRenderer,
   type TableWidgetCellValue,
-  type TableWidgetColumnOverride,
   type TableWidgetColumnSchema,
-  type TableWidgetConditionalRule,
   type TableWidgetFrameRow,
   type TableWidgetRow,
-  type TableWidgetTone,
 } from "@/widgets/core/table/TableFrameView";
-import type { TableWidgetProps } from "@/widgets/core/table/tableModel";
+import {
+  buildTableWidgetSourceVisualContractFromFrame,
+  resolveTableWidgetPropsWithFrame,
+  type TableWidgetProps,
+  type TableWidgetResolvedFrameInput,
+} from "@/widgets/core/table/tableModel";
+import { useOptionalTheme } from "@/themes/ThemeProvider";
+import { mainSequenceSpaceTheme } from "@/themes/presets/main-sequence-space";
+import { useIncrementalTabularConsumerBindingState } from "@/widgets/shared/incremental-tabular-consumer";
+import { useRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
+import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 import type { ResolvedWidgetInput, ResolvedWidgetInputs, WidgetComponentProps } from "@/widgets/types";
 
 import {
@@ -36,13 +43,13 @@ import {
 } from "../../widget-contracts/marketAssetFrames";
 
 type Props = WidgetComponentProps<MainSequenceAssetScreenerWidgetProps>;
-
-interface AssetScreenerTableFrame {
-  columns: string[];
-  rows: TableWidgetFrameRow[];
-  schemaFallback: TableWidgetColumnSchema[];
-  sourceLabel?: string;
-}
+type AssetScreenerTableRowObject = TableWidgetRow & {
+  __assetKey?: string;
+  __groupCount?: number;
+  __groupHeader?: boolean;
+  __groupLabel?: string;
+};
+const assetScreenerBlankCellValue = " ";
 
 function firstResolvedInput(
   resolvedInputs: ResolvedWidgetInputs | undefined,
@@ -100,23 +107,96 @@ function normalizeTableCellValue(value: MarketAssetScalarValue | undefined): Tab
   return value;
 }
 
-function getColumnVisual(row: MarketAssetScreenerRow, column: MarketAssetScreenerColumn) {
-  if (column.kind === "asset-field") {
-    return column.visual ?? row.visuals[column.id] ?? row.visuals[String(column.field)];
-  }
-
-  if (column.kind === "sparkline") {
-    return column.visual ?? row.visuals[column.id] ?? row.visuals[column.valueField];
-  }
-
-  return column.visual ?? row.visuals[column.id] ?? row.visuals[column.valueField];
+function normalizeFieldMatch(value: string | undefined) {
+  return value ? value.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() : "";
 }
 
-function getSourceColumnVisual(
-  rows: MarketAssetScreenerRow[],
+function derivedSourceFieldIdsForReturnColumn(
+  column: Extract<MarketAssetScreenerColumn, { kind: "return" }>,
+) {
+  if (column.returnMode !== "percent") {
+    return [];
+  }
+
+  if (column.valueField !== "price") {
+    return [];
+  }
+
+  if (column.referenceKey === "previousClose") {
+    return ["oneDayReturn", "one_day_return"];
+  }
+
+  if (column.referenceKey === "oneMonthAgo") {
+    return ["oneMonthReturn", "one_month_return"];
+  }
+
+  if (column.referenceKey === "yearStart") {
+    return ["ytdReturn", "ytd_return"];
+  }
+
+  if (column.referenceKey === "oneYearAgo") {
+    return ["oneYearReturn", "one_year_return"];
+  }
+
+  return [];
+}
+
+function areSemanticallyEquivalentColumns(
+  left: MarketAssetScreenerColumn,
+  right: MarketAssetScreenerColumn,
+) {
+  if (left.kind === "asset-field" && right.kind === "asset-field") {
+    return String(left.field) === String(right.field);
+  }
+
+  if (left.kind === "sparkline" && right.kind === "sparkline") {
+    return left.valueField === right.valueField && left.historyKey === right.historyKey;
+  }
+
+  if (left.kind === "latest-value" && right.kind === "latest-value") {
+    return left.valueField === right.valueField;
+  }
+
+  if (left.kind === "reference-value" && right.kind === "reference-value") {
+    return left.valueField === right.valueField && left.referenceKey === right.referenceKey;
+  }
+
+  if (left.kind === "return" && right.kind === "return") {
+    return left.valueField === right.valueField &&
+      left.referenceKey === right.referenceKey &&
+      left.returnMode === right.returnMode;
+  }
+
+  if (left.kind === "latest-value" && right.kind === "return") {
+    const derivedKeys = derivedSourceFieldIdsForReturnColumn(right).map(normalizeFieldMatch);
+    return derivedKeys.includes(normalizeFieldMatch(left.valueField)) ||
+      derivedKeys.includes(normalizeFieldMatch(left.id));
+  }
+
+  if (left.kind === "return" && right.kind === "latest-value") {
+    const derivedKeys = derivedSourceFieldIdsForReturnColumn(left).map(normalizeFieldMatch);
+    return derivedKeys.includes(normalizeFieldMatch(right.valueField)) ||
+      derivedKeys.includes(normalizeFieldMatch(right.id));
+  }
+
+  return false;
+}
+
+function resolveSourceColumnAlias(
+  sourceColumns: MarketAssetScreenerColumn[] | undefined,
   column: MarketAssetScreenerColumn,
 ) {
-  return column.visual ?? rows.map((row) => getColumnVisual(row, column)).find(Boolean);
+  const directMatch = sourceColumns?.find((candidate) => candidate.id === column.id);
+
+  if (directMatch) {
+    return directMatch.id;
+  }
+
+  const sourceColumn = sourceColumns?.find((candidate) =>
+    areSemanticallyEquivalentColumns(candidate, column)
+  );
+
+  return sourceColumn?.id;
 }
 
 function tableFormatForColumn(
@@ -140,43 +220,6 @@ function tableFormatForColumn(
   return column.kind === "asset-field" || column.kind === "sparkline" ? "text" : "number";
 }
 
-function isTableColumnSchema(value: unknown): value is TableWidgetColumnSchema {
-  return Boolean(
-    value &&
-      typeof value === "object" &&
-      !Array.isArray(value) &&
-      typeof (value as { key?: unknown }).key === "string" &&
-      typeof (value as { label?: unknown }).label === "string",
-  );
-}
-
-function resolveTableSchemaWithInstanceSettings(
-  schemaFallback: TableWidgetColumnSchema[],
-  tableSettings: Partial<TableWidgetProps> | undefined,
-) {
-  if (!Array.isArray(tableSettings?.schema)) {
-    return schemaFallback;
-  }
-
-  const savedSchemaByKey = new Map(
-    tableSettings.schema
-      .filter(isTableColumnSchema)
-      .map((column) => [column.key, column] as const),
-  );
-
-  return schemaFallback.map((column) => {
-    const savedColumn = savedSchemaByKey.get(column.key);
-
-    return savedColumn
-      ? {
-          ...column,
-          ...savedColumn,
-          key: column.key,
-        }
-      : column;
-  });
-}
-
 function tableValueForColumn(
   row: MarketAssetScreenerRow,
   column: MarketAssetScreenerColumn,
@@ -188,208 +231,222 @@ function tableValueForColumn(
   return normalizeTableCellValue(row.metrics[column.id]);
 }
 
-function tableToneForMarketTone(tone: string | undefined): TableWidgetTone | undefined {
-  if (
-    tone === "neutral" ||
-    tone === "primary" ||
-    tone === "success" ||
-    tone === "warning" ||
-    tone === "danger"
-  ) {
-    return tone;
+function isAssetScreenerGroupHeaderRow(
+  row: TableWidgetRow | undefined,
+): row is AssetScreenerTableRowObject {
+  return Boolean(
+    row &&
+      typeof row === "object" &&
+      (row as AssetScreenerTableRowObject).__groupHeader === true,
+  );
+}
+
+function resolveAssetScreenerGroupValue(
+  row: MarketAssetScreenerRow,
+  groupBy: string | undefined,
+) {
+  if (!groupBy) {
+    return undefined;
   }
 
-  if (tone === "muted") {
-    return "neutral";
+  const value = row.asset[groupBy as keyof typeof row.asset];
+
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    const firstValue = value.find((entry) => typeof entry === "string" && entry.trim());
+    return typeof firstValue === "string" ? firstValue.trim() : undefined;
   }
 
   return undefined;
 }
 
-function buildLegacyColorScaleRules(
-  columnId: string,
-  visual: MarketTableVisualColumnMetadata | undefined,
-) {
-  const colorScale = visual?.colorScale;
+function buildGroupedRowObjects({
+  columnIds,
+  groupBy,
+  rowObjects,
+  rows,
+}: {
+  columnIds: string[];
+  groupBy: string | undefined;
+  rowObjects: AssetScreenerTableRowObject[];
+  rows: MarketAssetScreenerRow[];
+}) {
+  const firstColumnId = columnIds[0];
 
-  if (!colorScale) {
-    return [];
+  if (!groupBy || !firstColumnId || rowObjects.length === 0) {
+    return rowObjects;
   }
 
-  const rules: TableWidgetConditionalRule[] = [];
-  const negativeTone = tableToneForMarketTone(colorScale.negative);
-  const neutralTone = tableToneForMarketTone(colorScale.neutral);
-  const positiveTone = tableToneForMarketTone(colorScale.positive);
+  const buckets = new Map<string, AssetScreenerTableRowObject[]>();
+  const orderedGroups: string[] = [];
 
-  if (negativeTone) {
-    rules.push({
-      id: `${columnId}:negative`,
-      columnKey: columnId,
-      operator: "lt",
-      value: 0,
-      tone: negativeTone,
-    });
-  }
+  rows.forEach((row, rowIndex) => {
+    const rowObject = rowObjects[rowIndex];
 
-  if (neutralTone) {
-    rules.push({
-      id: `${columnId}:neutral`,
-      columnKey: columnId,
-      operator: "eq",
-      value: 0,
-      tone: neutralTone,
-    });
-  }
+    if (!rowObject) {
+      return;
+    }
 
-  if (positiveTone) {
-    rules.push({
-      id: `${columnId}:positive`,
-      columnKey: columnId,
-      operator: "gt",
-      value: 0,
-      tone: positiveTone,
-    });
-  }
+    const groupValue = resolveAssetScreenerGroupValue(row, groupBy) ?? "Ungrouped";
+    const groupRows = buckets.get(groupValue);
 
-  return rules;
-}
+    if (groupRows) {
+      groupRows.push(rowObject);
+      return;
+    }
 
-function buildTableThresholdRules(
-  columnId: string,
-  visual: MarketTableVisualColumnMetadata | undefined,
-) {
-  if (!visual?.thresholds?.length) {
-    return [];
-  }
+    orderedGroups.push(groupValue);
+    buckets.set(groupValue, [rowObject]);
+  });
 
-  return visual.thresholds.map<TableWidgetConditionalRule>((rule, index) => ({
-    backgroundColor: rule.backgroundColor,
-    columnKey: columnId,
-    id: rule.id ?? `${columnId}:threshold:${index}`,
-    operator: rule.operator,
-    textColor: rule.textColor,
-    tone: rule.tone,
-    value: rule.value,
-  }));
-}
+  return orderedGroups.flatMap((groupValue) => {
+    const groupRows = buckets.get(groupValue) ?? [];
 
-function buildColumnOverride(
-  column: MarketAssetScreenerColumn,
-  visual: MarketTableVisualColumnMetadata | undefined,
-): TableWidgetColumnOverride {
-  const override: TableWidgetColumnOverride = {
-    align: column.kind === "asset-field" || column.kind === "sparkline" ? "left" : "right",
-    compact: visual?.format === "volume",
-    format: tableFormatForColumn(column, visual),
-    label: column.label,
-  };
-
-  override.barMode = visual?.barMode ?? (visual?.kind === "bar" ? "fill" : undefined);
-  override.gradientMode = visual?.gradientMode ?? (visual?.kind === "heatmap" ? "fill" : undefined);
-  override.gaugeMode = visual?.gaugeMode;
-  override.heatmap = visual?.heatmap ?? (visual?.kind === "heatmap" ? true : undefined);
-  override.heatmapPalette = visual?.heatmapPalette;
-
-  if (
-    visual?.range &&
-    typeof visual.range.min === "number" &&
-    typeof visual.range.max === "number" &&
-    Number.isFinite(visual.range.min) &&
-    Number.isFinite(visual.range.max)
-  ) {
-    override.visualRangeMode = "fixed";
-    override.visualMin = visual.range.min;
-    override.visualMax = visual.range.max;
-  }
-
-  if (visual?.visualRangeMode) {
-    override.visualRangeMode = visual.visualRangeMode;
-  }
-
-  if (typeof visual?.visualMin === "number" && Number.isFinite(visual.visualMin)) {
-    override.visualMin = visual.visualMin;
-  }
-
-  if (typeof visual?.visualMax === "number" && Number.isFinite(visual.visualMax)) {
-    override.visualMax = visual.visualMax;
-  }
-
-  return override;
+    return [
+      {
+        __groupCount: groupRows.length,
+        __groupHeader: true,
+        __groupLabel: groupValue,
+        ...Object.fromEntries(
+          columnIds.map((columnId, columnIndex) => [
+            columnId,
+            columnIndex === 0 ? groupValue : assetScreenerBlankCellValue,
+          ]),
+        ),
+      } satisfies AssetScreenerTableRowObject,
+      ...groupRows,
+    ];
+  });
 }
 
 export function buildAssetScreenerTableFrame({
   columns,
+  groupBy,
   rows,
+  sourceFrame,
+  sourceColumns,
 }: {
   columns: MarketAssetScreenerColumn[];
+  groupBy?: string;
   rows: MarketAssetScreenerRow[];
+  sourceFrame?: TabularFrameSourceV1 | null;
+  sourceColumns?: MarketAssetScreenerColumn[];
 }): {
-  frame: AssetScreenerTableFrame;
+  frame: TableWidgetResolvedFrameInput;
   rowObjects: TableWidgetRow[];
 } {
   const columnIds = columns.map((column) => column.id);
+  const sourceVisualContract = buildTableWidgetSourceVisualContractFromFrame(sourceFrame);
+  const sourceSchemaByKey = new Map(
+    (sourceVisualContract?.schemaFallback ?? []).map((entry) => [entry.key, entry] as const),
+  );
+  const sourceColumnOverrides = sourceVisualContract?.sourceColumnOverrides ?? {};
+  const sourceConditionalRules = sourceVisualContract?.sourceConditionalRules ?? [];
+  const sourceAliasByColumnId = new Map(
+    columns.map((column) => [column.id, resolveSourceColumnAlias(sourceColumns, column)] as const),
+  );
   const schemaFallback = columns.map<TableWidgetColumnSchema>((column) => {
-    const visual = getSourceColumnVisual(rows, column);
-    const format = tableFormatForColumn(column, visual);
+    const sourceAlias = sourceAliasByColumnId.get(column.id);
+    const sourceSchema = sourceAlias ? sourceSchemaByKey.get(sourceAlias) : undefined;
+    const format = sourceSchema?.format ?? tableFormatForColumn(column, undefined);
 
     return {
       key: column.id,
       label: column.label,
+      description: sourceSchema?.description,
       format,
-      minWidth: column.width ?? (column.kind === "asset-field" ? 120 : 96),
-      categorical: column.kind === "asset-field",
-      heatmapEligible: format === "number" || format === "percent" || format === "currency" || format === "bps",
-      compact: visual?.format === "volume",
+      decimals: sourceSchema?.decimals,
+      minWidth:
+        column.width ??
+        sourceSchema?.minWidth ??
+        (column.kind === "asset-field" ? 120 : 96),
+      pinned: sourceSchema?.pinned,
+      categorical: sourceSchema?.categorical ?? (column.kind === "asset-field"),
+      heatmapEligible:
+        sourceSchema?.heatmapEligible ??
+        (format === "number" || format === "percent" || format === "currency" || format === "bps"),
+      compact: sourceSchema?.compact,
     };
   });
   const frameRows = rows.map((row) =>
     columns.map((column) => tableValueForColumn(row, column)),
   );
-  const rowObjects = rows.map<TableWidgetRow>((row, rowIndex) => ({
+  const rowObjects = rows.map<AssetScreenerTableRowObject>((row, rowIndex) => ({
     __assetKey: row.asset.assetKey,
     ...Object.fromEntries(
       columns.map((column, columnIndex) => [column.id, frameRows[rowIndex]?.[columnIndex] ?? null]),
     ),
   }));
+  const aliasedSourceColumnOverrides = Object.fromEntries(
+    columns.flatMap((column) => {
+      const sourceAlias = sourceAliasByColumnId.get(column.id);
+      const sourceOverride = sourceAlias ? sourceColumnOverrides[sourceAlias] : undefined;
+      const alignOverride =
+        column.kind === "asset-field" || column.kind === "sparkline"
+          ? { align: "left" as const }
+          : undefined;
+      const combinedOverride = sourceOverride || alignOverride
+        ? {
+            ...(sourceOverride ?? {}),
+            ...(alignOverride ?? {}),
+          }
+        : undefined;
+
+      return combinedOverride ? [[column.id, combinedOverride] as const] : [];
+    }),
+  );
+  const aliasedSourceConditionalRules = columns.flatMap((column) => {
+    const sourceAlias = sourceAliasByColumnId.get(column.id);
+
+    if (!sourceAlias) {
+      return [];
+    }
+
+    return sourceConditionalRules
+      .filter((rule) => rule.columnKey === sourceAlias)
+      .map((rule) => ({
+        ...rule,
+        columnKey: column.id,
+        id: `${column.id}:${rule.id}`,
+      }));
+  });
 
   return {
     frame: {
       columns: columnIds,
       rows: frameRows,
       schemaFallback,
+      sourceColumnOverrides:
+        Object.keys(aliasedSourceColumnOverrides).length > 0 ? aliasedSourceColumnOverrides : undefined,
+      sourceConditionalRules:
+        aliasedSourceConditionalRules.length > 0 ? aliasedSourceConditionalRules : undefined,
       sourceLabel: "Market asset screener",
     },
-    rowObjects,
+    rowObjects: buildGroupedRowObjects({
+      columnIds,
+      groupBy,
+      rowObjects,
+      rows,
+    }),
   };
 }
 
 export function buildAssetScreenerResolvedTableProps({
-  columns,
   density,
   frame,
-  rows,
   tableSettings,
 }: {
-  columns: MarketAssetScreenerColumn[];
   density: MainSequenceAssetScreenerDensity | undefined;
-  frame: AssetScreenerTableFrame;
-  rows: MarketAssetScreenerRow[];
+  frame: TableWidgetResolvedFrameInput;
   tableSettings?: Partial<TableWidgetProps>;
 }): ResolvedTableWidgetProps {
-  const sourceColumnOverrides = Object.fromEntries(
-    columns.map((column) => {
-      const visual = getSourceColumnVisual(rows, column);
-      return [column.id, buildColumnOverride(column, visual)] as const;
-    }),
-  );
-  const sourceConditionalRules = columns.flatMap((column) => {
-    const visual = getSourceColumnVisual(rows, column);
-    const thresholdRules = buildTableThresholdRules(column.id, visual);
-
-    return thresholdRules.length > 0
-      ? thresholdRules
-      : buildLegacyColorScaleRules(column.id, visual);
-  });
   const densityOverride =
     tableSettings?.density === "comfortable" || tableSettings?.density === "compact"
       ? tableSettings.density
@@ -398,27 +455,32 @@ export function buildAssetScreenerResolvedTableProps({
     typeof tableSettings?.pageSize === "number" && Number.isFinite(tableSettings.pageSize)
       ? Math.max(5, Math.min(Math.trunc(tableSettings.pageSize), 200))
       : 100;
+  const resolved = resolveTableWidgetPropsWithFrame(
+    {
+      tableSourceMode: "bound",
+      density: densityOverride ?? (density === "comfortable" ? "comfortable" : "compact"),
+      showToolbar: false,
+      showSearch: false,
+      showColumnFilters: tableSettings?.showColumnFilters !== false,
+      zebraRows: tableSettings?.zebraRows === true,
+      pagination: false,
+      pageSize,
+      schema: Array.isArray(tableSettings?.schema) ? tableSettings.schema : undefined,
+      columnOverrides: tableSettings?.columnOverrides,
+      valueLabels: Array.isArray(tableSettings?.valueLabels) ? tableSettings.valueLabels : [],
+      conditionalRules: Array.isArray(tableSettings?.conditionalRules) ? tableSettings.conditionalRules : [],
+    },
+    frame,
+  );
 
   return {
-    columns: frame.columns,
-    rows: frame.rows,
-    schema: resolveTableSchemaWithInstanceSettings(frame.schemaFallback, tableSettings),
-    density: densityOverride ?? (density === "comfortable" ? "comfortable" : "compact"),
-    showToolbar: tableSettings?.showToolbar !== false,
-    showSearch: tableSettings?.showSearch !== false,
+    ...resolved,
+    showToolbar: false,
+    showSearch: false,
     showColumnFilters: tableSettings?.showColumnFilters !== false,
     zebraRows: tableSettings?.zebraRows === true,
-    pagination: tableSettings?.pagination === true,
+    pagination: false,
     pageSize,
-    columnOverrides: {
-      ...sourceColumnOverrides,
-      ...(tableSettings?.columnOverrides ?? {}),
-    },
-    valueLabels: Array.isArray(tableSettings?.valueLabels) ? tableSettings.valueLabels : [],
-    conditionalRules: [
-      ...sourceConditionalRules,
-      ...(Array.isArray(tableSettings?.conditionalRules) ? tableSettings.conditionalRules : []),
-    ],
   };
 }
 
@@ -517,29 +579,52 @@ function Sparkline({
 
 function buildSparklineCellRenderers({
   columns,
+  firstColumnId,
   rows,
 }: {
   columns: MarketAssetScreenerColumn[];
+  firstColumnId: string | undefined;
   rows: MarketAssetScreenerRow[];
 }) {
   const rowByAssetKey = new Map(rows.map((row) => [row.asset.assetKey, row]));
 
   return Object.fromEntries(
     columns.flatMap((column) => {
-      if (column.kind !== "sparkline") {
+      if (column.kind !== "sparkline" && column.id !== firstColumnId) {
         return [];
       }
 
-      const renderer: TableFrameCustomCellRenderer = ({ value }) => {
-        const row = typeof value === "string" ? rowByAssetKey.get(value) : undefined;
+      const renderer: TableFrameCustomCellRenderer = ({ row, value }) => {
+        if (isAssetScreenerGroupHeaderRow(row)) {
+          if (column.id !== firstColumnId) {
+            return <span aria-hidden="true">{assetScreenerBlankCellValue}</span>;
+          }
 
-        if (!row) {
+          return (
+            <div className="flex h-full w-full items-center overflow-hidden text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+              <span className="truncate">{row.__groupLabel ?? String(value ?? "")}</span>
+              {typeof row.__groupCount === "number" ? (
+                <span className="ml-2 shrink-0 text-[9px] text-muted-foreground/80">
+                  {row.__groupCount}
+                </span>
+              ) : null}
+            </div>
+          );
+        }
+
+        if (column.kind !== "sparkline") {
+          return undefined;
+        }
+
+        const screenerRow = typeof value === "string" ? rowByAssetKey.get(value) : undefined;
+
+        if (!screenerRow) {
           return <span className="text-muted-foreground">—</span>;
         }
 
         return (
           <div className="flex h-full w-full items-center overflow-hidden text-primary">
-            <Sparkline row={row} valueField={column.valueField} />
+            <Sparkline row={screenerRow} valueField={column.valueField} />
           </div>
         );
       };
@@ -549,60 +634,181 @@ function buildSparklineCellRenderers({
   );
 }
 
+function summarizeConditionalRulesForDebug(
+  rules: Array<{ columnKey: string; operator: string; value?: number; tone?: string; backgroundColor?: string }>,
+  columnKey: string,
+) {
+  return rules
+    .filter((rule) => rule.columnKey === columnKey)
+    .map((rule) => `${rule.operator}:${rule.value ?? ""}:${rule.tone ?? rule.backgroundColor ?? ""}`)
+    .join(" | ");
+}
+
+function buildAssetScreenerFormatResolutionDebugRows(input: {
+  columns: MarketAssetScreenerColumn[];
+  resolvedTableProps: ResolvedTableWidgetProps;
+  sourceColumns?: MarketAssetScreenerColumn[];
+  tableFrame: ReturnType<typeof buildAssetScreenerTableFrame>;
+}) {
+  const schemaByKey = new Map(input.resolvedTableProps.schema.map((column) => [column.key, column] as const));
+  const sourceSchemaByKey = new Map(
+    input.tableFrame.frame.schemaFallback.map((column) => [column.key, column] as const),
+  );
+  const sourceOverrides = input.tableFrame.frame.sourceColumnOverrides ?? {};
+  const resolvedOverrides = input.resolvedTableProps.columnOverrides ?? {};
+
+  return input.columns.map((column) => {
+    const sourceAlias = resolveSourceColumnAlias(input.sourceColumns, column) ?? null;
+    const sourceSchema = sourceSchemaByKey.get(column.id);
+    const resolvedSchema = schemaByKey.get(column.id);
+    const sourceOverride = sourceOverrides[column.id];
+    const resolvedOverride = resolvedOverrides[column.id];
+
+    return {
+      columnId: column.id,
+      label: column.label,
+      kind: column.kind,
+      sourceAlias,
+      sourceFormat: sourceSchema?.format ?? null,
+      sourceGaugeMode: sourceOverride?.gaugeMode ?? null,
+      sourceHeatmap: sourceOverride?.heatmap ?? null,
+      sourceGradientMode: sourceOverride?.gradientMode ?? null,
+      sourceRuleSummary: summarizeConditionalRulesForDebug(
+        input.tableFrame.frame.sourceConditionalRules ?? [],
+        column.id,
+      ),
+      resolvedFormat: resolvedSchema?.format ?? null,
+      resolvedGaugeMode: resolvedOverride?.gaugeMode ?? null,
+      resolvedHeatmap: resolvedOverride?.heatmap ?? null,
+      resolvedGradientMode: resolvedOverride?.gradientMode ?? null,
+      resolvedRuleSummary: summarizeConditionalRulesForDebug(
+        input.resolvedTableProps.conditionalRules ?? [],
+        column.id,
+      ),
+    };
+  });
+}
+
 export function AssetScreenerWidget({
-  instanceTitle,
   instanceId,
+  onRuntimeStateChange,
   props,
   resolvedInputs,
   runtimeState,
   runtimeDataStore,
 }: Props) {
   const normalizedProps = normalizeAssetScreenerProps(props);
+  const theme = useOptionalTheme();
+  const resolvedTokens = theme?.resolvedTokens ?? mainSequenceSpaceTheme.tokens;
+  const tightness = theme?.tightness ?? mainSequenceSpaceTheme.tightness;
+  const contextRuntimeDataStore = useRuntimeDataStore();
+  const activeRuntimeDataStore = runtimeDataStore ?? contextRuntimeDataStore;
+  const incrementalBinding = useIncrementalTabularConsumerBindingState({
+    instanceId,
+    onRuntimeStateChange,
+    resolvedInputs,
+    runtimeState,
+  });
 
   useResolveWidgetUpstream(instanceId, {
-    enabled: assetScreenerRequiresUpstreamResolution(resolvedInputs),
+    enabled:
+      incrementalBinding.active
+        ? incrementalBinding.requiresUpstreamResolution
+        : assetScreenerRequiresUpstreamResolution(resolvedInputs),
   });
 
   const state = useMemo(
     () =>
       resolveAssetScreenerState({
+        canonicalSourceFrame:
+          incrementalBinding.active ? incrementalBinding.consumerState.dataset : undefined,
         props: normalizedProps,
         resolvedInputs,
-        runtimeDataStore,
+        runtimeDataStore: activeRuntimeDataStore,
         fallbackFrames: isAssetScreenerDemoRuntimeState(runtimeState)
           ? runtimeState.marketAssetScreenerDemoFrames
           : undefined,
       }),
-    [normalizedProps, resolvedInputs, runtimeDataStore, runtimeState],
+    [
+      activeRuntimeDataStore,
+      incrementalBinding.active,
+      incrementalBinding.consumerState.dataset,
+      normalizedProps,
+      resolvedInputs,
+      runtimeState,
+    ],
   );
   const tableFrame = useMemo(
     () =>
       buildAssetScreenerTableFrame({
         columns: state.columns,
+        groupBy: normalizedProps.groupBy,
         rows: state.filteredRows,
+        sourceFrame: state.sourceFrame,
+        sourceColumns: state.sourceColumns,
       }),
-    [state.columns, state.filteredRows],
+    [normalizedProps.groupBy, state.columns, state.filteredRows, state.sourceColumns, state.sourceFrame],
   );
   const resolvedTableProps = useMemo(
     () =>
       buildAssetScreenerResolvedTableProps({
-        columns: state.columns,
         density: normalizedProps.density,
         frame: tableFrame.frame,
-        rows: state.filteredRows,
         tableSettings: normalizedProps.table,
       }),
-    [normalizedProps.density, normalizedProps.table, state.columns, state.filteredRows, tableFrame.frame],
+    [normalizedProps.density, normalizedProps.table, tableFrame.frame],
   );
   const customCellRenderers = useMemo(
     () =>
       buildSparklineCellRenderers({
         columns: state.columns,
+        firstColumnId: tableFrame.frame.columns[0],
         rows: state.filteredRows,
       }),
-    [state.columns, state.filteredRows],
+    [state.columns, state.filteredRows, tableFrame.frame.columns],
   );
-  const cardTitle = instanceTitle?.trim();
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    const formatResolutionRows = buildAssetScreenerFormatResolutionDebugRows({
+      columns: state.columns,
+      resolvedTableProps,
+      sourceColumns: state.sourceColumns,
+      tableFrame,
+    });
+
+    console.groupCollapsed("[asset-screener:format-resolution]", instanceId ?? "no-instance");
+    console.log("canonicalSourceFrame", state.sourceFrame);
+    console.log("sourceColumns", state.sourceColumns);
+    console.log("tableFrameInput", tableFrame.frame);
+    console.log("resolvedTableProps", {
+      columnOverrides: resolvedTableProps.columnOverrides,
+      conditionalRules: resolvedTableProps.conditionalRules,
+      schema: resolvedTableProps.schema,
+    });
+    console.log("rowCounts", {
+      filteredRows: state.filteredRows.length,
+      frameRows: tableFrame.frame.rows.length,
+      rowObjects: tableFrame.rowObjects.length,
+    });
+    console.table(formatResolutionRows);
+    console.groupEnd();
+    console.log(
+      "[asset-screener:format-resolution:rows]",
+      instanceId ?? "no-instance",
+      formatResolutionRows,
+    );
+  }, [
+    instanceId,
+    resolvedTableProps,
+    state.columns,
+    state.sourceColumns,
+    state.sourceFrame,
+    tableFrame,
+  ]);
 
   if (!state.hasAnyBinding && state.rows.length === 0) {
     return (
@@ -624,9 +830,6 @@ export function AssetScreenerWidget({
       <div className="flex h-full min-h-[260px] flex-col items-center justify-center gap-3 rounded-none border border-dashed border-border/70 bg-transparent p-6 text-center">
         <Database className="h-9 w-9 text-muted-foreground" />
         <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">
-            {cardTitle || "Asset screener"}
-          </div>
           <div className="max-w-md text-xs text-muted-foreground">
             No source columns are available yet. Publish `meta.tableVisuals.columns`, market field
             roles, or save instance override columns in settings.
@@ -641,32 +844,24 @@ export function AssetScreenerWidget({
       <div className="min-h-0 flex-1">
         <TableFrameView
           customCellRenderers={customCellRenderers}
-          emptyMessage="No assets match the current bindings and filters."
-          quickFilterPlaceholder="Filter assets"
+          emptyMessage=""
+          debugInstanceId={instanceId}
+          getRowStyle={(row) =>
+            isAssetScreenerGroupHeaderRow(row)
+              ? {
+                  backgroundColor: "rgba(148, 163, 184, 0.08)",
+                  fontWeight: 600,
+                }
+              : undefined
+          }
           resolvedProps={resolvedTableProps}
+          resolvedTokens={resolvedTokens}
           rowObjects={tableFrame.rowObjects}
           showColumnFilters={false}
           surface="transparent"
-          toolbarStart={
-            <div className="min-w-0">
-              {cardTitle ? (
-                <div className="truncate text-sm font-semibold text-foreground">{cardTitle}</div>
-              ) : null}
-              <div className="text-[11px] text-muted-foreground">
-                {state.filteredRows.length.toLocaleString()} of {state.rows.length.toLocaleString()} assets
-              </div>
-            </div>
-          }
+          tightness={tightness}
         />
       </div>
-      {normalizedProps.showDiagnostics && state.runtimeModel.warnings.length > 0 ? (
-        <div className="flex items-start gap-2 border-x border-b border-border/70 bg-warning/10 px-3 py-2 text-[11px] text-warning">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <div className="line-clamp-2">
-            {state.runtimeModel.warnings.slice(0, 3).join(" ")}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

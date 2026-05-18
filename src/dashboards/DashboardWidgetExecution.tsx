@@ -38,7 +38,9 @@ import {
   listDashboardDownstreamExecutionTargets,
   listDashboardWidgetExecutionOrder,
   listDashboardRefreshableExecutionTargets,
+  planDashboardVariableDrivenCommit,
   type DashboardUpstreamResolutionRequirement,
+  type DashboardVariableDrivenCommitPlan,
   type DashboardWidgetGraphExecutionResult,
 } from "@/dashboards/widget-graph-execution";
 import type {
@@ -88,6 +90,16 @@ export interface DashboardWidgetFlowExecutionResult {
   executedInstanceIds: Set<string>;
 }
 
+export interface DashboardVariableDrivenCommitExecutionResult {
+  status: "success" | "error" | "skipped";
+  error?: string;
+  changedWidgetId: string;
+  plan: DashboardVariableDrivenCommitPlan;
+  widgets: DashboardWidgetInstance[];
+  downstreamResults: DashboardWidgetGraphExecutionResult[];
+  executedInstanceIds: Set<string>;
+}
+
 interface DashboardWidgetExecutionContextValue {
   scopeId: string;
   activeSurface: DashboardExecutionSurface;
@@ -106,6 +118,11 @@ interface DashboardWidgetExecutionContextValue {
     sourceInstanceId: string,
     options: ExecuteWidgetGraphOptions,
   ) => Promise<DashboardWidgetFlowExecutionResult>;
+  executeVariableDrivenWidgetCommit: (input: {
+    changedWidgetId: string;
+    beforeWidgets: DashboardWidgetInstance[];
+    afterWidgets: DashboardWidgetInstance[];
+  }) => Promise<DashboardVariableDrivenCommitExecutionResult>;
   resolveUpstream: (
     targetInstanceId: string,
     options?: ResolveWidgetUpstreamOptions,
@@ -626,6 +643,135 @@ export function DashboardWidgetExecutionProvider({
     return executionPromise;
   }
 
+  async function executeVariableDrivenWidgetCommit(input: {
+    changedWidgetId: string;
+    beforeWidgets: DashboardWidgetInstance[];
+    afterWidgets: DashboardWidgetInstance[];
+  }): Promise<DashboardVariableDrivenCommitExecutionResult> {
+    const beforeSnapshot = buildDashboardExecutionSnapshot({
+      widgets: input.beforeWidgets,
+      resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+      runtimeDataStore,
+    });
+    const afterSnapshot = buildDashboardExecutionSnapshot({
+      widgets: input.afterWidgets,
+      resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+      runtimeDataStore,
+    });
+    const plan = planDashboardVariableDrivenCommit({
+      changedWidgetId: input.changedWidgetId,
+      beforeSnapshot,
+      afterSnapshot,
+    });
+
+    widgetsRef.current = input.afterWidgets;
+
+    if (import.meta.env.DEV) {
+      console.log("[widget-variable-commit]", {
+        changedWidgetId: input.changedWidgetId,
+        changedVariableEntries: plan.changedVariableEntries,
+        affectedConsumerWidgetIds: plan.affectedConsumerWidgetIds,
+        passiveConsumerWidgetIds: plan.passiveConsumerWidgetIds,
+        executableTargetWidgetIds: plan.executableTargetWidgetIds,
+      });
+    }
+
+    if (plan.changedVariableEntries.length === 0) {
+      return {
+        status: "skipped",
+        changedWidgetId: input.changedWidgetId,
+        plan,
+        widgets: input.afterWidgets,
+        downstreamResults: [],
+        executedInstanceIds: new Set<string>(),
+      };
+    }
+
+    if (plan.executableTargetWidgetIds.length === 0) {
+      return {
+        status: "success",
+        changedWidgetId: input.changedWidgetId,
+        plan,
+        widgets: input.afterWidgets,
+        downstreamResults: [],
+        executedInstanceIds: new Set<string>(),
+      };
+    }
+
+    const sharedExecutedInstanceIds = new Set<string>();
+    const refreshCycleId = `variable-commit:${scopeId}:${input.changedWidgetId}:${Date.now().toString(36)}`;
+    beginDashboardRequestTraceCycle({
+      scopeId,
+      refreshCycleId,
+      kind: "activity",
+      activate: false,
+      label: "Variable-driven widget commit",
+    });
+
+    let workingWidgets = input.afterWidgets;
+    const downstreamResults: DashboardWidgetGraphExecutionResult[] = [];
+    let executionError: string | undefined;
+
+    try {
+      for (const targetInstanceId of plan.executableTargetWidgetIds) {
+        widgetsRef.current = workingWidgets;
+
+        const result = await runGraph(
+          targetInstanceId,
+          {
+            reason: "upstream-update",
+            refreshCycleId,
+          },
+          sharedExecutedInstanceIds,
+        );
+
+        downstreamResults.push(result);
+        workingWidgets = result.widgets;
+
+        if (result.status === "error" && !executionError) {
+          executionError = result.error;
+        }
+      }
+
+      completeDashboardRequestTraceCycle({
+        scopeId,
+        refreshCycleId,
+        status: executionError ? "error" : "success",
+      });
+
+      return {
+        status: executionError ? "error" : "success",
+        error: executionError,
+        changedWidgetId: input.changedWidgetId,
+        plan,
+        widgets: workingWidgets,
+        downstreamResults,
+        executedInstanceIds: sharedExecutedInstanceIds,
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Variable-driven widget commit execution failed.";
+
+      completeDashboardRequestTraceCycle({
+        scopeId,
+        refreshCycleId,
+        status: "error",
+      });
+
+      return {
+        status: "error",
+        error: message,
+        changedWidgetId: input.changedWidgetId,
+        plan,
+        widgets: workingWidgets,
+        downstreamResults,
+        executedInstanceIds: sharedExecutedInstanceIds,
+      };
+    }
+  }
+
   useEffect(() => {
     if (!enableAutomaticHydration) {
       initialRefreshCompletedRef.current = true;
@@ -1004,6 +1150,8 @@ export function DashboardWidgetExecutionProvider({
         runGraph(targetInstanceId, options),
       executeWidgetFlow: (sourceInstanceId, options) =>
         runFlow(sourceInstanceId, options),
+      executeVariableDrivenWidgetCommit: (input) =>
+        executeVariableDrivenWidgetCommit(input),
       resolveUpstream: (targetInstanceId, options) =>
         runGraph(targetInstanceId, {
           reason: "manual-recalculate",

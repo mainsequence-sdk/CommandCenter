@@ -96,6 +96,7 @@ import type {
   DashboardDefinition,
   DashboardLayoutKind,
   DashboardSlideRegionId,
+  DashboardWidgetInstance,
   DashboardWidgetPlacement,
   ResolvedDashboardDefinition,
   ResolvedDashboardWidgetInstance,
@@ -495,6 +496,74 @@ function runtimeStateEquals(left: unknown, right: unknown) {
   } catch {
     return false;
   }
+}
+
+function summarizeRuntimeStateForDebug(runtimeState: Record<string, unknown> | undefined) {
+  if (!runtimeState || typeof runtimeState !== "object" || Array.isArray(runtimeState)) {
+    return runtimeState ?? null;
+  }
+
+  const interaction =
+    runtimeState.interaction &&
+    typeof runtimeState.interaction === "object" &&
+    !Array.isArray(runtimeState.interaction)
+      ? (runtimeState.interaction as Record<string, unknown>)
+      : null;
+  const selection =
+    interaction?.selection &&
+    typeof interaction.selection === "object" &&
+    !Array.isArray(interaction.selection)
+      ? (interaction.selection as Record<string, unknown>)
+      : null;
+
+  return {
+    keys: Object.keys(runtimeState).slice(0, 12),
+    interactionKeys: interaction ? Object.keys(interaction).slice(0, 12) : [],
+    selection:
+      selection
+        ? {
+            mode: selection.mode ?? null,
+            activeRowKey: selection.activeRowKey ?? null,
+            activeRowIndex: selection.activeRowIndex ?? null,
+            activeCell: selection.activeCell ?? null,
+            updatedAtMs: selection.updatedAtMs ?? null,
+          }
+        : null,
+  };
+}
+
+interface PendingVariableRuntimeRefresh {
+  queueId: string;
+  changedWidgetId: string;
+  beforeWidgets: DashboardWidgetInstance[];
+  afterWidgets: DashboardWidgetInstance[];
+}
+
+function WorkspaceRuntimeVariableRefreshCoordinator({
+  onProcessed,
+  pendingRefreshes,
+}: {
+  onProcessed: (queueId: string) => void;
+  pendingRefreshes: PendingVariableRuntimeRefresh[];
+}) {
+  const widgetExecution = useDashboardWidgetExecution();
+  const nextRefresh = pendingRefreshes[0] ?? null;
+
+  useEffect(() => {
+    if (!widgetExecution || !nextRefresh) {
+      return;
+    }
+
+    onProcessed(nextRefresh.queueId);
+
+    void widgetExecution.executeVariableDrivenWidgetCommit({
+      changedWidgetId: nextRefresh.changedWidgetId,
+      beforeWidgets: nextRefresh.beforeWidgets,
+      afterWidgets: nextRefresh.afterWidgets,
+    });
+  }, [nextRefresh, onProcessed, widgetExecution]);
+
+  return null;
 }
 
 function applyRuntimeStateOverride(
@@ -1248,6 +1317,9 @@ export function CustomDashboardStudioPage({
     selectedDashboardType === "slide-studio" && !publicPreview;
   const [runtimeStateOverridesByWidgetId, setRuntimeStateOverridesByWidgetId] =
     useState<RuntimeWidgetStateOverrides>({});
+  const [pendingVariableRuntimeRefreshes, setPendingVariableRuntimeRefreshes] = useState<
+    PendingVariableRuntimeRefresh[]
+  >([]);
   const publicPreviewSupported =
     !publicPreview &&
     selectedDashboardType !== null &&
@@ -1654,6 +1726,16 @@ export function CustomDashboardStudioPage({
     const entries = Array.from(pendingRuntimeStateWritesRef.current.entries());
     pendingRuntimeStateWritesRef.current.clear();
 
+    if (import.meta.env.DEV) {
+      console.log("[workspace-runtime-write:flush]", {
+        localRuntimeStateOverridesEnabled,
+        entries: entries.map(([instanceId, runtimeState]) => ({
+          instanceId,
+          runtimeState: summarizeRuntimeStateForDebug(runtimeState),
+        })),
+      });
+    }
+
     if (localRuntimeStateOverridesEnabled) {
       setRuntimeStateOverridesByWidgetId((current) => {
         let changed = false;
@@ -1675,15 +1757,43 @@ export function CustomDashboardStudioPage({
       return;
     }
 
-    updateSelectedWorkspaceUserState((dashboard) =>
-      entries.reduce(
-        (nextDashboard, [instanceId, runtimeState]) =>
-          updateDashboardWidgetRuntimeState(nextDashboard, instanceId, runtimeState),
-        dashboard,
-      ),
-      { bumpRevision: false },
+    if (!selectedDashboard) {
+      updateSelectedWorkspaceUserState((dashboard) =>
+        entries.reduce(
+          (nextDashboard, [instanceId, runtimeState]) =>
+            updateDashboardWidgetRuntimeState(nextDashboard, instanceId, runtimeState),
+          dashboard,
+        ),
+        { bumpRevision: false },
+      );
+      return;
+    }
+
+    const beforeWidgets = selectedDashboard.widgets;
+    const nextDashboard = entries.reduce(
+      (nextWorkspace, [instanceId, runtimeState]) =>
+        updateDashboardWidgetRuntimeState(nextWorkspace, instanceId, runtimeState),
+      selectedDashboard,
     );
-  }, [localRuntimeStateOverridesEnabled, updateSelectedWorkspaceUserState]);
+
+    updateSelectedWorkspaceUserState(() => nextDashboard, { bumpRevision: false });
+
+    const changedWidgetIds = [...new Set(entries.map(([instanceId]) => instanceId))];
+
+    setPendingVariableRuntimeRefreshes((current) => [
+      ...current,
+      ...changedWidgetIds.map((changedWidgetId, index) => ({
+        queueId: `${changedWidgetId}:${Date.now().toString(36)}:${index.toString(36)}`,
+        changedWidgetId,
+        beforeWidgets,
+        afterWidgets: nextDashboard.widgets,
+      })),
+    ]);
+  }, [
+    localRuntimeStateOverridesEnabled,
+    selectedDashboard,
+    updateSelectedWorkspaceUserState,
+  ]);
 
   const scheduleRuntimeStateWriteFlush = useCallback(() => {
     if (runtimeStateWriteFlushTimerRef.current !== null) {
@@ -1713,6 +1823,7 @@ export function CustomDashboardStudioPage({
 
     pendingRuntimeStateWritesRef.current.clear();
     setRuntimeStateOverridesByWidgetId({});
+    setPendingVariableRuntimeRefreshes([]);
   }, [localRuntimeStateOverridesEnabled, selectedDashboard?.id]);
 
   const previousWorkspaceIdRef = useRef<string | null>(null);
@@ -2648,6 +2759,13 @@ export function CustomDashboardStudioPage({
       instanceId: string,
       runtimeState: Record<string, unknown> | undefined,
     ) => {
+      if (import.meta.env.DEV) {
+        console.log("[workspace-runtime-write:queued]", {
+          instanceId,
+          runtimeState: summarizeRuntimeStateForDebug(runtimeState),
+        });
+      }
+
       pendingRuntimeStateWritesRef.current.set(instanceId, runtimeState);
       scheduleRuntimeStateWriteFlush();
     },
@@ -4164,6 +4282,14 @@ export function CustomDashboardStudioPage({
           writeRuntimeState={handleWidgetRuntimeStateChange}
         >
           <DashboardWidgetDependenciesProvider widgets={renderedResolvedDashboard.widgets}>
+            <WorkspaceRuntimeVariableRefreshCoordinator
+              pendingRefreshes={pendingVariableRuntimeRefreshes}
+              onProcessed={(queueId) => {
+                setPendingVariableRuntimeRefreshes((current) =>
+                  current.filter((entry) => entry.queueId !== queueId),
+                );
+              }}
+            />
             {content}
           </DashboardWidgetDependenciesProvider>
         </DashboardWidgetExecutionProvider>

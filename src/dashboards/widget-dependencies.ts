@@ -25,6 +25,14 @@ import {
   resolveReferenceBackedWidgetState,
   resolveWidgetReferenceBaseProps,
 } from "@/dashboards/widget-instance-references";
+import {
+  buildWorkspaceVariableReferenceRegistry,
+  type WorkspaceVariableReferenceRegistry,
+} from "@/dashboards/widget-variable-registry";
+import {
+  deriveWidgetReferenceExpressionBindings,
+  type WidgetReferenceLanguageSourceWidget,
+} from "@/dashboards/widget-reference-language";
 import { appendWidgetAgentContextOutput } from "@/widgets/shared/agent-context";
 import {
   getRuntimeDataRef,
@@ -182,6 +190,7 @@ export type ResolvedWidgetOutputs = Record<string, ResolvedWidgetOutput | undefi
 export interface DashboardWidgetDependencyModel {
   entries: FlattenedDashboardWidgetEntry[];
   graph: DashboardWidgetDependencyGraph;
+  variableRegistry: WorkspaceVariableReferenceRegistry;
   getWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
   resolveIo: (instanceId: string) => WidgetIoDefinition | undefined;
   resolveOutputs: (instanceId: string) => ResolvedWidgetOutputs | undefined;
@@ -324,6 +333,72 @@ export function normalizeWidgetInstanceBindings(
   return Object.fromEntries(normalizedEntries) satisfies WidgetInstanceBindings;
 }
 
+function buildReferenceExpressionSourceWidgets(
+  entries: FlattenedDashboardWidgetEntry[],
+  targetInstanceId: string,
+  getWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined,
+  resolveIo: (instanceId: string) => WidgetIoDefinition | undefined,
+): WidgetReferenceLanguageSourceWidget[] {
+  return entries.flatMap(({ instance }) => {
+    if (instance.id === targetInstanceId) {
+      return [];
+    }
+
+    const outputs = (resolveIo(instance.id)?.outputs ?? []).map((output) => ({
+      id: output.id,
+      label: output.label,
+      contract: output.contract,
+      description: output.description,
+      valueDescriptor: output.valueDescriptor,
+    }));
+
+    if (outputs.length === 0) {
+      return [];
+    }
+
+    const widgetTypeTitle = getWidgetDefinition(instance.widgetId)?.title?.trim();
+
+    return [{
+      id: instance.id,
+      title: instance.title?.trim() || undefined,
+      widgetId: instance.widgetId,
+      ...(widgetTypeTitle ? { widgetTypeTitle } : {}),
+      outputs,
+    } satisfies WidgetReferenceLanguageSourceWidget];
+  });
+}
+
+function resolveEffectiveWidgetBindings(input: {
+  entries: FlattenedDashboardWidgetEntry[];
+  getWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
+  instance: DashboardWidgetInstance;
+  resolveIo: (instanceId: string) => WidgetIoDefinition | undefined;
+}) {
+  const normalizedBindings = normalizeWidgetInstanceBindings(input.instance.bindings);
+  const sourceWidgets = buildReferenceExpressionSourceWidgets(
+    input.entries,
+    input.instance.id,
+    input.getWidgetDefinition,
+    input.resolveIo,
+  );
+  const expressionBindings = deriveWidgetReferenceExpressionBindings({
+    title: input.instance.title,
+    props: resolveWidgetReferenceBaseProps(input.instance),
+    sourceWidgets,
+  });
+
+  if (expressionBindings.targets.length === 0) {
+    return normalizedBindings;
+  }
+
+  return normalizeWidgetInstanceBindings({
+    ...(normalizedBindings ?? {}),
+    ...Object.fromEntries(
+      expressionBindings.targets.map((target) => [target.inputId, target.binding]),
+    ),
+  });
+}
+
 export function collectDashboardWidgetEntries(
   widgets: DashboardWidgetInstance[],
   options?: {
@@ -376,60 +451,6 @@ function getOutputDefinition(
   return io?.outputs?.find((output) => output.id === outputId) as
     | WidgetOutputPortDefinition<Record<string, unknown>>
     | undefined;
-}
-
-function summarizeResolvedValueForDebug(value: unknown) {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return value === undefined ? { kind: "undefined" } : { kind: typeof value };
-  }
-
-  const record = value as Record<string, unknown>;
-
-  if (typeof record.contract === "string" && Array.isArray(record.fields)) {
-    return {
-      kind: "frame",
-      status: typeof record.status === "string" ? record.status : undefined,
-      contract: record.contract,
-      fieldCount: record.fields.length,
-      fieldNames: record.fields
-        .flatMap((field) =>
-          field && typeof field === "object" && !Array.isArray(field) && typeof (field as { name?: unknown }).name === "string"
-            ? [(field as { name: string }).name]
-            : [],
-        )
-        .slice(0, 6),
-      traceId: typeof record.traceId === "string" ? record.traceId : undefined,
-    };
-  }
-
-  if (Array.isArray(record.columns) && Array.isArray(record.rows)) {
-    return {
-      kind: "tabular-frame",
-      status: typeof record.status === "string" ? record.status : undefined,
-      columnCount: record.columns.length,
-      rowCount: record.rows.length,
-      fieldCount: Array.isArray(record.fields) ? record.fields.length : 0,
-    };
-  }
-
-  return {
-    kind: "record",
-    status: typeof record.status === "string" ? record.status : undefined,
-    keys: Object.keys(record).slice(0, 10),
-  };
-}
-
-function summarizeResolvedInputForDebug(value: ResolvedWidgetInput | ResolvedWidgetInput[] | undefined) {
-  const entries = Array.isArray(value) ? value : value ? [value] : [];
-
-  return entries.map((entry) => ({
-    inputId: entry.inputId,
-    status: entry.status,
-    sourceWidgetId: entry.sourceWidgetId,
-    sourceOutputId: entry.sourceOutputId,
-    contractId: entry.contractId,
-    value: summarizeResolvedValueForDebug(entry.value),
-  }));
 }
 
 function getInputDefinition(
@@ -632,6 +653,38 @@ function resolveSingleOutput(
     runtimeDataStore,
   });
   const valueRef = getRuntimeDataRef(value);
+  const declaredDescriptor = output.valueDescriptor;
+  const inferredDescriptor =
+    value === undefined
+      ? undefined
+      : inferWidgetValueDescriptor(
+          value,
+          declaredDescriptor
+            ? declaredDescriptor.kind === "unknown"
+              ? undefined
+              : declaredDescriptor.contract
+            : output.contract,
+        );
+  const valueDescriptor =
+    inferredDescriptor &&
+    (
+      !declaredDescriptor ||
+      declaredDescriptor.kind === "unknown" ||
+      (
+        declaredDescriptor.kind === "object" &&
+        declaredDescriptor.fields.length === 0 &&
+        inferredDescriptor.kind === "object" &&
+        inferredDescriptor.fields.length > 0
+      ) ||
+      (
+        declaredDescriptor.kind === "array" &&
+        !declaredDescriptor.items &&
+        inferredDescriptor.kind === "array" &&
+        Boolean(inferredDescriptor.items)
+      )
+    )
+      ? inferredDescriptor
+      : declaredDescriptor ?? inferredDescriptor;
 
   return {
     outputId: output.id,
@@ -640,7 +693,7 @@ function resolveSingleOutput(
     description: output.description,
     value,
     valueRef,
-    valueDescriptor: output.valueDescriptor ?? inferWidgetValueDescriptor(value, output.contract),
+    valueDescriptor,
   } satisfies ResolvedWidgetOutput;
 }
 
@@ -986,20 +1039,6 @@ export function createDashboardWidgetDependencyModel(
       ]),
     ) satisfies ResolvedWidgetOutputs;
 
-    if (import.meta.env.DEV) {
-      const datasetOutput = resolvedOutputs.dataset;
-
-      if (datasetOutput) {
-        console.debug("[widget-deps] outputs resolved", {
-          instanceId,
-          widgetId: instance.widgetId,
-          outputId: datasetOutput.outputId,
-          contractId: datasetOutput.contractId,
-          value: summarizeResolvedValueForDebug(datasetOutput.value),
-        });
-      }
-    }
-
     resolvedOutputCache.set(instanceId, resolvedOutputs);
     return resolvedOutputs;
   };
@@ -1025,7 +1064,12 @@ export function createDashboardWidgetDependencyModel(
     }
 
     resolvedInputCache.set(instanceId, undefined);
-    const effectiveBindings = normalizeWidgetInstanceBindings(instance.bindings) ?? {};
+    const effectiveBindings = resolveEffectiveWidgetBindings({
+      entries,
+      getWidgetDefinition,
+      instance,
+      resolveIo,
+    }) ?? {};
     const resolvedInputs: ResolvedWidgetInputs = Object.fromEntries(
       inputs.map((input) => [
         input.id,
@@ -1042,28 +1086,27 @@ export function createDashboardWidgetDependencyModel(
       ]),
     ) satisfies ResolvedWidgetInputs;
 
-    if (import.meta.env.DEV) {
-      console.debug("[widget-deps] inputs resolved", {
-        instanceId,
-        widgetId: instance.widgetId,
-        inputs: Object.fromEntries(
-          Object.entries(resolvedInputs).map(([inputId, inputValue]) => [
-            inputId,
-            summarizeResolvedInputForDebug(inputValue),
-          ]),
-        ),
-      });
-    }
-
     resolvedInputCache.set(instanceId, resolvedInputs);
     return resolvedInputs;
   };
 
   const graph = buildGraph(entries, resolveIo, resolveInputs, getWidgetDefinition);
+  const variableRegistry = buildWorkspaceVariableReferenceRegistry(
+    entries.map((entry) => ({
+      ...entry.instance,
+      bindings: resolveEffectiveWidgetBindings({
+        entries,
+        getWidgetDefinition,
+        instance: entry.instance,
+        resolveIo,
+      }),
+    })),
+  );
 
   return {
     entries,
     graph,
+    variableRegistry,
     getWidgetDefinition,
     resolveIo,
     resolveOutputs,

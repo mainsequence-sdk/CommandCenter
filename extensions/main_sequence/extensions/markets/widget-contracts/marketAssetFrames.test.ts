@@ -50,11 +50,11 @@ describe("marketAssetFrames", () => {
 
   it("builds a screener runtime model from seed metadata and live tabular frames", () => {
     const seed = frame({
-      columns: ["asset_id", "symbol", "time", "last_price", "previous_close", "sector"],
+      columns: ["unique_identifier", "Symbol", "time", "last_price", "previous_close", "sector"],
       rows: [
         {
-          asset_id: "asset:AAPL",
-          symbol: "AAPL",
+          unique_identifier: "asset:AAPL",
+          Symbol: "AAPL",
           time: "2026-05-16T13:00:00.000Z",
           last_price: 110,
           previous_close: 100,
@@ -65,8 +65,8 @@ describe("marketAssetFrames", () => {
       meta: buildMarketAssetFrameSemanticMeta({
         role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
         fieldRoles: [
-          { field: "asset_id", role: "assetKey" },
-          { field: "symbol", role: "symbol" },
+          { field: "unique_identifier", role: "assetKey" },
+          { field: "Symbol", role: "symbol" },
           { field: "time", role: "observedAt" },
           { field: "last_price", role: "value", valueKey: "price" },
           { field: "previous_close", role: "referenceValue", referenceKey: "previousClose", valueKey: "price" },
@@ -74,10 +74,10 @@ describe("marketAssetFrames", () => {
       }),
     });
     const live = frame({
-      columns: ["asset_id", "time", "last_price"],
+      columns: ["unique_identifier", "time", "last_price"],
       rows: [
         {
-          asset_id: "asset:AAPL",
+          unique_identifier: "asset:AAPL",
           time: "2026-05-16T13:01:00.000Z",
           last_price: 112,
         },
@@ -111,7 +111,7 @@ describe("marketAssetFrames", () => {
       seedData: seed,
       liveUpdates: live,
       liveMapping: {
-        assetKeyField: "asset_id",
+        assetKeyField: "unique_identifier",
         observedAtField: "time",
         valueFields: {
           price: "last_price",
@@ -129,6 +129,38 @@ describe("marketAssetFrames", () => {
       last: 112,
     });
     expect(rows[0]?.metrics.pct).toBeCloseTo(12);
+  });
+
+  it("rejects screener seed frames without canonical seed identity columns", () => {
+    const seed = frame({
+      columns: ["legacy_identifier", "symbol", "time", "last_price"],
+      rows: [
+        {
+          legacy_identifier: "asset:AAPL",
+          symbol: "AAPL",
+          time: "2026-05-16T13:00:00.000Z",
+          last_price: 110,
+        },
+      ],
+      meta: buildMarketAssetFrameSemanticMeta({
+        role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
+        fieldRoles: [
+          { field: "legacy_identifier", role: "assetKey" },
+          { field: "symbol", role: "symbol" },
+          { field: "time", role: "observedAt" },
+          { field: "last_price", role: "value", valueKey: "price" },
+        ],
+      }),
+    });
+
+    const runtime = buildMarketAssetScreenerRuntimeModelFromTabularFrames({
+      seedData: seed,
+    });
+
+    expect(runtime.latestByKey).toEqual({});
+    expect(runtime.warnings).toContain(
+      "Seed frame is missing required columns: unique_identifier, Symbol.",
+    );
   });
 
   it("uses semantic field-role metadata to adapt reference points", () => {
@@ -167,11 +199,11 @@ describe("marketAssetFrames", () => {
 
   it("applies table transform metadata before adapting snapshot value semantics", () => {
     const seed = frame({
-      columns: ["asset_id", "symbol", "time", "last_price", "previous_close"],
+      columns: ["unique_identifier", "Symbol", "time", "last_price", "previous_close"],
       rows: [
         {
-          asset_id: "asset:AAPL",
-          symbol: "AAPL",
+          unique_identifier: "asset:AAPL",
+          Symbol: "AAPL",
           time: "2026-05-16T13:00:00.000Z",
           last_price: 112,
           previous_close: 100,
@@ -181,8 +213,8 @@ describe("marketAssetFrames", () => {
         ...buildMarketAssetFrameSemanticMeta({
           role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
           fieldRoles: [
-            { field: "asset_id", role: "assetKey" },
-            { field: "symbol", role: "symbol" },
+            { field: "unique_identifier", role: "assetKey" },
+            { field: "Symbol", role: "symbol" },
             { field: "time", role: "observedAt" },
             { field: "last_price", role: "value", valueKey: "price" },
             { field: "previous_close", role: "referenceValue", referenceKey: "previousClose", valueKey: "price" },
@@ -229,11 +261,11 @@ describe("marketAssetFrames", () => {
 
   it("adapts inline CSV sparkline series from snapshot metadata", () => {
     const seed = frame({
-      columns: ["asset_id", "symbol", "time", "last_price", "price_sparkline"],
+      columns: ["unique_identifier", "Symbol", "time", "last_price", "price_sparkline"],
       rows: [
         {
-          asset_id: "asset:AAPL",
-          symbol: "AAPL",
+          unique_identifier: "asset:AAPL",
+          Symbol: "AAPL",
           time: "2026-05-16T13:00:00.000Z",
           last_price: 112,
           price_sparkline: "100, 101, 103, 112",
@@ -242,8 +274,8 @@ describe("marketAssetFrames", () => {
       meta: buildMarketAssetFrameSemanticMeta({
         role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
         fieldRoles: [
-          { field: "asset_id", role: "assetKey" },
-          { field: "symbol", role: "symbol" },
+          { field: "unique_identifier", role: "assetKey" },
+          { field: "Symbol", role: "symbol" },
           { field: "time", role: "observedAt" },
           { field: "last_price", role: "value", valueKey: "price" },
           { field: "price_sparkline", role: "sparklineSeries", valueKey: "price", encoding: "csv-number" },

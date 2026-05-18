@@ -26,7 +26,15 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - For connection mode, open `Bindings`, click `Add connection`, then configure the dedicated `Connection` tab. Managed HTTP sources bind `dataset` to `seedData`; managed WS sources bind `updates` to `liveUpdates`.
 - For manual mode, define columns and rows in the table editor. Manual rows are stored in this table widget's props and are published as the table `dataset` output.
 - Inspect the incoming field schema before editing columns. Prefer upstream `fields` metadata when available; otherwise the table infers labels, types, and numeric eligibility from the current row sample.
+- When a source publishes `meta.tableTransforms` or `meta.tableVisuals`, the table uses those as
+  the effective source defaults for computed columns, labels, formats, decimal precision, widths,
+  thresholds, and numeric visuals. Editing a setting creates only a local override for the touched
+  field.
+- Gauge visuals use a centered diverging fill. Positive values extend from the middle of the cell
+  toward the right edge; negative values extend from the middle toward the left edge.
 - Configure table-level presentation first. In the per-column editor, the default row keeps only key, label, format, and visibility inline; expand `Advanced` when a column needs descriptions, pinning, Date/time input or output patterns, numeric visuals, or display overrides.
+- Add threshold rules from each numeric column's `Advanced` panel. Rules are evaluated top to
+  bottom for that column, and the first matching rule wins.
 - Use `Quick filter` when users need one global search box across rendered rows. Turn it off for denser table embeds.
 - Use `Column filters` when users need searchable per-column filter controls in the table header.
 - Use the `Date/time` column format for epoch timestamps or date strings that should be rendered as readable dates. Auto parsing handles ISO-like strings plus epoch seconds, milliseconds, microseconds, and nanoseconds. Set `Input format` only when auto parsing is ambiguous; set `Output format` to control the rendered text.
@@ -35,6 +43,10 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - To compose dashboards from table interaction, enable `Selection outputs`, choose single-row,
   multi-row, or cell mode, and bind downstream widgets to `selectedRows`, `activeRow`,
   `activeCell`, or `activeCellValue`.
+- Shared widget settings can also reference those outputs directly with exact expressions such as
+  `$(table-1).activeRow.symbol`, `$(table-1).activeCellValue`, or
+  `$(table-1).selectedRows.rows[0].symbol` when a downstream setting should compile to a canonical
+  binding instead of using the picker UI.
 - Configure `Stable row key fields` with durable source fields such as `id`, `symbol`, or another
   unique identifier when selections must survive refreshes, sorting, or incoming row updates.
 
@@ -85,4 +97,4 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Prefix and suffix are literal display text. Do not use them to convert units or change numeric scale upstream.
 - Date/time formatting is presentation-only. It does not convert the published `dataset` output values for downstream widgets.
 - Row-index selection fallback can point at a different row after an upstream resort, filter, or refresh. Use stable row key fields for production compositions.
-- Cell mode publishes the active cell outputs. Row modes publish `selectedRows` and `activeRow`; `activeCell` stays `null` until cell mode records a clicked cell.
+- Cell clicks publish `activeCell` and `activeCellValue` in row and cell selection modes. Row modes also publish `selectedRows` and `activeRow`. `none` disables manual selection outputs by default, but the runtime may infer the minimal interaction mode when a downstream widget reference actively consumes one of the table interaction outputs.

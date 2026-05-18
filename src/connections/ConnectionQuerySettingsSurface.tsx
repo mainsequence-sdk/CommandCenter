@@ -19,6 +19,7 @@ export interface ConnectionQuerySettingsSurfaceProps
   runtimeStatusEmptyMessage?: string;
   sourceTitle?: string;
   value: ConnectionQueryWidgetProps;
+  resolvedValue?: ConnectionQueryWidgetProps;
 }
 
 export function ConnectionQuerySettingsSurface({
@@ -28,6 +29,7 @@ export function ConnectionQuerySettingsSurface({
   runtimeStatusEmptyMessage,
   sourceTitle,
   value,
+  resolvedValue,
   ...workbenchProps
 }: ConnectionQuerySettingsSurfaceProps) {
   const dashboardControls = useDashboardControls();
@@ -53,6 +55,7 @@ export function ConnectionQuerySettingsSurface({
       <ConnectionQueryWorkbench
         {...workbenchProps}
         value={value}
+        resolvedValue={resolvedValue}
         runButtonLabel={resolvedRunButtonLabel}
         dashboardState={{
           timeRangeKey: dashboardControls.timeRangeKey,

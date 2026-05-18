@@ -1,5 +1,8 @@
 import type { DashboardWidgetInstance } from "@/dashboards/types";
-import { buildWidgetBindingTransformSignature } from "@/dashboards/widget-binding-transforms";
+import {
+  applyWidgetBindingTransform,
+  buildWidgetBindingTransformSignature,
+} from "@/dashboards/widget-binding-transforms";
 import { resolveReferenceBackedWidgetState } from "@/dashboards/widget-instance-references";
 import {
   collectDashboardWidgetEntries,
@@ -8,6 +11,7 @@ import {
   normalizeWidgetInstanceBindings,
   type DashboardWidgetDependencyModel,
 } from "@/dashboards/widget-dependencies";
+import type { WorkspaceVariableReferenceEntry } from "@/dashboards/widget-variable-registry";
 import type {
   ResolvedWidgetInput,
   ResolvedWidgetInputs,
@@ -298,6 +302,82 @@ export interface DashboardExecutionSnapshot {
   getDefinition: (instanceId: string) => WidgetDefinition | undefined;
 }
 
+interface ResolvedVariableEntryValue {
+  status: "valid" | "missing-entry" | "missing-output" | "transform-invalid";
+  contractId?: string;
+  value?: unknown;
+}
+
+export interface DashboardVariableDrivenCommitPlanEntry {
+  entryId: string;
+  sourceWidgetId: string;
+  sourceOutputId: string;
+  transformSignature: string;
+  targetWidgetIds: string[];
+}
+
+export interface DashboardVariableDrivenCommitPlan {
+  changedWidgetId: string;
+  changedVariableEntries: DashboardVariableDrivenCommitPlanEntry[];
+  affectedConsumerWidgetIds: string[];
+  passiveConsumerWidgetIds: string[];
+  executableConsumerWidgetIds: string[];
+  executableTargetWidgetIds: string[];
+}
+
+function resolveVariableEntryValue(
+  entry: WorkspaceVariableReferenceEntry | undefined,
+  snapshot: DashboardExecutionSnapshot,
+): ResolvedVariableEntryValue {
+  if (!entry) {
+    return {
+      status: "missing-entry",
+    };
+  }
+
+  const sourceOutput = snapshot.dependencies.resolveOutputs(entry.key.sourceWidgetId)?.[entry.key.sourceOutputId];
+
+  if (!sourceOutput) {
+    return {
+      status: "missing-output",
+    };
+  }
+
+  const representativeBinding = entry.consumers[0]?.binding;
+
+  if (!representativeBinding) {
+    return {
+      status: "missing-entry",
+    };
+  }
+
+  const transformed = applyWidgetBindingTransform(representativeBinding, {
+    contractId: sourceOutput.contractId,
+    value: sourceOutput.value,
+    valueDescriptor: sourceOutput.valueDescriptor,
+  });
+
+  if (transformed.status !== "valid") {
+    return {
+      status: "transform-invalid",
+    };
+  }
+
+  return {
+    status: "valid",
+    contractId: transformed.contractId,
+    value: transformed.value,
+  };
+}
+
+function buildVariableEntryValueSignature(value: ResolvedVariableEntryValue) {
+  return stableJsonStringify({
+    status: value.status,
+    contractId: value.contractId,
+    value: value.value,
+  });
+}
+
 export function buildDashboardExecutionSnapshot(args: {
   widgets: DashboardWidgetInstance[];
   resolveWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
@@ -329,6 +409,99 @@ export function buildDashboardExecutionSnapshot(args: {
       const instance = instanceIndex.get(instanceId);
       return instance ? args.resolveWidgetDefinition(instance.widgetId) : undefined;
     },
+  };
+}
+
+export function planDashboardVariableDrivenCommit(input: {
+  changedWidgetId: string;
+  beforeSnapshot: DashboardExecutionSnapshot;
+  afterSnapshot: DashboardExecutionSnapshot;
+}): DashboardVariableDrivenCommitPlan {
+  const beforeEntries = input.beforeSnapshot.dependencies.variableRegistry.bySourceWidgetId.get(
+    input.changedWidgetId,
+  ) ?? [];
+  const afterEntries = input.afterSnapshot.dependencies.variableRegistry.bySourceWidgetId.get(
+    input.changedWidgetId,
+  ) ?? [];
+  const candidateEntryIds = new Set<string>([
+    ...beforeEntries.map((entry) => entry.id),
+    ...afterEntries.map((entry) => entry.id),
+  ]);
+  const changedVariableEntries: DashboardVariableDrivenCommitPlanEntry[] = [];
+  const affectedConsumerWidgetIds = new Set<string>();
+
+  [...candidateEntryIds]
+    .sort((left, right) => left.localeCompare(right))
+    .forEach((entryId) => {
+      const beforeEntry = input.beforeSnapshot.dependencies.variableRegistry.byId.get(entryId);
+      const afterEntry = input.afterSnapshot.dependencies.variableRegistry.byId.get(entryId);
+      const beforeSignature = buildVariableEntryValueSignature(
+        resolveVariableEntryValue(beforeEntry, input.beforeSnapshot),
+      );
+      const afterSignature = buildVariableEntryValueSignature(
+        resolveVariableEntryValue(afterEntry, input.afterSnapshot),
+      );
+
+      if (beforeSignature === afterSignature) {
+        return;
+      }
+
+      const representativeEntry = afterEntry ?? beforeEntry;
+
+      if (!representativeEntry) {
+        return;
+      }
+
+      const targetWidgetIds = [
+        ...new Set(representativeEntry.consumers.map((consumer) => consumer.targetWidgetId)),
+      ].sort((left, right) => left.localeCompare(right));
+
+      targetWidgetIds.forEach((targetWidgetId) => {
+        affectedConsumerWidgetIds.add(targetWidgetId);
+      });
+
+      changedVariableEntries.push({
+        entryId: representativeEntry.id,
+        sourceWidgetId: representativeEntry.key.sourceWidgetId,
+        sourceOutputId: representativeEntry.key.sourceOutputId,
+        transformSignature: representativeEntry.key.transformSignature,
+        targetWidgetIds,
+      });
+    });
+
+  const executableConsumerWidgetIds = new Set<string>();
+  const executableTargetWidgetIds = new Set<string>();
+
+  [...affectedConsumerWidgetIds].forEach((widgetId) => {
+    if (input.afterSnapshot.getDefinition(widgetId)?.execution) {
+      executableConsumerWidgetIds.add(widgetId);
+      executableTargetWidgetIds.add(widgetId);
+    }
+
+    listDashboardDownstreamExecutionTargets(widgetId, input.afterSnapshot).forEach((targetWidgetId) => {
+      executableTargetWidgetIds.add(targetWidgetId);
+    });
+  });
+
+  const stableOrder = input.afterSnapshot.dependencies.entries.map(({ instance }) => instance.id);
+  const orderIndex = new Map(stableOrder.map((instanceId, index) => [instanceId, index] as const));
+  const sortByStableOrder = (left: string, right: string) =>
+    (orderIndex.get(left) ?? Number.MAX_SAFE_INTEGER) -
+    (orderIndex.get(right) ?? Number.MAX_SAFE_INTEGER);
+  const affectedConsumerWidgetIdsList = [...affectedConsumerWidgetIds].sort(sortByStableOrder);
+  const executableConsumerWidgetIdsList = [...executableConsumerWidgetIds].sort(sortByStableOrder);
+  const passiveConsumerWidgetIdsList = affectedConsumerWidgetIdsList.filter(
+    (widgetId) => !executableConsumerWidgetIds.has(widgetId),
+  );
+  const executableTargetWidgetIdsList = [...executableTargetWidgetIds].sort(sortByStableOrder);
+
+  return {
+    changedWidgetId: input.changedWidgetId,
+    changedVariableEntries,
+    affectedConsumerWidgetIds: affectedConsumerWidgetIdsList,
+    passiveConsumerWidgetIds: passiveConsumerWidgetIdsList,
+    executableConsumerWidgetIds: executableConsumerWidgetIdsList,
+    executableTargetWidgetIds: executableTargetWidgetIdsList,
   };
 }
 

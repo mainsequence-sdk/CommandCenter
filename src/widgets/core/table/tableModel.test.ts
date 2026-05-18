@@ -5,8 +5,10 @@ import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 
 import { tableWidget } from "./definition";
 import {
+  buildTableWidgetFrameFromRemoteData,
   buildTableWidgetRowKey,
   formatTableWidgetValue,
+  moveTableWidgetSchemaColumn,
   TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
   TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
   TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
@@ -19,6 +21,7 @@ import {
   resolveTableWidgetProps,
   resolveTableWidgetSelectedRowsOutput,
   parseTableWidgetDateTimeValue,
+  resolveTableWidgetPropsWithFrame,
   validateTableWidgetSchema,
   type TableWidgetProps,
 } from "./tableModel";
@@ -133,6 +136,47 @@ describe("table widget selection outputs", () => {
     expect(resolveTableWidgetActiveCellValueOutput(props, undefined, runtimeState)).toBe(30);
   });
 
+  it("publishes the active cell value from row-selection clicks", () => {
+    const selectedKey = buildTableWidgetRowKey({ id: "b" }, ["id"]);
+    const runtimeState = {
+      interaction: {
+        selection: {
+          mode: "single-row",
+          selectedRowKeys: selectedKey ? [selectedKey] : [],
+          selectedRowIndices: [1],
+          activeRowKey: selectedKey,
+          activeRowIndex: 1,
+          activeCell: {
+            rowKey: selectedKey,
+            rowIndex: 1,
+            columnKey: "name",
+            value: "Beta",
+          },
+          updatedAtMs: 1,
+        },
+      },
+    };
+    const props: TableWidgetProps = {
+      ...manualTableProps,
+      selectionMode: "single-row",
+    };
+
+    expect(resolveTableWidgetPropsWithFrame(props).selectionMode).toBe("single-row");
+    expect(resolveTableWidgetPropsWithFrame(props).publishSelectionOutputs).toBe(true);
+    expect(resolveTableWidgetActiveCellOutput(props, undefined, runtimeState)).toEqual({
+      rowKey: selectedKey,
+      rowIndex: 1,
+      columnKey: "name",
+      value: "Beta",
+      row: {
+        id: "b",
+        name: "Beta",
+        score: 20,
+      },
+    });
+    expect(resolveTableWidgetActiveCellValueOutput(props, undefined, runtimeState)).toBe("Beta");
+  });
+
   it("does not publish selections when selection mode is off", () => {
     const selectedRows = resolveTableWidgetSelectedRowsOutput(
       {
@@ -153,6 +197,51 @@ describe("table widget selection outputs", () => {
     );
 
     expect(selectedRows.rows).toEqual([]);
+  });
+
+  it("publishes interaction outputs when selection mode is implicit from a downstream consumer", () => {
+    const selectedKey = buildTableWidgetRowKey({ id: "b" }, ["id"]);
+    const runtimeState = {
+      interaction: {
+        selection: {
+          mode: "cell",
+          implicitMode: true,
+          selectedRowKeys: selectedKey ? [selectedKey] : [],
+          selectedRowIndices: [1],
+          activeRowKey: selectedKey,
+          activeRowIndex: 1,
+          activeCell: {
+            rowKey: selectedKey,
+            rowIndex: 1,
+            columnKey: "name",
+            value: "Beta",
+          },
+          updatedAtMs: 1,
+        },
+      },
+    };
+    const props: TableWidgetProps = {
+      ...manualTableProps,
+      selectionMode: "none",
+    };
+
+    expect(resolveTableWidgetActiveRowOutput(props, undefined, runtimeState)).toEqual({
+      id: "b",
+      name: "Beta",
+      score: 20,
+    });
+    expect(resolveTableWidgetActiveCellOutput(props, undefined, runtimeState)).toEqual({
+      rowKey: selectedKey,
+      rowIndex: 1,
+      columnKey: "name",
+      value: "Beta",
+      row: {
+        id: "b",
+        name: "Beta",
+        score: 20,
+      },
+    });
+    expect(resolveTableWidgetActiveCellValueOutput(props, undefined, runtimeState)).toBe("Beta");
   });
 
   it("keeps the full dataset output unchanged by selection state", () => {
@@ -221,6 +310,125 @@ describe("table widget table controls", () => {
       showSearch: false,
       showColumnFilters: false,
     });
+  });
+
+  it("reorders schema columns without mutating the original array", () => {
+    const original = [
+      { key: "symbol", label: "Symbol", format: "text" as const },
+      { key: "last_price", label: "Last", format: "currency" as const },
+      { key: "volume", label: "Volume", format: "number" as const },
+    ];
+
+    const reordered = moveTableWidgetSchemaColumn(original, 2, 0);
+
+    expect(reordered.map((column) => column.key)).toEqual([
+      "volume",
+      "symbol",
+      "last_price",
+    ]);
+    expect(original.map((column) => column.key)).toEqual([
+      "symbol",
+      "last_price",
+      "volume",
+    ]);
+    expect(reordered[1]).not.toBe(original[0]);
+  });
+
+  it("applies shared source metadata for computed columns and visuals", () => {
+    const frameInput = buildTableWidgetFrameFromRemoteData(
+      null,
+      [
+        {
+          unique_identifier: "uid:AAPL",
+          last_price: 110,
+          previous_close: 100,
+          sparkline_prices: "98,101,104,110",
+        },
+      ],
+      ["unique_identifier", "last_price", "previous_close", "sparkline_prices"],
+      [],
+      {
+        tableTransforms: {
+          computedColumns: [
+            {
+              id: "one_day_return",
+              label: "1D",
+              type: "number",
+              expression: {
+                op: "percentChange",
+                current: { field: "last_price" },
+                reference: { field: "previous_close" },
+              },
+            },
+          ],
+        },
+        tableVisuals: {
+          columns: {
+            unique_identifier: {
+              label: "Identifier",
+              width: 180,
+            },
+            last_price: {
+              label: "Last",
+              format: "price",
+              decimals: 2,
+              width: 120,
+            },
+            one_day_return: {
+              label: "1D",
+              format: "percent",
+              thresholds: [
+                { operator: "lt", value: 0, tone: "warning" },
+                { operator: "gt", value: 0, tone: "success" },
+              ],
+            },
+            sparkline_prices: {
+              label: "Trend",
+              kind: "sparkline",
+              width: 128,
+            },
+          },
+        },
+      },
+    );
+
+    expect(frameInput.columns).toEqual([
+      "unique_identifier",
+      "last_price",
+      "previous_close",
+      "sparkline_prices",
+      "one_day_return",
+    ]);
+
+    const resolved = resolveTableWidgetPropsWithFrame({}, frameInput);
+    const identifierColumn = resolved.schema.find((column) => column.key === "unique_identifier");
+    const lastColumn = resolved.schema.find((column) => column.key === "last_price");
+    const returnColumn = resolved.schema.find((column) => column.key === "one_day_return");
+
+    expect(identifierColumn).toMatchObject({
+      label: "Identifier",
+      minWidth: 180,
+    });
+    expect(lastColumn).toMatchObject({
+      label: "Last",
+      decimals: 2,
+      format: "number",
+      minWidth: 120,
+    });
+    expect(returnColumn).toMatchObject({
+      label: "1D",
+      format: "percent",
+    });
+    expect(resolved.columnOverrides.one_day_return).toMatchObject({
+      compact: false,
+    });
+    expect(resolved.conditionalRules).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ columnKey: "one_day_return", operator: "lt", tone: "warning" }),
+        expect.objectContaining({ columnKey: "one_day_return", operator: "gt", tone: "success" }),
+      ]),
+    );
+    expect(resolved.rows[0]?.[resolved.columns.indexOf("one_day_return")]).toBe(10);
   });
 });
 

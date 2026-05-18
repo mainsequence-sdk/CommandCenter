@@ -15,6 +15,8 @@ import { defineWidget, type ResolvedWidgetInputs, type WidgetDefinition } from "
 
 import {
   assetScreenerDefaultProps,
+  normalizeAssetScreenerProps,
+  prepareAssetScreenerColumnsForPersistence,
   resolveAssetScreenerColumnConfigFromResolvedInputs,
   resolveAssetScreenerState,
   type MainSequenceAssetScreenerWidgetProps,
@@ -37,13 +39,18 @@ function frame(rows: Array<Record<string, unknown>>): TabularFrameSourceV1 {
 }
 
 function marketSeedFrame(rows: Array<Record<string, unknown>>): TabularFrameSourceV1 {
+  const normalizedRows = rows.map((row) => ({
+    ...row,
+    ...(row.Symbol == null && row.symbol != null ? { Symbol: row.symbol } : {}),
+  }));
+
   return {
-    ...frame(rows),
+    ...frame(normalizedRows),
     meta: buildMarketAssetFrameSemanticMeta({
       role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
       fieldRoles: [
         { field: "unique_identifier", role: "assetKey" },
-        { field: "symbol", role: "symbol" },
+        { field: "Symbol", role: "symbol" },
         { field: "sector", role: "sector" },
         { field: "time", role: "observedAt" },
         { field: "last_price", role: "value", valueKey: "price" },
@@ -205,13 +212,42 @@ const legacyOverrideColumns = [
   },
 ] satisfies NonNullable<MainSequenceAssetScreenerWidgetProps["columns"]>;
 
+const testCustomColumns = [
+  {
+    id: "symbol",
+    kind: "asset-field",
+    label: "Ticker",
+    field: "symbol",
+    width: 120,
+    groupable: true,
+  },
+  {
+    id: "last",
+    kind: "latest-value",
+    label: "Last Px",
+    valueField: "price",
+    format: "price",
+    width: 96,
+  },
+  {
+    id: "pct",
+    kind: "return",
+    label: "1D %",
+    referenceKey: "previousClose",
+    valueField: "price",
+    returnMode: "percent",
+    format: "percent",
+    width: 86,
+  },
+] satisfies NonNullable<MainSequenceAssetScreenerWidgetProps["columns"]>;
+
 function propsWithDefaultColumns(
   overrides: Partial<MainSequenceAssetScreenerWidgetProps> = {},
 ): MainSequenceAssetScreenerWidgetProps {
   return {
     ...assetScreenerDefaultProps,
     columnConfigMode: "custom",
-    columns: legacyOverrideColumns,
+    columns: testCustomColumns,
     ...overrides,
   };
 }
@@ -227,7 +263,7 @@ function assetScreenerInstance(
       fieldMappings: {
         seed: {
           assetKeyField: "unique_identifier",
-          symbolField: "symbol",
+          symbolField: "Symbol",
           sectorField: "sector",
           observedAtField: "time",
           valueFields: {
@@ -249,13 +285,99 @@ function assetScreenerInstance(
 }
 
 describe("assetScreenerModel", () => {
+  it("does not treat saved columns as a custom override unless the mode explicitly says custom", () => {
+    const props = normalizeAssetScreenerProps({
+      columns: testCustomColumns,
+    });
+
+    expect(props.columnConfigMode).toBe("source");
+    expect(props.columns).toEqual(testCustomColumns);
+  });
+
+  it("strips source visual snapshots when copying source columns into a persisted override", () => {
+    expect(prepareAssetScreenerColumnsForPersistence([
+      {
+        id: "pct",
+        kind: "return",
+        label: "1D",
+        referenceKey: "previousClose",
+        valueField: "price",
+        returnMode: "percent",
+        format: "percent",
+        visual: {
+          gaugeMode: "ring",
+          thresholds: [
+            { operator: "lt", value: 0, tone: "warning" },
+            { operator: "gt", value: 0, tone: "success" },
+          ],
+        },
+      },
+    ])).toEqual([
+      {
+        id: "pct",
+        kind: "return",
+        label: "1D",
+        referenceKey: "previousClose",
+        valueField: "price",
+        returnMode: "percent",
+        format: "percent",
+      },
+    ]);
+  });
+
+  it("ignores persisted screener column visual snapshots when normalizing saved props", () => {
+    const props = normalizeAssetScreenerProps({
+      columnConfigMode: "custom",
+      columns: [
+        {
+          id: "pct",
+          kind: "return",
+          label: "1D",
+          referenceKey: "previousClose",
+          valueField: "price",
+          returnMode: "percent",
+          format: "percent",
+          visual: {
+            gaugeMode: "ring",
+            thresholds: [
+              { operator: "lt", value: 0, tone: "warning" },
+              { operator: "gt", value: 0, tone: "success" },
+            ],
+          },
+        },
+      ],
+    });
+
+    expect(props.columns).toEqual([
+      {
+        id: "pct",
+        kind: "return",
+        label: "1D",
+        referenceKey: "previousClose",
+        valueField: "price",
+        returnMode: "percent",
+        format: "percent",
+      },
+    ]);
+  });
+
+  it("migrates the shipped legacy screener preset back to source metadata", () => {
+    const props = normalizeAssetScreenerProps({
+      columnConfigMode: "custom",
+      columns: legacyOverrideColumns,
+    });
+
+    expect(props.columnConfigMode).toBe("source");
+    expect(props.columns).toBeUndefined();
+  });
+
   it("derives configured rows from fallback seed references and live frames", () => {
     const state = resolveAssetScreenerState({
       props: propsWithDefaultColumns({
         fieldMappings: {
           seed: {
             assetKeyField: "unique_identifier",
-            symbolField: "symbol",
+            symbolField: "Symbol",
             sectorField: "sector",
             observedAtField: "time",
             valueFields: {
@@ -323,7 +445,7 @@ describe("assetScreenerModel", () => {
         fieldMappings: {
           seed: {
             assetKeyField: "unique_identifier",
-            symbolField: "symbol",
+            symbolField: "Symbol",
             observedAtField: "time",
             valueFields: {
               price: "last_price",
@@ -336,7 +458,7 @@ describe("assetScreenerModel", () => {
         seedData: frame([
           {
             unique_identifier: "uid:AAPL",
-            symbol: "AAPL",
+            Symbol: "AAPL",
             time: "2026-05-16T12:00:00.000Z",
             last_price: 104,
             volume: 42_000_000,
@@ -356,7 +478,7 @@ describe("assetScreenerModel", () => {
       ...frame([
         {
           unique_identifier: "uid:AAPL",
-          ticker: "AAPL",
+          Symbol: "AAPL",
           sector: "Technology",
           as_of: "2026-05-17T14:30:00.000Z",
           last_price: 112.25,
@@ -368,7 +490,7 @@ describe("assetScreenerModel", () => {
         },
         {
           unique_identifier: "uid:MSFT",
-          ticker: "MSFT",
+          Symbol: "MSFT",
           sector: "Technology",
           as_of: "2026-05-17T14:30:00.000Z",
           last_price: 219.5,
@@ -384,7 +506,7 @@ describe("assetScreenerModel", () => {
           role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
           fieldRoles: [
             { field: "unique_identifier", role: "assetKey" },
-            { field: "ticker", role: "symbol" },
+            { field: "Symbol", role: "symbol" },
             { field: "sector", role: "sector" },
             { field: "as_of", role: "observedAt" },
             { field: "last_price", role: "value", valueKey: "price" },
@@ -472,6 +594,8 @@ describe("assetScreenerModel", () => {
           },
           tableVisuals: {
             columns: {
+              Symbol: { label: "Symbol" },
+              sector: { label: "Sector" },
               last_price: { format: "price" },
               one_day_return: {
                 format: "percent",
@@ -509,7 +633,7 @@ describe("assetScreenerModel", () => {
 
     expect(sourceDriven.columnConfigSource).toBe("source");
     expect(sourceDriven.columns.map((column) => column.id)).toEqual([
-      "ticker",
+      "Symbol",
       "sector",
       "last_price",
       "one_day_return",
@@ -540,7 +664,7 @@ describe("assetScreenerModel", () => {
         columnConfigMode: "custom",
         columns: [
           {
-            id: "ticker",
+            id: "Symbol",
             kind: "asset-field",
             label: "Ticker",
             field: "symbol",
@@ -553,7 +677,62 @@ describe("assetScreenerModel", () => {
     });
 
     expect(customOverride.columnConfigSource).toBe("custom");
-    expect(customOverride.columns.map((column) => column.id)).toEqual(["ticker"]);
+    expect(customOverride.columns.map((column) => column.id)).toEqual(["Symbol"]);
+  });
+
+  it("ignores the shipped legacy screener preset when source metadata is available", () => {
+    const seedData = {
+      ...frame([
+        {
+          unique_identifier: "uid:AAPL",
+          Symbol: "AAPL",
+          sector: "Technology",
+          as_of: "2026-05-17T14:30:00.000Z",
+          last_price: 112.25,
+        },
+      ]),
+      meta: {
+        ...buildMarketAssetFrameSemanticMeta({
+          role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
+          fieldRoles: [
+            { field: "unique_identifier", role: "assetKey" },
+            { field: "Symbol", role: "symbol" },
+            { field: "sector", role: "sector" },
+            { field: "as_of", role: "observedAt" },
+            { field: "last_price", role: "value", valueKey: "price" },
+          ],
+        }),
+        ...buildMarketTableFrameMeta({
+          tableVisuals: {
+            columns: {
+              Symbol: { label: "Symbol" },
+              sector: { label: "Sector" },
+              last_price: { label: "Last", format: "price" },
+            },
+          },
+        }),
+      },
+    } satisfies TabularFrameSourceV1;
+
+    const migrated = resolveAssetScreenerState({
+      props: {
+        ...assetScreenerDefaultProps,
+        columnConfigMode: "custom",
+        columns: legacyOverrideColumns,
+      },
+      fallbackFrames: {
+        seedData,
+      },
+    });
+
+    expect(migrated.columnConfigSource).toBe("source");
+    expect(migrated.columns.map((column) => column.id)).toEqual([
+      "Symbol",
+      "sector",
+      "last_price",
+    ]);
+    expect(migrated.filteredRows).toHaveLength(1);
+    expect(migrated.filteredRows[0]?.metrics.last_price).toBe(112.25);
   });
 
   it("shows table visual metadata columns in settings even without market field-role metadata", () => {
@@ -561,7 +740,7 @@ describe("assetScreenerModel", () => {
       ...frame([
         {
           unique_identifier: "uid:AAPL",
-          ticker: "AAPL",
+          Symbol: "AAPL",
           sector: "Technology",
           as_of: "2026-05-17T14:30:00.000Z",
           last_price: 112.25,
@@ -570,7 +749,7 @@ describe("assetScreenerModel", () => {
         },
       ]),
       fields: [
-        { key: "ticker", label: "Ticker", type: "string" },
+        { key: "Symbol", label: "Symbol", type: "string" },
         { key: "sector", label: "Sector", type: "string" },
         { key: "last_price", label: "Last", type: "number" },
       ],
@@ -591,7 +770,7 @@ describe("assetScreenerModel", () => {
         },
         tableVisuals: {
           columns: {
-            ticker: { label: "Ticker" },
+            Symbol: { label: "Symbol" },
             sector: { label: "Sector" },
             last_price: { label: "Last", format: "price" },
             one_day_return: {
@@ -620,16 +799,16 @@ describe("assetScreenerModel", () => {
 
     expect(sourceDriven.columnConfigSource).toBe("source");
     expect(sourceDriven.columns.map((column) => column.id)).toEqual([
-      "ticker",
+      "Symbol",
       "sector",
       "last_price",
       "one_day_return",
       "sparkline_prices",
     ]);
-    expect(sourceDriven.columns.find((column) => column.id === "ticker")).toMatchObject({
+    expect(sourceDriven.columns.find((column) => column.id === "Symbol")).toMatchObject({
       kind: "asset-field",
       field: "symbol",
-      label: "Ticker",
+      label: "Symbol",
     });
     expect(sourceDriven.columns.find((column) => column.id === "last_price")).toMatchObject({
       kind: "latest-value",
@@ -677,6 +856,8 @@ describe("assetScreenerModel", () => {
         ...buildMarketTableFrameMeta({
           tableVisuals: {
             columns: {
+              Symbol: { label: "Symbol" },
+              sector: { label: "Sector" },
               last_price: { format: "price" },
               price_sparkline: {
                 kind: "sparkline",
@@ -711,11 +892,73 @@ describe("assetScreenerModel", () => {
 
     expect(columnConfig.source).toBe("source");
     expect(columnConfig.columns.map((column) => column.id)).toEqual([
-      "symbol",
+      "Symbol",
       "sector",
       "last_price",
       "price_sparkline",
     ]);
+  });
+
+  it("treats table visuals as the authoritative source column proposal when present", () => {
+    const seedData = {
+      ...frame([
+        {
+          unique_identifier: "uid:AAPL",
+          Symbol: "AAPL",
+          sector: "Technology",
+          time: "2026-05-16T12:00:00.000Z",
+          last_price: 101.25,
+          previous_close: 100.75,
+        },
+      ]),
+      meta: {
+        ...buildMarketAssetFrameSemanticMeta({
+          role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
+          fieldRoles: [
+            { field: "unique_identifier", role: "assetKey" },
+            { field: "Symbol", role: "symbol" },
+            { field: "sector", role: "sector" },
+            { field: "time", role: "observedAt" },
+            { field: "last_price", role: "value", valueKey: "price" },
+            { field: "previous_close", role: "referenceValue", referenceKey: "previousClose", valueKey: "price" },
+          ],
+        }),
+        ...buildMarketTableFrameMeta({
+          tableVisuals: {
+            columns: {
+              last_price: { label: "Last", format: "price", decimals: 2 },
+              Symbol: { label: "Ticker" },
+            },
+          },
+        }),
+      },
+    } satisfies TabularFrameSourceV1;
+
+    const sourceDriven = resolveAssetScreenerState({
+      props: assetScreenerDefaultProps,
+      fallbackFrames: {
+        seedData,
+      },
+    });
+
+    expect(sourceDriven.columnConfigSource).toBe("source");
+    expect(sourceDriven.columns.map((column) => column.id)).toEqual([
+      "last_price",
+      "Symbol",
+    ]);
+    expect(sourceDriven.columns.find((column) => column.id === "last_price")).toMatchObject({
+      label: "Last",
+      format: "price",
+      valueField: "price",
+      visual: {
+        decimals: 2,
+      },
+    });
+    expect(sourceDriven.columns.find((column) => column.id === "Symbol")).toMatchObject({
+      label: "Ticker",
+      kind: "asset-field",
+      field: "symbol",
+    });
   });
 
   it("resolves a refresh-only workspace from generic dataset outputs", () => {
@@ -857,6 +1100,95 @@ describe("assetScreenerModel", () => {
     expect(state.filteredRows[0]?.metrics.pct).toBeCloseTo(4);
   });
 
+  it("uses an explicit canonical source frame for screener columns and visuals", () => {
+    const seedData = marketSeedFrame([
+      {
+        unique_identifier: "uid:AAPL",
+        Symbol: "AAPL",
+        sector: "Technology",
+        time: "2026-05-16T12:00:00.000Z",
+        last_price: 101,
+        previous_close: 100,
+      },
+    ]);
+    const canonicalSourceFrame = {
+      ...frame([
+        {
+          unique_identifier: "uid:AAPL",
+          Symbol: "AAPL",
+          sector: "Technology",
+          time: "2026-05-16T12:01:00.000Z",
+          last_price: 104,
+          previous_close: 100,
+        },
+      ]),
+      meta: {
+        ...buildMarketAssetFrameSemanticMeta({
+          role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
+          fieldRoles: [
+            { field: "unique_identifier", role: "assetKey" },
+            { field: "Symbol", role: "symbol" },
+            { field: "sector", role: "sector" },
+            { field: "time", role: "observedAt" },
+            { field: "last_price", role: "value", valueKey: "price" },
+            {
+              field: "previous_close",
+              role: "referenceValue",
+              referenceKey: "previousClose",
+              valueKey: "price",
+            },
+            { field: "one_day_return", role: "value", valueKey: "oneDayReturn" },
+          ],
+        }),
+        ...buildMarketTableFrameMeta({
+          tableTransforms: {
+            computedColumns: [
+              {
+                id: "one_day_return",
+                label: "1D",
+                type: "number",
+                expression: {
+                  op: "percentChange",
+                  current: { field: "last_price" },
+                  reference: { field: "previous_close" },
+                },
+              },
+            ],
+          },
+          tableVisuals: {
+            columns: {
+              one_day_return: {
+                label: "1D",
+                format: "percent",
+                thresholds: [
+                  { operator: "lt", value: 0, tone: "warning" },
+                  { operator: "gt", value: 0, tone: "success" },
+                ],
+              },
+            },
+          },
+        }),
+      },
+    } satisfies TabularFrameSourceV1;
+
+    const state = resolveAssetScreenerState({
+      canonicalSourceFrame,
+      props: assetScreenerDefaultProps,
+      fallbackFrames: {
+        seedData,
+      },
+    });
+
+    expect(state.sourceFrame).toBe(canonicalSourceFrame);
+    expect(state.columns.some((column) => column.id === "one_day_return")).toBe(true);
+    expect(state.sourceColumns?.find((column) => column.id === "one_day_return")).toMatchObject({
+      id: "one_day_return",
+      label: "1D",
+      kind: "latest-value",
+      valueField: "oneDayReturn",
+    });
+  });
+
   it("recalculates against refreshed seeded references while keeping the live binding stable", () => {
     function buildWorkspace(referenceClose: number) {
       const liveBase = frame([
@@ -963,7 +1295,7 @@ describe("assetScreenerModel", () => {
         fieldMappings: {
           seed: {
             assetKeyField: "unique_identifier",
-            symbolField: "symbol",
+            symbolField: "Symbol",
             observedAtField: "time",
             valueFields: {
               price: "last_price",
@@ -975,7 +1307,7 @@ describe("assetScreenerModel", () => {
         seedData: frame([
           {
             unique_identifier: "uid:AAPL",
-            symbol: "AAPL",
+            Symbol: "AAPL",
             time: "2026-05-16T12:00:00.000Z",
             last_price: 104,
           },
@@ -994,10 +1326,47 @@ describe("assetScreenerModel", () => {
     expect(state.filteredRows[0]?.metrics.pct).toBeNull();
   });
 
+  it("falls back when saved explicit field mappings no longer match the incoming frame", () => {
+    const state = resolveAssetScreenerState({
+      props: propsWithDefaultColumns({
+        fieldMappings: {
+          seed: {
+            assetKeyField: "asset_id",
+            symbolField: "symbol",
+            observedAtField: "time",
+            valueFields: {
+              price: "last",
+            },
+          },
+        },
+      }),
+      fallbackFrames: {
+        seedData: frame([
+          {
+            unique_identifier: "uid:AAPL",
+            Symbol: "AAPL",
+            as_of: "2026-05-17T16:30:00.000Z",
+            last_price: 112.25,
+            previous_close: 110,
+          },
+        ]),
+      },
+    });
+
+    expect(state.rows).toHaveLength(1);
+    expect(state.filteredRows[0]).toMatchObject({
+      status: "missing-reference",
+      metrics: {
+        symbol: "AAPL",
+        last: 112.25,
+      },
+    });
+  });
+
   it("caps large universes before rendering so settings previews stay bounded", () => {
     const rows = Array.from({ length: 2_000 }, (_, index) => ({
       unique_identifier: `asset:${index}`,
-      symbol: `SYM${index.toString().padStart(4, "0")}`,
+      Symbol: `SYM${index.toString().padStart(4, "0")}`,
       time: "2026-05-16T12:00:00.000Z",
       last_price: 100 + index,
     }));
@@ -1008,7 +1377,7 @@ describe("assetScreenerModel", () => {
         fieldMappings: {
           seed: {
             assetKeyField: "unique_identifier",
-            symbolField: "symbol",
+            symbolField: "Symbol",
             observedAtField: "time",
             valueFields: {
               price: "last_price",

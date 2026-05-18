@@ -1,8 +1,9 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { Database } from "lucide-react";
 
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
+import { useWorkspaceVariableReferenceRegistry } from "@/dashboards/DashboardWidgetDependencies";
 import { useTheme } from "@/themes/ThemeProvider";
 import { useIncrementalTabularConsumerBindingState } from "@/widgets/shared/incremental-tabular-consumer";
 import { useResolvedTabularWidgetSourceBinding } from "@/widgets/shared/tabular-widget-source";
@@ -12,16 +13,93 @@ import { TableFrameView } from "./TableFrameView";
 import {
   buildTableWidgetFrameFromRemoteData,
   normalizeTableWidgetSelectionState,
+  TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
+  TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
+  TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
+  TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
   resolveTableWidgetProps,
   resolveTableWidgetPropsWithFrame,
   resolveTableWidgetSelectionKeyFields,
   resolveTableWidgetSourceDataset,
+  type TableWidgetSelectionMode,
   withTableWidgetSelectionRuntimeState,
   type TableWidgetSelectionState,
   type TableWidgetProps,
 } from "./tableModel";
 
 type Props = WidgetComponentProps<TableWidgetProps>;
+
+function summarizeConditionalRulesForDebug(
+  rules: Array<{ columnKey: string; operator: string; value?: number; tone?: string; backgroundColor?: string }>,
+  columnKey: string,
+) {
+  return rules
+    .filter((rule) => rule.columnKey === columnKey)
+    .map((rule) => `${rule.operator}:${rule.value ?? ""}:${rule.tone ?? rule.backgroundColor ?? ""}`)
+    .join(" | ");
+}
+
+function buildTableFormatResolutionDebugRows(input: {
+  remoteFrame: ReturnType<typeof buildTableWidgetFrameFromRemoteData>;
+  resolvedProps: ReturnType<typeof resolveTableWidgetPropsWithFrame>;
+}) {
+  const sourceSchemaByKey = new Map(
+    input.remoteFrame.schemaFallback.map((column) => [column.key, column] as const),
+  );
+  const resolvedSchemaByKey = new Map(
+    input.resolvedProps.schema.map((column) => [column.key, column] as const),
+  );
+  const sourceOverrides = input.remoteFrame.sourceColumnOverrides ?? {};
+  const resolvedOverrides = input.resolvedProps.columnOverrides ?? {};
+
+  return input.resolvedProps.columns.map((columnKey) => {
+    const sourceSchema = sourceSchemaByKey.get(columnKey);
+    const resolvedSchema = resolvedSchemaByKey.get(columnKey);
+    const sourceOverride = sourceOverrides[columnKey];
+    const resolvedOverride = resolvedOverrides[columnKey];
+
+    return {
+      columnId: columnKey,
+      sourceFormat: sourceSchema?.format ?? null,
+      sourceGaugeMode: sourceOverride?.gaugeMode ?? null,
+      sourceHeatmap: sourceOverride?.heatmap ?? null,
+      sourceGradientMode: sourceOverride?.gradientMode ?? null,
+      sourceRuleSummary: summarizeConditionalRulesForDebug(
+        input.remoteFrame.sourceConditionalRules ?? [],
+        columnKey,
+      ),
+      resolvedFormat: resolvedSchema?.format ?? null,
+      resolvedGaugeMode: resolvedOverride?.gaugeMode ?? null,
+      resolvedHeatmap: resolvedOverride?.heatmap ?? null,
+      resolvedGradientMode: resolvedOverride?.gradientMode ?? null,
+      resolvedRuleSummary: summarizeConditionalRulesForDebug(
+        input.resolvedProps.conditionalRules ?? [],
+        columnKey,
+      ),
+    };
+  });
+}
+
+function resolveImplicitSelectionMode(
+  outputIds: Set<string>,
+): TableWidgetSelectionMode {
+  if (outputIds.has(TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID)) {
+    return "multi-row";
+  }
+
+  if (outputIds.has(TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID)) {
+    return "single-row";
+  }
+
+  if (
+    outputIds.has(TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID) ||
+    outputIds.has(TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID)
+  ) {
+    return "cell";
+  }
+
+  return "none";
+}
 
 function TableWidgetSourceState({
   description,
@@ -51,6 +129,7 @@ export function TableWidget({
   onRuntimeStateChange,
 }: Props) {
   const { resolvedTokens, tightness } = useTheme();
+  const variableRegistry = useWorkspaceVariableReferenceRegistry();
   const normalizedProps = useMemo(
     () => resolveTableWidgetProps(props),
     [props],
@@ -95,13 +174,43 @@ export function TableWidget({
         sourceRows,
         sourceColumns,
         resolvedInputDataset?.fields ?? [],
+        resolvedInputDataset?.meta,
       ),
-    [resolvedInputDataset?.fields, sourceColumns, sourceRows],
+    [resolvedInputDataset?.fields, resolvedInputDataset?.meta, sourceColumns, sourceRows],
   );
   const resolvedProps = useMemo(
     () => resolveTableWidgetPropsWithFrame(props, remoteFrame),
     [props, remoteFrame],
   );
+  useEffect(() => {
+    if (!import.meta.env.DEV || isManualTableMode) {
+      return;
+    }
+
+    const formatResolutionRows = buildTableFormatResolutionDebugRows({
+      remoteFrame,
+      resolvedProps,
+    });
+
+    console.groupCollapsed("[table:format-resolution]", instanceId ?? "no-instance");
+    console.log("sourceConsumerState", sourceConsumerState);
+    console.log("resolvedInputDataset", resolvedInputDataset);
+    console.log("remoteFrame", remoteFrame);
+    console.log("resolvedTableProps", {
+      columnOverrides: resolvedProps.columnOverrides,
+      conditionalRules: resolvedProps.conditionalRules,
+      schema: resolvedProps.schema,
+    });
+    console.table(formatResolutionRows);
+    console.groupEnd();
+  }, [
+    instanceId,
+    isManualTableMode,
+    remoteFrame,
+    resolvedInputDataset,
+    resolvedProps,
+    sourceConsumerState,
+  ]);
   const selectionKeyFields = useMemo(
     () => resolveTableWidgetSelectionKeyFields(resolvedProps, resolvedInputDataset),
     [resolvedInputDataset, resolvedProps],
@@ -110,15 +219,56 @@ export function TableWidget({
     () => normalizeTableWidgetSelectionState(runtimeState),
     [runtimeState],
   );
+  const implicitSelectionMode = useMemo(() => {
+    if (
+      !instanceId ||
+      !normalizedProps.publishSelectionOutputs ||
+      normalizedProps.selectionMode !== "none"
+    ) {
+      return "none";
+    }
+
+    const referencedOutputIds = new Set(
+      (variableRegistry?.bySourceWidgetId.get(instanceId) ?? []).flatMap((entry) =>
+        entry?.key.sourceOutputId ? [entry.key.sourceOutputId] : [],
+      ),
+    );
+
+    return resolveImplicitSelectionMode(referencedOutputIds);
+  }, [
+    instanceId,
+    normalizedProps.publishSelectionOutputs,
+    normalizedProps.selectionMode,
+    variableRegistry,
+  ]);
+  const effectiveSelectionMode =
+    normalizedProps.selectionMode !== "none"
+      ? normalizedProps.selectionMode
+      : implicitSelectionMode;
+
   const handleSelectionChange = useCallback(
     (selection: TableWidgetSelectionState) => {
       if (!onRuntimeStateChange) {
         return;
       }
 
-      onRuntimeStateChange(withTableWidgetSelectionRuntimeState(runtimeState, selection));
+      onRuntimeStateChange(
+        withTableWidgetSelectionRuntimeState(runtimeState, {
+          ...selection,
+          implicitMode:
+            normalizedProps.selectionMode === "none" && effectiveSelectionMode !== "none",
+        }),
+      );
     },
-    [onRuntimeStateChange, runtimeState],
+    [
+      effectiveSelectionMode,
+      instanceId,
+      normalizedProps.publishSelectionOutputs,
+      normalizedProps.selectionMode,
+      onRuntimeStateChange,
+      resolvedProps.selectionMode,
+      runtimeState,
+    ],
   );
   const dataErrorMessage =
     !isManualTableMode && sourceConsumerState.kind === "error"
@@ -197,13 +347,14 @@ export function TableWidget({
 
   return (
     <TableFrameView
+      debugInstanceId={instanceId}
       dataErrorMessage={dataErrorMessage}
       isDataLoading={isDataLoading}
       resolvedProps={resolvedProps}
       resolvedTokens={resolvedTokens}
       showColumnFilters={resolvedProps.showColumnFilters}
       selectionKeyFields={selectionKeyFields}
-      selectionMode={resolvedProps.selectionMode}
+      selectionMode={effectiveSelectionMode}
       selectionState={selectionState}
       tightness={tightness}
       onSelectionChange={handleSelectionChange}

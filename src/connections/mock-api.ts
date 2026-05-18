@@ -100,7 +100,7 @@ Provides a local-only Mock API connection for prototyping connection-query widge
 - Payload: { "kind": "mock-api-response", "responseMode": "auto", "responseStatus": 200, "responseBody": [{ "x": 0, "y": 2 }] }
 - Returns: \`core.tabular_frame@v1\` by converting arrays or objects into rows. Full \`ConnectionQueryResponse\` payloads can also pass through when responseMode is \`connection-query-response\` or auto-detected.
 - Time-range-aware: no.
-- Notes: This query runs entirely in the browser. It intentionally bypasses backend connection instance creation, registry sync, credentials, cache, and network IO.
+- Notes: This query runs entirely in the browser. The query editor commits valid response JSON into the widget draft as the user types so normal widget dirty/save behavior works before blur; invalid JSON stays local with a parse error. It intentionally bypasses backend connection instance creation, registry sync, credentials, cache, and network IO.
 
 ## backendOwnership
 

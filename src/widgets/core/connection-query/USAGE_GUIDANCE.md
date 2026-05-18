@@ -31,6 +31,8 @@ When a workspace runtime data store is available, the retained frame is publishe
 - For time-range-aware paths, choose whether the query uses the workspace date range or custom fixed dates. Paths that are not time-range-aware do not show date runtime controls and do not send `timeRange`.
 - For time-range-aware paths that use the workspace date range, optionally enable incremental refresh. Choose the time field used for tail requests and retention pruning, then choose the merge-key column combination used to dedupe and replace retained rows.
 - Use the Test query action to run the draft request and inspect the returned frame before binding downstream widgets.
+- Variable-backed settings are resolved before the Test query request is built, so the preview
+  payload should show the concrete upstream value rather than the raw `$(widget).source` expression.
 - Optionally configure variables only when the selected connection path advertises variable support.
 - Configure the row limit when needed.
 - Bind downstream widgets to the `dataset` output. The output label includes the selected path label, such as `Rows between dates dataset`.

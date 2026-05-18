@@ -4,6 +4,30 @@ import {
   type TabularFrameFieldSchema,
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
+import {
+  applyTableComputedColumns,
+  buildTableFrameMeta as buildSharedTableFrameMeta,
+  evaluateTableExpression as evaluateSharedTableExpression,
+  resolveTableTransformsMetadata as resolveSharedTableTransformsMetadata,
+  resolveTableVisualsMetadata as resolveSharedTableVisualsMetadata,
+  type TableFrameColorScaleMetadata as SharedTableFrameColorScaleMetadata,
+  type TableFrameComputedColumn as SharedTableFrameComputedColumn,
+  type TableFrameExpression as SharedTableFrameExpression,
+  type TableFrameInlineSeriesEncoding as SharedTableFrameInlineSeriesEncoding,
+  type TableFrameRangeMetadata as SharedTableFrameRangeMetadata,
+  type TableFrameSeriesOrder as SharedTableFrameSeriesOrder,
+  type TableFrameTransformsMetadata as SharedTableFrameTransformsMetadata,
+  type TableFrameVisualBarMode as SharedTableFrameVisualBarMode,
+  type TableFrameVisualColumnMetadata as SharedTableFrameVisualColumnMetadata,
+  type TableFrameVisualGaugeMode as SharedTableFrameVisualGaugeMode,
+  type TableFrameVisualGradientMode as SharedTableFrameVisualGradientMode,
+  type TableFrameVisualHeatmapPalette as SharedTableFrameVisualHeatmapPalette,
+  type TableFrameVisualOperator as SharedTableFrameVisualOperator,
+  type TableFrameVisualRangeMode as SharedTableFrameVisualRangeMode,
+  type TableFrameVisualsMetadata as SharedTableFrameVisualsMetadata,
+  type TableFrameVisualTone as SharedTableFrameVisualTone,
+  type TableFrameThresholdRuleMetadata as SharedTableFrameThresholdRuleMetadata,
+} from "@/widgets/core/table/tableFrameMetadata";
 
 export const MARKET_ASSET_SNAPSHOT_FRAME_ROLE = "snapshot" as const;
 export const MARKET_ASSET_REFERENCE_POINTS_FRAME_ROLE = "reference-points" as const;
@@ -63,109 +87,23 @@ export type MarketAssetFieldRole =
   | "referenceValue"
   | "sparklineSeries";
 
-export type MarketAssetSparklineSeriesEncoding = "csv-number" | "json-number-array" | "number-array";
-export type MarketAssetSparklineSeriesOrder = "oldest-to-newest" | "newest-to-oldest";
-
-export type MarketTableExpression =
-  | {
-      field: string;
-    }
-  | {
-      value: number | string | boolean | null;
-    }
-  | {
-      op: "difference" | "subtract";
-      left: MarketTableExpression;
-      right: MarketTableExpression;
-    }
-  | {
-      op: "percentChange";
-      current: MarketTableExpression;
-      reference: MarketTableExpression;
-    }
-  | {
-      op: "ratio" | "divide";
-      numerator: MarketTableExpression;
-      denominator: MarketTableExpression;
-    }
-  | {
-      op: "add" | "multiply";
-      args: MarketTableExpression[];
-    };
-
-export interface MarketTableComputedColumn {
-  id: string;
-  label?: string;
-  type?: "number" | "string" | "boolean" | "json";
-  expression: MarketTableExpression;
-}
-
-export interface MarketTableTransformsMetadata {
-  computedColumns?: MarketTableComputedColumn[];
-}
-
-export interface MarketTableColorScaleMetadata {
-  negative?: "warning" | "danger" | string;
-  neutral?: "muted" | string;
-  positive?: "success" | string;
-}
-
-export interface MarketTableRangeMetadata {
-  min?: number;
-  max?: number;
-  midpoint?: number;
-  clamp?: boolean;
-}
-
-export type MarketTableVisualTone = "neutral" | "primary" | "success" | "warning" | "danger";
-export type MarketTableVisualOperator = "gt" | "gte" | "lt" | "lte" | "eq";
-export type MarketTableVisualBarMode = "none" | "fill";
-export type MarketTableVisualGradientMode = "none" | "fill";
-export type MarketTableVisualHeatmapPalette =
-  | "auto"
-  | "viridis"
-  | "plasma"
-  | "inferno"
-  | "magma"
-  | "turbo"
-  | "jet"
-  | "blue-white-red"
-  | "red-yellow-green";
-export type MarketTableVisualGaugeMode = "none" | "ring";
-export type MarketTableVisualRangeMode = "auto" | "fixed";
-
-export interface MarketTableThresholdRuleMetadata {
-  backgroundColor?: string;
-  id?: string;
-  operator: MarketTableVisualOperator;
-  textColor?: string;
-  tone?: MarketTableVisualTone;
-  value: number;
-}
-
-export interface MarketTableVisualColumnMetadata {
-  label?: string;
-  format?: "number" | "price" | "percent" | "volume" | "currency";
-  colorScale?: MarketTableColorScaleMetadata;
-  range?: MarketTableRangeMetadata;
-  thresholds?: MarketTableThresholdRuleMetadata[];
-  heatmap?: boolean;
-  barMode?: MarketTableVisualBarMode;
-  gradientMode?: MarketTableVisualGradientMode;
-  heatmapPalette?: MarketTableVisualHeatmapPalette;
-  gaugeMode?: MarketTableVisualGaugeMode;
-  visualRangeMode?: MarketTableVisualRangeMode;
-  visualMin?: number;
-  visualMax?: number;
-  kind?: "sparkline" | "bar" | "heatmap";
-  encoding?: MarketAssetSparklineSeriesEncoding;
-  order?: MarketAssetSparklineSeriesOrder;
-  width?: number;
-}
-
-export interface MarketTableVisualsMetadata {
-  columns?: Record<string, MarketTableVisualColumnMetadata>;
-}
+export type MarketAssetSparklineSeriesEncoding = SharedTableFrameInlineSeriesEncoding;
+export type MarketAssetSparklineSeriesOrder = SharedTableFrameSeriesOrder;
+export type MarketTableExpression = SharedTableFrameExpression;
+export type MarketTableComputedColumn = SharedTableFrameComputedColumn;
+export type MarketTableTransformsMetadata = SharedTableFrameTransformsMetadata;
+export type MarketTableColorScaleMetadata = SharedTableFrameColorScaleMetadata;
+export type MarketTableRangeMetadata = SharedTableFrameRangeMetadata;
+export type MarketTableVisualTone = SharedTableFrameVisualTone;
+export type MarketTableVisualOperator = SharedTableFrameVisualOperator;
+export type MarketTableVisualBarMode = SharedTableFrameVisualBarMode;
+export type MarketTableVisualGradientMode = SharedTableFrameVisualGradientMode;
+export type MarketTableVisualHeatmapPalette = SharedTableFrameVisualHeatmapPalette;
+export type MarketTableVisualGaugeMode = SharedTableFrameVisualGaugeMode;
+export type MarketTableVisualRangeMode = SharedTableFrameVisualRangeMode;
+export type MarketTableThresholdRuleMetadata = SharedTableFrameThresholdRuleMetadata;
+export type MarketTableVisualColumnMetadata = SharedTableFrameVisualColumnMetadata;
+export type MarketTableVisualsMetadata = SharedTableFrameVisualsMetadata;
 
 export interface MarketAssetIdentity {
   assetKey: MarketAssetKey;
@@ -559,8 +497,6 @@ export const MARKET_ASSET_FRAME_ROLE_METADATA = {
 const assetKeyCandidates = [
   "assetKey",
   "asset_key",
-  "assetId",
-  "asset_id",
   "instrumentId",
   "instrument_id",
   "securityId",
@@ -636,10 +572,7 @@ export function buildMarketTableFrameMeta(metadata: {
   [tableTransformsMetaKey]?: MarketTableTransformsMetadata;
   [tableVisualsMetaKey]?: MarketTableVisualsMetadata;
 } {
-  return {
-    ...(metadata.tableTransforms ? { [tableTransformsMetaKey]: metadata.tableTransforms } : {}),
-    ...(metadata.tableVisuals ? { [tableVisualsMetaKey]: metadata.tableVisuals } : {}),
-  };
+  return buildSharedTableFrameMeta(metadata);
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -827,7 +760,7 @@ function getRowValue(row: Record<string, unknown>, fieldName: string | undefined
 
 function normalizeFrame(frame: TabularFrameSourceV1 | null | undefined) {
   const normalized = frame ? normalizeTabularFrameSource(frame) : null;
-  return normalized ? applyMarketTableComputedColumns(normalized) : null;
+  return normalized ? applyTableComputedColumns(normalized) : null;
 }
 
 function fieldNamesFromFrame(frame: TabularFrameSourceV1) {
@@ -861,6 +794,19 @@ function findFieldByCandidates(
   }
 
   return undefined;
+}
+
+function resolveExplicitFrameField(
+  fieldNames: string[],
+  explicitField: string | undefined,
+) {
+  const normalizedExplicitField = normalizeFieldName(explicitField);
+
+  if (!normalizedExplicitField) {
+    return undefined;
+  }
+
+  return findFieldByCandidates(fieldNames, [normalizedExplicitField]);
 }
 
 function normalizeFieldRole(value: unknown): MarketAssetFieldRole | undefined {
@@ -1067,11 +1013,7 @@ function normalizeTableTransformsMetadata(value: unknown): MarketTableTransforms
 export function resolveMarketTableTransformsMetadata(
   frame: Pick<TabularFrameSourceV1, "meta"> | null | undefined,
 ): MarketTableTransformsMetadata | null {
-  if (!frame?.meta || !isPlainRecord(frame.meta)) {
-    return null;
-  }
-
-  return normalizeTableTransformsMetadata(frame.meta[tableTransformsMetaKey]);
+  return resolveSharedTableTransformsMetadata(frame);
 }
 
 function normalizeTableVisualFormat(value: unknown): MarketTableVisualColumnMetadata["format"] | undefined {
@@ -1248,11 +1190,7 @@ function normalizeTableVisualsMetadata(value: unknown): MarketTableVisualsMetada
 export function resolveMarketTableVisualsMetadata(
   frame: Pick<TabularFrameSourceV1, "meta"> | null | undefined,
 ): MarketTableVisualsMetadata | null {
-  if (!frame?.meta || !isPlainRecord(frame.meta)) {
-    return null;
-  }
-
-  return normalizeTableVisualsMetadata(frame.meta[tableVisualsMetaKey]);
+  return resolveSharedTableVisualsMetadata(frame);
 }
 
 function expressionFieldNames(expression: MarketTableExpression): string[] {
@@ -1309,52 +1247,7 @@ export function evaluateMarketTableExpression(
   expression: MarketTableExpression,
   row: Record<string, unknown>,
 ): MarketAssetScalarValue {
-  if ("field" in expression) {
-    return normalizeValue(row[expression.field]) ?? null;
-  }
-
-  if ("value" in expression) {
-    return expression.value;
-  }
-
-  if (expression.op === "difference" || expression.op === "subtract") {
-    const left = expressionNumber(evaluateMarketTableExpression(expression.left, row));
-    const right = expressionNumber(evaluateMarketTableExpression(expression.right, row));
-
-    return left === null || right === null ? null : left - right;
-  }
-
-  if (expression.op === "percentChange") {
-    const current = expressionNumber(evaluateMarketTableExpression(expression.current, row));
-    const reference = expressionNumber(evaluateMarketTableExpression(expression.reference, row));
-
-    return current === null || reference === null || reference === 0
-      ? null
-      : (current / reference - 1) * 100;
-  }
-
-  if (expression.op === "ratio" || expression.op === "divide") {
-    const numerator = expressionNumber(evaluateMarketTableExpression(expression.numerator, row));
-    const denominator = expressionNumber(evaluateMarketTableExpression(expression.denominator, row));
-
-    return numerator === null || denominator === null || denominator === 0
-      ? null
-      : numerator / denominator;
-  }
-
-  if (expression.op !== "add" && expression.op !== "multiply") {
-    return null;
-  }
-
-  const values = expression.args.map((entry) => expressionNumber(evaluateMarketTableExpression(entry, row)));
-
-  if (values.some((value) => value === null)) {
-    return null;
-  }
-
-  return expression.op === "add"
-    ? values.reduce<number>((sum, value) => sum + (value ?? 0), 0)
-    : values.reduce<number>((product, value) => product * (value ?? 1), 1);
+  return evaluateSharedTableExpression(expression, row);
 }
 
 function coerceComputedValue(value: MarketAssetScalarValue, type: MarketTableComputedColumn["type"]) {
@@ -1465,7 +1358,7 @@ function resolveField(
     candidates?: readonly string[];
   },
 ) {
-  return normalizeFieldName(input.explicitField) ??
+  return resolveExplicitFrameField(input.fieldNames, input.explicitField) ??
     fieldByRole(input.semanticMetadata, input.role) ??
     (input.candidates ? findFieldByCandidates(input.fieldNames, input.candidates) : undefined);
 }
@@ -1510,13 +1403,14 @@ function resolveValueFieldMapping(
   },
 ) {
   const result: Record<string, string> = {};
+  const fieldNames = fieldNamesFromFrame(frame);
 
   Object.entries(input.explicitValueFields ?? {}).forEach(([valueKey, fieldName]) => {
     const normalizedKey = normalizeString(valueKey);
-    const normalizedField = normalizeFieldName(fieldName);
+    const resolvedField = resolveExplicitFrameField(fieldNames, fieldName);
 
-    if (normalizedKey && normalizedField) {
-      result[normalizedKey] = normalizedField;
+    if (normalizedKey && resolvedField) {
+      result[normalizedKey] = resolvedField;
     }
   });
 
@@ -1535,7 +1429,7 @@ function resolveValueFieldMapping(
   const excluded = new Set(input.excludedFields.filter(Boolean));
   const schemas = fieldSchemasByKey(frame);
 
-  fieldNamesFromFrame(frame).forEach((fieldName) => {
+  fieldNames.forEach((fieldName) => {
     if (excluded.has(fieldName)) {
       return;
     }
@@ -2088,7 +1982,7 @@ export function adaptMarketAssetSnapshotFrame(
   const missingSeedColumns = options.enforceSeedColumns
     ? [
         ...(!frame.columns.includes("unique_identifier") ? ["unique_identifier"] : []),
-        ...(!frame.columns.some((column) => normalizeFieldNameForMatch(column) === "symbol") ? ["Symbol"] : []),
+        ...(!frame.columns.includes("Symbol") ? ["Symbol"] : []),
       ]
     : [];
 

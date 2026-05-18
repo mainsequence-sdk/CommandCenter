@@ -132,6 +132,38 @@ function storageKey(userId: string) {
   return `${STORAGE_PREFIX}.${userId}`;
 }
 
+function summarizeDashboardForStorageDebug(dashboard: DashboardDefinition) {
+  return {
+    id: dashboard.id,
+    title: dashboard.title,
+    widgetCount: dashboard.widgets.length,
+    controlCount: Array.isArray(dashboard.controls) ? dashboard.controls.length : 0,
+  };
+}
+
+function summarizeCollectionForStorageDebug(collection: UserDashboardCollection) {
+  return {
+    dashboardCount: collection.dashboards.length,
+    selectedDashboardId: collection.selectedDashboardId,
+    savedAt: collection.savedAt,
+    dashboards: collection.dashboards.slice(0, 8).map(summarizeDashboardForStorageDebug),
+  };
+}
+
+function logWorkspaceLocalStorage(
+  event: "setItem",
+  payload: Record<string, unknown>,
+) {
+  if (!import.meta.env.DEV) {
+    return;
+  }
+
+  console.log("[workspace-local-storage]", {
+    event,
+    ...payload,
+  });
+}
+
 function createId(prefix: string) {
   const uuid = globalThis.crypto?.randomUUID?.();
 
@@ -1429,7 +1461,14 @@ export function saveUserDashboardCollection(
   });
 
   if (userId && canUseLocalStorage()) {
-    window.localStorage.setItem(storageKey(userId), JSON.stringify(normalized));
+    const key = storageKey(userId);
+    const serialized = JSON.stringify(normalized);
+    window.localStorage.setItem(key, serialized);
+    logWorkspaceLocalStorage("setItem", {
+      key,
+      bytes: serialized.length,
+      summary: summarizeCollectionForStorageDebug(normalized),
+    });
   }
 
   return normalized;
@@ -2830,7 +2869,7 @@ export function updateDashboardWidgetRuntimeState(
   });
 
   if (import.meta.env.DEV) {
-    console.debug("[workspace-runtime] apply runtime state", {
+    console.log("[workspace-runtime] apply runtime state", {
       dashboardId: dashboard.id,
       instanceId,
       changed,

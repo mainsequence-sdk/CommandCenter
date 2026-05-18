@@ -29,8 +29,18 @@ surfaces and the editable workspace studio.
   instance state. It appends synthetic source outputs for widget title/props/runtime state,
   appends generic title and prop-path binding targets, and resolves effective reference-backed
   widget title/props without changing the persisted binding payload shape.
+  Exact whole-value widget expressions such as `$(table-1).activeRow.symbol` compile into that
+  same binding model; they are authoring syntax only, not a second persisted graph.
+- `widget-reference-language.ts`: parser/compiler for the exact whole-value widget reference
+  authoring syntax. It resolves `$(widget).source.path` against discovered widget sources and
+  emits canonical bindings plus ordered transform steps for the shared settings layer.
+- `widget-variable-registry.ts`: derived workspace-session index of active linked variable
+  references. It groups canonical bindings by source widget/output/transform key and records only
+  consumers that actually reference a value; it is not persisted and does not enumerate every
+  discoverable widget value.
 - `DashboardWidgetDependencies.tsx`: React provider/hooks layer that exposes resolved widget
-  inputs and dependency diagnostics on top of the raw widget registry.
+  inputs, dependency diagnostics, and the derived active variable-reference registry on top of the
+  raw widget registry.
 - `widget-graph-execution.ts`: shared executable-widget graph runner. It builds dependency-backed
   execution snapshots, walks valid upstream executable dependencies, applies runtime-state patches,
   and provides the refresh-target selection helpers used by the execution provider.
@@ -47,7 +57,9 @@ surfaces and the editable workspace studio.
   `dashboardSurfaceHydrationActive` / `dashboardSurfaceHydrationReason`, so visible consumers do
   not replay their own upstream-resolution wave while the shared execution layer owns the return
   transition. It also scopes the workspace runtime data store used by ref-backed connection and
-  incremental tabular publications.
+  incremental tabular publications. It now also owns commit-scoped
+  `executeVariableDrivenWidgetCommit(...)` scheduling so saved widget title/prop changes rerender
+  passive variable consumers in memory and only enqueue affected executable downstream branches.
 - `dashboard-request-trace.ts`: shared refresh-cycle request trace store. Execution-driven
   widgets and component-side widget queries can attach request metadata there so graph/debug
   surfaces inspect one canonical refresh request log instead of inventing local endpoint trackers.
@@ -99,6 +111,17 @@ surfaces and the editable workspace studio.
 - The same binding payload model now also drives cross-widget references for existing widget title
   and saved prop paths. The dashboard layer appends those platform-owned targets and sources
   automatically; widget authors do not redeclare them per widget type.
+- Whole-value widget reference expressions keep that same contract. The shared settings layer
+  resolves `$(widget).source.path` strings by compiling them into canonical bindings against
+  discovered widget outputs or the platform-owned `title`, `props`, and `runtimeState` sources.
+  The dependency layer also derives those bindings in memory while resolving widgets, so an
+  expression-authored title or prop can render immediately even if an older draft is missing the
+  generated binding. That derivation must not mutate the saved widget.
+- The workspace variable-reference registry is derived from those bindings at runtime. It should
+  only contain variables with active consumers, and it must not become a second persisted source of
+  truth or a catalog of every value that autocomplete can discover. Ordinary widget IO bindings
+  such as a dataset feeding a table remain dependency graph edges and should not appear as
+  widget-reference-language variables.
 - Dashboard widget instances can now also carry optional `managedBy` ownership metadata, and
   widget presentation can carry optional `railVisibility`. Managed widgets must stay in the saved
   widget graph, dependency extraction, and execution planning even when normal workspace rail
@@ -122,6 +145,10 @@ surfaces and the editable workspace studio.
   runtime/request inputs are satisfiable. In a branching graph like `A -> B` and `A -> C`, a
   failure on `B` should stop that branch while still allowing `C` to run if its own inputs are
   satisfiable.
+- Variable-driven settings commits are narrower than `executeWidgetFlow(...)`. They should compare
+  only active referenced source values after a committed save/apply action, let passive consumers
+  rerender through dependency resolution, and then schedule only the affected executable
+  downstream targets. Unsaved draft typing must not trigger that path.
 - For `AppComponent`, missing required request arguments fail during execution-time request
   building, not during topology discovery. The AppComponent error path now clears response-derived
   outputs for that failed run so deeper widgets in the same linear chain stop instead of consuming

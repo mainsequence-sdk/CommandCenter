@@ -49,7 +49,7 @@ const TABLE_WIDGET_JSON_VALUE_DESCRIPTOR = {
 
 export const tableWidget = defineWidget<TableWidgetProps>({
   id: "table",
-  widgetVersion: "3.1.0",
+  widgetVersion: "3.2.0",
   title: "Table",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",

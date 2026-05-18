@@ -11,9 +11,16 @@ import { Copy, Loader2, Settings2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
+  useDashboardWidgetDependencies,
   useResolvedWidgetInputs,
-  useResolvedWidgetIo,
 } from "@/dashboards/DashboardWidgetDependencies";
+import {
+  buildWidgetReferenceLanguageSourceWidgets,
+  deriveWidgetReferenceExpressionBindings,
+  isWidgetReferenceExpression,
+  resolveWidgetReferenceDisplayToken,
+  syncWidgetReferenceExpressionBindings,
+} from "@/dashboards/widget-reference-language";
 import {
   WIDGET_REFERENCE_TITLE_INPUT_ID,
   isWidgetReferenceTargetInputId,
@@ -44,10 +51,7 @@ import {
   resolveWidgetInstancePresentation,
   useResolvedWidgetControllerContext,
 } from "@/widgets/shared/widget-schema";
-import {
-  WidgetSettingReferenceControl,
-  updateSingleWidgetBinding,
-} from "@/widgets/shared/widget-setting-reference-control";
+import { WidgetVariableReferenceInputProvider } from "@/widgets/shared/widget-variable-reference-input";
 import type {
   ResolvedWidgetInputs,
   WidgetDefinition,
@@ -643,8 +647,6 @@ export function WidgetSettingsPanel<
   const previewDemoMode = (demoModeActive || demoOnlyPreview) && hasDemoPreview;
   const activeInstanceTitle = demoModeActive ? demoDraftTitle : instanceTitle;
   const activeCardTitle = activeInstanceTitle.trim();
-  const resolvedPanelTitle =
-    panelTitle ?? (activeCardTitle ? `${activeCardTitle} Settings` : "Card settings");
   const activeDraftProps = demoModeActive ? demoDraftProps : resolvedDraftProps;
   const activeDraftBindings = resolvedDraftBindings;
   const activeDraftPresentation = demoModeActive
@@ -690,8 +692,8 @@ export function WidgetSettingsPanel<
   const [deferredRegionsHydratedKey, setDeferredRegionsHydratedKey] = useState<string | null>(null);
   const deferredRegionsReady = deferredRegionsHydratedKey === deferredRegionsKey;
   const deferredInstanceId = deferredRegionsReady ? instance.id : undefined;
+  const dependencies = useDashboardWidgetDependencies();
   const liveResolvedInputs = useResolvedWidgetInputs(deferredInstanceId);
-  const resolvedIo = useResolvedWidgetIo(deferredInstanceId);
   const activeResolvedInputs = demoModeActive
     ? mockResolvedInputs
     : (previewResolvedInputsOverride ?? liveResolvedInputs);
@@ -711,13 +713,55 @@ export function WidgetSettingsPanel<
     settingsPreviewMode !== "none" &&
     !isWorkspaceRowWidgetId(widget.id) &&
     (!demoOnlyPreview || hasDemoPreview);
-  const titleReferenceInput = useMemo(
-    () => (resolvedIo?.inputs ?? []).find((input) => input.id === WIDGET_REFERENCE_TITLE_INPUT_ID),
-    [resolvedIo?.inputs],
+  const titleReferenceBinding = activeDraftBindings?.[WIDGET_REFERENCE_TITLE_INPUT_ID];
+  const referenceLanguageSourceWidgets = useMemo(
+    () =>
+      buildWidgetReferenceLanguageSourceWidgets(dependencies, {
+        excludeInstanceId: instance.id,
+      }),
+    [dependencies, instance.id],
   );
-  const titleReferenceBinding = titleReferenceInput
-    ? activeDraftBindings?.[titleReferenceInput.id]
-    : undefined;
+  const activeTitleReferenceToken = useMemo(
+    () =>
+      resolveWidgetReferenceDisplayToken({
+        sourceWidgets: referenceLanguageSourceWidgets,
+        value: activeCardTitle,
+      }),
+    [activeCardTitle, referenceLanguageSourceWidgets],
+  );
+  const activeCardTitleLabel = activeTitleReferenceToken?.label ?? activeCardTitle;
+  const resolvedPanelTitle =
+    panelTitle ?? (activeCardTitleLabel ? `${activeCardTitleLabel} Settings` : "Card settings");
+  const initialReferenceExpressions = useMemo(
+    () =>
+      deriveWidgetReferenceExpressionBindings({
+        title: initialTitle,
+        props: initialProps,
+        sourceWidgets: referenceLanguageSourceWidgets,
+      }),
+    [initialProps, initialTitle, referenceLanguageSourceWidgets],
+  );
+  const initialBindingsWithExpressions = useMemo(
+    () =>
+      normalizeWidgetInstanceBindings(
+        syncWidgetReferenceExpressionBindings({
+          bindings: initialBindings,
+          managedInputIds: [],
+          nextExpressions: initialReferenceExpressions,
+        }) as WidgetInstanceBindings | undefined,
+      ),
+    [initialBindings, initialReferenceExpressions],
+  );
+  const [referenceLanguageManagedInputIds, setReferenceLanguageManagedInputIds] = useState<string[]>(
+    initialReferenceExpressions.managedInputIds,
+  );
+  const [referenceLanguageErrors, setReferenceLanguageErrors] = useState<string[]>(
+    initialReferenceExpressions.errors,
+  );
+  const titleExpressionManaged = useMemo(
+    () => isWidgetReferenceExpression(activeInstanceTitle),
+    [activeInstanceTitle],
+  );
 
   useEffect(() => {
     if (!controlledTitle) {
@@ -732,8 +776,15 @@ export function WidgetSettingsPanel<
 
     if (!controlledBindings) {
       setInternalDraftBindings((current) =>
-        jsonValueEquals(current, initialBindings) ? current : initialBindings,
+        jsonValueEquals(current, initialBindingsWithExpressions)
+          ? current
+          : initialBindingsWithExpressions,
       );
+    } else if (
+      !jsonValueEquals(initialBindings, initialBindingsWithExpressions) &&
+      jsonValueEquals(resolvedDraftBindings, initialBindings)
+    ) {
+      onDraftBindingsChange?.(initialBindingsWithExpressions);
     }
 
     if (!controlledPresentation) {
@@ -744,18 +795,26 @@ export function WidgetSettingsPanel<
 
     setRawPropsValue((current) => current === initialPropsJson ? current : initialPropsJson);
     setJsonError((current) => current === null ? current : null);
+    setReferenceLanguageManagedInputIds(initialReferenceExpressions.managedInputIds);
+    setReferenceLanguageErrors(initialReferenceExpressions.errors);
   }, [
     controlledPresentation,
     controlledBindings,
     controlledProps,
     controlledTitle,
+    initialBindings,
     initialBindingsJson,
+    initialBindingsWithExpressions,
+    initialReferenceExpressions.errors,
+    initialReferenceExpressions.managedInputIds,
     initialPresentation,
     initialPresentationJson,
     initialProps,
     initialPropsJson,
     initialTitle,
     instance.id,
+    onDraftBindingsChange,
+    resolvedDraftBindings,
   ]);
 
   useEffect(() => {
@@ -848,8 +907,38 @@ export function WidgetSettingsPanel<
     setInternalDraftBindings(normalizedBindings);
   }
 
+  function syncReferenceLanguageBindings(
+    nextTitle: string,
+    nextProps: TProps,
+    currentBindings: WidgetInstanceBindings | undefined,
+  ) {
+    const nextExpressions = deriveWidgetReferenceExpressionBindings({
+      title: nextTitle,
+      props: nextProps,
+      sourceWidgets: referenceLanguageSourceWidgets,
+    });
+    const nextBindings = normalizeWidgetInstanceBindings(
+      syncWidgetReferenceExpressionBindings({
+        bindings: currentBindings,
+        managedInputIds: referenceLanguageManagedInputIds,
+        nextExpressions,
+      }) as WidgetInstanceBindings | undefined,
+    );
+
+    setReferenceLanguageManagedInputIds(nextExpressions.managedInputIds);
+    setReferenceLanguageErrors(nextExpressions.errors);
+
+    if (!jsonValueEquals(nextBindings, currentBindings)) {
+      handleDraftBindingsChange(nextBindings);
+    }
+
+    return nextBindings;
+  }
+
   function handleRealDraftPropsChange(nextProps: TProps) {
     const cloned = cloneWidgetProps(nextProps);
+    syncReferenceLanguageBindings(activeInstanceTitle, cloned, activeDraftBindings);
+
     if (controlledProps) {
       onDraftPropsChange?.(cloned);
     } else {
@@ -887,6 +976,10 @@ export function WidgetSettingsPanel<
     }
 
     if (parsed.props) {
+      if (!demoModeActive) {
+        syncReferenceLanguageBindings(activeInstanceTitle, parsed.props, activeDraftBindings);
+      }
+
       if (demoModeActive) {
         setDemoDraftProps(parsed.props);
       } else if (controlledProps) {
@@ -995,10 +1088,16 @@ export function WidgetSettingsPanel<
       return;
     }
 
+    const finalizedBindings = syncReferenceLanguageBindings(
+      activeInstanceTitle,
+      parsed.props,
+      activeDraftBindings,
+    );
+
     onSave?.({
       title: activeInstanceTitle.trim() ? activeInstanceTitle.trim() : undefined,
       props: parsed.props,
-      bindings: activeDraftBindings,
+      bindings: finalizedBindings,
       presentation: effectiveActiveDraftPresentation,
     });
 
@@ -1013,6 +1112,10 @@ export function WidgetSettingsPanel<
   }
 
   return (
+    <WidgetVariableReferenceInputProvider
+      enabled={editable && !demoModeActive}
+      sourceWidgets={referenceLanguageSourceWidgets}
+    >
     <section className="overflow-hidden rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/88 shadow-[var(--shadow-panel)] backdrop-blur">
       <div className="border-b border-border/70 px-5 py-5 md:px-6 md:py-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1038,35 +1141,42 @@ export function WidgetSettingsPanel<
                 This is the title shown in the workspace card header.
               </p>
             </div>
-            {titleReferenceInput ? (
-              <WidgetSettingReferenceControl
-                editable={editable && !demoModeActive}
-                instanceId={instance.id}
-                input={titleReferenceInput}
-                value={titleReferenceBinding}
-                onBindingChange={(binding) => {
-                  handleDraftBindingsChange(
-                    updateSingleWidgetBinding(activeDraftBindings, titleReferenceInput.id, binding),
-                  );
-                }}
-              />
-            ) : null}
           </div>
           <Input
             value={activeInstanceTitle}
             onChange={(event) => {
               if (demoModeActive) {
                 setDemoDraftTitle(event.target.value);
-              } else if (controlledTitle) {
+                return;
+              }
+
+              syncReferenceLanguageBindings(
+                event.target.value,
+                activeDraftProps,
+                activeDraftBindings,
+              );
+
+              if (controlledTitle) {
                 onDraftTitleChange?.(event.target.value);
               } else {
                 setInternalInstanceTitle(event.target.value);
               }
             }}
             placeholder="Card title"
-            readOnly={!editable || Boolean(titleReferenceBinding)}
+            readOnly={!editable || (Boolean(titleReferenceBinding) && !titleExpressionManaged)}
           />
         </section>
+
+        {referenceLanguageErrors.length > 0 ? (
+          <section className="space-y-2 rounded-[calc(var(--radius)-4px)] border border-warning/35 bg-warning/10 px-4 py-3">
+            <div className="text-sm font-medium text-foreground">Widget references need attention</div>
+            <ul className="space-y-1 text-sm text-muted-foreground">
+              {referenceLanguageErrors.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         <div className="grid gap-4 lg:grid-cols-3">
           <WidgetSettingsSelectField
@@ -1273,5 +1383,6 @@ export function WidgetSettingsPanel<
         </div>
       </div>
     </section>
+    </WidgetVariableReferenceInputProvider>
   );
 }

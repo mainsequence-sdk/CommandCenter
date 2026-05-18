@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
+import { useMemo, useRef, useState, type DragEvent as ReactDragEvent } from "react";
+import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConnectionQueryRuntimeStatusCard } from "@/connections/ConnectionQueryRuntimeStatusCard";
@@ -38,6 +38,7 @@ import {
   createTableWidgetRuleId,
   getTableWidgetCategoricalValues,
   isTableWidgetNumericFormat,
+  moveTableWidgetSchemaColumn,
   normalizeTableSourceMode,
   resolveTableWidgetColumns,
   resolveTableWidgetProps,
@@ -73,11 +74,19 @@ import {
 } from "./tableModel";
 
 export interface TableWidgetSettingsOptions {
+  hideToolbarSearchToggles?: boolean;
+  hidePaginationControls?: boolean;
   presentationFrameInput?: TableWidgetResolvedFrameInput | null;
   presentationOnly?: boolean;
   resetLabel?: string;
   onReset?: () => void;
 }
+
+type ColumnDragState = {
+  draggingKey: string;
+  targetKey: string;
+  placement: "before" | "after";
+};
 
 const sectionClass = widgetTightFormSectionClass;
 const insetSectionClass = widgetTightFormInsetSectionClass;
@@ -95,7 +104,7 @@ const tableFieldHelp = {
   sourceBinding: "Shows the upstream Connection Query or transform widget bound to this table. The binding supplies one canonical tabular dataset; this widget only formats it.",
   pageSize: "Sets how many rows AG Grid shows per page when pagination is enabled.",
   surfaceToggles: "Turns optional table surface features on or off without changing the upstream dataset. Quick filter is the global toolbar search; column filters add searchable per-column filter controls.",
-  selectionMode: "Controls whether table clicks publish selected rows or active cell outputs for downstream widgets.",
+  selectionMode: "Controls whether table clicks publish selected rows or active cell outputs for downstream widgets. When this stays off, the runtime can still infer the minimal interaction mode if a downstream widget reference actively consumes one of the table interaction outputs.",
   selectionKeyFields: "Optional stable field keys used to keep selections mapped to the same rows after refreshes, sorting, or upstream updates. Leave blank to use row indexes.",
   columnKey: "Maps this table column to an incoming field key from the bound dataset frame.",
   columnLabel: "Overrides the header text shown for this column.",
@@ -260,6 +269,16 @@ function hasAdvancedColumnConfiguration(
   );
 }
 
+function buildDefaultConditionalRule(columnKey: string): TableWidgetConditionalRule {
+  return {
+    id: createTableWidgetRuleId(),
+    columnKey,
+    operator: "gt",
+    value: 0,
+    tone: "primary",
+  };
+}
+
 function normalizeValueLabel(entry: TableWidgetValueLabel) {
   return {
     ...entry,
@@ -356,6 +375,8 @@ export function TableWidgetSettings({
   draftProps,
   editable,
   onDraftPropsChange,
+  hideToolbarSearchToggles = false,
+  hidePaginationControls = false,
   resolvedInputs,
   presentationFrameInput,
   presentationOnly = false,
@@ -410,8 +431,9 @@ export function TableWidgetSettings({
           frameRowsSource,
           frameColumnsSource,
           linkedDataset?.fields ?? [],
+          linkedDataset?.meta,
         ),
-    [frameColumnsSource, frameRowsSource, linkedDataset?.fields, presentationFrameInput],
+    [frameColumnsSource, frameRowsSource, linkedDataset?.fields, linkedDataset?.meta, presentationFrameInput],
   );
   const scopedDraft = useMemo(
     () => stripLegacyTableSourceFields(draftProps),
@@ -451,9 +473,6 @@ export function TableWidgetSettings({
       : hasRenderableLinkedDataset;
   const displayedColumns = hasResolvedSource ? resolvedColumns : [];
   const textFormattedColumns = displayedColumns.filter((column) => column.format === "text");
-  const numericFormattedColumns = displayedColumns.filter((column) =>
-    isTableWidgetNumericFormat(column.format),
-  );
   const schemaValidation = validateTableWidgetSchema(frameRows, resolvedColumns);
   const inspectorFields = useMemo(
     () =>
@@ -489,10 +508,12 @@ export function TableWidgetSettings({
     (resolvedScopedDraft.columns.length > 0 || schemaColumns.length > 0) &&
     !schemaValidation.isValid;
   const valueLabels = scopedDraft.valueLabels ?? [];
-  const conditionalRules = scopedDraft.conditionalRules ?? [];
+  const conditionalRules = resolvedScopedDraft.conditionalRules;
   const fallbackTextColor = resolvedTokens.primary;
   const fallbackFillColor = resolvedTokens.primary;
   const [expandedColumnKeys, setExpandedColumnKeys] = useState<Record<string, boolean>>({});
+  const [columnDragState, setColumnDragState] = useState<ColumnDragState | null>(null);
+  const columnDragStateRef = useRef<ColumnDragState | null>(null);
 
   function commit(nextProps: TableWidgetProps) {
     onDraftPropsChange(stripLegacyTableSourceFields(nextProps));
@@ -502,7 +523,7 @@ export function TableWidgetSettings({
     columnKey: string,
     updater: (current: TableWidgetColumnOverride) => TableWidgetColumnOverride,
   ) {
-    const current = scopedDraft.columnOverrides?.[columnKey] ?? {};
+    const current = resolvedScopedDraft.columnOverrides[columnKey] ?? {};
     const nextOverride = normalizeColumnOverride(updater(current));
     const nextOverrides = { ...(scopedDraft.columnOverrides ?? {}) };
 
@@ -539,6 +560,23 @@ export function TableWidgetSettings({
     commit({
       ...scopedDraft,
       conditionalRules: nextRules,
+    });
+  }
+
+  function addConditionalRule(columnKey: string) {
+    commit({
+      ...scopedDraft,
+      conditionalRules: [
+        ...conditionalRules,
+        buildDefaultConditionalRule(columnKey),
+      ],
+    });
+  }
+
+  function removeConditionalRule(index: number) {
+    commit({
+      ...scopedDraft,
+      conditionalRules: conditionalRules.filter((_, ruleIndex) => ruleIndex !== index),
     });
   }
 
@@ -608,6 +646,104 @@ export function TableWidgetSettings({
     });
   }
 
+  function moveSchemaColumn(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) {
+      return;
+    }
+
+    commit({
+      ...scopedDraft,
+      schema: moveTableWidgetSchemaColumn(schemaColumns, fromIndex, toIndex),
+    });
+  }
+
+  function clearColumnDragState() {
+    columnDragStateRef.current = null;
+    setColumnDragState(null);
+  }
+
+  function handleColumnDragStart(
+    columnKey: string,
+    event: ReactDragEvent<HTMLButtonElement>,
+  ) {
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", columnKey);
+    const nextState = {
+      draggingKey: columnKey,
+      targetKey: columnKey,
+      placement: "before",
+    } satisfies ColumnDragState;
+
+    columnDragStateRef.current = nextState;
+    setColumnDragState(nextState);
+  }
+
+  function handleColumnDragOver(
+    targetKey: string,
+    event: ReactDragEvent<HTMLDivElement>,
+  ) {
+    if (!editable || !columnDragStateRef.current) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const placement = event.clientY >= bounds.top + bounds.height / 2 ? "after" : "before";
+
+    const current = columnDragStateRef.current;
+
+    if (!current) {
+      return;
+    }
+
+    if (current.targetKey === targetKey && current.placement === placement) {
+      return;
+    }
+
+    const nextState = {
+      ...current,
+      targetKey,
+      placement,
+    } satisfies ColumnDragState;
+
+    columnDragStateRef.current = nextState;
+    setColumnDragState(nextState);
+  }
+
+  function handleColumnDrop(
+    targetKey: string,
+    event: ReactDragEvent<HTMLDivElement>,
+  ) {
+    if (!editable) {
+      return;
+    }
+
+    event.preventDefault();
+    const draggingKey =
+      columnDragStateRef.current?.draggingKey ??
+      event.dataTransfer.getData("text/plain").trim();
+    const targetIndex = schemaColumns.findIndex((column) => column.key === targetKey);
+    const fromIndex = schemaColumns.findIndex((column) => column.key === draggingKey);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const placement =
+      event.clientY >= bounds.top + bounds.height / 2
+        ? "after"
+        : "before";
+
+    clearColumnDragState();
+
+    if (!draggingKey || fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) {
+      return;
+    }
+
+    const insertionIndex = placement === "after" ? targetIndex + 1 : targetIndex;
+    const normalizedTargetIndex = insertionIndex > fromIndex ? insertionIndex - 1 : insertionIndex;
+
+    moveSchemaColumn(fromIndex, normalizedTargetIndex);
+  }
+
   function getValueLabelColumns(currentColumnKey?: string) {
     const currentColumn =
       currentColumnKey == null
@@ -619,19 +755,6 @@ export function TableWidgetSettings({
     }
 
     return [currentColumn, ...textFormattedColumns];
-  }
-
-  function getConditionalRuleColumns(currentColumnKey?: string) {
-    const currentColumn =
-      currentColumnKey == null
-        ? null
-        : resolvedColumns.find((column) => column.key === currentColumnKey) ?? null;
-
-    if (!currentColumn || numericFormattedColumns.some((column) => column.key === currentColumn.key)) {
-      return numericFormattedColumns;
-    }
-
-    return [currentColumn, ...numericFormattedColumns];
   }
 
   function toggleColumnAdvanced(columnKey: string) {
@@ -862,25 +985,27 @@ export function TableWidgetSettings({
             </Select>
           </div>
 
-          <div className={fieldClass}>
-            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.pageSize}>
-              Page size
-            </WidgetSettingFieldLabel>
-            <Input
-              className={inputClass}
-              type="number"
-              min={5}
-              max={200}
-              value={resolvedDraft.pageSize}
-              disabled={!editable}
-              onChange={(event) => {
-                commit({
-                  ...scopedDraft,
-                  pageSize: Number(event.target.value),
-                });
-              }}
-            />
-          </div>
+          {!hidePaginationControls ? (
+            <div className={fieldClass}>
+              <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.pageSize}>
+                Page size
+              </WidgetSettingFieldLabel>
+              <Input
+                className={inputClass}
+                type="number"
+                min={5}
+                max={200}
+                value={resolvedDraft.pageSize}
+                disabled={!editable}
+                onChange={(event) => {
+                  commit({
+                    ...scopedDraft,
+                    pageSize: Number(event.target.value),
+                  });
+                }}
+              />
+            </div>
+          ) : null}
 
           <div className="space-y-2 md:col-span-2">
             <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.surfaceToggles}>
@@ -901,6 +1026,22 @@ export function TableWidgetSettings({
               >
                 Toolbar
               </Button>
+              {!hideToolbarSearchToggles ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={resolvedDraft.showSearch ? "default" : "outline"}
+                  disabled={!editable}
+                  onClick={() => {
+                    commit({
+                      ...scopedDraft,
+                      showSearch: !resolvedDraft.showSearch,
+                    });
+                  }}
+                >
+                  Quick filter
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 size="sm"
@@ -915,48 +1056,38 @@ export function TableWidgetSettings({
               >
                 Zebra rows
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={resolvedDraft.showSearch ? "default" : "outline"}
-                disabled={!editable}
-                onClick={() => {
-                  commit({
-                    ...scopedDraft,
-                    showSearch: !resolvedDraft.showSearch,
-                  });
-                }}
-              >
-                Quick filter
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={resolvedDraft.showColumnFilters ? "default" : "outline"}
-                disabled={!editable}
-                onClick={() => {
-                  commit({
-                    ...scopedDraft,
-                    showColumnFilters: !resolvedDraft.showColumnFilters,
-                  });
-                }}
-              >
-                Column filters
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={resolvedDraft.pagination ? "default" : "outline"}
-                disabled={!editable}
-                onClick={() => {
-                  commit({
-                    ...scopedDraft,
-                    pagination: !resolvedDraft.pagination,
-                  });
-                }}
-              >
-                Pagination
-              </Button>
+              {!presentationOnly ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={resolvedDraft.showColumnFilters ? "default" : "outline"}
+                  disabled={!editable}
+                  onClick={() => {
+                    commit({
+                      ...scopedDraft,
+                      showColumnFilters: !resolvedDraft.showColumnFilters,
+                    });
+                  }}
+                >
+                  Column filters
+                </Button>
+              ) : null}
+              {!hidePaginationControls ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={resolvedDraft.pagination ? "default" : "outline"}
+                  disabled={!editable}
+                  onClick={() => {
+                    commit({
+                      ...scopedDraft,
+                      pagination: !resolvedDraft.pagination,
+                    });
+                  }}
+                >
+                  Pagination
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -1077,7 +1208,7 @@ export function TableWidgetSettings({
           </Button>
         </div>
 
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {displayedColumns.length === 0 ? (
             <p className={descriptionClass}>
               {isManualTableMode
@@ -1085,60 +1216,73 @@ export function TableWidgetSettings({
                 : "No source fields are available yet. Select a tabular source to load the current frame."}
             </p>
           ) : displayedColumns.map((column, index) => {
-            const override = scopedDraft.columnOverrides?.[column.key] ?? {};
+            const override = resolvedScopedDraft.columnOverrides[column.key] ?? {};
             const advancedExpanded = expandedColumnKeys[column.key] ?? false;
-            const advancedConfigured = hasAdvancedColumnConfiguration(column, override);
+            const columnConditionalRules = conditionalRules.flatMap((rule, ruleIndex) =>
+              rule.columnKey === column.key ? [{ index: ruleIndex, rule } as const] : [],
+            );
+            const canManageThresholdRules =
+              isTableWidgetNumericFormat(column.format) || columnConditionalRules.length > 0;
+            const advancedConfigured =
+              hasAdvancedColumnConfiguration(column, override) || columnConditionalRules.length > 0;
             const columnUsesNumericFormat = isTableWidgetNumericFormat(column.format);
+            const isDragging = columnDragState?.draggingKey === column.key;
+            const isDropTarget =
+              columnDragState?.targetKey === column.key &&
+              columnDragState.draggingKey !== column.key;
+            const dropPlacement = isDropTarget ? columnDragState?.placement : null;
 
             return (
               <div
                 key={column.key}
-                className="space-y-2.5 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 p-3"
+                onDragOver={(event) => {
+                  handleColumnDragOver(column.key, event);
+                }}
+                onDrop={(event) => {
+                  handleColumnDrop(column.key, event);
+                }}
+                className={`relative space-y-2 rounded-[calc(var(--radius)-10px)] border p-2.5 transition ${
+                  isDropTarget
+                    ? "border-primary/60 bg-background/22 ring-1 ring-primary/35"
+                    : "border-border/60 bg-background/12"
+                } ${isDragging ? "opacity-60" : ""}`}
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className={titleClass}>{column.label}</div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {column.key}
-                      {advancedConfigured ? " · Advanced configured" : ""}
-                    </div>
-                  </div>
+                {dropPlacement ? (
+                  <div
+                    className={`pointer-events-none absolute inset-x-2 h-0.5 rounded-full bg-primary ${
+                      dropPlacement === "before" ? "top-0" : "bottom-0"
+                    }`}
+                  />
+                ) : null}
 
-                  <div className="flex flex-wrap items-center gap-1.5">
+                <div className="grid gap-2 lg:grid-cols-[32px_minmax(0,0.72fr)_minmax(0,0.92fr)_minmax(140px,180px)_auto] lg:items-end">
+                  <div className={`${fieldClass} flex items-end`}>
                     <Button
                       type="button"
-                      size="sm"
-                      variant={advancedExpanded ? "default" : "outline"}
-                      disabled={!editable}
-                      onClick={() => {
-                        toggleColumnAdvanced(column.key);
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 cursor-grab border border-transparent text-muted-foreground hover:border-border/60 hover:bg-background/35 active:cursor-grabbing"
+                      draggable={editable && displayedColumns.length > 1}
+                      disabled={!editable || displayedColumns.length < 2}
+                      title="Drag to reorder column"
+                      aria-label="Drag to reorder column"
+                      onDragStart={(event) => {
+                        handleColumnDragStart(column.key, event);
+                      }}
+                      onDragEnd={() => {
+                        clearColumnDragState();
                       }}
                     >
-                      Advanced
-                      {advancedExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={!editable}
-                      onClick={() => {
-                        removeSchemaColumn(column.key);
-                      }}
-                    >
-                      Remove
+                      <GripVertical className="h-4 w-4" />
                     </Button>
                   </div>
-                </div>
 
-                <div className="grid items-end gap-2.5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(180px,240px)_72px]">
                   <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.columnKey}>
+                    <WidgetSettingFieldLabel className={`${labelClass} text-[10px]`} help={tableFieldHelp.columnKey}>
                       Key
                     </WidgetSettingFieldLabel>
                     <Input
-                      className={inputClass}
+                      className={`${inputClass} h-8 text-xs`}
                       value={column.key}
                       disabled={!editable}
                       onChange={(event) => {
@@ -1151,11 +1295,11 @@ export function TableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.columnLabel}>
+                    <WidgetSettingFieldLabel className={`${labelClass} text-[10px]`} help={tableFieldHelp.columnLabel}>
                       Label
                     </WidgetSettingFieldLabel>
                     <Input
-                      className={inputClass}
+                      className={`${inputClass} h-8 text-xs`}
                       value={column.label}
                       disabled={!editable}
                       onChange={(event) => {
@@ -1168,11 +1312,11 @@ export function TableWidgetSettings({
                   </div>
 
                   <div className={fieldClass}>
-                    <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.columnFormat}>
+                    <WidgetSettingFieldLabel className={`${labelClass} text-[10px]`} help={tableFieldHelp.columnFormat}>
                       Format
                     </WidgetSettingFieldLabel>
                     <Select
-                      className={selectClass}
+                      className={`${selectClass} h-8 text-xs`}
                       value={column.format}
                       disabled={!editable}
                       onChange={(event) => {
@@ -1192,18 +1336,12 @@ export function TableWidgetSettings({
                     </Select>
                   </div>
 
-                  <div className={`${fieldClass} flex flex-col items-center`}>
-                    <WidgetSettingFieldLabel
-                      className="flex w-full justify-center text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground"
-                      help={tableFieldHelp.columnVisibility}
-                    >
-                      Visible
-                    </WidgetSettingFieldLabel>
+                  <div className="flex items-end justify-end gap-1.5 lg:min-w-[212px]">
                     <Button
                       type="button"
                       size="icon"
                       variant={column.visible ? "default" : "outline"}
-                      className="h-8 w-8"
+                      className="h-8 w-8 shrink-0"
                       disabled={!editable}
                       title={column.visible ? "Hide column" : "Show column"}
                       aria-label={column.visible ? "Hide column" : "Show column"}
@@ -1216,11 +1354,43 @@ export function TableWidgetSettings({
                     >
                       {column.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-8 gap-1.5 px-2.5 text-xs"
+                      variant={advancedExpanded ? "default" : "outline"}
+                      disabled={!editable}
+                      onClick={() => {
+                        toggleColumnAdvanced(column.key);
+                      }}
+                    >
+                      Advanced
+                      {advancedExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2.5 text-xs"
+                      disabled={!editable}
+                      onClick={() => {
+                        removeSchemaColumn(column.key);
+                      }}
+                    >
+                      Remove
+                    </Button>
                   </div>
                 </div>
 
                 {advancedExpanded ? (
                   <div className="space-y-3 border-t border-border/60 pt-3">
+                    {advancedConfigured ? (
+                      <p className="text-[11px] text-muted-foreground">
+                        Advanced formatting is configured for this column.
+                      </p>
+                    ) : null}
                     <div className={fieldClass}>
                       <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.columnDescription}>
                         Description
@@ -1607,6 +1777,167 @@ export function TableWidgetSettings({
                         />
                       </div>
                     </div>
+
+                    {canManageThresholdRules ? (
+                      <div className="space-y-3 border-t border-border/60 pt-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-medium text-foreground">Threshold rules</div>
+                            <p className="text-xs leading-5 text-muted-foreground">
+                              First match wins for this column. Rules only apply when the rendered cell is numeric.
+                            </p>
+                          </div>
+
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={!editable || !columnUsesNumericFormat}
+                            onClick={() => {
+                              addConditionalRule(column.key);
+                            }}
+                          >
+                            Add rule
+                          </Button>
+                        </div>
+
+                        {!columnUsesNumericFormat ? (
+                          <p className="text-xs text-muted-foreground">
+                            This column no longer uses a numeric display format. Existing threshold rules are shown
+                            below so you can remove or adjust them.
+                          </p>
+                        ) : null}
+
+                        {columnConditionalRules.length === 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            No threshold rules for this column yet.
+                          </p>
+                        ) : (
+                          <div className="space-y-3">
+                            {columnConditionalRules.map(({ index: ruleIndex, rule }) => (
+                              <div
+                                key={rule.id}
+                                className="grid gap-3 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 p-3 lg:grid-cols-[1fr,1fr,1fr,auto,auto,auto]"
+                              >
+                                <div className={fieldClass}>
+                                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.thresholdOperator}>
+                                    Operator
+                                  </WidgetSettingFieldLabel>
+                                  <Select
+                                    className={selectClass}
+                                    value={rule.operator}
+                                    disabled={!editable}
+                                    onChange={(event) => {
+                                      updateConditionalRule(ruleIndex, (current) => ({
+                                        ...current,
+                                        operator: event.target.value as TableWidgetConditionalRule["operator"],
+                                      }));
+                                    }}
+                                  >
+                                    {tableWidgetOperatorOptions.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                </div>
+
+                                <div className={fieldClass}>
+                                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.thresholdValue}>
+                                    Threshold
+                                  </WidgetSettingFieldLabel>
+                                  <Input
+                                    className={inputClass}
+                                    type="number"
+                                    value={rule.value}
+                                    disabled={!editable}
+                                    onChange={(event) => {
+                                      updateConditionalRule(ruleIndex, (current) => ({
+                                        ...current,
+                                        value: Number(event.target.value),
+                                      }));
+                                    }}
+                                  />
+                                </div>
+
+                                <div className={fieldClass}>
+                                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.tone}>
+                                    Tone
+                                  </WidgetSettingFieldLabel>
+                                  <Select
+                                    className={selectClass}
+                                    value={rule.tone ?? "primary"}
+                                    disabled={!editable}
+                                    onChange={(event) => {
+                                      updateConditionalRule(ruleIndex, (current) => ({
+                                        ...current,
+                                        tone: normalizeTone(event.target.value) ?? "primary",
+                                      }));
+                                    }}
+                                  >
+                                    {tableWidgetToneOptions.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </Select>
+                                </div>
+
+                                <div className={fieldClass}>
+                                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.textColor}>
+                                    Text
+                                  </WidgetSettingFieldLabel>
+                                  <input
+                                    type="color"
+                                    value={toColorInputValue(rule.textColor, fallbackTextColor)}
+                                    disabled={!editable}
+                                    onChange={(event) => {
+                                      updateConditionalRule(ruleIndex, (current) => ({
+                                        ...current,
+                                        textColor: event.target.value,
+                                      }));
+                                    }}
+                                    className={colorInputClass}
+                                  />
+                                </div>
+
+                                <div className={fieldClass}>
+                                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.fillColor}>
+                                    Fill
+                                  </WidgetSettingFieldLabel>
+                                  <input
+                                    type="color"
+                                    value={toColorInputValue(rule.backgroundColor, fallbackFillColor)}
+                                    disabled={!editable}
+                                    onChange={(event) => {
+                                      updateConditionalRule(ruleIndex, (current) => ({
+                                        ...current,
+                                        backgroundColor: event.target.value,
+                                      }));
+                                    }}
+                                    className={colorInputClass}
+                                  />
+                                </div>
+
+                                <div className="flex items-end">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!editable}
+                                    onClick={() => {
+                                      removeConditionalRule(ruleIndex);
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -1823,208 +2154,6 @@ export function TableWidgetSettings({
         )}
       </section>
 
-      <section className={sectionClass}>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className={titleClass}>Thresholds</div>
-            <p className={descriptionClass}>
-              Apply numeric thresholds like `&gt; 0`, `&lt; -5`, or `&gt; 80` to tint cells with theme-aware tones.
-              Rules are evaluated top to bottom, and the first match wins. No threshold styling is applied
-              unless this widget instance adds rules here. Rules target Number, Currency, Percent, or
-              Bps columns, and non-numeric cells are ignored at render time.
-            </p>
-          </div>
-
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!editable || numericFormattedColumns.length === 0}
-            onClick={() => {
-              commit({
-                ...scopedDraft,
-                conditionalRules: [
-                  ...conditionalRules,
-                  {
-                    id: createTableWidgetRuleId(),
-                    columnKey: numericFormattedColumns[0]?.key ?? "",
-                    operator: "gt",
-                    value: 0,
-                    tone: "primary",
-                  },
-                ],
-              });
-            }}
-          >
-            Add rule
-          </Button>
-        </div>
-
-        {numericFormattedColumns.length === 0 ? (
-          <p className={descriptionClass}>
-            No columns are currently using a numeric display format. Set a column format to `Number`,
-            `Currency`, `Percent`, or `Bps` to add threshold rules.
-          </p>
-        ) : conditionalRules.length === 0 ? (
-          <p className={descriptionClass}>
-            No rules yet. Add threshold-based rules to numeric display columns. If a cell is not numeric,
-            the rule is simply ignored at render time.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {conditionalRules.map((rule, index) => {
-              const conditionalRuleColumns = getConditionalRuleColumns(rule.columnKey);
-
-              return (
-                <div
-                  key={rule.id}
-                  className="grid gap-3 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 p-3 lg:grid-cols-[1.1fr,1fr,1fr,1fr,auto,auto,auto]"
-                >
-                <div className={fieldClass}>
-                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.thresholdColumn}>
-                    Column
-                  </WidgetSettingFieldLabel>
-                  <Select
-                    className={selectClass}
-                    value={rule.columnKey}
-                    disabled={!editable}
-                    onChange={(event) => {
-                      updateConditionalRule(index, (current) => ({
-                        ...current,
-                        columnKey: event.target.value,
-                      }));
-                    }}
-                    >
-                    {conditionalRuleColumns.map((column) => (
-                      <option key={column.key} value={column.key}>
-                        {column.label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                <div className={fieldClass}>
-                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.thresholdOperator}>
-                    Operator
-                  </WidgetSettingFieldLabel>
-                  <Select
-                    className={selectClass}
-                    value={rule.operator}
-                    disabled={!editable}
-                    onChange={(event) => {
-                      updateConditionalRule(index, (current) => ({
-                        ...current,
-                        operator: event.target.value as TableWidgetConditionalRule["operator"],
-                      }));
-                    }}
-                  >
-                    {tableWidgetOperatorOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                <div className={fieldClass}>
-                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.thresholdValue}>
-                    Threshold
-                  </WidgetSettingFieldLabel>
-                  <Input
-                    className={inputClass}
-                    type="number"
-                    value={rule.value}
-                    disabled={!editable}
-                    onChange={(event) => {
-                      updateConditionalRule(index, (current) => ({
-                        ...current,
-                        value: Number(event.target.value),
-                      }));
-                    }}
-                  />
-                </div>
-
-                <div className={fieldClass}>
-                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.tone}>
-                    Tone
-                  </WidgetSettingFieldLabel>
-                  <Select
-                    className={selectClass}
-                    value={rule.tone ?? "primary"}
-                    disabled={!editable}
-                    onChange={(event) => {
-                      updateConditionalRule(index, (current) => ({
-                        ...current,
-                        tone: normalizeTone(event.target.value) ?? "primary",
-                      }));
-                    }}
-                  >
-                    {tableWidgetToneOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                <div className={fieldClass}>
-                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.textColor}>
-                    Text
-                  </WidgetSettingFieldLabel>
-                  <input
-                    type="color"
-                    value={toColorInputValue(rule.textColor, fallbackTextColor)}
-                    disabled={!editable}
-                    onChange={(event) => {
-                      updateConditionalRule(index, (current) => ({
-                        ...current,
-                        textColor: event.target.value,
-                      }));
-                    }}
-                    className={colorInputClass}
-                  />
-                </div>
-
-                <div className={fieldClass}>
-                  <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.fillColor}>
-                    Fill
-                  </WidgetSettingFieldLabel>
-                  <input
-                    type="color"
-                    value={toColorInputValue(rule.backgroundColor, fallbackFillColor)}
-                    disabled={!editable}
-                    onChange={(event) => {
-                      updateConditionalRule(index, (current) => ({
-                        ...current,
-                        backgroundColor: event.target.value,
-                      }));
-                    }}
-                    className={colorInputClass}
-                  />
-                </div>
-
-                <div className="flex items-end">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={!editable}
-                    onClick={() => {
-                      commit({
-                        ...scopedDraft,
-                        conditionalRules: conditionalRules.filter((_, ruleIndex) => ruleIndex !== index),
-                      });
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
     </div>
   );
 }

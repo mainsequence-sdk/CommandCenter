@@ -7,13 +7,18 @@ import type { DashboardWidgetInstance } from "@/dashboards/types";
 import type {
   ResolvedWidgetInput,
   ResolvedWidgetInputs,
+  WidgetContractId,
   WidgetInputPortDefinition,
   WidgetInstanceBindings,
   WidgetIoDefinition,
   WidgetOutputPortDefinition,
 } from "@/widgets/types";
 import {
+  CORE_VALUE_BOOLEAN_CONTRACT,
+  CORE_VALUE_INTEGER_CONTRACT,
   CORE_VALUE_JSON_CONTRACT,
+  CORE_VALUE_NUMBER_CONTRACT,
+  CORE_VALUE_SCALAR_CONTRACTS,
   CORE_VALUE_STRING_CONTRACT,
 } from "@/widgets/shared/value-contracts";
 
@@ -45,6 +50,13 @@ function cloneJson<T>(value: T): T {
   }
 
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function isWidgetReferenceTitleLiteral(value: unknown) {
+  return typeof value === "string" &&
+    /^\$\([^)]+\)\.[A-Za-z0-9_$-]+(?:\.[A-Za-z0-9_$-]+|\[(?:first|last|\d+)\])*$/.test(
+      value.trim(),
+    );
 }
 
 function encodeReferencePath(path: string[]) {
@@ -134,7 +146,7 @@ function buildWidgetReferencePropInput(
   return {
     id: buildWidgetReferencePropInputId(path),
     label: `Setting: ${pathLabel}`,
-    accepts: [contractId],
+    accepts: resolveWidgetReferenceAcceptedContracts(descriptor),
     description: `Reference-backed override for saved setting path \`${pathLabel}\`.`,
     effects: [{
       kind: "drives-value",
@@ -146,6 +158,147 @@ function buildWidgetReferencePropInput(
       description: `Overrides saved setting path \`${pathLabel}\` from an upstream widget binding.`,
     }],
   } satisfies WidgetInputPortDefinition<Record<string, unknown>>;
+}
+
+function resolveWidgetReferenceAcceptedContracts(
+  descriptor:
+    | ReturnType<typeof inferWidgetValueDescriptor>
+    | undefined,
+): WidgetContractId[] {
+  if (!descriptor) {
+    return [CORE_VALUE_JSON_CONTRACT];
+  }
+
+  if (descriptor.kind === "primitive") {
+    if (descriptor.primitive === "string") {
+      return [...CORE_VALUE_SCALAR_CONTRACTS];
+    }
+
+    if (descriptor.primitive === "number" || descriptor.primitive === "integer") {
+      return [
+        CORE_VALUE_NUMBER_CONTRACT,
+        CORE_VALUE_INTEGER_CONTRACT,
+        CORE_VALUE_STRING_CONTRACT,
+      ];
+    }
+
+    if (descriptor.primitive === "boolean") {
+      return [
+        CORE_VALUE_BOOLEAN_CONTRACT,
+        CORE_VALUE_STRING_CONTRACT,
+      ];
+    }
+
+    return [descriptor.contract];
+  }
+
+  if (descriptor.kind === "array") {
+    const itemDescriptor = descriptor.items;
+    const itemContracts: WidgetContractId[] =
+      itemDescriptor?.kind === "primitive"
+        ? resolveWidgetReferenceAcceptedContracts(itemDescriptor)
+        : itemDescriptor
+          ? [itemDescriptor.contract]
+          : [];
+
+    return [...new Set([contractIdForDescriptor(descriptor), ...itemContracts])];
+  }
+
+  return [contractIdForDescriptor(descriptor)];
+}
+
+function contractIdForDescriptor(
+  descriptor: ReturnType<typeof inferWidgetValueDescriptor>,
+) {
+  return descriptor.contract ?? CORE_VALUE_JSON_CONTRACT;
+}
+
+function coercePrimitiveReferenceValue(
+  targetDescriptor: ReturnType<typeof inferWidgetValueDescriptor>,
+  value: unknown,
+): unknown {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (targetDescriptor.kind !== "primitive") {
+    return value;
+  }
+
+  if (targetDescriptor.primitive === "string") {
+    if (value === null || typeof value === "string") {
+      return value;
+    }
+
+    if (typeof value === "number" || typeof value === "boolean") {
+      return String(value);
+    }
+
+    return value;
+  }
+
+  if (targetDescriptor.primitive === "number" || targetDescriptor.primitive === "integer") {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return targetDescriptor.primitive === "integer" ? Math.trunc(value) : value;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+
+      if (Number.isFinite(parsed)) {
+        return targetDescriptor.primitive === "integer" ? Math.trunc(parsed) : parsed;
+      }
+    }
+
+    return value;
+  }
+
+  if (targetDescriptor.primitive === "boolean") {
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      if (value === "true" || value === "1") {
+        return true;
+      }
+
+      if (value === "false" || value === "0") {
+        return false;
+      }
+    }
+  }
+
+  return value;
+}
+
+function coerceReferenceValueToDescriptor(
+  descriptor: ReturnType<typeof inferWidgetValueDescriptor> | undefined,
+  value: unknown,
+): unknown {
+  if (!descriptor || value === undefined) {
+    return value;
+  }
+
+  if (descriptor.kind === "primitive") {
+    return coercePrimitiveReferenceValue(descriptor, value);
+  }
+
+  if (descriptor.kind === "array") {
+    const itemDescriptor = descriptor.items;
+
+    if (Array.isArray(value)) {
+      if (!itemDescriptor) {
+        return value;
+      }
+
+      return value.map((entry) => coerceReferenceValueToDescriptor(itemDescriptor, entry));
+    }
+
+    return [itemDescriptor ? coerceReferenceValueToDescriptor(itemDescriptor, value) : value];
+  }
+
+  return value;
 }
 
 export function appendWidgetInstanceReferenceIo(
@@ -171,7 +324,7 @@ export function appendWidgetInstanceReferenceIo(
     {
       id: WIDGET_REFERENCE_TITLE_INPUT_ID,
       label: "Display title",
-      accepts: [CORE_VALUE_STRING_CONTRACT],
+      accepts: [...CORE_VALUE_SCALAR_CONTRACTS],
       description: "Reference-backed override for the widget instance title.",
     } satisfies WidgetInputPortDefinition<Record<string, unknown>>,
     ...[...propPathMap.values()]
@@ -226,13 +379,20 @@ export function resolveReferenceBackedWidgetState(input: {
   const nextProps = cloneJson(
     isPlainRecord(input.props) ? input.props : {},
   ) as Record<string, unknown>;
-  let nextTitle = input.instanceTitle;
+  let nextTitle = isWidgetReferenceTitleLiteral(input.instanceTitle)
+    ? undefined
+    : input.instanceTitle;
   const titleInput = resolveFirstValidResolvedInput(
     input.resolvedInputs?.[WIDGET_REFERENCE_TITLE_INPUT_ID],
   );
 
   if (titleInput && typeof titleInput.value === "string") {
     nextTitle = titleInput.value;
+  } else if (
+    titleInput &&
+    (typeof titleInput.value === "number" || typeof titleInput.value === "boolean")
+  ) {
+    nextTitle = String(titleInput.value);
   }
 
   Object.entries(input.resolvedInputs ?? {})
@@ -257,7 +417,11 @@ export function resolveReferenceBackedWidgetState(input: {
       return left.path.join(".").localeCompare(right.path.join("."));
     })
     .forEach(({ path, value }) => {
-      setWidgetValueAtPath(nextProps, path, value);
+      const nextValue = coerceReferenceValueToDescriptor(
+        inferWidgetValueDescriptor(getWidgetValueAtPath(nextProps, path)),
+        value,
+      );
+      setWidgetValueAtPath(nextProps, path, nextValue);
     });
 
   return {

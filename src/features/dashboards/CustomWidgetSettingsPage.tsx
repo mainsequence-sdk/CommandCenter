@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { ArrowLeft, BookOpenText, Database, Loader2, PlugZap, Save } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -8,7 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DashboardControlsProvider } from "@/dashboards/DashboardControls";
 import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidgetDependencies";
-import { DashboardWidgetExecutionProvider } from "@/dashboards/DashboardWidgetExecution";
+import {
+  DashboardWidgetExecutionProvider,
+  useDashboardWidgetExecution,
+} from "@/dashboards/DashboardWidgetExecution";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { isWidgetReferenceTargetInputId } from "@/dashboards/widget-instance-references";
 import { normalizeWidgetInstanceBindings } from "@/dashboards/widget-dependencies";
@@ -48,7 +51,7 @@ import {
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { WidgetSettingsPanel } from "@/widgets/shared/widget-settings";
-import type { DashboardWidgetInstance } from "@/dashboards/types";
+import type { DashboardDefinition, DashboardWidgetInstance } from "@/dashboards/types";
 import { WorkspaceSavingStatus } from "./WorkspaceChrome";
 import { ManagedConnectionConsumerPanel } from "@/widgets/shared/ManagedConnectionConsumerPanel";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
@@ -59,6 +62,87 @@ import {
 import type { ResolvedWidgetInputs } from "@/widgets/types";
 
 type WidgetSettingsTabId = "settings" | "bindings" | "connection";
+
+function buildWidgetCommitSourceSignature(
+  widgets: DashboardWidgetInstance[],
+  changedWidgetId: string,
+) {
+  const widget = widgets.find((entry) => entry.id === changedWidgetId);
+
+  try {
+    return JSON.stringify({
+      id: widget?.id ?? null,
+      widgetId: widget?.widgetId ?? null,
+      title: widget?.title ?? null,
+      props: widget?.props ?? null,
+      bindings: widget?.bindings ?? null,
+      presentation: widget?.presentation ?? null,
+      runtimeState: widget?.runtimeState ?? null,
+    });
+  } catch {
+    return `unserializable:${changedWidgetId}`;
+  }
+}
+
+function VariableDrivenWidgetCommitCoordinator({
+  currentWidgets,
+  beforeWidgets,
+  changedWidgetId,
+  children,
+  updateSelectedWorkspace,
+}: {
+  currentWidgets: DashboardWidgetInstance[];
+  beforeWidgets: DashboardWidgetInstance[];
+  changedWidgetId: string;
+  children: (
+    commitWidgetSettingsChange: (nextDashboard: DashboardDefinition) => void,
+  ) => ReactNode;
+  updateSelectedWorkspace: (
+    updater: (dashboard: DashboardDefinition) => DashboardDefinition,
+  ) => void;
+}) {
+  const widgetExecution = useDashboardWidgetExecution();
+  const [pendingCommit, setPendingCommit] = useState<{
+    changedWidgetId: string;
+    beforeWidgets: DashboardWidgetInstance[];
+    afterWidgets: DashboardWidgetInstance[];
+    sourceSignature: string;
+  } | null>(null);
+
+  const currentWidgetsSignature = useMemo(
+    () => buildWidgetCommitSourceSignature(currentWidgets, changedWidgetId),
+    [changedWidgetId, currentWidgets],
+  );
+
+  useEffect(() => {
+    if (!pendingCommit || !widgetExecution) {
+      return;
+    }
+
+    if (currentWidgetsSignature !== pendingCommit.sourceSignature) {
+      return;
+    }
+
+    const nextPendingCommit = pendingCommit;
+    setPendingCommit(null);
+
+    void widgetExecution.executeVariableDrivenWidgetCommit({
+      changedWidgetId: nextPendingCommit.changedWidgetId,
+      beforeWidgets: nextPendingCommit.beforeWidgets,
+      afterWidgets: nextPendingCommit.afterWidgets,
+    });
+  }, [currentWidgetsSignature, pendingCommit, widgetExecution]);
+
+  return children((nextDashboard) => {
+    updateSelectedWorkspace(() => nextDashboard);
+    setPendingCommit({
+      changedWidgetId,
+      beforeWidgets,
+      afterWidgets: nextDashboard.widgets,
+      sourceSignature: buildWidgetCommitSourceSignature(nextDashboard.widgets, changedWidgetId),
+    });
+  });
+}
 
 function getWidgetSettingsTabClassName(active: boolean) {
   return active
@@ -557,24 +641,6 @@ export function CustomWidgetSettingsPage({
     });
   }
 
-  function applyManagedConnectionDraft() {
-    if (!instance || !managedConnectionAdapter || !managedConnectionDraftProps) {
-      return;
-    }
-
-    const nextProps = applyManagedConnectionConsumerDraftProps(
-      managedConnectionAdapter,
-      (instance.props ?? {}) as Record<string, unknown>,
-      managedConnectionDraftProps,
-    );
-
-    updateSelectedWorkspace((dashboard) =>
-      updateDashboardWidgetSettings(dashboard, instance.id, {
-        props: nextProps,
-      }),
-    );
-  }
-
   function resetManagedConnectionDraft() {
     if (!instance || !widget || !managedConnectionAdapter) {
       return;
@@ -617,46 +683,6 @@ export function CustomWidgetSettingsPage({
       ),
     );
     setActiveTab("connection");
-  }
-
-  function removeManagedConnection() {
-    if (!instance || !widget || !managedConnectionAdapter) {
-      return;
-    }
-
-    const persistedMode = managedConnectionAdapter.getSourceMode(
-      (instance.props ?? {}) as Record<string, unknown>,
-    );
-    const detachedSourceMode = isManagedConnectionConsumerMode(
-      managedConnectionAdapter,
-      persistedMode,
-    )
-      ? resolveManagedConnectionConsumerDetachedSourceMode(
-          managedConnectionAdapter,
-          (instance.props ?? {}) as Record<string, unknown>,
-        )
-      : persistedMode;
-
-    if (isManagedConnectionConsumerMode(managedConnectionAdapter, persistedMode) || managedConnectionSource) {
-      const nextProps = managedConnectionAdapter.setSourceMode(
-        (instance.props ?? {}) as Record<string, unknown>,
-        resolveManagedConnectionConsumerDetachedSourceMode(
-          managedConnectionAdapter,
-          (instance.props ?? {}) as Record<string, unknown>,
-        ),
-      );
-
-      updateSelectedWorkspace((dashboard) =>
-        updateDashboardWidgetSettings(dashboard, instance.id, {
-          props: nextProps,
-        }),
-      );
-    }
-
-    updateManagedConnectionDraft((currentProps) =>
-      managedConnectionAdapter.setSourceMode(currentProps, detachedSourceMode),
-    );
-    setActiveTab("bindings");
   }
 
   function duplicateCurrentWidget() {
@@ -716,9 +742,100 @@ export function CustomWidgetSettingsPage({
   }
 
   const pageContent = (
-    <div className="relative h-full overflow-hidden">
-      <div className="h-full overflow-y-auto px-4 py-4 pb-10 md:px-6 md:py-6">
-        <div className="mx-auto max-w-6xl space-y-6">
+    <VariableDrivenWidgetCommitCoordinator
+      currentWidgets={resolvedDashboard.widgets}
+      beforeWidgets={selectedDashboard.widgets}
+      changedWidgetId={instance.id}
+      updateSelectedWorkspace={updateSelectedWorkspace}
+    >
+      {(commitWidgetSettingsChange) => {
+        const saveWidgetSettings = ({
+          title,
+          props,
+          bindings,
+          presentation,
+        }: {
+          title?: string;
+          props: Record<string, unknown>;
+          bindings?: DashboardWidgetInstance["bindings"];
+          presentation: DashboardWidgetInstance["presentation"];
+        }) => {
+          const nextDashboard = updateDashboardWidgetBindings(
+            updateDashboardWidgetSettings(selectedDashboard, instance.id, {
+              title,
+              props,
+              presentation,
+            }),
+            instance.id,
+            bindings,
+          );
+
+          commitWidgetSettingsChange(nextDashboard);
+        };
+
+        const applyManagedConnectionDraftWithCommit = () => {
+          if (!managedConnectionAdapter || !managedConnectionDraftProps) {
+            return;
+          }
+
+          const nextProps = applyManagedConnectionConsumerDraftProps(
+            managedConnectionAdapter,
+            (instance.props ?? {}) as Record<string, unknown>,
+            managedConnectionDraftProps,
+          );
+          const nextDashboard = updateDashboardWidgetSettings(selectedDashboard, instance.id, {
+            props: nextProps,
+          });
+
+          commitWidgetSettingsChange(nextDashboard);
+        };
+
+        const removeManagedConnectionWithCommit = () => {
+          if (!managedConnectionAdapter) {
+            return;
+          }
+
+          const persistedMode = managedConnectionAdapter.getSourceMode(
+            (instance.props ?? {}) as Record<string, unknown>,
+          );
+          const detachedSourceMode = isManagedConnectionConsumerMode(
+            managedConnectionAdapter,
+            persistedMode,
+          )
+            ? resolveManagedConnectionConsumerDetachedSourceMode(
+                managedConnectionAdapter,
+                (instance.props ?? {}) as Record<string, unknown>,
+              )
+            : persistedMode;
+
+          if (
+            isManagedConnectionConsumerMode(managedConnectionAdapter, persistedMode) ||
+            managedConnectionSource
+          ) {
+            const nextProps = managedConnectionAdapter.setSourceMode(
+              (instance.props ?? {}) as Record<string, unknown>,
+              resolveManagedConnectionConsumerDetachedSourceMode(
+                managedConnectionAdapter,
+                (instance.props ?? {}) as Record<string, unknown>,
+              ),
+            );
+            const nextDashboard = updateDashboardWidgetSettings(selectedDashboard, instance.id, {
+              props: nextProps,
+            });
+
+            commitWidgetSettingsChange(nextDashboard);
+          }
+
+          updateManagedConnectionDraft((currentProps) =>
+            managedConnectionAdapter.setSourceMode(currentProps, detachedSourceMode),
+          );
+          setActiveTab("bindings");
+        };
+
+        return (
+          <div className="relative h-full overflow-hidden">
+            <div className="h-full overflow-y-auto px-4 py-4 pb-10 md:px-6 md:py-6">
+              <div className="mx-auto max-w-6xl space-y-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="space-y-3">
                     <Button variant="outline" onClick={closeSettings}>
@@ -893,8 +1010,8 @@ export function CustomWidgetSettingsPage({
                       previewResolvedInputsOverride={managedConnectionPreviewResolvedInputs}
                       persistenceNote={
                         backendMode
-                          ? "Edits update the current workspace draft immediately. They are not saved until you click Save workspace."
-                          : "Edits update the current local workspace draft immediately. They are not saved until you click Save workspace."
+                          ? "Save settings updates the current workspace draft. The workspace is not persisted until you click Save workspace."
+                          : "Save settings updates the current local workspace draft. The workspace is not persisted until you click Save workspace."
                       }
                       showPlacementField={!instance.slidePlacement}
                       secondaryActionLabel="Return to dashboard"
@@ -906,19 +1023,7 @@ export function CustomWidgetSettingsPage({
                         );
                         closeSettings();
                       }}
-                      onSave={({ title, props, bindings, presentation }) => {
-                        updateSelectedWorkspace((dashboard) =>
-                          updateDashboardWidgetBindings(
-                            updateDashboardWidgetSettings(dashboard, instance.id, {
-                              title,
-                              props,
-                              presentation,
-                            }),
-                            instance.id,
-                            bindings,
-                          ),
-                        );
-                      }}
+                      onSave={saveWidgetSettings}
                     />
                   </div>
                 ) : (
@@ -935,8 +1040,8 @@ export function CustomWidgetSettingsPage({
                     previewResolvedInputsOverride={managedConnectionPreviewResolvedInputs}
                     persistenceNote={
                       backendMode
-                        ? "Edits update the current workspace draft immediately. They are not saved until you click Save workspace."
-                        : "Edits update the current local workspace draft immediately. They are not saved until you click Save workspace."
+                        ? "Save settings updates the current workspace draft. The workspace is not persisted until you click Save workspace."
+                        : "Save settings updates the current local workspace draft. The workspace is not persisted until you click Save workspace."
                     }
                     draftBindings={effectiveDraftState.bindings}
                     onDraftBindingsChange={(bindings) => {
@@ -962,19 +1067,7 @@ export function CustomWidgetSettingsPage({
                       );
                       closeSettings();
                     }}
-                    onSave={({ title, props, bindings, presentation }) => {
-                      updateSelectedWorkspace((dashboard) =>
-                        updateDashboardWidgetBindings(
-                          updateDashboardWidgetSettings(dashboard, instance.id, {
-                            title,
-                            props,
-                            presentation,
-                          }),
-                          instance.id,
-                          bindings,
-                        ),
-                      );
-                    }}
+                    onSave={saveWidgetSettings}
                   />
                 )}
 
@@ -1010,7 +1103,7 @@ export function CustomWidgetSettingsPage({
                                 </Button>
                                 <Button
                                   variant="outline"
-                                  onClick={removeManagedConnection}
+                                  onClick={removeManagedConnectionWithCommit}
                                 >
                                   Remove connection
                                 </Button>
@@ -1127,7 +1220,7 @@ export function CustomWidgetSettingsPage({
                         </Button>
                         <Button
                           disabled={!managedConnectionDirty}
-                          onClick={applyManagedConnectionDraft}
+                          onClick={applyManagedConnectionDraftWithCommit}
                         >
                           Apply connection changes
                         </Button>
@@ -1135,9 +1228,12 @@ export function CustomWidgetSettingsPage({
                     </div>
                   </section>
                 ) : null}
-        </div>
-      </div>
-    </div>
+              </div>
+            </div>
+          </div>
+        );
+      }}
+    </VariableDrivenWidgetCommitCoordinator>
   );
 
   if (embedded) {

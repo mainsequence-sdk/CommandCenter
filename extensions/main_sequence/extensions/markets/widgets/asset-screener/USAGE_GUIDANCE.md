@@ -66,8 +66,11 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
 
 ## blockingRequirements
 
-- `seedData` must expose a stable asset key through `meta.marketAsset.fieldRoles` role `assetKey`
-  or an explicit `assetKeyField` mapping.
+- `seedData` must include exact columns named `unique_identifier` and `Symbol`. `unique_identifier`
+  is the canonical stable row key; `Symbol` is the canonical display symbol used by the settings
+  and runtime table model.
+- `seedData` must expose `unique_identifier` as the stable asset key through
+  `meta.marketAsset.fieldRoles` role `assetKey` or an explicit `assetKeyField` mapping.
 - Every numeric measure used by a latest, return, reference, or sparkline column must be declared as
   role `value`, `referenceValue`, or `sparklineSeries` with a stable `valueKey`.
 - Return columns require inline `referenceValue` fields on `seedData` with stable `referenceKey`s
@@ -121,8 +124,9 @@ sparkline values.
 ## metadataCapabilities
 
 The widget understands three optional metadata blocks on bound `core.tabular_frame@v1` frames.
-These blocks are interpreted by the Asset Screener only. They are not new connection output
-contracts.
+`meta.marketAsset` is Asset Screener-specific semantic metadata. `meta.tableTransforms` and
+`meta.tableVisuals` are shared table/tabular metadata blocks that the generic Table widget also
+consumes. None of them are new connection output contracts.
 
 ### `meta.marketAsset`
 
@@ -227,6 +231,9 @@ Transform rules:
   state.
 - Missing or non-numeric operands produce `null` for numeric operations.
 - Division by zero produces `null`.
+- The same `meta.tableTransforms` block is consumed by the generic Table widget. Asset Screener
+  inherits the computed fields through its table-backed frame instead of owning a separate
+  transform engine.
 
 ### `meta.tableVisuals`
 
@@ -259,10 +266,15 @@ Use `meta.tableVisuals.columns` to attach display hints to source or computed fi
 }
 ```
 
+These visual hints are shared with the generic Table widget. In Asset Screener they become the
+effective source defaults shown in the shared Table settings, and the first user edit writes only a
+local instance override for the touched field.
+
 Supported visual fields:
 
 - `label`: optional display label for the settings-visible derived column.
 - `format`: `number`, `price`, `percent`, `volume`, or `currency`.
+- `decimals`: optional numeric precision override for rendered number-like columns.
 - `kind`: `sparkline`, `bar`, or `heatmap`.
 - `encoding`: `csv-number`, `json-number-array`, or `number-array`.
 - `order`: `oldest-to-newest` or `newest-to-oldest`.
@@ -285,6 +297,10 @@ Current table-backed renderer behavior:
   columns state. It does not invent predefined Symbol, Name, Trend, Last, or return columns.
 - `tableVisuals.columns` is the source's column proposal. Its keys should match source field ids or
   computed column ids, for example `last_price`, `one_day_return`, or `sparkline_prices`.
+- When `tableVisuals.columns` is present, it is authoritative for the visible source column list
+  and order. Semantic identity fields not listed there stay available for screener calculations and
+  grouping, but they do not appear as visible columns until the source includes them or the user
+  saves an instance override.
 - `tableVisuals.columns` is enough to make columns appear in settings. `meta.marketAsset` improves
   semantic mapping for asset identity, reference values, and sparklines, but it is not required for
   the settings column list itself.
@@ -292,19 +308,39 @@ Current table-backed renderer behavior:
   value fields, and sparkline fields when `tableVisuals.columns` is absent. Reference-value fields
   are treated as calculation inputs and are shown only when the source explicitly includes them in
   `tableVisuals.columns`.
+- Explicit field mappings are reconciled against the current frame shape case-insensitively. If a
+  saved mapping points at an old field name that no longer exists, the widget falls back to source
+  metadata and then to field-name heuristics instead of dropping all rows.
 - Settings display the derived source columns read-only so backend-driven configuration is visible
-  and reviewable. Visual metadata is copied onto the derived column's `visual` property, so
-  `thresholds`, `heatmap`, visual ranges, `range`, `kind`, `encoding`, and `order` remain visible
-  in the table configuration. Legacy `colorScale` remains visible when supplied by older sources.
+  and reviewable. Source columns may still expose a descriptive `visual` block in settings, but
+  runtime rendering does not rebuild visuals from that property. The live screener reuses the same
+  shared table source-visual contract as the generic Table widget and only aliases source field ids
+  onto screener column ids.
 - Switching settings to `Instance override` copies the current effective source columns into the
-  widget's local `columns` prop. That local copy wins over future source metadata until the user
-  switches back to `Source metadata`.
+  widget's local `columns` prop. The settings flow strips copied source `visual` snapshots there so
+  the local override remains a semantic column definition. Shared table visuals stay source-owned
+  and continue to resolve from live metadata or shared table settings until the user switches back
+  to `Source metadata`. Existing saved screener columns also ignore any persisted `visual`
+  snapshots on read, so stale local blobs cannot fork the live source palette.
+- Instance override columns still try to inherit source visual metadata by semantic match. A local
+  return column such as `1D` can therefore keep the source gauge, threshold, and theme-tone
+  behavior even when its local column id differs from the source computed field id.
 - `format` can supply the display format when the widget column does not specify one.
 - The Asset Screener renders through the shared core table frame view. Numeric formatting, value
   thresholds, heatmaps, data bars, and visual ranges should follow table-widget semantics rather
   than a separate market-only renderer.
+- The Asset Screener settings mount the shared core Table settings in presentation mode. Source
+  ownership stays with `seedData` and `liveUpdates`, while display settings such as density,
+  schema labels, column overrides, value labels, threshold rules, and pagination use the same
+  table configuration model.
 - The workspace renderer disables the generic table's floating per-column filters and uses a
-  transparent surface so the screener does not look like a nested table card.
+  transparent surface so the screener does not look like a nested table card. It also suppresses
+  the generic table toolbar and footer strips, including the quick filter, clear button, internal
+  title or row-count header, empty-message footer, diagnostics footer, and pagination panel.
+- `groupBy` groups the rendered screener by injecting section rows into the first visible column.
+  It is a local presentation feature only; it does not change the incoming source rows or the
+  shared table-backed schema. Groups are rendered contiguously in first-seen group order, while
+  row order inside each group still follows the current screener sort.
 - `colorScale` is currently treated as a compatibility shorthand and is converted into table
   conditional rules for the derived column id. Prefer table-native threshold/conditional-rule
   semantics for new payloads.
@@ -323,7 +359,7 @@ Ticker, Sector grouping, Last Price, 1D Return, 1M Return, YTD Return, 1Y Return
   "status": "ready",
   "columns": [
     "unique_identifier",
-    "ticker",
+    "Symbol",
     "sector",
     "as_of",
     "last_price",
@@ -336,7 +372,7 @@ Ticker, Sector grouping, Last Price, 1D Return, 1M Return, YTD Return, 1Y Return
   "rows": [
     {
       "unique_identifier": "uid:AAPL",
-      "ticker": "AAPL",
+      "Symbol": "AAPL",
       "sector": "Technology",
       "as_of": "2026-05-17T14:30:00.000Z",
       "last_price": 112.25,
@@ -348,7 +384,7 @@ Ticker, Sector grouping, Last Price, 1D Return, 1M Return, YTD Return, 1Y Return
     },
     {
       "unique_identifier": "uid:MSFT",
-      "ticker": "MSFT",
+      "Symbol": "MSFT",
       "sector": "Technology",
       "as_of": "2026-05-17T14:30:00.000Z",
       "last_price": 219.5,
@@ -364,7 +400,7 @@ Ticker, Sector grouping, Last Price, 1D Return, 1M Return, YTD Return, 1Y Return
       "role": "snapshot",
       "fieldRoles": [
         { "field": "unique_identifier", "role": "assetKey" },
-        { "field": "ticker", "role": "symbol" },
+        { "field": "Symbol", "role": "symbol" },
         { "field": "sector", "role": "sector" },
         { "field": "as_of", "role": "observedAt" },
         { "field": "last_price", "role": "value", "valueKey": "price" },
@@ -540,9 +576,9 @@ The source can publish any metric as a `valueKey`; the widget columns decide whi
 ```json
 [
   {
-    "id": "ticker",
+    "id": "Symbol",
     "kind": "asset-field",
-    "label": "Ticker",
+    "label": "Symbol",
     "field": "symbol",
     "width": 86
   },
@@ -620,7 +656,7 @@ metadata because explicit mappings do not carry `referenceKey`, encoding, or ord
 {
   "seed": {
     "assetKeyField": "unique_identifier",
-    "symbolField": "ticker",
+    "symbolField": "Symbol",
     "sectorField": "sector",
     "observedAtField": "time",
     "valueFields": {

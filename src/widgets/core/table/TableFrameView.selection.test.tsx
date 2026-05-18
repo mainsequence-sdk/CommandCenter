@@ -17,6 +17,9 @@ type MockGridColumn = {
 type MockAgGridReactProps = {
   columnDefs?: MockGridColumn[];
   onCellClicked?: (event: {
+    api?: {
+      getSelectedRows: () => MockGridRow[];
+    };
     colDef: MockGridColumn;
     column: { getColId: () => string };
     data: MockGridRow;
@@ -88,6 +91,9 @@ vi.mock("ag-grid-react", async () => {
                 type: "button",
                 onClick: () => {
                   props.onCellClicked?.({
+                    api: {
+                      getSelectedRows: () => [row],
+                    },
                     colDef: column,
                     column: {
                       getColId: () => column.colId ?? column.field ?? "",
@@ -106,7 +112,7 @@ vi.mock("ag-grid-react", async () => {
 });
 
 const [
-  { TableFrameView },
+  { TableFrameView, resolveTableGaugeVisual },
   {
     buildTableWidgetFrameFromManualData,
     resolveTableWidgetPropsWithFrame,
@@ -120,6 +126,20 @@ const [
 type TableWidgetProps = import("./tableModel").TableWidgetProps;
 type TableWidgetSelectionMode = import("./tableModel").TableWidgetSelectionMode;
 type TableWidgetSelectionState = import("./tableModel").TableWidgetSelectionState;
+type ThemeTokens = import("@/themes/types").ThemeTokens;
+
+const testTokens = {
+  primary: "#ffffff",
+  success: "#61C8FF",
+  warning: "#E8A23C",
+  danger: "#FF67B3",
+  border: "#101723",
+  foreground: "#F8FBFF",
+  "muted-foreground": "#93A3BC",
+} satisfies Pick<
+  ThemeTokens,
+  "primary" | "success" | "warning" | "danger" | "border" | "foreground" | "muted-foreground"
+>;
 
 function buildResolvedTableProps(selectionMode: TableWidgetSelectionMode) {
   const props: TableWidgetProps = {
@@ -231,6 +251,52 @@ describe("TableFrameView selection publishing", () => {
     });
   });
 
+  it("publishes active-cell state from row-selection clicks", async () => {
+    const harness = createHarness("single-row");
+    harnesses.push(harness);
+
+    await harness.render();
+    await harness.click("cell-1-score");
+
+    expect(harness.selectionEvents).toHaveLength(1);
+    expect(harness.selectionEvents[0]).toMatchObject({
+      mode: "single-row",
+      selectedRowKeys: ['["b"]'],
+      selectedRowIndices: [1],
+      activeRowKey: '["b"]',
+      activeRowIndex: 1,
+      activeCell: {
+        rowKey: '["b"]',
+        rowIndex: 1,
+        columnKey: "score",
+        value: 20,
+      },
+    });
+  });
+
+  it("preserves active-cell state when row selection fires after a cell click", async () => {
+    const harness = createHarness("single-row");
+    harnesses.push(harness);
+
+    await harness.render();
+    await harness.click("cell-1-score");
+    await harness.click("select-row-1");
+
+    expect(harness.selectionEvents[harness.selectionEvents.length - 1]).toMatchObject({
+      mode: "single-row",
+      selectedRowKeys: ['["b"]'],
+      selectedRowIndices: [1],
+      activeRowKey: '["b"]',
+      activeRowIndex: 1,
+      activeCell: {
+        rowKey: '["b"]',
+        rowIndex: 1,
+        columnKey: "score",
+        value: 20,
+      },
+    });
+  });
+
   it("publishes active-cell runtime state", async () => {
     const harness = createHarness("cell");
     harnesses.push(harness);
@@ -251,6 +317,68 @@ describe("TableFrameView selection publishing", () => {
         columnKey: "score",
         value: 20,
       },
+    });
+  });
+});
+
+describe("TableFrameView gauge geometry", () => {
+  it("fills to the right from the cell center for positive values", () => {
+    expect(
+      resolveTableGaugeVisual(
+        1.5,
+        { min: -3, max: 3 },
+        { tone: "success" },
+        testTokens as ThemeTokens,
+      ),
+    ).toEqual({
+      color: "#61C8FF",
+      direction: "right",
+      ratio: 0.5,
+    });
+  });
+
+  it("fills to the left from the cell center for negative values", () => {
+    expect(
+      resolveTableGaugeVisual(
+        -1.5,
+        { min: -3, max: 3 },
+        { tone: "warning" },
+        testTokens as ThemeTokens,
+      ),
+    ).toEqual({
+      color: "#E8A23C",
+      direction: "left",
+      ratio: 0.5,
+    });
+  });
+
+  it("uses the largest absolute bound instead of forcing a 1.0 denominator", () => {
+    expect(
+      resolveTableGaugeVisual(
+        0.4,
+        { min: 0.4, max: 1.6 },
+        null,
+        testTokens as ThemeTokens,
+      ),
+    ).toEqual({
+      color: "#ffffff",
+      direction: "right",
+      ratio: 0.25,
+    });
+  });
+
+  it("shows no fill for zero values", () => {
+    expect(
+      resolveTableGaugeVisual(
+        0,
+        { min: -3, max: 3 },
+        { tone: "neutral" },
+        testTokens as ThemeTokens,
+      ),
+    ).toEqual({
+      color: "#93A3BC",
+      direction: null,
+      ratio: 0,
     });
   });
 });

@@ -1,7 +1,7 @@
 import type { ResolvedWidgetInput, ResolvedWidgetInputs } from "@/widgets/types";
 import type { WidgetInstancePresentation } from "@/widgets/types";
 import type { RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
-import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
+import type { TabularFrameFieldSchema, TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 import type { TabularSourceDetail, TabularDataRow } from "@/widgets/shared/tabular-widget-source";
 import {
   buildTabularFieldOptions,
@@ -33,6 +33,11 @@ import {
   resolveUpstreamConsumerState,
   type ResolvedUpstreamConsumerState,
 } from "@/widgets/shared/upstream-consumer-state";
+import {
+  applyTableComputedColumns,
+  resolveTableVisualsMetadata,
+  type TableFrameVisualColumnMetadata,
+} from "./tableFrameMetadata";
 
 export type TableWidgetDateRangeMode = "dashboard" | "fixed";
 export type TableWidgetSourceMode = "bound" | "connection" | "connection-stream" | "manual";
@@ -147,6 +152,7 @@ export interface TableWidgetSelectionState {
   activeRowKey?: string;
   activeRowIndex?: number;
   activeCell?: TableWidgetActiveCellSelection;
+  implicitMode?: boolean;
   updatedAtMs: number;
 }
 
@@ -216,7 +222,9 @@ export function resolveTableWidgetSourceDataset(
   const candidate = resolveTableWidgetSourceInput(resolvedInputs);
 
   return candidate?.status === "valid"
-    ? normalizeAnyTabularFrameSource(candidate.upstreamBase ?? candidate.value)
+    ? normalizeTableWidgetSourceFrame(
+        normalizeAnyTabularFrameSource(candidate.upstreamBase ?? candidate.value),
+      )
     : null;
 }
 
@@ -276,8 +284,10 @@ export function resolveTableWidgetSourceConsumerState(
       ),
       hasPublishedValue: true,
       resolvedSourceInput,
-      dataset: incrementalDataset,
-      deltaDataset: normalizeAnyTabularFrameSource(resolvedLiveInput?.upstreamDelta),
+      dataset: normalizeTableWidgetSourceFrame(incrementalDataset),
+      deltaDataset: normalizeTableWidgetSourceFrame(
+        normalizeAnyTabularFrameSource(resolvedLiveInput?.upstreamDelta),
+      ),
       invalidPublishedValueMessage:
         "The bound source did not publish a compatible canonical tabular frame.",
     });
@@ -290,7 +300,7 @@ export function resolveTableWidgetSourceConsumerState(
     hasCanonicalSourceBinding: Boolean(sourceInput?.sourceWidgetId),
     hasPublishedValue: sourceValue !== undefined,
     resolvedSourceInput: sourceInput,
-    dataset: normalizeAnyTabularFrameSource(sourceValue),
+    dataset: normalizeTableWidgetSourceFrame(normalizeAnyTabularFrameSource(sourceValue)),
     invalidPublishedValueMessage:
       "The bound source did not publish a compatible canonical tabular frame.",
   });
@@ -456,8 +466,18 @@ export interface TableWidgetResolvedFrameInput {
   columns: string[];
   rows: TableWidgetFrameRow[];
   schemaFallback: TableWidgetColumnSchema[];
+  sourceColumnOverrides?: Record<string, TableWidgetColumnOverride>;
+  sourceConditionalRules?: TableWidgetConditionalRule[];
   supportsUniqueIdentifierList?: boolean;
   sourceLabel?: string;
+}
+
+export interface TableWidgetSourceVisualContract {
+  columns: string[];
+  rows: TableWidgetFrameRow[];
+  schemaFallback: TableWidgetColumnSchema[];
+  sourceColumnOverrides?: Record<string, TableWidgetColumnOverride>;
+  sourceConditionalRules?: TableWidgetConditionalRule[];
 }
 
 export interface TableWidgetSchemaValidationIssue {
@@ -517,6 +537,233 @@ function normalizeTone(value: unknown): TableWidgetTone | undefined {
     value === "danger"
     ? value
     : undefined;
+}
+
+function normalizeTableWidgetSourceFrame(
+  frame: TabularFrameSourceV1 | null,
+) {
+  return frame ? applyTableComputedColumns(frame) : null;
+}
+
+function tableWidgetFormatFromSourceVisual(
+  visual: TableFrameVisualColumnMetadata | undefined,
+): Exclude<TableWidgetColumnFormat, "auto"> | undefined {
+  if (!visual?.format) {
+    return undefined;
+  }
+
+  if (visual.format === "percent") {
+    return "percent";
+  }
+
+  if (visual.format === "currency") {
+    return "currency";
+  }
+
+  return "number";
+}
+
+export function tableWidgetToneFromSourceTone(
+  tone: string | undefined,
+): TableWidgetTone | undefined {
+  if (
+    tone === "neutral" ||
+    tone === "primary" ||
+    tone === "success" ||
+    tone === "warning" ||
+    tone === "danger"
+  ) {
+    return tone;
+  }
+
+  if (tone === "muted") {
+    return "neutral";
+  }
+
+  return undefined;
+}
+
+export function buildTableWidgetConditionalRulesFromSourceVisual(
+  columnKey: string,
+  visual: TableFrameVisualColumnMetadata | undefined,
+) {
+  if (visual?.thresholds?.length) {
+    return visual.thresholds.map<TableWidgetConditionalRule>((rule, index) => ({
+      backgroundColor: rule.backgroundColor,
+      columnKey,
+      id: rule.id ?? `${columnKey}:threshold:${index}`,
+      operator: rule.operator,
+      textColor: rule.textColor,
+      tone: rule.tone,
+      value: rule.value,
+    }));
+  }
+
+  const colorScale = visual?.colorScale;
+
+  if (!colorScale) {
+    return [];
+  }
+
+  const rules: TableWidgetConditionalRule[] = [];
+  const negativeTone = tableWidgetToneFromSourceTone(colorScale.negative);
+  const neutralTone = tableWidgetToneFromSourceTone(colorScale.neutral);
+  const positiveTone = tableWidgetToneFromSourceTone(colorScale.positive);
+
+  if (negativeTone) {
+    rules.push({
+      id: `${columnKey}:negative`,
+      columnKey,
+      operator: "lt",
+      value: 0,
+      tone: negativeTone,
+    });
+  }
+
+  if (neutralTone) {
+    rules.push({
+      id: `${columnKey}:neutral`,
+      columnKey,
+      operator: "eq",
+      value: 0,
+      tone: neutralTone,
+    });
+  }
+
+  if (positiveTone) {
+    rules.push({
+      id: `${columnKey}:positive`,
+      columnKey,
+      operator: "gt",
+      value: 0,
+      tone: positiveTone,
+    });
+  }
+
+  return rules;
+}
+
+export function buildTableWidgetColumnVisualOverrideFromSourceVisual(
+  visual: TableFrameVisualColumnMetadata | undefined,
+) {
+  if (!visual) {
+    return undefined;
+  }
+
+  const override: TableWidgetColumnOverride = {
+    compact: visual.format === "volume",
+  };
+
+  override.barMode = visual.barMode ?? (visual.kind === "bar" ? "fill" : undefined);
+  override.gradientMode = visual.gradientMode ?? (visual.kind === "heatmap" ? "fill" : undefined);
+  override.gaugeMode = visual.gaugeMode;
+  override.heatmap = visual.heatmap ?? (visual.kind === "heatmap" ? true : undefined);
+  override.heatmapPalette = visual.heatmapPalette;
+
+  if (
+    visual.range &&
+    typeof visual.range.min === "number" &&
+    typeof visual.range.max === "number" &&
+    Number.isFinite(visual.range.min) &&
+    Number.isFinite(visual.range.max)
+  ) {
+    override.visualRangeMode = "fixed";
+    override.visualMin = visual.range.min;
+    override.visualMax = visual.range.max;
+  }
+
+  if (visual.visualRangeMode) {
+    override.visualRangeMode = visual.visualRangeMode;
+  }
+
+  if (typeof visual.visualMin === "number" && Number.isFinite(visual.visualMin)) {
+    override.visualMin = visual.visualMin;
+  }
+
+  if (typeof visual.visualMax === "number" && Number.isFinite(visual.visualMax)) {
+    override.visualMax = visual.visualMax;
+  }
+
+  return Object.values(override).some((value) => value !== undefined)
+    ? override
+    : undefined;
+}
+
+export function buildTableWidgetSourceVisualContractFromFrame(
+  frameInput: TabularFrameSourceV1 | null | undefined,
+): TableWidgetSourceVisualContract | null {
+  const sourceFrame = normalizeTableWidgetSourceFrame(normalizeAnyTabularFrameSource(frameInput));
+
+  if (!sourceFrame) {
+    return null;
+  }
+
+  const fieldOptionByKey = new Map((sourceFrame.fields ?? []).map((field) => [field.key, field]));
+  const rowKeys = uniqueStrings(sourceFrame.rows.flatMap((row) => Object.keys(row)));
+  const normalizedRuntimeColumns = uniqueStrings(sourceFrame.columns);
+  const visualColumns = resolveTableVisualsMetadata(sourceFrame)?.columns ?? {};
+  const columns =
+    normalizedRuntimeColumns.length > 0 || rowKeys.length > 0 || Object.keys(visualColumns).length > 0
+      ? uniqueStrings([...normalizedRuntimeColumns, ...rowKeys, ...Object.keys(visualColumns)])
+      : uniqueStrings(Array.from(fieldOptionByKey.keys()));
+  const rows = sourceFrame.rows.map((row) => columns.map((columnKey) => normalizeCellValue(row[columnKey])));
+  const schemaFallback = columns.map<TableWidgetColumnSchema>((columnKey, index) => {
+    const field = fieldOptionByKey.get(columnKey);
+    const visual = visualColumns[columnKey];
+    const format = tableWidgetFormatFromSourceVisual(visual) ?? inferRemoteColumnFormatFromKey(
+      columnKey,
+      field?.type === "unknown" ? undefined : field?.type,
+      field?.nativeType ?? null,
+      rows,
+      index,
+    );
+
+    return {
+      key: columnKey,
+      label: visual?.label?.trim() || field?.label?.trim() || columnKey,
+      description: field?.description ?? undefined,
+      format,
+      decimals:
+        typeof visual?.decimals === "number" && Number.isFinite(visual.decimals)
+          ? Math.max(0, Math.min(Math.trunc(visual.decimals), 6))
+          : undefined,
+      minWidth:
+        typeof visual?.width === "number" && Number.isFinite(visual.width) && visual.width > 0
+          ? Math.trunc(visual.width)
+          : isTimeLikeField(field)
+            ? 160
+            : format === "text"
+              ? 140
+              : 120,
+      pinned: isKeyLikeField(field) ? "left" : undefined,
+      categorical: format === "text",
+      heatmapEligible: isTableWidgetNumericFormat(format),
+      compact:
+        visual?.format === "volume" ||
+        (
+          format === "currency" &&
+          /gross|net|pnl|notional|amount|exposure|value/i.test(columnKey)
+        ),
+    };
+  });
+  const sourceColumnOverrides = Object.fromEntries(
+    columns.flatMap((columnKey) => {
+      const override = buildTableWidgetColumnVisualOverrideFromSourceVisual(visualColumns[columnKey]);
+      return override ? [[columnKey, override] as const] : [];
+    }),
+  );
+  const sourceConditionalRules = columns.flatMap((columnKey) =>
+    buildTableWidgetConditionalRulesFromSourceVisual(columnKey, visualColumns[columnKey]),
+  );
+
+  return {
+    columns,
+    rows,
+    schemaFallback,
+    sourceColumnOverrides:
+      Object.keys(sourceColumnOverrides).length > 0 ? sourceColumnOverrides : undefined,
+    sourceConditionalRules: sourceConditionalRules.length > 0 ? sourceConditionalRules : undefined,
+  };
 }
 
 function normalizeCellValue(value: unknown): TableWidgetCellValue {
@@ -1172,11 +1419,31 @@ export function normalizeTableWidgetSelectionState(
     activeRowKey: normalizeOptionalRowKey(record.activeRowKey),
     activeRowIndex,
     activeCell: normalizeActiveCellSelection(record.activeCell),
+    implicitMode: record.implicitMode === true,
     updatedAtMs:
       typeof record.updatedAtMs === "number" && Number.isFinite(record.updatedAtMs)
         ? record.updatedAtMs
         : 0,
   };
+}
+
+function resolveEffectivePublishedSelectionMode(
+  props: Pick<ResolvedTableWidgetProps, "publishSelectionOutputs" | "selectionMode">,
+  selection: TableWidgetSelectionState,
+): TableWidgetSelectionMode {
+  if (!props.publishSelectionOutputs) {
+    return "none";
+  }
+
+  if (props.selectionMode !== "none") {
+    return props.selectionMode;
+  }
+
+  if (selection.implicitMode === true && selection.mode !== "none") {
+    return selection.mode;
+  }
+
+  return "none";
 }
 
 export function withTableWidgetSelectionRuntimeState(
@@ -1312,8 +1579,11 @@ export function resolveTableWidgetSelectedRowsOutput(
   const frame = resolveTableWidgetOutput(props, resolvedInputs, runtimeState, runtimeDataStore);
   const normalizedProps = resolveTableWidgetPropsWithFrame(props);
   const selection = normalizeTableWidgetSelectionState(runtimeState);
-  const selectionEnabled =
-    normalizedProps.publishSelectionOutputs && normalizedProps.selectionMode !== "none";
+  const effectiveSelectionMode = resolveEffectivePublishedSelectionMode(
+    normalizedProps,
+    selection,
+  );
+  const selectionEnabled = effectiveSelectionMode !== "none";
   const selectedRows = selectionEnabled
     ? resolveRowsBySelection(frame, normalizedProps, selection)
     : [];
@@ -1334,16 +1604,21 @@ export function resolveTableWidgetActiveRowOutput(
 ) {
   const frame = resolveTableWidgetOutput(props, resolvedInputs, runtimeState, runtimeDataStore);
   const normalizedProps = resolveTableWidgetPropsWithFrame(props);
+  const selection = normalizeTableWidgetSelectionState(runtimeState);
+  const effectiveSelectionMode = resolveEffectivePublishedSelectionMode(
+    normalizedProps,
+    selection,
+  );
 
-  if (!normalizedProps.publishSelectionOutputs || normalizedProps.selectionMode === "none") {
+  if (effectiveSelectionMode === "none") {
     return null;
   }
 
   return resolveActiveRow(
     frame,
     normalizedProps,
-    normalizeTableWidgetSelectionState(runtimeState),
-    { includeActiveCellFallback: normalizedProps.selectionMode === "cell" },
+    selection,
+    { includeActiveCellFallback: effectiveSelectionMode === "cell" },
   );
 }
 
@@ -1355,13 +1630,21 @@ export function resolveTableWidgetActiveCellOutput(
 ) {
   const frame = resolveTableWidgetOutput(props, resolvedInputs, runtimeState, runtimeDataStore);
   const normalizedProps = resolveTableWidgetPropsWithFrame(props);
+  const selection = normalizeTableWidgetSelectionState(runtimeState);
+  const effectiveSelectionMode = resolveEffectivePublishedSelectionMode(
+    normalizedProps,
+    selection,
+  );
 
-  if (!normalizedProps.publishSelectionOutputs || normalizedProps.selectionMode !== "cell") {
+  if (effectiveSelectionMode === "none") {
     return null;
   }
 
-  const selection = normalizeTableWidgetSelectionState(runtimeState);
   const activeCell = selection.activeCell;
+
+  if (selection.mode !== effectiveSelectionMode) {
+    return null;
+  }
 
   if (!activeCell) {
     return null;
@@ -1448,48 +1731,26 @@ export function buildTableWidgetFrameFromRemoteData(
   remoteRows: readonly TabularDataRow[] = [],
   runtimeColumns: readonly string[] = [],
   runtimeFields: readonly TabularFieldOption[] = [],
+  runtimeMeta?: TabularFrameSourceV1["meta"],
 ): TableWidgetResolvedFrameInput {
   const fieldOptions = runtimeFields.length > 0 ? runtimeFields : buildTabularFieldOptions(detail);
-  const fieldOptionByKey = new Map(fieldOptions.map((field) => [field.key, field]));
-  const rowKeys = uniqueStrings(remoteRows.flatMap((row) => Object.keys(row)));
-  const normalizedRuntimeColumns = uniqueStrings(
-    runtimeColumns.map((column) => (typeof column === "string" ? column.trim() : "")),
-  );
-  const columns =
-    normalizedRuntimeColumns.length > 0 || rowKeys.length > 0
-      ? uniqueStrings([...normalizedRuntimeColumns, ...rowKeys])
-      : uniqueStrings(fieldOptions.map((field) => field.key));
-  const rows = remoteRows.map((row) => columns.map((columnKey) => normalizeCellValue(row[columnKey])));
-  const schemaFallback = columns.map<TableWidgetColumnSchema>((columnKey, index) => {
-    const field = fieldOptionByKey.get(columnKey);
-    const label = field?.label?.trim() || columnKey;
-    const format = inferRemoteColumnFormatFromKey(
-      columnKey,
-      field?.type,
-      field?.nativeType,
-      rows,
-      index,
-    );
-
-    return {
-      key: columnKey,
-      label,
-      description: field?.description ?? undefined,
-      format,
-      minWidth: isTimeLikeField(field) ? 160 : format === "text" ? 140 : 120,
-      pinned: isKeyLikeField(field) ? "left" : undefined,
-      categorical: format === "text",
-      heatmapEligible: isTableWidgetNumericFormat(format),
-      compact:
-        format === "currency" &&
-        /gross|net|pnl|notional|amount|exposure|value/i.test(columnKey),
-    };
-  });
+  const sourceFrame = {
+    status: "ready",
+    columns: uniqueStrings(
+      runtimeColumns.map((column) => (typeof column === "string" ? column.trim() : "")),
+    ),
+    rows: remoteRows.map((row) => ({ ...row })),
+    fields: fieldOptions.map<TabularFrameFieldSchema>((field) => mapTableFieldOptionToFrameField(field)),
+    meta: runtimeMeta,
+  } satisfies TabularFrameSourceV1;
+  const sharedContract = buildTableWidgetSourceVisualContractFromFrame(sourceFrame);
 
   return {
-    columns,
-    rows,
-    schemaFallback,
+    columns: sharedContract?.columns ?? [],
+    rows: sharedContract?.rows ?? [],
+    schemaFallback: sharedContract?.schemaFallback ?? [],
+    sourceColumnOverrides: sharedContract?.sourceColumnOverrides,
+    sourceConditionalRules: sharedContract?.sourceConditionalRules,
     supportsUniqueIdentifierList:
       (detail?.sourcetableconfiguration?.index_names ?? []).includes("unique_identifier"),
     sourceLabel: formatTabularSourceLabel(detail),
@@ -1754,6 +2015,33 @@ export function cloneTableWidgetSchema(
   columns: readonly TableWidgetColumnSchema[],
 ): TableWidgetColumnSchema[] {
   return columns.map((column) => ({ ...column }));
+}
+
+export function moveTableWidgetSchemaColumn(
+  columns: readonly TableWidgetColumnSchema[],
+  fromIndex: number,
+  toIndex: number,
+): TableWidgetColumnSchema[] {
+  const nextColumns = cloneTableWidgetSchema(columns);
+
+  if (
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= nextColumns.length ||
+    toIndex >= nextColumns.length ||
+    fromIndex === toIndex
+  ) {
+    return nextColumns;
+  }
+
+  const [movedColumn] = nextColumns.splice(fromIndex, 1);
+
+  if (!movedColumn) {
+    return nextColumns;
+  }
+
+  nextColumns.splice(toIndex, 0, movedColumn);
+  return nextColumns;
 }
 
 function normalizeColumnOverride(value: unknown): TableWidgetColumnOverride | undefined {
@@ -2154,6 +2442,12 @@ export function resolveTableWidgetPropsWithFrame(
       : frameInput;
   const columns = normalizeFrameColumns(resolvedFrameInput?.columns, []);
   const rows = normalizeFrameRows(resolvedFrameInput?.rows, columns.length);
+  const sourceColumnOverrides = normalizeColumnOverrides(
+    resolvedFrameInput?.sourceColumnOverrides,
+  );
+  const localColumnOverrides = stripSchemaManagedFieldsFromColumnOverrides(
+    migratedProps.columnOverrides,
+  );
   const schema = resolveTableWidgetSchemaFromFrame(
     migratedProps,
     {
@@ -2195,17 +2489,25 @@ export function resolveTableWidgetPropsWithFrame(
       typeof migratedProps.pageSize === "number" && Number.isFinite(migratedProps.pageSize)
         ? Math.max(5, Math.min(Math.trunc(migratedProps.pageSize), 200))
         : defaultPageSize,
-    columnOverrides: stripSchemaManagedFieldsFromColumnOverrides(migratedProps.columnOverrides),
+    columnOverrides: {
+      ...sourceColumnOverrides,
+      ...localColumnOverrides,
+    },
     valueLabels: Array.isArray(migratedProps.valueLabels)
       ? migratedProps.valueLabels
           .map((entry) => normalizeValueLabel(entry))
           .filter((entry): entry is TableWidgetValueLabel => Boolean(entry))
       : [],
-    conditionalRules: Array.isArray(migratedProps.conditionalRules)
-      ? migratedProps.conditionalRules
+    conditionalRules: [
+      ...((resolvedFrameInput?.sourceConditionalRules ?? [])
+        .map((entry) => normalizeConditionalRule(entry))
+        .filter((entry): entry is TableWidgetConditionalRule => Boolean(entry))),
+      ...(Array.isArray(migratedProps.conditionalRules)
+        ? migratedProps.conditionalRules
           .map((entry) => normalizeConditionalRule(entry))
           .filter((entry): entry is TableWidgetConditionalRule => Boolean(entry))
-      : [],
+        : []),
+    ],
     selectionMode: normalizeTableWidgetSelectionMode(migratedProps.selectionMode),
     selectionKeyFields: normalizeSelectionKeyFields(migratedProps.selectionKeyFields),
     publishSelectionOutputs: migratedProps.publishSelectionOutputs !== false,

@@ -23,6 +23,9 @@ connection-query authoring and preview surfaces without publishing a backend dat
 - `queryConnection()` and `testConnection()` intercept the sentinel instance id and execute locally.
 - No connection instance, response JSON, secret, or query payload is persisted to the backend by this
   mock path.
+- The query editor commits valid Response JSON edits into the connection-query widget draft on each
+  edit so normal widget dirty/save controls enable before the textarea loses focus. Invalid JSON
+  remains local to the editor and shows a parse error.
 
 ## Backend Contract
 

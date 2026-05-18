@@ -12,6 +12,7 @@ import { X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { isWidgetReferenceExpression } from "@/dashboards/widget-reference-language";
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 
 const EMPTY_EDITOR_EXTENSIONS: readonly Extension[] = [];
@@ -441,6 +442,27 @@ export function QueryStringListField({
     updateEntries(entries.filter((entry) => entry !== entryToRemove));
   }
 
+  function commitReferenceDraft(
+    nextValue: string,
+    options?: {
+      completionKind?: "widget" | "source" | "field";
+      reason?: "completion" | "enter";
+    },
+  ) {
+    if (!isWidgetReferenceExpression(nextValue)) {
+      return;
+    }
+
+    const shouldCommitImmediately =
+      options?.reason === "enter" || options?.completionKind === "field";
+
+    if (!shouldCommitImmediately) {
+      return;
+    }
+
+    appendEntries(nextValue);
+  }
+
   return (
     <ConnectionQueryField help={help} hideLabel={hideLabel} label={label}>
       <div
@@ -504,6 +526,12 @@ export function QueryStringListField({
             }}
             onBlur={() => {
               appendEntries();
+            }}
+            onWidgetReferenceCommit={({ value, option, reason }) => {
+              commitReferenceDraft(value, {
+                completionKind: option?.kind,
+                reason,
+              });
             }}
             disabled={disabled}
             placeholder={entries.length === 0 ? placeholder?.split(/\n|,/)[0] : "Add value"}

@@ -1,10 +1,11 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 
 import { getWidgetById } from "@/app/registry";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { useRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import type { WidgetDefinition } from "@/widgets/types";
 
+import { isWidgetReferenceTargetInputId } from "./widget-instance-references";
 import {
   createDashboardWidgetDependencyModel,
   type DashboardWidgetDependencyModel,
@@ -12,6 +13,81 @@ import {
 
 const DashboardWidgetDependenciesContext =
   createContext<DashboardWidgetDependencyModel | null>(null);
+
+function summarizeVariableDebugValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return {
+      kind: "array",
+      length: value.length,
+      sample: value.slice(0, 3),
+    };
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record);
+
+    return {
+      kind: "object",
+      keys,
+      sample: Object.fromEntries(keys.slice(0, 8).map((key) => [key, record[key]])),
+    };
+  }
+
+  return value;
+}
+
+function summarizeWorkspaceVariableStore(model: DashboardWidgetDependencyModel) {
+  return model.variableRegistry.entries.map((entry) => {
+    const output = model.resolveOutputs(entry.key.sourceWidgetId)?.[entry.key.sourceOutputId];
+
+    return {
+      id: entry.id,
+      key: entry.key,
+      sourceValue: summarizeVariableDebugValue(output?.value),
+      sourceContract: output?.contractId,
+      consumers: entry.consumers.map((consumer) => ({
+        targetWidgetId: consumer.targetWidgetId,
+        targetInputId: consumer.targetInputId,
+        targetKind: consumer.targetKind,
+        propPath: consumer.propPath,
+      })),
+    };
+  });
+}
+
+function summarizeWidgetReferenceResolution(model: DashboardWidgetDependencyModel) {
+  return model.entries.flatMap(({ instance }) => {
+    const resolvedInputs = model.resolveInputs(instance.id);
+    const io = model.resolveIo(instance.id);
+
+    if (!resolvedInputs || !io?.inputs?.length) {
+      return [];
+    }
+
+    return Object.entries(resolvedInputs).flatMap(([inputId, resolvedValue]) => {
+      if (!isWidgetReferenceTargetInputId(inputId)) {
+        return [];
+      }
+
+      const inputDefinition = io.inputs?.find((candidate) => candidate.id === inputId);
+      const values = (Array.isArray(resolvedValue) ? resolvedValue : [resolvedValue]).filter(
+        (entry): entry is NonNullable<typeof entry> => Boolean(entry),
+      );
+
+      return values.map((entry) => ({
+        targetWidgetId: instance.id,
+        targetInputId: inputId,
+        acceptedContracts: inputDefinition?.accepts ?? [],
+        status: entry.status,
+        sourceWidgetId: entry.sourceWidgetId ?? null,
+        sourceOutputId: entry.sourceOutputId ?? null,
+        resolvedContractId: entry.contractId ?? null,
+        resolvedValue: summarizeVariableDebugValue(entry.value),
+      }));
+    });
+  });
+}
 
 export function DashboardWidgetDependenciesProvider({
   children,
@@ -32,6 +108,46 @@ export function DashboardWidgetDependenciesProvider({
       ),
     [resolveWidgetDefinition, runtimeDataStore, widgets],
   );
+  const previousVariableDebugSignatureRef = useRef<string | null>(null);
+  const previousReferenceResolutionSignatureRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    const entries = summarizeWorkspaceVariableStore(model);
+    const signature = JSON.stringify(entries);
+
+    if (signature === previousVariableDebugSignatureRef.current) {
+      return;
+    }
+
+    previousVariableDebugSignatureRef.current = signature;
+
+    console.log("[workspace-variable-store]", {
+      entries,
+    });
+  }, [model]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    const entries = summarizeWidgetReferenceResolution(model);
+    const signature = JSON.stringify(entries);
+
+    if (signature === previousReferenceResolutionSignatureRef.current) {
+      return;
+    }
+
+    previousReferenceResolutionSignatureRef.current = signature;
+
+    console.log("[widget-reference-resolution]", {
+      entries,
+    });
+  }, [model]);
 
   return (
     <DashboardWidgetDependenciesContext.Provider value={model}>
@@ -46,6 +162,10 @@ export function useDashboardWidgetDependencies() {
 
 export function useWidgetDependencyGraph() {
   return useDashboardWidgetDependencies()?.graph;
+}
+
+export function useWorkspaceVariableReferenceRegistry() {
+  return useDashboardWidgetDependencies()?.variableRegistry;
 }
 
 export function useResolvedWidgetIo(instanceId?: string) {

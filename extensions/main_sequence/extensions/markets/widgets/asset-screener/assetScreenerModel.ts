@@ -16,7 +16,11 @@ import {
 } from "../../widget-contracts/marketAssetFrames";
 import type { ConnectionQueryWidgetProps } from "@/widgets/core/connection-query/connectionQueryModel";
 import type { ConnectionStreamQueryWidgetProps } from "@/widgets/core/connection-stream-query/connectionStreamQueryModel";
-import type { TableWidgetProps } from "@/widgets/core/table/tableModel";
+import {
+  stripLegacyTableWidgetDisplayConfig,
+  type TableWidgetProps,
+} from "@/widgets/core/table/tableModel";
+import { resolveIncrementalTabularBindingSnapshot } from "@/widgets/shared/incremental-tabular-consumer";
 import { materializeRuntimeTabularFrame, type RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 import type { ResolvedWidgetInput, ResolvedWidgetInputs, WidgetInstancePresentation } from "@/widgets/types";
@@ -56,6 +60,8 @@ export interface MainSequenceAssetScreenerWidgetProps extends Record<string, unk
 export interface MainSequenceAssetScreenerResolvedState {
   columnConfigSource: MainSequenceAssetScreenerColumnConfigMode | "empty";
   columns: MarketAssetScreenerColumn[];
+  sourceColumns?: MarketAssetScreenerColumn[];
+  sourceFrame?: TabularFrameSourceV1 | null;
   runtimeModel: MarketAssetScreenerRuntimeModel;
   rows: MarketAssetScreenerRow[];
   filteredRows: MarketAssetScreenerRow[];
@@ -85,6 +91,129 @@ export const assetScreenerDefaultProps = {
   staleAfterMs: 5 * 60 * 1000,
 } satisfies MainSequenceAssetScreenerWidgetProps;
 
+function normalizeColumnSignatureEntry(column: {
+  id?: unknown;
+  kind?: unknown;
+  label?: unknown;
+  field?: unknown;
+  valueField?: unknown;
+  referenceKey?: unknown;
+  returnMode?: unknown;
+}) {
+  return {
+    id: typeof column.id === "string" ? column.id : null,
+    kind: typeof column.kind === "string" ? column.kind : null,
+    label: typeof column.label === "string" ? column.label : null,
+    field: typeof column.field === "string" ? column.field : null,
+    valueField: typeof column.valueField === "string" ? column.valueField : null,
+    referenceKey: typeof column.referenceKey === "string" ? column.referenceKey : null,
+    returnMode: typeof column.returnMode === "string" ? column.returnMode : null,
+  };
+}
+
+function serializeColumnsForComparison(columns: unknown) {
+  if (!Array.isArray(columns)) {
+    return "[]";
+  }
+
+  return JSON.stringify(columns.map((column) =>
+    normalizeColumnSignatureEntry(isPlainRecord(column) ? column : {}),
+  ));
+}
+
+const legacyShippedAssetScreenerColumnsSignature = JSON.stringify([
+  {
+    id: "symbol",
+    kind: "asset-field",
+    label: "Symbol",
+    field: "symbol",
+    valueField: null,
+    referenceKey: null,
+    returnMode: null,
+  },
+  {
+    id: "name",
+    kind: "asset-field",
+    label: "Name",
+    field: "displayName",
+    valueField: null,
+    referenceKey: null,
+    returnMode: null,
+  },
+  {
+    id: "trend",
+    kind: "sparkline",
+    label: "Trend",
+    field: null,
+    valueField: "price",
+    referenceKey: null,
+    returnMode: null,
+  },
+  {
+    id: "last",
+    kind: "latest-value",
+    label: "Last",
+    field: null,
+    valueField: "price",
+    referenceKey: null,
+    returnMode: null,
+  },
+  {
+    id: "net",
+    kind: "return",
+    label: "Net Chg",
+    field: null,
+    valueField: "price",
+    referenceKey: "previousClose",
+    returnMode: "absolute",
+  },
+  {
+    id: "pct",
+    kind: "return",
+    label: "% Chg",
+    field: null,
+    valueField: "price",
+    referenceKey: "previousClose",
+    returnMode: "percent",
+  },
+  {
+    id: "mtd",
+    kind: "return",
+    label: "1M",
+    field: null,
+    valueField: "price",
+    referenceKey: "oneMonthAgo",
+    returnMode: "percent",
+  },
+  {
+    id: "ytd",
+    kind: "return",
+    label: "YTD",
+    field: null,
+    valueField: "price",
+    referenceKey: "yearStart",
+    returnMode: "percent",
+  },
+  {
+    id: "oneYear",
+    kind: "return",
+    label: "1Y",
+    field: null,
+    valueField: "price",
+    referenceKey: "oneYearAgo",
+    returnMode: "percent",
+  },
+  {
+    id: "sector",
+    kind: "asset-field",
+    label: "Sector",
+    field: "sector",
+    valueField: null,
+    referenceKey: null,
+    returnMode: null,
+  },
+]);
+
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -113,17 +242,8 @@ export function normalizeAssetScreenerSourceMode(value: unknown): MainSequenceAs
 
 export function normalizeAssetScreenerColumnConfigMode(
   value: unknown,
-  hasCustomColumns: boolean,
 ): MainSequenceAssetScreenerColumnConfigMode {
-  if (value === "source") {
-    return "source";
-  }
-
-  if (value === "custom" || hasCustomColumns) {
-    return "custom";
-  }
-
-  return "source";
+  return value === "custom" ? "custom" : "source";
 }
 
 function normalizeSort(value: unknown): MainSequenceAssetScreenerSort | undefined {
@@ -148,19 +268,41 @@ function normalizeColumns(value: unknown) {
     return undefined;
   }
 
-  const columns = value.filter((entry): entry is MarketAssetScreenerColumn => {
+  const columns = value.flatMap((entry) => {
     if (!isPlainRecord(entry) || !normalizeString(entry.id) || !normalizeString(entry.label)) {
-      return false;
+      return [];
     }
 
-    return entry.kind === "asset-field" ||
-      entry.kind === "latest-value" ||
-      entry.kind === "reference-value" ||
-      entry.kind === "return" ||
-      entry.kind === "sparkline";
+    if (
+      entry.kind !== "asset-field" &&
+      entry.kind !== "latest-value" &&
+      entry.kind !== "reference-value" &&
+      entry.kind !== "return" &&
+      entry.kind !== "sparkline"
+    ) {
+      return [];
+    }
+
+    const { visual: _ignoredVisual, ...rest } = entry;
+    return [rest as MarketAssetScreenerColumn];
   });
 
   return columns.length > 0 ? columns : undefined;
+}
+
+export function prepareAssetScreenerColumnsForPersistence(
+  columns: MarketAssetScreenerColumn[] | undefined,
+) : MarketAssetScreenerColumn[] | undefined {
+  return normalizeColumns(
+    columns?.map((column) =>
+      "visual" in column
+        ? (() => {
+            const { visual: _ignoredVisual, ...rest } = column;
+            return rest;
+          })()
+        : column,
+    ),
+  );
 }
 
 function normalizeFieldMappings(value: unknown): MainSequenceAssetScreenerFieldMappings | undefined {
@@ -173,18 +315,41 @@ function normalizeFieldMappings(value: unknown): MainSequenceAssetScreenerFieldM
 }
 
 function normalizeTableSettings(value: unknown): Partial<TableWidgetProps> | undefined {
-  return isPlainRecord(value) ? (value as Partial<TableWidgetProps>) : undefined;
+  if (!isPlainRecord(value)) {
+    return undefined;
+  }
+
+  return stripLegacyTableWidgetDisplayConfig(value as TableWidgetProps);
+}
+
+export function stripLegacyAssetScreenerDisplayConfig(
+  props: MainSequenceAssetScreenerWidgetProps | Record<string, unknown> | undefined,
+): MainSequenceAssetScreenerWidgetProps | Record<string, unknown> {
+  const value = props ?? {};
+
+  if (
+    serializeColumnsForComparison(isPlainRecord(value) ? value.columns : undefined) !==
+    legacyShippedAssetScreenerColumnsSignature
+  ) {
+    return value;
+  }
+
+  return {
+    ...value,
+    columnConfigMode: "source",
+    columns: undefined,
+  };
 }
 
 export function normalizeAssetScreenerProps(
   props: MainSequenceAssetScreenerWidgetProps | Record<string, unknown> | undefined,
 ): MainSequenceAssetScreenerWidgetProps {
-  const value = props ?? {};
+  const value = stripLegacyAssetScreenerDisplayConfig(props);
   const columns = normalizeColumns(value.columns);
 
   return {
     assetScreenerSourceMode: normalizeAssetScreenerSourceMode(value.assetScreenerSourceMode),
-    columnConfigMode: normalizeAssetScreenerColumnConfigMode(value.columnConfigMode, Boolean(columns)),
+    columnConfigMode: normalizeAssetScreenerColumnConfigMode(value.columnConfigMode),
     columns,
     density: normalizeDensity(value.density),
     embeddedConnectionPresentation: isPlainRecord(value.embeddedConnectionPresentation)
@@ -426,6 +591,14 @@ function sourceColumnWidth(
   return kind === "asset-field" ? 120 : 96;
 }
 
+function sourceIdentityFieldIsGroupable(field: string | undefined) {
+  return field === "sector" ||
+    field === "industry" ||
+    field === "group" ||
+    field === "assetClass" ||
+    field === "country";
+}
+
 function buildSourceColumnsFromFrame(
   frame: TabularFrameSourceV1 | null | undefined,
 ): MarketAssetScreenerColumn[] | null {
@@ -464,157 +637,115 @@ function buildSourceColumnsFromFrame(
     addedColumnIds.add(column.id);
   };
 
-  for (const role of fieldRoles) {
-    const identityField = identityFieldForRole(role.role);
-
-    if (identityField) {
-      if (identityField === "assetKey" || identityField === "tags") {
-        continue;
-      }
-
-      if (
-        identityField === "displayName" &&
-        !visualColumns[role.field] &&
-        fieldRoles.some((candidate) => candidate.role === "symbol")
-      ) {
-        continue;
-      }
-
-      addColumn({
-        id: role.field,
-        kind: "asset-field",
-        label: fieldLabels.get(role.field) ?? visualColumns[role.field]?.label ?? humanizeFieldLabel(role.field),
-        field: identityField,
-        width: sourceColumnWidth("asset-field", identityField, visualColumns[role.field]),
-        groupable: identityField === "sector" ||
-          identityField === "industry" ||
-          identityField === "group" ||
-          identityField === "assetClass" ||
-          identityField === "country",
-        visual: visualColumns[role.field],
-      });
-      continue;
-    }
-
-    const label = visualColumns[role.field]?.label ?? fieldLabels.get(role.field) ?? humanizeFieldLabel(role.field);
-
-    if (visualColumns[role.field]) {
-      continue;
-    }
-
-    if (role.role === "sparklineSeries") {
-      addColumn({
-        id: role.field,
-        kind: "sparkline",
-        label,
-        valueField: role.valueKey ?? valueFieldForSourceField(role.field),
-        width: sourceColumnWidth("sparkline", role.field, visualColumns[role.field]),
-        visual: visualColumns[role.field],
-      });
-      continue;
-    }
-
-    if (role.role === "value" && role.valueKey) {
-      addColumn({
-        id: role.field,
-        kind: "latest-value",
-        label,
-        valueField: role.valueKey,
-        format: visualColumns[role.field]?.format,
-        width: sourceColumnWidth("latest-value", role.field, visualColumns[role.field]),
-        visual: visualColumns[role.field],
-      });
-    }
-  }
-
-  for (const [field, visual] of Object.entries(visualColumns)) {
+  const buildColumnForField = (
+    field: string,
+    visual: MarketTableVisualColumnMetadata | undefined,
+  ): MarketAssetScreenerColumn | null => {
     const role = roleByField.get(field);
-    const label = visual.label ?? computedLabels.get(field) ?? fieldLabels.get(field) ?? (
-      visual.kind === "sparkline" || role?.role === "sparklineSeries"
+    const label = visual?.label ?? computedLabels.get(field) ?? fieldLabels.get(field) ?? (
+      visual?.kind === "sparkline" || role?.role === "sparklineSeries"
         ? "Trend"
         : humanizeFieldLabel(field)
     );
 
-    if (visual.kind === "sparkline" || role?.role === "sparklineSeries") {
-      addColumn({
+    if (visual?.kind === "sparkline" || role?.role === "sparklineSeries") {
+      return {
         id: field,
         kind: "sparkline",
         label,
         valueField: role?.valueKey ?? valueFieldForSourceField(field),
         width: sourceColumnWidth("sparkline", field, visual),
         visual,
-      });
-      continue;
+      };
     }
 
     if (role?.role === "referenceValue" && role.referenceKey && role.valueKey) {
-      addColumn({
-        id: field,
-        kind: "reference-value",
-        label,
-        referenceKey: role.referenceKey,
-        valueField: role.valueKey,
-        format: visual.format,
-        width: sourceColumnWidth("reference-value", field, visual),
-        visual,
-      });
-      continue;
+      return visual
+        ? {
+            id: field,
+            kind: "reference-value",
+            label,
+            referenceKey: role.referenceKey,
+            valueField: role.valueKey,
+            format: visual.format,
+            width: sourceColumnWidth("reference-value", field, visual),
+            visual,
+          }
+        : null;
     }
 
     if (role?.role === "value" && role.valueKey) {
-      addColumn({
+      return {
         id: field,
         kind: "latest-value",
         label,
         valueField: role.valueKey,
-        format: visual.format,
+        format: visual?.format,
         width: sourceColumnWidth("latest-value", field, visual),
         visual,
-      });
-      continue;
+      };
     }
 
     const identityField = role ? identityFieldForRole(role.role) : identityFieldForSourceField(field);
 
     if (identityField) {
-      addColumn({
+      if (identityField === "assetKey" || identityField === "tags") {
+        return null;
+      }
+
+      if (
+        identityField === "displayName" &&
+        !visual &&
+        fieldRoles.some((candidate) => candidate.role === "symbol")
+      ) {
+        return null;
+      }
+
+      return {
         id: field,
         kind: "asset-field",
         label,
         field: identityField,
         width: sourceColumnWidth("asset-field", identityField, visual),
+        groupable: sourceIdentityFieldIsGroupable(identityField),
         visual,
-      });
-      continue;
+      };
     }
 
-    addColumn({
+    return {
       id: field,
       kind: "latest-value",
       label,
       valueField: valueFieldForSourceField(field),
-      format: visual.format,
+      format: visual?.format,
       width: sourceColumnWidth("latest-value", field, visual),
       visual,
+    };
+  };
+
+  const explicitVisualColumns = Object.entries(visualColumns);
+
+  if (explicitVisualColumns.length > 0) {
+    explicitVisualColumns.forEach(([field, visual]) => {
+      addColumn(buildColumnForField(field, visual));
     });
+
+    return columns.length > 0 ? columns : null;
+  }
+
+  for (const role of fieldRoles) {
+    addColumn(buildColumnForField(role.field, undefined));
   }
 
   for (const [field, label] of computedLabels) {
-    addColumn({
-      id: field,
-      kind: "latest-value",
-      label,
-      valueField: valueFieldForSourceField(field),
-      format: visualColumns[field]?.format,
-      width: sourceColumnWidth("latest-value", field, visualColumns[field]),
-      visual: visualColumns[field],
-    });
+    addColumn(buildColumnForField(field, visualColumns[field] ?? { label }));
   }
 
   return columns.length > 0 ? columns : null;
 }
 
 export function resolveAssetScreenerColumnConfig(input: {
+  canonicalSourceFrame?: TabularFrameSourceV1 | null;
   liveUpdates?: TabularFrameSourceV1 | null;
   props: MainSequenceAssetScreenerWidgetProps | Record<string, unknown> | undefined;
   seedData?: TabularFrameSourceV1 | null;
@@ -625,6 +756,7 @@ export function resolveAssetScreenerColumnConfig(input: {
 } {
   const props = normalizeAssetScreenerProps(input.props);
   const sourceColumns =
+    buildSourceColumnsFromFrame(input.canonicalSourceFrame) ??
     buildSourceColumnsFromFrame(input.seedData) ??
     buildSourceColumnsFromFrame(input.liveUpdates) ??
     undefined;
@@ -652,6 +784,34 @@ export function resolveAssetScreenerColumnConfig(input: {
   };
 }
 
+export function resolveAssetScreenerSourceFrame(input: {
+  seedData?: TabularFrameSourceV1 | null;
+  liveUpdates?: TabularFrameSourceV1 | null;
+}) {
+  if (buildSourceColumnsFromFrame(input.seedData)) {
+    return input.seedData ?? null;
+  }
+
+  if (buildSourceColumnsFromFrame(input.liveUpdates)) {
+    return input.liveUpdates ?? null;
+  }
+
+  return input.seedData ?? input.liveUpdates ?? null;
+}
+
+function resolveAssetScreenerCanonicalSourceFrame(input: {
+  fallbackFrames?: MainSequenceAssetScreenerFallbackFrames;
+  resolvedInputs?: ResolvedWidgetInputs;
+  runtimeDataStore?: RuntimeDataStore | null;
+}) {
+  const snapshot = resolveIncrementalTabularBindingSnapshot({
+    resolvedInputs: input.resolvedInputs,
+    runtimeDataStore: input.runtimeDataStore,
+  });
+
+  return snapshot.dataset ?? resolveAssetScreenerSourceFrame(input.fallbackFrames ?? {});
+}
+
 export function resolveAssetScreenerColumnConfigFromResolvedInputs(input: {
   props: MainSequenceAssetScreenerWidgetProps | Record<string, unknown> | undefined;
   resolvedInputs?: ResolvedWidgetInputs;
@@ -664,6 +824,10 @@ export function resolveAssetScreenerColumnConfigFromResolvedInputs(input: {
   );
 
   return resolveAssetScreenerColumnConfig({
+    canonicalSourceFrame: resolveAssetScreenerCanonicalSourceFrame({
+      resolvedInputs: input.resolvedInputs,
+      runtimeDataStore: input.runtimeDataStore,
+    }),
     props: input.props,
     seedData: materializeResolvedInput(seedInput, input.runtimeDataStore),
     liveUpdates: materializeResolvedInput(liveInput, input.runtimeDataStore, "delta"),
@@ -691,6 +855,7 @@ function resolveSort(
 }
 
 export function resolveAssetScreenerState(input: {
+  canonicalSourceFrame?: TabularFrameSourceV1 | null;
   fallbackFrames?: MainSequenceAssetScreenerFallbackFrames;
   props: MainSequenceAssetScreenerWidgetProps;
   resolvedInputs?: ResolvedWidgetInputs;
@@ -710,6 +875,13 @@ export function resolveAssetScreenerState(input: {
     materializeResolvedInput(liveInput, input.runtimeDataStore, "delta") ??
     input.fallbackFrames?.liveUpdates ??
     null;
+  const canonicalSourceFrame =
+    input.canonicalSourceFrame ??
+    resolveAssetScreenerCanonicalSourceFrame({
+      fallbackFrames: input.fallbackFrames,
+      resolvedInputs: input.resolvedInputs,
+      runtimeDataStore: input.runtimeDataStore,
+    });
   const runtimeModel = buildMarketAssetScreenerRuntimeModelFromTabularFrames({
     seedData,
     liveUpdates,
@@ -717,6 +889,7 @@ export function resolveAssetScreenerState(input: {
     liveMapping: props.fieldMappings?.live,
   });
   const columnConfig = resolveAssetScreenerColumnConfig({
+    canonicalSourceFrame,
     props,
     seedData,
     liveUpdates,
@@ -731,6 +904,8 @@ export function resolveAssetScreenerState(input: {
   return {
     columnConfigSource: columnConfig.source,
     columns: columnConfig.columns,
+    sourceColumns: columnConfig.sourceColumns,
+    sourceFrame: canonicalSourceFrame,
     runtimeModel,
     rows,
     filteredRows: sortedRows.slice(0, props.maxRenderedRows),

@@ -59,16 +59,29 @@ export function MockApiConnectionQueryEditor({
   const serializedResponseBody = useMemo(() => formatJson(responseBody), [responseBody]);
   const [responseText, setResponseText] = useState(serializedResponseBody);
   const [responseError, setResponseError] = useState<string | null>(null);
+  const [responseFocused, setResponseFocused] = useState(false);
 
   useEffect(() => {
+    if (responseFocused) {
+      return;
+    }
+
     setResponseText(serializedResponseBody);
     setResponseError(null);
-  }, [serializedResponseBody]);
+  }, [responseFocused, serializedResponseBody]);
 
-  function commitResponseText(nextText = responseText) {
+  function commitResponseText(
+    nextText = responseText,
+    options: { format?: boolean } = {},
+  ) {
     try {
       const parsed = JSON.parse(nextText) as unknown;
       setResponseError(null);
+
+      if (options.format) {
+        setResponseText(formatJson(parsed));
+      }
+
       patchQuery(value, onChange, { responseBody: parsed });
     } catch (error) {
       setResponseError(error instanceof Error ? error.message : "Response JSON is invalid.");
@@ -148,8 +161,18 @@ export function MockApiConnectionQueryEditor({
           value={responseText}
           disabled={disabled}
           spellCheck={false}
-          onChange={(event) => setResponseText(event.target.value)}
-          onBlur={() => commitResponseText()}
+          onFocus={() => {
+            setResponseFocused(true);
+          }}
+          onChange={(event) => {
+            const nextText = event.target.value;
+            setResponseText(nextText);
+            commitResponseText(nextText);
+          }}
+          onBlur={() => {
+            setResponseFocused(false);
+            commitResponseText(responseText, { format: true });
+          }}
         />
         {responseError ? (
           <span className="block text-xs text-destructive">{responseError}</span>
