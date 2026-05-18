@@ -9,6 +9,7 @@ import {
 import { MainSequenceAssetCategoriesPage } from "./features/asset-categories/MainSequenceAssetCategoriesPage";
 import { MainSequenceAssetTranslationTablesPage } from "./features/asset-translation-tables/MainSequenceAssetTranslationTablesPage";
 import { MainSequenceAssetsPage } from "./features/assets/MainSequenceAssetsPage";
+import { MainSequenceManagedAccountsPage } from "./features/managed-accounts/MainSequenceManagedAccountsPage";
 import { MainSequenceExecutionVenuesPage } from "./features/execution-venues/MainSequenceExecutionVenuesPage";
 import { MainSequenceFundsPage } from "./features/funds/MainSequenceFundsPage";
 import { MainSequenceInstrumentsPage } from "./features/instruments/MainSequenceInstrumentsPage";
@@ -25,6 +26,12 @@ const portfoliosSection: AppSurfaceNavigationSection = {
   id: "portfolios",
   label: "Portfolios",
   order: 20,
+};
+
+const managedAccountsSection: AppSurfaceNavigationSection = {
+  id: "managed-accounts",
+  label: "Managed Accounts",
+  order: 25,
 };
 
 const settingsSection: AppSurfaceNavigationSection = {
@@ -165,6 +172,25 @@ export const mainSequenceMarketsApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceTargetPortfoliosPage,
+    },
+    {
+      id: "accounts",
+      title: "Accounts",
+      navLabel: "Accounts",
+      description: "Browse managed accounts and open account detail in the standard markets registry workflow.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Accounts. This page shows managed account records and links into dedicated account detail pages.",
+        availableActions: [
+          "Browse managed accounts",
+          "Search accounts",
+          "Open account detail",
+        ],
+      }),
+      navigationSection: managedAccountsSection,
+      kind: "page",
+      requiredPermissions: ["main_sequence_markets:view"],
+      component: MainSequenceManagedAccountsPage,
     },
     {
       id: "instruments",

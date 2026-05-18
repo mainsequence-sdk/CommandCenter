@@ -11,6 +11,7 @@ import type {
   WidgetBindingTransformStep,
   WidgetContractId,
   WidgetIoDefinition,
+  WidgetInstanceBindings,
   WidgetPortBinding,
   WidgetOutputPortDefinition,
   WidgetValueDescriptor,
@@ -983,6 +984,37 @@ export function syncWidgetReferenceExpressionBindings(input: {
   });
 
   return Object.keys(nextBindings).length > 0 ? nextBindings : undefined;
+}
+
+export function reconcileWidgetReferenceExpressionBindings(input: {
+  bindings?: WidgetInstanceBindings;
+  currentTitle?: string | null;
+  currentProps?: Record<string, unknown> | null;
+  nextTitle?: string | null;
+  nextProps?: Record<string, unknown> | null;
+  sourceWidgets: WidgetReferenceLanguageSourceWidget[];
+}) {
+  const currentExpressions = deriveWidgetReferenceExpressionBindings({
+    title: input.currentTitle ?? undefined,
+    props: input.currentProps ?? undefined,
+    sourceWidgets: input.sourceWidgets,
+  });
+  const nextExpressions = deriveWidgetReferenceExpressionBindings({
+    title: input.nextTitle ?? undefined,
+    props: input.nextProps ?? undefined,
+    sourceWidgets: input.sourceWidgets,
+  });
+  const nextBindings = syncWidgetReferenceExpressionBindings({
+    bindings: input.bindings,
+    managedInputIds: currentExpressions.managedInputIds,
+    nextExpressions,
+  });
+
+  return {
+    errors: nextExpressions.errors,
+    managedInputIds: nextExpressions.managedInputIds,
+    bindings: nextBindings,
+  };
 }
 
 function resolveSourceWidgetOutputs(

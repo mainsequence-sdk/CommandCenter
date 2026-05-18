@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 import { Database } from "lucide-react";
 
@@ -28,57 +28,6 @@ import {
 } from "./tableModel";
 
 type Props = WidgetComponentProps<TableWidgetProps>;
-
-function summarizeConditionalRulesForDebug(
-  rules: Array<{ columnKey: string; operator: string; value?: number; tone?: string; backgroundColor?: string }>,
-  columnKey: string,
-) {
-  return rules
-    .filter((rule) => rule.columnKey === columnKey)
-    .map((rule) => `${rule.operator}:${rule.value ?? ""}:${rule.tone ?? rule.backgroundColor ?? ""}`)
-    .join(" | ");
-}
-
-function buildTableFormatResolutionDebugRows(input: {
-  remoteFrame: ReturnType<typeof buildTableWidgetFrameFromRemoteData>;
-  resolvedProps: ReturnType<typeof resolveTableWidgetPropsWithFrame>;
-}) {
-  const sourceSchemaByKey = new Map(
-    input.remoteFrame.schemaFallback.map((column) => [column.key, column] as const),
-  );
-  const resolvedSchemaByKey = new Map(
-    input.resolvedProps.schema.map((column) => [column.key, column] as const),
-  );
-  const sourceOverrides = input.remoteFrame.sourceColumnOverrides ?? {};
-  const resolvedOverrides = input.resolvedProps.columnOverrides ?? {};
-
-  return input.resolvedProps.columns.map((columnKey) => {
-    const sourceSchema = sourceSchemaByKey.get(columnKey);
-    const resolvedSchema = resolvedSchemaByKey.get(columnKey);
-    const sourceOverride = sourceOverrides[columnKey];
-    const resolvedOverride = resolvedOverrides[columnKey];
-
-    return {
-      columnId: columnKey,
-      sourceFormat: sourceSchema?.format ?? null,
-      sourceGaugeMode: sourceOverride?.gaugeMode ?? null,
-      sourceHeatmap: sourceOverride?.heatmap ?? null,
-      sourceGradientMode: sourceOverride?.gradientMode ?? null,
-      sourceRuleSummary: summarizeConditionalRulesForDebug(
-        input.remoteFrame.sourceConditionalRules ?? [],
-        columnKey,
-      ),
-      resolvedFormat: resolvedSchema?.format ?? null,
-      resolvedGaugeMode: resolvedOverride?.gaugeMode ?? null,
-      resolvedHeatmap: resolvedOverride?.heatmap ?? null,
-      resolvedGradientMode: resolvedOverride?.gradientMode ?? null,
-      resolvedRuleSummary: summarizeConditionalRulesForDebug(
-        input.resolvedProps.conditionalRules ?? [],
-        columnKey,
-      ),
-    };
-  });
-}
 
 function resolveImplicitSelectionMode(
   outputIds: Set<string>,
@@ -182,35 +131,6 @@ export function TableWidget({
     () => resolveTableWidgetPropsWithFrame(props, remoteFrame),
     [props, remoteFrame],
   );
-  useEffect(() => {
-    if (!import.meta.env.DEV || isManualTableMode) {
-      return;
-    }
-
-    const formatResolutionRows = buildTableFormatResolutionDebugRows({
-      remoteFrame,
-      resolvedProps,
-    });
-
-    console.groupCollapsed("[table:format-resolution]", instanceId ?? "no-instance");
-    console.log("sourceConsumerState", sourceConsumerState);
-    console.log("resolvedInputDataset", resolvedInputDataset);
-    console.log("remoteFrame", remoteFrame);
-    console.log("resolvedTableProps", {
-      columnOverrides: resolvedProps.columnOverrides,
-      conditionalRules: resolvedProps.conditionalRules,
-      schema: resolvedProps.schema,
-    });
-    console.table(formatResolutionRows);
-    console.groupEnd();
-  }, [
-    instanceId,
-    isManualTableMode,
-    remoteFrame,
-    resolvedInputDataset,
-    resolvedProps,
-    sourceConsumerState,
-  ]);
   const selectionKeyFields = useMemo(
     () => resolveTableWidgetSelectionKeyFields(resolvedProps, resolvedInputDataset),
     [resolvedInputDataset, resolvedProps],
@@ -347,7 +267,6 @@ export function TableWidget({
 
   return (
     <TableFrameView
-      debugInstanceId={instanceId}
       dataErrorMessage={dataErrorMessage}
       isDataLoading={isDataLoading}
       resolvedProps={resolvedProps}

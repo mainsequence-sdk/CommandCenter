@@ -171,4 +171,43 @@ describe("QueryStringListField widget references", () => {
       '["$(table-1).activeRow.symbol"]',
     );
   });
+
+  it("removes a committed widget reference token from a list input", async () => {
+    function Harness() {
+      const [value, setValue] = useState<string[] | undefined>([
+        "$(TABLE-1).ACTIVECELLVALUE",
+      ]);
+
+      return (
+        <WidgetVariableReferenceInputProvider sourceWidgets={sourceWidgets}>
+          <QueryStringListField
+            label="Symbols"
+            value={value}
+            onChange={setValue}
+            placeholder="AAPL, MSFT"
+            normalizeEntry={(entry) => entry.trim().toUpperCase()}
+          />
+          <div data-testid="value">{JSON.stringify(value ?? null)}</div>
+        </WidgetVariableReferenceInputProvider>
+      );
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+      await flushEffects();
+    });
+
+    const removeButton = Array.from(container.querySelectorAll("button")).find((button) =>
+      button.getAttribute("aria-label")?.startsWith("Remove $("),
+    );
+    expect(removeButton).not.toBeUndefined();
+
+    await act(async () => {
+      removeButton!.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      await flushEffects();
+      await flushEffects();
+    });
+
+    expect(container.querySelector('[data-testid="value"]')?.textContent).toBe("null");
+  });
 });

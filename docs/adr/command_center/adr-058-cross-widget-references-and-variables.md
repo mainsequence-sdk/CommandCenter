@@ -604,6 +604,53 @@ table.activeCellValue changes
   -> graph rerenders from its existing source binding
 ```
 
+### Follow-Up: Connection Runtime Keying Review
+
+Runtime variable changes must keep connection instance identity separate from connection execution
+identity.
+
+There are two different maps in this area:
+
+1. **Connection instance map/list**
+   - This is `GET /api/v1/command_center/connections/`.
+   - It is the catalog of configured connection instances, keyed by connection id.
+   - Variables must not touch this map.
+   - A Binance connection remains "Binance connection id 5"; a selected symbol is not part of the
+     connection instance.
+
+2. **Connection execution/runtime map**
+   - This map must be keyed by the effective resolved execution configuration.
+   - The key must distinguish at least:
+     - workspace or runtime scope
+     - source widget id or owner widget id
+     - connection id
+     - query model id
+     - resolved query payload, for example `symbols: ["ETHUSDT"]`
+     - requested output contract
+     - time range or refresh identity
+     - max rows and incremental refresh settings
+
+If any runtime key is only `connectionId`, or only the hidden connection widget id, it is wrong. It
+can reuse stale runtime for a different variable value.
+
+The current incremental query cache partly follows the right shape:
+
+- `incrementalConnectionRefresh.ts` builds an identity that includes `request.query`,
+  `request.variables`, `connectionTypeId`, `queryModelId`, requested contract, `maxRows`, and
+  `scopeId`
+- therefore, if the request has already resolved from `BTCUSDT` to `ETHUSDT`, the incremental
+  identity is different
+
+The remaining review points are:
+
+- verify the variable is resolved before building the connection request
+- verify runtime refresh actually executes the hidden managed connection source
+- verify the owner widget, such as a graph, consumes the new hidden source runtime state through
+  its existing binding
+- verify no connection runtime store, in-flight dedupe path, retained state path, or preview/runtime
+  status path is keyed only by widget id or connection id when it should be keyed by the resolved
+  execution configuration
+
 ## Why This Is Generic
 
 This ADR is intentionally not tied to:
@@ -830,7 +877,9 @@ Negative:
 - [x] Restrict before/after comparison to referenced source values only; do not treat unrelated prop changes on the same widget as variable-impactful.
 - [x] Apply passive variable invalidation first so effective titles, props, and resolved inputs rerender in memory before any executable downstream scheduling.
 - [x] Add a targeted executable downstream scheduler that consumes the invalidation plan instead of broad source-side flow execution.
-- [ ] Add managed executable source projection to targeted scheduling so owner widgets with variable-backed managed-source props queue their owned executable sources.
-- [ ] Add tests covering managed-source projection, projected before/after signature comparison, execution-only prop overlay, downstream branch queueing from the managed source, and no persistence drift.
+- [x] Add managed executable source projection to targeted scheduling so owner widgets with variable-backed managed-source props queue their owned executable sources.
+- [x] Add tests covering managed-source projection, projected before/after signature comparison, execution-only prop overlay, downstream branch queueing from the managed source, and no persistence drift.
+- [ ] Audit connection runtime identity so connection instance catalogs remain keyed by connection id, while execution/runtime, retained-state, in-flight dedupe, and preview/status entries are keyed by resolved effective execution configuration.
+- [ ] Add regression coverage proving `symbols: ["BTCUSDT"]` and `symbols: ["ETHUSDT"]` from the same connection id and hidden source widget do not reuse stale connection runtime or retained query state.
 - [ ] Add targeted invalidation tests covering active-reference-only impact calculation, passive rerender after commit, executable downstream queueing, and no persistence/runtime-store drift.
 - [ ] Add tests covering linked-only registration, source invalidation, effective prop/title recomputation, and no persistence drift.

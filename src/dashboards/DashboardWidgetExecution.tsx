@@ -13,6 +13,7 @@ import {
   ConnectionRuntimeStoreProvider,
   createConnectionRuntimeStore,
 } from "@/connections/connection-runtime-store";
+import { getManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer-registry";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import {
   resolveDashboardSurfaceHydrationState,
@@ -68,6 +69,7 @@ export interface ExecuteWidgetGraphOptions {
   reason: WidgetExecutionReason;
   refreshCycleId?: string;
   targetOverrides?: WidgetExecutionTargetOverrides;
+  persistTargetRuntimeStateWithOverrides?: boolean;
   signal?: AbortSignal;
 }
 
@@ -140,47 +142,6 @@ interface DashboardWidgetExecutionContextValue {
 
 const DashboardWidgetExecutionContext =
   createContext<DashboardWidgetExecutionContextValue | null>(null);
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function summarizeRuntimeStateForDebug(value: unknown) {
-  if (!isPlainRecord(value)) {
-    return value === undefined ? { kind: "undefined" } : { kind: typeof value };
-  }
-
-  if (typeof value.contract === "string" && Array.isArray(value.fields)) {
-    return {
-      kind: "frame",
-      status: typeof value.status === "string" ? value.status : undefined,
-      contract: value.contract,
-      fieldCount: value.fields.length,
-      fieldNames: value.fields
-        .flatMap((field) =>
-          isPlainRecord(field) && typeof field.name === "string" ? [field.name] : [],
-        )
-        .slice(0, 6),
-      traceId: typeof value.traceId === "string" ? value.traceId : undefined,
-    };
-  }
-
-  if (Array.isArray(value.columns) && Array.isArray(value.rows)) {
-    return {
-      kind: "tabular-frame",
-      status: typeof value.status === "string" ? value.status : undefined,
-      columnCount: value.columns.length,
-      rowCount: value.rows.length,
-      fieldCount: Array.isArray(value.fields) ? value.fields.length : 0,
-    };
-  }
-
-  return {
-    kind: "record",
-    status: typeof value.status === "string" ? value.status : undefined,
-    keys: Object.keys(value).slice(0, 10),
-  };
-}
 
 function serializeExecutionOverrides(value: WidgetExecutionTargetOverrides | undefined) {
   if (!value) {
@@ -403,6 +364,7 @@ export function DashboardWidgetExecutionProvider({
       options.reason,
       options.refreshCycleId ?? "",
       serializeExecutionOverrides(options.targetOverrides),
+      options.persistTargetRuntimeStateWithOverrides ? "persist-target-runtime" : "",
     ].join("::");
   }
 
@@ -435,6 +397,7 @@ export function DashboardWidgetExecutionProvider({
       reason: options.reason,
       refreshCycleId: options.refreshCycleId,
       targetOverrides: options.targetOverrides,
+      persistTargetRuntimeStateWithOverrides: options.persistTargetRuntimeStateWithOverrides,
       signal: options.signal,
       executedInstanceIds: sharedExecutedInstanceIds,
       dashboardState: executionDashboardState,
@@ -662,17 +625,26 @@ export function DashboardWidgetExecutionProvider({
       changedWidgetId: input.changedWidgetId,
       beforeSnapshot,
       afterSnapshot,
+      resolveManagedConnectionConsumerAdapter: getManagedConnectionConsumerAdapter,
     });
 
     widgetsRef.current = input.afterWidgets;
 
     if (import.meta.env.DEV) {
-      console.log("[widget-variable-commit]", {
+      console.debug("[widget-variable-commit]", {
         changedWidgetId: input.changedWidgetId,
         changedVariableEntries: plan.changedVariableEntries,
         affectedConsumerWidgetIds: plan.affectedConsumerWidgetIds,
         passiveConsumerWidgetIds: plan.passiveConsumerWidgetIds,
+        managedExecutableSourceWidgetIds: plan.managedExecutableSourceWidgetIds,
         executableTargetWidgetIds: plan.executableTargetWidgetIds,
+        executableTargetOverrideWidgetIds: Object.keys(plan.executableTargetOverridesByWidgetId),
+        executableTargetOverridesByWidgetId: Object.fromEntries(
+          Object.entries(plan.executableTargetOverridesByWidgetId).map(([widgetId, overrides]) => [
+            widgetId,
+            serializeExecutionOverrides(overrides),
+          ]),
+        ),
       });
     }
 
@@ -715,12 +687,15 @@ export function DashboardWidgetExecutionProvider({
     try {
       for (const targetInstanceId of plan.executableTargetWidgetIds) {
         widgetsRef.current = workingWidgets;
+        const targetOverrides = plan.executableTargetOverridesByWidgetId[targetInstanceId];
 
         const result = await runGraph(
           targetInstanceId,
           {
             reason: "upstream-update",
             refreshCycleId,
+            targetOverrides,
+            persistTargetRuntimeStateWithOverrides: Boolean(targetOverrides),
           },
           sharedExecutedInstanceIds,
         );
@@ -1253,44 +1228,7 @@ export function useResolveWidgetUpstream(
     }
 
     lastRequestKeyRef.current = nextRequestKey;
-    if (import.meta.env.DEV) {
-      console.debug("[upstream] resolve requested", {
-        instanceId,
-        requestKey: nextRequestKey,
-        executableInstanceIds: upstreamRequirement.executableInstanceIds,
-        hasTargetOverrides: Boolean(targetOverrides),
-      });
-    }
-    void context.resolveUpstream(instanceId, { targetOverrides })
-      .then((result) => {
-        if (!import.meta.env.DEV) {
-          return;
-        }
-
-        console.debug("[upstream] resolve completed", {
-          instanceId,
-          requestKey: nextRequestKey,
-          status: result.status,
-          error: result.error,
-          targetRuntimeState: summarizeRuntimeStateForDebug(result.targetRuntimeState),
-          nodeResults: result.nodeResults.map((node) => ({
-            instanceId: node.instanceId,
-            status: node.status,
-            reason: node.reason,
-            error: node.error,
-            runtimeState: summarizeRuntimeStateForDebug(node.runtimeState),
-          })),
-        });
-      })
-      .catch((error) => {
-        if (import.meta.env.DEV) {
-          console.error("[upstream] resolve failed", {
-            instanceId,
-            requestKey: nextRequestKey,
-            error: error instanceof Error ? error.message : "Unknown upstream resolution error.",
-          });
-        }
-      });
+    void context.resolveUpstream(instanceId, { targetOverrides }).catch(() => undefined);
   }, [
     context,
     enabled,

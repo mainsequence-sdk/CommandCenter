@@ -58,6 +58,10 @@ backend-owned connection instances.
   publishes the resulting runtime frame back onto that widget's live runtime state. This keeps the
   widget's own runtime card, hidden managed-source consumers, and downstream `sourceData` bindings
   aligned with the tested result instead of leaving the frame trapped in local preview state.
+- When this widget is owned as a hidden managed connection source, variable-backed owner settings
+  are projected into this widget as execution-only props during variable invalidation. The runtime
+  frame is refreshed and persisted on the managed source, but the projected props are not written
+  back into saved workspace props.
 - The settings surface also shows the current live runtime status for this source widget. Draft
   query changes do not silently overwrite the last published runtime state until the widget is run
   again through normal execution or the settings test action.

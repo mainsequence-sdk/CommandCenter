@@ -1,13 +1,24 @@
 import { useMemo } from "react";
 
 import { getConnectionTypeById, getWidgetById } from "@/app/registry";
+import {
+  useDashboardWidgetDependencies,
+  useResolvedWidgetInputs,
+} from "@/dashboards/DashboardWidgetDependencies";
 import { resolveConnectionStreamAuthoringQueryModels } from "@/connections/connectionAuthoringContract";
 import { ConnectionQuerySettingsSurface } from "@/connections/ConnectionQuerySettingsSurface";
 import { resolveManagedConnectionQuerySource } from "@/connections/managedConnectionQuerySource";
 import { isConnectionQueryModelStreamable } from "@/connections/types";
 import { useDashboardWidgetRegistry } from "@/dashboards/DashboardWidgetRegistry";
+import {
+  buildWidgetReferenceLanguageSourceWidgets,
+} from "@/dashboards/widget-reference-language";
+import {
+  resolveReferenceBackedWidgetState,
+} from "@/dashboards/widget-instance-references";
 import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
 import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
+import { WidgetVariableReferenceInputProvider } from "@/widgets/shared/widget-variable-reference-input";
 import type {
   AnyManagedConnectionConsumerAdapter,
   ManagedConnectionConsumerSourceMode,
@@ -46,6 +57,8 @@ export function ManagedConnectionConsumerPanel({
   previewRuntimeState?: Record<string, unknown>;
 }) {
   const widgetRegistry = useDashboardWidgetRegistry();
+  const dependencies = useDashboardWidgetDependencies();
+  const resolvedInputs = useResolvedWidgetInputs(instanceId);
   const sourceMode = adapter.getSourceMode(draftProps);
   const sourceInputId = resolveManagedConnectionConsumerInputId(adapter, draftProps);
   const sourceOutputId = resolveManagedConnectionConsumerOutputId(adapter, draftProps);
@@ -71,12 +84,25 @@ export function ManagedConnectionConsumerPanel({
     () => adapter.getEmbeddedConnectionQuery(draftProps),
     [adapter, draftProps],
   );
+  const resolvedDraftProps = useMemo(
+    () =>
+      resolveReferenceBackedWidgetState({
+        instanceTitle,
+        props: draftProps,
+        resolvedInputs,
+      }).props,
+    [draftProps, instanceTitle, resolvedInputs],
+  );
+  const resolvedEmbeddedConnectionQueryProps = useMemo(
+    () => adapter.getEmbeddedConnectionQuery(resolvedDraftProps),
+    [adapter, resolvedDraftProps],
+  );
   const embeddedConnectionPresentation = useMemo(
     () => adapter.getEmbeddedConnectionPresentation(draftProps),
     [adapter, draftProps],
   );
-  const selectedConnectionType = embeddedConnectionQueryProps.connectionRef?.typeId
-    ? getConnectionTypeById(embeddedConnectionQueryProps.connectionRef.typeId)
+  const selectedConnectionType = resolvedEmbeddedConnectionQueryProps.connectionRef?.typeId
+    ? getConnectionTypeById(resolvedEmbeddedConnectionQueryProps.connectionRef.typeId)
     : undefined;
   const streamQueryModels = useMemo(
     () =>
@@ -85,12 +111,12 @@ export function ManagedConnectionConsumerPanel({
       }),
     [selectedConnectionType],
   );
-  const selectedQueryModel = embeddedConnectionQueryProps.queryModelId
-    ? streamQueryModels.find((model) => model.id === embeddedConnectionQueryProps.queryModelId)
+  const selectedQueryModel = resolvedEmbeddedConnectionQueryProps.queryModelId
+    ? streamQueryModels.find((model) => model.id === resolvedEmbeddedConnectionQueryProps.queryModelId)
     : undefined;
   const canSwitchToStreamConnection =
     Boolean(adapter.streamConnectionMode) &&
-    (!embeddedConnectionQueryProps.queryModelId ||
+    (!resolvedEmbeddedConnectionQueryProps.queryModelId ||
       isConnectionQueryModelStreamable(selectedQueryModel));
   const useTypedQueryEditor = Boolean(selectedConnectionType?.queryEditor);
   const resolvedConnectionPresentation = useMemo(
@@ -109,6 +135,13 @@ export function ManagedConnectionConsumerPanel({
   );
   const normalizedWidgetTitle = widgetTitle.trim() || "Widget";
   const consumerLabel = normalizedWidgetTitle.toLowerCase();
+  const referenceLanguageSourceWidgets = useMemo(
+    () =>
+      buildWidgetReferenceLanguageSourceWidgets(dependencies, {
+        excludeInstanceId: instanceId,
+      }),
+    [dependencies, instanceId],
+  );
 
   function changeConnectionMode(mode: ManagedConnectionConsumerSourceMode) {
     if (
@@ -174,38 +207,40 @@ export function ManagedConnectionConsumerPanel({
     return (
       <div className="space-y-6">
         {modeControl}
-        <ConnectionStreamQueryWidgetSettings
-          widget={connectionStreamWidgetDefinition}
-          instanceId={matchingManagedConnectionSource?.id ?? `${instanceId}:connection-stream-draft`}
-          instanceTitle={
-            matchingManagedConnectionSource?.title ??
-            adapter.buildManagedSourceTitle({
-              ownerTitle: instanceTitle,
-              widgetTitle: normalizedWidgetTitle,
-            })
-          }
-          draftProps={embeddedConnectionQueryProps as ConnectionStreamQueryWidgetProps}
-          draftPresentation={resolvedConnectionPresentation}
-          editable={editable}
-          controllerContext={undefined}
-          onPreviewRuntimeStateChange={onPreviewRuntimeStateChange}
-          onInstanceTitleChange={() => {}}
-          previewRuntimeState={previewRuntimeState}
-          onDraftPropsChange={(nextEmbeddedConnectionQuery) => {
-            const nextProps = adapter.setEmbeddedConnectionQuery(
-              adapter.setSourceMode(draftProps, adapter.streamConnectionMode ?? adapter.connectionMode),
-              nextEmbeddedConnectionQuery,
-            );
-            onDraftPropsChange(nextProps);
-          }}
-          onDraftPresentationChange={(nextEmbeddedConnectionPresentation) => {
-            const nextProps = adapter.setEmbeddedConnectionPresentation(
-              adapter.setSourceMode(draftProps, adapter.streamConnectionMode ?? adapter.connectionMode),
-              nextEmbeddedConnectionPresentation,
-            );
-            onDraftPropsChange(nextProps);
-          }}
-        />
+        <WidgetVariableReferenceInputProvider sourceWidgets={referenceLanguageSourceWidgets}>
+          <ConnectionStreamQueryWidgetSettings
+            widget={connectionStreamWidgetDefinition}
+            instanceId={matchingManagedConnectionSource?.id ?? `${instanceId}:connection-stream-draft`}
+            instanceTitle={
+              matchingManagedConnectionSource?.title ??
+              adapter.buildManagedSourceTitle({
+                ownerTitle: instanceTitle,
+                widgetTitle: normalizedWidgetTitle,
+              })
+            }
+            draftProps={embeddedConnectionQueryProps as ConnectionStreamQueryWidgetProps}
+            draftPresentation={resolvedConnectionPresentation}
+            editable={editable}
+            controllerContext={undefined}
+            onPreviewRuntimeStateChange={onPreviewRuntimeStateChange}
+            onInstanceTitleChange={() => {}}
+            previewRuntimeState={previewRuntimeState}
+            onDraftPropsChange={(nextEmbeddedConnectionQuery) => {
+              const nextProps = adapter.setEmbeddedConnectionQuery(
+                adapter.setSourceMode(draftProps, adapter.streamConnectionMode ?? adapter.connectionMode),
+                nextEmbeddedConnectionQuery,
+              );
+              onDraftPropsChange(nextProps);
+            }}
+            onDraftPresentationChange={(nextEmbeddedConnectionPresentation) => {
+              const nextProps = adapter.setEmbeddedConnectionPresentation(
+                adapter.setSourceMode(draftProps, adapter.streamConnectionMode ?? adapter.connectionMode),
+                nextEmbeddedConnectionPresentation,
+              );
+              onDraftPropsChange(nextProps);
+            }}
+          />
+        </WidgetVariableReferenceInputProvider>
       </div>
     );
   }
@@ -213,65 +248,68 @@ export function ManagedConnectionConsumerPanel({
   return (
     <div className="space-y-6">
       {modeControl}
-      <ConnectionQuerySettingsSurface
-        value={embeddedConnectionQueryProps as ConnectionQueryWidgetProps}
-        onChange={(nextEmbeddedConnectionQuery) => {
-          const nextProps = adapter.setEmbeddedConnectionQuery(
-            adapter.setSourceMode(draftProps, adapter.connectionMode),
-            nextEmbeddedConnectionQuery,
-          );
-          onDraftPropsChange(nextProps);
-        }}
-        editable={editable}
-        publishPreviewRuntimeStateToInstanceId={matchingManagedConnectionSource?.id}
-        runtimeState={
-          matchingManagedConnectionSource?.runtimeState ??
-          previewRuntimeState ??
-          undefined
-        }
-        runtimeStatusTitle="Managed source runtime"
-        runtimeStatusDescription={`This ${consumerLabel} still renders from resolved ${sourceInputId}. Applying connection changes creates or updates the hidden connection source and keeps ${sourceInputId} bound to its ${sourceOutputId} output.`}
-        runtimeStatusEmptyMessage={
-          matchingManagedConnectionSource
-            ? "The managed source exists, but it has not published a live dataset yet."
-            : "Apply connection changes to create the hidden source widget, then test or run the query."
-        }
-        onPreviewRuntimeStateChange={onPreviewRuntimeStateChange}
-        sourceTitle={
-          matchingManagedConnectionSource?.title ??
-          adapter.buildManagedSourceTitle({
-            ownerTitle: instanceTitle,
-            widgetTitle: normalizedWidgetTitle,
-          })
-        }
-        connectionPathSettings={useTypedQueryEditor ? undefined : (
-          <WidgetSchemaForm
-            widget={connectionQueryWidgetDefinition!}
-            instanceId={matchingManagedConnectionSource?.id ?? `${instanceId}:connection-query-draft`}
-            draftProps={embeddedConnectionQueryProps}
-            onDraftPropsChange={(nextEmbeddedConnectionQuery) => {
-              const nextProps = adapter.setEmbeddedConnectionQuery(
-                adapter.setSourceMode(draftProps, adapter.connectionMode),
-                nextEmbeddedConnectionQuery as Record<string, unknown>,
-              );
-              onDraftPropsChange(nextProps);
-            }}
-            draftPresentation={resolvedConnectionPresentation}
-            onDraftPresentationChange={(nextEmbeddedConnectionPresentation) => {
-              const nextProps = adapter.setEmbeddedConnectionPresentation(
-                adapter.setSourceMode(draftProps, adapter.connectionMode),
-                nextEmbeddedConnectionPresentation,
-              );
-              onDraftPropsChange(nextProps);
-            }}
-            editable={editable}
-            context={undefined}
-          />
-        )}
-        showConnectionPicker
-        showQueryEditor={useTypedQueryEditor}
-        resultDescription={`Preview of the normalized source frame this ${consumerLabel} will receive through ${sourceInputId}.`}
-      />
+      <WidgetVariableReferenceInputProvider sourceWidgets={referenceLanguageSourceWidgets}>
+        <ConnectionQuerySettingsSurface
+          value={embeddedConnectionQueryProps as ConnectionQueryWidgetProps}
+          resolvedValue={resolvedEmbeddedConnectionQueryProps as ConnectionQueryWidgetProps}
+          onChange={(nextEmbeddedConnectionQuery) => {
+            const nextProps = adapter.setEmbeddedConnectionQuery(
+              adapter.setSourceMode(draftProps, adapter.connectionMode),
+              nextEmbeddedConnectionQuery,
+            );
+            onDraftPropsChange(nextProps);
+          }}
+          editable={editable}
+          publishPreviewRuntimeStateToInstanceId={matchingManagedConnectionSource?.id}
+          runtimeState={
+            matchingManagedConnectionSource?.runtimeState ??
+            previewRuntimeState ??
+            undefined
+          }
+          runtimeStatusTitle="Managed source runtime"
+          runtimeStatusDescription={`This ${consumerLabel} still renders from resolved ${sourceInputId}. Applying connection changes creates or updates the hidden connection source and keeps ${sourceInputId} bound to its ${sourceOutputId} output.`}
+          runtimeStatusEmptyMessage={
+            matchingManagedConnectionSource
+              ? "The managed source exists, but it has not published a live dataset yet."
+              : "Apply connection changes to create the hidden source widget, then test or run the query."
+          }
+          onPreviewRuntimeStateChange={onPreviewRuntimeStateChange}
+          sourceTitle={
+            matchingManagedConnectionSource?.title ??
+            adapter.buildManagedSourceTitle({
+              ownerTitle: instanceTitle,
+              widgetTitle: normalizedWidgetTitle,
+            })
+          }
+          connectionPathSettings={useTypedQueryEditor ? undefined : (
+            <WidgetSchemaForm
+              widget={connectionQueryWidgetDefinition!}
+              instanceId={matchingManagedConnectionSource?.id ?? `${instanceId}:connection-query-draft`}
+              draftProps={embeddedConnectionQueryProps}
+              onDraftPropsChange={(nextEmbeddedConnectionQuery) => {
+                const nextProps = adapter.setEmbeddedConnectionQuery(
+                  adapter.setSourceMode(draftProps, adapter.connectionMode),
+                  nextEmbeddedConnectionQuery as Record<string, unknown>,
+                );
+                onDraftPropsChange(nextProps);
+              }}
+              draftPresentation={resolvedConnectionPresentation}
+              onDraftPresentationChange={(nextEmbeddedConnectionPresentation) => {
+                const nextProps = adapter.setEmbeddedConnectionPresentation(
+                  adapter.setSourceMode(draftProps, adapter.connectionMode),
+                  nextEmbeddedConnectionPresentation,
+                );
+                onDraftPropsChange(nextProps);
+              }}
+              editable={editable}
+              context={undefined}
+            />
+          )}
+          showConnectionPicker
+          showQueryEditor={useTypedQueryEditor}
+          resultDescription={`Preview of the normalized source frame this ${consumerLabel} will receive through ${sourceInputId}.`}
+        />
+      </WidgetVariableReferenceInputProvider>
     </div>
   );
 }

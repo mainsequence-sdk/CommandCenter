@@ -132,38 +132,6 @@ function storageKey(userId: string) {
   return `${STORAGE_PREFIX}.${userId}`;
 }
 
-function summarizeDashboardForStorageDebug(dashboard: DashboardDefinition) {
-  return {
-    id: dashboard.id,
-    title: dashboard.title,
-    widgetCount: dashboard.widgets.length,
-    controlCount: Array.isArray(dashboard.controls) ? dashboard.controls.length : 0,
-  };
-}
-
-function summarizeCollectionForStorageDebug(collection: UserDashboardCollection) {
-  return {
-    dashboardCount: collection.dashboards.length,
-    selectedDashboardId: collection.selectedDashboardId,
-    savedAt: collection.savedAt,
-    dashboards: collection.dashboards.slice(0, 8).map(summarizeDashboardForStorageDebug),
-  };
-}
-
-function logWorkspaceLocalStorage(
-  event: "setItem",
-  payload: Record<string, unknown>,
-) {
-  if (!import.meta.env.DEV) {
-    return;
-  }
-
-  console.log("[workspace-local-storage]", {
-    event,
-    ...payload,
-  });
-}
-
 function createId(prefix: string) {
   const uuid = globalThis.crypto?.randomUUID?.();
 
@@ -1464,11 +1432,6 @@ export function saveUserDashboardCollection(
     const key = storageKey(userId);
     const serialized = JSON.stringify(normalized);
     window.localStorage.setItem(key, serialized);
-    logWorkspaceLocalStorage("setItem", {
-      key,
-      bytes: serialized.length,
-      summary: summarizeCollectionForStorageDebug(normalized),
-    });
   }
 
   return normalized;
@@ -2783,38 +2746,6 @@ export function updateDashboardWidgetRuntimeState(
 ) {
   const nextRuntimeState = normalizeWidgetRuntimeState(runtimeState);
   const nextComparableRuntimeState = serializeWidgetRuntimeStateForComparison(nextRuntimeState);
-  const summarizeRuntimeStateForDebug = (value: unknown) => {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-      return value === undefined ? { kind: "undefined" } : { kind: typeof value };
-    }
-
-    const record = value as Record<string, unknown>;
-
-    if (typeof record.contract === "string" && Array.isArray(record.fields)) {
-      return {
-        kind: "frame",
-        status: typeof record.status === "string" ? record.status : undefined,
-        contract: record.contract,
-        fieldCount: record.fields.length,
-      };
-    }
-
-    if (Array.isArray(record.columns) && Array.isArray(record.rows)) {
-      return {
-        kind: "tabular-frame",
-        status: typeof record.status === "string" ? record.status : undefined,
-        columnCount: record.columns.length,
-        rowCount: record.rows.length,
-        fieldCount: Array.isArray(record.fields) ? record.fields.length : 0,
-      };
-    }
-
-    return {
-      kind: "record",
-      status: typeof record.status === "string" ? record.status : undefined,
-      keys: Object.keys(record).slice(0, 10),
-    };
-  };
   const updateRuntimeStateInWidgetTree = (
     widget: DashboardWidgetInstance,
   ): [DashboardWidgetInstance, boolean] => {
@@ -2867,15 +2798,6 @@ export function updateDashboardWidgetRuntimeState(
     changed ||= widgetChanged;
     return nextWidget;
   });
-
-  if (import.meta.env.DEV) {
-    console.log("[workspace-runtime] apply runtime state", {
-      dashboardId: dashboard.id,
-      instanceId,
-      changed,
-      runtimeState: summarizeRuntimeStateForDebug(nextRuntimeState),
-    });
-  }
 
   return changed
     ? {
@@ -3238,27 +3160,31 @@ export function updateDashboardWidgetSettings(
     const [nextWidget, widgetChanged] = updateDashboardWidgetInTree(
       widget,
       instanceId,
-      (currentWidget) => ({
-        ...currentWidget,
-        title:
-          "title" in settings
-            ? (settings.title?.trim() ? settings.title.trim() : undefined)
-            : currentWidget.title,
-        props:
-          "props" in settings
-            ? cloneJson(settings.props ?? {})
-            : currentWidget.props,
-        presentation:
-          "presentation" in settings
-            ? normalizeDashboardWidgetPresentation(
-                cloneJson(settings.presentation ?? {}),
-              )
-            : currentWidget.presentation,
-        runtimeState:
-          "props" in settings
-            ? undefined
-            : currentWidget.runtimeState,
-      }),
+      (currentWidget) => {
+        const nextWidgetState = {
+          ...currentWidget,
+          title:
+            "title" in settings
+              ? (settings.title?.trim() ? settings.title.trim() : undefined)
+              : currentWidget.title,
+          props:
+            "props" in settings
+              ? cloneJson(settings.props ?? {})
+              : currentWidget.props,
+          presentation:
+            "presentation" in settings
+              ? normalizeDashboardWidgetPresentation(
+                  cloneJson(settings.presentation ?? {}),
+                )
+              : currentWidget.presentation,
+          runtimeState:
+            "props" in settings
+              ? undefined
+              : currentWidget.runtimeState,
+        };
+
+        return nextWidgetState;
+      },
     );
 
     changed ||= widgetChanged;

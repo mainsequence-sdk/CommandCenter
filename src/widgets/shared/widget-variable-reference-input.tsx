@@ -227,6 +227,7 @@ export function useWidgetVariableReferenceTextField<
       completion,
       input.onChange as ChangeEventHandler<WidgetVariableReferenceTextElement> | undefined,
     );
+
     input.onCompletionInserted?.({
       option,
       value: nextValue,
@@ -246,6 +247,7 @@ export function useWidgetVariableReferenceTextField<
 
   const onChange: ChangeEventHandler<TElement> = (event) => {
     input.onChange?.(event);
+
     updateOpenState(event.currentTarget);
   };
 
@@ -551,6 +553,7 @@ function WidgetVariableReferenceInputScope({
     }
 
     insertWidgetReferenceCompletion(element, option, completion);
+
     closePicker();
   };
 

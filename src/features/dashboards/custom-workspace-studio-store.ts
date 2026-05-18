@@ -124,29 +124,6 @@ function buildPersistedCollection(
   };
 }
 
-function summarizeWorkspaceForDraftDebug(workspace: DashboardDefinition) {
-  return {
-    id: workspace.id,
-    title: workspace.title,
-    widgetCount: workspace.widgets.length,
-    controlCount: Array.isArray(workspace.controls) ? workspace.controls.length : 0,
-  };
-}
-
-function logWorkspaceDraftDebug(
-  event: "update-draft" | "update-user-state" | "save-workspace",
-  payload: Record<string, unknown>,
-) {
-  if (!import.meta.env.DEV) {
-    return;
-  }
-
-  console.log("[workspace-draft-store]", {
-    event,
-    ...payload,
-  });
-}
-
 function createEmptyWorkspaceMap(): Record<string, DashboardDefinition> {
   return {};
 }
@@ -445,15 +422,6 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
           ? (current.workspaceDraftRevisionById[workspaceId] ?? 0)
           : (current.workspaceDraftRevisionById[workspaceId] ?? 0) + 1;
 
-      logWorkspaceDraftDebug("update-draft", {
-        workspaceId,
-        markDirty: options?.markDirty !== false,
-        dirtyBefore: current.dirtyWorkspaceIds[workspaceId] ?? false,
-        dirtyAfter: options?.markDirty === false ? current.dirtyWorkspaceIds[workspaceId] ?? false : true,
-        nextDraftRevision: nextRevision,
-        workspace: summarizeWorkspaceForDraftDebug(nextWorkspace),
-      });
-
       return {
         draftWorkspaceById: {
           ...current.draftWorkspaceById,
@@ -500,25 +468,6 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
       if (!savedChanged && !draftChanged) {
         return current;
       }
-
-      logWorkspaceDraftDebug("update-user-state", {
-        workspaceId,
-        bumpRevision: options?.bumpRevision !== false,
-        savedChanged,
-        draftChanged,
-        nextUserStateRevision:
-          options?.bumpRevision === false
-            ? (current.workspaceUserStateRevisionById[workspaceId] ?? 0)
-            : (current.workspaceUserStateRevisionById[workspaceId] ?? 0) + 1,
-        draftWorkspace: nextDraftWorkspace
-          ? summarizeWorkspaceForDraftDebug(
-              sanitizeDashboardDefinition({
-                ...nextDraftWorkspace,
-                id: workspaceId,
-              }),
-            )
-          : null,
-      });
 
       return {
         savedWorkspaceById:
@@ -843,16 +792,6 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
     const draftUserState = extractWorkspaceUserStateFromDashboard(draftWorkspace);
     const shouldSaveSharedWorkspace = !backendEnabled || draftWorkspaceRevision > 0;
     const shouldSaveUserState = userStateRevision > 0;
-
-    logWorkspaceDraftDebug("save-workspace", {
-      workspaceId,
-      backendEnabled,
-      draftRevision: draftWorkspaceRevision,
-      userStateRevision,
-      shouldSaveSharedWorkspace,
-      shouldSaveUserState,
-      workspace: summarizeWorkspaceForDraftDebug(draftWorkspace),
-    });
 
     set({
       isSaving: true,

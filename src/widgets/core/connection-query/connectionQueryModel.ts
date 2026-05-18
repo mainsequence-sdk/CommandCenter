@@ -1,5 +1,4 @@
 import {
-  buildConnectionQueryUrl,
   fetchConnectionResource,
   queryPublicWidgetExecution,
   queryConnection,
@@ -887,13 +886,6 @@ async function enrichConnectionQueryRequest(
   const dataNodeId = normalizePositiveInteger(query.dataNodeId);
 
   try {
-    if (import.meta.env.DEV) {
-      console.debug("[connection-query] enrich request start", {
-        request: summarizeConnectionQueryRequestForDebug(request),
-        dataNodeId,
-      });
-    }
-
     const detail = await fetchConnectionResource({
       connectionId: request.connectionId,
       resource: "data-node-detail",
@@ -902,40 +894,17 @@ async function enrichConnectionQueryRequest(
     const columns = extractDataNodeDetailColumns(detail);
 
     if (columns.length === 0) {
-      if (import.meta.env.DEV) {
-        console.debug("[connection-query] enrich request no columns derived", {
-          request: summarizeConnectionQueryRequestForDebug(request),
-          detail: summarizeConnectionQueryValueForDebug(detail),
-        });
-      }
       return request;
     }
 
-    const enrichedRequest = {
+    return {
       ...request,
       query: {
         ...query,
         columns,
       },
     };
-
-    if (import.meta.env.DEV) {
-      console.debug("[connection-query] enrich request applied", {
-        before: summarizeConnectionQueryRequestForDebug(request),
-        after: summarizeConnectionQueryRequestForDebug(enrichedRequest),
-        derivedColumnCount: columns.length,
-        derivedColumnsSample: columns.slice(0, 8),
-      });
-    }
-
-    return enrichedRequest;
   } catch {
-    if (import.meta.env.DEV) {
-      console.warn("[connection-query] enrich request failed", {
-        request: summarizeConnectionQueryRequestForDebug(request),
-        dataNodeId,
-      });
-    }
     return request;
   }
 }
@@ -1219,18 +1188,6 @@ export async function executeConnectionQueryWidgetRequest(
       requestedOutputContract === CORE_TABULAR_FRAME_SOURCE_CONTRACT,
     forceFullSnapshot: options?.forceFullRefresh,
   });
-  if (import.meta.env.DEV) {
-    console.debug("[connection-query] execute request ready", {
-      url:
-        isPublicExecutionSurface && publicQueryUrl
-          ? publicQueryUrl
-          : buildConnectionQueryUrl(incrementalDecision.request.connectionId),
-      originalRequest: summarizeConnectionQueryRequestForDebug(request),
-      enrichedRequest: summarizeConnectionQueryRequestForDebug(enrichedRequest),
-      incrementalRequest: summarizeConnectionQueryRequestForDebug(incrementalDecision.request),
-      incrementalMode: incrementalDecision.reason,
-    });
-  }
   const traceMeta = buildConnectionQueryTraceMeta(
     options?.traceMeta,
     buildConnectionQueryTraceDetails({
@@ -1246,12 +1203,6 @@ export async function executeConnectionQueryWidgetRequest(
       signal: options?.signal,
     }),
   );
-  if (import.meta.env.DEV) {
-    console.debug("[connection-query] execute payload received", {
-      request: summarizeConnectionQueryRequestForDebug(incrementalDecision.request),
-      payload: summarizeConnectionQueryValueForDebug(payload),
-    });
-  }
   const frame = firstConnectionFramePayload(payload, {
     connectionRef,
     sourceId: options?.ownerId ?? String(connectionRef.id),
@@ -1274,13 +1225,6 @@ export async function executeConnectionQueryWidgetRequest(
           ? `Connection query did not return a ${requestedOutputContract} frame.`
           : "Connection query did not return a publishable frame.",
     );
-  }
-
-  if (import.meta.env.DEV) {
-    console.debug("[connection-query] execute published frame", {
-      request: summarizeConnectionQueryRequestForDebug(incrementalDecision.request),
-      frame: summarizeConnectionQueryValueForDebug(frame),
-    });
   }
 
   if (frame.status === "ready") {

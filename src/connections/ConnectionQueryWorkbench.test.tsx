@@ -146,4 +146,55 @@ describe("ConnectionQueryWorkbench", () => {
     expect(requestPreview?.textContent).not.toContain("ACTIVECELLVALUE");
     expect(requestPreview?.textContent).not.toContain("TABLE-D8BA1F58");
   });
+
+  it("builds the request preview from resolved reference-backed connection selection", async () => {
+    await act(async () => {
+      root.render(
+        <ConnectionQueryWorkbench
+          value={{
+            connectionRef: {
+              id: "$(CONNECTION-SELECTOR).props.connectionId",
+              typeId: "binance-usdm",
+            },
+            queryModelId: "binance-usdm-futures-ohlc",
+            query: {
+              kind: "binance-usdm-futures-ohlc",
+              symbols: ["BTCUSDT"],
+              interval: "1m",
+            },
+            timeRangeMode: "dashboard",
+            maxRows: 1000,
+          }}
+          resolvedValue={{
+            connectionRef: {
+              id: 5,
+              typeId: "binance-usdm",
+            },
+            queryModelId: "binance-usdm-futures-ohlc",
+            query: {
+              kind: "binance-usdm-futures-ohlc",
+              symbols: ["BTCUSDT"],
+              interval: "1m",
+            },
+            timeRangeMode: "dashboard",
+            maxRows: 1000,
+          }}
+          onChange={() => {}}
+          connectionType={connectionType}
+          dashboardState={dashboardState}
+          showConnectionPicker={false}
+          showQueryEditor={false}
+          connectionPathSettings={null}
+        />,
+      );
+      await flushEffects();
+    });
+
+    const requestPreview = Array.from(container.querySelectorAll("pre")).find((entry) =>
+      entry.textContent?.includes('"connectionId": 5'),
+    );
+
+    expect(requestPreview?.textContent).toContain('"connectionId": 5');
+    expect(requestPreview?.textContent).not.toContain("CONNECTION-SELECTOR");
+  });
 });

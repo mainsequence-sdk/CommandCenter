@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 
 import { useDashboardWidgetRegistry, type DashboardWidgetRegistryEntry } from "@/dashboards/DashboardWidgetRegistry";
 import { useResolvedWidgetInput } from "@/dashboards/DashboardWidgetDependencies";
@@ -226,43 +226,6 @@ function uniqueWarningMessages(values: Array<string | null | undefined>) {
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function summarizeSourceValueForDebug(value: unknown) {
-  if (!isPlainRecord(value)) {
-    return value === undefined ? { kind: "undefined" } : { kind: typeof value };
-  }
-
-  if (typeof value.contract === "string" && Array.isArray(value.fields)) {
-    return {
-      kind: "frame",
-      status: typeof value.status === "string" ? value.status : undefined,
-      contract: value.contract,
-      fieldCount: value.fields.length,
-      fieldNames: value.fields
-        .flatMap((field) =>
-          isPlainRecord(field) && typeof field.name === "string" ? [field.name] : [],
-        )
-        .slice(0, 6),
-      traceId: typeof value.traceId === "string" ? value.traceId : undefined,
-    };
-  }
-
-  if (Array.isArray(value.columns) && Array.isArray(value.rows)) {
-    return {
-      kind: "tabular-frame",
-      status: typeof value.status === "string" ? value.status : undefined,
-      columnCount: value.columns.length,
-      rowCount: value.rows.length,
-      fieldCount: Array.isArray(value.fields) ? value.fields.length : 0,
-    };
-  }
-
-  return {
-    kind: "record",
-    status: typeof value.status === "string" ? value.status : undefined,
-    keys: Object.keys(value).slice(0, 10),
-  };
 }
 
 function normalizePositiveInteger(value: unknown) {
@@ -1032,50 +995,6 @@ export function useResolvedTabularWidgetSourceBinding<
   const isAwaitingBoundSourceValue = consumerState.kind === "awaiting-upstream";
   const sourceMode: TabularWidgetSourceMode =
     normalizedReference.sourceMode === "manual" ? "manual" : "filter_widget";
-
-  const debugSnapshot = useMemo(
-    () =>
-      !import.meta.env.DEV || !hasCanonicalSourceBinding
-        ? null
-        : {
-            currentWidgetInstanceId,
-            sourceWidgetId: resolvedSourceWidgetId,
-            inputStatus: resolvedInputBinding?.status,
-            inputContractId: resolvedInputBinding?.contractId,
-            inputValue: summarizeSourceValueForDebug(resolvedInputBaseValue),
-            sourceRuntimeState: summarizeSourceValueForDebug(resolvedSourceWidget?.runtimeState),
-            resolvedDataset: summarizeSourceValueForDebug(resolvedSourceDataset),
-            consumerState: consumerState.kind,
-            hasPublishedValue,
-            requiresUpstreamResolution: consumerState.requiresUpstreamResolution,
-          },
-    [
-      consumerState.kind,
-      currentWidgetInstanceId,
-      hasCanonicalSourceBinding,
-      hasPublishedValue,
-      isAwaitingBoundSourceValue,
-      resolvedInputBinding?.contractId,
-      resolvedInputBinding?.status,
-      resolvedInputBaseValue,
-      resolvedInputBinding?.value,
-      resolvedSourceDataset,
-      resolvedSourceWidget?.runtimeState,
-      resolvedSourceWidgetId,
-    ],
-  );
-  const debugSnapshotJson = useMemo(
-    () => (debugSnapshot ? JSON.stringify(debugSnapshot) : null),
-    [debugSnapshot],
-  );
-
-  useEffect(() => {
-    if (!debugSnapshotJson) {
-      return;
-    }
-
-    console.debug("[tabular-source-binding] consumer snapshot", JSON.parse(debugSnapshotJson));
-  }, [debugSnapshotJson]);
 
   return {
     consumerState,

@@ -64,6 +64,7 @@ type MockState = {
   assetCategories: Array<Record<string, unknown>>;
   executionVenues: Array<Record<string, unknown>>;
   virtualFunds: Array<Record<string, unknown>>;
+  managedAccounts: Array<Record<string, unknown>>;
   portfolioGroups: Array<Record<string, unknown>>;
   targetPortfolios: Array<Record<string, unknown>>;
   assetTranslationTables: Array<Record<string, unknown>>;
@@ -106,6 +107,7 @@ function createMockState(): MockState {
     assetCategories: readDataset("asset_categories"),
     executionVenues: readDataset("execution_venues"),
     virtualFunds: readDataset("virtual_funds"),
+    managedAccounts: readDataset("managed_accounts"),
     portfolioGroups: readDataset("portfolio_groups"),
     targetPortfolios: readDataset("target_portfolios"),
     assetTranslationTables: readDataset("asset_translation_tables"),
@@ -1986,6 +1988,197 @@ function handleVirtualFunds(route: string, method: string, searchParams: URLSear
   return undefined;
 }
 
+function handleManagedAccounts(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
+  if (route === "/orm/api/assets/account/" && method === "GET") {
+    const filtered = state.managedAccounts.filter((account) =>
+      matchesSearch(
+        [
+          account.id,
+          account.account_name,
+          account.display_name,
+          account.name,
+          account.account_number,
+          account.broker_name,
+          account.execution_venue_name,
+          account.account_type,
+          account.status,
+        ],
+        searchParams.get("search"),
+      ),
+    );
+    return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
+  }
+
+  if (route === "/orm/api/assets/account/" && method === "POST") {
+    const body = parseBody(init) ?? {};
+    const executionVenueId = readNumber(body.execution_venue);
+    const executionVenue = findById(state.executionVenues, executionVenueId);
+    const valuationTranslationTableId = readNumber(body.valuation_translation_table);
+    const valuationTranslationTable = findById(state.assetTranslationTables, valuationTranslationTableId);
+    const holdingsDataSourceId = readNumber(body.holdings_data_source);
+    const holdingsDataSource = findById(state.projectDataSources, holdingsDataSourceId);
+    const nextId =
+      state.managedAccounts.reduce((maxId, account) => Math.max(maxId, readNumber(account.id)), 5000) + 1;
+    const createdAccount = {
+      id: nextId,
+      account_name: readString(body.account_name) || `Account ${nextId}`,
+      display_name: readString(body.display_name) || readString(body.account_name) || `Account ${nextId}`,
+      execution_venue: executionVenueId || null,
+      execution_venue_name:
+        readOptionalString((executionVenue as Record<string, unknown> | null)?.name) ||
+        readOptionalString((executionVenue as Record<string, unknown> | null)?.symbol),
+      valuation_translation_table: valuationTranslationTableId || null,
+      valuation_translation_table_name: readOptionalString(
+        (valuationTranslationTable as Record<string, unknown> | null)?.unique_identifier,
+      ),
+      holdings_data_source: holdingsDataSourceId || null,
+      holdings_data_source_name:
+        readOptionalString((holdingsDataSource as Record<string, unknown> | null)?.display_name),
+      is_paper: typeof body.is_paper === "boolean" ? body.is_paper : true,
+      status: "Active",
+      creation_date: new Date().toISOString(),
+    };
+    state.managedAccounts.unshift(createdAccount);
+    return createdAccount;
+  }
+
+  const detailMatch = route.match(/^\/orm\/api\/assets\/account\/(\d+)\/$/);
+
+  if (detailMatch && method === "GET") {
+    return findById(state.managedAccounts, Number(detailMatch[1]));
+  }
+
+  const summaryMatch = route.match(/^\/orm\/api\/assets\/account\/(\d+)\/summary\/$/);
+
+  if (summaryMatch && method === "GET") {
+    const accountId = Number(summaryMatch[1]);
+    const account = findById(state.managedAccounts, accountId);
+
+    if (!account) {
+      return undefined;
+    }
+
+    return {
+      entity: {
+        id: accountId,
+        type: "managed_account",
+        title:
+          readString(account.display_name) ||
+          readString(account.account_name) ||
+          readString(account.name) ||
+          `Account ${accountId}`,
+      },
+      badges: [
+        {
+          key: "account-type",
+          label: readString(account.account_type) || "Managed Account",
+          tone: "neutral",
+        },
+        ...(readString(account.status)
+          ? [
+              {
+                key: "account-status",
+                label: readString(account.status),
+                tone: readString(account.status).toLowerCase() === "active" ? "success" : "warning",
+              },
+            ]
+          : []),
+      ],
+      inline_fields: [
+        {
+          key: "account_id",
+          label: "ID",
+          value: String(accountId),
+          kind: "code",
+        },
+        ...(readString(account.account_number)
+          ? [
+              {
+                key: "account_number",
+                label: "Account Number",
+                value: readString(account.account_number),
+                kind: "text",
+              },
+            ]
+          : []),
+        ...(readString(account.creation_date)
+          ? [
+              {
+                key: "creation_date",
+                label: "Created",
+                value: readString(account.creation_date),
+                kind: "text",
+              },
+            ]
+          : []),
+      ],
+      highlight_fields: [
+        {
+          key: "execution_venue_name",
+          label: "Execution Venue",
+          value: readString(account.execution_venue_name) || "Not available",
+          kind: "text",
+        },
+        {
+          key: "holdings_data_source_name",
+          label: "Holdings Data Source",
+          value: readString(account.holdings_data_source_name) || "Not available",
+          kind: "text",
+        },
+        {
+          key: "valuation_translation_table_name",
+          label: "Translation Table",
+          value: readString(account.valuation_translation_table_name) || "Not available",
+          kind: "text",
+        },
+      ],
+      stats: [
+        {
+          key: "is_paper",
+          label: "Paper",
+          display: readBoolean(account.is_paper) ? "Yes" : "No",
+          value: readBoolean(account.is_paper),
+          kind: "text",
+        },
+      ],
+      extensions: {},
+    };
+  }
+
+  return undefined;
+}
+
+function handleManagedAccountHoldingsDataSources(route: string, method: string, searchParams: URLSearchParams) {
+  if (route === "/orm/api/connections/data_source/" && method === "GET") {
+    const filtered = state.projectDataSources
+      .map((source) => ({
+        id: readNumber(source.id),
+        display_name: readString(source.display_name),
+        class_type: readString(
+          (source.related_resource as Record<string, unknown> | null)?.class_type,
+        ),
+        description: readString(source.display_name),
+        status: readString(
+          (source.related_resource as Record<string, unknown> | null)?.status,
+        ),
+        metadata: {
+          is_default_data_source: readBoolean(source.is_default_data_source),
+        },
+        is_default_data_source: readBoolean(source.is_default_data_source),
+      }))
+      .filter((source) =>
+        matchesSearch(
+          [source.id, source.display_name, source.class_type, source.status],
+          searchParams.get("search"),
+        ),
+      );
+
+    return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
+  }
+
+  return undefined;
+}
+
 function handleProjectDataSources(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
   if (route === "/orm/api/ts_manager/dynamic_table_data_source/" && method === "GET") {
     if (searchParams.get("response_format") === "project_data_sources_list") {
@@ -3520,6 +3713,8 @@ export function getMainSequenceMockResponse<T>({
     handleTranslationTables(route, method, url.searchParams, init) ??
     handleInstrumentsConfiguration(route, method, init) ??
     handleVirtualFunds(route, method, url.searchParams) ??
+    handleManagedAccounts(route, method, url.searchParams, init) ??
+    handleManagedAccountHoldingsDataSources(route, method, url.searchParams) ??
     handleProjectDataSources(route, method, url.searchParams, init) ??
     handlePhysicalDataSources(route, method, url.searchParams, init) ??
     handleClusters(route, method, url.searchParams, init) ??

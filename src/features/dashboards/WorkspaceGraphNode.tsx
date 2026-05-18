@@ -131,20 +131,6 @@ function getPortStatusClassName(status: WorkspaceGraphPortStatus) {
   }
 }
 
-function describeGraphEventElement(element: Element | null) {
-  if (!(element instanceof HTMLElement)) {
-    return null;
-  }
-
-  return {
-    className: element.className,
-    dataset: { ...element.dataset },
-    id: element.id || null,
-    tagName: element.tagName.toLowerCase(),
-    text: element.textContent?.trim().slice(0, 80) ?? "",
-  };
-}
-
 function logGraphPortEvent(
   eventName: string,
   event: React.MouseEvent<HTMLElement> | React.PointerEvent<HTMLElement>,
@@ -157,24 +143,9 @@ function logGraphPortEvent(
     readOnly?: boolean;
   },
 ) {
-  if (!import.meta.env.DEV) {
-    return;
-  }
-
-  console.log("[workspace-graph-port]", eventName, {
-    ...details,
-    button: "button" in event ? event.button : undefined,
-    buttons: "buttons" in event ? event.buttons : undefined,
-    clientX: event.clientX,
-    clientY: event.clientY,
-    currentTarget: describeGraphEventElement(event.currentTarget),
-    elementFromPoint:
-      typeof document === "undefined"
-        ? null
-        : describeGraphEventElement(document.elementFromPoint(event.clientX, event.clientY)),
-    eventType: event.type,
-    target: describeGraphEventElement(event.target instanceof Element ? event.target : null),
-  });
+  void eventName;
+  void event;
+  void details;
 }
 
 function GraphPortHandle({

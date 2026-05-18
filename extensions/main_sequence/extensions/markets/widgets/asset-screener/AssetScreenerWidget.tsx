@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { Database } from "lucide-react";
 
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
@@ -634,61 +634,6 @@ function buildSparklineCellRenderers({
   );
 }
 
-function summarizeConditionalRulesForDebug(
-  rules: Array<{ columnKey: string; operator: string; value?: number; tone?: string; backgroundColor?: string }>,
-  columnKey: string,
-) {
-  return rules
-    .filter((rule) => rule.columnKey === columnKey)
-    .map((rule) => `${rule.operator}:${rule.value ?? ""}:${rule.tone ?? rule.backgroundColor ?? ""}`)
-    .join(" | ");
-}
-
-function buildAssetScreenerFormatResolutionDebugRows(input: {
-  columns: MarketAssetScreenerColumn[];
-  resolvedTableProps: ResolvedTableWidgetProps;
-  sourceColumns?: MarketAssetScreenerColumn[];
-  tableFrame: ReturnType<typeof buildAssetScreenerTableFrame>;
-}) {
-  const schemaByKey = new Map(input.resolvedTableProps.schema.map((column) => [column.key, column] as const));
-  const sourceSchemaByKey = new Map(
-    input.tableFrame.frame.schemaFallback.map((column) => [column.key, column] as const),
-  );
-  const sourceOverrides = input.tableFrame.frame.sourceColumnOverrides ?? {};
-  const resolvedOverrides = input.resolvedTableProps.columnOverrides ?? {};
-
-  return input.columns.map((column) => {
-    const sourceAlias = resolveSourceColumnAlias(input.sourceColumns, column) ?? null;
-    const sourceSchema = sourceSchemaByKey.get(column.id);
-    const resolvedSchema = schemaByKey.get(column.id);
-    const sourceOverride = sourceOverrides[column.id];
-    const resolvedOverride = resolvedOverrides[column.id];
-
-    return {
-      columnId: column.id,
-      label: column.label,
-      kind: column.kind,
-      sourceAlias,
-      sourceFormat: sourceSchema?.format ?? null,
-      sourceGaugeMode: sourceOverride?.gaugeMode ?? null,
-      sourceHeatmap: sourceOverride?.heatmap ?? null,
-      sourceGradientMode: sourceOverride?.gradientMode ?? null,
-      sourceRuleSummary: summarizeConditionalRulesForDebug(
-        input.tableFrame.frame.sourceConditionalRules ?? [],
-        column.id,
-      ),
-      resolvedFormat: resolvedSchema?.format ?? null,
-      resolvedGaugeMode: resolvedOverride?.gaugeMode ?? null,
-      resolvedHeatmap: resolvedOverride?.heatmap ?? null,
-      resolvedGradientMode: resolvedOverride?.gradientMode ?? null,
-      resolvedRuleSummary: summarizeConditionalRulesForDebug(
-        input.resolvedTableProps.conditionalRules ?? [],
-        column.id,
-      ),
-    };
-  });
-}
-
 export function AssetScreenerWidget({
   instanceId,
   onRuntimeStateChange,
@@ -768,48 +713,6 @@ export function AssetScreenerWidget({
     [state.columns, state.filteredRows, tableFrame.frame.columns],
   );
 
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    const formatResolutionRows = buildAssetScreenerFormatResolutionDebugRows({
-      columns: state.columns,
-      resolvedTableProps,
-      sourceColumns: state.sourceColumns,
-      tableFrame,
-    });
-
-    console.groupCollapsed("[asset-screener:format-resolution]", instanceId ?? "no-instance");
-    console.log("canonicalSourceFrame", state.sourceFrame);
-    console.log("sourceColumns", state.sourceColumns);
-    console.log("tableFrameInput", tableFrame.frame);
-    console.log("resolvedTableProps", {
-      columnOverrides: resolvedTableProps.columnOverrides,
-      conditionalRules: resolvedTableProps.conditionalRules,
-      schema: resolvedTableProps.schema,
-    });
-    console.log("rowCounts", {
-      filteredRows: state.filteredRows.length,
-      frameRows: tableFrame.frame.rows.length,
-      rowObjects: tableFrame.rowObjects.length,
-    });
-    console.table(formatResolutionRows);
-    console.groupEnd();
-    console.log(
-      "[asset-screener:format-resolution:rows]",
-      instanceId ?? "no-instance",
-      formatResolutionRows,
-    );
-  }, [
-    instanceId,
-    resolvedTableProps,
-    state.columns,
-    state.sourceColumns,
-    state.sourceFrame,
-    tableFrame,
-  ]);
-
   if (!state.hasAnyBinding && state.rows.length === 0) {
     return (
       <div className="flex h-full min-h-[260px] flex-col items-center justify-center gap-3 rounded-none border border-dashed border-border/70 bg-transparent p-6 text-center">
@@ -845,7 +748,6 @@ export function AssetScreenerWidget({
         <TableFrameView
           customCellRenderers={customCellRenderers}
           emptyMessage=""
-          debugInstanceId={instanceId}
           getRowStyle={(row) =>
             isAssetScreenerGroupHeaderRow(row)
               ? {

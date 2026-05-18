@@ -15,8 +15,6 @@ import type { WorkspaceVariableReferenceEntry } from "@/dashboards/widget-variab
 import type {
   ResolvedWidgetInput,
   ResolvedWidgetInputs,
-  WidgetPortBinding,
-  WidgetPortBindingValue,
   WidgetDefinition,
   WidgetExecutionDashboardState,
   WidgetExecutionContext,
@@ -26,6 +24,12 @@ import type {
   WidgetExecutionTargetOverrides,
 } from "@/widgets/types";
 import type { RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
+import {
+  type AnyManagedConnectionConsumerAdapter,
+  isManagedConnectionConsumerMode,
+  normalizeManagedConnectionEmbeddedSourceProps,
+  resolveManagedConnectionConsumerSourceWidgetId,
+} from "@/widgets/shared/managed-connection-consumer";
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -144,14 +148,6 @@ function flattenResolvedInputs(
 
     return Array.isArray(entry) ? entry : [entry];
   });
-}
-
-function toBindingArray(value: WidgetPortBindingValue | undefined): WidgetPortBinding[] {
-  if (!value) {
-    return [];
-  }
-
-  return Array.isArray(value) ? value : [value];
 }
 
 function listValidResolvedInputs(
@@ -302,6 +298,10 @@ export interface DashboardExecutionSnapshot {
   getDefinition: (instanceId: string) => WidgetDefinition | undefined;
 }
 
+export type ResolveManagedConnectionConsumerAdapter = (
+  widgetId: string | undefined,
+) => AnyManagedConnectionConsumerAdapter | null | undefined;
+
 interface ResolvedVariableEntryValue {
   status: "valid" | "missing-entry" | "missing-output" | "transform-invalid";
   contractId?: string;
@@ -322,7 +322,9 @@ export interface DashboardVariableDrivenCommitPlan {
   affectedConsumerWidgetIds: string[];
   passiveConsumerWidgetIds: string[];
   executableConsumerWidgetIds: string[];
+  managedExecutableSourceWidgetIds: string[];
   executableTargetWidgetIds: string[];
+  executableTargetOverridesByWidgetId: Record<string, WidgetExecutionTargetOverrides>;
 }
 
 function resolveVariableEntryValue(
@@ -378,6 +380,94 @@ function buildVariableEntryValueSignature(value: ResolvedVariableEntryValue) {
   });
 }
 
+function resolveEffectiveSnapshotWidgetState(
+  snapshot: DashboardExecutionSnapshot,
+  instanceId: string,
+) {
+  const instance = snapshot.getInstance(instanceId);
+
+  if (!instance) {
+    return null;
+  }
+
+  return resolveReferenceBackedWidgetState({
+    instanceTitle: instance.title,
+    props: (instance.props ?? {}) as Record<string, unknown>,
+    resolvedInputs: snapshot.dependencies.resolveInputs(instanceId),
+  });
+}
+
+interface ManagedExecutableSourceProjection {
+  ownerWidgetId: string;
+  sourceWidgetId: string;
+  targetOverrides: WidgetExecutionTargetOverrides;
+  signature: string;
+}
+
+function resolveManagedExecutableSourceProjections(
+  snapshot: DashboardExecutionSnapshot,
+  ownerWidgetId: string,
+  resolveManagedConnectionConsumerAdapter?: ResolveManagedConnectionConsumerAdapter,
+): ManagedExecutableSourceProjection[] {
+  const owner = snapshot.getInstance(ownerWidgetId);
+
+  if (!owner) {
+    return [];
+  }
+
+  const adapter = resolveManagedConnectionConsumerAdapter?.(owner.widgetId);
+
+  if (!adapter) {
+    return [];
+  }
+
+  const effectiveState = resolveEffectiveSnapshotWidgetState(snapshot, ownerWidgetId);
+  const effectiveProps = effectiveState?.props ?? {};
+  const sourceMode = adapter.getSourceMode(effectiveProps);
+
+  if (!isManagedConnectionConsumerMode(adapter, sourceMode)) {
+    return [];
+  }
+
+  const managedSourceWidgetTypeId = resolveManagedConnectionConsumerSourceWidgetId(
+    adapter,
+    effectiveProps,
+  );
+  const embeddedConnectionProps = normalizeManagedConnectionEmbeddedSourceProps(
+    adapter,
+    effectiveProps,
+    adapter.getEmbeddedConnectionQuery(effectiveProps),
+  );
+
+  const projections = snapshot.dependencies.entries.flatMap(({ instance }) => {
+    if (
+      instance.managedBy?.ownerInstanceId !== ownerWidgetId ||
+      instance.managedBy.role !== "embedded-connection-source" ||
+      instance.widgetId !== managedSourceWidgetTypeId ||
+      !snapshot.getDefinition(instance.id)?.execution
+    ) {
+      return [];
+    }
+
+    const targetOverrides = {
+      props: embeddedConnectionProps,
+    } satisfies WidgetExecutionTargetOverrides;
+
+    return [{
+      ownerWidgetId,
+      sourceWidgetId: instance.id,
+      targetOverrides,
+      signature: stableJsonStringify({
+        widgetId: instance.widgetId,
+        props: embeddedConnectionProps,
+        publicExecution: instance.publicExecution ?? null,
+      }),
+    } satisfies ManagedExecutableSourceProjection];
+  });
+
+  return projections;
+}
+
 export function buildDashboardExecutionSnapshot(args: {
   widgets: DashboardWidgetInstance[];
   resolveWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
@@ -416,6 +506,7 @@ export function planDashboardVariableDrivenCommit(input: {
   changedWidgetId: string;
   beforeSnapshot: DashboardExecutionSnapshot;
   afterSnapshot: DashboardExecutionSnapshot;
+  resolveManagedConnectionConsumerAdapter?: ResolveManagedConnectionConsumerAdapter;
 }): DashboardVariableDrivenCommitPlan {
   const beforeEntries = input.beforeSnapshot.dependencies.variableRegistry.bySourceWidgetId.get(
     input.changedWidgetId,
@@ -471,6 +562,8 @@ export function planDashboardVariableDrivenCommit(input: {
 
   const executableConsumerWidgetIds = new Set<string>();
   const executableTargetWidgetIds = new Set<string>();
+  const managedExecutableSourceWidgetIds = new Set<string>();
+  const executableTargetOverridesByWidgetId: Record<string, WidgetExecutionTargetOverrides> = {};
 
   [...affectedConsumerWidgetIds].forEach((widgetId) => {
     if (input.afterSnapshot.getDefinition(widgetId)?.execution) {
@@ -480,6 +573,43 @@ export function planDashboardVariableDrivenCommit(input: {
 
     listDashboardDownstreamExecutionTargets(widgetId, input.afterSnapshot).forEach((targetWidgetId) => {
       executableTargetWidgetIds.add(targetWidgetId);
+    });
+
+    const beforeManagedProjectionBySourceWidgetId = new Map(
+      resolveManagedExecutableSourceProjections(
+        input.beforeSnapshot,
+        widgetId,
+        input.resolveManagedConnectionConsumerAdapter,
+      ).map((projection) => [
+        projection.sourceWidgetId,
+        projection,
+      ] as const),
+    );
+
+    resolveManagedExecutableSourceProjections(
+      input.afterSnapshot,
+      widgetId,
+      input.resolveManagedConnectionConsumerAdapter,
+    ).forEach((projection) => {
+      const beforeProjection = beforeManagedProjectionBySourceWidgetId.get(
+        projection.sourceWidgetId,
+      );
+
+      if (beforeProjection?.signature === projection.signature) {
+        return;
+      }
+
+      managedExecutableSourceWidgetIds.add(projection.sourceWidgetId);
+      executableTargetWidgetIds.add(projection.sourceWidgetId);
+      executableTargetOverridesByWidgetId[projection.sourceWidgetId] =
+        projection.targetOverrides;
+
+      listDashboardDownstreamExecutionTargets(
+        projection.sourceWidgetId,
+        input.afterSnapshot,
+      ).forEach((targetWidgetId) => {
+        executableTargetWidgetIds.add(targetWidgetId);
+      });
     });
   });
 
@@ -493,16 +623,26 @@ export function planDashboardVariableDrivenCommit(input: {
   const passiveConsumerWidgetIdsList = affectedConsumerWidgetIdsList.filter(
     (widgetId) => !executableConsumerWidgetIds.has(widgetId),
   );
-  const executableTargetWidgetIdsList = [...executableTargetWidgetIds].sort(sortByStableOrder);
+  const managedExecutableSourceWidgetIdsList = [...managedExecutableSourceWidgetIds].sort(sortByStableOrder);
+  const executableTargetWidgetIdsList = [
+    ...managedExecutableSourceWidgetIdsList,
+    ...[...executableTargetWidgetIds]
+      .filter((widgetId) => !managedExecutableSourceWidgetIds.has(widgetId))
+      .sort(sortByStableOrder),
+  ];
 
-  return {
+  const plan = {
     changedWidgetId: input.changedWidgetId,
     changedVariableEntries,
     affectedConsumerWidgetIds: affectedConsumerWidgetIdsList,
     passiveConsumerWidgetIds: passiveConsumerWidgetIdsList,
     executableConsumerWidgetIds: executableConsumerWidgetIdsList,
+    managedExecutableSourceWidgetIds: managedExecutableSourceWidgetIdsList,
     executableTargetWidgetIds: executableTargetWidgetIdsList,
-  };
+    executableTargetOverridesByWidgetId,
+  } satisfies DashboardVariableDrivenCommitPlan;
+
+  return plan;
 }
 
 function listValidDependencyIds(
@@ -690,24 +830,16 @@ function buildCanonicalDownstreamBindingIndex(
   const downstreamIndex = new Map<string, Set<string>>();
 
   for (const { instance } of snapshot.dependencies.entries) {
-    const bindings = normalizeWidgetInstanceBindings(instance.bindings);
+    for (const input of flattenResolvedInputs(snapshot.dependencies.resolveInputs(instance.id))) {
+      const sourceWidgetId = input.sourceWidgetId?.trim();
 
-    if (!bindings) {
-      continue;
-    }
-
-    for (const bindingValue of Object.values(bindings)) {
-      for (const binding of toBindingArray(bindingValue)) {
-        const sourceWidgetId = binding.sourceWidgetId.trim();
-
-        if (!sourceWidgetId) {
-          continue;
-        }
-
-        const nextTargets = downstreamIndex.get(sourceWidgetId) ?? new Set<string>();
-        nextTargets.add(instance.id);
-        downstreamIndex.set(sourceWidgetId, nextTargets);
+      if (!sourceWidgetId) {
+        continue;
       }
+
+      const nextTargets = downstreamIndex.get(sourceWidgetId) ?? new Set<string>();
+      nextTargets.add(instance.id);
+      downstreamIndex.set(sourceWidgetId, nextTargets);
     }
   }
 
@@ -824,13 +956,15 @@ export function listDashboardDownstreamExecutionTargets(
     }
   }
 
-  return orderedIds.filter((instanceId) => {
+  const executableTargetIds = orderedIds.filter((instanceId) => {
     if (instanceId === sourceInstanceId) {
       return false;
     }
 
     return Boolean(snapshot.getDefinition(instanceId)?.execution);
   });
+
+  return executableTargetIds;
 }
 
 export interface DashboardUpstreamResolutionRequirement {
@@ -894,6 +1028,7 @@ export interface ExecuteDashboardWidgetGraphArgs {
   dashboardState?: WidgetExecutionDashboardState;
   refreshCycleId?: string;
   targetOverrides?: WidgetExecutionTargetOverrides;
+  persistTargetRuntimeStateWithOverrides?: boolean;
   signal?: AbortSignal;
   executedInstanceIds?: Set<string>;
   runtimeDataStore?: RuntimeDataStore | null;
@@ -1098,7 +1233,7 @@ export async function executeDashboardWidgetGraph(
       targetInstanceId: args.targetInstanceId,
     });
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && executionContext.widgetId === "connection-query") {
       console.debug("[widget-exec] node start", summarizeExecutionContextForDebug(executionContext));
     }
 
@@ -1132,9 +1267,13 @@ export async function executeDashboardWidgetGraph(
       result.runtimeStatePatch,
     );
     const shouldPersistRuntimeState =
-      !(instanceId === args.targetInstanceId && args.targetOverrides);
+      !(
+        instanceId === args.targetInstanceId &&
+        args.targetOverrides &&
+        !args.persistTargetRuntimeStateWithOverrides
+      );
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && instance.widgetId === "connection-query") {
       console.debug("[widget-exec] node result", {
         instanceId,
         widgetId: instance.widgetId,
@@ -1217,16 +1356,22 @@ export function listDashboardRefreshableExecutionTargets(args: {
     const upstreamExecutableIds = collectTransitiveExecutableDependencyIds(instance.id, snapshot);
 
     if (definition?.execution) {
+      const resolvedInputs = snapshot.dependencies.resolveInputs(instance.id);
+      const effectiveState = resolveReferenceBackedWidgetState({
+        instanceTitle: instance.title,
+        props: (instance.props ?? {}) as Record<string, unknown>,
+        resolvedInputs,
+      });
       const context = {
         executionSurface: args.executionSurface ?? "private-dashboard",
         publicWorkspaceToken: args.publicWorkspaceToken,
         widgetId: instance.widgetId,
         instanceId: instance.id,
         reason: "dashboard-refresh" as const,
-        props: (instance.props ?? {}) as Record<string, unknown>,
+        props: effectiveState.props,
         runtimeState: instance.runtimeState,
         publicExecution: instance.publicExecution,
-        resolvedInputs: snapshot.dependencies.resolveInputs(instance.id),
+        resolvedInputs,
         dashboardState: args.dashboardState,
         refreshCycleId: args.refreshCycleId,
       } satisfies WidgetExecutionContext;

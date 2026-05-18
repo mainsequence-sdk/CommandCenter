@@ -485,12 +485,18 @@ export function QueryStringListField({
               <button
                 type="button"
                 className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  removeEntry(entry);
+                }}
                 onMouseDown={(event) => {
                   event.preventDefault();
+                  event.stopPropagation();
                 }}
                 onClick={(event) => {
                   event.preventDefault();
-                  removeEntry(entry);
+                  event.stopPropagation();
                 }}
                 disabled={disabled}
                 aria-label={`Remove ${entry}`}

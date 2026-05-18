@@ -99,15 +99,17 @@ export function WorkspacesPage() {
 
   if (!user) {
     return (
-      <div className="rounded-[var(--radius)] border border-border/80 bg-card/80 p-8 text-sm text-muted-foreground">
-        Resolve a user session before opening Workspaces.
+      <div className="h-full min-h-0 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
+        <div className="rounded-[var(--radius)] border border-border/80 bg-card/80 p-8 text-sm text-muted-foreground">
+          Resolve a user session before opening Workspaces.
+        </div>
       </div>
     );
   }
 
   if (requestedWorkspaceId && workspaceSelectionPending && !selectedDashboard) {
     return (
-      <div className="min-h-full overflow-auto px-4 py-4 md:px-6 md:py-6">
+      <div className="h-full min-h-0 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
         <div className="mx-auto flex min-h-[320px] max-w-4xl items-center justify-center">
           <div className="w-full max-w-md rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/80 px-6 py-8 text-center shadow-[var(--shadow-panel)]">
             <Badge variant="neutral" className="border border-border/70 bg-card/55">
@@ -132,7 +134,7 @@ export function WorkspacesPage() {
     (requestedWorkspaceMissing || (selectedDashboard && !selectedWorkspaceSupported))
   ) {
     return (
-      <div className="min-h-full overflow-auto px-4 py-4 md:px-6 md:py-6">
+      <div className="h-full min-h-0 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
         <div className="mx-auto flex min-h-[320px] max-w-4xl items-center justify-center">
           <div className="w-full max-w-md rounded-[calc(var(--radius)+4px)] border border-danger/25 bg-card/80 px-6 py-8 text-center shadow-[var(--shadow-panel)]">
             <Badge variant="warning" className="border border-danger/25 bg-danger/10 text-danger">
@@ -167,8 +169,8 @@ export function WorkspacesPage() {
   }
 
   return (
-    <div className="min-h-full overflow-auto px-4 py-4 md:px-6 md:py-6">
-      <div className="mx-auto max-w-6xl space-y-6">
+    <div className="h-full min-h-0 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
+      <div className="mx-auto flex min-h-full max-w-6xl flex-col gap-6 pb-6">
         {error ? (
           <div className="rounded-[var(--radius)] border border-danger/30 bg-danger/8 px-4 py-3 text-sm text-danger">
             {error}
@@ -229,9 +231,9 @@ export function WorkspacesPage() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/78 shadow-[var(--shadow-panel)]">
-          <div className="overflow-auto">
-            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+        <div className="min-h-0 overflow-hidden rounded-[calc(var(--radius)+4px)] border border-border/70 bg-card/78 shadow-[var(--shadow-panel)]">
+          <div className="overflow-x-auto overflow-y-visible">
+            <table className="w-full min-w-[960px] border-collapse text-left text-sm">
               <thead className="bg-background/55">
                 <tr className="border-b border-border/70">
                   <th className="w-14 px-3 py-3">
@@ -249,7 +251,7 @@ export function WorkspacesPage() {
                   <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                     Updated
                   </th>
-                  <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                  <th className="w-[280px] px-4 py-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                     Actions
                   </th>
                 </tr>
@@ -311,10 +313,11 @@ export function WorkspacesPage() {
                     <td className="px-4 py-3 align-top text-foreground">
                       {formatWorkspaceUpdatedAt(workspace)}
                     </td>
-                    <td className="px-4 py-3 align-top">
-                      <div className="flex flex-wrap items-center gap-2">
+                    <td className="w-[280px] px-4 py-3 align-top">
+                      <div className="flex min-w-[252px] flex-wrap items-center gap-2">
                         <Button
                           size="sm"
+                          className="shrink-0"
                           onClick={() => {
                             navigate(buildWorkspaceSurfacePath(workspaceListPath, workspace.id));
                           }}
@@ -325,6 +328,7 @@ export function WorkspacesPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className="shrink-0"
                           onClick={() => {
                             void (async () => {
                               const sourceWorkspace =
@@ -351,6 +355,7 @@ export function WorkspacesPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          className="shrink-0"
                           onClick={() => {
                             navigate(
                               buildWorkspaceSurfacePath(

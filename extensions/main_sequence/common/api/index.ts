@@ -16,10 +16,12 @@ const localTimeSerieEndpoint = "/orm/api/ts_manager/local_time_serie/";
 const availableGpuTypesEndpoint = "/orm/api/pods/billing/available-gpu-types/";
 const billingEstimateEndpoint = "/orm/api/pods/billing/estimate-runtime-cost/";
 const mainSequenceConnectionsEndpoint = "/orm/api/connections/";
+const mainSequenceConnectionDataSourceEndpoint = "/orm/api/connections/data_source/";
 const assetEndpoint = "/orm/api/assets/asset/";
 const assetCategoryEndpoint = "/orm/api/assets/asset-category/";
 const instrumentsConfigurationEndpoint = "/orm/api/assets/instruments-configuration/";
 const virtualFundEndpoint = "/orm/api/assets/virtualfund/";
+const managedAccountEndpoint = "/orm/api/assets/account/";
 const executionVenueEndpoint = "/orm/api/assets/execution_venue/";
 const portfolioGroupEndpoint = "/orm/api/assets/portfolio_group/";
 const targetPortfolioEndpoint = "/orm/api/assets/target_portfolio/";
@@ -511,6 +513,55 @@ export interface VirtualFundListRow {
   target_portfolio_name: string;
   account_id: number | null;
   account_name: string;
+}
+
+export interface ManagedAccountListRow extends Record<string, unknown> {
+  id: number;
+  account_name?: string | null;
+  display_name?: string | null;
+  name?: string | null;
+  account_number?: string | null;
+  broker_name?: string | null;
+  execution_venue_name?: string | null;
+  account_type?: string | null;
+  currency?: string | null;
+  status?: string | null;
+  creation_date?: string | null;
+  created_at?: string | null;
+}
+
+export interface ManagedAccountRecord extends ManagedAccountListRow {}
+export interface ManagedAccountSummaryExtensions extends MainSequenceSummaryExtensions {}
+export type ManagedAccountSummaryResponse = SummaryResponse<ManagedAccountSummaryExtensions>;
+
+export interface ManagedAccountListFilters {
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface CreateManagedAccountInput {
+  account_name: string;
+  execution_venue: number;
+  is_paper?: boolean;
+  valuation_translation_table?: number | null;
+  holdings_data_source?: number | null;
+}
+
+export interface ManagedAccountHoldingsDataSourceRow extends Record<string, unknown> {
+  id: number;
+  display_name?: string | null;
+  class_type?: string | null;
+  description?: string | null;
+  status?: string | null;
+  metadata?: Record<string, unknown> | null;
+  is_default_data_source?: boolean | null;
+}
+
+export interface ManagedAccountHoldingsDataSourceFilters {
+  search?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface InstrumentsConfigurationNodeOption {
@@ -3595,6 +3646,64 @@ export async function listVirtualFunds({
     undefined,
     {
       response_format: "frontend_list",
+      search,
+      limit,
+      offset,
+    },
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export async function listManagedAccounts({
+  search,
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+}: ManagedAccountListFilters = {}) {
+  const payload = await requestJson<PaginatedResponse<ManagedAccountListRow> | ManagedAccountListRow[]>(
+    managedAccountEndpoint,
+    "",
+    undefined,
+    {
+      search,
+      limit,
+      offset,
+    },
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function fetchManagedAccountDetail(managedAccountId: number) {
+  return requestJson<ManagedAccountRecord>(managedAccountEndpoint, `${managedAccountId}/`);
+}
+
+export function fetchManagedAccountSummary(managedAccountId: number) {
+  return requestJson<ManagedAccountSummaryResponse>(
+    managedAccountEndpoint,
+    `${managedAccountId}/summary/`,
+  );
+}
+
+export function createManagedAccount(input: CreateManagedAccountInput) {
+  return requestJson<ManagedAccountRecord>(managedAccountEndpoint, "", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function listManagedAccountHoldingsDataSources({
+  search,
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+}: ManagedAccountHoldingsDataSourceFilters = {}) {
+  const payload = await requestJson<
+    PaginatedResponse<ManagedAccountHoldingsDataSourceRow> | ManagedAccountHoldingsDataSourceRow[]
+  >(
+    mainSequenceConnectionDataSourceEndpoint,
+    "",
+    undefined,
+    {
       search,
       limit,
       offset,

@@ -11,6 +11,7 @@ import {
   compileWidgetReferenceExpression,
   deriveWidgetReferenceExpressionBindings,
   parseWidgetReferenceExpression,
+  reconcileWidgetReferenceExpressionBindings,
   resolveWidgetReferenceDisplayToken,
   resolveWidgetReferenceCompletionContext,
   syncWidgetReferenceExpressionBindings,
@@ -290,6 +291,49 @@ describe("widget reference language", () => {
       staticBinding: {
         sourceWidgetId: "query-1",
         sourceOutputId: "dataset",
+      },
+    });
+  });
+
+  it("reconciles prop expression bindings when a managed field clears its token", () => {
+    const nextBindings = reconcileWidgetReferenceExpressionBindings({
+      bindings: {
+        "__widget-reference.target.prop:query%2Fsymbols": {
+          sourceWidgetId: "table-1",
+          sourceOutputId: "activeRow",
+          transformSteps: [
+            {
+              id: "extract-path",
+              path: ["symbol"],
+            },
+          ],
+        },
+        staticBinding: {
+          sourceWidgetId: "query-1",
+          sourceOutputId: "dataset",
+        },
+      },
+      currentProps: {
+        query: {
+          symbols: ["$(table-1).activeRow.symbol"],
+        },
+      },
+      nextProps: {
+        query: {
+          symbols: [],
+        },
+      },
+      sourceWidgets,
+    });
+
+    expect(nextBindings).toEqual({
+      errors: [],
+      managedInputIds: [],
+      bindings: {
+        staticBinding: {
+          sourceWidgetId: "query-1",
+          sourceOutputId: "dataset",
+        },
       },
     });
   });

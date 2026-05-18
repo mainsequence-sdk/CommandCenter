@@ -5,7 +5,6 @@ import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { useRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import type { WidgetDefinition } from "@/widgets/types";
 
-import { isWidgetReferenceTargetInputId } from "./widget-instance-references";
 import {
   createDashboardWidgetDependencyModel,
   type DashboardWidgetDependencyModel,
@@ -56,39 +55,6 @@ function summarizeWorkspaceVariableStore(model: DashboardWidgetDependencyModel) 
   });
 }
 
-function summarizeWidgetReferenceResolution(model: DashboardWidgetDependencyModel) {
-  return model.entries.flatMap(({ instance }) => {
-    const resolvedInputs = model.resolveInputs(instance.id);
-    const io = model.resolveIo(instance.id);
-
-    if (!resolvedInputs || !io?.inputs?.length) {
-      return [];
-    }
-
-    return Object.entries(resolvedInputs).flatMap(([inputId, resolvedValue]) => {
-      if (!isWidgetReferenceTargetInputId(inputId)) {
-        return [];
-      }
-
-      const inputDefinition = io.inputs?.find((candidate) => candidate.id === inputId);
-      const values = (Array.isArray(resolvedValue) ? resolvedValue : [resolvedValue]).filter(
-        (entry): entry is NonNullable<typeof entry> => Boolean(entry),
-      );
-
-      return values.map((entry) => ({
-        targetWidgetId: instance.id,
-        targetInputId: inputId,
-        acceptedContracts: inputDefinition?.accepts ?? [],
-        status: entry.status,
-        sourceWidgetId: entry.sourceWidgetId ?? null,
-        sourceOutputId: entry.sourceOutputId ?? null,
-        resolvedContractId: entry.contractId ?? null,
-        resolvedValue: summarizeVariableDebugValue(entry.value),
-      }));
-    });
-  });
-}
-
 export function DashboardWidgetDependenciesProvider({
   children,
   resolveWidgetDefinition,
@@ -109,7 +75,6 @@ export function DashboardWidgetDependenciesProvider({
     [resolveWidgetDefinition, runtimeDataStore, widgets],
   );
   const previousVariableDebugSignatureRef = useRef<string | null>(null);
-  const previousReferenceResolutionSignatureRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!import.meta.env.DEV) {
@@ -125,26 +90,7 @@ export function DashboardWidgetDependenciesProvider({
 
     previousVariableDebugSignatureRef.current = signature;
 
-    console.log("[workspace-variable-store]", {
-      entries,
-    });
-  }, [model]);
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    const entries = summarizeWidgetReferenceResolution(model);
-    const signature = JSON.stringify(entries);
-
-    if (signature === previousReferenceResolutionSignatureRef.current) {
-      return;
-    }
-
-    previousReferenceResolutionSignatureRef.current = signature;
-
-    console.log("[widget-reference-resolution]", {
+    console.debug("[workspace-variable-store]", {
       entries,
     });
   }, [model]);

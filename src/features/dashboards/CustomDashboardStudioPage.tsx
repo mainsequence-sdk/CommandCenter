@@ -498,40 +498,6 @@ function runtimeStateEquals(left: unknown, right: unknown) {
   }
 }
 
-function summarizeRuntimeStateForDebug(runtimeState: Record<string, unknown> | undefined) {
-  if (!runtimeState || typeof runtimeState !== "object" || Array.isArray(runtimeState)) {
-    return runtimeState ?? null;
-  }
-
-  const interaction =
-    runtimeState.interaction &&
-    typeof runtimeState.interaction === "object" &&
-    !Array.isArray(runtimeState.interaction)
-      ? (runtimeState.interaction as Record<string, unknown>)
-      : null;
-  const selection =
-    interaction?.selection &&
-    typeof interaction.selection === "object" &&
-    !Array.isArray(interaction.selection)
-      ? (interaction.selection as Record<string, unknown>)
-      : null;
-
-  return {
-    keys: Object.keys(runtimeState).slice(0, 12),
-    interactionKeys: interaction ? Object.keys(interaction).slice(0, 12) : [],
-    selection:
-      selection
-        ? {
-            mode: selection.mode ?? null,
-            activeRowKey: selection.activeRowKey ?? null,
-            activeRowIndex: selection.activeRowIndex ?? null,
-            activeCell: selection.activeCell ?? null,
-            updatedAtMs: selection.updatedAtMs ?? null,
-          }
-        : null,
-  };
-}
-
 interface PendingVariableRuntimeRefresh {
   queueId: string;
   changedWidgetId: string;
@@ -1726,16 +1692,6 @@ export function CustomDashboardStudioPage({
     const entries = Array.from(pendingRuntimeStateWritesRef.current.entries());
     pendingRuntimeStateWritesRef.current.clear();
 
-    if (import.meta.env.DEV) {
-      console.log("[workspace-runtime-write:flush]", {
-        localRuntimeStateOverridesEnabled,
-        entries: entries.map(([instanceId, runtimeState]) => ({
-          instanceId,
-          runtimeState: summarizeRuntimeStateForDebug(runtimeState),
-        })),
-      });
-    }
-
     if (localRuntimeStateOverridesEnabled) {
       setRuntimeStateOverridesByWidgetId((current) => {
         let changed = false;
@@ -1780,15 +1736,21 @@ export function CustomDashboardStudioPage({
 
     const changedWidgetIds = [...new Set(entries.map(([instanceId]) => instanceId))];
 
-    setPendingVariableRuntimeRefreshes((current) => [
-      ...current,
-      ...changedWidgetIds.map((changedWidgetId, index) => ({
-        queueId: `${changedWidgetId}:${Date.now().toString(36)}:${index.toString(36)}`,
+    setPendingVariableRuntimeRefreshes((current) => {
+      const queuedAtMs = Date.now();
+      const nextEntries = changedWidgetIds.map((changedWidgetId, index) => ({
+        queueId: `${changedWidgetId}:${queuedAtMs.toString(36)}:${index.toString(36)}`,
         changedWidgetId,
         beforeWidgets,
         afterWidgets: nextDashboard.widgets,
-      })),
-    ]);
+      }));
+      const nextQueue = [
+        ...current,
+        ...nextEntries,
+      ];
+
+      return nextQueue;
+    });
   }, [
     localRuntimeStateOverridesEnabled,
     selectedDashboard,
@@ -2754,21 +2716,14 @@ export function CustomDashboardStudioPage({
     saveWorkspaceDraft();
   }
 
-  const handleWidgetRuntimeStateChange = useCallback(
-    (
-      instanceId: string,
-      runtimeState: Record<string, unknown> | undefined,
-    ) => {
-      if (import.meta.env.DEV) {
-        console.log("[workspace-runtime-write:queued]", {
-          instanceId,
-          runtimeState: summarizeRuntimeStateForDebug(runtimeState),
-        });
-      }
-
-      pendingRuntimeStateWritesRef.current.set(instanceId, runtimeState);
-      scheduleRuntimeStateWriteFlush();
-    },
+	  const handleWidgetRuntimeStateChange = useCallback(
+	    (
+	      instanceId: string,
+	      runtimeState: Record<string, unknown> | undefined,
+	    ) => {
+	      pendingRuntimeStateWritesRef.current.set(instanceId, runtimeState);
+	      scheduleRuntimeStateWriteFlush();
+	    },
     [scheduleRuntimeStateWriteFlush],
   );
   const slideRegionBrowserWidgetFilter = useCallback(
@@ -3397,9 +3352,9 @@ export function CustomDashboardStudioPage({
     visibleCompanionCandidates.length,
   ]);
 
-  const content = (
-    <div
-      className="relative h-full min-h-full overflow-hidden"
+	  const content = (
+	    <div
+	      className="relative h-full min-h-full overflow-hidden"
       style={{ backgroundColor: "var(--workspace-canvas-base-color)" }}
     >
       {!publicPreview ? <DashboardRefreshProgressLine /> : null}
@@ -4255,12 +4210,28 @@ export function CustomDashboardStudioPage({
       </div>
   );
 
+  function handlePendingVariableRuntimeRefreshProcessed(queueId: string) {
+    setPendingVariableRuntimeRefreshes((current) => {
+      return current.filter((entry) => entry.queueId !== queueId);
+    });
+  }
+
+  const contentWithRuntimeRefreshCoordinator = (
+    <>
+      <WorkspaceRuntimeVariableRefreshCoordinator
+        pendingRefreshes={pendingVariableRuntimeRefreshes}
+        onProcessed={handlePendingVariableRuntimeRefreshProcessed}
+      />
+      {content}
+    </>
+  );
+
   if (!withRuntimeProviders) {
     return localRuntimeStateOverridesEnabled ? (
       <DashboardWidgetDependenciesProvider widgets={renderedResolvedDashboard.widgets}>
-        {content}
+        {contentWithRuntimeRefreshCoordinator}
       </DashboardWidgetDependenciesProvider>
-    ) : content;
+    ) : contentWithRuntimeRefreshCoordinator;
   }
 
   return (
@@ -4284,11 +4255,7 @@ export function CustomDashboardStudioPage({
           <DashboardWidgetDependenciesProvider widgets={renderedResolvedDashboard.widgets}>
             <WorkspaceRuntimeVariableRefreshCoordinator
               pendingRefreshes={pendingVariableRuntimeRefreshes}
-              onProcessed={(queueId) => {
-                setPendingVariableRuntimeRefreshes((current) =>
-                  current.filter((entry) => entry.queueId !== queueId),
-                );
-              }}
+              onProcessed={handlePendingVariableRuntimeRefreshProcessed}
             />
             {content}
           </DashboardWidgetDependenciesProvider>

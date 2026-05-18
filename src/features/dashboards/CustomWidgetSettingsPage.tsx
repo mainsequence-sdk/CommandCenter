@@ -14,7 +14,14 @@ import {
 } from "@/dashboards/DashboardWidgetExecution";
 import { DashboardWidgetRegistryProvider } from "@/dashboards/DashboardWidgetRegistry";
 import { isWidgetReferenceTargetInputId } from "@/dashboards/widget-instance-references";
-import { normalizeWidgetInstanceBindings } from "@/dashboards/widget-dependencies";
+import {
+  createDashboardWidgetDependencyModel,
+  normalizeWidgetInstanceBindings,
+} from "@/dashboards/widget-dependencies";
+import {
+  buildWidgetReferenceLanguageSourceWidgets,
+  reconcileWidgetReferenceExpressionBindings,
+} from "@/dashboards/widget-reference-language";
 import { WidgetBindingPanel } from "@/widgets/shared/WidgetBindingPanel";
 import { getWidgetDetailsPath } from "@/features/widgets/widget-explorer";
 import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
@@ -297,6 +304,16 @@ export function CustomWidgetSettingsPage({
     managedConnectionAdapter &&
       (managedConnectionMode || managedConnectionSource),
   );
+  const managedConnectionReferenceSourceWidgets = useMemo(
+    () =>
+      buildWidgetReferenceLanguageSourceWidgets(
+        createDashboardWidgetDependencyModel(resolvedDashboard.widgets, getWidgetById),
+        {
+          excludeInstanceId: instance?.id ?? undefined,
+        },
+      ),
+    [instance?.id, resolvedDashboard.widgets],
+  );
   const requestedTab: WidgetSettingsTabId =
     hasManagedConnectionTab && activeRequestedTab === "connection"
       ? "connection"
@@ -444,20 +461,23 @@ export function CustomWidgetSettingsPage({
 
   const bindingPreviewInstance = useMemo(
     () =>
-      activeTab === "bindings" && instance && effectiveDraftState
+      (activeTab === "bindings" || activeTab === "connection") && instance && effectiveDraftState
         ? {
             ...instance,
             bindings: effectiveDraftState.bindings,
             title: effectiveDraftState.title.trim() ? effectiveDraftState.title.trim() : undefined,
-            props: effectiveDraftState.props,
+            props:
+              activeTab === "connection" && managedConnectionDraftProps
+                ? managedConnectionDraftProps
+                : effectiveDraftState.props,
             presentation: effectiveDraftState.presentation,
           }
         : null,
-    [activeTab, effectiveDraftState, instance],
+    [activeTab, effectiveDraftState, instance, managedConnectionDraftProps],
   );
   const bindingPreviewWidgets = useMemo(
     () =>
-      activeTab === "bindings" && instance && bindingPreviewInstance
+      (activeTab === "bindings" || activeTab === "connection") && instance && bindingPreviewInstance
         ? resolvedDashboard.widgets.map((dashboardWidget) =>
             dashboardWidget.id === instance.id ? bindingPreviewInstance : dashboardWidget,
           )
@@ -472,6 +492,9 @@ export function CustomWidgetSettingsPage({
     managedConnectionAdapter,
     managedConnectionDraftProps,
   );
+  const managedConnectionDirty =
+    Boolean(managedConnectionAdapter) &&
+    draftManagedConnectionSignature !== currentManagedConnectionSignature;
   const [managedConnectionPreviewRuntimeState, setManagedConnectionPreviewRuntimeState] = useState<
     Record<string, unknown> | undefined
   >(undefined);
@@ -618,9 +641,23 @@ export function CustomWidgetSettingsPage({
   const settingsWidget = widget;
   const cardTitle =
     effectiveDraftState.title.trim() || settingsInstance.title?.trim() || "Untitled card";
-  const managedConnectionDirty =
-    Boolean(managedConnectionAdapter) &&
-    draftManagedConnectionSignature !== currentManagedConnectionSignature;
+  function reconcileManagedConnectionDraftBindings(input: {
+    bindings: DashboardWidgetInstance["bindings"];
+    currentProps: Record<string, unknown>;
+    nextProps: Record<string, unknown>;
+    title: string;
+  }) {
+    return normalizeWidgetInstanceBindings(
+      reconcileWidgetReferenceExpressionBindings({
+        bindings: input.bindings,
+        currentTitle: input.title,
+        currentProps: input.currentProps,
+        nextTitle: input.title,
+        nextProps: input.nextProps,
+        sourceWidgets: managedConnectionReferenceSourceWidgets,
+      }).bindings as DashboardWidgetInstance["bindings"],
+    );
+  }
 
   function updateManagedConnectionDraft(
     updater: (props: Record<string, unknown>) => Record<string, unknown>,
@@ -636,6 +673,12 @@ export function CustomWidgetSettingsPage({
 
       return {
         ...base,
+        bindings: reconcileManagedConnectionDraftBindings({
+          bindings: base.bindings,
+          currentProps,
+          nextProps,
+          title: base.title,
+        }),
         props: nextProps,
       };
     });
@@ -648,13 +691,22 @@ export function CustomWidgetSettingsPage({
 
     setDraftState((current) => {
       const base = current ?? buildWidgetSettingsDraftState(instance, widget);
+      const currentProps = (base.props ?? {}) as Record<string, unknown>;
+      const nextProps = applyManagedConnectionConsumerDraftProps(
+        managedConnectionAdapter,
+        currentProps,
+        (instance.props ?? {}) as Record<string, unknown>,
+      );
+
       return {
         ...base,
-        props: applyManagedConnectionConsumerDraftProps(
-          managedConnectionAdapter,
-          (base.props ?? {}) as Record<string, unknown>,
-          (instance.props ?? {}) as Record<string, unknown>,
-        ),
+        bindings: reconcileManagedConnectionDraftBindings({
+          bindings: base.bindings,
+          currentProps,
+          nextProps,
+          title: base.title,
+        }),
+        props: nextProps,
       };
     });
 

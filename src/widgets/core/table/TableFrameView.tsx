@@ -231,7 +231,6 @@ export type TableFrameCustomCellRenderer = (
 export interface TableFrameViewProps {
   customCellRenderers?: Record<string, TableFrameCustomCellRenderer>;
   dataErrorMessage?: string | null;
-  debugInstanceId?: string;
   emptyMessage?: string;
   getRowStyle?: (row: TableWidgetRow | undefined) => CSSProperties | undefined;
   isDataLoading?: boolean;
@@ -969,31 +968,6 @@ function getMatchingConditionalRule(
   );
 }
 
-function summarizeConditionalRuleForDebug(
-  rule: TableWidgetConditionalRule | null,
-) {
-  if (!rule) {
-    return null;
-  }
-
-  return `${rule.operator}:${rule.value ?? ""}:${rule.tone ?? rule.backgroundColor ?? ""}`;
-}
-
-function resolveDebugTextColor(
-  rule: TableWidgetConditionalRule | null,
-  tokens: ThemeTokens,
-) {
-  if (rule?.textColor) {
-    return rule.textColor;
-  }
-
-  if (rule?.tone) {
-    return resolveConditionalToneStyle(rule, tokens).textColor;
-  }
-
-  return tokens.foreground;
-}
-
 function getAlignmentClasses(
   align: ResolvedTableWidgetColumnConfig["align"],
 ) {
@@ -1317,7 +1291,6 @@ export function TableFrameView({
   tightness = mainSequenceSpaceTheme.tightness,
   toolbarStart,
   onSelectionChange,
-  debugInstanceId,
 }: TableFrameViewProps) {
   const tightnessMetrics = useMemo(() => getThemeTightnessMetrics(tightness), [tightness]);
   const [quickFilter, setQuickFilter] = useState("");
@@ -1369,60 +1342,6 @@ export function TableFrameView({
       ) satisfies Record<string, TableFrameColumnRange>,
     [columns, rowObjects],
   );
-  useEffect(() => {
-    if (!import.meta.env.DEV || !debugInstanceId) {
-      return;
-    }
-
-    const interestingColumns = columns.filter((column) =>
-      column.gaugeMode !== "none" ||
-      column.heatmap ||
-      column.gradientMode === "fill" ||
-      resolvedProps.conditionalRules.some((rule) => rule.columnKey === column.key),
-    );
-
-    if (interestingColumns.length === 0 || rowObjects.length === 0) {
-      return;
-    }
-
-    const rows = interestingColumns.flatMap((column) => {
-      const visualRange = resolveColumnVisualRange(column, columnRanges[column.key] ?? null);
-
-      return rowObjects.flatMap((row, rowIndex) => {
-        const numericValue = getTableWidgetNumericValue(row[column.key]);
-
-        if (numericValue === null) {
-          return [];
-        }
-
-        const matchedRule = getMatchingConditionalRule(resolvedProps, column.key, numericValue);
-        const gaugeVisual =
-          column.gaugeMode !== "none"
-            ? resolveTableGaugeVisual(numericValue, visualRange, matchedRule, resolvedTokens)
-            : null;
-
-        return [{
-          rowIndex,
-          columnKey: column.key,
-          numericValue,
-          matchedRule: summarizeConditionalRuleForDebug(matchedRule),
-          textColor: resolveDebugTextColor(matchedRule, resolvedTokens),
-          gaugeColor: gaugeVisual?.color ?? null,
-          gaugeDirection: gaugeVisual?.direction ?? null,
-          gaugeRatio: gaugeVisual?.ratio ?? null,
-          rangeMin: visualRange?.min ?? null,
-          rangeMax: visualRange?.max ?? null,
-          gaugeMode: column.gaugeMode,
-          heatmap: column.heatmap,
-          gradientMode: column.gradientMode,
-        }];
-      });
-    });
-
-    console.groupCollapsed("[table:cell-visuals]", debugInstanceId);
-    console.table(rows);
-    console.groupEnd();
-  }, [columnRanges, columns, debugInstanceId, resolvedProps, resolvedTokens, rowObjects]);
   const isActiveCell = useCallback(
     (row: TableFrameGridRow | undefined, columnKey: string) => {
       if (!row || !selectionState?.activeCell || selectionMode !== "cell") {

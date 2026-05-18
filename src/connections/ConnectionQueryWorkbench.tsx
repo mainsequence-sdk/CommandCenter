@@ -593,6 +593,17 @@ function sameConnectionId(
   return left !== undefined && right !== undefined && String(left) === String(right);
 }
 
+function sameConnectionRef(
+  left: ConnectionRef | undefined,
+  right: ConnectionRef | undefined,
+) {
+  if (!left || !right) {
+    return !left && !right;
+  }
+
+  return left.typeId === right.typeId && sameConnectionId(left.id, right.id);
+}
+
 export function ConnectionQueryWorkbench({
   authoringMode = "query",
   autoSelectFirstQueryModel = false,
@@ -629,7 +640,7 @@ export function ConnectionQueryWorkbench({
   const requestedConnectionRef =
     !showConnectionPicker && fallbackConnectionRef
       ? fallbackConnectionRef
-      : normalizedValueProps.connectionRef ?? fallbackConnectionRef;
+      : normalizedResolvedValueProps.connectionRef ?? normalizedValueProps.connectionRef ?? fallbackConnectionRef;
   const resolvedConnectionSelection = useMemo(() => {
     return resolveConnectionRefSelection({
       requestedRef: requestedConnectionRef,
@@ -782,6 +793,13 @@ export function ConnectionQueryWorkbench({
       return;
     }
 
+    if (
+      normalizedResolvedValueProps.connectionRef &&
+      !sameConnectionRef(normalizedValueProps.connectionRef, normalizedResolvedValueProps.connectionRef)
+    ) {
+      return;
+    }
+
     const nextConnectionRef = resolvedConnectionSelection.connectionRef;
 
     if (
@@ -805,6 +823,8 @@ export function ConnectionQueryWorkbench({
   }, [
     normalizedValueProps.connectionRef?.id,
     normalizedValueProps.connectionRef?.typeId,
+    normalizedResolvedValueProps.connectionRef?.id,
+    normalizedResolvedValueProps.connectionRef?.typeId,
     onChange,
     resolvedConnectionSelection.connectionRef,
     resolvedConnectionSelection.repaired,
