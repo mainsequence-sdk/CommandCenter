@@ -1,6 +1,6 @@
 # Position Detail Widget
 
-This folder contains the reusable `Position Detail` widget and the shared table renderer for portfolio, holdings, and target-position payloads used by Main Sequence Markets.
+This folder contains the reusable `Position Detail` widget and the shared table renderer for portfolio, holdings, target-position, and account target-position payloads used by Main Sequence Markets.
 
 ## Entry Points
 
@@ -17,16 +17,20 @@ This folder contains the reusable `Position Detail` widget and the shared table 
 - On workspace runtime surfaces, `Position Detail` behaves as a mixed source widget:
   - `portfolio` can hydrate from the target-portfolio `weights-position-details` endpoint
   - `account` can hydrate from the managed-account `holdings/` endpoint keyed by account uid
-  - `target_position` is currently local-authored in the frontend
-- The widget now has three persisted source contracts:
+  - `target_position` is local-authored in the frontend
+  - `target_positions_account` is local-authored in the frontend and can save account-scoped target-position assignments
+- The widget now has four persisted source contracts:
   - `portfolio`: rows are interpreted only as `weight_notional_exposure`
   - `account`: rows hydrate from canonical holdings and save back as a holdings snapshot with a top-level `holdingsDate`
-  - `target_position`: rows may use any supported position type
+  - `target_position`: rows may use any supported position type and remain local-authored
+  - `target_positions_account`: rows may use any supported position type and save through a top-level `targetPositionsDate`
 - The page-level portfolio detail flow reuses the same table component so widget and surface rendering stay aligned.
 - The reusable widget accepts:
   - `sourceType`
   - `portfolioId` for portfolio hydration
-  - `accountUid` for account holdings hydration
+  - `accountUid` for account holdings hydration or account target-position saves
+  - `holdingsDate` for account-mode snapshot saves
+  - `targetPositionsDate` for account target-position assignment saves
   - `targetPortfolioId` as a compatibility fallback for the same hydration path
   - `editableInPlace`
   - `positionRows`
@@ -43,14 +47,18 @@ This folder contains the reusable `Position Detail` widget and the shared table 
 - In `positions` mode, the grid is intentionally narrowed to `Asset Name`, `Asset Ticker`, `UID`, `Date`, and the source-appropriate position fields. Account mode is units-only, hides `Position Type`, renames `Position Value` to `Quantity`, and exposes a blocked `Extra Details` cell because that field is API-only.
 - Editable-in-place mode always renders the positions view because rows are maintained as position entries directly on the canvas.
 - For `portfolio` and `account`, editable-in-place no longer drops the widget straight into the editor. Those sources render the normal positions table first and expose an in-widget `Edit positions` action. `target_position` still opens directly in inline edit mode because that source is authoring-first.
-- The widget now normalizes a `date` onto every position row:
-  - locally added `target_position` rows default to today and remain editable through the date picker
-  - persisted rows without a date are repaired to today
-  - hydrated `portfolio` rows always use the portfolio snapshot `weights_date`
-  - hydrated `account` rows now carry the holdings snapshot timestamp for read/display surfaces
-  - persisted `account` draft rows still do not store a row-level date; the canonical snapshot datetime lives at `holdingsDate`
+- Row-level dates are now only part of the `portfolio` read contract:
+  - hydrated `portfolio` rows use the portfolio snapshot `weights_date`
+  - `account` keeps the canonical snapshot datetime at the top-level `holdingsDate` field instead of persisting per-row dates
+  - `target_position` and `target_positions_account` do not persist row-level dates in `positionRows`
+  - hydrated `account` rows still render the holdings snapshot timestamp on read surfaces so the date stays visible
 - When `account` enters edit mode, the widget shows a top-level `Holdings Date` `datetime-local` control seeded from the resolved account holdings timestamp, or now when the account has no holdings rows yet.
+- When `target_positions_account` enters edit mode, the widget shows a top-level `Target Positions Date` `datetime-local` control seeded from the persisted widget prop, or the current time when the widget has not stored one yet.
 - `account` edit mode saves through `POST /orm/api/assets/account/<account_uid>/add-holdings/` with `overwrite: true`, maps blank prices to `missing_price: true`, injects `target_trade_time` from `holdingsDate`, always writes `position_type: "units"`, and always sends `extra_details: {}` because that field is not authored in the widget.
+- `target_positions_account` edit mode saves through `POST /orm/api/assets/account/<account_uid>/add-target-positions/` with the top-level `target_positions_date` and one row-level target position selector field per asset:
+  - `weight_notional_exposure`
+  - `constant_notional_exposure`
+  - `single_asset_quantity`
 - When `Position Type` is `weight_notional_exposure`, the widget formats `Position Value` as a percentage.
 - When `Position Type` is `constant_notional`, the widget formats `Position Value` as a USD notional with thousands separators.
 - When any authored row uses `units`, the widget shows an in-canvas warning that no price feed is connected here, so unit notional exposure cannot be calculated.
@@ -62,14 +70,16 @@ This folder contains the reusable `Position Detail` widget and the shared table 
   - `portfolio` => only `weight_notional_exposure`
   - `account` => forced to `units`
   - `target_position` => all three
+  - `target_positions_account` => all three
 - In `positions` mode, the widget shows a compact summary strip above the table, but it separates totals by position type and excludes `units` rows from aggregation because raw unit counts across different assets are not meaningful as one total.
 - `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
   `registryContract`.
 - Keep that registry contract aligned with the real mixed behavior here:
   - portfolio source may hydrate from backend until local rows are persisted
   - account source may hydrate from backend until the author saves a holdings snapshot back to the managed account
-  - target_position is currently a local-authored contract
-  - `positionRows` is still the local draft contract during edit mode, but successful account saves intentionally clear those draft rows so hydration resumes from the canonical backend snapshot
-- Storage impact: `holdingsDate` is a persisted widget prop and now stores a timezone-aware ISO timestamp instead of a date-only value. This changes the frontend workspace storage shape for account-mode widgets but does not require a backend registry payload change because the field remains a string.
+  - target_position is a local-authored contract
+  - target_positions_account is a local-authored contract that can write an account-scoped target-position assignment
+  - `positionRows` is still the local draft contract during edit mode; successful account holdings saves intentionally clear those draft rows so hydration resumes from the canonical backend snapshot, while target positions account saves keep the local draft rows because there is no hydrate-back path in this widget mode
+- Storage impact: `holdingsDate` and `targetPositionsDate` are persisted widget props and store timezone-aware ISO timestamps. This changes the frontend workspace storage shape for account-mode widgets but does not require a backend registry payload change because both fields remain strings.
 - Bump `widgetVersion` when the configuration surface, runtime behavior, or agent-facing authoring
   guidance changes materially.

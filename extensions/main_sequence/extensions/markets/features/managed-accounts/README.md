@@ -52,8 +52,10 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
   - `GET /orm/api/assets/account/{uid}/holdings/`
 - Holdings edits write back through:
   - `POST /orm/api/assets/account/{uid}/add-holdings/`
-- `Target Position` now mounts the same positions widget with `sourceType: "target_position"`
-  directly inside the account detail page. This is also a page-local editor only; it does not
-  persist to a managed-account backend endpoint yet.
+- `Target Position` now mounts the same positions widget with `sourceType: "target_positions_account"`
+  directly inside the account detail page. That
+  surface now persists through:
+  - `POST /orm/api/assets/account/{uid}/add-target-positions/`
+  and stores the assignment datetime at the widget level as `targetPositionsDate`.
 - Keep the detail view generic enough to tolerate additive backend fields, but do not silently
   infer destructive actions or edit semantics from arbitrary payload keys.

@@ -152,7 +152,7 @@ export function PositionDetailWidgetSettings({
 
         <label className="space-y-2">
           <WidgetSettingFieldLabel
-            help="Used only when the source type is Account and no local rows have been authored yet."
+            help="Used when the source type is Account for holdings hydration, or Target Positions Account for account-scoped target-position saves."
             textClassName="text-sm font-medium text-topbar-foreground"
           >
             Account uid
@@ -161,7 +161,10 @@ export function PositionDetailWidgetSettings({
             type="text"
             placeholder="managed-account-uid"
             value={accountUid}
-            readOnly={!editable || sourceType !== "account"}
+            readOnly={
+              !editable ||
+              (sourceType !== "account" && sourceType !== "target_positions_account")
+            }
             onChange={(event) => {
               onDraftPropsChange({
                 ...draftProps,
@@ -170,8 +173,10 @@ export function PositionDetailWidgetSettings({
             }}
           />
           <p className="text-sm text-muted-foreground">
-            {sourceType === "account" || sourceType === "target_positions_account"
+            {sourceType === "account"
               ? "Hydrates latest account holdings from the canonical holdings endpoint until you enter edit mode and save a new holdings snapshot."
+              : sourceType === "target_positions_account"
+                ? "Required for account-scoped target-position saves through the add-target-positions endpoint."
               : "Ignored for portfolio and target position source types."}
           </p>
         </label>
