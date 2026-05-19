@@ -10,7 +10,6 @@ function getDataApi(): DataApi {
 }
 
 export const fetchKpiCards: DataApi["fetchKpiCards"] = (...args) => getDataApi().fetchKpiCards(...args);
-export const fetchPositions: DataApi["fetchPositions"] = (...args) => getDataApi().fetchPositions(...args);
 export const fetchNews: DataApi["fetchNews"] = (...args) => getDataApi().fetchNews(...args);
 export const fetchActivity: DataApi["fetchActivity"] = (...args) => getDataApi().fetchActivity(...args);
 export const fetchPriceHistory: DataApi["fetchPriceHistory"] = (...args) =>
@@ -24,6 +23,5 @@ export type {
   NewsItem,
   OrderBook,
   OrderLevel,
-  PositionRow,
   PricePoint,
 } from "@/data/types";

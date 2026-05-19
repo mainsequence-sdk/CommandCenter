@@ -8,18 +8,6 @@ export interface KpiCard {
   format: "currency" | "number" | "percent";
 }
 
-export interface PositionRow {
-  symbol: string;
-  side: "Long" | "Short";
-  quantity: number;
-  avgPrice: number;
-  lastPrice: number;
-  pnl: number;
-  exposure: number;
-  account: string;
-  strategy: string;
-}
-
 export interface NewsItem {
   id: string;
   source: string;

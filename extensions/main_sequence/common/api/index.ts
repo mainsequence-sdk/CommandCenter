@@ -541,7 +541,6 @@ export interface CreateManagedAccountInput {
   account_name: string;
   execution_venue: number;
   is_paper?: boolean;
-  valuation_translation_table?: number | null;
   holdings_data_source?: number | null;
 }
 
@@ -699,6 +698,66 @@ export interface TargetPortfolioWeightsPositionDetailsResponse {
   summaryColumnDefs: TargetPortfolioWeightsPositionColumnDef[];
   position_map: Record<string, unknown> | null;
   weights_date: string | null;
+}
+
+export interface ManagedAccountHoldingRow {
+  time_index: string | null;
+  unique_identifier: string | null;
+  asset: number | null;
+  asset_id: number | null;
+  position_type: string | null;
+  price: string | number | null;
+  quantity: string | number | null;
+  missing_price: boolean;
+  extra_details: Record<string, unknown>;
+}
+
+export interface ManagedAccountHoldingsSnapshotResponse {
+  id: number | null;
+  snapshot_uid: string | null;
+  holdings_set_uid: string | null;
+  holdings_date: string | null;
+  nav: string | number | null;
+  related_account: number | null;
+  is_trade_snapshot: boolean;
+  target_trade_time: string | null;
+  related_expected_asset_exposure_df: unknown[];
+  holdings: ManagedAccountHoldingRow[];
+}
+
+export interface ManagedAccountHoldingsWritePositionInput {
+  unique_identifier: string;
+  asset_id: number;
+  position_type: string;
+  price: string;
+  quantity: string;
+  missing_price: boolean;
+  target_trade_time: string;
+  extra_details: Record<string, unknown>;
+}
+
+export interface ManagedAccountHoldingsWriteInput {
+  holdings_date: string;
+  overwrite?: boolean;
+  positions: ManagedAccountHoldingsWritePositionInput[];
+}
+
+export interface ManagedAccountSavedHoldingRow {
+  unique_identifier: string | null;
+  asset_id: number | null;
+  position_type: string | null;
+  price: string | number | null;
+  quantity: string | number | null;
+  missing_price: boolean;
+  target_trade_time: string | null;
+  extra_details: Record<string, unknown>;
+}
+
+export interface ManagedAccountHoldingsWriteResponse {
+  related_account: number | null;
+  holdings_date: string | null;
+  holdings_set_uid: string | null;
+  positions: ManagedAccountSavedHoldingRow[];
 }
 
 export interface AssetTranslationTableListRow {
@@ -1382,6 +1441,7 @@ export interface DataNodeSummary {
   id: number;
   storage_hash: string;
   creation_date: string;
+  namespace?: string | null;
   source_class_name: string | null;
   protect_from_deletion: boolean;
   time_serie_source_code_git_hash: string | null;
@@ -1815,6 +1875,202 @@ function buildWidgetPreviewPortfolioWeightsResponse(
       },
     },
     weights_date: buildWidgetPreviewIsoTimestamp(),
+  };
+}
+
+function buildEmptyPortfolioWeightsPositionDetailsResponse(
+  weightsDate: string | null = null,
+): TargetPortfolioWeightsPositionDetailsResponse {
+  return {
+    weights: null,
+    position_columns: [],
+    rows: [],
+    columnDefs: [],
+    summaryColumnDefs: [],
+    position_map: null,
+    weights_date: weightsDate,
+  };
+}
+
+function normalizeManagedAccountHoldingsSnapshot(
+  value: unknown,
+): ManagedAccountHoldingsSnapshotResponse {
+  const record = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+  const holdings = Array.isArray(record.holdings)
+    ? record.holdings
+        .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+        .map((entry) => {
+          const row = entry as Record<string, unknown>;
+          return {
+            time_index: typeof row.time_index === "string" ? row.time_index : null,
+            unique_identifier:
+              typeof row.unique_identifier === "string" ? row.unique_identifier : null,
+            asset: typeof row.asset === "number" ? row.asset : null,
+            asset_id:
+              typeof row.asset_id === "number"
+                ? row.asset_id
+                : typeof row.asset === "number"
+                  ? row.asset
+                  : null,
+            position_type:
+              typeof row.position_type === "string" ? row.position_type : null,
+            price:
+              typeof row.price === "string" || typeof row.price === "number" ? row.price : null,
+            quantity:
+              typeof row.quantity === "string" || typeof row.quantity === "number"
+                ? row.quantity
+                : null,
+            missing_price: typeof row.missing_price === "boolean" ? row.missing_price : false,
+            extra_details:
+              row.extra_details && typeof row.extra_details === "object" && !Array.isArray(row.extra_details)
+                ? (row.extra_details as Record<string, unknown>)
+                : {},
+          } satisfies ManagedAccountHoldingRow;
+        })
+    : [];
+
+  return {
+    id: typeof record.id === "number" ? record.id : null,
+    snapshot_uid: typeof record.snapshot_uid === "string" ? record.snapshot_uid : null,
+    holdings_set_uid: typeof record.holdings_set_uid === "string" ? record.holdings_set_uid : null,
+    holdings_date: typeof record.holdings_date === "string" ? record.holdings_date : null,
+    nav:
+      typeof record.nav === "string" || typeof record.nav === "number" ? record.nav : null,
+    related_account:
+      typeof record.related_account === "number" ? record.related_account : null,
+    is_trade_snapshot:
+      typeof record.is_trade_snapshot === "boolean" ? record.is_trade_snapshot : false,
+    target_trade_time:
+      typeof record.target_trade_time === "string" ? record.target_trade_time : null,
+    related_expected_asset_exposure_df: Array.isArray(record.related_expected_asset_exposure_df)
+      ? record.related_expected_asset_exposure_df
+      : [],
+    holdings,
+  };
+}
+
+function adaptManagedAccountHoldingsSnapshotToPositionDetails(
+  snapshot: ManagedAccountHoldingsSnapshotResponse,
+): TargetPortfolioWeightsPositionDetailsResponse {
+  if (snapshot.holdings.length === 0) {
+    return buildEmptyPortfolioWeightsPositionDetailsResponse(snapshot.holdings_date);
+  }
+
+  return {
+    weights: {
+      nav: snapshot.nav,
+      snapshot_uid: snapshot.snapshot_uid,
+      holdings_set_uid: snapshot.holdings_set_uid,
+      related_account: snapshot.related_account,
+      is_trade_snapshot: snapshot.is_trade_snapshot,
+      target_trade_time: snapshot.target_trade_time,
+      related_expected_asset_exposure_df: snapshot.related_expected_asset_exposure_df,
+    },
+    position_columns: [],
+    rows: snapshot.holdings.map((holding) => ({
+      asset_id: holding.asset_id ?? holding.asset,
+      asset_name: holding.unique_identifier,
+      asset_ticker: null,
+      unique_identifier: holding.unique_identifier,
+      figi: holding.unique_identifier,
+      price: holding.price,
+      position_type: holding.position_type ?? "units",
+      position_value: holding.quantity,
+      missing_price: holding.missing_price,
+      extra_details: holding.extra_details,
+    })),
+    columnDefs: [
+      { field: "asset_name", headerName: "Asset" },
+      { field: "unique_identifier", headerName: "UID" },
+      { field: "price", headerName: "Price" },
+      { field: "position_type", headerName: "Position Type" },
+      { field: "position_value", headerName: "Quantity" },
+    ],
+    summaryColumnDefs: [],
+    position_map: null,
+    weights_date: snapshot.holdings_date,
+  };
+}
+
+function normalizeManagedAccountHoldingsWriteResponse(
+  value: unknown,
+): ManagedAccountHoldingsWriteResponse {
+  const record = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+  const positions = Array.isArray(record.positions)
+    ? record.positions
+        .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+        .map((entry) => {
+          const row = entry as Record<string, unknown>;
+          return {
+            unique_identifier:
+              typeof row.unique_identifier === "string" ? row.unique_identifier : null,
+            asset_id: typeof row.asset_id === "number" ? row.asset_id : null,
+            position_type:
+              typeof row.position_type === "string" ? row.position_type : null,
+            price:
+              typeof row.price === "string" || typeof row.price === "number" ? row.price : null,
+            quantity:
+              typeof row.quantity === "string" || typeof row.quantity === "number"
+                ? row.quantity
+                : null,
+            missing_price: typeof row.missing_price === "boolean" ? row.missing_price : false,
+            target_trade_time:
+              typeof row.target_trade_time === "string" ? row.target_trade_time : null,
+            extra_details:
+              row.extra_details && typeof row.extra_details === "object" && !Array.isArray(row.extra_details)
+                ? (row.extra_details as Record<string, unknown>)
+                : {},
+          } satisfies ManagedAccountSavedHoldingRow;
+        })
+    : [];
+
+  return {
+    related_account:
+      typeof record.related_account === "number" ? record.related_account : null,
+    holdings_date: typeof record.holdings_date === "string" ? record.holdings_date : null,
+    holdings_set_uid: typeof record.holdings_set_uid === "string" ? record.holdings_set_uid : null,
+    positions,
+  };
+}
+
+function adaptManagedAccountHoldingsWriteResponseToPositionDetails(
+  snapshot: ManagedAccountHoldingsWriteResponse,
+): TargetPortfolioWeightsPositionDetailsResponse {
+  return {
+    weights: {
+      holdings_set_uid: snapshot.holdings_set_uid,
+      related_account: snapshot.related_account,
+    },
+    position_columns: [],
+    rows: snapshot.positions.map((position) => ({
+      asset_id: position.asset_id,
+      asset_name: position.unique_identifier,
+      asset_ticker: null,
+      unique_identifier: position.unique_identifier,
+      figi: position.unique_identifier,
+      price: position.price,
+      position_type: position.position_type ?? "units",
+      position_value: position.quantity,
+      missing_price: position.missing_price,
+      extra_details: position.extra_details,
+      target_trade_time: position.target_trade_time,
+    })),
+    columnDefs: [
+      { field: "asset_name", headerName: "Asset" },
+      { field: "unique_identifier", headerName: "UID" },
+      { field: "price", headerName: "Price" },
+      { field: "position_type", headerName: "Position Type" },
+      { field: "position_value", headerName: "Quantity" },
+    ],
+    summaryColumnDefs: [],
+    position_map: null,
+    weights_date: snapshot.holdings_date,
   };
 }
 
@@ -3944,6 +4200,73 @@ export function fetchTargetPortfolioWeightsPositionDetails(
   );
 }
 
+export async function fetchManagedAccountHoldingsPositionDetails(
+  accountId: number,
+  options: {
+    holdingsDate?: string;
+    traceMeta?: DashboardRequestTraceMeta;
+  } = {},
+) {
+  if (isWidgetPreviewMode()) {
+    return adaptManagedAccountHoldingsSnapshotToPositionDetails(
+      normalizeManagedAccountHoldingsSnapshot({
+        id: accountId,
+        snapshot_uid: "preview-managed-account-holdings",
+        holdings_set_uid: "preview-managed-account-holdings",
+        holdings_date: buildWidgetPreviewIsoTimestamp(),
+        nav: "1250.25000000",
+        related_account: accountId,
+        is_trade_snapshot: false,
+        target_trade_time: null,
+        related_expected_asset_exposure_df: [],
+        holdings: [
+          {
+            time_index: buildWidgetPreviewIsoTimestamp(),
+            unique_identifier: "btc_spot",
+            asset: 101,
+            asset_id: 101,
+            position_type: "units",
+            price: "100.000000000000000000",
+            quantity: "12.00000000",
+            missing_price: false,
+            extra_details: {},
+          },
+        ],
+      }),
+    );
+  }
+
+  const payload = await requestJson<ManagedAccountHoldingsSnapshotResponse | Record<string, unknown>>(
+    managedAccountEndpoint,
+    `${accountId}/holdings/`,
+    undefined,
+    options.holdingsDate ? { holdings_date: options.holdingsDate } : undefined,
+    options.traceMeta,
+  );
+
+  return adaptManagedAccountHoldingsSnapshotToPositionDetails(
+    normalizeManagedAccountHoldingsSnapshot(payload),
+  );
+}
+
+export async function saveManagedAccountHoldings(
+  accountId: number,
+  input: ManagedAccountHoldingsWriteInput,
+) {
+  const payload = await requestJson<ManagedAccountHoldingsWriteResponse | Record<string, unknown>>(
+    managedAccountEndpoint,
+    `${accountId}/add-holdings/`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+
+  return adaptManagedAccountHoldingsWriteResponseToPositionDetails(
+    normalizeManagedAccountHoldingsWriteResponse(payload),
+  );
+}
+
 export async function listAssetTranslationTables({
   search,
   page = 1,
@@ -5195,7 +5518,7 @@ export function listSimpleTableUpdateHistoricalUpdates(
 
 export async function listDataNodes({
   limit = mainSequenceRegistryPageSize,
-  light = false,
+  light = true,
   offset = 0,
   q,
 }: {

@@ -11,7 +11,7 @@ import type { PortfolioWeightsWidgetProps } from "./portfolioWeightsRuntime";
 
 export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>({
   id: "portfolio-weights-table",
-  widgetVersion: "2.0.0",
+  widgetVersion: "3.3.0",
   title: "Portfolio Weights",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
@@ -25,9 +25,9 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
   },
   mockProps: {
     editableInPlace: true,
-    dataMode: "inline",
+    sourceType: "target_position",
     variant: "positions",
-    inlineRows: [
+    positionRows: [
       {
         rowId: "mock-ust2y",
         assetId: 1,
@@ -35,6 +35,7 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
         assetTicker: "UST2Y",
         uniqueIdentifier: "US91282CJR34",
         figi: "BBG00JX7S9H4",
+        date: "2026-05-18",
         positionType: "weight_notional_exposure",
         positionValue: 0.184,
       },
@@ -45,6 +46,7 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
         assetTicker: "UST10Y",
         uniqueIdentifier: "US91282CLM67",
         figi: "BBG00L0J2D82",
+        date: "2026-05-18",
         positionType: "constant_notional",
         positionValue: 2500000,
       },
@@ -57,17 +59,19 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
       : runtimeState
         ? "loading"
         : "idle",
-    summary: domTextContent?.trim()
+      summary: domTextContent?.trim()
       ? domTextContent.trim().slice(0, 240)
       : "Portfolio Weights is waiting for portfolio data.",
     data: {
       widgetRole: "presentation",
       contentType: "table",
+      sourceType: props.sourceType ?? null,
       portfolioId: props.portfolioId ?? null,
+      accountId: props.accountId ?? null,
+      holdingsDate: props.holdingsDate ?? null,
       targetPortfolioId: props.targetPortfolioId ?? null,
       variant: props.variant ?? null,
       editableInPlace: props.editableInPlace === true,
-      dataMode: props.dataMode ?? null,
     },
   }),
   settingsComponent: PortfolioWeightsWidgetSettings,
@@ -77,8 +81,15 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
     configuration: {
       mode: "custom-settings",
       summary:
-        "Loads a target portfolio weights table from a portfolio id or lets authors manage inline positions directly on the canvas.",
+        "Renders portfolio, account, or target-position rows. Account mode hydrates canonical holdings and can save an overwritten holdings snapshot back to the managed account.",
       fields: [
+        {
+          id: "sourceType",
+          label: "Source type",
+          type: "enum",
+          required: false,
+          source: "custom-settings",
+        },
         {
           id: "portfolioId",
           label: "Portfolio id",
@@ -90,6 +101,18 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
           id: "targetPortfolioId",
           label: "Target portfolio id",
           type: "integer",
+          source: "custom-settings",
+        },
+        {
+          id: "accountId",
+          label: "Account id",
+          type: "integer",
+          source: "custom-settings",
+        },
+        {
+          id: "holdingsDate",
+          label: "Holdings date",
+          type: "string",
           source: "custom-settings",
         },
         {
@@ -105,33 +128,29 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
           source: "custom-settings",
         },
         {
-          id: "dataMode",
-          label: "Data mode",
-          type: "enum",
-          source: "custom-settings",
-        },
-        {
-          id: "inlineRows",
-          label: "Inline rows",
+          id: "positionRows",
+          label: "Position rows",
           type: "array",
           source: "custom-settings",
         },
       ],
       requiredSetupSteps: [
-        "Choose portfolio mode and set a portfolio id, or enable Editable in place and add assets directly on the widget.",
+        "Choose the source type first. Portfolio can hydrate from a portfolio id; account and target position can be authored directly on the widget. Enable Editable in place when authors should maintain rows on the canvas.",
       ],
     },
     runtime: {
       refreshPolicy: "allow-refresh",
       executionTriggers: ["dashboard-refresh", "manual-recalculate"],
       executionSummary:
-        "Portfolio mode owns the backend weights request. Inline mode renders persisted local rows and does not execute a backend fetch.",
+        "Portfolio source can hydrate from the target portfolio weights endpoint. Account source can hydrate from the canonical holdings endpoint and, in edit mode, save a rewritten holdings snapshot through the managed-account holdings write endpoint. Target position remains local-authored in the current frontend contract.",
     },
     io: {
       mode: "none",
-      summary: "This widget does not participate in typed widget bindings. In portfolio mode it owns its own query; in inline mode it renders local authored rows.",
+      summary:
+        "This widget does not participate in typed widget bindings. Portfolio and account can hydrate from their own queries; account edit mode can also save holdings back to the managed account. Target position renders local authored rows.",
     },
     capabilities: {
+      supportedSourceTypes: ["portfolio", "account", "target_position"],
       supportedVariants: ["summary", "positions"],
       supportedPositionTypes: [
         "weight_notional_exposure",

@@ -14,7 +14,7 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
 - `MainSequenceManagedAccountsPage.tsx`: registry list with shared search, offset pagination, and
   account creation entry point.
 - `MainSequenceManagedAccountDetailPage.tsx`: summary-driven detail page for one managed account,
-  with `Holdings` and `Rebalance` tabs.
+  with `Holdings` and `Target Position` tabs.
 - `managedAccountShared.ts`: route helpers and label/value formatting shared by list and detail.
 - `managedAccountEditor.tsx`: account creation dialog, option loading, validation, and payload
   shaping.
@@ -35,21 +35,24 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
 - The create flow assumes:
   - `POST /orm/api/assets/account/`
   - required payload fields: `account_name`, `execution_venue`
-  - optional payload fields: `is_paper`, `valuation_translation_table`,
-    `holdings_data_source`
+  - optional payload fields: `is_paper`, `holdings_data_source`
 - The list surface also supports deleting selected accounts through:
   - `DELETE /orm/api/assets/account/{id}/`
 - The create modal also depends on option loaders at:
   - `GET /orm/api/assets/execution_venue/`
-  - `GET /orm/api/assets/asset-translation-tables/`
   - `GET /orm/api/connections/data_source/`
 - Client-side validation treats `account_name` as unique and requires a holdings data source only
   when no organization default data source is visible in the loaded options payload.
 - If the backend later adds edit flows or a dedicated bulk-delete account contract, keep them in
   this feature instead of overloading the shared API layer without a concrete UI contract.
-- `Holdings` now exposes a local `Update holdings` entry point that mounts the inline-editable
-  positions widget directly inside the account detail page. This is a page-local editor only; it
-  does not persist to a managed-account backend endpoint yet.
-- `Rebalance` remains a scaffolded UI surface until explicit backend-backed rebalance data exists.
+- `Holdings` now mounts the positions widget directly with `sourceType: "account"`,
+  `editableInPlace: true`, and the current `accountId` inside the account detail page. That
+  surface hydrates from:
+  - `GET /orm/api/assets/account/{id}/holdings/`
+- Holdings edits are page-local widget prop edits seeded from the latest hydrated snapshot until a
+  dedicated managed-account holdings write endpoint exists.
+- `Target Position` now mounts the same positions widget with `sourceType: "target_position"`
+  directly inside the account detail page. This is also a page-local editor only; it does not
+  persist to a managed-account backend endpoint yet.
 - Keep the detail view generic enough to tolerate additive backend fields, but do not silently
   infer destructive actions or edit semantics from arbitrary payload keys.

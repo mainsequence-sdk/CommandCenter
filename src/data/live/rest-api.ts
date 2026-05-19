@@ -5,7 +5,6 @@ import type {
   KpiCard,
   NewsItem,
   OrderBook,
-  PositionRow,
   PricePoint,
 } from "@/data/types";
 
@@ -59,10 +58,6 @@ async function fetchJson<T>(path: string, search?: Record<string, string | numbe
 
 export function fetchKpiCards(symbol = "AAPL") {
   return fetchJson<KpiCard[]>("market/kpis", { symbol });
-}
-
-export function fetchPositions() {
-  return fetchJson<PositionRow[]>("portfolio/positions");
 }
 
 export function fetchNews(limit = 6) {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PageHeader } from "@/components/ui/page-header";
 
 import {
+  fetchManagedAccountHoldingsPositionDetails,
   fetchManagedAccountSummary,
   formatMainSequenceError,
 } from "../../../../common/api";
@@ -21,7 +22,7 @@ import { getManagedAccountsListPath } from "./managedAccountShared";
 
 export const managedAccountDetailTabs = [
   { id: "holdings", label: "Holdings" },
-  { id: "rebalance", label: "Rebalance" },
+  { id: "target-position", label: "Target Position" },
 ] as const;
 
 export type ManagedAccountDetailTabId =
@@ -29,17 +30,37 @@ export type ManagedAccountDetailTabId =
 
 const defaultManagedAccountDetailTabId: ManagedAccountDetailTabId = "holdings";
 
-const initialManagedAccountHoldingsEditorProps: PortfolioWeightsWidgetProps = {
+function buildManagedAccountHoldingsWidgetProps(
+  accountId: number | null,
+): PortfolioWeightsWidgetProps {
+  return {
+    editableInPlace: true,
+    sourceType: "account",
+    accountId: accountId ?? undefined,
+    variant: "positions",
+    positionRows: [],
+  };
+}
+
+const initialManagedAccountTargetPositionEditorProps: PortfolioWeightsWidgetProps = {
   editableInPlace: true,
-  dataMode: "inline",
+  sourceType: "target_position",
   variant: "positions",
-  inlineRows: [],
+  positionRows: [],
 };
 
 function isManagedAccountDetailTabId(
   value: string | null,
 ): value is ManagedAccountDetailTabId {
   return managedAccountDetailTabs.some((tab) => tab.id === value);
+}
+
+function normalizeManagedAccountDetailTabId(value: string | null): ManagedAccountDetailTabId | null {
+  if (value === "rebalance") {
+    return "target-position";
+  }
+
+  return isManagedAccountDetailTabId(value) ? value : null;
 }
 
 function readPositiveInt(value: string | null | undefined) {
@@ -58,17 +79,37 @@ export function MainSequenceManagedAccountDetailPage() {
     ((location.state as { from?: string } | null)?.from || "").trim() ||
     getManagedAccountsListPath();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedTabId = isManagedAccountDetailTabId(searchParams.get("accountTab"))
-    ? searchParams.get("accountTab")
-    : defaultManagedAccountDetailTabId;
-  const [holdingsEditorVisible, setHoldingsEditorVisible] = useState(false);
-  const [holdingsEditorProps, setHoldingsEditorProps] = useState<PortfolioWeightsWidgetProps>(
-    initialManagedAccountHoldingsEditorProps,
+  const selectedTabId =
+    normalizeManagedAccountDetailTabId(searchParams.get("accountTab")) ??
+    defaultManagedAccountDetailTabId;
+  const [targetPositionEditorProps, setTargetPositionEditorProps] =
+    useState<PortfolioWeightsWidgetProps>(initialManagedAccountTargetPositionEditorProps);
+  const [holdingsWidgetProps, setHoldingsWidgetProps] =
+    useState<PortfolioWeightsWidgetProps>(() =>
+      buildManagedAccountHoldingsWidgetProps(managedAccountId),
+    );
+
+  useEffect(
+    () => {
+      setHoldingsWidgetProps(buildManagedAccountHoldingsWidgetProps(managedAccountId));
+    },
+    [managedAccountId],
   );
 
   const managedAccountSummaryQuery = useQuery({
     queryKey: ["main_sequence", "managed_accounts", "summary", managedAccountId],
     queryFn: () => fetchManagedAccountSummary(managedAccountId as number),
+    enabled: managedAccountId !== null,
+  });
+
+  const holdingsRuntimeQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "managed_accounts",
+      "holdings",
+      managedAccountId,
+    ],
+    queryFn: () => fetchManagedAccountHoldingsPositionDetails(managedAccountId as number),
     enabled: managedAccountId !== null,
   });
 
@@ -168,51 +209,62 @@ export function MainSequenceManagedAccountDetailPage() {
           {selectedTabId === "holdings" ? (
             <Card variant="nested">
               <CardHeader className="border-b border-border/70 pb-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <CardTitle className="text-base">Holdings</CardTitle>
-                    <CardDescription>
-                      Use the inline positions editor to draft or review holdings before a dedicated account holdings endpoint exists.
-                    </CardDescription>
-                  </div>
-                  <Button
-                    type="button"
-                    variant={holdingsEditorVisible ? "outline" : "default"}
-                    onClick={() => {
-                      setHoldingsEditorVisible((current) => !current);
-                    }}
-                  >
-                    {holdingsEditorVisible ? "Hide holdings editor" : "Update holdings"}
-                  </Button>
-                </div>
+                <CardTitle className="text-base">Holdings</CardTitle>
+                <CardDescription>
+                  Review the latest canonical holdings snapshot resolved directly from the managed account.
+                </CardDescription>
               </CardHeader>
               <CardContent className="pt-5">
-                {holdingsEditorVisible ? (
-                  <PortfolioWeightsWidget
-                    widget={portfolioWeightsWidget}
-                    props={holdingsEditorProps}
-                    editable
-                    onPropsChange={setHoldingsEditorProps}
-                  />
-                ) : (
-                  <div className="text-sm text-muted-foreground">
-                    Open <span className="font-medium text-foreground">Update holdings</span> to
-                    edit positions directly in this account view.
-                  </div>
-                )}
+                <PortfolioWeightsWidget
+                  widget={portfolioWeightsWidget}
+                  props={holdingsWidgetProps}
+                  editable
+                  onPropsChange={setHoldingsWidgetProps}
+                  runtimeState={
+                    holdingsRuntimeQuery.isError
+                      ? {
+                          status: "error",
+                          error: formatMainSequenceError(holdingsRuntimeQuery.error),
+                          accountId: managedAccountId ?? undefined,
+                          variant: "positions",
+                          payload: undefined,
+                        }
+                      : holdingsRuntimeQuery.isLoading
+                        ? {
+                            status: "loading",
+                            error: undefined,
+                            accountId: managedAccountId ?? undefined,
+                            variant: "positions",
+                            payload: undefined,
+                          }
+                        : holdingsRuntimeQuery.data
+                          ? {
+                              status: "success",
+                              error: undefined,
+                              accountId: managedAccountId ?? undefined,
+                              variant: "positions",
+                              payload: holdingsRuntimeQuery.data,
+                            }
+                          : undefined
+                  }
+                />
               </CardContent>
             </Card>
           ) : (
             <Card variant="nested">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Rebalance</CardTitle>
+              <CardHeader className="border-b border-border/70 pb-4">
+                <CardTitle className="text-base">Target Position</CardTitle>
                 <CardDescription>
-                  Rebalance content has not been connected to an account endpoint yet.
+                  Draft or review target-position rows directly in this account view until a dedicated target-position endpoint exists.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="pt-0 text-sm text-muted-foreground">
-                Add the managed-account rebalance workflow here when the backend exposes the
-                account rebalance view.
+              <CardContent className="pt-5">
+                <PortfolioWeightsWidget
+                  widget={portfolioWeightsWidget}
+                  props={targetPositionEditorProps}
+                  editable
+                  onPropsChange={setTargetPositionEditorProps}
+                />
               </CardContent>
             </Card>
           )}

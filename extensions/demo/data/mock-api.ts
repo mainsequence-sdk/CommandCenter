@@ -5,7 +5,6 @@ import type {
   NewsItem,
   OrderBook,
   OrderLevel,
-  PositionRow,
   PricePoint,
 } from "@/data/types";
 
@@ -65,79 +64,6 @@ export async function fetchKpiCards(symbol = "AAPL"): Promise<KpiCard[]> {
       changePct: -12.5,
       hint: "Actionable checks",
       format: "number",
-    },
-  ];
-}
-
-export async function fetchPositions(): Promise<PositionRow[]> {
-  await sleep(280);
-
-  return [
-    {
-      symbol: "AAPL",
-      side: "Long",
-      quantity: 12_500,
-      avgPrice: 205.43,
-      lastPrice: 212.41,
-      pnl: 87_250,
-      exposure: 2_655_125,
-      account: "MAIN",
-      strategy: "Core Growth",
-    },
-    {
-      symbol: "NVDA",
-      side: "Long",
-      quantity: 2_300,
-      avgPrice: 910.0,
-      lastPrice: 942.1,
-      pnl: 73_830,
-      exposure: 2_166_830,
-      account: "MAIN",
-      strategy: "AI Momentum",
-    },
-    {
-      symbol: "TSLA",
-      side: "Short",
-      quantity: 4_000,
-      avgPrice: 190.2,
-      lastPrice: 184.2,
-      pnl: 24_000,
-      exposure: 736_800,
-      account: "HEDGE",
-      strategy: "Vol Hedge",
-    },
-    {
-      symbol: "MSFT",
-      side: "Long",
-      quantity: 5_100,
-      avgPrice: 421.2,
-      lastPrice: 417.9,
-      pnl: -16_830,
-      exposure: 2_131_290,
-      account: "MAIN",
-      strategy: "Mega Cap Basket",
-    },
-    {
-      symbol: "AMD",
-      side: "Long",
-      quantity: 8_000,
-      avgPrice: 168.5,
-      lastPrice: 173.8,
-      pnl: 42_400,
-      exposure: 1_390_400,
-      account: "MOM",
-      strategy: "Semis Swing",
-    },
-    {
-      symbol: "NFLX",
-      side: "Short",
-      quantity: 1_600,
-      avgPrice: 628.0,
-      lastPrice: 634.2,
-      pnl: -9_920,
-      exposure: 1_014_720,
-      account: "HEDGE",
-      strategy: "Pairs Overlay",
     },
   ];
 }

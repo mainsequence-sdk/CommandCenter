@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 import { type TargetPortfolioWeightsPositionColumnDef } from "../../../../common/api";
 import { MainSequenceDataGrid } from "../../../../common/components/MainSequenceDataGrid";
+import type { PortfolioWeightsSourceType } from "./portfolioWeightsRuntime";
 
 export type PortfolioWeightsTableVariant = "summary" | "positions";
 
@@ -39,6 +40,8 @@ export interface PortfolioWeightsTableProps {
   expandableAssetRows?: boolean;
   positionMap?: Record<string, unknown> | null;
   preferredPositionColumns?: boolean;
+  sourceType?: PortfolioWeightsSourceType;
+  holdingsDate?: string | null;
   tableMinWidth?: number;
 }
 
@@ -148,24 +151,55 @@ export function formatPortfolioWeightsCellValue(value: unknown, field?: string) 
   return formatPortfolioWeightsUnknownValue(value);
 }
 
+function formatPortfolioWeightPositionDateValue(value: unknown) {
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Date.parse(value);
+
+    if (Number.isFinite(parsed)) {
+      return new Intl.DateTimeFormat("en-US", {
+        dateStyle: "medium",
+      }).format(new Date(parsed));
+    }
+  }
+
+  return "Not available";
+}
+
 function formatPortfolioWeightPositionValueByType(
   value: unknown,
   positionType: string | null | undefined,
   field = "position_value",
 ) {
-  if ((positionType ?? "").trim().toLowerCase() === "weight_notional_exposure") {
-    const parsed =
-      typeof value === "number"
-        ? value
-        : typeof value === "string"
-          ? Number(value)
-          : Number.NaN;
+  const normalizedPositionType = (positionType ?? "").trim().toLowerCase();
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
 
-    if (Number.isFinite(parsed)) {
+  if (Number.isFinite(parsed)) {
+    if (normalizedPositionType === "weight_notional_exposure") {
       return new Intl.NumberFormat("en-US", {
         style: "percent",
         minimumFractionDigits: 0,
         maximumFractionDigits: 2,
+      }).format(parsed);
+    }
+
+    if (normalizedPositionType === "constant_notional") {
+      return `$${new Intl.NumberFormat("en-US", {
+        useGrouping: true,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 20,
+      }).format(parsed)}`;
+    }
+
+    if (normalizedPositionType === "units") {
+      return new Intl.NumberFormat("en-US", {
+        useGrouping: true,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 20,
       }).format(parsed);
     }
   }
@@ -346,6 +380,27 @@ export function getPortfolioWeightPositionRowType(row: Record<string, unknown>) 
   return directValue || "Not available";
 }
 
+function getPortfolioWeightPositionRowDate(row: Record<string, unknown>) {
+  return getPortfolioWeightPositionRowDateWithFallback(row);
+}
+
+function getPortfolioWeightPositionRowDateWithFallback(
+  row: Record<string, unknown>,
+  fallbackDate?: string | null,
+) {
+  const value = findPortfolioWeightsValue(row, [
+    ["date"],
+    ["as_of_date"],
+    ["effective_date"],
+    ["position_date"],
+    ["weights_date"],
+    ["timestamp"],
+    ["time_index"],
+  ]);
+
+  return formatPortfolioWeightPositionDateValue(value ?? fallbackDate);
+}
+
 export function getPortfolioWeightPositionRowNumericValue(row: Record<string, unknown>) {
   const value = findPortfolioWeightsValue(row, [
     ["position_value"],
@@ -413,47 +468,130 @@ export function getPortfolioWeightsPositionSummary(
   };
 }
 
+export function getPortfolioWeightsPositionSummariesByType(
+  rows: Array<Record<string, unknown>>,
+) {
+  const summaryByType = new Map<
+    string,
+    {
+      positionType: string;
+      longSum: number;
+      shortSum: number;
+      totalSum: number;
+    }
+  >();
+
+  for (const row of rows) {
+    const numericValue = getPortfolioWeightPositionRowNumericValue(row);
+
+    if (numericValue === null) {
+      continue;
+    }
+
+    const positionType = getPortfolioWeightPositionRowType(row);
+
+    if (positionType === "units") {
+      continue;
+    }
+
+    const key = positionType !== "Not available" ? positionType : "unknown";
+    const existing = summaryByType.get(key) ?? {
+      positionType: key,
+      longSum: 0,
+      shortSum: 0,
+      totalSum: 0,
+    };
+
+    existing.totalSum += numericValue;
+
+    if (numericValue > 0) {
+      existing.longSum += numericValue;
+    } else if (numericValue < 0) {
+      existing.shortSum += numericValue;
+    }
+
+    summaryByType.set(key, existing);
+  }
+
+  const preferredOrder = [
+    "weight_notional_exposure",
+    "constant_notional",
+    "units",
+    "unknown",
+  ];
+
+  return Array.from(summaryByType.values()).sort((left, right) => {
+    const leftIndex = preferredOrder.indexOf(left.positionType);
+    const rightIndex = preferredOrder.indexOf(right.positionType);
+
+    const normalizedLeftIndex = leftIndex === -1 ? preferredOrder.length : leftIndex;
+    const normalizedRightIndex = rightIndex === -1 ? preferredOrder.length : rightIndex;
+
+    if (normalizedLeftIndex !== normalizedRightIndex) {
+      return normalizedLeftIndex - normalizedRightIndex;
+    }
+
+    return left.positionType.localeCompare(right.positionType);
+  });
+}
+
 export function PortfolioWeightsPositionSummaryStrip({
   rows,
 }: {
   rows: Array<Record<string, unknown>>;
 }) {
-  const summary = useMemo(() => getPortfolioWeightsPositionSummary(rows), [rows]);
+  const summaries = useMemo(() => getPortfolioWeightsPositionSummariesByType(rows), [rows]);
+
+  if (summaries.length === 0) {
+    return null;
+  }
 
   return (
-    <div className="mb-3 flex flex-wrap gap-2">
-      {[
-        {
-          key: "longs",
-          label: "Longs",
-          value: formatPortfolioWeightAggregateValue(summary.longSum, summary.longType),
-          tone:
-            summary.longSum > 0
-              ? "text-emerald-300 border-emerald-500/20 bg-emerald-500/8"
-              : "text-muted-foreground border-border/60 bg-background/40",
-        },
-        {
-          key: "shorts",
-          label: "Shorts",
-          value: formatPortfolioWeightAggregateValue(summary.shortSum, summary.shortType),
-          tone:
-            summary.shortSum < 0
-              ? "text-rose-300 border-rose-500/20 bg-rose-500/8"
-              : "text-muted-foreground border-border/60 bg-background/40",
-        },
-        {
-          key: "total",
-          label: "Total",
-          value: formatPortfolioWeightAggregateValue(summary.totalSum, summary.totalType),
-          tone: "text-foreground border-border/60 bg-background/40",
-        },
-      ].map((item) => (
+    <div className="mb-3 flex flex-wrap gap-3">
+      {summaries.map((summary) => (
         <div
-          key={item.key}
-          className={`min-w-[112px] rounded-[calc(var(--radius)-8px)] border px-3 py-2 ${item.tone}`}
+          key={summary.positionType}
+          className="min-w-[260px] rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/40 p-3"
         >
-          <div className="text-[10px] uppercase tracking-[0.16em]">{item.label}</div>
-          <div className="mt-1 text-sm font-medium">{item.value}</div>
+          <div className="mb-2 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            {formatPortfolioWeightPositionTypeLabel(summary.positionType)}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[
+              {
+                key: "longs",
+                label: "Longs",
+                value: formatPortfolioWeightAggregateValue(summary.longSum, summary.positionType),
+                tone:
+                  summary.longSum > 0
+                    ? "text-emerald-300 border-emerald-500/20 bg-emerald-500/8"
+                    : "text-muted-foreground border-border/60 bg-background/40",
+              },
+              {
+                key: "shorts",
+                label: "Shorts",
+                value: formatPortfolioWeightAggregateValue(summary.shortSum, summary.positionType),
+                tone:
+                  summary.shortSum < 0
+                    ? "text-rose-300 border-rose-500/20 bg-rose-500/8"
+                    : "text-muted-foreground border-border/60 bg-background/40",
+              },
+              {
+                key: "total",
+                label: "Total",
+                value: formatPortfolioWeightAggregateValue(summary.totalSum, summary.positionType),
+                tone: "text-foreground border-border/60 bg-background/40",
+              },
+            ].map((item) => (
+              <div
+                key={`${summary.positionType}-${item.key}`}
+                className={`min-w-[112px] rounded-[calc(var(--radius)-8px)] border px-3 py-2 ${item.tone}`}
+              >
+                <div className="text-[10px] uppercase tracking-[0.16em]">{item.label}</div>
+                <div className="mt-1 text-sm font-medium">{item.value}</div>
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>
@@ -514,8 +652,14 @@ function getPortfolioWeightsColumns(
   return orderedColumns;
 }
 
-function buildPreferredPositionColumns(): ColumnDef<Record<string, unknown>>[] {
-  return [
+function buildPreferredPositionColumns({
+  sourceType,
+  holdingsDate,
+}: {
+  sourceType?: PortfolioWeightsSourceType;
+  holdingsDate?: string | null;
+} = {}): ColumnDef<Record<string, unknown>>[] {
+  const columns: ColumnDef<Record<string, unknown>>[] = [
     {
       id: "asset_name",
       header: "Asset Name",
@@ -563,6 +707,21 @@ function buildPreferredPositionColumns(): ColumnDef<Record<string, unknown>>[] {
         <div className="font-mono text-sm text-foreground">{getPortfolioWeightAssetUid(row.original)}</div>
       ),
     },
+  ];
+
+  if (sourceType !== "account") {
+    columns.push({
+      id: "date",
+      header: "Date",
+      cell: ({ row }) => (
+        <div className="text-sm text-foreground">
+          {getPortfolioWeightPositionRowDateWithFallback(row.original, holdingsDate)}
+        </div>
+      ),
+    });
+  }
+
+  columns.push(
     {
       id: "position_type",
       header: "Position Type",
@@ -574,12 +733,14 @@ function buildPreferredPositionColumns(): ColumnDef<Record<string, unknown>>[] {
     },
     {
       id: "position_value",
-      header: "Position Value",
+      header: sourceType === "account" ? "Quantity" : "Position Value",
       cell: ({ row }) => (
         <div className="text-sm text-foreground">{getPortfolioWeightPositionRowValue(row.original)}</div>
       ),
     },
-  ];
+  );
+
+  return columns;
 }
 
 function PortfolioWeightPositionExpandedContent({
@@ -629,6 +790,11 @@ function PortfolioWeightAssetExpandedContent({
       key: "position_type",
       label: "Position Type",
       value: formatPortfolioWeightPositionTypeLabel(getPortfolioWeightPositionType(positionDetail)),
+    },
+    {
+      key: "date",
+      label: "Date",
+      value: getPortfolioWeightPositionRowDate(asset),
     },
     {
       key: "position_value",
@@ -791,13 +957,20 @@ function PortfolioWeightsPositionTable({
   rows,
   emptyMessage,
   emptyTitle,
+  sourceType,
+  holdingsDate,
 }: {
   rows: Array<Record<string, unknown>>;
   emptyMessage: string;
   emptyTitle: string;
+  sourceType?: PortfolioWeightsSourceType;
+  holdingsDate?: string | null;
 }) {
   const [expanded, setExpanded] = useState<ExpandedState>({});
-  const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(() => buildPreferredPositionColumns(), []);
+  const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(
+    () => buildPreferredPositionColumns({ sourceType, holdingsDate }),
+    [holdingsDate, sourceType],
+  );
   const table = useReactTable({
     data: rows,
     columns,
@@ -892,10 +1065,18 @@ function PortfolioWeightsPositionTable({
 export function buildPortfolioWeightsTableColumns(
   columnDefs: TargetPortfolioWeightsPositionColumnDef[],
   rows: Array<Record<string, unknown>>,
-  { preferredPositionColumns = false }: { preferredPositionColumns?: boolean } = {},
+  {
+    preferredPositionColumns = false,
+    sourceType,
+    holdingsDate,
+  }: {
+    preferredPositionColumns?: boolean;
+    sourceType?: PortfolioWeightsSourceType;
+    holdingsDate?: string | null;
+  } = {},
 ): ColumnDef<Record<string, unknown>>[] {
   if (preferredPositionColumns) {
-    return buildPreferredPositionColumns();
+    return buildPreferredPositionColumns({ sourceType, holdingsDate });
   }
 
   const resolvedColumns = getPortfolioWeightsColumns(columnDefs, rows);
@@ -919,6 +1100,8 @@ export function PortfolioWeightsTable({
   expandableAssetRows = false,
   positionMap,
   preferredPositionColumns = false,
+  sourceType,
+  holdingsDate,
   tableMinWidth = 760,
 }: PortfolioWeightsTableProps) {
   if (expandableAssetRows) {
@@ -938,13 +1121,20 @@ export function PortfolioWeightsTable({
         rows={rows}
         emptyMessage={emptyMessage}
         emptyTitle={emptyTitle}
+        sourceType={sourceType}
+        holdingsDate={holdingsDate}
       />
     );
   }
 
   const columns = useMemo(
-    () => buildPortfolioWeightsTableColumns(columnDefs, rows, { preferredPositionColumns }),
-    [columnDefs, preferredPositionColumns, rows],
+    () =>
+      buildPortfolioWeightsTableColumns(columnDefs, rows, {
+        preferredPositionColumns,
+        sourceType,
+        holdingsDate,
+      }),
+    [columnDefs, holdingsDate, preferredPositionColumns, rows, sourceType],
   );
 
   return (

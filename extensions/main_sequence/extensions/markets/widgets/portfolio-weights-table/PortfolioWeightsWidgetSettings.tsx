@@ -5,50 +5,90 @@ import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import {
-  normalizePortfolioWeightsDataMode,
+  normalizePortfolioWeightsSourceType,
+  type PortfolioWeightsSourceType,
   type PortfolioWeightsWidgetProps,
 } from "./portfolioWeightsRuntime";
 
-function normalizeTargetPortfolioId(value: string) {
+function normalizePositiveInt(value: string) {
   const parsed = Number(value);
-
   if (!Number.isFinite(parsed) || parsed <= 0) {
     return undefined;
   }
-
   return Math.trunc(parsed);
 }
+
+const sourceTypeHelpText: Record<PortfolioWeightsSourceType, string> = {
+  portfolio:
+    "Portfolio source rows are always interpreted as weight from notional exposure. Backend hydration is available from the target portfolio weights endpoint until local rows are authored.",
+  account:
+    "Account source hydrates the canonical holdings snapshot first, then saves edited holdings back through the managed-account add-holdings endpoint with a top-level holdings datetime.",
+  target_position:
+    "Target position source rows can use weight from notional exposure, units, or constant notional.",
+};
 
 export function PortfolioWeightsWidgetSettings({
   draftProps,
   editable,
   onDraftPropsChange,
 }: WidgetSettingsComponentProps<PortfolioWeightsWidgetProps>) {
-  const dataMode = normalizePortfolioWeightsDataMode(draftProps);
-  const editableInPlace = dataMode === "inline";
+  const sourceType = normalizePortfolioWeightsSourceType(draftProps);
   const portfolioId =
     Number.isFinite(Number(draftProps.portfolioId ?? draftProps.targetPortfolioId)) &&
     Number(draftProps.portfolioId ?? draftProps.targetPortfolioId) > 0
       ? String(Math.trunc(Number(draftProps.portfolioId ?? draftProps.targetPortfolioId)))
       : "";
-  const variant = editableInPlace
-    ? "positions"
-    : draftProps.variant === "summary"
-      ? "summary"
-      : "positions";
+  const accountId =
+    Number.isFinite(Number(draftProps.accountId)) && Number(draftProps.accountId) > 0
+      ? String(Math.trunc(Number(draftProps.accountId)))
+      : "";
+  const variant =
+    draftProps.editableInPlace === true || sourceType !== "portfolio"
+      ? "positions"
+      : draftProps.variant === "summary"
+        ? "summary"
+        : "positions";
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="neutral">Portfolio widget</Badge>
+        <Badge variant="neutral">Positions widget</Badge>
         <span className="text-sm text-muted-foreground">
-          Configure either a backend portfolio source or an inline editable positions table for this instance.
+          Choose the domain source contract first. Inline editing applies to every source type.
         </span>
       </div>
 
+      <label className="space-y-2">
+        <WidgetSettingFieldLabel
+          help="Source type determines how rows are interpreted. Portfolio rows are weights, account rows are holdings rows with a top-level holdings datetime, and target position rows can use any supported position type."
+          textClassName="text-sm font-medium text-topbar-foreground"
+        >
+          Source type
+        </WidgetSettingFieldLabel>
+        <Select
+          value={sourceType}
+          disabled={!editable}
+          onChange={(event) => {
+            onDraftPropsChange({
+              ...draftProps,
+              sourceType: event.target.value as PortfolioWeightsSourceType,
+              variant:
+                event.target.value === "portfolio" && draftProps.editableInPlace !== true
+                  ? draftProps.variant
+                  : "positions",
+            });
+          }}
+        >
+          <option value="portfolio">Portfolio</option>
+          <option value="account">Account</option>
+          <option value="target_position">Target Position</option>
+        </Select>
+        <p className="text-sm text-muted-foreground">{sourceTypeHelpText[sourceType]}</p>
+      </label>
+
       <div className="space-y-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/45 p-4">
         <WidgetSettingFieldLabel
-          help="Inline mode stores positions directly in widget props and lets workspace authors add assets and edit rows on the canvas. It disables the backend portfolio fetch and always uses the positions view."
+          help="When enabled, authors can add assets and edit rows directly on the widget canvas. Portfolio widgets can still start from hydrated backend rows before those rows are persisted locally."
           required={false}
           textClassName="text-sm font-medium text-topbar-foreground"
         >
@@ -58,28 +98,27 @@ export function PortfolioWeightsWidgetSettings({
           <input
             type="checkbox"
             className="h-4 w-4 rounded border border-input bg-card/70 accent-primary"
-            checked={editableInPlace}
+            checked={draftProps.editableInPlace === true}
             disabled={!editable}
             onChange={(event) => {
-              const nextEditableInPlace = event.target.checked;
               onDraftPropsChange({
                 ...draftProps,
-                editableInPlace: nextEditableInPlace,
-                dataMode: nextEditableInPlace ? "inline" : "portfolio",
-                variant: nextEditableInPlace ? "positions" : draftProps.variant,
+                editableInPlace: event.target.checked,
+                variant:
+                  event.target.checked || sourceType !== "portfolio"
+                    ? "positions"
+                    : draftProps.variant,
               });
             }}
           />
-          <span>
-            Edit positions directly on the canvas instead of configuring them in settings.
-          </span>
+          <span>Edit positions directly on the canvas for this widget instance.</span>
         </label>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <label className="space-y-2">
           <WidgetSettingFieldLabel
-            help="Used only in portfolio mode. The widget will fetch positions from the Markets portfolio weights endpoint for this portfolio id."
+            help="Used only when the source type is Portfolio and no local rows have been authored yet."
             textClassName="text-sm font-medium text-topbar-foreground"
           >
             Portfolio id
@@ -91,31 +130,60 @@ export function PortfolioWeightsWidgetSettings({
             inputMode="numeric"
             placeholder="1"
             value={portfolioId}
-            readOnly={!editable || editableInPlace}
+            readOnly={!editable || sourceType !== "portfolio"}
             onChange={(event) => {
               onDraftPropsChange({
                 ...draftProps,
-                portfolioId: normalizeTargetPortfolioId(event.target.value),
+                portfolioId: normalizePositiveInt(event.target.value),
               });
             }}
           />
           <p className="text-sm text-muted-foreground">
-            {editableInPlace
-              ? "Inline mode ignores the portfolio id and uses locally authored rows."
-              : "Use the portfolio id from the Markets portfolios surface."}
+            {sourceType === "portfolio"
+              ? "Hydrates portfolio rows from the target portfolio weights endpoint until you persist local rows."
+              : "Ignored for account and target position source types."}
           </p>
         </label>
 
         <label className="space-y-2">
           <WidgetSettingFieldLabel
-            help="Portfolio mode can render either summary weights or detailed positions. Inline mode always renders position details because those rows are authored directly in the widget."
+            help="Used only when the source type is Account and no local rows have been authored yet."
+            textClassName="text-sm font-medium text-topbar-foreground"
+          >
+            Account id
+          </WidgetSettingFieldLabel>
+          <Input
+            type="number"
+            min="1"
+            step="1"
+            inputMode="numeric"
+            placeholder="1"
+            value={accountId}
+            readOnly={!editable || sourceType !== "account"}
+            onChange={(event) => {
+              onDraftPropsChange({
+                ...draftProps,
+                accountId: normalizePositiveInt(event.target.value),
+              });
+            }}
+          />
+          <p className="text-sm text-muted-foreground">
+            {sourceType === "account"
+              ? "Hydrates latest account holdings from the canonical holdings endpoint until you enter edit mode and save a new holdings snapshot."
+              : "Ignored for portfolio and target position source types."}
+          </p>
+        </label>
+
+        <label className="space-y-2">
+          <WidgetSettingFieldLabel
+            help="Only portfolio widgets can render the summary view. Account and target position widgets always use detailed positions."
             textClassName="text-sm font-medium text-topbar-foreground"
           >
             Variant
           </WidgetSettingFieldLabel>
           <Select
             value={variant}
-            disabled={!editable || editableInPlace}
+            disabled={!editable || sourceType !== "portfolio" || draftProps.editableInPlace === true}
             onChange={(event) => {
               onDraftPropsChange({
                 ...draftProps,
@@ -127,9 +195,9 @@ export function PortfolioWeightsWidgetSettings({
             <option value="summary">Weights summary</option>
           </Select>
           <p className="text-sm text-muted-foreground">
-            {editableInPlace
-              ? "Inline mode always uses position details so rows can be edited directly on the canvas."
-              : "Summary shows expandable asset rows. Position details uses the fixed five-column market view."}
+            {sourceType === "portfolio" && draftProps.editableInPlace !== true
+              ? "Summary is available only for hydrated portfolio data. Once you edit inline, the widget uses detailed positions."
+              : "Account and target position sources always render detailed positions."}
           </p>
         </label>
       </div>

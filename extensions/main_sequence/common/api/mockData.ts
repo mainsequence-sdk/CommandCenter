@@ -2010,8 +2010,6 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     const body = parseBody(init) ?? {};
     const executionVenueId = readNumber(body.execution_venue);
     const executionVenue = findById(state.executionVenues, executionVenueId);
-    const valuationTranslationTableId = readNumber(body.valuation_translation_table);
-    const valuationTranslationTable = findById(state.assetTranslationTables, valuationTranslationTableId);
     const holdingsDataSourceId = readNumber(body.holdings_data_source);
     const holdingsDataSource = findById(state.projectDataSources, holdingsDataSourceId);
     const nextId =
@@ -2021,10 +2019,6 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       account_name: readString(body.account_name) || `Account ${nextId}`,
       display_name: readString(body.display_name) || readString(body.account_name) || `Account ${nextId}`,
       execution_venue: executionVenueId || null,
-      valuation_translation_table: valuationTranslationTableId || null,
-      valuation_translation_table_name: readOptionalString(
-        (valuationTranslationTable as Record<string, unknown> | null)?.unique_identifier,
-      ),
       holdings_data_source: holdingsDataSourceId || null,
       holdings_data_source_name:
         readOptionalString((holdingsDataSource as Record<string, unknown> | null)?.display_name),
@@ -2143,6 +2137,73 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
         },
       ],
       extensions: {},
+    };
+  }
+
+  const holdingsMatch = route.match(/^\/orm\/api\/assets\/account\/(\d+)\/holdings\/$/);
+
+  if (holdingsMatch && method === "GET") {
+    const accountId = Number(holdingsMatch[1]);
+    const account = findById(state.managedAccounts, accountId);
+
+    if (!account) {
+      return {};
+    }
+
+    const holdingsDate = searchParams.get("holdings_date") || "2026-05-18T09:30:00Z";
+
+    return {
+      id: accountId,
+      snapshot_uid: `mock-holdings-snapshot-${accountId}`,
+      holdings_set_uid: `mock-holdings-set-${accountId}`,
+      holdings_date: holdingsDate,
+      nav: "1250.25000000",
+      related_account: accountId,
+      is_trade_snapshot: false,
+      target_trade_time: null,
+      related_expected_asset_exposure_df: [],
+      holdings: [
+        {
+          time_index: holdingsDate,
+          unique_identifier: "btc_spot",
+          asset: 101,
+          asset_id: 101,
+          price: "100.000000000000000000",
+          quantity: "12.00000000",
+          missing_price: false,
+          extra_details: {},
+        },
+      ],
+    };
+  }
+
+  const addHoldingsMatch = route.match(/^\/orm\/api\/assets\/account\/(\d+)\/add-holdings\/$/);
+
+  if (addHoldingsMatch && method === "POST") {
+    const accountId = Number(addHoldingsMatch[1]);
+    const account = findById(state.managedAccounts, accountId);
+    const body = parseBody(init) ?? {};
+    const positions = readArray<Record<string, unknown>>(body.positions);
+
+    if (!account) {
+      return {};
+    }
+
+    return {
+      related_account: accountId,
+      holdings_date: readString(body.holdings_date) || new Date().toISOString(),
+      holdings_set_uid: `mock-holdings-set-${accountId}`,
+      positions: positions.map((position) => ({
+        unique_identifier: readString(position.unique_identifier) || null,
+        asset_id: readNumber(position.asset_id) || null,
+        position_type: readString(position.position_type) || "units",
+        price: readString(position.price) || "0",
+        quantity: readString(position.quantity) || "0",
+        missing_price: readBoolean(position.missing_price),
+        target_trade_time: readString(position.target_trade_time) || null,
+        extra_details:
+          isRecord(position.extra_details) ? position.extra_details : {},
+      })),
     };
   }
 

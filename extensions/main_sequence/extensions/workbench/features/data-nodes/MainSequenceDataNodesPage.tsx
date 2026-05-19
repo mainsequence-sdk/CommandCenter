@@ -98,6 +98,7 @@ type DataNodeDeleteOptions = {
 type DataNodeSortKey =
   | "storage_hash"
   | "identifier"
+  | "namespace"
   | "data_source"
   | "source_class_name"
   | "creation_date";
@@ -160,6 +161,10 @@ function getDataSourceLabel(dataNode: DataNodeSummary) {
   );
 }
 
+function getDataNodeNamespaceLabel(dataNode: DataNodeSummary) {
+  return dataNode.namespace?.trim() || "";
+}
+
 function formatCreationDate(value?: string | null) {
   if (!value) {
     return "Unknown";
@@ -184,6 +189,8 @@ function getDataNodeSortValue(dataNode: DataNodeSummary, key: DataNodeSortKey) {
       return normalizeDataNodeSortValue(dataNode.storage_hash);
     case "identifier":
       return normalizeDataNodeSortValue(dataNode.identifier);
+    case "namespace":
+      return normalizeDataNodeSortValue(dataNode.namespace);
     case "data_source":
       return normalizeDataNodeSortValue(getDataSourceLabel(dataNode));
     case "source_class_name":
@@ -426,6 +433,7 @@ export function MainSequenceDataNodesPage() {
     queryFn: () =>
       listDataNodes({
         limit: mainSequenceRegistryPageSize,
+        light: false,
         offset: dataNodesPageIndex * mainSequenceRegistryPageSize,
       }),
   });
@@ -457,6 +465,7 @@ export function MainSequenceDataNodesPage() {
         getDataNodeTitle(dataNode),
         String(dataNode.id),
         dataNode.identifier ?? "",
+        dataNode.namespace ?? "",
         dataNode.storage_hash,
         dataNode.source_class_name ?? "",
         dataNode.description ?? "",
@@ -482,9 +491,13 @@ export function MainSequenceDataNodesPage() {
   const dataNodeSelection = useRegistrySelection(sortedDataNodes);
 
   useEffect(() => {
+    if (typeof dataNodesQuery.data?.count !== "number") {
+      return;
+    }
+
     const totalPages = Math.max(
       1,
-      Math.ceil((dataNodesQuery.data?.count ?? 0) / mainSequenceRegistryPageSize),
+      Math.ceil(dataNodesQuery.data.count / mainSequenceRegistryPageSize),
     );
 
     if (dataNodesPageIndex > totalPages - 1) {
@@ -1470,6 +1483,18 @@ export function MainSequenceDataNodesPage() {
                     <th
                       className="px-4 py-[var(--table-standard-header-padding-y)]"
                       aria-sort={
+                        sortState.key === "namespace"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("Namespace", "namespace")}
+                    </th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
                         sortState.key === "data_source"
                           ? sortState.direction === "asc"
                             ? "ascending"
@@ -1551,6 +1576,9 @@ export function MainSequenceDataNodesPage() {
                               </div>
                             </div>
                           </div>
+                        </td>
+                        <td className={getRegistryTableCellClassName(selected)}>
+                          <div className="text-foreground">{getDataNodeNamespaceLabel(dataNode)}</div>
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           <div className="text-foreground">{getDataSourceLabel(dataNode)}</div>

@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 
 import {
   formatMainSequenceError,
-  listAssetTranslationTables,
   listExecutionVenues,
   listManagedAccountHoldingsDataSources,
   type CreateManagedAccountInput,
@@ -21,7 +20,6 @@ export type ManagedAccountEditorValues = {
   accountName: string;
   executionVenueId: string;
   isPaper: boolean;
-  valuationTranslationTableId: string;
   holdingsDataSourceId: string;
 };
 
@@ -30,7 +28,6 @@ export function buildManagedAccountInitialValues(): ManagedAccountEditorValues {
     accountName: "",
     executionVenueId: "",
     isPaper: true,
-    valuationTranslationTableId: "",
     holdingsDataSourceId: "",
   };
 }
@@ -49,9 +46,6 @@ export function buildManagedAccountCreatePayload(
     throw new Error("Execution venue is required.");
   }
 
-  const valuationTranslationTableId = values.valuationTranslationTableId.trim()
-    ? Number(values.valuationTranslationTableId)
-    : null;
   const holdingsDataSourceId = values.holdingsDataSourceId.trim()
     ? Number(values.holdingsDataSourceId)
     : null;
@@ -60,10 +54,6 @@ export function buildManagedAccountCreatePayload(
     account_name: accountName,
     execution_venue: executionVenueId,
     is_paper: values.isPaper,
-    valuation_translation_table:
-      valuationTranslationTableId && Number.isFinite(valuationTranslationTableId)
-        ? valuationTranslationTableId
-        : null,
     holdings_data_source:
       holdingsDataSourceId && Number.isFinite(holdingsDataSourceId)
         ? holdingsDataSourceId
@@ -96,13 +86,6 @@ export function ManagedAccountEditorDialog({
     staleTime: 300_000,
   });
 
-  const translationTablesQuery = useQuery({
-    queryKey: ["main_sequence", "asset_translation_tables", "account-create-options"],
-    queryFn: () => listAssetTranslationTables({ page: 1, pageSize: 200 }),
-    enabled: open,
-    staleTime: 300_000,
-  });
-
   const holdingsDataSourcesQuery = useQuery({
     queryKey: ["main_sequence", "managed_accounts", "holdings_data_sources", "account-create-options"],
     queryFn: () => listManagedAccountHoldingsDataSources({ limit: 200, offset: 0 }),
@@ -119,23 +102,6 @@ export function ManagedAccountEditorDialog({
         keywords: [venue.name ?? "", venue.symbol ?? "", String(venue.id)],
       })),
     [executionVenuesQuery.data?.results],
-  );
-
-  const translationTableOptions = useMemo<PickerOption[]>(
-    () => [
-      {
-        value: "",
-        label: "Use account default",
-        description: "Leave empty when this account does not need a dedicated valuation translation table.",
-      },
-      ...((translationTablesQuery.data?.rows ?? []).map((table) => ({
-        value: String(table.id),
-        label: table.unique_identifier || `Table ${table.id}`,
-        description: `${table.rules_number} rules`,
-        keywords: [table.unique_identifier, String(table.id)],
-      })) satisfies PickerOption[]),
-    ],
-    [translationTablesQuery.data?.rows],
   );
 
   const holdingsDataSourceRows = holdingsDataSourcesQuery.data?.results ?? [];
@@ -187,7 +153,7 @@ export function ManagedAccountEditorDialog({
   }, [open]);
 
   const optionsError =
-    executionVenuesQuery.error || translationTablesQuery.error || holdingsDataSourcesQuery.error;
+    executionVenuesQuery.error || holdingsDataSourcesQuery.error;
 
   return (
     <Dialog
@@ -242,26 +208,6 @@ export function ManagedAccountEditorDialog({
               searchPlaceholder="Search execution venues"
               emptyMessage="No matching execution venues."
               loading={executionVenuesQuery.isLoading}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              Valuation Translation Table
-            </label>
-            <PickerField
-              value={values.valuationTranslationTableId}
-              onChange={(value) => {
-                setValues((current) => ({
-                  ...current,
-                  valuationTranslationTableId: value,
-                }));
-              }}
-              options={translationTableOptions}
-              placeholder="Use account default"
-              searchPlaceholder="Search translation tables"
-              emptyMessage="No matching translation tables."
-              loading={translationTablesQuery.isLoading}
             />
           </div>
 
