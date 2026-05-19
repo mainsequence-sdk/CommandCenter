@@ -508,12 +508,27 @@ export function planDashboardVariableDrivenCommit(input: {
   afterSnapshot: DashboardExecutionSnapshot;
   resolveManagedConnectionConsumerAdapter?: ResolveManagedConnectionConsumerAdapter;
 }): DashboardVariableDrivenCommitPlan {
-  const beforeEntries = input.beforeSnapshot.dependencies.variableRegistry.bySourceWidgetId.get(
-    input.changedWidgetId,
-  ) ?? [];
-  const afterEntries = input.afterSnapshot.dependencies.variableRegistry.bySourceWidgetId.get(
-    input.changedWidgetId,
-  ) ?? [];
+  const candidateSourceWidgetIds = new Set<string>([input.changedWidgetId]);
+  const addDownstreamVariableSources = (snapshot: DashboardExecutionSnapshot) => {
+    const downstreamIndex = buildCanonicalDownstreamBindingIndex(snapshot);
+
+    collectCanonicalDownstreamReachableIds(
+      input.changedWidgetId,
+      downstreamIndex,
+    ).forEach((instanceId) => {
+      candidateSourceWidgetIds.add(instanceId);
+    });
+  };
+
+  addDownstreamVariableSources(input.beforeSnapshot);
+  addDownstreamVariableSources(input.afterSnapshot);
+
+  const beforeEntries = [...candidateSourceWidgetIds].flatMap((sourceWidgetId) =>
+    input.beforeSnapshot.dependencies.variableRegistry.bySourceWidgetId.get(sourceWidgetId) ?? [],
+  );
+  const afterEntries = [...candidateSourceWidgetIds].flatMap((sourceWidgetId) =>
+    input.afterSnapshot.dependencies.variableRegistry.bySourceWidgetId.get(sourceWidgetId) ?? [],
+  );
   const candidateEntryIds = new Set<string>([
     ...beforeEntries.map((entry) => entry.id),
     ...afterEntries.map((entry) => entry.id),

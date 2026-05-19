@@ -16,7 +16,7 @@ import {
 import { TABULAR_SEED_INPUT_ID } from "@/widgets/shared/incremental-tabular-consumer";
 import type { AnyManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
-import { CORE_VALUE_STRING_CONTRACT } from "@/widgets/shared/value-contracts";
+import { CORE_VALUE_JSON_CONTRACT, CORE_VALUE_STRING_CONTRACT } from "@/widgets/shared/value-contracts";
 import { defineWidget, type WidgetDefinition } from "@/widgets/types";
 
 const TEST_CONNECTION_TYPE_ID = "test.mock-api";
@@ -257,6 +257,27 @@ const tableLikeWidget = defineWidget({
         id: TABULAR_SEED_INPUT_ID,
         label: "Seed data",
         accepts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
+      },
+    ],
+    outputs: [
+      {
+        id: "activeRow",
+        label: "Active row",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        resolveValue: ({ resolvedInputs }) => {
+          const input = resolvedInputs?.[TABULAR_SEED_INPUT_ID];
+          const resolved = Array.isArray(input) ? input[0] : input;
+          const value = resolved?.value;
+          const rows =
+            value &&
+            typeof value === "object" &&
+            !Array.isArray(value) &&
+            Array.isArray((value as { rows?: unknown }).rows)
+              ? (value as { rows: unknown[] }).rows
+              : [];
+
+          return rows[0] ?? null;
+        },
       },
     ],
   },
@@ -565,6 +586,101 @@ function managedGraphExpressionVariableWidgets(symbol: string): DashboardWidgetI
           sourceWidgetId: "managed-source-1",
           sourceOutputId: "dataset",
         },
+      },
+    },
+  ];
+}
+
+function managedGraphViaTableVariableWidgets(symbol: string): DashboardWidgetInstance[] {
+  const embeddedConnectionQuery = {
+    connectionRef: {
+      id: TEST_CONNECTION_ID,
+      typeId: TEST_CONNECTION_TYPE_ID,
+    },
+    queryModelId: TEST_QUERY_KIND,
+    query: {
+      kind: TEST_QUERY_KIND,
+      symbols: ["$(table-1).activeRow.symbol"],
+      responseBody: [{ symbol }],
+    },
+    timeRangeMode: "none",
+  };
+
+  return [
+    {
+      id: "upstream-source-1",
+      widgetId: "connection-query",
+      title: "Upstream Source",
+      layout: { cols: 6, rows: 4 },
+      props: {
+        connectionRef: {
+          id: TEST_CONNECTION_ID,
+          typeId: TEST_CONNECTION_TYPE_ID,
+        },
+        queryModelId: TEST_QUERY_KIND,
+        query: {
+          kind: TEST_QUERY_KIND,
+          responseBody: [{ symbol }],
+        },
+        timeRangeMode: "none",
+      },
+      runtimeState: {
+        status: "ready",
+        columns: ["symbol"],
+        rows: [{ symbol }],
+      },
+    },
+    {
+      id: "table-1",
+      widgetId: "table",
+      title: "Table",
+      layout: { cols: 6, rows: 4 },
+      bindings: {
+        [TABULAR_SEED_INPUT_ID]: {
+          sourceWidgetId: "upstream-source-1",
+          sourceOutputId: "dataset",
+        },
+      },
+    },
+    {
+      id: "graph-1",
+      widgetId: "graph",
+      title: "Graph",
+      layout: { cols: 6, rows: 4 },
+      props: {
+        graphSourceMode: "connection",
+        embeddedConnectionQuery,
+      },
+      bindings: {
+        [buildWidgetReferencePropInputId(["embeddedConnectionQuery", "query", "symbols"])]: {
+          sourceWidgetId: "table-1",
+          sourceOutputId: "activeRow",
+          transformSteps: [
+            {
+              id: "extract-path",
+              path: ["symbol"],
+            },
+          ],
+        },
+        [TABULAR_SEED_INPUT_ID]: {
+          sourceWidgetId: "managed-source-1",
+          sourceOutputId: "dataset",
+        },
+      },
+    },
+    {
+      id: "managed-source-1",
+      widgetId: "connection-query",
+      title: "Graph Source",
+      layout: { cols: 6, rows: 4 },
+      props: embeddedConnectionQuery,
+      managedBy: {
+        ownerInstanceId: "graph-1",
+        role: "embedded-connection-source",
+      },
+      presentation: {
+        placementMode: "sidebar",
+        railVisibility: "hidden",
       },
     },
   ];
@@ -926,6 +1042,42 @@ describe("dashboard upstream resolution keys", () => {
       "managed-source-1",
       "managed-downstream-1",
     ]);
+    expect(plan.executableTargetOverridesByWidgetId["managed-source-1"]?.props)
+      .toMatchObject({
+        query: {
+          symbols: ["MSFT"],
+        },
+      });
+  });
+
+  it("plans variable refresh for active variables owned by passive downstream widgets", () => {
+    const beforeSnapshot = buildDashboardExecutionSnapshot({
+      widgets: managedGraphViaTableVariableWidgets("AAPL"),
+      resolveWidgetDefinition,
+    });
+    const afterSnapshot = buildDashboardExecutionSnapshot({
+      widgets: managedGraphViaTableVariableWidgets("MSFT"),
+      resolveWidgetDefinition,
+    });
+
+    const plan = planDashboardVariableDrivenCommit({
+      changedWidgetId: "upstream-source-1",
+      beforeSnapshot,
+      afterSnapshot,
+      resolveManagedConnectionConsumerAdapter: (widgetId) =>
+        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+    });
+
+    expect(plan.changedVariableEntries).toEqual([
+      {
+        entryId: '["table-1","activeRow","extract-path:symbol"]',
+        sourceWidgetId: "table-1",
+        sourceOutputId: "activeRow",
+        transformSignature: "extract-path:symbol",
+        targetWidgetIds: ["graph-1", "managed-source-1"],
+      },
+    ]);
+    expect(plan.managedExecutableSourceWidgetIds).toEqual(["managed-source-1"]);
     expect(plan.executableTargetOverridesByWidgetId["managed-source-1"]?.props)
       .toMatchObject({
         query: {

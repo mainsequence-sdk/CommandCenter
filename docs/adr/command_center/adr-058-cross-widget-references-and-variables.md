@@ -604,6 +604,83 @@ table.activeCellValue changes
   -> graph rerenders from its existing source binding
 ```
 
+### Downstream Passive Variable Source Invalidation
+
+#### Problem
+
+Runtime variable invalidation is too narrow when the changed widget is not the variable source
+itself.
+
+A runtime write by widget `A` can change active variable values owned by downstream passive widget
+`B`. For example:
+
+```text
+connection-query.dataset changes
+  -> table consumes dataset
+  -> table.activeRow.symbol changes
+  -> another connection-query uses $(table).activeRow.symbol
+```
+
+The source value that must be compared is owned by the table, not by the upstream connection. If
+the planner only checks variables exported directly by the changed connection widget, it misses the
+real active variable change and never schedules the downstream executable branch.
+
+This is not a connection-query readiness problem and it must not be fixed by adding
+connection-query-specific execution gates. The variable planner must find the right changed active
+variables and schedule the right executable targets.
+
+#### Solution
+
+Keep execution behavior unchanged and fix only the variable invalidation planner.
+
+On a runtime update for `changedWidgetId`, the planner must build before/after execution snapshots
+and compare active variable entries for:
+
+- the changed widget id itself
+- widgets downstream of the changed widget through normal graph bindings
+
+It still compares only active variable entries. It must not scan every discoverable field in the
+workspace.
+
+If an active variable changed, the planner marks its consumers affected. For passive owner widgets
+with managed executable sources, the planner projects the owner's effective props into the hidden
+managed source as execution-only `targetOverrides`, then schedules the hidden managed source and
+its downstream executable branch.
+
+The projection must not persist resolved variable values into saved props. Saved owner props and
+saved managed-source props remain the authored values.
+
+The fix boundary is explicit:
+
+- do not add connection-query-specific readiness gates
+- do not change connection runtime model behavior
+- do not change Asset Screener, Table rendering, empty states, or selection behavior
+
+#### Implementation Tasks
+
+- [ ] On runtime update for `changedWidgetId`, build before/after execution snapshots from the
+  pre-write and post-write widget trees.
+- [ ] Collect active variable entries for `changedWidgetId`.
+- [ ] Walk normal graph bindings downstream from `changedWidgetId` in both before and after
+  snapshots.
+- [ ] Collect active variable entries owned by each downstream passive widget reached by that walk.
+- [ ] Compare only those active variable values before/after; ignore unrelated props and
+  discoverable values that are not linked variables.
+- [ ] Mark consumers affected only when the active variable value signature changed.
+- [ ] For affected passive owner widgets with managed executable sources, resolve the owner's
+  effective props through the normal reference-backed state layer.
+- [ ] Project effective owner props into the owned hidden executable source as execution-only
+  `targetOverrides`.
+- [ ] Schedule changed hidden managed sources before their downstream executable branches.
+- [ ] Do not write projected managed-source props or resolved variable values back to saved owner
+  props or saved managed-source props.
+- [ ] Add regression coverage for
+  `connection-query.dataset -> table.activeRow.symbol -> managed connection-query`.
+- [ ] Add regression coverage that no executable source is scheduled when the active variable value
+  did not change.
+- [ ] Add regression coverage that saved owner props and saved managed-source props remain
+  unchanged after the variable-driven execution plan.
+
 ### Follow-Up: Connection Runtime Keying Review
 
 Runtime variable changes must keep connection instance identity separate from connection execution
@@ -740,11 +817,6 @@ This ADR covers one platform slice only.
 - [x] Compare committed before/after source values only for active variable entries referenced from the changed source widget instead of treating every prop change as globally impactful
 - [x] Split variable-driven updates into a render-only lane for passive consumers and an execution lane for affected executable downstream widgets
 - [x] Add a targeted downstream execution planner that starts from changed variable sources and schedules only affected executable consumers or executable branches
-- [ ] Extend the variable invalidation planner with managed executable source projection for owner widgets that derive hidden executable source props from effective owner props.
-- [ ] Build before/after projected managed-source signatures from effective owner props so runtime variable changes on owner settings can schedule owned executable sources without persisted prop mutation.
-- [ ] Include changed owned managed executable sources in targeted execution plans before their normal downstream executable branches.
-- [ ] Ensure projected managed-source execution uses execution-only props/presentation/title and never writes projected values back into saved owner props or saved managed-source props.
-- [ ] Add regression coverage for a passive owner widget whose variable-backed managed connection query changes at runtime and schedules its hidden `connection-query` source.
 - [ ] Normalize widget-settings authoring paths around one explicit draft-to-commit boundary before variable-driven downstream execution is enabled everywhere
 - [x] Expose debug/inspection helpers that can list active variables and their consumers for a workspace session
 
@@ -877,8 +949,6 @@ Negative:
 - [x] Restrict before/after comparison to referenced source values only; do not treat unrelated prop changes on the same widget as variable-impactful.
 - [x] Apply passive variable invalidation first so effective titles, props, and resolved inputs rerender in memory before any executable downstream scheduling.
 - [x] Add a targeted executable downstream scheduler that consumes the invalidation plan instead of broad source-side flow execution.
-- [x] Add managed executable source projection to targeted scheduling so owner widgets with variable-backed managed-source props queue their owned executable sources.
-- [x] Add tests covering managed-source projection, projected before/after signature comparison, execution-only prop overlay, downstream branch queueing from the managed source, and no persistence drift.
 - [ ] Audit connection runtime identity so connection instance catalogs remain keyed by connection id, while execution/runtime, retained-state, in-flight dedupe, and preview/status entries are keyed by resolved effective execution configuration.
 - [ ] Add regression coverage proving `symbols: ["BTCUSDT"]` and `symbols: ["ETHUSDT"]` from the same connection id and hidden source widget do not reuse stale connection runtime or retained query state.
 - [ ] Add targeted invalidation tests covering active-reference-only impact calculation, passive rerender after commit, executable downstream queueing, and no persistence/runtime-store drift.
