@@ -65,6 +65,7 @@ type MockState = {
   executionVenues: Array<Record<string, unknown>>;
   virtualFunds: Array<Record<string, unknown>>;
   managedAccounts: Array<Record<string, unknown>>;
+  managedAccountTargetPositionsByAccountUid: Record<string, Record<string, unknown>>;
   portfolioGroups: Array<Record<string, unknown>>;
   targetPortfolios: Array<Record<string, unknown>>;
   assetTranslationTables: Array<Record<string, unknown>>;
@@ -108,6 +109,7 @@ function createMockState(): MockState {
     executionVenues: readDataset("execution_venues"),
     virtualFunds: readDataset("virtual_funds"),
     managedAccounts: readDataset("managed_accounts"),
+    managedAccountTargetPositionsByAccountUid: {},
     portfolioGroups: readDataset("portfolio_groups"),
     targetPortfolios: readDataset("target_portfolios"),
     assetTranslationTables: readDataset("asset_translation_tables"),
@@ -2060,6 +2062,12 @@ function findManagedAccountByUid(accountUid: string) {
   );
 }
 
+function findAssetByUniqueIdentifier(uniqueIdentifier: string) {
+  return state.assets.find(
+    (asset) => readOptionalString(asset.unique_identifier) === uniqueIdentifier,
+  );
+}
+
 function handleManagedAccounts(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
   if (route === "/orm/api/assets/account/" && method === "GET") {
     const filtered = state.managedAccounts.filter((account) =>
@@ -2220,34 +2228,36 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     const account = findManagedAccountByUid(accountUid);
 
     if (!account) {
-      return {};
+      return [];
     }
 
     const holdingsDate = searchParams.get("holdings_date") || "2026-05-18T09:30:00Z";
 
-    return {
-      id: 0,
-      snapshot_uid: `mock-holdings-snapshot-${accountUid}`,
-      holdings_set_uid: `mock-holdings-set-${accountUid}`,
-      holdings_date: holdingsDate,
-      nav: "1250.25000000",
-      related_account: 0,
-      is_trade_snapshot: false,
-      target_trade_time: null,
-      related_expected_asset_exposure_df: [],
-      holdings: [
-        {
-          time_index: holdingsDate,
-          unique_identifier: "btc_spot",
-          asset: 101,
-          asset_id: 101,
-          price: "100.000000000000000000",
-          quantity: "12.00000000",
-          missing_price: false,
-          extra_details: {},
-        },
-      ],
-    };
+    return [
+      {
+        id: 0,
+        snapshot_uid: `mock-holdings-snapshot-${accountUid}`,
+        holdings_set_uid: `mock-holdings-set-${accountUid}`,
+        holdings_date: holdingsDate,
+        nav: "1250.25000000",
+        related_account: 0,
+        is_trade_snapshot: false,
+        target_trade_time: null,
+        related_expected_asset_exposure_df: [],
+        holdings: [
+          {
+            time_index: holdingsDate,
+            unique_identifier: "btc_spot",
+            asset: 101,
+            asset_id: 101,
+            price: "100.000000000000000000",
+            quantity: "12.00000000",
+            missing_price: false,
+            extra_details: {},
+          },
+        ],
+      },
+    ];
   }
 
   const addHoldingsMatch = route.match(/^\/orm\/api\/assets\/account\/([^/]+)\/add-holdings\/$/);
@@ -2284,6 +2294,51 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     /^\/orm\/api\/assets\/account\/([^/]+)\/add-target-positions\/$/,
   );
 
+  const targetPositionsMatch = route.match(
+    /^\/orm\/api\/assets\/account\/([^/]+)\/target-positions\/$/,
+  );
+
+  if (targetPositionsMatch && method === "GET") {
+    const accountUid = decodeURIComponent(targetPositionsMatch[1]);
+    const account = findManagedAccountByUid(accountUid);
+
+    if (!account) {
+      return [];
+    }
+
+    const targetPositions = state.managedAccountTargetPositionsByAccountUid[accountUid];
+    if (!isRecord(targetPositions)) {
+      return [];
+    }
+
+    const requestedDate = searchParams.get("target_positions_date");
+    const storedDate = readOptionalString(targetPositions.target_positions_date);
+    if (requestedDate && storedDate !== requestedDate) {
+      return [];
+    }
+
+    const includeAssetDetail = searchParams.get("include_asset_detail") === "true";
+    const positions = readArray<Record<string, unknown>>(targetPositions.positions).map((position) => {
+      if (!includeAssetDetail) {
+        return position;
+      }
+
+      const uniqueIdentifier = readOptionalString(position.unique_identifier);
+      const asset = uniqueIdentifier ? findAssetByUniqueIdentifier(uniqueIdentifier) : null;
+      return {
+        ...position,
+        asset: asset ? cloneValue(asset) : null,
+      };
+    });
+
+    return [
+      {
+        ...cloneValue(targetPositions),
+        positions,
+      },
+    ];
+  }
+
   if (addTargetPositionsMatch && method === "POST") {
     const accountUid = decodeURIComponent(addTargetPositionsMatch[1]);
     const account = findManagedAccountByUid(accountUid);
@@ -2294,10 +2349,10 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       return {};
     }
 
-    return {
+    const targetPositions = {
       related_account_uid: accountUid,
       target_positions_date: readString(body.target_positions_date) || new Date().toISOString(),
-      position_set_uid: `mock-target-positions-set-${accountUid}`,
+      position_set_uid: `mock-target-positions-set-${accountUid}-${Date.now()}`,
       positions: positions.map((position) => ({
         unique_identifier: readString(position.unique_identifier) || null,
         weight_notional_exposure:
@@ -2308,6 +2363,10 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
           readString(position.single_asset_quantity) || null,
       })),
     };
+
+    state.managedAccountTargetPositionsByAccountUid[accountUid] = cloneValue(targetPositions);
+
+    return targetPositions;
   }
 
   return undefined;

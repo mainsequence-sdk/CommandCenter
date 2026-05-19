@@ -8,7 +8,9 @@ import {
   collectDashboardWidgetEntries,
   createDashboardWidgetDependencyModel,
   createDashboardWidgetEntryIndex,
+  listUnresolvedReferenceBackedPropInputs,
   normalizeWidgetInstanceBindings,
+  type ResolvedWidgetOutputs,
   type DashboardWidgetDependencyModel,
 } from "@/dashboards/widget-dependencies";
 import type { WorkspaceVariableReferenceEntry } from "@/dashboards/widget-variable-registry";
@@ -24,6 +26,7 @@ import type {
   WidgetExecutionTargetOverrides,
 } from "@/widgets/types";
 import type { RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
+import { RUNTIME_DATA_REF_KIND } from "@/widgets/shared/runtime-data-store";
 import {
   type AnyManagedConnectionConsumerAdapter,
   isManagedConnectionConsumerMode,
@@ -108,30 +111,73 @@ function stableJsonStringify(value: unknown): string {
   return JSON.stringify(value) ?? String(value);
 }
 
-function buildRuntimeStateResolutionSignature(runtimeState: unknown) {
-  if (!isPlainRecord(runtimeState)) {
-    return runtimeState === undefined ? "undefined" : typeof runtimeState;
+function sanitizeResolutionSignatureValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeResolutionSignatureValue(entry));
   }
 
-  const source = isPlainRecord(runtimeState.source) ? runtimeState.source : undefined;
+  if (!isPlainRecord(value)) {
+    return value;
+  }
 
-  return stableJsonStringify({
-    status: typeof runtimeState.status === "string" ? runtimeState.status : undefined,
-    error: typeof runtimeState.error === "string" ? runtimeState.error : undefined,
-    traceId: typeof runtimeState.traceId === "string" ? runtimeState.traceId : undefined,
-    columns: Array.isArray(runtimeState.columns) ? runtimeState.columns : undefined,
-    rowCount: Array.isArray(runtimeState.rows) ? runtimeState.rows.length : undefined,
-    fieldCount: Array.isArray(runtimeState.fields) ? runtimeState.fields.length : undefined,
-    source: source
-      ? {
-          kind: typeof source.kind === "string" ? source.kind : undefined,
-          id: typeof source.id === "string" || typeof source.id === "number"
-            ? source.id
-            : undefined,
-          updatedAtMs: typeof source.updatedAtMs === "number" ? source.updatedAtMs : undefined,
-        }
-      : undefined,
-  });
+  if (value.kind === RUNTIME_DATA_REF_KIND) {
+    return {
+      kind: value.kind,
+      refId: typeof value.refId === "string" ? value.refId : undefined,
+      workspaceRuntimeId:
+        typeof value.workspaceRuntimeId === "string" ? value.workspaceRuntimeId : undefined,
+      ownerId: typeof value.ownerId === "string" ? value.ownerId : undefined,
+      outputId: typeof value.outputId === "string" ? value.outputId : undefined,
+      contractId: typeof value.contractId === "string" ? value.contractId : undefined,
+      rowCount: typeof value.rowCount === "number" ? value.rowCount : undefined,
+      schemaSignature:
+        typeof value.schemaSignature === "string" ? value.schemaSignature : undefined,
+      columns: Array.isArray(value.columns) ? value.columns : undefined,
+      fields: Array.isArray(value.fields) ? value.fields : undefined,
+      status: typeof value.status === "string" ? value.status : undefined,
+      error: typeof value.error === "string" ? value.error : undefined,
+    };
+  }
+
+  const nextEntries = Object.entries(value)
+    .filter(([key]) =>
+      key !== "updatedAtMs" &&
+      key !== "traceId" &&
+      key !== "runtimeDataRef" &&
+      key !== "outputRef" &&
+      key !== "retainedOutputRef" &&
+      key !== "deltaOutputRef" &&
+      key !== "sourceRunId" &&
+      key !== "sequence",
+    )
+    .map(([key, entryValue]) => [key, sanitizeResolutionSignatureValue(entryValue)] as const)
+    .sort(([left], [right]) => left.localeCompare(right));
+
+  return Object.fromEntries(nextEntries);
+}
+
+function buildResolvedOutputsResolutionSignature(
+  outputs: ResolvedWidgetOutputs | undefined,
+) {
+  if (!outputs) {
+    return "undefined";
+  }
+
+  return stableJsonStringify(
+    Object.fromEntries(
+      Object.entries(outputs)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([outputId, output]) => [
+          outputId,
+          output
+            ? {
+                contractId: output.contractId,
+                value: sanitizeResolutionSignatureValue(output.value),
+              }
+            : null,
+        ]),
+    ),
+  );
 }
 
 function flattenResolvedInputs(
@@ -703,11 +749,16 @@ function collectTransitiveExecutableDependencyIds(
   return executableIds;
 }
 
+interface UpstreamResolutionSignatureOptions {
+  includeResolvedOutputs?: boolean;
+}
+
 function collectUpstreamResolutionSignatures(
   instanceId: string,
   snapshot: DashboardExecutionSnapshot,
   signatures = new Set<string>(),
   visited = new Set<string>(),
+  options: UpstreamResolutionSignatureOptions = {},
 ) {
   if (visited.has(instanceId)) {
     return signatures;
@@ -729,6 +780,7 @@ function collectUpstreamResolutionSignatures(
     const executableSignature = buildExecutableResolutionSignature(
       input.sourceWidgetId,
       snapshot,
+      options,
     );
 
     if (executableSignature) {
@@ -740,6 +792,7 @@ function collectUpstreamResolutionSignatures(
       snapshot,
       signatures,
       visited,
+      options,
     );
   }
 
@@ -749,6 +802,7 @@ function collectUpstreamResolutionSignatures(
 function buildExecutableResolutionSignature(
   instanceId: string,
   snapshot: DashboardExecutionSnapshot,
+  options: UpstreamResolutionSignatureOptions = {},
 ) {
   const instance = snapshot.getInstance(instanceId);
   const definition = snapshot.getDefinition(instanceId);
@@ -773,6 +827,7 @@ function buildExecutableResolutionSignature(
     publicExecution: instance.publicExecution,
     resolvedInputs,
   } satisfies WidgetExecutionContext;
+  const resolvedOutputs = snapshot.dependencies.resolveOutputs(instanceId);
   let executionKey: string | undefined;
 
   try {
@@ -788,8 +843,25 @@ function buildExecutableResolutionSignature(
     executionKey ?? "",
     stableJsonStringify(effectiveState.props ?? {}),
     stableJsonStringify(instance.publicExecution ?? null),
-    buildRuntimeStateResolutionSignature(instance.runtimeState),
+    options.includeResolvedOutputs === false
+      ? ""
+      : buildResolvedOutputsResolutionSignature(resolvedOutputs),
   ].join(":");
+}
+
+function formatUnresolvedReferenceInputMessage(
+  instanceId: string,
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+) {
+  const unresolved = listUnresolvedReferenceBackedPropInputs(resolvedInputs);
+
+  if (unresolved.length === 0) {
+    return null;
+  }
+
+  const paths = unresolved.map((entry) => entry.propPath.join("."));
+
+  return `Widget ${instanceId} is waiting for referenced setting value${paths.length === 1 ? "" : "s"}: ${paths.join(", ")}.`;
 }
 
 function collectExecutionOrder(
@@ -986,19 +1058,43 @@ export interface DashboardUpstreamResolutionRequirement {
   executableInstanceIds: string[];
   needsResolution: boolean;
   requestKey: string;
+  settledKey: string;
 }
 
-export function buildDashboardUpstreamResolutionKey(
+function buildDashboardUpstreamResolutionKeyWithOptions(
   targetInstanceId: string,
   snapshot: DashboardExecutionSnapshot,
+  options: UpstreamResolutionSignatureOptions = {},
 ) {
-  const signatures = [...collectUpstreamResolutionSignatures(targetInstanceId, snapshot)].sort();
+  const signatures = [...collectUpstreamResolutionSignatures(
+    targetInstanceId,
+    snapshot,
+    new Set<string>(),
+    new Set<string>(),
+    options,
+  )].sort();
 
   if (signatures.length === 0) {
     return `${targetInstanceId}::no-upstream-bindings`;
   }
 
   return `${targetInstanceId}::${signatures.join("::")}`;
+}
+
+export function buildDashboardUpstreamResolutionKey(
+  targetInstanceId: string,
+  snapshot: DashboardExecutionSnapshot,
+) {
+  return buildDashboardUpstreamResolutionKeyWithOptions(targetInstanceId, snapshot);
+}
+
+export function buildDashboardPassiveUpstreamResolutionKey(
+  targetInstanceId: string,
+  snapshot: DashboardExecutionSnapshot,
+) {
+  return buildDashboardUpstreamResolutionKeyWithOptions(targetInstanceId, snapshot, {
+    includeResolvedOutputs: false,
+  });
 }
 
 export function resolveDashboardUpstreamRequirement(
@@ -1011,6 +1107,7 @@ export function resolveDashboardUpstreamRequirement(
     executableInstanceIds,
     needsResolution: executableInstanceIds.length > 0,
     requestKey: buildDashboardUpstreamResolutionKey(targetInstanceId, snapshot),
+    settledKey: buildDashboardPassiveUpstreamResolutionKey(targetInstanceId, snapshot),
   };
 }
 
@@ -1171,6 +1268,37 @@ export async function executeDashboardWidgetGraph(
       instanceId === args.targetInstanceId,
     );
     const resolvedInputs = snapshot.dependencies.resolveInputs(instanceId);
+    const unresolvedReferenceInputMessage = formatUnresolvedReferenceInputMessage(
+      instanceId,
+      resolvedInputs,
+    );
+
+    if (unresolvedReferenceInputMessage) {
+      nodeResults.push({
+        instanceId,
+        reason: nodeReason,
+        status: "skipped",
+        error: unresolvedReferenceInputMessage,
+      });
+      args.onNodeComplete?.({
+        instanceId,
+        reason: nodeReason,
+        targetInstanceId: args.targetInstanceId,
+        status: "skipped",
+        error: unresolvedReferenceInputMessage,
+      });
+
+      return {
+        status: "skipped",
+        error: unresolvedReferenceInputMessage,
+        widgets: workingWidgets,
+        targetInstanceId: args.targetInstanceId,
+        targetRuntimeState,
+        nodeResults,
+        executedInstanceIds,
+      };
+    }
+
     const effectiveState = resolveReferenceBackedWidgetState({
       instanceTitle: instance.title,
       props: (instance.props ?? {}) as Record<string, unknown>,
@@ -1249,7 +1377,7 @@ export async function executeDashboardWidgetGraph(
     });
 
     if (import.meta.env.DEV && executionContext.widgetId === "connection-query") {
-      console.debug("[widget-exec] node start", summarizeExecutionContextForDebug(executionContext));
+      console.log("[widget-exec] node start", summarizeExecutionContextForDebug(executionContext));
     }
 
     let result: WidgetExecutionResult;
@@ -1289,7 +1417,7 @@ export async function executeDashboardWidgetGraph(
       );
 
     if (import.meta.env.DEV && instance.widgetId === "connection-query") {
-      console.debug("[widget-exec] node result", {
+      console.log("[widget-exec] node result", {
         instanceId,
         widgetId: instance.widgetId,
         targetInstanceId: args.targetInstanceId,
@@ -1372,6 +1500,11 @@ export function listDashboardRefreshableExecutionTargets(args: {
 
     if (definition?.execution) {
       const resolvedInputs = snapshot.dependencies.resolveInputs(instance.id);
+
+      if (listUnresolvedReferenceBackedPropInputs(resolvedInputs).length > 0) {
+        return [];
+      }
+
       const effectiveState = resolveReferenceBackedWidgetState({
         instanceTitle: instance.title,
         props: (instance.props ?? {}) as Record<string, unknown>,

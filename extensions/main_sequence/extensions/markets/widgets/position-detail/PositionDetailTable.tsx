@@ -658,6 +658,35 @@ function buildAccountHoldingExpandedRecord(row: Record<string, unknown>) {
   };
 }
 
+function buildTargetPositionsAccountExpandedRecord(row: Record<string, unknown>) {
+  const uniqueIdentifier =
+    typeof row.unique_identifier === "string" && row.unique_identifier.trim()
+      ? row.unique_identifier.trim()
+      : null;
+  const asset =
+    typeof row.asset === "number"
+      ? row.asset
+      : isRecord(row.asset)
+        ? row.asset
+        : null;
+  const positionType = getPositionDetailPositionRowType(row);
+  const rawValue =
+    row.weight_notional_exposure ??
+    row.constant_notional_exposure ??
+    row.single_asset_quantity ??
+    row.position_value;
+
+  return {
+    ...(uniqueIdentifier ? { unique_identifier: uniqueIdentifier } : {}),
+    ...(positionType === "weight_notional_exposure"
+      ? { weight_notional_exposure: rawValue }
+      : positionType === "constant_notional"
+        ? { constant_notional_exposure: rawValue }
+        : { single_asset_quantity: rawValue }),
+    ...(asset !== null ? { asset } : {}),
+  };
+}
+
 function getPositionDetailColumns(
   columnDefs: TargetPositionDetailPositionColumnDef[],
   rows: Array<Record<string, unknown>>,
@@ -800,13 +829,19 @@ function PositionDetailPositionExpandedContent({
   const formattedJson = safeFormatPositionDetailJson(
     sourceType === "account"
       ? buildAccountHoldingExpandedRecord(row)
+      : sourceType === "target_positions_account"
+        ? buildTargetPositionsAccountExpandedRecord(row)
       : row,
   );
 
   return (
     <div className="overflow-hidden rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/50">
       <div className="border-b border-border/60 px-3 py-2 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-        {sourceType === "account" ? "Holding JSON" : "Position JSON"}
+        {sourceType === "account"
+          ? "Holding JSON"
+          : sourceType === "target_positions_account"
+            ? "Target Position JSON"
+            : "Position JSON"}
       </div>
       <pre className="overflow-x-auto px-3 py-3 font-mono text-[12px] leading-5 text-foreground whitespace-pre-wrap break-words">
         {formattedJson}

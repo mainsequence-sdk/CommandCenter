@@ -20,7 +20,10 @@ import {
 } from "@/widgets/shared/value-contracts";
 import { defineWidget, type WidgetDefinition } from "@/widgets/types";
 
-import { createDashboardWidgetDependencyModel } from "./widget-dependencies";
+import {
+  createDashboardWidgetDependencyModel,
+  listUnresolvedReferenceBackedPropInputs,
+} from "./widget-dependencies";
 import {
   buildWidgetReferencePropInputId,
   WIDGET_REFERENCE_TITLE_INPUT_ID,
@@ -174,6 +177,48 @@ function widget(overrides: Partial<DashboardWidgetInstance>): DashboardWidgetIns
 }
 
 describe("createDashboardWidgetDependencyModel", () => {
+  it("does not treat valid null reference-backed props as unresolved", () => {
+    const inputId = buildWidgetReferencePropInputId(["query", "symbols"]);
+
+    expect(
+      listUnresolvedReferenceBackedPropInputs({
+        [inputId]: {
+          inputId,
+          label: "Setting: query.symbols",
+          status: "valid",
+          sourceWidgetId: "asset-screener-1",
+          sourceOutputId: "activeCellValue",
+          value: null,
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it("still treats invalid reference-backed props as unresolved", () => {
+    const inputId = buildWidgetReferencePropInputId(["query", "symbols"]);
+
+    expect(
+      listUnresolvedReferenceBackedPropInputs({
+        [inputId]: {
+          inputId,
+          label: "Setting: query.symbols",
+          status: "missing-output",
+          sourceWidgetId: "asset-screener-1",
+          sourceOutputId: "activeCellValue",
+          value: null,
+        },
+      }),
+    ).toEqual([
+      {
+        inputId,
+        propPath: ["query", "symbols"],
+        reason: "invalid-input",
+        status: "missing-output",
+        value: null,
+      },
+    ]);
+  });
+
   it("marks widgets that own hidden managed connection sources", () => {
     const widgets: DashboardWidgetInstance[] = [
       widget({
@@ -207,6 +252,13 @@ describe("createDashboardWidgetDependencyModel", () => {
     expect(ownerNode?.ownedManagedConnectionSourceCount).toBe(1);
     expect(managedNode?.managedRole).toBe("embedded-connection-source");
     expect(managedNode?.hiddenFromNormalRail).toBe(true);
+    expect(model.graph.edges).toEqual([
+      expect.objectContaining({
+        from: "managed-1",
+        to: "graph-1",
+        source: "system-managed",
+      }),
+    ]);
   });
 
   it("propagates runtime data refs without materializing identity bindings", () => {
@@ -405,6 +457,20 @@ describe("createDashboardWidgetDependencyModel", () => {
         },
       }),
     ]);
+    expect(model.graph.edges).toEqual([
+      expect.objectContaining({
+        from: "source-1",
+        fromPort: "activeCellValue",
+        to: "graph-1",
+        toPort: WIDGET_REFERENCE_TITLE_INPUT_ID,
+        source: "variable-reference",
+        reference: expect.objectContaining({
+          expression: "$(source-1).activeCellValue",
+          targetKind: "title",
+          transformSignature: "identity",
+        }),
+      }),
+    ]);
   });
 
   it("resolves expression-authored connection query props before their generated binding has been persisted", () => {
@@ -448,6 +514,21 @@ describe("createDashboardWidgetDependencyModel", () => {
         symbols: ["ETHUSDT"],
       },
     });
+    expect(model.graph.edges).toEqual([
+      expect.objectContaining({
+        from: "source-1",
+        fromPort: "activeRow",
+        to: "query-1",
+        toPort: buildWidgetReferencePropInputId(["query", "symbols"]),
+        source: "variable-reference",
+        reference: expect.objectContaining({
+          expression: "$(source-1).activeRow.SYMBOL",
+          targetKind: "prop",
+          targetPath: ["query", "symbols"],
+          transformSignature: "extract-path:SYMBOL",
+        }),
+      }),
+    ]);
   });
 
   it("infers object fields from unknown JSON interaction outputs for path references", () => {

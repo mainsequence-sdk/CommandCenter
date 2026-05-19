@@ -33,15 +33,22 @@
   surfaces that only need lightweight identity fields. Full registry/detail-style tables that rely
   on richer `dynamic_table` fields must opt out explicitly with `light: false`.
 - Markets positions helpers also live here. `fetchManagedAccountHoldingsPositionDetails(...)`
-  adapts the canonical managed-account holdings snapshot endpoint
+  adapts the canonical managed-account holdings collection endpoint
   `/orm/api/assets/account/{uid}/holdings/` into the shared position-detail payload shape used by
-  the reusable `Position Detail` widget. The backend may legally return `{}` with
-  `200 OK` when no holdings snapshot exists; the API layer normalizes that to an empty positions
-  payload instead of pushing the empty-object special case into widgets.
+  the reusable `Position Detail` widget. It now requests the latest snapshot with
+  `order=desc&limit=1` when no exact `holdings_date` filter is provided, preserves
+  `include_asset_detail=true`, and normalizes empty collection responses to an empty positions
+  payload instead of pushing collection-handling into widgets.
 - `saveManagedAccountHoldings(...)` also lives here. It posts a canonical holdings snapshot to
   `/orm/api/assets/account/{uid}/add-holdings/`, normalizes the write response, and adapts it back
   into the same reusable position-detail payload so the holdings widget can stay on one rendering
   contract before and after save.
+- `fetchManagedAccountTargetPositionsPositionDetails(...)` also lives here. It adapts the canonical
+  managed-account target-positions collection endpoint
+  `/orm/api/assets/account/{uid}/target-positions/` into the same reusable position-detail payload,
+  requests the latest assignment with `order=desc&limit=1` when no exact
+  `target_positions_date` filter is provided, preserves `include_asset_detail=true`, and normalizes
+  empty collection responses to an empty positions payload.
 - Execution venue helpers also live here. Execution venue list/detail/mutation calls are now UID-based on the detail routes, and managed-account create calls must pass `execution_venue` as the venue UID returned by the execution venue list.
 - Shareable-object permission helpers also live here. They all use the same suffix-based contract:
   the caller provides an object root plus object id, and the API layer appends the configured

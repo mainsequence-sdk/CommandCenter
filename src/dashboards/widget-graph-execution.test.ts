@@ -6,6 +6,7 @@ import {
   buildWidgetReferencePropInputId,
 } from "@/dashboards/widget-instance-references";
 import {
+  buildDashboardPassiveUpstreamResolutionKey,
   buildDashboardExecutionSnapshot,
   executeDashboardWidgetGraph,
   listDashboardDownstreamExecutionTargets,
@@ -359,6 +360,15 @@ function requestKeyFor(widgets: DashboardWidgetInstance[]) {
   return resolveDashboardUpstreamRequirement("consumer-1", snapshot).requestKey;
 }
 
+function passiveRequestKeyFor(widgets: DashboardWidgetInstance[]) {
+  const snapshot = buildDashboardExecutionSnapshot({
+    widgets,
+    resolveWidgetDefinition,
+  });
+
+  return buildDashboardPassiveUpstreamResolutionKey("consumer-1", snapshot);
+}
+
 function widgets(source: Partial<DashboardWidgetInstance> = {}): DashboardWidgetInstance[] {
   return [
     {
@@ -686,6 +696,38 @@ function managedGraphViaTableVariableWidgets(symbol: string): DashboardWidgetIns
   ];
 }
 
+function managedGraphViaTableVariableWidgetsWithRow(
+  row: Record<string, unknown>,
+): DashboardWidgetInstance[] {
+  const symbol = typeof row.symbol === "string" ? row.symbol : "";
+  const widgets = managedGraphViaTableVariableWidgets(symbol);
+  const upstreamSource = widgets.find((widget) => widget.id === "upstream-source-1");
+
+  if (!upstreamSource) {
+    return widgets;
+  }
+
+  upstreamSource.props = {
+    connectionRef: {
+      id: TEST_CONNECTION_ID,
+      typeId: TEST_CONNECTION_TYPE_ID,
+    },
+    queryModelId: TEST_QUERY_KIND,
+    query: {
+      kind: TEST_QUERY_KIND,
+      responseBody: [row],
+    },
+    timeRangeMode: "none",
+  };
+  upstreamSource.runtimeState = {
+    status: "ready",
+    columns: Object.keys(row),
+    rows: [row],
+  };
+
+  return widgets;
+}
+
 describe("dashboard upstream resolution keys", () => {
   it("changes when an executable upstream source changes props", () => {
     const firstKey = requestKeyFor(widgets());
@@ -715,6 +757,134 @@ describe("dashboard upstream resolution keys", () => {
     );
 
     expect(readyKey).not.toBe(idleKey);
+  });
+
+  it("does not change when upstream runtime only changes volatile trace metadata", () => {
+    const firstKey = requestKeyFor(
+      widgets({
+        runtimeState: {
+          status: "ready",
+          columns: ["value"],
+          rows: [{ value: 1 }],
+          runtimeDataRef: {
+            kind: "runtime-data-ref",
+            refId: "source-1:dataset",
+            workspaceRuntimeId: "workspace-1",
+            ownerId: "source-1",
+            outputId: "dataset",
+            contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+            version: 1,
+            rowCount: 1,
+            schemaSignature: "schema-1",
+            updatedAtMs: 100,
+          },
+          source: {
+            kind: "connection-query",
+            updatedAtMs: 100,
+            context: {
+              traceId: "trace-1",
+              runtimeDataRef: {
+                kind: "runtime-data-ref",
+                refId: "source-1:dataset",
+                workspaceRuntimeId: "workspace-1",
+                ownerId: "source-1",
+                outputId: "dataset",
+                contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+                version: 1,
+                rowCount: 1,
+                schemaSignature: "schema-1",
+                updatedAtMs: 100,
+              },
+            },
+          },
+        },
+      }),
+    );
+    const nextKey = requestKeyFor(
+      widgets({
+        runtimeState: {
+          status: "ready",
+          columns: ["value"],
+          rows: [{ value: 1 }],
+          runtimeDataRef: {
+            kind: "runtime-data-ref",
+            refId: "source-1:dataset",
+            workspaceRuntimeId: "workspace-1",
+            ownerId: "source-1",
+            outputId: "dataset",
+            contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+            version: 2,
+            rowCount: 1,
+            schemaSignature: "schema-1",
+            updatedAtMs: 999,
+          },
+          source: {
+            kind: "connection-query",
+            updatedAtMs: 999,
+            context: {
+              traceId: "trace-2",
+              runtimeDataRef: {
+                kind: "runtime-data-ref",
+                refId: "source-1:dataset",
+                workspaceRuntimeId: "workspace-1",
+                ownerId: "source-1",
+                outputId: "dataset",
+                contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+                version: 2,
+                rowCount: 1,
+                schemaSignature: "schema-1",
+                updatedAtMs: 999,
+              },
+            },
+          },
+        },
+      }),
+    );
+
+    expect(nextKey).toBe(firstKey);
+  });
+
+  it("changes when upstream published rows change even if row count stays the same", () => {
+    const firstKey = requestKeyFor(
+      widgets({
+        runtimeState: {
+          status: "ready",
+          columns: ["value"],
+          rows: [{ value: 1 }],
+        },
+      }),
+    );
+    const nextKey = requestKeyFor(
+      widgets({
+        runtimeState: {
+          status: "ready",
+          columns: ["value"],
+          rows: [{ value: 2 }],
+        },
+      }),
+    );
+
+    expect(nextKey).not.toBe(firstKey);
+  });
+
+  it("keeps the passive one-shot key stable when upstream runtime output changes", () => {
+    const firstKey = passiveRequestKeyFor(widgets());
+    const nextKey = passiveRequestKeyFor(
+      widgets({
+        runtimeState: {
+          status: "error",
+          error: "Backend rejected the query.",
+          columns: [],
+          rows: [],
+          source: {
+            kind: "connection-query",
+            updatedAtMs: 999,
+          },
+        },
+      }),
+    );
+
+    expect(nextKey).toBe(firstKey);
   });
 
   it("refreshes an actual Mock API connection source through a passive table consumer", async () => {
@@ -1084,5 +1254,96 @@ describe("dashboard upstream resolution keys", () => {
           symbols: ["MSFT"],
         },
       });
+  });
+
+  it("does not schedule managed sources when downstream passive variable values stay the same", () => {
+    const beforeWidgets = managedGraphViaTableVariableWidgetsWithRow({
+      symbol: "AAPL",
+      price: 100,
+    });
+    const afterWidgets = managedGraphViaTableVariableWidgetsWithRow({
+      symbol: "AAPL",
+      price: 250,
+    });
+    const beforeSnapshot = buildDashboardExecutionSnapshot({
+      widgets: beforeWidgets,
+      resolveWidgetDefinition,
+    });
+    const afterSnapshot = buildDashboardExecutionSnapshot({
+      widgets: afterWidgets,
+      resolveWidgetDefinition,
+    });
+
+    const plan = planDashboardVariableDrivenCommit({
+      changedWidgetId: "upstream-source-1",
+      beforeSnapshot,
+      afterSnapshot,
+      resolveManagedConnectionConsumerAdapter: (widgetId) =>
+        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+    });
+
+    expect(plan.changedVariableEntries).toEqual([]);
+    expect(plan.affectedConsumerWidgetIds).toEqual([]);
+    expect(plan.passiveConsumerWidgetIds).toEqual([]);
+    expect(plan.executableConsumerWidgetIds).toEqual([]);
+    expect(plan.managedExecutableSourceWidgetIds).toEqual([]);
+    expect(plan.executableTargetWidgetIds).toEqual([]);
+    expect(plan.executableTargetOverridesByWidgetId).toEqual({});
+  });
+
+  it("keeps saved owner props and managed source props unchanged when projecting runtime overrides", () => {
+    const beforeWidgets = managedGraphViaTableVariableWidgets("AAPL");
+    const afterWidgets = managedGraphViaTableVariableWidgets("MSFT");
+    const beforeSnapshot = buildDashboardExecutionSnapshot({
+      widgets: beforeWidgets,
+      resolveWidgetDefinition,
+    });
+    const afterSnapshot = buildDashboardExecutionSnapshot({
+      widgets: afterWidgets,
+      resolveWidgetDefinition,
+    });
+
+    const afterGraph = afterWidgets.find((widget) => widget.id === "graph-1");
+    const afterManagedSource = afterWidgets.find((widget) => widget.id === "managed-source-1");
+
+    expect(afterGraph?.props).toMatchObject({
+      embeddedConnectionQuery: {
+        query: {
+          symbols: ["$(table-1).activeRow.symbol"],
+        },
+      },
+    });
+    expect(afterManagedSource?.props).toMatchObject({
+      query: {
+        symbols: ["$(table-1).activeRow.symbol"],
+      },
+    });
+
+    const plan = planDashboardVariableDrivenCommit({
+      changedWidgetId: "upstream-source-1",
+      beforeSnapshot,
+      afterSnapshot,
+      resolveManagedConnectionConsumerAdapter: (widgetId) =>
+        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+    });
+
+    expect(plan.executableTargetOverridesByWidgetId["managed-source-1"]?.props)
+      .toMatchObject({
+        query: {
+          symbols: ["MSFT"],
+        },
+      });
+    expect(afterGraph?.props).toMatchObject({
+      embeddedConnectionQuery: {
+        query: {
+          symbols: ["$(table-1).activeRow.symbol"],
+        },
+      },
+    });
+    expect(afterManagedSource?.props).toMatchObject({
+      query: {
+        symbols: ["$(table-1).activeRow.symbol"],
+      },
+    });
   });
 });

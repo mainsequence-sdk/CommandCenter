@@ -53,7 +53,8 @@ backend-owned connection instances.
   a widget reference expression, the settings request preview and test action resolve that
   reference-backed draft value through the shared dependency layer before building the request, so
   the preview payload matches runtime execution instead of echoing the raw `$(widget).source`
-  authoring string.
+  authoring string. If a required reference-backed query value is not available yet, the workbench
+  reports that it is waiting for the referenced value and does not send a backend request.
 - When the shared settings workbench runs for a real widget instance, the test action also
   publishes the resulting runtime frame back onto that widget's live runtime state. This keeps the
   widget's own runtime card, hidden managed-source consumers, and downstream `sourceData` bindings
@@ -61,7 +62,8 @@ backend-owned connection instances.
 - When this widget is owned as a hidden managed connection source, variable-backed owner settings
   are projected into this widget as execution-only props during variable invalidation. The runtime
   frame is refreshed and persisted on the managed source, but the projected props are not written
-  back into saved workspace props.
+  back into saved workspace props. The effective execution identity is the resolved connection
+  request, not only the hidden source widget id or connection id.
 - The settings surface also shows the current live runtime status for this source widget. Draft
   query changes do not silently overwrite the last published runtime state until the widget is run
   again through normal execution or the settings test action.
@@ -106,6 +108,10 @@ backend-owned connection instances.
   when the widget has not selected a connection yet.
 - The widget is an `execution-owner`; mounted runtime UI renders the latest `runtimeState` and does
   not independently query the backend.
+- Passive downstream consumers may ask the dashboard execution provider to resolve this source
+  once when no publication exists. After this widget publishes `ready`, `null`, empty, or `error`
+  runtime state, that publication is the settled upstream answer for the current invalidation; do
+  not add connection-local retry effects to satisfy passive consumers.
 - The mounted runtime card now treats `idle` and first-load `loading` without retained rows as an
   initial waiting state. It should not render `0 rows / 0 columns` until the widget has produced a
   real response frame.

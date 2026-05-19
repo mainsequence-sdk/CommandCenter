@@ -17,13 +17,14 @@ Render portfolio, account, target-position, or account target-position rows with
 - Choose the source type first: `portfolio`, `account`, `target_position`, or `target_positions_account`.
 - If the source type is `portfolio`, optionally set a portfolio id so the widget can hydrate from the target portfolio weights endpoint.
 - If the source type is `account`, optionally set an account uid so the widget can hydrate from the canonical account holdings endpoint.
-- If the source type is `target_positions_account`, set an account uid so the widget can save account-scoped target-position assignments.
+- If the source type is `target_positions_account`, set an account uid so the widget can hydrate and save account-scoped target-position assignments.
 - Enable `Editable in place` when authors should add assets directly on the widget and maintain rows there.
 - For `target_position` and `target_positions_account`, choose the desired position type per row. `portfolio` stays fixed to weight exposure; `account` is units-only and only exposes quantity together with the top-level holdings datetime.
 - For `portfolio` and `account`, enabling `Editable in place` adds an explicit in-widget edit action. The widget still opens in display mode first.
 - In `account` edit mode, the widget shows a top-level `Holdings Date` datetime picker. It seeds from the account holdings snapshot timestamp, or the current time when no holdings rows exist yet.
 - In `target_positions_account` edit mode, the widget shows a top-level `Target Positions Date` datetime picker and a `Save target positions` action.
 - Hydrated `account` read surfaces show that holdings snapshot timestamp back in the table `Date` column, and the expanded detail renders a holdings-shaped JSON record instead of the generic portfolio-weights row aliases.
+- Hydrated `target_positions_account` read/edit surfaces load the latest assignment by default, or the exact assignment keyed by `targetPositionsDate` when that widget prop is set.
 
 ## blockingRequirements
 
@@ -41,7 +42,7 @@ Render portfolio, account, target-position, or account target-position rows with
 
 ## runtimeOwnership
 
-- `portfolio` and `account` are `execution-owner` only while they are hydrating from backend and no local rows have been persisted.
+- `portfolio`, `account`, and `target_positions_account` are `execution-owner` only while they are hydrating from backend and no local rows have been persisted.
 - Local authored rows for any source type render as `local-ui`.
 
 ## refreshBehavior
@@ -49,7 +50,7 @@ Render portfolio, account, target-position, or account target-position rows with
 - Hydrated portfolio mode refreshes on dashboard refresh and manual recalculate.
 - Hydrated account mode refreshes on dashboard refresh and manual recalculate.
 - During account edit mode, row changes are still staged through widget props first. Clicking `Save holdings` writes a canonical snapshot through the managed-account holdings endpoint, clears the local draft rows, and lets backend hydration take over again.
-- During target-positions-account edit mode, row changes are staged through widget props first. Clicking `Save target positions` writes the account-scoped target-position assignment through the managed-account target-position endpoint and keeps the local rows as the editable source of truth for that widget instance.
+- During target-positions-account edit mode, row changes are staged through widget props first. Clicking `Save target positions` writes the account-scoped target-position assignment through the managed-account target-position endpoint, clears the local draft rows, and returns the widget to the canonical backend payload.
 
 ## importantConfiguration
 
@@ -65,8 +66,9 @@ Render portfolio, account, target-position, or account target-position rows with
 ## backendContracts
 
 - Portfolio hydration uses the existing target-portfolio weights/positions endpoint through the shared Markets API layer.
-- Account hydration uses `GET /orm/api/assets/account/<account_uid>/holdings/`. If `holdings_date` is omitted, the backend returns the latest holdings snapshot.
+- Account hydration uses `GET /orm/api/assets/account/<account_uid>/holdings/`. The widget requests `order=desc&limit=1` for the latest snapshot when `holdingsDate` is not set, or `holdings_date=<timestamp>&limit=1` when an exact timestamp is requested.
 - Account save uses `POST /orm/api/assets/account/<account_uid>/add-holdings/` with `overwrite: true`. The widget injects `target_trade_time` from `holdingsDate`, maps blank prices to `missing_price: true`, always writes `position_type: "units"`, and always sends `extra_details: {}` because that field is API-only in the current frontend contract.
+- Target positions account hydration uses `GET /orm/api/assets/account/<account_uid>/target-positions/`. The widget always requests `include_asset_detail=true`, uses `order=desc&limit=1` when `targetPositionsDate` is not set, and when `targetPositionsDate` is set it sends `target_positions_date=<timestamp>&limit=1` to load the exact assignment for that timestamp.
 - Target positions account save uses `POST /orm/api/assets/account/<account_uid>/add-target-positions/`. The widget writes the top-level `target_positions_date`, sends `unique_identifier` on every row, and maps the selected position type to exactly one of:
   - `weight_notional_exposure`
   - `constant_notional_exposure`
@@ -101,4 +103,5 @@ Render portfolio, account, target-position, or account target-position rows with
 - `target_position` and `target_positions_account` are authoring-first modes and open directly in the inline editor when inline editing is enabled.
 - In `account` edit mode, the table shows `Quantity` and a blocked `Extra Details` cell. `Position Type` is hidden because the account holdings writer is units-only. `Extra Details` is not authored in the UI and can only be populated through the API.
 - In positions mode, expanding a row shows the full read-only position record as formatted JSON instead of a card-based inspector. Authored rows nest asset metadata under `asset` and keep the position fields separate. Account holdings read mode renders a canonical holdings-shaped JSON block there instead of the generic display-row aliases.
+- Target positions account read mode also renders a canonical target-position JSON block there instead of the generic display-row aliases.
 - The top positions summary separates totals by position type so notionals are not mixed with percentage-based exposure rows. Account mode hides that strip because raw holdings quantities are not meaningful as one aggregate total.

@@ -32,6 +32,10 @@ import {
 } from "@/dashboards/dashboard-request-trace";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import {
+  resolveReferenceBackedWidgetState,
+} from "@/dashboards/widget-instance-references";
+import { listUnresolvedReferenceBackedPropInputs } from "@/dashboards/widget-dependencies";
+import {
   buildDashboardUpstreamResolutionKey,
   resolveDashboardUpstreamRequirement,
   buildDashboardExecutionSnapshot,
@@ -46,6 +50,7 @@ import {
 } from "@/dashboards/widget-graph-execution";
 import type {
   WidgetDefinition,
+  WidgetExecutionContext,
   WidgetExecutionDashboardState,
   WidgetExecutionReason,
   WidgetExecutionSurface,
@@ -80,6 +85,10 @@ export interface ResolveWidgetUpstreamOptions {
 export interface ResolveWidgetUpstreamHookOptions
   extends ResolveWidgetUpstreamOptions {
   enabled: boolean;
+}
+
+interface PassiveUpstreamResolutionOptions extends ResolveWidgetUpstreamOptions {
+  settledKey: string;
 }
 
 export interface DashboardWidgetFlowExecutionResult {
@@ -129,6 +138,10 @@ interface DashboardWidgetExecutionContextValue {
     targetInstanceId: string,
     options?: ResolveWidgetUpstreamOptions,
   ) => Promise<DashboardWidgetGraphExecutionResult>;
+  resolvePassiveUpstream: (
+    targetInstanceId: string,
+    options: PassiveUpstreamResolutionOptions,
+  ) => Promise<void>;
   getExecutionState: (instanceId?: string) => WidgetExecutionState | undefined;
   getUpstreamRequirement: (
     instanceId?: string,
@@ -162,6 +175,41 @@ function serializeDashboardExecutionState(value: WidgetExecutionDashboardState) 
     value.rangeEndMs,
     value.refreshIntervalMs ?? "off",
   ].join(":");
+}
+
+function stableJsonStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableJsonStringify(entry)).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((key) =>
+        `${JSON.stringify(key)}:${stableJsonStringify((value as Record<string, unknown>)[key])}`,
+      )
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value) ?? String(value);
+}
+
+function widgetConfigWithoutRuntime(widget: DashboardWidgetInstance): Record<string, unknown> {
+  const { runtimeState: _runtimeState, row, ...rest } = widget;
+
+  return {
+    ...rest,
+    row: row
+      ? {
+          ...row,
+          children: row.children?.map(widgetConfigWithoutRuntime),
+        }
+      : undefined,
+  };
+}
+
+function serializeWidgetConfiguration(value: DashboardWidgetInstance[]) {
+  return stableJsonStringify(value.map(widgetConfigWithoutRuntime));
 }
 
 export function DashboardWidgetExecutionProvider({
@@ -217,9 +265,16 @@ export function DashboardWidgetExecutionProvider({
     () => serializeDashboardExecutionState(dashboardState),
     [dashboardState],
   );
+  const widgetConfigurationKey = useMemo(
+    () => serializeWidgetConfiguration(widgets),
+    [widgets],
+  );
   const widgetsRef = useRef(widgets);
   const mountedRef = useRef(true);
   const dashboardStateKeyRef = useRef(dashboardStateKey);
+  const passiveUpstreamResolutionAttemptsRef = useRef(
+    new Map<string, "in-flight" | "settled">(),
+  );
   const inFlightRef = useRef(new Map<string, Promise<DashboardWidgetGraphExecutionResult>>());
   const inFlightFlowRef = useRef(
     new Map<string, Promise<DashboardWidgetFlowExecutionResult>>(),
@@ -297,6 +352,10 @@ export function DashboardWidgetExecutionProvider({
   }, [dashboardStateKey]);
 
   useEffect(() => {
+    passiveUpstreamResolutionAttemptsRef.current.clear();
+  }, [lastRefreshedAt, widgetConfigurationKey]);
+
+  useEffect(() => {
     previousSurfaceRef.current = activeSurface;
 
     if (!enableAutomaticHydration || activeSurface !== "dashboard") {
@@ -366,6 +425,70 @@ export function DashboardWidgetExecutionProvider({
       serializeExecutionOverrides(options.targetOverrides),
       options.persistTargetRuntimeStateWithOverrides ? "persist-target-runtime" : "",
     ].join("::");
+  }
+
+  function canRunAutomaticExecutionTarget(
+    targetInstanceId: string,
+    options: Pick<ExecuteWidgetGraphOptions, "reason" | "refreshCycleId" | "targetOverrides" | "signal">,
+    workingWidgets: DashboardWidgetInstance[],
+  ) {
+    const snapshot = buildDashboardExecutionSnapshot({
+      widgets: workingWidgets,
+      resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+      targetInstanceId,
+      targetOverrides: options.targetOverrides,
+      runtimeDataStore,
+    });
+    const instance = snapshot.getInstance(targetInstanceId);
+    const definition = snapshot.getDefinition(targetInstanceId);
+
+    if (!instance || !definition?.execution) {
+      return false;
+    }
+
+    const resolvedInputs = snapshot.dependencies.resolveInputs(targetInstanceId);
+
+    if (listUnresolvedReferenceBackedPropInputs(resolvedInputs).length > 0) {
+      return false;
+    }
+
+    const effectiveState = resolveReferenceBackedWidgetState({
+      instanceTitle: instance.title,
+      props: (instance.props ?? {}) as Record<string, unknown>,
+      resolvedInputs,
+    });
+    const context = {
+      executionSurface,
+      publicWorkspaceToken,
+      scopeId,
+      widgetId: instance.widgetId,
+      instanceId: targetInstanceId,
+      reason: options.reason,
+      props: effectiveState.props,
+      runtimeState: instance.runtimeState,
+      publicExecution: instance.publicExecution,
+      resolvedInputs,
+      dashboardState,
+      runtimeDataStore,
+      refreshCycleId: options.refreshCycleId,
+      targetOverrides: options.targetOverrides,
+      signal: options.signal,
+    } satisfies WidgetExecutionContext;
+
+    const executable = definition.execution.canExecute?.(context) !== false;
+
+    if (!executable && import.meta.env.DEV && instance.widgetId === "connection-query") {
+      console.log("[widget-exec:auto-skip]", {
+        targetInstanceId,
+        widgetId: instance.widgetId,
+        reason: options.reason,
+        hasTargetOverrides: Boolean(options.targetOverrides),
+        query: (effectiveState.props as Record<string, unknown>)?.query,
+        variables: (effectiveState.props as Record<string, unknown>)?.variables,
+      });
+    }
+
+    return executable;
   }
 
   async function runGraph(
@@ -453,6 +576,41 @@ export function DashboardWidgetExecutionProvider({
     return executionPromise;
   }
 
+  function buildPassiveUpstreamAttemptKey(
+    targetInstanceId: string,
+    options: PassiveUpstreamResolutionOptions,
+  ) {
+    return [
+      scopeId,
+      targetInstanceId,
+      options.settledKey,
+      serializeDashboardExecutionState(dashboardState),
+      serializeExecutionOverrides(options.targetOverrides),
+    ].join("::");
+  }
+
+  async function resolvePassiveUpstream(
+    targetInstanceId: string,
+    options: PassiveUpstreamResolutionOptions,
+  ) {
+    const attemptKey = buildPassiveUpstreamAttemptKey(targetInstanceId, options);
+
+    if (passiveUpstreamResolutionAttemptsRef.current.has(attemptKey)) {
+      return;
+    }
+
+    passiveUpstreamResolutionAttemptsRef.current.set(attemptKey, "in-flight");
+
+    try {
+      await runGraph(targetInstanceId, {
+        reason: "manual-recalculate",
+        targetOverrides: options.targetOverrides,
+      });
+    } finally {
+      passiveUpstreamResolutionAttemptsRef.current.set(attemptKey, "settled");
+    }
+  }
+
   function buildFlowExecutionKey(
     sourceInstanceId: string,
     options: ExecuteWidgetGraphOptions,
@@ -531,6 +689,17 @@ export function DashboardWidgetExecutionProvider({
             );
 
             if (!requirement.executableInstanceIds.includes(sourceInstanceId)) {
+              continue;
+            }
+
+            if (!canRunAutomaticExecutionTarget(
+              targetInstanceId,
+              {
+                reason: "upstream-update",
+                refreshCycleId: flowCycleId,
+              },
+              workingWidgets,
+            )) {
               continue;
             }
 
@@ -670,6 +839,18 @@ export function DashboardWidgetExecutionProvider({
       for (const targetInstanceId of plan.executableTargetWidgetIds) {
         widgetsRef.current = workingWidgets;
         const targetOverrides = plan.executableTargetOverridesByWidgetId[targetInstanceId];
+
+        if (!canRunAutomaticExecutionTarget(
+          targetInstanceId,
+          {
+            reason: "upstream-update",
+            refreshCycleId,
+            targetOverrides,
+          },
+          workingWidgets,
+        )) {
+          continue;
+        }
 
         const result = await runGraph(
           targetInstanceId,
@@ -1114,6 +1295,8 @@ export function DashboardWidgetExecutionProvider({
           reason: "manual-recalculate",
           targetOverrides: options?.targetOverrides,
         }),
+      resolvePassiveUpstream: (targetInstanceId, options) =>
+        resolvePassiveUpstream(targetInstanceId, options),
       getExecutionState: (instanceId) =>
         instanceId ? executionStates[instanceId] : undefined,
       getUpstreamRequirement: (instanceId, options) => {
@@ -1128,11 +1311,25 @@ export function DashboardWidgetExecutionProvider({
           targetOverrides: options?.targetOverrides,
           runtimeDataStore,
         });
+        const unresolvedReferenceInputs = listUnresolvedReferenceBackedPropInputs(
+          snapshot.dependencies.resolveInputs(instanceId),
+        );
+
+        if (unresolvedReferenceInputs.length > 0) {
+          return {
+            executableInstanceIds: [],
+            needsResolution: false,
+            requestKey: `${instanceId}::waiting-for-reference-backed-settings`,
+            settledKey: `${instanceId}::waiting-for-reference-backed-settings`,
+          };
+        }
+
         const requirement = resolveDashboardUpstreamRequirement(instanceId, snapshot);
 
         return {
           ...requirement,
           requestKey: `${requirement.requestKey}::${serializeDashboardExecutionState(dashboardState)}`,
+          settledKey: `${requirement.settledKey}::${serializeDashboardExecutionState(dashboardState)}`,
         };
       },
       publishRuntimeState: (instanceId, runtimeState) => {
@@ -1203,21 +1400,24 @@ export function useResolveWidgetUpstream(
       return;
     }
 
-    const nextRequestKey = `${instanceId}::${upstreamRequirement.requestKey}`;
+    const nextRequestKey = `${instanceId}::${upstreamRequirement.settledKey}`;
 
     if (lastRequestKeyRef.current === nextRequestKey) {
       return;
     }
 
     lastRequestKeyRef.current = nextRequestKey;
-    void context.resolveUpstream(instanceId, { targetOverrides }).catch(() => undefined);
+    void context.resolvePassiveUpstream(instanceId, {
+      targetOverrides,
+      settledKey: upstreamRequirement.settledKey,
+    }).catch(() => undefined);
   }, [
     context,
     enabled,
     instanceId,
     targetOverrides,
     upstreamRequirement?.needsResolution,
-    upstreamRequirement?.requestKey,
+    upstreamRequirement?.settledKey,
   ]);
 
   return upstreamRequirement;

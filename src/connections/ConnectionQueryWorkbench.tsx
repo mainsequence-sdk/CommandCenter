@@ -40,6 +40,7 @@ import {
   buildConnectionQueryRequest,
   buildConnectionQueryErrorFrame,
   executeConnectionQueryWidgetRequest,
+  findUnresolvedConnectionQueryReferencePaths,
   normalizeConnectionQueryProps,
   normalizeConnectionQueryRuntimeState,
   resolveConnectionQueryIncrementalSettings,
@@ -730,9 +731,16 @@ export function ConnectionQueryWorkbench({
     | ComponentType<ConnectionQueryEditorProps<Record<string, unknown>>>
     | undefined;
   const SummaryComponent = resolveConnectionAuthoringSummaryComponent(connectionType);
+  const unresolvedReferencePaths = useMemo(
+    () => findUnresolvedConnectionQueryReferencePaths(effectiveProps, resolvedQueryModel),
+    [effectiveProps, resolvedQueryModel],
+  );
   const previewRequest = useMemo(
-    () => buildConnectionQueryRequest(effectiveProps, effectiveDashboardState, resolvedQueryModel),
-    [effectiveDashboardState, effectiveProps, resolvedQueryModel],
+    () =>
+      unresolvedReferencePaths.length > 0
+        ? null
+        : buildConnectionQueryRequest(effectiveProps, effectiveDashboardState, resolvedQueryModel),
+    [effectiveDashboardState, effectiveProps, resolvedQueryModel, unresolvedReferencePaths.length],
   );
   const runtimeRangeSummary = buildRuntimeRangeSummary({
     mode: effectiveProps.timeRangeMode,
@@ -755,7 +763,11 @@ export function ConnectionQueryWorkbench({
     resolvedQueryModel,
     authoringMode,
   );
-  const canRunPreview = Boolean(previewRequest && previewState.status !== "loading");
+  const canRunPreview = Boolean(
+    previewRequest &&
+    unresolvedReferencePaths.length === 0 &&
+    previewState.status !== "loading",
+  );
   const publishedPreviewInstanceId =
     typeof publishPreviewRuntimeStateToInstanceId === "string" &&
     publishPreviewRuntimeStateToInstanceId.trim()
@@ -893,6 +905,18 @@ export function ConnectionQueryWorkbench({
   }
 
   async function runPreview() {
+    if (unresolvedReferencePaths.length > 0) {
+      const errorMessage = `Waiting for referenced connection query value${unresolvedReferencePaths.length === 1 ? "" : "s"}: ${unresolvedReferencePaths.join(", ")}.`;
+
+      setPreviewState({
+        status: "error",
+        request: null,
+        error: errorMessage,
+      });
+      onPreviewRuntimeStateChange?.(undefined);
+      return;
+    }
+
     const request = buildConnectionQueryRequest(
       effectiveProps,
       effectiveDashboardState,
@@ -1473,13 +1497,19 @@ export function ConnectionQueryWorkbench({
           <div className="flex items-center justify-between gap-3 text-xs">
             <span className="font-medium text-foreground">Request preview</span>
             <span className="text-muted-foreground">
-              {previewRequest ? "Ready" : "Connection and path required"}
+              {unresolvedReferencePaths.length > 0
+                ? "Waiting for reference"
+                : previewRequest
+                  ? "Ready"
+                  : "Connection and path required"}
             </span>
           </div>
           <pre className="mt-2 max-h-56 overflow-auto rounded-[calc(var(--radius)-8px)] bg-background/70 p-2 text-[11px] leading-relaxed text-muted-foreground">
-            {previewRequest
-              ? JSON.stringify(previewRequest, null, 2)
-              : "Select a connection and query to build the request."}
+            {unresolvedReferencePaths.length > 0
+              ? `Waiting for referenced value: ${unresolvedReferencePaths.join(", ")}.`
+              : previewRequest
+                ? JSON.stringify(previewRequest, null, 2)
+                : "Select a connection and query to build the request."}
           </pre>
         </div>
 

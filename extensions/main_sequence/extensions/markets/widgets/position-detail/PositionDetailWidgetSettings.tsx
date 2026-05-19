@@ -31,7 +31,7 @@ const sourceTypeHelpText: Record<PositionDetailSourceType, string> = {
   target_position:
     "Target position source rows can use weight from notional exposure, units, or constant notional.",
   target_positions_account:
-    "Target positions account rows behave like target position authoring, but save an account-scoped target-position assignment through the managed-account add-target-positions endpoint with a top-level target positions datetime.",
+    "Target positions account rows can hydrate the latest or exact account target-position assignment, then save an account-scoped target-position assignment back through the managed-account add-target-positions endpoint with a top-level target positions datetime.",
 };
 
 export function PositionDetailWidgetSettings({
@@ -176,7 +176,7 @@ export function PositionDetailWidgetSettings({
             {sourceType === "account"
               ? "Hydrates latest account holdings from the canonical holdings endpoint until you enter edit mode and save a new holdings snapshot."
               : sourceType === "target_positions_account"
-                ? "Required for account-scoped target-position saves through the add-target-positions endpoint."
+                ? "Required for account target-position hydration and saves through the target-positions and add-target-positions endpoints."
               : "Ignored for portfolio and target position source types."}
           </p>
         </label>

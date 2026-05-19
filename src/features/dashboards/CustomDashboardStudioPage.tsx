@@ -1741,19 +1741,35 @@ export function CustomDashboardStudioPage({
     }
 
     const beforeWidgets = selectedDashboard.widgets;
-    const nextDashboard = entries.reduce(
-      (nextWorkspace, [instanceId, runtimeState]) =>
-        updateDashboardWidgetRuntimeState(nextWorkspace, instanceId, runtimeState),
-      selectedDashboard,
-    );
+    const changedWidgetIds: string[] = [];
+    let nextDashboard = selectedDashboard;
+
+    entries.forEach(([instanceId, runtimeState]) => {
+      const updatedDashboard = updateDashboardWidgetRuntimeState(
+        nextDashboard,
+        instanceId,
+        runtimeState,
+      );
+
+      if (updatedDashboard === nextDashboard) {
+        return;
+      }
+
+      nextDashboard = updatedDashboard;
+      changedWidgetIds.push(instanceId);
+    });
+
+    if (nextDashboard === selectedDashboard || changedWidgetIds.length === 0) {
+      return;
+    }
 
     updateSelectedWorkspaceUserState(() => nextDashboard, { bumpRevision: false });
 
-    const changedWidgetIds = [...new Set(entries.map(([instanceId]) => instanceId))];
+    const uniqueChangedWidgetIds = [...new Set(changedWidgetIds)];
 
     setPendingVariableRuntimeRefreshes((current) => {
       const queuedAtMs = Date.now();
-      const nextEntries = changedWidgetIds.map((changedWidgetId, index) => ({
+      const nextEntries = uniqueChangedWidgetIds.map((changedWidgetId, index) => ({
         queueId: `${changedWidgetId}:${queuedAtMs.toString(36)}:${index.toString(36)}`,
         changedWidgetId,
         beforeWidgets,

@@ -50,11 +50,16 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
   `editableInPlace: true`, and the current `accountUid` inside the account detail page. That
   surface hydrates from:
   - `GET /orm/api/assets/account/{uid}/holdings/`
+  - latest snapshot semantics: `order=desc&limit=1`
 - Holdings edits write back through:
   - `POST /orm/api/assets/account/{uid}/add-holdings/`
 - `Target Position` now mounts the same positions widget with `sourceType: "target_positions_account"`
   directly inside the account detail page. That
-  surface now persists through:
+  surface hydrates from:
+  - `GET /orm/api/assets/account/{uid}/target-positions/`
+  - latest assignment semantics: `order=desc&limit=1`
+  and, when `targetPositionsDate` is set, requests that exact assignment timestamp.
+  The same surface now persists through:
   - `POST /orm/api/assets/account/{uid}/add-target-positions/`
   and stores the assignment datetime at the widget level as `targetPositionsDate`.
 - Keep the detail view generic enough to tolerate additive backend fields, but do not silently

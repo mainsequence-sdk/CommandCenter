@@ -56,6 +56,24 @@ function buildInlineExpandedPositionRecord(
   row: PositionDetailInlineRow,
   sourceType: PositionDetailSourceType,
 ) {
+  if (sourceType === "target_positions_account") {
+    return {
+      ...(row.uniqueIdentifier ? { unique_identifier: row.uniqueIdentifier } : {}),
+      ...(row.positionType === "weight_notional_exposure"
+        ? { weight_notional_exposure: row.positionValue }
+        : row.positionType === "constant_notional"
+          ? { constant_notional_exposure: row.positionValue }
+          : { single_asset_quantity: row.positionValue }),
+      asset: {
+        id: row.assetId,
+        name: row.assetName ?? null,
+        ticker: row.assetTicker ?? null,
+        uniqueIdentifier: row.uniqueIdentifier ?? null,
+        figi: row.figi ?? null,
+      },
+    };
+  }
+
   return {
     asset: {
       id: row.assetId,
@@ -64,7 +82,7 @@ function buildInlineExpandedPositionRecord(
       uniqueIdentifier: row.uniqueIdentifier ?? null,
       figi: row.figi ?? null,
     },
-    ...(row.date ? { date: row.date } : {}),
+    ...(sourceType === "portfolio" && row.date ? { date: row.date } : {}),
     ...(sourceType === "account" ? {} : { positionType: row.positionType }),
     positionValue: row.positionValue,
     ...(row.price !== null && row.price !== undefined ? { price: row.price } : {}),

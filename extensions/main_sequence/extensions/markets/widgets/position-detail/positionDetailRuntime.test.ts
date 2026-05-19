@@ -265,4 +265,61 @@ describe("positionDetailRuntime", () => {
       },
     ]);
   });
+
+  it("hydrates target positions account rows from the canonical target-position payload", () => {
+    expect(
+      hydratePositionDetailRowsFromPayload(
+        {
+          weights: null,
+          position_columns: [],
+          rows: [
+            {
+              unique_identifier: "ASSET:BTC",
+              asset_name: "Bitcoin spot",
+              asset_ticker: "BTC",
+              position_type: "weight_notional_exposure",
+              position_value: "0.550000000000000000",
+            },
+            {
+              unique_identifier: "ASSET:ETH",
+              asset_name: "Ethereum spot",
+              asset_ticker: "ETH",
+              position_type: "units",
+              position_value: "3.000000000000000000",
+            },
+          ],
+          columnDefs: [],
+          summaryColumnDefs: [],
+          position_map: null,
+          weights_date: "2026-05-19T10:30:00Z",
+        },
+        "target_positions_account",
+      ),
+    ).toEqual([
+      {
+        rowId: "hydrated-position-1000000001-1",
+        assetId: 1000000001,
+        assetName: "Bitcoin spot",
+        assetTicker: "BTC",
+        uniqueIdentifier: "ASSET:BTC",
+        figi: undefined,
+        date: "2026-05-19",
+        price: null,
+        positionType: "weight_notional_exposure",
+        positionValue: 0.55,
+      },
+      {
+        rowId: "hydrated-position-1000000002-2",
+        assetId: 1000000002,
+        assetName: "Ethereum spot",
+        assetTicker: "ETH",
+        uniqueIdentifier: "ASSET:ETH",
+        figi: undefined,
+        date: "2026-05-19",
+        price: null,
+        positionType: "units",
+        positionValue: 3,
+      },
+    ]);
+  });
 });

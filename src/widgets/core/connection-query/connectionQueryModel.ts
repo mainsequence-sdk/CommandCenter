@@ -868,6 +868,51 @@ function buildEffectiveQuery(props: ConnectionQueryWidgetProps) {
   return query;
 }
 
+function isWidgetReferenceExpressionLiteral(value: unknown) {
+  return typeof value === "string" &&
+    /^\$\([^)]+\)\.[A-Za-z0-9_$-]+(?:\.[A-Za-z0-9_$-]+|\[(?:first|last|\d+)\])*$/.test(
+      value.trim(),
+    );
+}
+
+function findUnresolvedReferenceValuePaths(
+  value: unknown,
+  path: string[],
+): string[] {
+  if (typeof value === "string") {
+    return isWidgetReferenceExpressionLiteral(value) ? [path.join(".") || "$"] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((entry, index) =>
+      findUnresolvedReferenceValuePaths(entry, [...path, String(index)]),
+    );
+  }
+
+  if (!isPlainRecord(value)) {
+    return [];
+  }
+
+  return Object.entries(value).flatMap(([key, entryValue]) =>
+    findUnresolvedReferenceValuePaths(entryValue, [...path, key]),
+  );
+}
+
+export function findUnresolvedConnectionQueryReferencePaths(
+  props: ConnectionQueryWidgetProps,
+  queryModel?: ConnectionQueryModel,
+) {
+  const effectiveProps = resolveEffectiveConnectionQueryProps(props, queryModel);
+  const queryPaths = findUnresolvedReferenceValuePaths(buildEffectiveQuery(effectiveProps), ["query"]);
+  const variablePaths = queryModel?.supportsVariables && effectiveProps.variables !== undefined
+    ? findUnresolvedReferenceValuePaths(effectiveProps.variables, ["variables"])
+    : [];
+
+  return [...new Set([...queryPaths, ...variablePaths])].sort((left, right) =>
+    left.localeCompare(right),
+  );
+}
+
 async function enrichConnectionQueryRequest(
   request: ConnectionQueryRequest<Record<string, unknown>>,
   props: ConnectionQueryWidgetProps,
@@ -923,6 +968,10 @@ export function buildConnectionQueryRequest(
     return null;
   }
 
+  if (findUnresolvedConnectionQueryReferencePaths(effectiveProps, queryModel).length > 0) {
+    return null;
+  }
+
   const timeRangeProps =
     queryModel?.timeRangeAware && effectiveProps.timeRangeMode === "none"
       ? { ...effectiveProps, timeRangeMode: "dashboard" as const }
@@ -965,6 +1014,11 @@ function buildPublicConnectionQueryRequestPayload(
   }
 
   const effectiveProps = resolveEffectiveConnectionQueryProps(input.props, input.queryModel);
+
+  if (findUnresolvedConnectionQueryReferencePaths(effectiveProps, input.queryModel).length > 0) {
+    return null;
+  }
+
   const allowedInputs =
     isPlainRecord(input.publicExecution?.allowedInputs)
       ? input.publicExecution.allowedInputs
@@ -1127,10 +1181,19 @@ export async function executeConnectionQueryWidgetRequest(
 
   const resolvedConnectionSelection = isPublicExecutionSurface
     ? { connectionRef: effectiveProps.connectionRef }
-    : await resolveConnectionRefFromInstances(
-        effectiveProps.connectionRef,
-        { allowFetch: true },
-      );
+    : effectiveProps.connectionRef?.id !== undefined
+      ? { connectionRef: effectiveProps.connectionRef }
+      : await resolveConnectionRefFromInstances(
+          effectiveProps.connectionRef,
+          { allowFetch: true },
+        );
+  if (import.meta.env.DEV) {
+    console.log("[connection-query] connection-ref-resolution", {
+      requestedConnectionRef: effectiveProps.connectionRef,
+      resolvedConnectionRef: resolvedConnectionSelection.connectionRef,
+      fetchedConnectionCatalog: !isPublicExecutionSurface && effectiveProps.connectionRef?.id === undefined,
+    });
+  }
   const resolvedProps: ConnectionQueryWidgetProps = {
     ...effectiveProps,
     connectionRef: resolvedConnectionSelection.connectionRef ?? effectiveProps.connectionRef,
@@ -1151,11 +1214,22 @@ export async function executeConnectionQueryWidgetRequest(
   const request = buildConnectionQueryRequest(resolvedProps, dashboardState, queryModel);
 
   if (!request) {
+    const unresolvedReferencePaths = findUnresolvedConnectionQueryReferencePaths(
+      resolvedProps,
+      queryModel,
+    );
+
+    if (unresolvedReferencePaths.length > 0) {
+      throw new Error(
+        `Waiting for referenced connection query value${unresolvedReferencePaths.length === 1 ? "" : "s"}: ${unresolvedReferencePaths.join(", ")}.`,
+      );
+    }
+
     throw new Error("Connection query request is incomplete.");
   }
 
   if (import.meta.env.DEV) {
-    console.debug("[connection-query] execute start", {
+    console.log("[connection-query] execute start", {
       connectionRef,
       queryModelId,
       requestedOutputContract,

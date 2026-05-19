@@ -658,27 +658,27 @@ The fix boundary is explicit:
 
 #### Implementation Tasks
 
-- [ ] On runtime update for `changedWidgetId`, build before/after execution snapshots from the
+- [x] On runtime update for `changedWidgetId`, build before/after execution snapshots from the
   pre-write and post-write widget trees.
-- [ ] Collect active variable entries for `changedWidgetId`.
-- [ ] Walk normal graph bindings downstream from `changedWidgetId` in both before and after
+- [x] Collect active variable entries for `changedWidgetId`.
+- [x] Walk normal graph bindings downstream from `changedWidgetId` in both before and after
   snapshots.
-- [ ] Collect active variable entries owned by each downstream passive widget reached by that walk.
-- [ ] Compare only those active variable values before/after; ignore unrelated props and
+- [x] Collect active variable entries owned by each downstream passive widget reached by that walk.
+- [x] Compare only those active variable values before/after; ignore unrelated props and
   discoverable values that are not linked variables.
-- [ ] Mark consumers affected only when the active variable value signature changed.
-- [ ] For affected passive owner widgets with managed executable sources, resolve the owner's
+- [x] Mark consumers affected only when the active variable value signature changed.
+- [x] For affected passive owner widgets with managed executable sources, resolve the owner's
   effective props through the normal reference-backed state layer.
-- [ ] Project effective owner props into the owned hidden executable source as execution-only
+- [x] Project effective owner props into the owned hidden executable source as execution-only
   `targetOverrides`.
-- [ ] Schedule changed hidden managed sources before their downstream executable branches.
-- [ ] Do not write projected managed-source props or resolved variable values back to saved owner
+- [x] Schedule changed hidden managed sources before their downstream executable branches.
+- [x] Do not write projected managed-source props or resolved variable values back to saved owner
   props or saved managed-source props.
-- [ ] Add regression coverage for
+- [x] Add regression coverage for
   `connection-query.dataset -> table.activeRow.symbol -> managed connection-query`.
-- [ ] Add regression coverage that no executable source is scheduled when the active variable value
+- [x] Add regression coverage that no executable source is scheduled when the active variable value
   did not change.
-- [ ] Add regression coverage that saved owner props and saved managed-source props remain
+- [x] Add regression coverage that saved owner props and saved managed-source props remain
   unchanged after the variable-driven execution plan.
 
 ### Follow-Up: Connection Runtime Keying Review

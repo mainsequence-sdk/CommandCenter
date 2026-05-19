@@ -4,10 +4,15 @@ import { useNavigate } from "react-router-dom";
 
 import {
   Background,
+  BaseEdge,
   ConnectionMode,
   Controls,
+  EdgeLabelRenderer,
   MarkerType,
   ReactFlow,
+  getBezierPath,
+  type EdgeProps,
+  type EdgeTypes,
   type ReactFlowInstance,
   type Connection,
   type Edge,
@@ -42,10 +47,11 @@ import {
   removeWidgetGraphConnectionFromBindings,
   resolveWidgetGraphConnection,
   type DashboardWidgetDependencyGraph,
+  type DashboardWidgetDependencyGraphEdge,
 } from "@/dashboards/widget-dependencies";
 import { isWidgetReferenceSourceOutputId } from "@/dashboards/widget-instance-references";
 import type { DashboardDefinition, DashboardWidgetInstance } from "@/dashboards/types";
-import type { ResolvedWidgetInputs } from "@/widgets/types";
+import type { ResolvedWidgetInput, ResolvedWidgetInputs } from "@/widgets/types";
 import { WIDGET_AGENT_CONTEXT_OUTPUT_ID } from "@/widgets/shared/agent-context";
 
 import {
@@ -101,6 +107,39 @@ const WORKSPACE_REFERENCE_WIDGET_ID = "main-sequence-ai-workspace";
 const WORKSPACE_REFERENCE_OUTPUT_ID = "workspace-reference";
 const GRAPH_NODE_TYPES = {
   workspaceWidget: WorkspaceGraphNode,
+};
+
+type DashboardWidgetDependencyModel = ReturnType<typeof createDashboardWidgetDependencyModel>;
+
+type WorkspaceGraphEdgeDiagnosticTone = "danger" | "primary" | "muted";
+
+interface WorkspaceGraphEdgeDiagnostic {
+  contractLabel: string;
+  expressionLabel?: string;
+  reason: string;
+  sourceLabel: string;
+  statusLabel: string;
+  targetLabel: string;
+  tone: WorkspaceGraphEdgeDiagnosticTone;
+  typeLabel: string;
+  valueLabel?: string;
+}
+
+interface WorkspaceGraphEdgeData extends Record<string, unknown> {
+  diagnostic?: WorkspaceGraphEdgeDiagnostic;
+  label?: string;
+}
+
+type WorkspaceGraphFlowEdge = Edge<WorkspaceGraphEdgeData, "workspaceGraphEdge">;
+
+const GRAPH_EDGE_STATUS_LABELS: Record<DashboardWidgetDependencyGraphEdge["status"], string> = {
+  "contract-mismatch": "Contract mismatch",
+  "missing-output": "Missing output",
+  "missing-source": "Missing source widget",
+  "self-reference-blocked": "Self reference blocked",
+  "transform-invalid": "Invalid transform",
+  "unbound": "Unbound",
+  "valid": "Resolved",
 };
 
 type ReferencedWorkspaceLoadState =
@@ -183,6 +222,288 @@ function resolveInputPortStatus(
 
   return "unbound" as const;
 }
+
+function getResolvedInputEntries(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+  inputId: string,
+) {
+  const entry = resolvedInputs?.[inputId];
+  return Array.isArray(entry) ? entry : entry ? [entry] : [];
+}
+
+function findResolvedEdgeInput(
+  edge: DashboardWidgetDependencyGraphEdge,
+  dependencyModel: DashboardWidgetDependencyModel | null,
+): ResolvedWidgetInput | null {
+  if (!dependencyModel) {
+    return null;
+  }
+
+  const entries = getResolvedInputEntries(dependencyModel.resolveInputs(edge.to), edge.toPort);
+
+  return (
+    entries.find(
+      (entry) => entry.sourceWidgetId === edge.from && entry.sourceOutputId === edge.fromPort,
+    ) ?? null
+  );
+}
+
+function summarizeGraphEdgeValue(value: unknown) {
+  if (value === undefined) {
+    return "undefined";
+  }
+
+  if (value === null) {
+    return "null";
+  }
+
+  if (typeof value === "string") {
+    return value.length > 72 ? `${value.slice(0, 69)}...` : value;
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `array (${value.length})`;
+  }
+
+  if (isRecord(value)) {
+    const keys = Object.keys(value);
+    return keys.length > 0 ? `object: ${keys.slice(0, 5).join(", ")}` : "object";
+  }
+
+  return typeof value;
+}
+
+function isEmptyGraphEdgeValue(value: unknown) {
+  return (
+    value == null ||
+    (typeof value === "string" && value.trim().length === 0) ||
+    (Array.isArray(value) && value.length === 0)
+  );
+}
+
+function describeGraphEdgeReason(
+  edge: DashboardWidgetDependencyGraphEdge,
+  resolvedInput: ResolvedWidgetInput | null,
+) {
+  if (edge.status === "valid" && edge.source === "variable-reference") {
+    if (isEmptyGraphEdgeValue(resolvedInput?.value)) {
+      return "The variable edge is registered, but the source value is empty right now.";
+    }
+
+    return "The variable reference is resolved through the workspace graph.";
+  }
+
+  if (edge.status === "valid" && edge.source === "system-managed") {
+    return "The edge is created by a managed widget relationship.";
+  }
+
+  switch (edge.status) {
+    case "contract-mismatch":
+      return "The source output contract does not satisfy the target input contract.";
+    case "missing-output":
+      return "The source widget no longer exposes the selected output.";
+    case "missing-source":
+      return "The source widget is missing from this workspace graph.";
+    case "self-reference-blocked":
+      return "A widget cannot reference its own output.";
+    case "transform-invalid":
+      return "The variable transform or extract path cannot be applied to the current source value.";
+    case "unbound":
+      return "No source output is connected to this input.";
+    case "valid":
+      return "The binding is resolved through the workspace graph.";
+    default:
+      return "The edge cannot be resolved.";
+  }
+}
+
+function buildGraphEdgeTargetLabel(edge: DashboardWidgetDependencyGraphEdge) {
+  if (edge.reference?.targetKind === "title") {
+    return "title";
+  }
+
+  return edge.reference?.targetPath?.join(".") ?? edge.toPort;
+}
+
+function buildGraphEdgeDiagnostic(
+  edge: DashboardWidgetDependencyGraphEdge,
+  sourceNode: DashboardWidgetDependencyGraph["nodes"][number],
+  targetNode: DashboardWidgetDependencyGraph["nodes"][number],
+  dependencyModel: DashboardWidgetDependencyModel | null,
+): WorkspaceGraphEdgeDiagnostic | undefined {
+  const shouldExposeDiagnostic =
+    edge.source === "variable-reference" ||
+    edge.source === "system-managed" ||
+    edge.status !== "valid";
+
+  if (!shouldExposeDiagnostic) {
+    return undefined;
+  }
+
+  const resolvedInput = findResolvedEdgeInput(edge, dependencyModel);
+  const targetLabel = buildGraphEdgeTargetLabel(edge);
+  const typeLabel =
+    edge.source === "variable-reference"
+      ? "Variable reference"
+      : edge.source === "system-managed"
+        ? "Managed edge"
+        : "Binding";
+  const valueLabel = resolvedInput ? summarizeGraphEdgeValue(resolvedInput.value) : undefined;
+  const tone: WorkspaceGraphEdgeDiagnosticTone =
+    edge.status !== "valid" ||
+    (edge.source === "variable-reference" && isEmptyGraphEdgeValue(resolvedInput?.value))
+      ? "danger"
+      : edge.source === "variable-reference"
+        ? "primary"
+        : "muted";
+
+  return {
+    contractLabel: edge.contract ?? "unknown contract",
+    expressionLabel: edge.reference?.expression,
+    reason: describeGraphEdgeReason(edge, resolvedInput),
+    sourceLabel: `${sourceNode.title}.${edge.fromPort}`,
+    statusLabel: GRAPH_EDGE_STATUS_LABELS[edge.status],
+    targetLabel: `${targetNode.title}.${targetLabel}`,
+    tone,
+    typeLabel,
+    valueLabel,
+  };
+}
+
+function getWorkspaceGraphDiagnosticChipClassName(tone: WorkspaceGraphEdgeDiagnosticTone) {
+  if (tone === "danger") {
+    return "border-danger/70 bg-danger/14 text-danger";
+  }
+
+  if (tone === "primary") {
+    return "border-primary/70 bg-primary/14 text-primary";
+  }
+
+  return "border-border/80 bg-card/92 text-muted-foreground";
+}
+
+function WorkspaceGraphDiagnosticEdge({
+  id,
+  markerEnd,
+  markerStart,
+  sourcePosition,
+  sourceX,
+  sourceY,
+  style,
+  targetPosition,
+  targetX,
+  targetY,
+  data,
+}: EdgeProps<WorkspaceGraphFlowEdge>) {
+  const [hovered, setHovered] = useState(false);
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourcePosition,
+    sourceX,
+    sourceY,
+    targetPosition,
+    targetX,
+    targetY,
+  });
+  const diagnostic = data?.diagnostic;
+
+  return (
+    <>
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        markerStart={markerStart}
+        style={style}
+        interactionWidth={0}
+      />
+      {diagnostic ? (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={28}
+          className="react-flow__edge-interaction"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        />
+      ) : null}
+      {diagnostic ? (
+        <EdgeLabelRenderer>
+          <div
+            className="nodrag nopan pointer-events-auto absolute z-50"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            }}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+          >
+            <div
+              className={`max-w-48 truncate border px-2 py-1 text-[10px] font-semibold tracking-[0.08em] uppercase shadow-[var(--shadow-panel)] ${getWorkspaceGraphDiagnosticChipClassName(diagnostic.tone)}`}
+            >
+              {data?.label ?? diagnostic.typeLabel}
+            </div>
+            {hovered ? (
+              <div className="absolute top-full left-1/2 mt-2 w-80 -translate-x-1/2 border border-border/80 bg-background/96 p-3 text-left text-xs text-foreground shadow-[var(--shadow-panel)] backdrop-blur-md">
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <div className="font-semibold">{diagnostic.typeLabel}</div>
+                  <div className="text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                    {diagnostic.statusLabel}
+                  </div>
+                </div>
+                <div className="space-y-2 text-muted-foreground">
+                  {diagnostic.expressionLabel ? (
+                    <div>
+                      <div className="text-[10px] tracking-[0.08em] uppercase">Expression</div>
+                      <div className="mt-0.5 break-all font-mono text-[11px] text-foreground">
+                        {diagnostic.expressionLabel}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div>
+                    <div className="text-[10px] tracking-[0.08em] uppercase">Source</div>
+                    <div className="mt-0.5 break-all text-foreground">{diagnostic.sourceLabel}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] tracking-[0.08em] uppercase">Target</div>
+                    <div className="mt-0.5 break-all text-foreground">{diagnostic.targetLabel}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] tracking-[0.08em] uppercase">Reason</div>
+                    <div className="mt-0.5 text-foreground">{diagnostic.reason}</div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-[10px] tracking-[0.08em] uppercase">Contract</div>
+                      <div className="mt-0.5 break-all font-mono text-[11px] text-foreground">
+                        {diagnostic.contractLabel}
+                      </div>
+                    </div>
+                    {diagnostic.valueLabel ? (
+                      <div>
+                        <div className="text-[10px] tracking-[0.08em] uppercase">Value</div>
+                        <div className="mt-0.5 break-all font-mono text-[11px] text-foreground">
+                          {diagnostic.valueLabel}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </EdgeLabelRenderer>
+      ) : null}
+    </>
+  );
+}
+
+const GRAPH_EDGE_TYPES: EdgeTypes = {
+  workspaceGraphEdge: WorkspaceGraphDiagnosticEdge,
+};
 
 function layoutGraphNodes(
   graph: DashboardWidgetDependencyGraph,
@@ -999,7 +1320,7 @@ function WorkspaceGraphCanvas({
     onShowManagedWidgets,
   ]);
 
-  const derivedEdges = useMemo<Edge[]>(() => {
+  const derivedEdges = useMemo<WorkspaceGraphFlowEdge[]>(() => {
     if (!dependencyModel) {
       return [];
     }
@@ -1027,19 +1348,38 @@ function WorkspaceGraphCanvas({
       const edgeRunning =
         sourceExecutionState?.status === "running" ||
         targetExecutionState?.status === "running";
+      const variableEdge = edge.source === "variable-reference";
+      const systemManagedEdge = edge.source === "system-managed";
       const edgeStroke = broken
         ? "var(--color-danger)"
         : edgeRunning
           ? "var(--color-primary)"
-          : "color-mix(in srgb, var(--border) 82%, transparent)";
+          : variableEdge
+            ? "color-mix(in srgb, var(--primary) 78%, transparent)"
+            : systemManagedEdge
+              ? "color-mix(in srgb, var(--primary) 52%, transparent)"
+              : "color-mix(in srgb, var(--border) 82%, transparent)";
       const dependencyHighlighted = dependencyHighlight.highlightedEdgeIds.has(edge.id);
       const highlightedStroke = broken
         ? "color-mix(in srgb, var(--color-danger) 82%, white 18%)"
         : "color-mix(in srgb, var(--color-primary) 78%, white 22%)";
+      const targetLabel =
+        edge.reference?.targetKind === "title"
+          ? "title"
+          : edge.reference?.targetPath?.join(".");
+      const edgeLabel = variableEdge
+        ? targetLabel
+          ? `variable -> ${targetLabel}`
+          : "variable"
+        : systemManagedEdge
+          ? "managed"
+          : undefined;
+      const diagnostic = buildGraphEdgeDiagnostic(edge, sourceNode, targetNode, dependencyModel);
 
       return [
         {
           id: edge.id,
+          type: "workspaceGraphEdge",
           source: edge.from,
           target: edge.to,
           sourceHandle: buildWidgetGraphHandleId("output", edge.fromPort),
@@ -1047,6 +1387,10 @@ function WorkspaceGraphCanvas({
           markerEnd: {
             type: MarkerType.ArrowClosed,
             color: dependencyHighlighted ? highlightedStroke : edgeStroke,
+          },
+          data: {
+            diagnostic,
+            label: edgeLabel,
           },
           style: {
             stroke: dependencyHighlighted ? highlightedStroke : edgeStroke,
@@ -1056,16 +1400,24 @@ function WorkspaceGraphCanvas({
                 ? 2
                 : edgeRunning
                   ? 3.5
+                  : variableEdge
+                    ? 3
                   : 2.5,
-            strokeDasharray: broken ? "8 6" : undefined,
+            strokeDasharray: broken
+              ? "8 6"
+              : variableEdge
+                ? "5 5"
+                : systemManagedEdge
+                  ? "2 5"
+                  : undefined,
             filter: dependencyHighlighted
               ? "drop-shadow(0 0 6px color-mix(in srgb, var(--primary) 40%, transparent))"
               : undefined,
           },
           animated: edgeRunning,
-          deletable: true,
+          deletable: edge.source === "binding",
           selectable: true,
-        } satisfies Edge,
+        } satisfies WorkspaceGraphFlowEdge,
       ];
     });
   }, [
@@ -1258,6 +1610,10 @@ function WorkspaceGraphCanvas({
         continue;
       }
 
+      const referencedGraphNodeById = new Map(
+        referencedVisibleGraph.nodes.map((node) => [node.id, node] as const),
+      );
+
       for (const node of referencedVisibleGraph.nodes) {
         const widgetDefinition = referencedModel.getWidgetDefinition(node.widgetId);
         const resolvedIo = referencedModel.resolveIo(node.id);
@@ -1328,28 +1684,68 @@ function WorkspaceGraphCanvas({
       }
 
       for (const edge of referencedVisibleGraph.edges) {
+        const sourceGraphNode = referencedGraphNodeById.get(edge.from);
+        const targetGraphNode = referencedGraphNodeById.get(edge.to);
+
+        if (!sourceGraphNode || !targetGraphNode) {
+          continue;
+        }
+
         const source = buildReferencedGraphNodeId(sourceNodeId, workspaceId, edge.from);
         const targetNode = buildReferencedGraphNodeId(sourceNodeId, workspaceId, edge.to);
         const broken = edge.status !== "valid";
+        const variableEdge = edge.source === "variable-reference";
+        const systemManagedEdge = edge.source === "system-managed";
+        const edgeStroke = broken
+          ? "var(--color-danger)"
+          : variableEdge
+            ? "color-mix(in srgb, var(--primary) 72%, transparent)"
+            : systemManagedEdge
+              ? "color-mix(in srgb, var(--primary) 48%, transparent)"
+              : "color-mix(in srgb, var(--border) 78%, transparent)";
+        const targetLabel =
+          edge.reference?.targetKind === "title"
+            ? "title"
+            : edge.reference?.targetPath?.join(".");
+        const edgeLabel = variableEdge
+          ? targetLabel
+            ? `variable -> ${targetLabel}`
+            : "variable"
+          : systemManagedEdge
+            ? "managed"
+            : undefined;
+        const diagnostic = buildGraphEdgeDiagnostic(
+          edge,
+          sourceGraphNode,
+          targetGraphNode,
+          referencedModel,
+        );
 
         edges.push({
           id: buildReferencedGraphNodeId(sourceNodeId, workspaceId, edge.id),
+          type: "workspaceGraphEdge",
           source,
           sourceHandle: buildWidgetGraphHandleId("output", edge.fromPort),
           target: targetNode,
           targetHandle: buildWidgetGraphHandleId("input", edge.toPort),
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: broken
-              ? "var(--color-danger)"
-              : "color-mix(in srgb, var(--border) 78%, transparent)",
+            color: edgeStroke,
+          },
+          data: {
+            diagnostic,
+            label: edgeLabel,
           },
           style: {
-            stroke: broken
-              ? "var(--color-danger)"
-              : "color-mix(in srgb, var(--border) 78%, transparent)",
-            strokeDasharray: broken ? "8 6" : undefined,
-            strokeWidth: broken ? 2 : 2.25,
+            stroke: edgeStroke,
+            strokeDasharray: broken
+              ? "8 6"
+              : variableEdge
+                ? "5 5"
+                : systemManagedEdge
+                  ? "2 5"
+                  : undefined,
+            strokeWidth: broken ? 2 : variableEdge ? 2.75 : 2.25,
           },
           deletable: false,
           selectable: false,
@@ -1525,6 +1921,12 @@ function WorkspaceGraphCanvas({
         continue;
       }
 
+      const graphEdge = visibleGraph.edges.find((candidate) => candidate.id === edge.id);
+
+      if (graphEdge && graphEdge.source !== "binding") {
+        continue;
+      }
+
       const resolvedConnection = resolveWidgetGraphConnection(
         {
           source: edge.source,
@@ -1557,7 +1959,7 @@ function WorkspaceGraphCanvas({
     nextBindingsByWidget.forEach((bindings, instanceId) => {
       onBindingsChange(instanceId, bindings);
     });
-  }, [dependencyModel, instanceIndex, onBindingsChange]);
+  }, [dependencyModel, instanceIndex, onBindingsChange, visibleGraph.edges]);
 
   const isValidConnection = useCallback((connection: Connection | Edge) => {
     if (!dependencyModel) {
@@ -1639,6 +2041,7 @@ function WorkspaceGraphCanvas({
         nodes={flowNodes}
         edges={flowEdges}
         nodeTypes={GRAPH_NODE_TYPES}
+        edgeTypes={GRAPH_EDGE_TYPES}
         onInit={(instance) => {
           reactFlowInstanceRef.current = instance;
         }}

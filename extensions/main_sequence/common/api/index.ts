@@ -794,6 +794,7 @@ export interface ManagedAccountSavedTargetPositionRow {
   weight_notional_exposure: string | number | null;
   constant_notional_exposure: string | number | null;
   single_asset_quantity: string | number | null;
+  asset: Record<string, unknown> | null;
 }
 
 export interface ManagedAccountTargetPositionsWriteResponse {
@@ -1939,6 +1940,31 @@ function buildEmptyPositionDetailResponse(
   };
 }
 
+function extractFirstCollectionRecord(value: unknown): Record<string, unknown> | null {
+  if (Array.isArray(value)) {
+    return (
+      value.find((entry) => entry && typeof entry === "object" && !Array.isArray(entry)) as
+        | Record<string, unknown>
+        | undefined
+    ) ?? null;
+  }
+
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    if (Array.isArray(record.results)) {
+      return (
+        record.results.find(
+          (entry) => entry && typeof entry === "object" && !Array.isArray(entry),
+        ) as Record<string, unknown> | undefined
+      ) ?? null;
+    }
+
+    return record;
+  }
+
+  return null;
+}
+
 function normalizeManagedAccountHoldingsSnapshot(
   value: unknown,
 ): ManagedAccountHoldingsSnapshotResponse {
@@ -2140,6 +2166,10 @@ function normalizeManagedAccountTargetPositionsWriteResponse(
         .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
         .map((entry) => {
           const row = entry as Record<string, unknown>;
+          const asset =
+            row.asset && typeof row.asset === "object" && !Array.isArray(row.asset)
+              ? (row.asset as Record<string, unknown>)
+              : null;
           return {
             unique_identifier:
               typeof row.unique_identifier === "string" ? row.unique_identifier : null,
@@ -2158,6 +2188,7 @@ function normalizeManagedAccountTargetPositionsWriteResponse(
               typeof row.single_asset_quantity === "number"
                 ? row.single_asset_quantity
                 : null,
+            asset,
           } satisfies ManagedAccountSavedTargetPositionRow;
         })
     : [];
@@ -2170,6 +2201,94 @@ function normalizeManagedAccountTargetPositionsWriteResponse(
     position_set_uid:
       typeof record.position_set_uid === "string" ? record.position_set_uid : null,
     positions,
+  };
+}
+
+function adaptManagedAccountTargetPositionsResponseToPositionDetails(
+  snapshot: ManagedAccountTargetPositionsWriteResponse,
+): PositionDetailResponse {
+  if (snapshot.positions.length === 0) {
+    return buildEmptyPositionDetailResponse(snapshot.target_positions_date);
+  }
+
+  return {
+    weights: {
+      related_account_uid: snapshot.related_account_uid,
+      position_set_uid: snapshot.position_set_uid,
+    },
+    position_columns: [],
+    rows: snapshot.positions.map((position) => {
+      const assetDetail = position.asset;
+      const currentSnapshot =
+        assetDetail?.current_snapshot &&
+        typeof assetDetail.current_snapshot === "object" &&
+        !Array.isArray(assetDetail.current_snapshot)
+          ? (assetDetail.current_snapshot as Record<string, unknown>)
+          : null;
+      const assetId =
+        assetDetail && typeof assetDetail.id === "number" ? assetDetail.id : null;
+      const assetName =
+        typeof currentSnapshot?.name === "string" && currentSnapshot.name.trim()
+          ? currentSnapshot.name.trim()
+          : position.unique_identifier;
+      const assetTicker =
+        typeof currentSnapshot?.ticker === "string" && currentSnapshot.ticker.trim()
+          ? currentSnapshot.ticker.trim()
+          : null;
+      const figi =
+        assetDetail && typeof assetDetail.figi === "string" && assetDetail.figi.trim()
+          ? assetDetail.figi.trim()
+          : position.unique_identifier;
+
+      const resolvedPosition = (() => {
+        if (position.weight_notional_exposure !== null) {
+          return {
+            position_type: "weight_notional_exposure",
+            position_value: position.weight_notional_exposure,
+            weight_notional_exposure: position.weight_notional_exposure,
+            constant_notional_exposure: null,
+            single_asset_quantity: null,
+          };
+        }
+
+        if (position.constant_notional_exposure !== null) {
+          return {
+            position_type: "constant_notional",
+            position_value: position.constant_notional_exposure,
+            weight_notional_exposure: null,
+            constant_notional_exposure: position.constant_notional_exposure,
+            single_asset_quantity: null,
+          };
+        }
+
+        return {
+          position_type: "units",
+          position_value: position.single_asset_quantity,
+          weight_notional_exposure: null,
+          constant_notional_exposure: null,
+          single_asset_quantity: position.single_asset_quantity,
+        };
+      })();
+
+      return {
+        ...(assetId !== null ? { asset_id: assetId } : {}),
+        asset_name: assetName,
+        asset_ticker: assetTicker,
+        unique_identifier: position.unique_identifier,
+        figi,
+        ...resolvedPosition,
+        ...(assetDetail ? { asset: assetDetail } : {}),
+      };
+    }),
+    columnDefs: [
+      { field: "asset_name", headerName: "Asset" },
+      { field: "asset_ticker", headerName: "Ticker" },
+      { field: "position_type", headerName: "Position Type" },
+      { field: "position_value", headerName: "Position Value" },
+    ],
+    summaryColumnDefs: [],
+    position_map: null,
+    weights_date: snapshot.target_positions_date,
   };
 }
 
@@ -4410,19 +4529,29 @@ export async function fetchManagedAccountHoldingsPositionDetails(
     );
   }
 
-  const payload = await requestJson<ManagedAccountHoldingsSnapshotResponse | Record<string, unknown>>(
+  const payload = await requestJson<
+    ManagedAccountHoldingsSnapshotResponse[] | ManagedAccountHoldingsSnapshotResponse | Record<string, unknown>
+  >(
     managedAccountEndpoint,
     `${encodePathSegment(accountUid)}/holdings/`,
     undefined,
     {
-      ...(options.holdingsDate ? { holdings_date: options.holdingsDate } : {}),
+      ...(options.holdingsDate
+        ? {
+            holdings_date: options.holdingsDate,
+            limit: "1",
+          }
+        : {
+            order: "desc",
+            limit: "1",
+          }),
       include_asset_detail: "true",
     },
     options.traceMeta,
   );
 
   return adaptManagedAccountHoldingsSnapshotToPositionDetails(
-    normalizeManagedAccountHoldingsSnapshot(payload),
+    normalizeManagedAccountHoldingsSnapshot(extractFirstCollectionRecord(payload) ?? {}),
   );
 }
 
@@ -4444,6 +4573,81 @@ export async function saveManagedAccountHoldings(
   );
 }
 
+export async function fetchManagedAccountTargetPositionsPositionDetails(
+  accountUid: string,
+  options: {
+    targetPositionsDate?: string;
+    traceMeta?: DashboardRequestTraceMeta;
+  } = {},
+) {
+  if (isWidgetPreviewMode()) {
+    return adaptManagedAccountTargetPositionsResponseToPositionDetails(
+      normalizeManagedAccountTargetPositionsWriteResponse({
+        related_account_uid: accountUid,
+        target_positions_date: buildWidgetPreviewIsoTimestamp(),
+        position_set_uid: "preview-managed-account-target-positions",
+        positions: [
+          {
+            unique_identifier: "btc_spot",
+            weight_notional_exposure: "0.550000000000000000",
+            constant_notional_exposure: null,
+            single_asset_quantity: null,
+            asset: {
+              id: 101,
+              unique_identifier: "btc_spot",
+              figi: "btc_spot",
+              current_snapshot: {
+                name: "Bitcoin spot",
+                ticker: "BTC",
+              },
+            },
+          },
+          {
+            unique_identifier: "eth_spot",
+            weight_notional_exposure: null,
+            constant_notional_exposure: null,
+            single_asset_quantity: "3.000000000000000000",
+            asset: {
+              id: 102,
+              unique_identifier: "eth_spot",
+              figi: "eth_spot",
+              current_snapshot: {
+                name: "Ethereum spot",
+                ticker: "ETH",
+              },
+            },
+          },
+        ],
+      }),
+    );
+  }
+
+  const payload = await requestJson<
+    ManagedAccountTargetPositionsWriteResponse[] | ManagedAccountTargetPositionsWriteResponse | Record<string, unknown>
+  >(
+    managedAccountEndpoint,
+    `${encodePathSegment(accountUid)}/target-positions/`,
+    undefined,
+    {
+      ...(options.targetPositionsDate
+        ? {
+            target_positions_date: options.targetPositionsDate,
+            limit: "1",
+          }
+        : {
+            order: "desc",
+            limit: "1",
+          }),
+      include_asset_detail: "true",
+    },
+    options.traceMeta,
+  );
+
+  return adaptManagedAccountTargetPositionsResponseToPositionDetails(
+    normalizeManagedAccountTargetPositionsWriteResponse(extractFirstCollectionRecord(payload) ?? {}),
+  );
+}
+
 export async function saveManagedAccountTargetPositions(
   accountUid: string,
   input: ManagedAccountTargetPositionsWriteInput,
@@ -4457,7 +4661,9 @@ export async function saveManagedAccountTargetPositions(
     },
   );
 
-  return normalizeManagedAccountTargetPositionsWriteResponse(payload);
+  return adaptManagedAccountTargetPositionsResponseToPositionDetails(
+    normalizeManagedAccountTargetPositionsWriteResponse(payload),
+  );
 }
 
 export async function listAssetTranslationTables({

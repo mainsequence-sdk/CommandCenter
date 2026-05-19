@@ -33,6 +33,9 @@ When a workspace runtime data store is available, the retained frame is publishe
 - Use the Test query action to run the draft request and inspect the returned frame before binding downstream widgets.
 - Variable-backed settings are resolved before the Test query request is built, so the preview
   payload should show the concrete upstream value rather than the raw `$(widget).source` expression.
+- If a reference-backed query field is not available yet, the Test query action and runtime
+  execution wait for that referenced value instead of sending a literal or empty placeholder to the
+  backend.
 - If this source is hidden behind a table, graph, statistic, or other managed connection consumer,
   variable-backed owner settings refresh this source through an execution-only prop overlay. The
   new runtime frame is published downstream without saving the resolved variable value into the

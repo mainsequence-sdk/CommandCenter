@@ -43,7 +43,9 @@ This directory contains reusable widget presentation primitives that are shared 
 - `ManagedConnectionConsumerPanel.tsx`: reusable `Bindings -> Connection` settings surface for
   managed `connection-query` and `connection-stream-query` consumers. It reuses the standard
   connection authoring surfaces, publishes managed WebSocket preview runtime state back into the
-  owning widget preview, and writes back through the widget-specific adapter.
+  owning widget preview, and writes back through the widget-specific adapter. The panel must resolve
+  reference-backed draft connection props from the active settings dependency graph before request
+  preview or test execution.
 - `chart-data-source.ts`: shared renderer-neutral chart-data contract helper for
   `core.chart_data@v1`, including value-descriptor metadata and frame normalization for backend
   adapters that return chart-ready data rather than source time-series data.
@@ -128,6 +130,10 @@ This directory contains reusable widget presentation primitives that are shared 
   If a saved expression is present but the generated binding is missing or stale, the settings panel
   hydrates the generated binding into the local draft so `Save settings` is enabled and can repair
   the widget instance.
+- Reference-backed settings are also graph dependencies. Settings previews and managed connection
+  editors should use the draft dependency graph for the edited widget so request previews, test
+  actions, and rendered previews see the same effective values that canvas execution will use after
+  save.
 - Shared settings wrap the editable surface in a variable-reference input provider. Base `Input`
   and `Textarea` controls only activate this behavior inside that provider, so non-widget forms keep
   the normal UI behavior. Non-text input types such as numeric controls opt out. Custom text inputs

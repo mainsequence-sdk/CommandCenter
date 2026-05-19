@@ -5,13 +5,19 @@ import {
   positionDetailExecutionDefinition,
 } from "./positionDetailExecution";
 
-const { fetchManagedAccountHoldingsPositionDetails, fetchTargetPositionDetailPositionDetails } = vi.hoisted(() => ({
+const {
+  fetchManagedAccountHoldingsPositionDetails,
+  fetchManagedAccountTargetPositionsPositionDetails,
+  fetchTargetPositionDetailPositionDetails,
+} = vi.hoisted(() => ({
   fetchManagedAccountHoldingsPositionDetails: vi.fn(),
+  fetchManagedAccountTargetPositionsPositionDetails: vi.fn(),
   fetchTargetPositionDetailPositionDetails: vi.fn(),
 }));
 
 vi.mock("../../../../common/api", () => ({
   fetchManagedAccountHoldingsPositionDetails,
+  fetchManagedAccountTargetPositionsPositionDetails,
   fetchTargetPositionDetailPositionDetails,
 }));
 
@@ -38,11 +44,22 @@ describe("positionDetailExecution", () => {
     });
   });
 
-  it("does not execute backend loading for target positions account sources", async () => {
+  it("executes hydrated target positions account mode when account uid exists and no local rows exist", async () => {
+    fetchManagedAccountTargetPositionsPositionDetails.mockResolvedValueOnce({
+      weights: null,
+      position_columns: [],
+      rows: [],
+      columnDefs: [],
+      summaryColumnDefs: [],
+      position_map: null,
+      weights_date: "2026-05-19T10:30:00Z",
+    });
+
     const result = await executePositionDetailWidget({
       props: {
         sourceType: "target_positions_account",
         accountUid: "managed-account-26",
+        targetPositionsDate: "2026-05-19T10:30:00Z",
         editableInPlace: true,
         positionRows: [],
       },
@@ -53,11 +70,22 @@ describe("positionDetailExecution", () => {
 
     expect(fetchTargetPositionDetailPositionDetails).not.toHaveBeenCalled();
     expect(fetchManagedAccountHoldingsPositionDetails).not.toHaveBeenCalled();
-    expect(result.status).toBe("skipped");
+    expect(fetchManagedAccountTargetPositionsPositionDetails).toHaveBeenCalledWith(
+      "managed-account-26",
+      {
+        targetPositionsDate: "2026-05-19T10:30:00.000Z",
+        traceMeta: undefined,
+      },
+    );
+    expect(result.status).toBe("success");
     expect(result.runtimeStatePatch).toMatchObject({
-      status: "idle",
+      status: "success",
+      accountUid: "managed-account-26",
       variant: "positions",
-      payload: undefined,
+      payload: {
+        rows: [],
+        weights_date: "2026-05-19T10:30:00Z",
+      },
     });
   });
 
@@ -136,6 +164,19 @@ describe("positionDetailExecution", () => {
       positionDetailExecutionDefinition.canExecute({
         props: {
           sourceType: "account",
+          accountUid: "managed-account-26",
+          editableInPlace: true,
+          positionRows: [],
+        },
+      } as never),
+    ).toBe(true);
+  });
+
+  it("still reports canExecute for target positions account hydration when account uid exists and no local rows exist", () => {
+    expect(
+      positionDetailExecutionDefinition.canExecute({
+        props: {
+          sourceType: "target_positions_account",
           accountUid: "managed-account-26",
           editableInPlace: true,
           positionRows: [],

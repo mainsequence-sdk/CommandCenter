@@ -19,6 +19,7 @@ import { ConnectionQueryWidgetSettings } from "./ConnectionQueryWidgetSettings";
 import {
   buildConnectionQueryErrorFrame,
   executeConnectionQueryWidgetRequest,
+  findUnresolvedConnectionQueryReferencePaths,
   normalizeConnectionQueryProps,
   normalizeConnectionQueryRuntimeState,
   resolveConnectionQueryRequestedOutputContract,
@@ -60,6 +61,21 @@ function formatConnectionQueryOutputContract(contract: string) {
   }
 
   return contract;
+}
+
+function shouldDeferAutomaticConnectionExecution(input: {
+  props: ConnectionQueryWidgetProps;
+  queryModel: ReturnType<typeof resolveConfiguredQueryModel>;
+}) {
+  const unresolvedReferencePaths = findUnresolvedConnectionQueryReferencePaths(
+    input.props,
+    input.queryModel,
+  );
+
+  return {
+    unresolvedReferencePaths,
+    shouldDefer: unresolvedReferencePaths.length > 0,
+  };
 }
 
 function resolveConnectionQueryIo(
@@ -213,6 +229,26 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   execution: {
     canExecute: (context) => {
       const props = normalizeConnectionQueryProps(context.targetOverrides?.props ?? context.props);
+      const queryModel = resolveConfiguredQueryModel(props);
+      const readiness = shouldDeferAutomaticConnectionExecution({
+        props,
+        queryModel,
+      });
+
+      if (readiness.shouldDefer) {
+        if (import.meta.env.DEV) {
+          console.log("[connection-query:auto-execution-deferred]", {
+            instanceId: context.instanceId,
+            reason: context.reason,
+            unresolvedReferencePaths: readiness.unresolvedReferencePaths,
+            query: props.query,
+            variables: props.variables,
+            hasTargetOverrides: Boolean(context.targetOverrides),
+          });
+        }
+        return false;
+      }
+
       if (context.executionSurface === "public-workspace") {
         return Boolean(context.publicExecution?.queryUrl && props.queryModelId);
       }
@@ -266,6 +302,16 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
     },
     getRefreshPolicy: (context) => {
       const props = normalizeConnectionQueryProps(context.targetOverrides?.props ?? context.props);
+      const queryModel = resolveConfiguredQueryModel(props);
+      const readiness = shouldDeferAutomaticConnectionExecution({
+        props,
+        queryModel,
+      });
+
+      if (readiness.shouldDefer) {
+        return "manual-only";
+      }
+
       if (context.executionSurface === "public-workspace") {
         return context.publicExecution?.queryUrl && props.queryModelId
           ? "allow-refresh"

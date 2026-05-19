@@ -217,9 +217,20 @@ interface RecordedExecution {
   gate: ReturnType<typeof createDeferred<void>>;
 }
 
-function createExecutionTracker() {
+type ExecutionTrackerRuntimeOutcome = Record<string, unknown> | (() => Record<string, unknown>);
+
+function createExecutionTracker(
+  options: {
+    runtimeOutcome?: ExecutionTrackerRuntimeOutcome;
+  } = {},
+) {
   const executionHistory: Array<Pick<RecordedExecution, "instanceId" | "reason">> = [];
   const pendingExecutions: RecordedExecution[] = [];
+  const runtimeOutcome =
+    options.runtimeOutcome ??
+    (() => ({
+      ...READY_DATASET,
+    }));
 
   return {
     allExecutionReasons() {
@@ -251,9 +262,10 @@ function createExecutionTracker() {
 
       return gate.promise.then(() => ({
         status: "success" as const,
-        runtimeStatePatch: {
-          ...READY_DATASET,
-        },
+        runtimeStatePatch:
+          typeof runtimeOutcome === "function"
+            ? runtimeOutcome()
+            : runtimeOutcome,
       }));
     },
     releaseNext(reason?: WidgetExecutionReason) {
@@ -360,6 +372,24 @@ function ConsumerProbe({
   );
 }
 
+function AlwaysResolvingConsumerProbe({
+  instanceId,
+  testId,
+}: {
+  instanceId: string;
+  testId: string;
+}) {
+  const requirement = useResolveWidgetUpstream(instanceId, {
+    enabled: true,
+  });
+
+  return (
+    <div data-testid={testId}>
+      {requirement?.needsResolution ? "needs-resolution" : "settled"}
+    </div>
+  );
+}
+
 function HiddenSidebarOnlyRuntimeConsumer({
   instanceId,
 }: {
@@ -385,7 +415,11 @@ function HiddenSidebarOnlyRuntimeConsumer({
   );
 }
 
-function DashboardSurface() {
+function DashboardSurface({
+  forcePassiveResolution = false,
+}: {
+  forcePassiveResolution?: boolean;
+}) {
   const execution = useDashboardWidgetExecution();
 
   return (
@@ -393,11 +427,20 @@ function DashboardSurface() {
       <div data-testid="dashboard-hydration-reason">
         {execution?.dashboardSurfaceHydrationReason ?? "none"}
       </div>
-      <ConsumerProbe
-        instanceId="consumer-visible-1"
-        testId="visible-consumer-state"
-      />
-      <HiddenSidebarOnlyRuntimeConsumer instanceId="consumer-hidden-1" />
+      {forcePassiveResolution ? (
+        <AlwaysResolvingConsumerProbe
+          instanceId="consumer-visible-1"
+          testId="visible-consumer-state"
+        />
+      ) : (
+        <ConsumerProbe
+          instanceId="consumer-visible-1"
+          testId="visible-consumer-state"
+        />
+      )}
+      {forcePassiveResolution ? null : (
+        <HiddenSidebarOnlyRuntimeConsumer instanceId="consumer-hidden-1" />
+      )}
     </div>
   );
 }
@@ -408,9 +451,13 @@ function GraphSurface() {
 
 function TestWorkspaceHarness({
   activeSurface,
+  enableAutomaticHydration = true,
+  forcePassiveResolution = false,
   tracker,
 }: {
   activeSurface: DashboardExecutionSurface;
+  enableAutomaticHydration?: boolean;
+  forcePassiveResolution?: boolean;
   tracker: ReturnType<typeof createExecutionTracker>;
 }) {
   const [widgets, setWidgets] = useState<DashboardWidgetInstance[]>(() =>
@@ -432,7 +479,7 @@ function TestWorkspaceHarness({
   const body: ReactNode =
     activeSurface === "graph"
       ? <GraphSurface />
-      : <DashboardSurface />;
+      : <DashboardSurface forcePassiveResolution={forcePassiveResolution} />;
 
   return (
     <MemoryRouter initialEntries={["/workspaces/test"]}>
@@ -448,6 +495,7 @@ function TestWorkspaceHarness({
         <DashboardWidgetRegistryProvider widgets={widgets}>
           <DashboardWidgetExecutionProvider
             activeSurface={activeSurface}
+            enableAutomaticHydration={enableAutomaticHydration}
             scopeId="workspace-test"
             widgets={widgets}
             writeRuntimeState={(instanceId, runtimeState) => {
@@ -486,6 +534,10 @@ function getTextByTestId(container: HTMLElement, testId: string) {
 
 function createMountedHarness(
   tracker: ReturnType<typeof createExecutionTracker>,
+  options: {
+    enableAutomaticHydration?: boolean;
+    forcePassiveResolution?: boolean;
+  } = {},
 ) {
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -498,6 +550,8 @@ function createMountedHarness(
         root.render(
           <TestWorkspaceHarness
             activeSurface={activeSurface}
+            enableAutomaticHydration={options.enableAutomaticHydration}
+            forcePassiveResolution={options.forcePassiveResolution}
             tracker={tracker}
           />,
         );
@@ -528,6 +582,71 @@ afterEach(async () => {
 });
 
 describe("dashboard surface transition hydration", () => {
+  it("runs passive upstream resolution once per invalidation even when the consumer still asks after runtime writes", async () => {
+    const tracker = createExecutionTracker();
+    activeHarness = createMountedHarness(tracker, {
+      enableAutomaticHydration: false,
+      forcePassiveResolution: true,
+    });
+
+    await activeHarness.render("dashboard");
+
+    await waitFor(() => {
+      expect(tracker.allExecutionReasons()).toEqual(["manual-recalculate"]);
+      expect(tracker.pendingExecutionReasons()).toEqual(["manual-recalculate"]);
+      expect(getTextByTestId(activeHarness!.container, "visible-consumer-state"))
+        .toBe("needs-resolution");
+    });
+
+    tracker.releaseNext("manual-recalculate");
+
+    await waitFor(() => {
+      expect(tracker.pendingExecutionCount()).toBe(0);
+    });
+
+    await act(async () => {
+      await flushTimers(25);
+    });
+
+    expect(tracker.allExecutionReasons()).toEqual(["manual-recalculate"]);
+  });
+
+  it("does not retry passive upstream resolution after a settled error publication", async () => {
+    const tracker = createExecutionTracker({
+      runtimeOutcome: {
+        status: "error",
+        error: "The upstream answered with a settled error.",
+        columns: [],
+        rows: [],
+      },
+    });
+    activeHarness = createMountedHarness(tracker, {
+      enableAutomaticHydration: false,
+      forcePassiveResolution: true,
+    });
+
+    await activeHarness.render("dashboard");
+
+    await waitFor(() => {
+      expect(tracker.allExecutionReasons()).toEqual(["manual-recalculate"]);
+      expect(tracker.pendingExecutionReasons()).toEqual(["manual-recalculate"]);
+    });
+
+    tracker.releaseNext("manual-recalculate");
+
+    await waitFor(() => {
+      expect(tracker.pendingExecutionCount()).toBe(0);
+    });
+
+    await act(async () => {
+      await flushTimers(25);
+    });
+
+    expect(tracker.allExecutionReasons()).toEqual(["manual-recalculate"]);
+    expect(getTextByTestId(activeHarness.container, "visible-consumer-state"))
+      .toBe("needs-resolution");
+  });
+
   it("keeps the dashboard visible, suppresses passive visible consumer re-resolution, and defers hidden sidebar-only consumers during graph return hydration", async () => {
     const tracker = createExecutionTracker();
     activeHarness = createMountedHarness(tracker);

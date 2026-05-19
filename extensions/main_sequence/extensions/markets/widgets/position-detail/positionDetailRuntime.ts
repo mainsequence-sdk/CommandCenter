@@ -338,7 +338,13 @@ export function hydratePositionDetailRowsFromPayload(
       return rows;
     }
 
-    const assetId = readPositiveInt(entry.asset_id ?? entry.id);
+    const explicitAssetId = readPositiveInt(entry.asset_id ?? entry.id);
+    const assetId =
+      explicitAssetId > 0
+        ? explicitAssetId
+        : sourceType === "target_positions_account"
+          ? 1_000_000_000 + index + 1
+          : 0;
     if (assetId <= 0) {
       return rows;
     }

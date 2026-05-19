@@ -7,6 +7,7 @@ import type {
 
 import {
   fetchManagedAccountHoldingsPositionDetails,
+  fetchManagedAccountTargetPositionsPositionDetails,
   fetchTargetPositionDetailPositionDetails,
 } from "../../../../common/api";
 import {
@@ -15,6 +16,7 @@ import {
   normalizePositionDetailRuntimeState,
   normalizePositionDetailSourceType,
   normalizePositionDetailTargetId,
+  normalizePositionDetailTargetPositionsDate,
   normalizePositionDetailVariant,
   type PositionDetailWidgetProps,
   type PositionDetailWidgetRuntimeState,
@@ -38,14 +40,16 @@ export async function executePositionDetailWidget(
   const sourceType = normalizePositionDetailSourceType(props);
   const targetPortfolioId = normalizePositionDetailTargetId(props);
   const accountUid = normalizePositionDetailAccountUid(props);
+  const targetPositionsDate =
+    sourceType === "target_positions_account" &&
+    typeof props.targetPositionsDate === "string" &&
+    props.targetPositionsDate.trim()
+      ? normalizePositionDetailTargetPositionsDate(props.targetPositionsDate)
+      : undefined;
   const variant = normalizePositionDetailVariant(props.variant);
   const persistedRows = normalizePositionDetailPersistedRows(props);
 
-  if (
-    sourceType === "target_position" ||
-    sourceType === "target_positions_account" ||
-    persistedRows.length > 0
-  ) {
+  if (sourceType === "target_position" || persistedRows.length > 0) {
     return {
       status: "skipped",
       runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {
@@ -87,6 +91,20 @@ export async function executePositionDetailWidget(
     };
   }
 
+  if (sourceType === "target_positions_account" && !accountUid) {
+    return {
+      status: "skipped",
+      runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {
+        status: "idle",
+        error: undefined,
+        targetPortfolioId: undefined,
+        accountUid: undefined,
+        variant: "positions",
+        payload: undefined,
+      }),
+    };
+  }
+
   try {
     const requestTraceMeta = buildDashboardExecutionRequestTraceMeta(context);
     const payload =
@@ -94,6 +112,11 @@ export async function executePositionDetailWidget(
         ? await fetchManagedAccountHoldingsPositionDetails(accountUid, {
             traceMeta: requestTraceMeta,
           })
+        : sourceType === "target_positions_account"
+          ? await fetchManagedAccountTargetPositionsPositionDetails(accountUid, {
+              targetPositionsDate,
+              traceMeta: requestTraceMeta,
+            })
         : await fetchTargetPositionDetailPositionDetails(
             targetPortfolioId,
             requestTraceMeta,
@@ -105,7 +128,10 @@ export async function executePositionDetailWidget(
         status: "success",
         error: undefined,
         targetPortfolioId: sourceType === "portfolio" ? targetPortfolioId : undefined,
-        accountUid: sourceType === "account" ? accountUid : undefined,
+        accountUid:
+          sourceType === "account" || sourceType === "target_positions_account"
+            ? accountUid
+            : undefined,
         variant,
         payload,
         lastLoadedAtMs: Date.now(),
@@ -122,9 +148,14 @@ export async function executePositionDetailWidget(
             ? error.message
             : sourceType === "account"
               ? "Unable to load account holdings."
+              : sourceType === "target_positions_account"
+                ? "Unable to load account target positions."
               : "Unable to load position details.",
         targetPortfolioId: sourceType === "portfolio" ? targetPortfolioId : undefined,
-        accountUid: sourceType === "account" ? accountUid : undefined,
+        accountUid:
+          sourceType === "account" || sourceType === "target_positions_account"
+            ? accountUid
+            : undefined,
         variant,
         payload: undefined,
       }),
@@ -144,6 +175,9 @@ export const positionDetailExecutionDefinition = {
         return normalizePositionDetailTargetId(props) > 0;
       }
       if (sourceType === "account") {
+        return Boolean(normalizePositionDetailAccountUid(props));
+      }
+      if (sourceType === "target_positions_account") {
         return Boolean(normalizePositionDetailAccountUid(props));
       }
       return false;

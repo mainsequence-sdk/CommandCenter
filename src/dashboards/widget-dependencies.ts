@@ -21,7 +21,13 @@ import {
   resolveWidgetBindingTransformSteps,
 } from "@/dashboards/widget-binding-transforms";
 import {
+  WIDGET_REFERENCE_PROPS_OUTPUT_ID,
+  WIDGET_REFERENCE_RUNTIME_STATE_OUTPUT_ID,
+  WIDGET_REFERENCE_TITLE_INPUT_ID,
+  WIDGET_REFERENCE_TITLE_OUTPUT_ID,
   appendWidgetInstanceReferenceIo,
+  isWidgetReferenceTargetInputId,
+  parseWidgetReferencePropInputPath,
   resolveReferenceBackedWidgetState,
   resolveWidgetReferenceBaseProps,
 } from "@/dashboards/widget-instance-references";
@@ -85,6 +91,19 @@ export type DashboardWidgetDependencyEdgeStatus =
   | "self-reference-blocked"
   | "transform-invalid";
 
+export type DashboardWidgetDependencyGraphEdgeSource =
+  | "binding"
+  | "variable-reference"
+  | "system-managed";
+
+export interface DashboardWidgetDependencyGraphEdgeReference {
+  expression: string;
+  generatedInputId: string;
+  targetKind: "title" | "prop";
+  targetPath?: string[];
+  transformSignature: string;
+}
+
 export interface DashboardWidgetDependencyGraphEdge {
   id: string;
   from: string;
@@ -92,9 +111,10 @@ export interface DashboardWidgetDependencyGraphEdge {
   to: string;
   toPort: string;
   contract: string | null;
-  source: "binding";
+  source: DashboardWidgetDependencyGraphEdgeSource;
   status: DashboardWidgetDependencyEdgeStatus;
   effects: WidgetInputEffect[];
+  reference?: DashboardWidgetDependencyGraphEdgeReference;
 }
 
 export interface DashboardWidgetDependencyGraph {
@@ -195,6 +215,14 @@ export interface DashboardWidgetDependencyModel {
   resolveIo: (instanceId: string) => WidgetIoDefinition | undefined;
   resolveOutputs: (instanceId: string) => ResolvedWidgetOutputs | undefined;
   resolveInputs: (instanceId: string) => ResolvedWidgetInputs | undefined;
+}
+
+export interface UnresolvedReferenceBackedInput {
+  inputId: string;
+  propPath: string[];
+  reason: "invalid-input" | "empty-value";
+  status?: DashboardWidgetDependencyEdgeStatus;
+  value?: unknown;
 }
 
 export type WidgetGraphPortKind = "input" | "output";
@@ -442,6 +470,157 @@ function toBindingArray(value: WidgetPortBindingValue | undefined): WidgetPortBi
   }
 
   return Array.isArray(value) ? value : [value];
+}
+
+function isWidgetReferenceExpressionLiteral(value: unknown) {
+  return typeof value === "string" &&
+    /^\$\([^)]+\)\.[A-Za-z0-9_$-]+(?:\.[A-Za-z0-9_$-]+|\[(?:first|last|\d+)\])*$/.test(
+      value.trim(),
+    );
+}
+
+function isReadyReferenceValue(value: unknown): boolean {
+  if (typeof value === "string") {
+    return !isWidgetReferenceExpressionLiteral(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.every(isReadyReferenceValue);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value).every(isReadyReferenceValue);
+  }
+
+  return true;
+}
+
+export function listUnresolvedReferenceBackedPropInputs(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+): UnresolvedReferenceBackedInput[] {
+  return Object.entries(resolvedInputs ?? {}).flatMap(
+    ([inputId, resolved]): UnresolvedReferenceBackedInput[] => {
+      const propPath = parseWidgetReferencePropInputPath(inputId);
+
+      if (!propPath) {
+        return [];
+      }
+
+      const entries = Array.isArray(resolved) ? resolved : resolved ? [resolved] : [];
+
+      if (
+        entries.length === 0 ||
+        entries.every((entry) => !entry.sourceWidgetId || !entry.sourceOutputId)
+      ) {
+        return [];
+      }
+
+      const validEntry = entries.find((entry) => entry.status === "valid");
+
+      if (!validEntry) {
+        return [{
+          inputId,
+          propPath,
+          reason: "invalid-input",
+          status: entries[0]?.status,
+          value: entries[0]?.value,
+        } satisfies UnresolvedReferenceBackedInput];
+      }
+
+      if (isReadyReferenceValue(validEntry.value)) {
+        return [];
+      }
+
+      return [{
+        inputId,
+        propPath,
+        reason: "empty-value",
+        status: validEntry.status,
+        value: validEntry.value,
+      } satisfies UnresolvedReferenceBackedInput];
+    },
+  );
+}
+
+function formatReferenceOutputSegment(outputId: string) {
+  if (outputId === WIDGET_REFERENCE_TITLE_OUTPUT_ID) {
+    return "title";
+  }
+
+  if (outputId === WIDGET_REFERENCE_PROPS_OUTPUT_ID) {
+    return "props";
+  }
+
+  if (outputId === WIDGET_REFERENCE_RUNTIME_STATE_OUTPUT_ID) {
+    return "runtimeState";
+  }
+
+  return outputId;
+}
+
+function appendReferenceTransformSegments(
+  expression: string,
+  binding: WidgetPortBinding,
+) {
+  return resolveWidgetBindingTransformSteps(binding).reduce((current, step) => {
+    if (step.id === "extract-path") {
+      const path = step.path?.filter((segment) => segment.trim()) ?? [];
+      return path.length > 0 ? `${current}.${path.join(".")}` : current;
+    }
+
+    if (step.id === "select-array-item") {
+      if (step.mode === "first") {
+        return `${current}[first]`;
+      }
+
+      if (step.mode === "last") {
+        return `${current}[last]`;
+      }
+
+      return `${current}[${isValidArrayItemIndex(step.index) ? step.index : "pending"}]`;
+    }
+
+    return current;
+  }, expression);
+}
+
+function isValidArrayItemIndex(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function buildReferenceExpressionPreview(binding: WidgetPortBinding) {
+  return appendReferenceTransformSegments(
+    `$(${binding.sourceWidgetId}).${formatReferenceOutputSegment(binding.sourceOutputId)}`,
+    binding,
+  );
+}
+
+function buildReferenceEdgeMetadata(
+  inputId: string,
+  binding: WidgetPortBinding,
+): DashboardWidgetDependencyGraphEdgeReference | undefined {
+  if (inputId === WIDGET_REFERENCE_TITLE_INPUT_ID) {
+    return {
+      expression: buildReferenceExpressionPreview(binding),
+      generatedInputId: inputId,
+      targetKind: "title",
+      transformSignature: buildWidgetBindingTransformSignature(binding),
+    };
+  }
+
+  const propPath = parseWidgetReferencePropInputPath(inputId);
+
+  if (!propPath) {
+    return undefined;
+  }
+
+  return {
+    expression: buildReferenceExpressionPreview(binding),
+    generatedInputId: inputId,
+    targetKind: "prop",
+    targetPath: propPath,
+    transformSignature: buildWidgetBindingTransformSignature(binding),
+  };
 }
 
 function getOutputDefinition(
@@ -880,6 +1059,7 @@ function buildGraph(
   getWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined,
 ): DashboardWidgetDependencyGraph {
   const ownedManagedConnectionSourceCountByNodeId = new Map<string, number>();
+  const instanceIndex = createDashboardWidgetEntryIndex(entries);
 
   entries.forEach(({ instance }) => {
     if (instance.managedBy?.role !== "embedded-connection-source") {
@@ -941,16 +1121,36 @@ function buildGraph(
           return [];
         }
 
+        const edgeBinding =
+          entry.binding ?? {
+            sourceWidgetId: entry.sourceWidgetId,
+            sourceOutputId: entry.sourceOutputId,
+          };
+        const sourceInstance = instanceIndex.get(entry.sourceWidgetId);
+        const edgeSource: DashboardWidgetDependencyGraphEdgeSource =
+          isWidgetReferenceTargetInputId(entry.inputId)
+            ? "variable-reference"
+            : sourceInstance?.managedBy?.role === "embedded-connection-source" &&
+                sourceInstance.managedBy.ownerInstanceId === instance.id
+              ? "system-managed"
+              : "binding";
+        const transformSignature = buildWidgetBindingTransformSignature(edgeBinding);
+        const reference =
+          edgeSource === "variable-reference"
+            ? buildReferenceEdgeMetadata(entry.inputId, edgeBinding)
+            : undefined;
+
         return [{
-          id: `${entry.sourceWidgetId}:${entry.sourceOutputId}:${buildWidgetBindingTransformSignature(entry.binding)}->${instance.id}:${entry.inputId}`,
+          id: `${entry.sourceWidgetId}:${entry.sourceOutputId}:${transformSignature}->${instance.id}:${entry.inputId}`,
           from: entry.sourceWidgetId,
           fromPort: entry.sourceOutputId,
           to: instance.id,
           toPort: entry.inputId,
           contract: entry.contractId ?? null,
-          source: "binding",
+          source: edgeSource,
           status: entry.status,
           effects: entry.effects ?? [],
+          reference,
         } satisfies DashboardWidgetDependencyGraphEdge];
       });
     });

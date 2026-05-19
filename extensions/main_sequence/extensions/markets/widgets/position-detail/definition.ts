@@ -84,7 +84,7 @@ export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
     configuration: {
       mode: "custom-settings",
       summary:
-        "Renders portfolio, account, target-position, or account-target-position rows. Account mode hydrates canonical holdings and can save a holdings snapshot back to the managed account. Target Positions Account mode saves an account-scoped target-position assignment.",
+        "Renders portfolio, account, target-position, or account-target-position rows. Account mode hydrates canonical holdings and can save a holdings snapshot back to the managed account. Target Positions Account mode hydrates the canonical account target-position assignment and can save it back through the managed-account endpoint.",
       fields: [
         {
           id: "sourceType",
@@ -144,19 +144,19 @@ export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
         },
       ],
       requiredSetupSteps: [
-        "Choose the source type first. Portfolio can hydrate from a portfolio id. Account can hydrate holdings and save them back. Target position and target positions account are authoring-first modes; the latter also writes an account-scoped target-position assignment.",
+        "Choose the source type first. Portfolio can hydrate from a portfolio id. Account can hydrate holdings and save them back. Target position is authoring-first. Target Positions Account can hydrate the latest or exact account target-position assignment and write it back through the managed-account endpoint.",
       ],
     },
     runtime: {
       refreshPolicy: "allow-refresh",
       executionTriggers: ["dashboard-refresh", "manual-recalculate"],
       executionSummary:
-        "Portfolio source can hydrate from the target portfolio weights endpoint. Account source can hydrate from the canonical holdings endpoint and, in edit mode, save a rewritten holdings snapshot through the managed-account holdings write endpoint. Target position remains local-authored, while Target Positions Account writes an account-scoped target-position assignment.",
+        "Portfolio source can hydrate from the target portfolio weights endpoint. Account source can hydrate from the canonical holdings endpoint and, in edit mode, save a rewritten holdings snapshot through the managed-account holdings write endpoint. Target position remains local-authored, while Target Positions Account can hydrate the canonical account target-position assignment and save it back through the matching write endpoint.",
     },
     io: {
       mode: "none",
       summary:
-        "This widget does not participate in typed widget bindings. Portfolio and account can hydrate from their own queries; account edit mode can also save holdings back to the managed account. Target position renders local authored rows.",
+        "This widget does not participate in typed widget bindings. Portfolio, account, and account target-position sources can hydrate from their own queries. Account and account target-position edit modes can also save back to the managed account. Target position renders local authored rows.",
     },
     capabilities: {
       supportedSourceTypes: [

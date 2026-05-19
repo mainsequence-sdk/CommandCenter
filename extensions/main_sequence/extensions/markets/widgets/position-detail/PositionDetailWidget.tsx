@@ -209,7 +209,7 @@ export function PositionDetailWidget({
     sourceType === "account" && accountHoldingsDateSource
       ? normalizePositionDetailHoldingsDate(accountHoldingsDateSource)
       : undefined;
-  const targetPositionsDateSource = props.targetPositionsDate;
+  const targetPositionsDateSource = props.targetPositionsDate ?? payload?.weights_date;
   const resolvedTargetPositionsDate =
     sourceType === "target_positions_account" && targetPositionsDateSource
       ? normalizePositionDetailTargetPositionsDate(targetPositionsDateSource)
@@ -227,7 +227,8 @@ export function PositionDetailWidget({
   const [targetPositionsEditDate, setTargetPositionsEditDate] = useState(getCurrentIsoTimestamp());
   const canHydrateFromBackend =
     (sourceType === "portfolio" && targetPortfolioId > 0) ||
-    (sourceType === "account" && Boolean(accountUid));
+    ((sourceType === "account" || sourceType === "target_positions_account") &&
+      Boolean(accountUid));
   const isLoading =
     (canHydrateFromBackend &&
       persistedRows.length === 0 &&
@@ -356,9 +357,10 @@ export function PositionDetailWidget({
       }
 
       const nextTargetPositionsDate = normalizePositionDetailTargetPositionsDate(
-        nextPayload.target_positions_date ?? targetPositionsEditDate,
+        nextPayload.weights_date ?? targetPositionsEditDate,
       );
 
+      setOptimisticAccountPayload(nextPayload);
       setTargetPositionsEditDate(nextTargetPositionsDate);
       onPropsChange?.({
         ...props,
@@ -366,7 +368,11 @@ export function PositionDetailWidget({
         accountUid,
         targetPositionsDate: nextTargetPositionsDate,
         variant: "positions",
-        positionRows: effectiveRows,
+        positionRows: [],
+      });
+
+      void queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "managed_accounts", "target_positions", accountUid],
       });
 
       toast({
@@ -433,7 +439,11 @@ export function PositionDetailWidget({
       <Card>
         <CardContent className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">
           <Loader2 className="mr-3 h-4 w-4 animate-spin" />
-          {sourceType === "account" ? "Loading account holdings" : "Loading position details"}
+          {sourceType === "account"
+            ? "Loading account holdings"
+            : sourceType === "target_positions_account"
+              ? "Loading account target positions"
+              : "Loading position details"}
         </CardContent>
       </Card>
     );

@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/page-header";
 
 import {
   fetchManagedAccountHoldingsPositionDetails,
+  fetchManagedAccountTargetPositionsPositionDetails,
   fetchManagedAccountSummary,
   formatMainSequenceError,
 } from "../../../../common/api";
@@ -122,6 +123,18 @@ export function MainSequenceManagedAccountDetailPage() {
       managedAccountUid,
     ],
     queryFn: () => fetchManagedAccountHoldingsPositionDetails(managedAccountUid as string),
+    enabled: managedAccountUid !== null,
+  });
+
+  const targetPositionsRuntimeQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "managed_accounts",
+      "target_positions",
+      managedAccountUid,
+    ],
+    queryFn: () =>
+      fetchManagedAccountTargetPositionsPositionDetails(managedAccountUid as string),
     enabled: managedAccountUid !== null,
   });
 
@@ -283,6 +296,33 @@ export function MainSequenceManagedAccountDetailPage() {
                   props={targetPositionEditorProps}
                   editable
                   onPropsChange={setTargetPositionEditorProps}
+                  runtimeState={
+                    targetPositionsRuntimeQuery.isError
+                      ? {
+                          status: "error",
+                          error: formatMainSequenceError(targetPositionsRuntimeQuery.error),
+                          accountUid: managedAccountUid ?? undefined,
+                          variant: "positions",
+                          payload: undefined,
+                        }
+                      : targetPositionsRuntimeQuery.isLoading
+                        ? {
+                            status: "loading",
+                            error: undefined,
+                            accountUid: managedAccountUid ?? undefined,
+                            variant: "positions",
+                            payload: undefined,
+                          }
+                        : targetPositionsRuntimeQuery.data
+                          ? {
+                              status: "success",
+                              error: undefined,
+                              accountUid: managedAccountUid ?? undefined,
+                              variant: "positions",
+                              payload: targetPositionsRuntimeQuery.data,
+                            }
+                          : undefined
+                  }
                 />
               </CardContent>
             </Card>

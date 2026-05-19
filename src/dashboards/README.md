@@ -24,7 +24,9 @@ surfaces and the editable workspace studio.
   passive-consumer suppression, and hidden sidebar-only mount gating.
 - `widget-dependencies.ts`: shared binding normalization, resolved-input resolution, and static
   dependency-graph extraction. It also owns graph-connection parsing, validation, and canonical
-  binding add/remove helpers so visual graph editors do not duplicate semantics.
+  binding add/remove helpers so visual graph editors do not duplicate semantics. Expression-authored
+  widget variables are emitted as first-class dependency graph edges with `variable-reference`
+  source metadata, while hidden managed-source wiring is tagged as `system-managed`.
 - `widget-instance-references.ts`: platform-level automatic reference wiring for existing widget
   instance state. It appends synthetic source outputs for widget title/props/runtime state,
   appends generic title and prop-path binding targets, and resolves effective reference-backed
@@ -43,7 +45,9 @@ surfaces and the editable workspace studio.
   raw widget registry.
 - `widget-graph-execution.ts`: shared executable-widget graph runner. It builds dependency-backed
   execution snapshots, walks valid upstream executable dependencies, applies runtime-state patches,
-  and provides the refresh-target selection helpers used by the execution provider.
+  and provides the refresh-target selection helpers used by the execution provider. It also blocks
+  executable widgets whose reference-backed prop inputs are unresolved, so graph scheduling waits
+  for runtime-backed variable values instead of sending literal or empty requests downstream.
 - `DashboardWidgetExecution.tsx`: React provider/hooks layer for executable widget graphs. It owns
   `executeWidgetGraph(...)`, source-driven `executeWidgetFlow(...)`, generic passive-consumer
   upstream resolution through `resolveUpstream(...)` / `useResolveWidgetUpstream(...)`, in-flight
@@ -119,6 +123,9 @@ surfaces and the editable workspace studio.
   The dependency layer also derives those bindings in memory while resolving widgets, so an
   expression-authored title or prop can render immediately even if an older draft is missing the
   generated binding. That derivation must not mutate the saved widget.
+- Variable-reference edges must stay visible to graph/debug surfaces. They are graph dependencies,
+  not a separate string-substitution system; graph UI should style and label them distinctly from
+  explicit binding edges while still using the same validation and execution ordering.
 - The workspace variable-reference registry is derived from those bindings at runtime. It should
   only contain variables with active consumers, and it must not become a second persisted source of
   truth or a catalog of every value that autocomplete can discover. Ordinary widget IO bindings
@@ -168,10 +175,20 @@ surfaces and the editable workspace studio.
   provider instead of triggering requests locally. Widgets should ask for upstream resolution
   through `useResolveWidgetUpstream(...)`; they should not build their own request fingerprints or
   hand-roll graph traversal logic.
-- Upstream resolution request keys include executable upstream source configuration and compact
-  runtime identity, not just binding topology. When a managed connection source is created, edited,
-  or has its runtime cleared, passive consumers can request the normal graph execution path again
-  without a widget-specific publisher.
+- Passive upstream resolution is one-shot per invalidation. The provider records in-flight and
+  settled passive attempts so a `null`, empty, incompatible, or error publication is treated as an
+  upstream answer instead of causing the consumer to re-request the same parent graph on every
+  render.
+- Graph execution request keys include executable upstream source configuration and compact runtime
+  identity, not just binding topology. Passive one-shot settled keys intentionally exclude runtime
+  outputs produced by the same resolve attempt; they reset on real invalidations such as binding,
+  source configuration, dashboard refresh, or target override changes.
+- Keep passive retry behavior covered at the provider layer. Table, Graph, Statistic,
+  Tabular Transform, Debug Stream, managed HTTP connection sources, and managed WebSocket stream
+  sources all depend on the same `useResolveWidgetUpstream(...)` boundary: consumers may request
+  one upstream pass for a missing publication, while the source owner publishes the settled
+  `ready`, `null`, empty, incompatible, loading, or error answer. Do not add widget-local retry
+  loops or stream-specific passive rerun effects.
 - The dependency model now also supports derived output publication. Output resolvers can consume
   `resolvedInputs`, which lets intermediate republisher widgets expose fresh downstream values
   immediately after an upstream request/computation resolves instead of waiting for a mounted
