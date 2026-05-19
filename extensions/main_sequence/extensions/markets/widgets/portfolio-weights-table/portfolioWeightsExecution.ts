@@ -10,7 +10,7 @@ import {
   fetchTargetPortfolioWeightsPositionDetails,
 } from "../../../../common/api";
 import {
-  normalizePortfolioWeightsAccountId,
+  normalizePortfolioWeightsAccountUid,
   normalizePortfolioWeightsPersistedRows,
   normalizePortfolioWeightsRuntimeState,
   normalizePortfolioWeightsSourceType,
@@ -37,7 +37,7 @@ export async function executePortfolioWeightsWidget(
   const props = (context.targetOverrides?.props ?? context.props) as PortfolioWeightsWidgetProps;
   const sourceType = normalizePortfolioWeightsSourceType(props);
   const targetPortfolioId = normalizePortfolioWeightsTargetId(props);
-  const accountId = normalizePortfolioWeightsAccountId(props);
+  const accountUid = normalizePortfolioWeightsAccountUid(props);
   const variant = normalizePortfolioWeightsVariant(props.variant);
   const persistedRows = normalizePortfolioWeightsPersistedRows(props);
 
@@ -48,7 +48,7 @@ export async function executePortfolioWeightsWidget(
         status: "idle",
         error: undefined,
         targetPortfolioId: undefined,
-        accountId: undefined,
+        accountUid: undefined,
         variant: "positions",
         payload: undefined,
       }),
@@ -62,21 +62,21 @@ export async function executePortfolioWeightsWidget(
         status: "idle",
         error: undefined,
         targetPortfolioId: undefined,
-        accountId: undefined,
+        accountUid: undefined,
         variant,
         payload: undefined,
       }),
     };
   }
 
-  if (sourceType === "account" && accountId <= 0) {
+  if (sourceType === "account" && !accountUid) {
     return {
       status: "skipped",
       runtimeStatePatch: buildPortfolioWeightsRuntimeState(context.runtimeState, {
         status: "idle",
         error: undefined,
         targetPortfolioId: undefined,
-        accountId: undefined,
+        accountUid: undefined,
         variant,
         payload: undefined,
       }),
@@ -87,7 +87,7 @@ export async function executePortfolioWeightsWidget(
     const requestTraceMeta = buildDashboardExecutionRequestTraceMeta(context);
     const payload =
       sourceType === "account"
-        ? await fetchManagedAccountHoldingsPositionDetails(accountId, {
+        ? await fetchManagedAccountHoldingsPositionDetails(accountUid, {
             traceMeta: requestTraceMeta,
           })
         : await fetchTargetPortfolioWeightsPositionDetails(
@@ -101,7 +101,7 @@ export async function executePortfolioWeightsWidget(
         status: "success",
         error: undefined,
         targetPortfolioId: sourceType === "portfolio" ? targetPortfolioId : undefined,
-        accountId: sourceType === "account" ? accountId : undefined,
+        accountUid: sourceType === "account" ? accountUid : undefined,
         variant,
         payload,
         lastLoadedAtMs: Date.now(),
@@ -120,7 +120,7 @@ export async function executePortfolioWeightsWidget(
               ? "Unable to load account holdings."
               : "Unable to load portfolio weights.",
         targetPortfolioId: sourceType === "portfolio" ? targetPortfolioId : undefined,
-        accountId: sourceType === "account" ? accountId : undefined,
+        accountUid: sourceType === "account" ? accountUid : undefined,
         variant,
         payload: undefined,
       }),
@@ -140,7 +140,7 @@ export const portfolioWeightsExecutionDefinition = {
         return normalizePortfolioWeightsTargetId(props) > 0;
       }
       if (sourceType === "account") {
-        return normalizePortfolioWeightsAccountId(props) > 0;
+        return Boolean(normalizePortfolioWeightsAccountUid(props));
       }
       return false;
     })(),

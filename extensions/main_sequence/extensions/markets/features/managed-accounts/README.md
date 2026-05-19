@@ -24,7 +24,7 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
 - This feature currently assumes the managed-account list/detail endpoint shape exposed through
   `extensions/main_sequence/common/api/index.ts`:
   - list: `/orm/api/assets/account/`
-  - summary: `/orm/api/assets/account/{id}/summary/`
+  - summary: `/orm/api/assets/account/{uid}/summary/`
 - The registry list intentionally stays narrow to the current list contract. It should only rely on:
   - `account_name` / `display_name`
   - `execution_venue`
@@ -37,7 +37,7 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
   - required payload fields: `account_name`, `execution_venue`
   - optional payload fields: `is_paper`, `holdings_data_source`
 - The list surface also supports deleting selected accounts through:
-  - `DELETE /orm/api/assets/account/{id}/`
+  - `DELETE /orm/api/assets/account/{uid}/`
 - The create modal also depends on option loaders at:
   - `GET /orm/api/assets/execution_venue/`
   - `GET /orm/api/connections/data_source/`
@@ -46,11 +46,11 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
 - If the backend later adds edit flows or a dedicated bulk-delete account contract, keep them in
   this feature instead of overloading the shared API layer without a concrete UI contract.
 - `Holdings` now mounts the positions widget directly with `sourceType: "account"`,
-  `editableInPlace: true`, and the current `accountId` inside the account detail page. That
+  `editableInPlace: true`, and the current `accountUid` inside the account detail page. That
   surface hydrates from:
-  - `GET /orm/api/assets/account/{id}/holdings/`
-- Holdings edits are page-local widget prop edits seeded from the latest hydrated snapshot until a
-  dedicated managed-account holdings write endpoint exists.
+  - `GET /orm/api/assets/account/{uid}/holdings/`
+- Holdings edits write back through:
+  - `POST /orm/api/assets/account/{uid}/add-holdings/`
 - `Target Position` now mounts the same positions widget with `sourceType: "target_position"`
   directly inside the account detail page. This is also a page-local editor only; it does not
   persist to a managed-account backend endpoint yet.

@@ -66,7 +66,7 @@ function applyPaginationParams(nextParams: URLSearchParams, page: number, pageSi
 function getManagedAccountLabel(account: ManagedAccountListRow) {
   return formatManagedAccountValue(
     account.display_name ?? account.account_name ?? account.name,
-    `Account ${account.id}`,
+    "Managed account",
   );
 }
 
@@ -77,30 +77,33 @@ function buildManagedAccountDeleteSummary(accounts: ManagedAccountListRow[]) {
 
   return (
     <div className="space-y-2">
-      {accounts.slice(0, 5).map((account) => (
-        <div key={account.id} className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="truncate font-medium text-foreground">
-              {getManagedAccountLabel(account)}
-            </div>
-            <div className="truncate text-xs text-muted-foreground">
-              {[
-                account.execution_venue != null && String(account.execution_venue).trim()
-                  ? `Execution venue ${String(account.execution_venue).trim()}`
-                  : null,
-                typeof account.account_is_active === "boolean"
-                  ? account.account_is_active
-                    ? "Active"
-                    : "Inactive"
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(" · ") || `ID ${account.id}`}
+      {accounts.slice(0, 5).map((account) => {
+        const secondaryLine = [
+          account.execution_venue != null && String(account.execution_venue).trim()
+            ? `Execution venue ${String(account.execution_venue).trim()}`
+            : null,
+          typeof account.account_is_active === "boolean"
+            ? account.account_is_active
+              ? "Active"
+              : "Inactive"
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
+        return (
+          <div key={account.uid} className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="truncate font-medium text-foreground">
+                {getManagedAccountLabel(account)}
+              </div>
+              {secondaryLine ? (
+                <div className="truncate text-xs text-muted-foreground">{secondaryLine}</div>
+              ) : null}
             </div>
           </div>
-          <div className="shrink-0 text-xs text-muted-foreground">ID {account.id}</div>
-        </div>
-      ))}
+        );
+      })}
       {accounts.length > 5 ? (
         <div className="text-xs text-muted-foreground">
           {`${accounts.length - 5} more selected managed accounts`}
@@ -157,7 +160,7 @@ export function MainSequenceManagedAccountsPage() {
   const pageRows = managedAccountsQuery.data?.results ?? [];
   const totalCount = managedAccountsQuery.data?.count ?? pageRows.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const managedAccountSelection = useRegistrySelection(pageRows);
+  const managedAccountSelection = useRegistrySelection(pageRows, (account) => account.uid);
 
   useEffect(() => {
     const nextParams = new URLSearchParams(location.search);
@@ -278,11 +281,11 @@ export function MainSequenceManagedAccountsPage() {
       toast({
         variant: "success",
         title: "Account created",
-        description: `${formatManagedAccountValue(account.display_name ?? account.account_name ?? account.name, `Account ${account.id}`)} is now available.`,
+        description: `${formatManagedAccountValue(account.display_name ?? account.account_name ?? account.name, "Managed account")} is now available.`,
       });
 
       setCreateDialogOpen(false);
-      navigate(getManagedAccountDetailPath(account.id), {
+      navigate(getManagedAccountDetailPath(account.uid), {
         state: {
           from: `${location.pathname}${location.search}`,
         },
@@ -311,17 +314,17 @@ export function MainSequenceManagedAccountsPage() {
 
   const deleteManagedAccountsMutation = useMutation({
     mutationFn: async (accounts: ManagedAccountListRow[]) => {
-      await Promise.all(accounts.map((account) => deleteManagedAccount(account.id)));
+      await Promise.all(accounts.map((account) => deleteManagedAccount(account.uid)));
       return {
         deleted_count: accounts.length,
-        deleted_ids: accounts.map((account) => account.id),
+        deleted_uids: accounts.map((account) => account.uid),
       };
     },
     onSuccess: async (result) => {
-      const deletedIds = result.deleted_ids;
+      const deletedUids = result.deleted_uids;
 
       managedAccountSelection.setSelection(
-        managedAccountSelection.selectedIds.filter((id) => !deletedIds.includes(id)),
+        managedAccountSelection.selectedIds.filter((uid) => !deletedUids.includes(uid)),
       );
       setDeleteIntent(null);
 
@@ -462,14 +465,14 @@ export function MainSequenceManagedAccountsPage() {
                   </thead>
                   <tbody>
                     {pageRows.map((account) => {
-                      const selected = managedAccountSelection.isSelected(account.id);
+                      const selected = managedAccountSelection.isSelected(account.uid);
 
                       return (
                       <tr
-                        key={account.id}
+                        key={account.uid}
                         className="group cursor-pointer"
                         onClick={() => {
-                          navigate(getManagedAccountDetailPath(account.id), {
+                          navigate(getManagedAccountDetailPath(account.uid), {
                             state: {
                               from: `${location.pathname}${location.search}`,
                             },
@@ -481,14 +484,14 @@ export function MainSequenceManagedAccountsPage() {
                           onClick={(event) => event.stopPropagation()}
                         >
                           <MainSequenceSelectionCheckbox
-                            ariaLabel={`Select managed account ${account.id}`}
+                            ariaLabel={`Select managed account ${getManagedAccountLabel(account)}`}
                             checked={selected}
-                            onChange={() => managedAccountSelection.toggleSelection(account.id)}
+                            onChange={() => managedAccountSelection.toggleSelection(account.uid)}
                           />
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           <Link
-                            to={getManagedAccountDetailPath(account.id)}
+                            to={getManagedAccountDetailPath(account.uid)}
                             state={{
                               from: `${location.pathname}${location.search}`,
                             }}
@@ -502,9 +505,6 @@ export function MainSequenceManagedAccountsPage() {
                             </span>
                             <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
                           </Link>
-                          <div className="mt-1 truncate text-xs text-muted-foreground">
-                            {`ID ${account.id}`}
-                          </div>
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           {formatManagedAccountValue(

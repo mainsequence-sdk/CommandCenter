@@ -34,12 +34,12 @@
   on richer `dynamic_table` fields must opt out explicitly with `light: false`.
 - Markets positions helpers also live here. `fetchManagedAccountHoldingsPositionDetails(...)`
   adapts the canonical managed-account holdings snapshot endpoint
-  `/orm/api/assets/account/{id}/holdings/` into the shared portfolio-weights position-details
+  `/orm/api/assets/account/{uid}/holdings/` into the shared portfolio-weights position-details
   payload shape used by the reusable positions widget. The backend may legally return `{}` with
   `200 OK` when no holdings snapshot exists; the API layer normalizes that to an empty positions
   payload instead of pushing the empty-object special case into widgets.
 - `saveManagedAccountHoldings(...)` also lives here. It posts a canonical holdings snapshot to
-  `/orm/api/assets/account/{id}/add-holdings/`, normalizes the write response, and adapts it back
+  `/orm/api/assets/account/{uid}/add-holdings/`, normalizes the write response, and adapts it back
   into the same reusable portfolio-weights position-details payload so the holdings widget can stay
   on one rendering contract before and after save.
 - Shareable-object permission helpers also live here. They all use the same suffix-based contract:

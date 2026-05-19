@@ -84,7 +84,7 @@ describe("portfolioWeightsExecution", () => {
     const result = await executePortfolioWeightsWidget({
       props: {
         sourceType: "account",
-        accountId: 26,
+        accountUid: "managed-account-26",
         editableInPlace: true,
         positionRows: [],
       },
@@ -93,13 +93,13 @@ describe("portfolioWeightsExecution", () => {
       widgetId: "portfolio-weights-table",
     } as never);
 
-    expect(fetchManagedAccountHoldingsPositionDetails).toHaveBeenCalledWith(26, {
+    expect(fetchManagedAccountHoldingsPositionDetails).toHaveBeenCalledWith("managed-account-26", {
       traceMeta: undefined,
     });
     expect(result.status).toBe("success");
     expect(result.runtimeStatePatch).toMatchObject({
       status: "success",
-      accountId: 26,
+      accountUid: "managed-account-26",
       variant: "positions",
       payload: {
         rows: [],
@@ -108,12 +108,12 @@ describe("portfolioWeightsExecution", () => {
     });
   });
 
-  it("still reports canExecute for account hydration when account id exists and no local rows exist", () => {
+  it("still reports canExecute for account hydration when account uid exists and no local rows exist", () => {
     expect(
       portfolioWeightsExecutionDefinition.canExecute({
         props: {
           sourceType: "account",
-          accountId: 26,
+          accountUid: "managed-account-26",
           editableInPlace: true,
           positionRows: [],
         },

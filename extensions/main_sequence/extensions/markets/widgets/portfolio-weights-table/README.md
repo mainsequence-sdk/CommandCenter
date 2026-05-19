@@ -16,7 +16,7 @@ This folder contains the reusable `Portfolio Weights` widget and the shared tabl
 
 - On workspace runtime surfaces, `Portfolio Weights` behaves as a mixed source widget:
   - `portfolio` can hydrate from the target-portfolio `weights-position-details` endpoint
-  - `account` can hydrate from the managed-account `holdings/` endpoint
+  - `account` can hydrate from the managed-account `holdings/` endpoint keyed by account uid
   - `target_position` is currently local-authored in the frontend
 - The widget now has three persisted source contracts:
   - `portfolio`: rows are interpreted only as `weight_notional_exposure`
@@ -26,7 +26,7 @@ This folder contains the reusable `Portfolio Weights` widget and the shared tabl
 - The reusable widget accepts:
   - `sourceType`
   - `portfolioId` for portfolio hydration
-  - `accountId` for account holdings hydration
+  - `accountUid` for account holdings hydration
   - `targetPortfolioId` as a compatibility fallback for the same hydration path
   - `editableInPlace`
   - `positionRows`
@@ -49,7 +49,7 @@ This folder contains the reusable `Portfolio Weights` widget and the shared tabl
   - hydrated `portfolio` rows always use the portfolio snapshot `weights_date`
   - `account` rows do not persist a row-level date; the snapshot datetime lives at `holdingsDate`
 - When `account` enters edit mode, the widget shows a top-level `Holdings Date` `datetime-local` control seeded from the resolved account holdings timestamp, or now when the account has no holdings rows yet.
-- `account` edit mode saves through `POST /orm/api/assets/account/<account_id>/add-holdings/` with `overwrite: true`, maps blank prices to `missing_price: true`, injects `target_trade_time` from `holdingsDate`, and always sends `extra_details: {}` because that field is not authored in the widget.
+- `account` edit mode saves through `POST /orm/api/assets/account/<account_uid>/add-holdings/` with `overwrite: true`, maps blank prices to `missing_price: true`, injects `target_trade_time` from `holdingsDate`, and always sends `extra_details: {}` because that field is not authored in the widget.
 - When `Position Type` is `weight_notional_exposure`, the widget formats `Position Value` as a percentage.
 - When `Position Type` is `constant_notional`, the widget formats `Position Value` as a USD notional with thousands separators.
 - When any authored row uses `units`, the widget shows an in-canvas warning that no price feed is connected here, so unit notional exposure cannot be calculated.

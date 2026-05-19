@@ -193,7 +193,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "main_sequence_markets/accounts/:accountId",
+        path: "main_sequence_markets/accounts/:accountUid",
         element: (
           <PermissionRoute anyOf={["main_sequence_markets:view"]}>
             <MainSequenceManagedAccountDetailPage />

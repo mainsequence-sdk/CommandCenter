@@ -16,7 +16,7 @@ Render portfolio, account, or target-position rows with a source contract that c
 
 - Choose the source type first: `portfolio`, `account`, or `target_position`.
 - If the source type is `portfolio`, optionally set a portfolio id so the widget can hydrate from the target portfolio weights endpoint.
-- If the source type is `account`, optionally set an account id so the widget can hydrate from the canonical account holdings endpoint.
+- If the source type is `account`, optionally set an account uid so the widget can hydrate from the canonical account holdings endpoint.
 - Enable `Editable in place` when authors should add assets directly on the widget and maintain rows there.
 - For `target_position`, choose the desired position type per row. `portfolio` stays fixed to weight exposure; `account` exposes the backend position type string together with quantity when you enter edit mode.
 - For `portfolio` and `account`, enabling `Editable in place` adds an explicit in-widget edit action. The widget still opens in display mode first.
@@ -25,7 +25,7 @@ Render portfolio, account, or target-position rows with a source contract that c
 ## blockingRequirements
 
 - Portfolio hydration requires a valid portfolio identifier and no locally persisted rows.
-- Account hydration requires a valid account identifier and no locally persisted rows.
+- Account hydration requires a valid account uid and no locally persisted rows.
 - Target-position widgets require at least one added asset row before they show useful position content.
 
 ## inboundPorts
@@ -52,7 +52,7 @@ Render portfolio, account, or target-position rows with a source contract that c
 - `editableInPlace`: switches the widget into inline authoring mode.
 - For `portfolio` and `account`, the widget enters that inline mode only after the user clicks the in-widget edit action.
 - `sourceType`: `portfolio`, `account`, or `target_position`.
-- `accountId`: used for account holdings hydration.
+- `accountUid`: used for account holdings hydration.
 - `holdingsDate`: persisted account-only holdings snapshot timestamp. It is stored as a timezone-aware ISO string.
 - `positionRows`: persisted authored position rows with asset identity, optional row date, position type, and position value.
 - `variant`: `summary` or `positions` only for hydrated portfolio mode. Authored rows always render `positions`.
@@ -60,13 +60,13 @@ Render portfolio, account, or target-position rows with a source contract that c
 ## backendContracts
 
 - Portfolio hydration uses the existing target-portfolio weights/positions endpoint through the shared Markets API layer.
-- Account hydration uses `GET /orm/api/assets/account/<account_id>/holdings/`. If `holdings_date` is omitted, the backend returns the latest holdings snapshot.
-- Account save uses `POST /orm/api/assets/account/<account_id>/add-holdings/` with `overwrite: true`. The widget injects `target_trade_time` from `holdingsDate`, maps blank prices to `missing_price: true`, and always sends `extra_details: {}` because that field is API-only in the current frontend contract.
+- Account hydration uses `GET /orm/api/assets/account/<account_uid>/holdings/`. If `holdings_date` is omitted, the backend returns the latest holdings snapshot.
+- Account save uses `POST /orm/api/assets/account/<account_uid>/add-holdings/` with `overwrite: true`. The widget injects `target_trade_time` from `holdingsDate`, maps blank prices to `missing_price: true`, and always sends `extra_details: {}` because that field is API-only in the current frontend contract.
 - Asset add/search for authored rows reuses the existing asset list endpoint.
 - Persisted widget props now include optional additive fields:
   - `editableInPlace`
   - `sourceType`
-  - `accountId`
+  - `accountUid`
   - `positionRows`
 - Legacy persisted fields `dataMode` and `inlineRows` are still read for compatibility, but they are no longer the canonical contract.
 

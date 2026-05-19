@@ -1,6 +1,6 @@
 [
   {
-    "id": 5001,
+    "uid": "alpha-rates-book-5001",
     "account_name": "Alpha Rates Book",
     "display_name": "Alpha Rates Book",
     "execution_venue": 1001,
@@ -9,7 +9,7 @@
     "creation_date": "2025-01-15T09:30:00Z"
   },
   {
-    "id": 5002,
+    "uid": "macro-overlay-book-5002",
     "account_name": "Macro Overlay Book",
     "display_name": "Macro Overlay Book",
     "execution_venue": 1002,
@@ -18,7 +18,7 @@
     "creation_date": "2025-02-07T13:00:00Z"
   },
   {
-    "id": 5003,
+    "uid": "commodities-overlay-5003",
     "account_name": "Commodities Overlay",
     "display_name": "Commodities Overlay",
     "execution_venue": 1003,

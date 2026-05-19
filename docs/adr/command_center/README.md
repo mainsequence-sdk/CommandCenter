@@ -50,6 +50,7 @@ one file or one feature folder.
 
 ## Widget Contract And Execution ADRs
 
+- [ADR 062: Typed Widget Module Pattern](./adr-062-typed-widget-module-pattern.md)
 - [ADR 060: Instant Widget Settings Runtime](./adr-060-instant-widget-settings-runtime.md)
 - [ADR 058: Cross-Widget References And Variables](./adr-058-cross-widget-references-and-variables.md)
 - [ADR 056: Slide Structural Containment in Workspace Graph](./adr-056-slide-structural-containment-in-workspace-graph.md)

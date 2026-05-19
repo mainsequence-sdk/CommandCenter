@@ -853,16 +853,12 @@ export function CustomWidgetSettingsPage({
             return;
           }
 
-          const nextProps = applyManagedConnectionConsumerDraftProps(
-            managedConnectionAdapter,
-            (instance.props ?? {}) as Record<string, unknown>,
-            managedConnectionDraftProps,
-          );
-          const nextDashboard = updateDashboardWidgetSettings(selectedDashboard, instance.id, {
-            props: nextProps,
+          saveWidgetSettings({
+            title: effectiveDraftState.title.trim() ? effectiveDraftState.title.trim() : undefined,
+            props: effectiveDraftState.props,
+            bindings: effectiveDraftState.bindings,
+            presentation: effectiveDraftState.presentation,
           });
-
-          commitWidgetSettingsChange(nextDashboard);
         };
 
         const removeManagedConnectionWithCommit = () => {

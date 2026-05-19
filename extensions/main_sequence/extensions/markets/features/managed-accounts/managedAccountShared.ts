@@ -6,8 +6,8 @@ export function getManagedAccountsListPath() {
   return getAppPath("main_sequence_markets", "accounts");
 }
 
-export function getManagedAccountDetailPath(accountId: number) {
-  return `${getManagedAccountsListPath()}/${accountId}`;
+export function getManagedAccountDetailPath(accountUid: string) {
+  return `${getManagedAccountsListPath()}/${encodeURIComponent(accountUid)}`;
 }
 
 export function formatManagedAccountValue(
@@ -24,7 +24,7 @@ export function getManagedAccountTitle(account?: ManagedAccountRecord | null) {
     account?.display_name?.trim() ||
     account?.account_name?.trim() ||
     account?.name?.trim() ||
-    (typeof account?.id === "number" ? `Account ${account.id}` : "Managed account")
+    "Managed account"
   );
 }
 

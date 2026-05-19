@@ -18,6 +18,11 @@ function normalizePositiveInt(value: string) {
   return Math.trunc(parsed);
 }
 
+function normalizeAccountUid(value: string) {
+  const normalized = value.trim();
+  return normalized ? normalized : undefined;
+}
+
 const sourceTypeHelpText: Record<PortfolioWeightsSourceType, string> = {
   portfolio:
     "Portfolio source rows are always interpreted as weight from notional exposure. Backend hydration is available from the target portfolio weights endpoint until local rows are authored.",
@@ -38,10 +43,7 @@ export function PortfolioWeightsWidgetSettings({
     Number(draftProps.portfolioId ?? draftProps.targetPortfolioId) > 0
       ? String(Math.trunc(Number(draftProps.portfolioId ?? draftProps.targetPortfolioId)))
       : "";
-  const accountId =
-    Number.isFinite(Number(draftProps.accountId)) && Number(draftProps.accountId) > 0
-      ? String(Math.trunc(Number(draftProps.accountId)))
-      : "";
+  const accountUid = typeof draftProps.accountUid === "string" ? draftProps.accountUid : "";
   const variant =
     draftProps.editableInPlace === true || sourceType !== "portfolio"
       ? "positions"
@@ -150,20 +152,17 @@ export function PortfolioWeightsWidgetSettings({
             help="Used only when the source type is Account and no local rows have been authored yet."
             textClassName="text-sm font-medium text-topbar-foreground"
           >
-            Account id
+            Account uid
           </WidgetSettingFieldLabel>
           <Input
-            type="number"
-            min="1"
-            step="1"
-            inputMode="numeric"
-            placeholder="1"
-            value={accountId}
+            type="text"
+            placeholder="managed-account-uid"
+            value={accountUid}
             readOnly={!editable || sourceType !== "account"}
             onChange={(event) => {
               onDraftPropsChange({
                 ...draftProps,
-                accountId: normalizePositiveInt(event.target.value),
+                accountUid: normalizeAccountUid(event.target.value),
               });
             }}
           />

@@ -1051,6 +1051,52 @@ describe("custom dashboard storage managed widgets", () => {
     });
   });
 
+  it("preserves mock API response bodies when table managed connection settings are saved", () => {
+    const responseBody = [
+      { Symbol: "BTCUSDT", sector: "Layer 1", last_price: 109420 },
+      { Symbol: "ETHUSDT", sector: "Layer 1", last_price: 5860 },
+    ];
+    const dashboard = dashboardWithWidgets([tableWidget("table-1", { x: 0, y: 0 })]);
+
+    const updated = updateDashboardWidgetSettings(dashboard, "table-1", {
+      title: "Mock crypto table",
+      props: {
+        tableSourceMode: "connection",
+        embeddedConnectionQuery: {
+          connectionRef: {
+            id: "mock-api-demo",
+            typeId: "mock-api",
+          },
+          queryModelId: "mock-api-response",
+          query: {
+            kind: "mock-api-response",
+            responseMode: "rows",
+            responseStatus: 200,
+            responseBody,
+          },
+        },
+      },
+    });
+    const managedSource = findManagedDashboardWidget(updated, {
+      ownerInstanceId: "table-1",
+      role: "embedded-connection-source",
+    });
+
+    expect(managedSource?.props).toMatchObject({
+      connectionRef: {
+        id: "mock-api-demo",
+        typeId: "mock-api",
+      },
+      queryModelId: "mock-api-response",
+      query: {
+        kind: "mock-api-response",
+        responseMode: "rows",
+        responseStatus: 200,
+        responseBody,
+      },
+    });
+  });
+
   it("removes the managed table source and binding when the table switches to manual mode", () => {
     const dashboard = updateDashboardWidgetSettings(
       dashboardWithWidgets([tableWidget("table-1", { x: 0, y: 0 })]),

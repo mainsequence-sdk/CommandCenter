@@ -516,7 +516,7 @@ export interface VirtualFundListRow {
 }
 
 export interface ManagedAccountListRow extends Record<string, unknown> {
-  id: number;
+  uid: string;
   account_name?: string | null;
   display_name?: string | null;
   name?: string | null;
@@ -758,6 +758,10 @@ export interface ManagedAccountHoldingsWriteResponse {
   holdings_date: string | null;
   holdings_set_uid: string | null;
   positions: ManagedAccountSavedHoldingRow[];
+}
+
+function encodePathSegment(value: string) {
+  return encodeURIComponent(value);
 }
 
 export interface AssetTranslationTableListRow {
@@ -3927,14 +3931,17 @@ export async function listManagedAccounts({
   return normalizeOffsetPaginatedResponse(payload, limit, offset);
 }
 
-export function fetchManagedAccountDetail(managedAccountId: number) {
-  return requestJson<ManagedAccountRecord>(managedAccountEndpoint, `${managedAccountId}/`);
+export function fetchManagedAccountDetail(managedAccountUid: string) {
+  return requestJson<ManagedAccountRecord>(
+    managedAccountEndpoint,
+    `${encodePathSegment(managedAccountUid)}/`,
+  );
 }
 
-export function fetchManagedAccountSummary(managedAccountId: number) {
+export function fetchManagedAccountSummary(managedAccountUid: string) {
   return requestJson<ManagedAccountSummaryResponse>(
     managedAccountEndpoint,
-    `${managedAccountId}/summary/`,
+    `${encodePathSegment(managedAccountUid)}/summary/`,
   );
 }
 
@@ -3945,10 +3952,10 @@ export function createManagedAccount(input: CreateManagedAccountInput) {
   });
 }
 
-export function deleteManagedAccount(managedAccountId: number) {
+export function deleteManagedAccount(managedAccountUid: string) {
   return requestJson<Record<string, unknown> | null>(
     managedAccountEndpoint,
-    `${managedAccountId}/`,
+    `${encodePathSegment(managedAccountUid)}/`,
     {
       method: "DELETE",
     },
@@ -4201,7 +4208,7 @@ export function fetchTargetPortfolioWeightsPositionDetails(
 }
 
 export async function fetchManagedAccountHoldingsPositionDetails(
-  accountId: number,
+  accountUid: string,
   options: {
     holdingsDate?: string;
     traceMeta?: DashboardRequestTraceMeta;
@@ -4210,12 +4217,12 @@ export async function fetchManagedAccountHoldingsPositionDetails(
   if (isWidgetPreviewMode()) {
     return adaptManagedAccountHoldingsSnapshotToPositionDetails(
       normalizeManagedAccountHoldingsSnapshot({
-        id: accountId,
+        id: 0,
         snapshot_uid: "preview-managed-account-holdings",
         holdings_set_uid: "preview-managed-account-holdings",
         holdings_date: buildWidgetPreviewIsoTimestamp(),
         nav: "1250.25000000",
-        related_account: accountId,
+        related_account: 0,
         is_trade_snapshot: false,
         target_trade_time: null,
         related_expected_asset_exposure_df: [],
@@ -4238,7 +4245,7 @@ export async function fetchManagedAccountHoldingsPositionDetails(
 
   const payload = await requestJson<ManagedAccountHoldingsSnapshotResponse | Record<string, unknown>>(
     managedAccountEndpoint,
-    `${accountId}/holdings/`,
+    `${encodePathSegment(accountUid)}/holdings/`,
     undefined,
     options.holdingsDate ? { holdings_date: options.holdingsDate } : undefined,
     options.traceMeta,
@@ -4250,12 +4257,12 @@ export async function fetchManagedAccountHoldingsPositionDetails(
 }
 
 export async function saveManagedAccountHoldings(
-  accountId: number,
+  accountUid: string,
   input: ManagedAccountHoldingsWriteInput,
 ) {
   const payload = await requestJson<ManagedAccountHoldingsWriteResponse | Record<string, unknown>>(
     managedAccountEndpoint,
-    `${accountId}/add-holdings/`,
+    `${encodePathSegment(accountUid)}/add-holdings/`,
     {
       method: "POST",
       body: JSON.stringify(input),

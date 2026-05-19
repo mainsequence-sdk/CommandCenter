@@ -23,7 +23,7 @@ import {
 } from "./PortfolioWeightsTable";
 import {
   getAllowedPortfolioWeightsPositionTypes,
-  normalizePortfolioWeightsAccountId,
+  normalizePortfolioWeightsAccountUid,
   hydratePortfolioWeightsRowsFromPayload,
   normalizePortfolioWeightsHoldingsDate,
   normalizePortfolioWeightsPersistedRows,
@@ -111,7 +111,7 @@ export function PortfolioWeightsWidget({
   const widgetPreviewMode = isWidgetPreviewMode();
   const sourceType = normalizePortfolioWeightsSourceType(props);
   const targetPortfolioId = normalizePortfolioWeightsTargetId(props);
-  const accountId = normalizePortfolioWeightsAccountId(props);
+  const accountUid = normalizePortfolioWeightsAccountUid(props);
   const variant: PortfolioWeightsTableVariant =
     props.editableInPlace === true || sourceType !== "portfolio"
       ? "positions"
@@ -140,7 +140,7 @@ export function PortfolioWeightsWidget({
   const [accountEditDate, setAccountEditDate] = useState(getCurrentIsoTimestamp());
   const canHydrateFromBackend =
     (sourceType === "portfolio" && targetPortfolioId > 0) ||
-    (sourceType === "account" && accountId > 0);
+    (sourceType === "account" && Boolean(accountUid));
   const isLoading =
     (canHydrateFromBackend &&
       persistedRows.length === 0 &&
@@ -156,7 +156,7 @@ export function PortfolioWeightsWidget({
 
   useEffect(() => {
     setOptimisticAccountPayload(undefined);
-  }, [accountId, normalizedRuntimeState.payload, sourceType]);
+  }, [accountUid, normalizedRuntimeState.payload, sourceType]);
 
   useEffect(() => {
     if (!inlineEditingAvailable) {
@@ -183,19 +183,19 @@ export function PortfolioWeightsWidget({
         throw new Error("Saving holdings is not available from widget preview mode.");
       }
 
-      if (sourceType !== "account" || accountId <= 0) {
-        throw new Error("A valid account id is required to save holdings.");
+      if (sourceType !== "account" || !accountUid) {
+        throw new Error("A valid account uid is required to save holdings.");
       }
 
       const normalizedHoldingsDate = normalizePortfolioWeightsHoldingsDate(accountEditDate);
 
       return saveManagedAccountHoldings(
-        accountId,
+        accountUid,
         buildManagedAccountHoldingsPayload(effectiveRows, normalizedHoldingsDate),
       );
     },
     onSuccess: async (nextPayload) => {
-      if (sourceType !== "account" || accountId <= 0) {
+      if (sourceType !== "account" || !accountUid) {
         return;
       }
 
@@ -215,7 +215,7 @@ export function PortfolioWeightsWidget({
       });
 
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "managed_accounts", "holdings", accountId],
+        queryKey: ["main_sequence", "managed_accounts", "holdings", accountUid],
       });
 
       toast({
@@ -243,11 +243,11 @@ export function PortfolioWeightsWidget({
     );
   }
 
-  if (sourceType === "account" && accountId <= 0 && persistedRows.length === 0) {
+  if (sourceType === "account" && !accountUid && persistedRows.length === 0) {
     return (
       <Card>
         <CardContent className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">
-          Set a valid account id to render this widget.
+          Set a valid account uid to render this widget.
         </CardContent>
       </Card>
     );

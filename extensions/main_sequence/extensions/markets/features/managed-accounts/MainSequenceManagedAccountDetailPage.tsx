@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -31,12 +30,12 @@ export type ManagedAccountDetailTabId =
 const defaultManagedAccountDetailTabId: ManagedAccountDetailTabId = "holdings";
 
 function buildManagedAccountHoldingsWidgetProps(
-  accountId: number | null,
+  accountUid: string | null,
 ): PortfolioWeightsWidgetProps {
   return {
     editableInPlace: true,
     sourceType: "account",
-    accountId: accountId ?? undefined,
+    accountUid: accountUid ?? undefined,
     variant: "positions",
     positionRows: [],
   };
@@ -63,10 +62,9 @@ function normalizeManagedAccountDetailTabId(value: string | null): ManagedAccoun
   return isManagedAccountDetailTabId(value) ? value : null;
 }
 
-function readPositiveInt(value: string | null | undefined) {
-  const parsed = Number(value ?? "");
-
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+function normalizeManagedAccountUid(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 }
 
 export function MainSequenceManagedAccountDetailPage() {
@@ -74,7 +72,7 @@ export function MainSequenceManagedAccountDetailPage() {
   const location = useLocation();
   const params = useParams();
 
-  const managedAccountId = readPositiveInt(params.accountId);
+  const managedAccountUid = normalizeManagedAccountUid(params.accountUid);
   const backPath =
     ((location.state as { from?: string } | null)?.from || "").trim() ||
     getManagedAccountsListPath();
@@ -86,20 +84,20 @@ export function MainSequenceManagedAccountDetailPage() {
     useState<PortfolioWeightsWidgetProps>(initialManagedAccountTargetPositionEditorProps);
   const [holdingsWidgetProps, setHoldingsWidgetProps] =
     useState<PortfolioWeightsWidgetProps>(() =>
-      buildManagedAccountHoldingsWidgetProps(managedAccountId),
+      buildManagedAccountHoldingsWidgetProps(managedAccountUid),
     );
 
   useEffect(
     () => {
-      setHoldingsWidgetProps(buildManagedAccountHoldingsWidgetProps(managedAccountId));
+      setHoldingsWidgetProps(buildManagedAccountHoldingsWidgetProps(managedAccountUid));
     },
-    [managedAccountId],
+    [managedAccountUid],
   );
 
   const managedAccountSummaryQuery = useQuery({
-    queryKey: ["main_sequence", "managed_accounts", "summary", managedAccountId],
-    queryFn: () => fetchManagedAccountSummary(managedAccountId as number),
-    enabled: managedAccountId !== null,
+    queryKey: ["main_sequence", "managed_accounts", "summary", managedAccountUid],
+    queryFn: () => fetchManagedAccountSummary(managedAccountUid as string),
+    enabled: managedAccountUid !== null,
   });
 
   const holdingsRuntimeQuery = useQuery({
@@ -107,10 +105,10 @@ export function MainSequenceManagedAccountDetailPage() {
       "main_sequence",
       "managed_accounts",
       "holdings",
-      managedAccountId,
+      managedAccountUid,
     ],
-    queryFn: () => fetchManagedAccountHoldingsPositionDetails(managedAccountId as number),
-    enabled: managedAccountId !== null,
+    queryFn: () => fetchManagedAccountHoldingsPositionDetails(managedAccountUid as string),
+    enabled: managedAccountUid !== null,
   });
 
   function selectTab(tabId: ManagedAccountDetailTabId) {
@@ -125,13 +123,13 @@ export function MainSequenceManagedAccountDetailPage() {
     );
   }
 
-  if (managedAccountId === null) {
+  if (managedAccountUid === null) {
     return (
       <div className="space-y-6">
         <PageHeader
           eyebrow="Main Sequence Markets"
           title="Managed Account"
-          description="The requested account id is invalid."
+          description="The requested account uid is invalid."
           actions={
             <Button type="button" variant="outline" onClick={() => navigate(backPath)}>
               <ArrowLeft className="h-4 w-4" />
@@ -144,7 +142,7 @@ export function MainSequenceManagedAccountDetailPage() {
   }
 
   const managedAccountTitle =
-    managedAccountSummaryQuery.data?.entity.title?.trim() || `Account ${managedAccountId}`;
+    managedAccountSummaryQuery.data?.entity.title?.trim() || "Managed account";
 
   return (
     <div className="space-y-6">
@@ -153,13 +151,10 @@ export function MainSequenceManagedAccountDetailPage() {
         title={managedAccountTitle}
         description="Review the canonical managed account summary."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="neutral">{`ID ${managedAccountId}`}</Badge>
-            <Button type="button" variant="outline" onClick={() => navigate(backPath)}>
-              <ArrowLeft className="h-4 w-4" />
-              Back to accounts
-            </Button>
-          </div>
+          <Button type="button" variant="outline" onClick={() => navigate(backPath)}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to accounts
+          </Button>
         }
       />
 
@@ -225,7 +220,7 @@ export function MainSequenceManagedAccountDetailPage() {
                       ? {
                           status: "error",
                           error: formatMainSequenceError(holdingsRuntimeQuery.error),
-                          accountId: managedAccountId ?? undefined,
+                          accountUid: managedAccountUid ?? undefined,
                           variant: "positions",
                           payload: undefined,
                         }
@@ -233,7 +228,7 @@ export function MainSequenceManagedAccountDetailPage() {
                         ? {
                             status: "loading",
                             error: undefined,
-                            accountId: managedAccountId ?? undefined,
+                            accountUid: managedAccountUid ?? undefined,
                             variant: "positions",
                             payload: undefined,
                           }
@@ -241,7 +236,7 @@ export function MainSequenceManagedAccountDetailPage() {
                           ? {
                               status: "success",
                               error: undefined,
-                              accountId: managedAccountId ?? undefined,
+                              accountUid: managedAccountUid ?? undefined,
                               variant: "positions",
                               payload: holdingsRuntimeQuery.data,
                             }

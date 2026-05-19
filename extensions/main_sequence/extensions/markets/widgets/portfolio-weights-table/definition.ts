@@ -11,7 +11,7 @@ import type { PortfolioWeightsWidgetProps } from "./portfolioWeightsRuntime";
 
 export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>({
   id: "portfolio-weights-table",
-  widgetVersion: "3.3.0",
+  widgetVersion: "3.4.0",
   title: "Portfolio Weights",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
@@ -67,7 +67,7 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
       contentType: "table",
       sourceType: props.sourceType ?? null,
       portfolioId: props.portfolioId ?? null,
-      accountId: props.accountId ?? null,
+      accountUid: props.accountUid ?? null,
       holdingsDate: props.holdingsDate ?? null,
       targetPortfolioId: props.targetPortfolioId ?? null,
       variant: props.variant ?? null,
@@ -104,9 +104,9 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
           source: "custom-settings",
         },
         {
-          id: "accountId",
-          label: "Account id",
-          type: "integer",
+          id: "accountUid",
+          label: "Account uid",
+          type: "string",
           source: "custom-settings",
         },
         {

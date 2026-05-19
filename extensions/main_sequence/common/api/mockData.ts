@@ -1988,12 +1988,36 @@ function handleVirtualFunds(route: string, method: string, searchParams: URLSear
   return undefined;
 }
 
+function normalizeManagedAccountUid(value: unknown) {
+  return readOptionalString(value);
+}
+
+function slugifyManagedAccountUid(value: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || "managed-account";
+}
+
+function buildManagedAccountUid(accountName: string) {
+  return `${slugifyManagedAccountUid(accountName)}-${Date.now()}`;
+}
+
+function findManagedAccountByUid(accountUid: string) {
+  return state.managedAccounts.find(
+    (account) => normalizeManagedAccountUid(account.uid) === accountUid,
+  );
+}
+
 function handleManagedAccounts(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
   if (route === "/orm/api/assets/account/" && method === "GET") {
     const filtered = state.managedAccounts.filter((account) =>
       matchesSearch(
         [
-          account.id,
+          account.uid,
           account.account_name,
           account.display_name,
           account.name,
@@ -2012,12 +2036,11 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     const executionVenue = findById(state.executionVenues, executionVenueId);
     const holdingsDataSourceId = readNumber(body.holdings_data_source);
     const holdingsDataSource = findById(state.projectDataSources, holdingsDataSourceId);
-    const nextId =
-      state.managedAccounts.reduce((maxId, account) => Math.max(maxId, readNumber(account.id)), 5000) + 1;
+    const accountName = readString(body.account_name) || "Managed account";
     const createdAccount = {
-      id: nextId,
-      account_name: readString(body.account_name) || `Account ${nextId}`,
-      display_name: readString(body.display_name) || readString(body.account_name) || `Account ${nextId}`,
+      uid: buildManagedAccountUid(accountName),
+      account_name: accountName,
+      display_name: readString(body.display_name) || accountName,
       execution_venue: executionVenueId || null,
       holdings_data_source: holdingsDataSourceId || null,
       holdings_data_source_name:
@@ -2030,16 +2053,16 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     return createdAccount;
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/assets\/account\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/orm\/api\/assets\/account\/([^/]+)\/$/);
 
   if (detailMatch && method === "GET") {
-    return findById(state.managedAccounts, Number(detailMatch[1]));
+    return findManagedAccountByUid(decodeURIComponent(detailMatch[1]));
   }
 
   if (detailMatch && method === "DELETE") {
-    const accountId = Number(detailMatch[1]);
+    const accountUid = decodeURIComponent(detailMatch[1]);
     state.managedAccounts = state.managedAccounts.filter(
-      (account) => readNumber(account.id) !== accountId,
+      (account) => normalizeManagedAccountUid(account.uid) !== accountUid,
     );
     return {
       detail: "Managed account removed from mock state.",
@@ -2047,11 +2070,11 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     };
   }
 
-  const summaryMatch = route.match(/^\/orm\/api\/assets\/account\/(\d+)\/summary\/$/);
+  const summaryMatch = route.match(/^\/orm\/api\/assets\/account\/([^/]+)\/summary\/$/);
 
   if (summaryMatch && method === "GET") {
-    const accountId = Number(summaryMatch[1]);
-    const account = findById(state.managedAccounts, accountId);
+    const accountUid = decodeURIComponent(summaryMatch[1]);
+    const account = findManagedAccountByUid(accountUid);
     const executionVenue = findById(state.executionVenues, readNumber(account?.execution_venue));
 
     if (!account) {
@@ -2060,13 +2083,13 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
 
     return {
       entity: {
-        id: accountId,
+        id: 0,
         type: "managed_account",
         title:
           readString(account.display_name) ||
           readString(account.account_name) ||
           readString(account.name) ||
-          `Account ${accountId}`,
+          "Managed account",
       },
       badges: [
         {
@@ -2085,12 +2108,6 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
           : []),
       ],
       inline_fields: [
-        {
-          key: "account_id",
-          label: "ID",
-          value: String(accountId),
-          kind: "code",
-        },
         ...(readString(account.creation_date)
           ? [
               {
@@ -2140,11 +2157,11 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     };
   }
 
-  const holdingsMatch = route.match(/^\/orm\/api\/assets\/account\/(\d+)\/holdings\/$/);
+  const holdingsMatch = route.match(/^\/orm\/api\/assets\/account\/([^/]+)\/holdings\/$/);
 
   if (holdingsMatch && method === "GET") {
-    const accountId = Number(holdingsMatch[1]);
-    const account = findById(state.managedAccounts, accountId);
+    const accountUid = decodeURIComponent(holdingsMatch[1]);
+    const account = findManagedAccountByUid(accountUid);
 
     if (!account) {
       return {};
@@ -2153,12 +2170,12 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     const holdingsDate = searchParams.get("holdings_date") || "2026-05-18T09:30:00Z";
 
     return {
-      id: accountId,
-      snapshot_uid: `mock-holdings-snapshot-${accountId}`,
-      holdings_set_uid: `mock-holdings-set-${accountId}`,
+      id: 0,
+      snapshot_uid: `mock-holdings-snapshot-${accountUid}`,
+      holdings_set_uid: `mock-holdings-set-${accountUid}`,
       holdings_date: holdingsDate,
       nav: "1250.25000000",
-      related_account: accountId,
+      related_account: 0,
       is_trade_snapshot: false,
       target_trade_time: null,
       related_expected_asset_exposure_df: [],
@@ -2177,11 +2194,11 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     };
   }
 
-  const addHoldingsMatch = route.match(/^\/orm\/api\/assets\/account\/(\d+)\/add-holdings\/$/);
+  const addHoldingsMatch = route.match(/^\/orm\/api\/assets\/account\/([^/]+)\/add-holdings\/$/);
 
   if (addHoldingsMatch && method === "POST") {
-    const accountId = Number(addHoldingsMatch[1]);
-    const account = findById(state.managedAccounts, accountId);
+    const accountUid = decodeURIComponent(addHoldingsMatch[1]);
+    const account = findManagedAccountByUid(accountUid);
     const body = parseBody(init) ?? {};
     const positions = readArray<Record<string, unknown>>(body.positions);
 
@@ -2190,9 +2207,9 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     }
 
     return {
-      related_account: accountId,
+      related_account: 0,
       holdings_date: readString(body.holdings_date) || new Date().toISOString(),
-      holdings_set_uid: `mock-holdings-set-${accountId}`,
+      holdings_set_uid: `mock-holdings-set-${accountUid}`,
       positions: positions.map((position) => ({
         unique_identifier: readString(position.unique_identifier) || null,
         asset_id: readNumber(position.asset_id) || null,

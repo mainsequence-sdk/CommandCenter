@@ -25,7 +25,7 @@ export interface PortfolioWeightsInlineRow extends Record<string, unknown> {
 
 export interface PortfolioWeightsWidgetProps extends Record<string, unknown> {
   portfolioId?: number;
-  accountId?: number;
+  accountUid?: string;
   holdingsDate?: string;
   targetPortfolioId?: number;
   variant?: "summary" | "positions";
@@ -41,7 +41,7 @@ export interface PortfolioWeightsWidgetRuntimeState extends Record<string, unkno
   status?: "idle" | "loading" | "success" | "error";
   error?: string;
   targetPortfolioId?: number;
-  accountId?: number;
+  accountUid?: string;
   variant?: "summary" | "positions";
   payload?: TargetPortfolioWeightsPositionDetailsResponse;
   lastLoadedAtMs?: number;
@@ -384,14 +384,10 @@ export function normalizePortfolioWeightsTargetId(
   return Math.trunc(parsed);
 }
 
-export function normalizePortfolioWeightsAccountId(
-  props: Pick<PortfolioWeightsWidgetProps, "accountId">,
+export function normalizePortfolioWeightsAccountUid(
+  props: Pick<PortfolioWeightsWidgetProps, "accountUid">,
 ) {
-  const parsed = Number(props.accountId ?? "");
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return 0;
-  }
-  return Math.trunc(parsed);
+  return readString(props.accountUid) ?? "";
 }
 
 export function normalizePortfolioWeightsVariant(value: unknown): "summary" | "positions" {
@@ -415,10 +411,7 @@ export function normalizePortfolioWeightsRuntimeState(
       typeof value.targetPortfolioId === "number" && Number.isFinite(value.targetPortfolioId)
         ? Math.trunc(value.targetPortfolioId)
         : undefined,
-    accountId:
-      typeof value.accountId === "number" && Number.isFinite(value.accountId)
-        ? Math.trunc(value.accountId)
-        : undefined,
+    accountUid: readString(value.accountUid),
     variant: normalizePortfolioWeightsVariant(value.variant),
     payload: normalizePortfolioWeightsPayload(value.payload),
     lastLoadedAtMs:
