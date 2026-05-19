@@ -257,6 +257,64 @@ Regression coverage must preserve these invariants:
 - stream-capable consumers continue to use the same passive hook and do not create socket-specific
   retry behavior
 
+### 8. Runtime Variable Refresh Must Not Deactivate The Source Selection
+
+Runtime variable refresh starts after a widget publishes a runtime value that is actively consumed
+by a variable reference. For example:
+
+```text
+Asset Screener.activeCellValue -> Binance connection query.symbols
+```
+
+The concrete failure mode is:
+
+1. the user clicks an Asset Screener cell
+2. Asset Screener publishes the selected cell in `runtimeState.interaction.selection`
+3. the workspace host queues a variable-driven runtime refresh for the Asset Screener source
+4. the refresh planner schedules the downstream Binance connection
+5. graph execution recursively runs executable dependencies of the Binance target
+6. because Asset Screener depends on a managed Mock API source, that upstream Mock API source runs
+   before Binance
+7. the Asset Screener incremental tabular consumer writes a retained frame to the same widget
+   `runtimeState`
+8. that retained-frame write replaces the root runtime object and drops
+   `runtimeState.interaction.selection`
+9. the variable now resolves to null/empty and the downstream connection runs with an empty symbol
+
+This is a runtime-state ownership bug, not a backend validation problem. `runtimeState` currently
+contains both:
+
+- data publication state, such as retained tabular frames and incremental metadata
+- local UI interaction state, such as table or Asset Screener selection
+
+Those namespaces must not destructively overwrite each other.
+
+The deterministic fix has two parts:
+
+1. Incremental retained-frame writes must preserve non-frame UI interaction namespaces from the
+   previous runtime state, at minimum `runtimeState.interaction`. A data refresh must never erase a
+   user selection unless the selected row/cell is explicitly invalidated by widget-owned selection
+   reconciliation.
+2. Variable-driven runtime refresh must be downstream-only from the changed runtime source. When
+   `changedWidgetId` is the widget that just published a runtime variable value, executable
+   ancestors of that widget are already satisfied for this invalidation and must not be rerun just
+   to execute downstream consumers. In the example above, clicking Asset Screener should execute
+   the affected Binance branch using the published active cell value; it should not rerun the Mock
+   API source feeding Asset Screener.
+
+This keeps update direction acyclic for runtime variable changes:
+
+```text
+source runtime value already published
+  -> compare active variable edges
+  -> recompute affected passive/effective props
+  -> execute downstream executable branches only
+```
+
+The source's upstream graph can still run on explicit dashboard refresh, manual refresh, initial
+hydration, or direct source refresh. It must not run as a side effect of consuming a just-published
+runtime variable value.
+
 ## Implementation Checklist
 
 - [x] Extend `DashboardWidgetDependencyGraphEdge` so graph edges can distinguish explicit bindings,
@@ -300,6 +358,19 @@ Regression coverage must preserve these invariants:
       machine. Reason: `null`, empty, error, and incompatible upstream outcomes are settled parent
       answers, not "still awaiting upstream"; passive widgets should request one upstream resolve
       per invalidation and then render the published outcome without looping.
+- [x] Preserve `runtimeState.interaction` and other non-frame UI namespaces when the incremental
+      tabular consumer publishes a retained frame runtime state. A seed/live data refresh must not
+      erase table or Asset Screener selection state.
+- [x] Add regression coverage proving the shared retained-frame consumer used by table and Asset
+      Screener preserves selected-cell interaction state when an upstream source refreshes and the
+      retained frame runtime state is republished.
+- [x] Change variable-driven runtime refresh execution so runtime-origin changes execute only the
+      affected downstream branch from the changed source boundary, without rerunning executable
+      ancestors of the changed source.
+- [x] Add regression coverage proving a source-selection variable such as
+      `Asset Screener.activeCellValue -> connection query.symbols` executes the downstream
+      connection branch with the selected value and does not rerun the source widget's upstream
+      executable as part of that variable refresh.
 - [x] Update `src/dashboards/README.md`, `src/widgets/shared/README.md`, and
       `src/widgets/core/connection-query/README.md` after implementation.
 

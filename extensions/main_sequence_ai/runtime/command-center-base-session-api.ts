@@ -294,11 +294,13 @@ export async function fetchAgentSessionRuntimeAccess({
   }
 
   const payload = (await response.json()) as unknown;
+  /*
   console.log("[main_sequence_ai] resolve_runtime_access response", {
     payload,
     sessionId: String(sessionId),
     url: buildAgentSessionRuntimeAccessUrl(sessionId),
   });
+  */
   return normalizeCommandCenterBaseSessionHandle(payload, {
     fallbackSessionId: sessionId,
     sourceLabel: "AgentSession runtime access",

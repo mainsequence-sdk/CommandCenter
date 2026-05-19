@@ -25,6 +25,11 @@ This directory contains reusable widget presentation primitives that are shared 
 - `tabular-widget-source.tsx`: shared source-binding helpers for widgets that consume
   `core.tabular_frame@v1`, including field inference, manual table normalization, connection
   response/frame normalization, source-widget binding resolution, and settings-schema helper glue.
+- `incremental-tabular-consumer.ts`: shared retained-frame and incremental update hook for
+  table-like widgets. Retained-frame publications own the data frame namespace only; they must
+  preserve sibling runtime UI namespaces such as `runtimeState.interaction` so a source refresh
+  does not erase table or Asset Screener selection state while downstream variable refresh is
+  running.
 - `upstream-consumer-state.ts`: shared mounted-state contract for widgets that consume upstream
   workspace outputs. It normalizes binding validity, publication visibility, loading/error state,
   and successful empty results into one consumer-facing state object so widgets do not infer

@@ -1750,7 +1750,9 @@ export function ChatProvider({
       return;
     }
 
+    /*
     console.log("[main_sequence_ai] active session", activeSession);
+    */
   }, [activeSession]);
 
   useEffect(() => {

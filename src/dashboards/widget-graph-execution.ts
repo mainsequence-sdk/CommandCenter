@@ -864,9 +864,14 @@ function formatUnresolvedReferenceInputMessage(
   return `Widget ${instanceId} is waiting for referenced setting value${paths.length === 1 ? "" : "s"}: ${paths.join(", ")}.`;
 }
 
+interface DashboardWidgetExecutionOrderOptions {
+  sourceBoundaryInstanceId?: string;
+}
+
 function collectExecutionOrder(
   targetInstanceId: string,
   snapshot: DashboardExecutionSnapshot,
+  options: DashboardWidgetExecutionOrderOptions = {},
 ) {
   const visited = new Set<string>();
   const activePath: string[] = [];
@@ -884,6 +889,12 @@ function collectExecutionOrder(
     }
 
     activePath.push(instanceId);
+
+    if (instanceId === options.sourceBoundaryInstanceId) {
+      activePath.pop();
+      visited.add(instanceId);
+      return;
+    }
 
     for (const dependencyId of listValidDependencyIds(instanceId, snapshot)) {
       visit(dependencyId);
@@ -907,8 +918,9 @@ function collectExecutionOrder(
 export function listDashboardWidgetExecutionOrder(
   targetInstanceId: string,
   snapshot: DashboardExecutionSnapshot,
+  options: DashboardWidgetExecutionOrderOptions = {},
 ) {
-  return collectExecutionOrder(targetInstanceId, snapshot);
+  return collectExecutionOrder(targetInstanceId, snapshot, options);
 }
 
 function buildCanonicalDownstreamBindingIndex(
@@ -1141,6 +1153,7 @@ export interface ExecuteDashboardWidgetGraphArgs {
   refreshCycleId?: string;
   targetOverrides?: WidgetExecutionTargetOverrides;
   persistTargetRuntimeStateWithOverrides?: boolean;
+  sourceBoundaryInstanceId?: string;
   signal?: AbortSignal;
   executedInstanceIds?: Set<string>;
   runtimeDataStore?: RuntimeDataStore | null;
@@ -1193,7 +1206,9 @@ export async function executeDashboardWidgetGraph(
   let executionOrder: string[];
 
   try {
-    executionOrder = listDashboardWidgetExecutionOrder(args.targetInstanceId, snapshot);
+    executionOrder = listDashboardWidgetExecutionOrder(args.targetInstanceId, snapshot, {
+      sourceBoundaryInstanceId: args.sourceBoundaryInstanceId,
+    });
   } catch (error) {
     return {
       status: "error",
@@ -1377,7 +1392,9 @@ export async function executeDashboardWidgetGraph(
     });
 
     if (import.meta.env.DEV && executionContext.widgetId === "connection-query") {
+      /*
       console.log("[widget-exec] node start", summarizeExecutionContextForDebug(executionContext));
+      */
     }
 
     let result: WidgetExecutionResult;
@@ -1417,6 +1434,7 @@ export async function executeDashboardWidgetGraph(
       );
 
     if (import.meta.env.DEV && instance.widgetId === "connection-query") {
+      /*
       console.log("[widget-exec] node result", {
         instanceId,
         widgetId: instance.widgetId,
@@ -1428,6 +1446,7 @@ export async function executeDashboardWidgetGraph(
         nextRuntimeState: summarizeExecutionValueForDebug(nextRuntimeState),
         shouldPersistRuntimeState,
       });
+      */
     }
 
     if (instanceId === args.targetInstanceId) {

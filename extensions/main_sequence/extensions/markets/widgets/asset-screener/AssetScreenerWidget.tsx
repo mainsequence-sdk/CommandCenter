@@ -822,12 +822,14 @@ export function AssetScreenerWidget({
       );
 
       if (import.meta.env.DEV) {
+        /*
         console.log("[asset-screener:runtime-state-publish]", {
           instanceId,
           effectiveSelectionMode,
           incomingSelection: selection,
           nextRuntimeState,
         });
+        */
       }
 
       onRuntimeStateChange(nextRuntimeState);

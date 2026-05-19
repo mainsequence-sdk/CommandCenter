@@ -179,19 +179,23 @@ interface SnapshotState {
 }
 
 function HarnessContent({
+  initialRuntimeState,
   liveMergeKeyFields,
   resolvedInputs,
   runtimeRowSelector,
   onSnapshot,
   onRuntimeStateEvent,
 }: {
+  initialRuntimeState?: Record<string, unknown>;
   liveMergeKeyFields?: string[];
   resolvedInputs?: ResolvedWidgetInputs;
   runtimeRowSelector?: RuntimeRowSelector;
   onSnapshot: (snapshot: SnapshotState) => void;
   onRuntimeStateEvent?: (runtimeState: Record<string, unknown> | undefined) => void;
 }) {
-  const [runtimeState, setRuntimeState] = useState<Record<string, unknown> | undefined>(undefined);
+  const [runtimeState, setRuntimeState] = useState<Record<string, unknown> | undefined>(
+    initialRuntimeState,
+  );
   const bindingState = useIncrementalTabularConsumerBindingState({
     instanceId: "consumer-1",
     liveMergeKeyFields,
@@ -217,6 +221,7 @@ function HarnessContent({
 }
 
 function Harness({
+  initialRuntimeState,
   liveMergeKeyFields,
   resolvedInputs,
   runtimeDataStore,
@@ -224,6 +229,7 @@ function Harness({
   onSnapshot,
   onRuntimeStateEvent,
 }: {
+  initialRuntimeState?: Record<string, unknown>;
   liveMergeKeyFields?: string[];
   resolvedInputs?: ResolvedWidgetInputs;
   runtimeDataStore?: RuntimeDataStore;
@@ -233,6 +239,7 @@ function Harness({
 }) {
   const content = (
     <HarnessContent
+      initialRuntimeState={initialRuntimeState}
       liveMergeKeyFields={liveMergeKeyFields}
       resolvedInputs={resolvedInputs}
       runtimeRowSelector={runtimeRowSelector}
@@ -264,6 +271,7 @@ function createHarness(
   runtimeDataStore?: RuntimeDataStore,
   runtimeRowSelector?: RuntimeRowSelector,
   liveMergeKeyFields?: string[],
+  initialRuntimeState?: Record<string, unknown>,
 ): HarnessDriver {
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -276,6 +284,7 @@ function createHarness(
       await act(async () => {
         root.render(
           <Harness
+            initialRuntimeState={initialRuntimeState}
             liveMergeKeyFields={liveMergeKeyFields}
             resolvedInputs={resolvedInputs}
             runtimeDataStore={runtimeDataStore}
@@ -325,6 +334,51 @@ describe("incremental tabular consumer", () => {
     expect(harness.getSnapshot()?.dataset?.rows).toEqual([
       { time: "2026-04-29T00:00:00.000Z", value: 1 },
     ]);
+  });
+
+  it("preserves interaction runtime state when retained frames are republished", async () => {
+    const initialRuntimeState = {
+      ...frame([{ time: "2026-04-29T00:00:00.000Z", value: 1 }], 50),
+      interaction: {
+        selection: {
+          mode: "cell",
+          activeCell: {
+            rowIndex: 0,
+            rowKey: '["uid:BTCUSDT"]',
+            columnKey: "Symbol",
+            value: "BTCUSDT",
+          },
+        },
+      },
+    };
+    const harness = createHarness(undefined, undefined, undefined, initialRuntimeState);
+    harnesses.push(harness);
+
+    await harness.render({
+      [TABULAR_SEED_INPUT_ID]: buildSeedInput(
+        TABULAR_SEED_INPUT_ID,
+        [{ time: "2026-04-29T00:05:00.000Z", value: 2 }],
+        100,
+      ),
+    });
+
+    expect(harness.getSnapshot()?.runtimeState).toMatchObject({
+      interaction: initialRuntimeState.interaction,
+      rows: [{ time: "2026-04-29T00:05:00.000Z", value: 2 }],
+    });
+
+    await harness.render({
+      [TABULAR_SEED_INPUT_ID]: buildSeedInput(
+        TABULAR_SEED_INPUT_ID,
+        [{ time: "2026-04-29T00:10:00.000Z", value: 3 }],
+        200,
+      ),
+    });
+
+    expect(harness.getSnapshot()?.runtimeState).toMatchObject({
+      interaction: initialRuntimeState.interaction,
+      rows: [{ time: "2026-04-29T00:10:00.000Z", value: 3 }],
+    });
   });
 
   it("replaces prior state when seedData receives a new seed publication", async () => {

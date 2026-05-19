@@ -65,7 +65,9 @@ surfaces and the editable workspace studio.
   `executeVariableDrivenWidgetCommit(...)` scheduling so saved widget title/prop changes rerender
   passive variable consumers in memory and only enqueue affected executable downstream branches.
   Workspace runtime-state changes can also enter that same commit path when the active studio host
-  queues a variable refresh for a changed source widget.
+  queues a variable refresh for a changed source widget. Runtime-origin variable refreshes execute
+  from the changed source as a boundary, so consuming a just-published table or Asset Screener
+  selection does not rerun that source widget's executable ancestors before downstream consumers.
 - `dashboard-request-trace.ts`: shared refresh-cycle request trace store. Execution-driven
   widgets and component-side widget queries can attach request metadata there so graph/debug
   surfaces inspect one canonical refresh request log instead of inventing local endpoint trackers.

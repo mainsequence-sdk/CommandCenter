@@ -75,6 +75,7 @@ export interface ExecuteWidgetGraphOptions {
   refreshCycleId?: string;
   targetOverrides?: WidgetExecutionTargetOverrides;
   persistTargetRuntimeStateWithOverrides?: boolean;
+  sourceBoundaryInstanceId?: string;
   signal?: AbortSignal;
 }
 
@@ -133,6 +134,7 @@ interface DashboardWidgetExecutionContextValue {
     changedWidgetId: string;
     beforeWidgets: DashboardWidgetInstance[];
     afterWidgets: DashboardWidgetInstance[];
+    changeOrigin?: "settings" | "runtime";
   }) => Promise<DashboardVariableDrivenCommitExecutionResult>;
   resolveUpstream: (
     targetInstanceId: string,
@@ -406,7 +408,9 @@ export function DashboardWidgetExecutionProvider({
     );
 
     try {
-      executionOrder = listDashboardWidgetExecutionOrder(targetInstanceId, snapshot);
+      executionOrder = listDashboardWidgetExecutionOrder(targetInstanceId, snapshot, {
+        sourceBoundaryInstanceId: options.sourceBoundaryInstanceId,
+      });
     } catch {
       executionOrder = [];
     }
@@ -424,12 +428,16 @@ export function DashboardWidgetExecutionProvider({
       options.refreshCycleId ?? "",
       serializeExecutionOverrides(options.targetOverrides),
       options.persistTargetRuntimeStateWithOverrides ? "persist-target-runtime" : "",
+      options.sourceBoundaryInstanceId ?? "",
     ].join("::");
   }
 
   function canRunAutomaticExecutionTarget(
     targetInstanceId: string,
-    options: Pick<ExecuteWidgetGraphOptions, "reason" | "refreshCycleId" | "targetOverrides" | "signal">,
+    options: Pick<
+      ExecuteWidgetGraphOptions,
+      "reason" | "refreshCycleId" | "sourceBoundaryInstanceId" | "targetOverrides" | "signal"
+    >,
     workingWidgets: DashboardWidgetInstance[],
   ) {
     const snapshot = buildDashboardExecutionSnapshot({
@@ -478,6 +486,7 @@ export function DashboardWidgetExecutionProvider({
     const executable = definition.execution.canExecute?.(context) !== false;
 
     if (!executable && import.meta.env.DEV && instance.widgetId === "connection-query") {
+      /*
       console.log("[widget-exec:auto-skip]", {
         targetInstanceId,
         widgetId: instance.widgetId,
@@ -486,6 +495,7 @@ export function DashboardWidgetExecutionProvider({
         query: (effectiveState.props as Record<string, unknown>)?.query,
         variables: (effectiveState.props as Record<string, unknown>)?.variables,
       });
+      */
     }
 
     return executable;
@@ -521,6 +531,7 @@ export function DashboardWidgetExecutionProvider({
       refreshCycleId: options.refreshCycleId,
       targetOverrides: options.targetOverrides,
       persistTargetRuntimeStateWithOverrides: options.persistTargetRuntimeStateWithOverrides,
+      sourceBoundaryInstanceId: options.sourceBoundaryInstanceId,
       signal: options.signal,
       executedInstanceIds: sharedExecutedInstanceIds,
       dashboardState: executionDashboardState,
@@ -779,6 +790,7 @@ export function DashboardWidgetExecutionProvider({
     changedWidgetId: string;
     beforeWidgets: DashboardWidgetInstance[];
     afterWidgets: DashboardWidgetInstance[];
+    changeOrigin?: "settings" | "runtime";
   }): Promise<DashboardVariableDrivenCommitExecutionResult> {
     const beforeSnapshot = buildDashboardExecutionSnapshot({
       widgets: input.beforeWidgets,
@@ -834,6 +846,8 @@ export function DashboardWidgetExecutionProvider({
     let workingWidgets = input.afterWidgets;
     const downstreamResults: DashboardWidgetGraphExecutionResult[] = [];
     let executionError: string | undefined;
+    const sourceBoundaryInstanceId =
+      input.changeOrigin === "runtime" ? input.changedWidgetId : undefined;
 
     try {
       for (const targetInstanceId of plan.executableTargetWidgetIds) {
@@ -846,6 +860,7 @@ export function DashboardWidgetExecutionProvider({
             reason: "upstream-update",
             refreshCycleId,
             targetOverrides,
+            sourceBoundaryInstanceId,
           },
           workingWidgets,
         )) {
@@ -859,6 +874,7 @@ export function DashboardWidgetExecutionProvider({
             refreshCycleId,
             targetOverrides,
             persistTargetRuntimeStateWithOverrides: Boolean(targetOverrides),
+            sourceBoundaryInstanceId,
           },
           sharedExecutedInstanceIds,
         );

@@ -111,9 +111,11 @@ export function DashboardWidgetDependenciesProvider({
 
     previousVariableDebugSignatureRef.current = signature;
 
+    /*
     console.log("[workspace-variable-store]", {
       entries,
     });
+    */
   }, [model]);
 
   useEffect(() => {
@@ -121,6 +123,7 @@ export function DashboardWidgetDependenciesProvider({
       return;
     }
 
+    /*
     console.log(
       "[workspace-runtime-state]",
       widgets.map((widget) => ({
@@ -128,6 +131,7 @@ export function DashboardWidgetDependenciesProvider({
         runtimeState: summarizeRuntimeStateForDebug(widget.runtimeState),
       })),
     );
+    */
   }, [widgets]);
 
   return (

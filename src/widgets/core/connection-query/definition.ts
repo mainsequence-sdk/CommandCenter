@@ -237,6 +237,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
 
       if (readiness.shouldDefer) {
         if (import.meta.env.DEV) {
+          /*
           console.log("[connection-query:auto-execution-deferred]", {
             instanceId: context.instanceId,
             reason: context.reason,
@@ -245,6 +246,7 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
             variables: props.variables,
             hasTargetOverrides: Boolean(context.targetOverrides),
           });
+          */
         }
         return false;
       }

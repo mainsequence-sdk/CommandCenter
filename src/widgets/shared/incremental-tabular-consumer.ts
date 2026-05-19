@@ -82,6 +82,18 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function cloneJsonValue<T>(value: T): T {
+  if (value === null || value === undefined || typeof value !== "object") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(JSON.stringify(value)) as T;
+  } catch {
+    return value;
+  }
+}
+
 function normalizeStringArray(value: unknown) {
   if (!Array.isArray(value)) {
     return [];
@@ -290,6 +302,27 @@ function withConsumerMeta(
       },
     },
   };
+}
+
+function preserveRuntimeInteractionNamespace(
+  nextRuntimeState: Record<string, unknown> | undefined,
+  previousRuntimeState: unknown,
+) {
+  if (!isPlainRecord(previousRuntimeState) || !isPlainRecord(previousRuntimeState.interaction)) {
+    return nextRuntimeState;
+  }
+
+  return {
+    ...(nextRuntimeState ?? {}),
+    interaction: cloneJsonValue(previousRuntimeState.interaction),
+  };
+}
+
+function clearIncrementalFrameRuntimeState(
+  previousRuntimeState: Record<string, unknown> | undefined,
+) {
+  const preserved = preserveRuntimeInteractionNamespace(undefined, previousRuntimeState);
+  return preserved && Object.keys(preserved).length > 0 ? preserved : undefined;
 }
 
 function normalizePublicationRole(
@@ -1288,7 +1321,11 @@ export function useIncrementalTabularConsumerBindingState(input: {
   useEffect(() => {
     if (!active) {
       if (input.runtimeState) {
-        input.onRuntimeStateChange?.(undefined);
+        const nextRuntimeState = clearIncrementalFrameRuntimeState(input.runtimeState);
+
+        if (stableJsonStringify(nextRuntimeState ?? null) !== stableJsonStringify(input.runtimeState)) {
+          input.onRuntimeStateChange?.(nextRuntimeState);
+        }
       }
       return;
     }
@@ -1514,7 +1551,10 @@ export function useIncrementalTabularConsumerBindingState(input: {
       return;
     }
 
-    const nextRuntimeFrameWithMeta = withConsumerMeta(nextRuntimeFrame, nextMeta);
+    const nextRuntimeFrameWithMeta = preserveRuntimeInteractionNamespace(
+      withConsumerMeta(nextRuntimeFrame, nextMeta) as unknown as Record<string, unknown>,
+      input.runtimeState,
+    ) as unknown as TabularFrameSourceV1;
     const nextSignature = serializeFrameState(nextRuntimeFrameWithMeta);
 
     if (nextSignature !== runtimeFrameSignature) {

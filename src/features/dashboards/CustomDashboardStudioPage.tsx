@@ -521,10 +521,12 @@ function WorkspaceRuntimeVariableRefreshCoordinator({
     }
 
     if (import.meta.env.DEV) {
+      /*
       console.log("[widget-runtime-variable-refresh]", {
         changedWidgetId: nextRefresh.changedWidgetId,
         queueId: nextRefresh.queueId,
       });
+      */
     }
 
     onProcessed(nextRefresh.queueId);
@@ -533,6 +535,7 @@ function WorkspaceRuntimeVariableRefreshCoordinator({
       changedWidgetId: nextRefresh.changedWidgetId,
       beforeWidgets: nextRefresh.beforeWidgets,
       afterWidgets: nextRefresh.afterWidgets,
+      changeOrigin: "runtime",
     });
   }, [nextRefresh, onProcessed, widgetExecution]);
 
@@ -1700,11 +1703,13 @@ export function CustomDashboardStudioPage({
     pendingRuntimeStateWritesRef.current.clear();
 
     if (import.meta.env.DEV) {
+      /*
       console.log("[widget-runtime-state:flush]", {
         entries,
         localRuntimeStateOverridesEnabled,
         selectedDashboardId: selectedDashboard?.id ?? null,
       });
+      */
     }
 
     if (localRuntimeStateOverridesEnabled) {
@@ -2753,10 +2758,12 @@ export function CustomDashboardStudioPage({
 	      runtimeState: Record<string, unknown> | undefined,
 	    ) => {
         if (import.meta.env.DEV) {
+          /*
           console.log("[widget-runtime-state:enqueue]", {
             instanceId,
             runtimeState,
           });
+          */
         }
 
 	      pendingRuntimeStateWritesRef.current.set(instanceId, runtimeState);

@@ -10,6 +10,7 @@ import {
   buildDashboardExecutionSnapshot,
   executeDashboardWidgetGraph,
   listDashboardDownstreamExecutionTargets,
+  listDashboardWidgetExecutionOrder,
   listDashboardRefreshableExecutionTargets,
   planDashboardVariableDrivenCommit,
   resolveDashboardUpstreamRequirement,
@@ -1253,6 +1254,68 @@ describe("dashboard upstream resolution keys", () => {
         query: {
           symbols: ["MSFT"],
         },
+      });
+  });
+
+  it("executes runtime variable refresh from the changed source boundary without rerunning ancestors", async () => {
+    const beforeWidgets = managedGraphViaTableVariableWidgets("AAPL");
+    let workingWidgets = managedGraphViaTableVariableWidgets("MSFT");
+    const beforeSnapshot = buildDashboardExecutionSnapshot({
+      widgets: beforeWidgets,
+      resolveWidgetDefinition,
+    });
+    const afterSnapshot = buildDashboardExecutionSnapshot({
+      widgets: workingWidgets,
+      resolveWidgetDefinition,
+    });
+    const plan = planDashboardVariableDrivenCommit({
+      changedWidgetId: "upstream-source-1",
+      beforeSnapshot,
+      afterSnapshot,
+      resolveManagedConnectionConsumerAdapter: (widgetId) =>
+        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+    });
+
+    expect(listDashboardWidgetExecutionOrder("managed-source-1", afterSnapshot))
+      .toEqual(["upstream-source-1", "managed-source-1"]);
+    expect(
+      listDashboardWidgetExecutionOrder("managed-source-1", afterSnapshot, {
+        sourceBoundaryInstanceId: "table-1",
+      }),
+    ).toEqual(["managed-source-1"]);
+
+    const result = await executeDashboardWidgetGraph({
+      scopeId: "workspace-test",
+      executionSurface: "private-dashboard",
+      widgets: workingWidgets,
+      resolveWidgetDefinition,
+      targetInstanceId: "managed-source-1",
+      reason: "upstream-update",
+      sourceBoundaryInstanceId: "table-1",
+      targetOverrides: plan.executableTargetOverridesByWidgetId["managed-source-1"],
+      persistTargetRuntimeStateWithOverrides: true,
+      onRuntimeStateWrite(instanceId, runtimeState) {
+        workingWidgets = workingWidgets.map((widget) =>
+          widget.id === instanceId
+            ? {
+                ...widget,
+                runtimeState,
+              }
+            : widget,
+        );
+      },
+    });
+
+    expect(result.status).toBe("success");
+    expect(result.nodeResults.map((nodeResult) => nodeResult.instanceId))
+      .toEqual(["managed-source-1"]);
+    expect(workingWidgets.find((widget) => widget.id === "upstream-source-1")?.runtimeState)
+      .toMatchObject({
+        rows: [{ symbol: "MSFT" }],
+      });
+    expect(workingWidgets.find((widget) => widget.id === "managed-source-1")?.runtimeState)
+      .toMatchObject({
+        rows: [{ symbol: "MSFT" }],
       });
   });
 

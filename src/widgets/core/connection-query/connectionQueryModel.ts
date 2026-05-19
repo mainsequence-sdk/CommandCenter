@@ -1188,11 +1188,13 @@ export async function executeConnectionQueryWidgetRequest(
           { allowFetch: true },
         );
   if (import.meta.env.DEV) {
+    /*
     console.log("[connection-query] connection-ref-resolution", {
       requestedConnectionRef: effectiveProps.connectionRef,
       resolvedConnectionRef: resolvedConnectionSelection.connectionRef,
       fetchedConnectionCatalog: !isPublicExecutionSurface && effectiveProps.connectionRef?.id === undefined,
     });
+    */
   }
   const resolvedProps: ConnectionQueryWidgetProps = {
     ...effectiveProps,
@@ -1229,6 +1231,7 @@ export async function executeConnectionQueryWidgetRequest(
   }
 
   if (import.meta.env.DEV) {
+    /*
     console.log("[connection-query] execute start", {
       connectionRef,
       queryModelId,
@@ -1236,6 +1239,7 @@ export async function executeConnectionQueryWidgetRequest(
       allowedOutputContracts,
       request: summarizeConnectionQueryRequestForDebug(request),
     });
+    */
   }
 
   const enrichedRequest = isPublicExecutionSurface
