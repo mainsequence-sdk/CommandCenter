@@ -687,31 +687,37 @@ export interface TargetPortfolioSummaryExtensions extends MainSequenceSummaryExt
   weight_rows?: unknown;
 }
 
-export interface TargetPortfolioWeightsPositionColumnDef {
+export interface PositionDetailColumnDef {
   field: string;
   headerName?: string;
   [key: string]: unknown;
 }
 
-export interface TargetPortfolioWeightsPositionDetailsResponse {
+export interface PositionDetailResponse {
   weights: unknown;
   position_columns: unknown[];
   rows: Array<Record<string, unknown>>;
-  columnDefs: TargetPortfolioWeightsPositionColumnDef[];
-  summaryColumnDefs: TargetPortfolioWeightsPositionColumnDef[];
+  columnDefs: PositionDetailColumnDef[];
+  summaryColumnDefs: PositionDetailColumnDef[];
   position_map: Record<string, unknown> | null;
   weights_date: string | null;
 }
 
+export type TargetPortfolioWeightsPositionColumnDef = PositionDetailColumnDef;
+export type TargetPortfolioWeightsPositionDetailsResponse = PositionDetailResponse;
+export type TargetPositionDetailPositionColumnDef = PositionDetailColumnDef;
+export type TargetPositionDetailPositionDetailsResponse = PositionDetailResponse;
+
 export interface ManagedAccountHoldingRow {
   time_index: string | null;
   unique_identifier: string | null;
-  asset: number | null;
+  asset: number | Record<string, unknown> | null;
   asset_id: number | null;
   position_type: string | null;
   price: string | number | null;
   quantity: string | number | null;
   missing_price: boolean;
+  target_trade_time: string | null;
   extra_details: Record<string, unknown>;
 }
 
@@ -1794,9 +1800,9 @@ function buildWidgetPreviewIsoTimestamp(offsetMs = 0) {
   return new Date(Date.now() + offsetMs).toISOString();
 }
 
-function buildWidgetPreviewPortfolioWeightsResponse(
+function buildWidgetPreviewPositionDetailResponse(
   targetPortfolioId: number,
-): TargetPortfolioWeightsPositionDetailsResponse {
+): PositionDetailResponse {
   const rows = [
     {
       id: 1,
@@ -1885,9 +1891,9 @@ function buildWidgetPreviewPortfolioWeightsResponse(
   };
 }
 
-function buildEmptyPortfolioWeightsPositionDetailsResponse(
+function buildEmptyPositionDetailResponse(
   weightsDate: string | null = null,
-): TargetPortfolioWeightsPositionDetailsResponse {
+): PositionDetailResponse {
   return {
     weights: null,
     position_columns: [],
@@ -1911,16 +1917,28 @@ function normalizeManagedAccountHoldingsSnapshot(
         .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
         .map((entry) => {
           const row = entry as Record<string, unknown>;
+          const asset =
+            typeof row.asset === "number"
+              ? row.asset
+              : row.asset && typeof row.asset === "object" && !Array.isArray(row.asset)
+                ? (row.asset as Record<string, unknown>)
+                : null;
+          const assetIdFromAssetObject =
+            asset && typeof asset === "object" && typeof asset.id === "number"
+              ? asset.id
+              : null;
           return {
             time_index: typeof row.time_index === "string" ? row.time_index : null,
             unique_identifier:
               typeof row.unique_identifier === "string" ? row.unique_identifier : null,
-            asset: typeof row.asset === "number" ? row.asset : null,
+            asset,
             asset_id:
               typeof row.asset_id === "number"
                 ? row.asset_id
-                : typeof row.asset === "number"
-                  ? row.asset
+                : typeof asset === "number"
+                  ? asset
+                  : assetIdFromAssetObject !== null
+                    ? assetIdFromAssetObject
                   : null,
             position_type:
               typeof row.position_type === "string" ? row.position_type : null,
@@ -1931,6 +1949,8 @@ function normalizeManagedAccountHoldingsSnapshot(
                 ? row.quantity
                 : null,
             missing_price: typeof row.missing_price === "boolean" ? row.missing_price : false,
+            target_trade_time:
+              typeof row.target_trade_time === "string" ? row.target_trade_time : null,
             extra_details:
               row.extra_details && typeof row.extra_details === "object" && !Array.isArray(row.extra_details)
                 ? (row.extra_details as Record<string, unknown>)
@@ -1961,9 +1981,9 @@ function normalizeManagedAccountHoldingsSnapshot(
 
 function adaptManagedAccountHoldingsSnapshotToPositionDetails(
   snapshot: ManagedAccountHoldingsSnapshotResponse,
-): TargetPortfolioWeightsPositionDetailsResponse {
+): PositionDetailResponse {
   if (snapshot.holdings.length === 0) {
-    return buildEmptyPortfolioWeightsPositionDetailsResponse(snapshot.holdings_date);
+    return buildEmptyPositionDetailResponse(snapshot.holdings_date);
   }
 
   return {
@@ -1977,23 +1997,51 @@ function adaptManagedAccountHoldingsSnapshotToPositionDetails(
       related_expected_asset_exposure_df: snapshot.related_expected_asset_exposure_df,
     },
     position_columns: [],
-    rows: snapshot.holdings.map((holding) => ({
-      asset_id: holding.asset_id ?? holding.asset,
-      asset_name: holding.unique_identifier,
-      asset_ticker: null,
-      unique_identifier: holding.unique_identifier,
-      figi: holding.unique_identifier,
-      price: holding.price,
-      position_type: holding.position_type ?? "units",
-      position_value: holding.quantity,
-      missing_price: holding.missing_price,
-      extra_details: holding.extra_details,
-    })),
+    rows: snapshot.holdings.map((holding) => {
+      const assetDetail =
+        holding.asset && typeof holding.asset === "object" && !Array.isArray(holding.asset)
+          ? holding.asset
+          : null;
+      const currentSnapshot =
+        assetDetail?.current_snapshot &&
+        typeof assetDetail.current_snapshot === "object" &&
+        !Array.isArray(assetDetail.current_snapshot)
+          ? (assetDetail.current_snapshot as Record<string, unknown>)
+          : null;
+      const assetName =
+        typeof currentSnapshot?.name === "string" && currentSnapshot.name.trim()
+          ? currentSnapshot.name.trim()
+          : holding.unique_identifier;
+      const assetTicker =
+        typeof currentSnapshot?.ticker === "string" && currentSnapshot.ticker.trim()
+          ? currentSnapshot.ticker.trim()
+          : null;
+      const figi =
+        assetDetail && typeof assetDetail.figi === "string" && assetDetail.figi.trim()
+          ? assetDetail.figi.trim()
+          : holding.unique_identifier;
+
+      return {
+        asset_id: holding.asset_id,
+        asset_name: assetName,
+        asset_ticker: assetTicker,
+        unique_identifier: holding.unique_identifier,
+        figi,
+        date: snapshot.holdings_date,
+        time_index: holding.time_index ?? snapshot.holdings_date,
+        ...(holding.price !== null ? { price: holding.price } : {}),
+        quantity: holding.quantity,
+        position_value: holding.quantity,
+        ...(holding.target_trade_time ? { target_trade_time: holding.target_trade_time } : {}),
+        extra_details: holding.extra_details,
+        ...(assetDetail ? { asset: assetDetail } : {}),
+      };
+    }),
     columnDefs: [
       { field: "asset_name", headerName: "Asset" },
+      { field: "asset_ticker", headerName: "Ticker" },
       { field: "unique_identifier", headerName: "UID" },
-      { field: "price", headerName: "Price" },
-      { field: "position_type", headerName: "Position Type" },
+      { field: "date", headerName: "Date" },
       { field: "position_value", headerName: "Quantity" },
     ],
     summaryColumnDefs: [],
@@ -2048,7 +2096,7 @@ function normalizeManagedAccountHoldingsWriteResponse(
 
 function adaptManagedAccountHoldingsWriteResponseToPositionDetails(
   snapshot: ManagedAccountHoldingsWriteResponse,
-): TargetPortfolioWeightsPositionDetailsResponse {
+): PositionDetailResponse {
   return {
     weights: {
       holdings_set_uid: snapshot.holdings_set_uid,
@@ -2061,8 +2109,8 @@ function adaptManagedAccountHoldingsWriteResponseToPositionDetails(
       asset_ticker: null,
       unique_identifier: position.unique_identifier,
       figi: position.unique_identifier,
+      date: snapshot.holdings_date,
       price: position.price,
-      position_type: position.position_type ?? "units",
       position_value: position.quantity,
       missing_price: position.missing_price,
       extra_details: position.extra_details,
@@ -2071,8 +2119,7 @@ function adaptManagedAccountHoldingsWriteResponseToPositionDetails(
     columnDefs: [
       { field: "asset_name", headerName: "Asset" },
       { field: "unique_identifier", headerName: "UID" },
-      { field: "price", headerName: "Price" },
-      { field: "position_type", headerName: "Position Type" },
+      { field: "date", headerName: "Date" },
       { field: "position_value", headerName: "Quantity" },
     ],
     summaryColumnDefs: [],
@@ -4196,21 +4243,28 @@ export function fetchTargetPortfolioSummary(targetPortfolioId: number) {
   );
 }
 
-export function fetchTargetPortfolioWeightsPositionDetails(
+export function fetchTargetPositionDetailPositionDetails(
   targetPortfolioId: number,
   traceMeta?: DashboardRequestTraceMeta,
 ) {
   if (isWidgetPreviewMode()) {
-    return Promise.resolve(buildWidgetPreviewPortfolioWeightsResponse(targetPortfolioId));
+    return Promise.resolve(buildWidgetPreviewPositionDetailResponse(targetPortfolioId));
   }
 
-  return requestJson<TargetPortfolioWeightsPositionDetailsResponse>(
+  return requestJson<PositionDetailResponse>(
     targetPortfolioEndpoint,
     `${targetPortfolioId}/weights-position-details/`,
     undefined,
     undefined,
     traceMeta,
   );
+}
+
+export function fetchTargetPortfolioWeightsPositionDetails(
+  targetPortfolioId: number,
+  traceMeta?: DashboardRequestTraceMeta,
+) {
+  return fetchTargetPositionDetailPositionDetails(targetPortfolioId, traceMeta);
 }
 
 export async function fetchManagedAccountHoldingsPositionDetails(
@@ -4253,7 +4307,10 @@ export async function fetchManagedAccountHoldingsPositionDetails(
     managedAccountEndpoint,
     `${encodePathSegment(accountUid)}/holdings/`,
     undefined,
-    options.holdingsDate ? { holdings_date: options.holdingsDate } : undefined,
+    {
+      ...(options.holdingsDate ? { holdings_date: options.holdingsDate } : {}),
+      include_asset_detail: "true",
+    },
     options.traceMeta,
   );
 

@@ -55,6 +55,27 @@ function summarizeWorkspaceVariableStore(model: DashboardWidgetDependencyModel) 
   });
 }
 
+function summarizeRuntimeStateForDebug(runtimeState: unknown) {
+  if (!runtimeState || typeof runtimeState !== "object") {
+    return runtimeState;
+  }
+
+  const record = runtimeState as Record<string, unknown>;
+  const interaction =
+    record.interaction && typeof record.interaction === "object"
+      ? (record.interaction as Record<string, unknown>)
+      : null;
+  const selection =
+    interaction?.selection && typeof interaction.selection === "object"
+      ? interaction.selection
+      : null;
+
+  return {
+    keys: Object.keys(record),
+    selection,
+  };
+}
+
 export function DashboardWidgetDependenciesProvider({
   children,
   resolveWidgetDefinition,
@@ -90,10 +111,24 @@ export function DashboardWidgetDependenciesProvider({
 
     previousVariableDebugSignatureRef.current = signature;
 
-    console.debug("[workspace-variable-store]", {
+    console.log("[workspace-variable-store]", {
       entries,
     });
   }, [model]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    console.log(
+      "[workspace-runtime-state]",
+      widgets.map((widget) => ({
+        instanceId: widget.id,
+        runtimeState: summarizeRuntimeStateForDebug(widget.runtimeState),
+      })),
+    );
+  }, [widgets]);
 
   return (
     <DashboardWidgetDependenciesContext.Provider value={model}>

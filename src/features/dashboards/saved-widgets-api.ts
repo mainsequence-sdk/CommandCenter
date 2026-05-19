@@ -17,6 +17,7 @@ import type {
   WidgetContractId,
   WidgetPortBinding,
 } from "@/widgets/types";
+import { normalizeWidgetTypeId } from "@/widgets/widget-type-normalization";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 
@@ -385,8 +386,9 @@ function normalizeSavedWidgetInstanceSummary(value: unknown): SavedWidgetInstanc
       nested.widgetId ??
       nested.widget_id,
   ).trim();
+  const normalizedWidgetTypeId = normalizeWidgetTypeId(widgetTypeId);
 
-  if (!id || !widgetTypeId) {
+  if (!id || !normalizedWidgetTypeId) {
     return null;
   }
 
@@ -397,7 +399,7 @@ function normalizeSavedWidgetInstanceSummary(value: unknown): SavedWidgetInstanc
     labels: readStringArray(value.labels ?? nested.labels),
     source: readString(value.source ?? nested.source, "user"),
     category: readString(value.category ?? nested.category, "Custom"),
-    widgetTypeId,
+    widgetTypeId: normalizedWidgetTypeId,
     instanceTitle: readString(nested.instanceTitle ?? nested.instance_title ?? nested.title, ""),
     updatedAt:
       typeof value.updatedAt === "string"
@@ -746,7 +748,7 @@ function serializeSavedWidgetInstanceMutationPayload(payload: SavedWidgetInstanc
     source: payload.source ?? "user",
     schema_version: payload.schemaVersion ?? 1,
     source_instance_id: payload.sourceInstanceId ?? null,
-    widget_id: payload.widgetTypeId,
+    widget_id: normalizeWidgetTypeId(payload.widgetTypeId),
     instance_title: payload.instanceTitle ?? "",
     props: payload.props ?? {},
     presentation: payload.presentation ?? {},
@@ -784,7 +786,7 @@ function serializeSavedWidgetGroupMutationPayload(payload: SavedWidgetGroupMutat
         source: member.widgetInstance.source ?? "user",
         schema_version: member.widgetInstance.schemaVersion ?? 1,
         source_instance_id: member.widgetInstance.sourceInstanceId ?? null,
-        widget_id: member.widgetInstance.widgetTypeId,
+        widget_id: normalizeWidgetTypeId(member.widgetInstance.widgetTypeId),
         instance_title: member.widgetInstance.instanceTitle ?? "",
         props: member.widgetInstance.props ?? {},
         presentation: member.widgetInstance.presentation ?? {},

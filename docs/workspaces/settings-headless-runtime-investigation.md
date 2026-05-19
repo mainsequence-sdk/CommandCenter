@@ -67,7 +67,7 @@ widget components:
 - [`src/widgets/core/markdown-note/MarkdownNoteWidgetSettings.tsx`](../src/widgets/core/markdown-note/MarkdownNoteWidgetSettings.tsx)
 - [`src/widgets/core/workspace-row/WorkspaceRowWidgetSettings.tsx`](../src/widgets/core/workspace-row/WorkspaceRowWidgetSettings.tsx)
 - [`extensions/demo/widgets/yield-curve-plot/YieldCurvePlotWidgetSettings.tsx`](../extensions/demo/widgets/yield-curve-plot/YieldCurvePlotWidgetSettings.tsx)
-- [`extensions/main_sequence/extensions/markets/widgets/portfolio-weights-table/PortfolioWeightsWidgetSettings.tsx`](../extensions/main_sequence/extensions/markets/widgets/portfolio-weights-table/PortfolioWeightsWidgetSettings.tsx)
+- [`extensions/main_sequence/extensions/markets/widgets/position-detail/PositionDetailWidgetSettings.tsx`](../extensions/main_sequence/extensions/markets/widgets/position-detail/PositionDetailWidgetSettings.tsx)
 - [`extensions/main_sequence/extensions/workbench/widgets/dependency-graph/MainSequenceDependencyGraphWidgetSettings.tsx`](../extensions/main_sequence/extensions/workbench/widgets/dependency-graph/MainSequenceDependencyGraphWidgetSettings.tsx)
 
 These can run in a provider-backed settings host without any hidden full-workspace mount.
@@ -157,7 +157,7 @@ blocked because the shared Data Node source model still expects mounted source w
 - Markdown Note
 - Workspace Row
 - Yield Curve Plot demo widget
-- Portfolio Weights
+- Position Detail
 - Main Sequence Dependency Graph widget
 - shared bindings tab
 - generic schema/controller-driven settings shell

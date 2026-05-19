@@ -7,44 +7,44 @@ import type {
 
 import {
   fetchManagedAccountHoldingsPositionDetails,
-  fetchTargetPortfolioWeightsPositionDetails,
+  fetchTargetPositionDetailPositionDetails,
 } from "../../../../common/api";
 import {
-  normalizePortfolioWeightsAccountUid,
-  normalizePortfolioWeightsPersistedRows,
-  normalizePortfolioWeightsRuntimeState,
-  normalizePortfolioWeightsSourceType,
-  normalizePortfolioWeightsTargetId,
-  normalizePortfolioWeightsVariant,
-  type PortfolioWeightsWidgetProps,
-  type PortfolioWeightsWidgetRuntimeState,
-} from "./portfolioWeightsRuntime";
+  normalizePositionDetailAccountUid,
+  normalizePositionDetailPersistedRows,
+  normalizePositionDetailRuntimeState,
+  normalizePositionDetailSourceType,
+  normalizePositionDetailTargetId,
+  normalizePositionDetailVariant,
+  type PositionDetailWidgetProps,
+  type PositionDetailWidgetRuntimeState,
+} from "./positionDetailRuntime";
 
-function buildPortfolioWeightsRuntimeState(
+function buildPositionDetailRuntimeState(
   currentRuntimeState: Record<string, unknown> | undefined,
-  patch: Partial<PortfolioWeightsWidgetRuntimeState>,
-): PortfolioWeightsWidgetRuntimeState {
-  const current = normalizePortfolioWeightsRuntimeState(currentRuntimeState);
+  patch: Partial<PositionDetailWidgetRuntimeState>,
+): PositionDetailWidgetRuntimeState {
+  const current = normalizePositionDetailRuntimeState(currentRuntimeState);
   return {
     ...current,
     ...patch,
   };
 }
 
-export async function executePortfolioWeightsWidget(
-  context: WidgetExecutionContext<PortfolioWeightsWidgetProps>,
+export async function executePositionDetailWidget(
+  context: WidgetExecutionContext<PositionDetailWidgetProps>,
 ): Promise<WidgetExecutionResult> {
-  const props = (context.targetOverrides?.props ?? context.props) as PortfolioWeightsWidgetProps;
-  const sourceType = normalizePortfolioWeightsSourceType(props);
-  const targetPortfolioId = normalizePortfolioWeightsTargetId(props);
-  const accountUid = normalizePortfolioWeightsAccountUid(props);
-  const variant = normalizePortfolioWeightsVariant(props.variant);
-  const persistedRows = normalizePortfolioWeightsPersistedRows(props);
+  const props = (context.targetOverrides?.props ?? context.props) as PositionDetailWidgetProps;
+  const sourceType = normalizePositionDetailSourceType(props);
+  const targetPortfolioId = normalizePositionDetailTargetId(props);
+  const accountUid = normalizePositionDetailAccountUid(props);
+  const variant = normalizePositionDetailVariant(props.variant);
+  const persistedRows = normalizePositionDetailPersistedRows(props);
 
   if (sourceType === "target_position" || persistedRows.length > 0) {
     return {
       status: "skipped",
-      runtimeStatePatch: buildPortfolioWeightsRuntimeState(context.runtimeState, {
+      runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {
         status: "idle",
         error: undefined,
         targetPortfolioId: undefined,
@@ -58,7 +58,7 @@ export async function executePortfolioWeightsWidget(
   if (sourceType === "portfolio" && targetPortfolioId <= 0) {
     return {
       status: "skipped",
-      runtimeStatePatch: buildPortfolioWeightsRuntimeState(context.runtimeState, {
+      runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {
         status: "idle",
         error: undefined,
         targetPortfolioId: undefined,
@@ -72,7 +72,7 @@ export async function executePortfolioWeightsWidget(
   if (sourceType === "account" && !accountUid) {
     return {
       status: "skipped",
-      runtimeStatePatch: buildPortfolioWeightsRuntimeState(context.runtimeState, {
+      runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {
         status: "idle",
         error: undefined,
         targetPortfolioId: undefined,
@@ -90,14 +90,14 @@ export async function executePortfolioWeightsWidget(
         ? await fetchManagedAccountHoldingsPositionDetails(accountUid, {
             traceMeta: requestTraceMeta,
           })
-        : await fetchTargetPortfolioWeightsPositionDetails(
+        : await fetchTargetPositionDetailPositionDetails(
             targetPortfolioId,
             requestTraceMeta,
           );
 
     return {
       status: "success",
-      runtimeStatePatch: buildPortfolioWeightsRuntimeState(context.runtimeState, {
+      runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {
         status: "success",
         error: undefined,
         targetPortfolioId: sourceType === "portfolio" ? targetPortfolioId : undefined,
@@ -110,15 +110,15 @@ export async function executePortfolioWeightsWidget(
   } catch (error) {
     return {
       status: "error",
-      error: error instanceof Error ? error.message : "Unable to load portfolio weights.",
-      runtimeStatePatch: buildPortfolioWeightsRuntimeState(context.runtimeState, {
+      error: error instanceof Error ? error.message : "Unable to load position details.",
+      runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {
         status: "error",
         error:
           error instanceof Error
             ? error.message
             : sourceType === "account"
               ? "Unable to load account holdings."
-              : "Unable to load portfolio weights.",
+              : "Unable to load position details.",
         targetPortfolioId: sourceType === "portfolio" ? targetPortfolioId : undefined,
         accountUid: sourceType === "account" ? accountUid : undefined,
         variant,
@@ -128,23 +128,23 @@ export async function executePortfolioWeightsWidget(
   }
 }
 
-export const portfolioWeightsExecutionDefinition = {
+export const positionDetailExecutionDefinition = {
   canExecute: (context) =>
     (() => {
-      const props = (context.targetOverrides?.props ?? context.props) as PortfolioWeightsWidgetProps;
-      const sourceType = normalizePortfolioWeightsSourceType(props);
-      if (normalizePortfolioWeightsPersistedRows(props).length > 0) {
+      const props = (context.targetOverrides?.props ?? context.props) as PositionDetailWidgetProps;
+      const sourceType = normalizePositionDetailSourceType(props);
+      if (normalizePositionDetailPersistedRows(props).length > 0) {
         return false;
       }
       if (sourceType === "portfolio") {
-        return normalizePortfolioWeightsTargetId(props) > 0;
+        return normalizePositionDetailTargetId(props) > 0;
       }
       if (sourceType === "account") {
-        return Boolean(normalizePortfolioWeightsAccountUid(props));
+        return Boolean(normalizePositionDetailAccountUid(props));
       }
       return false;
     })(),
-  execute: executePortfolioWeightsWidget,
+  execute: executePositionDetailWidget,
   getRefreshPolicy: () => "allow-refresh",
-  getExecutionKey: (context) => `portfolio-weights-table:${context.instanceId}`,
-} satisfies WidgetExecutionDefinition<PortfolioWeightsWidgetProps>;
+  getExecutionKey: (context) => `position-detail:${context.instanceId}`,
+} satisfies WidgetExecutionDefinition<PositionDetailWidgetProps>;

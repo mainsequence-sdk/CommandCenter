@@ -6,7 +6,7 @@ This feature provides the Main Sequence Markets target-portfolio registry screen
 
 - `MainSequenceTargetPortfoliosPage.tsx`: list surface backed by the target portfolio DRF endpoint with shared registry search, fixed-page pagination, URL-backed detail state, and bulk delete.
 - `MainSequenceTargetPortfolioDetailView.tsx`: canonical summary-backed detail view loaded from the portfolio summary endpoint, with URL-backed `Detail` and `Weights` tabs.
-- `../widgets/portfolio-weights-table/`: Markets-owned `Portfolio Weights` widget and shared renderer used by the `Weights` tab.
+- `../widgets/position-detail/`: Markets-owned `Position Detail` widget and shared renderer used by the `Weights` tab.
 
 ## Backend Contract
 

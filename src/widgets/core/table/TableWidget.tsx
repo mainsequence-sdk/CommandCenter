@@ -13,44 +13,17 @@ import { TableFrameView } from "./TableFrameView";
 import {
   buildTableWidgetFrameFromRemoteData,
   normalizeTableWidgetSelectionState,
-  TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
-  TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
-  TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
-  TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID,
-  TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
+  resolveEffectivePublishedSelectionMode,
   resolveTableWidgetProps,
   resolveTableWidgetPropsWithFrame,
   resolveTableWidgetSelectionKeyFields,
   resolveTableWidgetSourceDataset,
-  type TableWidgetSelectionMode,
   withTableWidgetSelectionRuntimeState,
   type TableWidgetSelectionState,
   type TableWidgetProps,
 } from "./tableModel";
 
 type Props = WidgetComponentProps<TableWidgetProps>;
-
-function resolveImplicitSelectionMode(
-  outputIds: Set<string>,
-): TableWidgetSelectionMode {
-  if (outputIds.has(TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID)) {
-    return "multi-row";
-  }
-
-  if (outputIds.has(TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID)) {
-    return "single-row";
-  }
-
-  if (
-    outputIds.has(TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID) ||
-    outputIds.has(TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID) ||
-    outputIds.has(TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID)
-  ) {
-    return "cell";
-  }
-
-  return "none";
-}
 
 function TableWidgetSourceState({
   description,
@@ -141,32 +114,22 @@ export function TableWidget({
     () => normalizeTableWidgetSelectionState(runtimeState),
     [runtimeState],
   );
-  const implicitSelectionMode = useMemo(() => {
-    if (
-      !instanceId ||
-      !normalizedProps.publishSelectionOutputs ||
-      normalizedProps.selectionMode !== "none"
-    ) {
-      return "none";
-    }
-
-    const referencedOutputIds = new Set(
-      (variableRegistry?.bySourceWidgetId.get(instanceId) ?? []).flatMap((entry) =>
-        entry?.key.sourceOutputId ? [entry.key.sourceOutputId] : [],
+  const referencedOutputIds = useMemo(
+    () =>
+      new Set(
+        !instanceId
+          ? []
+          : (variableRegistry?.bySourceWidgetId.get(instanceId) ?? []).flatMap((entry) =>
+              entry?.key.sourceOutputId ? [entry.key.sourceOutputId] : [],
+            ),
       ),
-    );
-
-    return resolveImplicitSelectionMode(referencedOutputIds);
-  }, [
-    instanceId,
-    normalizedProps.publishSelectionOutputs,
-    normalizedProps.selectionMode,
-    variableRegistry,
-  ]);
-  const effectiveSelectionMode =
-    normalizedProps.selectionMode !== "none"
-      ? normalizedProps.selectionMode
-      : implicitSelectionMode;
+    [instanceId, variableRegistry],
+  );
+  const effectiveSelectionMode = resolveEffectivePublishedSelectionMode(
+    normalizedProps,
+    selectionState,
+    referencedOutputIds,
+  );
 
   const handleSelectionChange = useCallback(
     (selection: TableWidgetSelectionState) => {

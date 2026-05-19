@@ -50,6 +50,7 @@ one file or one feature folder.
 
 ## Widget Contract And Execution ADRs
 
+- [ADR 063: Rename Portfolio Weights Widget To Position Detail](./adr-063-position-detail-widget-rename.md)
 - [ADR 062: Typed Widget Module Pattern](./adr-062-typed-widget-module-pattern.md)
 - [ADR 060: Instant Widget Settings Runtime](./adr-060-instant-widget-settings-runtime.md)
 - [ADR 058: Cross-Widget References And Variables](./adr-058-cross-widget-references-and-variables.md)

@@ -11,7 +11,7 @@ import { MarkdownContent } from "@/components/ui/markdown-content";
 import { PageHeader } from "@/components/ui/page-header";
 
 import {
-  fetchTargetPortfolioWeightsPositionDetails,
+  fetchTargetPositionDetailPositionDetails,
   fetchTargetPortfolioSummary,
   formatMainSequenceError,
   type SummaryField,
@@ -22,11 +22,11 @@ import {
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import {
-  formatPortfolioWeightsCellValue,
-  normalizePortfolioWeightSummaryRows,
-  PortfolioWeightsPositionSummaryStrip,
-  PortfolioWeightsTable,
-} from "../../widgets/portfolio-weights-table/PortfolioWeightsTable";
+  formatPositionDetailCellValue,
+  normalizePositionDetailSummaryRows,
+  PositionDetailPositionSummaryStrip,
+  PositionDetailTable,
+} from "../../widgets/position-detail/PositionDetailTable";
 
 export const targetPortfolioDetailTabs = [
   { id: "detail", label: "Detail" },
@@ -228,12 +228,12 @@ export function MainSequenceTargetPortfolioDetailView({
   );
   const weightsDetailsQuery = useQuery({
     queryKey: ["main_sequence", "target_portfolios", "weights_position_details", portfolioId],
-    queryFn: () => fetchTargetPortfolioWeightsPositionDetails(portfolioId),
+    queryFn: () => fetchTargetPositionDetailPositionDetails(portfolioId),
     enabled: portfolioId > 0 && selectedTabId === "weights",
   });
   const weightRows = weightsDetailsQuery.data?.rows ?? [];
   const weightSummaryRows = useMemo(
-    () => normalizePortfolioWeightSummaryRows(weightsDetailsQuery.data?.weights ?? null),
+    () => normalizePositionDetailSummaryRows(weightsDetailsQuery.data?.weights ?? null),
     [weightsDetailsQuery.data?.weights],
   );
   const hasDetailContent = Boolean(
@@ -400,7 +400,7 @@ export function MainSequenceTargetPortfolioDetailView({
                         Weights Date
                       </div>
                       <div className="mt-2 text-sm font-medium text-foreground">
-                        {formatPortfolioWeightsCellValue(
+                        {formatPositionDetailCellValue(
                           weightsDetailsQuery.data.weights_date,
                           "weights_date",
                         )}
@@ -441,10 +441,11 @@ export function MainSequenceTargetPortfolioDetailView({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <PortfolioWeightsTable
+                    <PositionDetailTable
                       columnDefs={weightsDetailsQuery.data?.summaryColumnDefs ?? []}
                       rows={weightSummaryRows}
                       expandableAssetRows
+                      sourceType="portfolio"
                       positionMap={weightsDetailsQuery.data?.position_map ?? null}
                       emptyMessage="No summary weight rows were returned."
                       emptyTitle="No summary rows"
@@ -463,11 +464,13 @@ export function MainSequenceTargetPortfolioDetailView({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    <PortfolioWeightsPositionSummaryStrip rows={weightRows} />
-                    <PortfolioWeightsTable
+                    <PositionDetailPositionSummaryStrip rows={weightRows} />
+                    <PositionDetailTable
                       columnDefs={weightsDetailsQuery.data?.columnDefs ?? []}
                       rows={weightRows}
                       preferredPositionColumns
+                      sourceType="portfolio"
+                      holdingsDate={weightsDetailsQuery.data?.weights_date ?? null}
                       emptyMessage="No position rows were returned."
                       emptyTitle="No position rows"
                       tableMinWidth={760}

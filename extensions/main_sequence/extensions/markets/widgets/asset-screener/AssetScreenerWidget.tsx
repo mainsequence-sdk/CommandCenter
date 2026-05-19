@@ -2,9 +2,9 @@ import { useCallback, useMemo } from "react";
 import { Database } from "lucide-react";
 
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
+import { useWorkspaceVariableReferenceRegistry } from "@/dashboards/DashboardWidgetDependencies";
 import {
   TableFrameView,
-  type ResolvedTableWidgetProps,
   type TableFrameCustomCellRenderer,
   type TableWidgetCellValue,
   type TableWidgetColumnSchema,
@@ -15,7 +15,10 @@ import {
   buildTableWidgetSourceVisualContractFromFrame,
   buildTableWidgetRowKey,
   normalizeTableWidgetSelectionState,
+  resolveEffectivePublishedSelectionMode,
+  resolveTableSelectionOutputsFromFrame,
   resolveTableWidgetPropsWithFrame,
+  type ResolvedTableWidgetProps,
   type TableWidgetSelectionMode,
   withTableWidgetSelectionRuntimeState,
   type TableWidgetSelectionState,
@@ -225,33 +228,6 @@ function sanitizeAssetScreenerSelectionState(
         : undefined,
     selectedCells,
   };
-}
-
-function resolveAssetScreenerEffectiveSelectionMode(
-  props: MainSequenceAssetScreenerWidgetProps,
-  selection: TableWidgetSelectionState,
-) {
-  const publishSelectionOutputs = props.table?.publishSelectionOutputs !== false;
-  const explicitSelectionMode =
-    props.table?.selectionMode === "single-row" ||
-    props.table?.selectionMode === "multi-row" ||
-    props.table?.selectionMode === "cell"
-      ? props.table.selectionMode
-      : "none";
-
-  if (!publishSelectionOutputs) {
-    return "none";
-  }
-
-  if (explicitSelectionMode !== "none") {
-    return explicitSelectionMode;
-  }
-
-  if (selection.implicitMode === true && selection.mode !== "none") {
-    return selection.mode;
-  }
-
-  return "none";
 }
 
 function firstResolvedInput(
@@ -725,6 +701,7 @@ export function AssetScreenerWidget({
   runtimeDataStore,
 }: Props) {
   const normalizedProps = normalizeAssetScreenerProps(props);
+  const variableRegistry = useWorkspaceVariableReferenceRegistry();
   const theme = useOptionalTheme();
   const resolvedTokens = theme?.resolvedTokens ?? mainSequenceSpaceTheme.tokens;
   const tightness = theme?.tightness ?? mainSequenceSpaceTheme.tightness;
@@ -788,12 +765,45 @@ export function AssetScreenerWidget({
     () => normalizeTableWidgetSelectionState(runtimeState),
     [runtimeState],
   );
-  const effectiveSelectionMode =
-    normalizedProps.table?.selectionMode === "single-row" ||
-    normalizedProps.table?.selectionMode === "multi-row" ||
-    normalizedProps.table?.selectionMode === "cell"
-      ? normalizedProps.table.selectionMode
-      : "none";
+  const referencedOutputIds = useMemo(
+    () =>
+      new Set(
+        !instanceId
+          ? []
+          : (variableRegistry?.bySourceWidgetId.get(instanceId) ?? []).flatMap((entry) =>
+              entry?.key.sourceOutputId ? [entry.key.sourceOutputId] : [],
+            ),
+      ),
+    [instanceId, variableRegistry],
+  );
+  const selectionOutputProps = useMemo(
+    (): Pick<
+      ResolvedTableWidgetProps,
+      "publishSelectionOutputs" | "selectionMode"
+    > => ({
+      publishSelectionOutputs: normalizedProps.table?.publishSelectionOutputs !== false,
+      selectionMode:
+        normalizedProps.table?.selectionMode === "single-row" ||
+        normalizedProps.table?.selectionMode === "multi-row" ||
+        normalizedProps.table?.selectionMode === "cell"
+          ? normalizedProps.table.selectionMode
+          : "none",
+    }),
+    [
+      normalizedProps.table?.publishSelectionOutputs,
+      normalizedProps.table?.selectionMode,
+    ],
+  );
+  const effectiveSelectionMode = useMemo(
+    () =>
+      resolveEffectivePublishedSelectionMode(
+        selectionOutputProps,
+        selectionState,
+        referencedOutputIds,
+      ),
+    [referencedOutputIds, selectionOutputProps, selectionState],
+  );
+
   const handleSelectionChange = useCallback(
     (selection: TableWidgetSelectionState) => {
       if (!onRuntimeStateChange) {
@@ -801,21 +811,32 @@ export function AssetScreenerWidget({
       }
 
       const sanitized = sanitizeAssetScreenerSelectionState(selection, tableFrame.rowObjects);
-
-      onRuntimeStateChange(
-        withTableWidgetSelectionRuntimeState(runtimeState as Record<string, unknown> | undefined, {
+      const nextRuntimeState = withTableWidgetSelectionRuntimeState(
+        runtimeState as Record<string, unknown> | undefined,
+        {
           ...sanitized,
           implicitMode:
-            (normalizedProps.table?.selectionMode ?? "none") === "none" &&
+            selectionOutputProps.selectionMode === "none" &&
             effectiveSelectionMode !== "none",
-        }),
+        },
       );
+
+      if (import.meta.env.DEV) {
+        console.log("[asset-screener:runtime-state-publish]", {
+          instanceId,
+          effectiveSelectionMode,
+          incomingSelection: selection,
+          nextRuntimeState,
+        });
+      }
+
+      onRuntimeStateChange(nextRuntimeState);
     },
     [
       effectiveSelectionMode,
-      normalizedProps.table?.selectionMode,
       onRuntimeStateChange,
       runtimeState,
+      selectionOutputProps.selectionMode,
       tableFrame.rowObjects,
     ],
   );
@@ -830,6 +851,7 @@ export function AssetScreenerWidget({
           },
     [effectiveSelectionMode, handleSelectionChange, selectionState],
   );
+
   const customCellRenderers = useMemo(
     () =>
       buildSparklineCellRenderers({
@@ -999,13 +1021,44 @@ function buildAssetScreenerSelectedRowsOutputFields(
   });
 }
 
+function buildAssetScreenerPublicRows(
+  rows: MarketAssetScreenerRow[],
+  columns: MarketAssetScreenerColumn[],
+) {
+  return rows.map((row) => buildAssetScreenerPublicRow(row, columns));
+}
+
+function buildAssetScreenerPublicFrame(
+  rows: MarketAssetScreenerRow[],
+  columns: MarketAssetScreenerColumn[],
+  sourceFrame?: TabularFrameSourceV1 | null,
+): TabularFrameSourceV1 {
+  const publicRows = buildAssetScreenerPublicRows(rows, columns);
+  const publicColumns = buildAssetScreenerSelectedRowsOutputColumns(columns, publicRows);
+
+  return {
+    status: sourceFrame?.status === "error"
+      ? "error"
+      : sourceFrame?.status === "loading"
+        ? "loading"
+        : "ready",
+    columns: publicColumns,
+    rows: publicRows,
+    fields: buildAssetScreenerSelectedRowsOutputFields(publicColumns, publicRows),
+    source: {
+      kind: "asset-screener-public-rows",
+      label: "Asset screener rows",
+      context: {
+        uniqueIdentifierList: ["assetKey"],
+      },
+    },
+  };
+}
+
 type AssetScreenerOutputContext = {
   columns: MarketAssetScreenerColumn[];
   effectiveSelectionMode: TableWidgetSelectionMode;
-  filteredRows: MarketAssetScreenerRow[];
-  publicRowByAssetKey: Map<string, Record<string, unknown>>;
-  rowLookup: ReturnType<typeof createAssetScreenerSelectionRowLookups>;
-  selection: TableWidgetSelectionState;
+  publicFrame: TabularFrameSourceV1;
   sourceFrame?: TabularFrameSourceV1 | null;
 };
 
@@ -1036,92 +1089,35 @@ function buildAssetScreenerOutputContext({
     sourceColumns: state.sourceColumns,
   });
   const selection = normalizeTableWidgetSelectionState(runtimeState);
-  const publicRowByAssetKey = new Map(
-    state.filteredRows.map((row) => [
-      row.asset.assetKey,
-      buildAssetScreenerPublicRow(row, state.columns),
-    ] as const),
+  const publicFrame = buildAssetScreenerPublicFrame(
+    state.filteredRows,
+    state.columns,
+    state.sourceFrame,
   );
+    const selectionOutputProps: Pick<
+      ResolvedTableWidgetProps,
+      "publishSelectionOutputs" | "selectionMode" | "selectionKeyFields" | "uniqueIdentifierList"
+    > = {
+      publishSelectionOutputs: normalizedProps.table?.publishSelectionOutputs !== false,
+      selectionMode:
+        normalizedProps.table?.selectionMode === "single-row" ||
+        normalizedProps.table?.selectionMode === "multi-row" ||
+        normalizedProps.table?.selectionMode === "cell"
+        ? normalizedProps.table.selectionMode
+        : "none",
+      selectionKeyFields: ["assetKey"],
+      uniqueIdentifierList: ["assetKey"],
+    };
 
   return {
     columns: state.columns,
-    effectiveSelectionMode: resolveAssetScreenerEffectiveSelectionMode(normalizedProps, selection),
-    filteredRows: state.filteredRows,
-    publicRowByAssetKey,
-    rowLookup: createAssetScreenerSelectionRowLookups(tableFrame.rowObjects),
-    selection,
+    effectiveSelectionMode: resolveEffectivePublishedSelectionMode(
+      selectionOutputProps,
+      selection,
+    ),
+    publicFrame,
     sourceFrame: state.sourceFrame,
   };
-}
-
-function resolveAssetScreenerSelectedAssetRows(
-  context: AssetScreenerOutputContext,
-) {
-  return uniqueAssetScreenerSelectionRows([
-    ...context.selection.selectedRowKeys.map((rowKey) =>
-      resolveAssetScreenerSelectionRow({ rowKey, rowIndex: -1 }, context.rowLookup)
-    ),
-    ...context.selection.selectedRowIndices.map((rowIndex) =>
-      resolveAssetScreenerSelectionRow({ rowIndex }, context.rowLookup)
-    ),
-    ...context.selection.selectedCells.map((cell) =>
-      resolveAssetScreenerSelectionRow(cell, context.rowLookup)
-    ),
-  ]);
-}
-
-function resolveAssetScreenerActiveSelectionRow(
-  context: AssetScreenerOutputContext,
-) {
-  return (
-    resolveAssetScreenerSelectionRow(
-      {
-        rowKey: context.selection.activeRowKey,
-        rowIndex: context.selection.activeRowIndex ?? -1,
-      },
-      context.rowLookup,
-    ) ??
-    (context.selection.activeCell
-      ? resolveAssetScreenerSelectionRow(context.selection.activeCell, context.rowLookup)
-      : null)
-  );
-}
-
-function resolveAssetScreenerSelectedCells(
-  context: AssetScreenerOutputContext,
-) {
-  if (context.selection.selectedCells.length > 0) {
-    return context.selection.selectedCells
-      .map((cell) => {
-        const resolvedRow = resolveAssetScreenerSelectionRow(cell, context.rowLookup);
-
-        return resolvedRow
-          ? {
-              ...cell,
-              rowKey: resolvedRow.rowKey,
-              rowIndex: resolvedRow.rowIndex,
-            }
-          : null;
-      })
-      .filter((cell): cell is NonNullable<typeof cell> => cell !== null);
-  }
-
-  return context.selection.activeCell
-    ? (() => {
-        const resolvedRow = resolveAssetScreenerSelectionRow(
-          context.selection.activeCell,
-          context.rowLookup,
-        );
-
-        return resolvedRow
-          ? [{
-              ...context.selection.activeCell,
-              rowKey: resolvedRow.rowKey,
-              rowIndex: resolvedRow.rowIndex,
-            }]
-          : [];
-      })()
-    : [];
 }
 
 export function resolveAssetScreenerSelectedRowsOutput({
@@ -1141,30 +1137,17 @@ export function resolveAssetScreenerSelectedRowsOutput({
     runtimeState,
     runtimeDataStore,
   });
-
-  if (context.effectiveSelectionMode === "none") {
-    return {
-      status: context.sourceFrame?.status === "error"
-        ? "error"
-        : context.sourceFrame?.status === "loading"
-          ? "loading"
-          : "ready",
-      columns: context.columns.map((column) => column.id),
-      rows: [],
-      source: {
-        kind: "asset-screener-selection",
-        label: "Selected screener rows",
-        context: {
-          selectedRowCount: 0,
-        },
-      },
-    };
-  }
-
-  const rows = resolveAssetScreenerSelectedAssetRows(context)
-    .map((row) => context.publicRowByAssetKey.get(row.assetKey))
-    .filter((row): row is Record<string, unknown> => Boolean(row));
-  const columns = buildAssetScreenerSelectedRowsOutputColumns(context.columns, rows);
+  const { selectedRows } = resolveTableSelectionOutputsFromFrame(
+    context.publicFrame,
+    {
+      publishSelectionOutputs: true,
+      selectionMode: context.effectiveSelectionMode,
+      selectionKeyFields: ["assetKey"],
+      uniqueIdentifierList: ["assetKey"],
+    },
+    runtimeState,
+  );
+  const columns = buildAssetScreenerSelectedRowsOutputColumns(context.columns, selectedRows);
 
   return {
     status: context.sourceFrame?.status === "error"
@@ -1173,13 +1156,13 @@ export function resolveAssetScreenerSelectedRowsOutput({
         ? "loading"
         : "ready",
     columns,
-    rows,
-    fields: buildAssetScreenerSelectedRowsOutputFields(columns, rows),
+    rows: selectedRows,
+    fields: buildAssetScreenerSelectedRowsOutputFields(columns, selectedRows),
     source: {
       kind: "asset-screener-selection",
       label: "Selected screener rows",
       context: {
-        selectedRowCount: rows.length,
+        selectedRowCount: selectedRows.length,
       },
     },
   };
@@ -1192,13 +1175,16 @@ export function resolveAssetScreenerActiveRowOutput(input: {
   runtimeDataStore?: unknown;
 }) {
   const context = buildAssetScreenerOutputContext(input);
-
-  if (context.effectiveSelectionMode === "none") {
-    return null;
-  }
-
-  const activeRow = resolveAssetScreenerActiveSelectionRow(context);
-  return activeRow ? context.publicRowByAssetKey.get(activeRow.assetKey) ?? null : null;
+  return resolveTableSelectionOutputsFromFrame(
+    context.publicFrame,
+    {
+      publishSelectionOutputs: true,
+      selectionMode: context.effectiveSelectionMode,
+      selectionKeyFields: ["assetKey"],
+      uniqueIdentifierList: ["assetKey"],
+    },
+    input.runtimeState,
+  ).activeRow;
 }
 
 export function resolveAssetScreenerActiveCellOutput(input: {
@@ -1208,27 +1194,16 @@ export function resolveAssetScreenerActiveCellOutput(input: {
   runtimeDataStore?: unknown;
 }) {
   const context = buildAssetScreenerOutputContext(input);
-
-  if (context.effectiveSelectionMode === "none" || !context.selection.activeCell) {
-    return null;
-  }
-
-  const activeRow = resolveAssetScreenerActiveSelectionRow(context);
-
-  if (!activeRow) {
-    return null;
-  }
-
-  const row = context.publicRowByAssetKey.get(activeRow.assetKey) ?? null;
-  const value = row ? row[context.selection.activeCell.columnKey] ?? null : context.selection.activeCell.value ?? null;
-
-  return {
-    rowKey: activeRow.rowKey,
-    rowIndex: activeRow.rowIndex,
-    columnKey: context.selection.activeCell.columnKey,
-    value,
-    row,
-  };
+  return resolveTableSelectionOutputsFromFrame(
+    context.publicFrame,
+    {
+      publishSelectionOutputs: true,
+      selectionMode: context.effectiveSelectionMode,
+      selectionKeyFields: ["assetKey"],
+      uniqueIdentifierList: ["assetKey"],
+    },
+    input.runtimeState,
+  ).activeCell;
 }
 
 export function resolveAssetScreenerActiveCellValueOutput(input: {
@@ -1237,8 +1212,19 @@ export function resolveAssetScreenerActiveCellValueOutput(input: {
   runtimeState?: unknown;
   runtimeDataStore?: unknown;
 }) {
-  const activeCell = resolveAssetScreenerActiveCellOutput(input);
-  return activeCell ? activeCell.value ?? null : null;
+  const context = buildAssetScreenerOutputContext(input);
+  const resolved = resolveTableSelectionOutputsFromFrame(
+    context.publicFrame,
+    {
+      publishSelectionOutputs: true,
+      selectionMode: context.effectiveSelectionMode,
+      selectionKeyFields: ["assetKey"],
+      uniqueIdentifierList: ["assetKey"],
+    },
+    input.runtimeState,
+  );
+
+  return resolved.activeCellValue;
 }
 
 export function resolveAssetScreenerSelectedCellValuesOutput(input: {
@@ -1248,16 +1234,16 @@ export function resolveAssetScreenerSelectedCellValuesOutput(input: {
   runtimeDataStore?: unknown;
 }) {
   const context = buildAssetScreenerOutputContext(input);
-
-  if (context.effectiveSelectionMode === "none") {
-    return [];
-  }
-
-  return resolveAssetScreenerSelectedCells(context).map((cell) => {
-    const row = resolveAssetScreenerSelectionRow(cell, context.rowLookup);
-    const publicRow = row ? context.publicRowByAssetKey.get(row.assetKey) : undefined;
-    return publicRow ? publicRow[cell.columnKey] ?? cell.value ?? null : cell.value ?? null;
-  });
+  return resolveTableSelectionOutputsFromFrame(
+    context.publicFrame,
+    {
+      publishSelectionOutputs: true,
+      selectionMode: context.effectiveSelectionMode,
+      selectionKeyFields: ["assetKey"],
+      uniqueIdentifierList: ["assetKey"],
+    },
+    input.runtimeState,
+  ).selectedCellValues;
 }
 
 function isAssetScreenerDemoRuntimeState(

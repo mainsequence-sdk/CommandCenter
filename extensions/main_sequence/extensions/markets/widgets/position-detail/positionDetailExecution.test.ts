@@ -1,34 +1,34 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  executePortfolioWeightsWidget,
-  portfolioWeightsExecutionDefinition,
-} from "./portfolioWeightsExecution";
+  executePositionDetailWidget,
+  positionDetailExecutionDefinition,
+} from "./positionDetailExecution";
 
-const { fetchManagedAccountHoldingsPositionDetails, fetchTargetPortfolioWeightsPositionDetails } = vi.hoisted(() => ({
+const { fetchManagedAccountHoldingsPositionDetails, fetchTargetPositionDetailPositionDetails } = vi.hoisted(() => ({
   fetchManagedAccountHoldingsPositionDetails: vi.fn(),
-  fetchTargetPortfolioWeightsPositionDetails: vi.fn(),
+  fetchTargetPositionDetailPositionDetails: vi.fn(),
 }));
 
 vi.mock("../../../../common/api", () => ({
   fetchManagedAccountHoldingsPositionDetails,
-  fetchTargetPortfolioWeightsPositionDetails,
+  fetchTargetPositionDetailPositionDetails,
 }));
 
-describe("portfolioWeightsExecution", () => {
+describe("positionDetailExecution", () => {
   it("does not execute backend loading for target position sources", async () => {
-    const result = await executePortfolioWeightsWidget({
+    const result = await executePositionDetailWidget({
       props: {
         sourceType: "target_position",
         editableInPlace: true,
         positionRows: [],
       },
       runtimeState: undefined,
-      instanceId: "portfolio-weights-account",
-      widgetId: "portfolio-weights-table",
+      instanceId: "position-detail-account",
+      widgetId: "position-detail",
     } as never);
 
-    expect(fetchTargetPortfolioWeightsPositionDetails).not.toHaveBeenCalled();
+    expect(fetchTargetPositionDetailPositionDetails).not.toHaveBeenCalled();
     expect(fetchManagedAccountHoldingsPositionDetails).not.toHaveBeenCalled();
     expect(result.status).toBe("skipped");
     expect(result.runtimeStatePatch).toMatchObject({
@@ -40,7 +40,7 @@ describe("portfolioWeightsExecution", () => {
 
   it("does not execute backend loading once local rows exist", () => {
     expect(
-      portfolioWeightsExecutionDefinition.canExecute({
+      positionDetailExecutionDefinition.canExecute({
         props: {
           sourceType: "portfolio",
           portfolioId: 123,
@@ -60,7 +60,7 @@ describe("portfolioWeightsExecution", () => {
 
   it("still executes hydrated portfolio mode when no local rows exist", () => {
     expect(
-      portfolioWeightsExecutionDefinition.canExecute({
+      positionDetailExecutionDefinition.canExecute({
         props: {
           sourceType: "portfolio",
           portfolioId: 123,
@@ -81,7 +81,7 @@ describe("portfolioWeightsExecution", () => {
       weights_date: "2026-05-18T09:30:00Z",
     });
 
-    const result = await executePortfolioWeightsWidget({
+    const result = await executePositionDetailWidget({
       props: {
         sourceType: "account",
         accountUid: "managed-account-26",
@@ -89,8 +89,8 @@ describe("portfolioWeightsExecution", () => {
         positionRows: [],
       },
       runtimeState: undefined,
-      instanceId: "portfolio-weights-account",
-      widgetId: "portfolio-weights-table",
+      instanceId: "position-detail-account",
+      widgetId: "position-detail",
     } as never);
 
     expect(fetchManagedAccountHoldingsPositionDetails).toHaveBeenCalledWith("managed-account-26", {
@@ -110,7 +110,7 @@ describe("portfolioWeightsExecution", () => {
 
   it("still reports canExecute for account hydration when account uid exists and no local rows exist", () => {
     expect(
-      portfolioWeightsExecutionDefinition.canExecute({
+      positionDetailExecutionDefinition.canExecute({
         props: {
           sourceType: "account",
           accountUid: "managed-account-26",
@@ -119,5 +119,13 @@ describe("portfolioWeightsExecution", () => {
         },
       } as never),
     ).toBe(true);
+  });
+
+  it("uses the canonical position detail execution key prefix", () => {
+    expect(
+      positionDetailExecutionDefinition.getExecutionKey({
+        instanceId: "position-detail-42",
+      } as never),
+    ).toBe("position-detail:position-detail-42");
   });
 });

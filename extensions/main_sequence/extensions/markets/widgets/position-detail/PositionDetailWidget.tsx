@@ -13,29 +13,29 @@ import type { WidgetComponentProps } from "@/widgets/types";
 import {
   formatMainSequenceError,
   saveManagedAccountHoldings,
-  type TargetPortfolioWeightsPositionDetailsResponse,
+  type TargetPositionDetailPositionDetailsResponse,
 } from "../../../../common/api";
 import {
-  normalizePortfolioWeightSummaryRows,
-  PortfolioWeightsPositionSummaryStrip,
-  PortfolioWeightsTable,
-  type PortfolioWeightsTableVariant,
-} from "./PortfolioWeightsTable";
+  normalizePositionDetailSummaryRows,
+  PositionDetailPositionSummaryStrip,
+  PositionDetailTable,
+  type PositionDetailTableVariant,
+} from "./PositionDetailTable";
 import {
-  getAllowedPortfolioWeightsPositionTypes,
-  normalizePortfolioWeightsAccountUid,
-  hydratePortfolioWeightsRowsFromPayload,
-  normalizePortfolioWeightsHoldingsDate,
-  normalizePortfolioWeightsPersistedRows,
-  normalizePortfolioWeightsRuntimeState,
-  normalizePortfolioWeightsSourceType,
-  normalizePortfolioWeightsTargetId,
-  normalizePortfolioWeightsVariant,
-  type PortfolioWeightsWidgetProps,
-} from "./portfolioWeightsRuntime";
-import { PortfolioWeightsInlineEditor } from "./PortfolioWeightsInlineEditor";
+  getAllowedPositionDetailPositionTypes,
+  normalizePositionDetailAccountUid,
+  hydratePositionDetailRowsFromPayload,
+  normalizePositionDetailHoldingsDate,
+  normalizePositionDetailPersistedRows,
+  normalizePositionDetailRuntimeState,
+  normalizePositionDetailSourceType,
+  normalizePositionDetailTargetId,
+  normalizePositionDetailVariant,
+  type PositionDetailWidgetProps,
+} from "./positionDetailRuntime";
+import { PositionDetailInlineEditor } from "./PositionDetailInlineEditor";
 
-type Props = WidgetComponentProps<PortfolioWeightsWidgetProps>;
+type Props = WidgetComponentProps<PositionDetailWidgetProps>;
 
 function getCurrentIsoTimestamp() {
   return new Date().toISOString();
@@ -59,8 +59,42 @@ function parseDateTimeLocalValue(value: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
+function PositionDetailHoldingsDateField({
+  value,
+  editable,
+  onChange,
+}: {
+  value: string;
+  editable: boolean;
+  onChange?: (nextValue: string) => void;
+}) {
+  return (
+    <label className="space-y-2">
+      <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+        Holdings Date
+      </div>
+      <input
+        type="datetime-local"
+        step={60}
+        value={formatDateTimeLocalValue(value)}
+        readOnly={!editable}
+        className="flex h-10 rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus:border-primary/70 focus:ring-2 focus:ring-ring/30 read-only:cursor-default"
+        onChange={
+          editable && onChange
+            ? (event) => {
+                const nextDate =
+                  parseDateTimeLocalValue(event.target.value) ?? getCurrentIsoTimestamp();
+                onChange(nextDate);
+              }
+            : undefined
+        }
+      />
+    </label>
+  );
+}
+
 function buildManagedAccountHoldingsPayload(
-  rows: ReturnType<typeof normalizePortfolioWeightsPersistedRows>,
+  rows: ReturnType<typeof normalizePositionDetailPersistedRows>,
   holdingsDate: string,
 ) {
   if (rows.length === 0) {
@@ -76,18 +110,13 @@ function buildManagedAccountHoldingsPayload(
         throw new Error(`Asset ${row.assetName ?? row.assetId} is missing a unique identifier.`);
       }
 
-      const positionType = row.positionType.trim();
-      if (!positionType) {
-        throw new Error(`Asset ${row.assetName ?? row.assetId} is missing a position type.`);
-      }
-
       const missingPrice = row.price === null || row.price === undefined || !Number.isFinite(row.price);
       const price = missingPrice ? "0" : String(row.price);
 
       return {
         unique_identifier: uniqueIdentifier,
         asset_id: row.assetId,
-        position_type: positionType,
+        position_type: "units",
         price,
         quantity: String(row.positionValue),
         missing_price: missingPrice,
@@ -98,7 +127,7 @@ function buildManagedAccountHoldingsPayload(
   };
 }
 
-export function PortfolioWeightsWidget({
+export function PositionDetailWidget({
   instanceId,
   props,
   runtimeState,
@@ -109,28 +138,28 @@ export function PortfolioWeightsWidget({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const widgetPreviewMode = isWidgetPreviewMode();
-  const sourceType = normalizePortfolioWeightsSourceType(props);
-  const targetPortfolioId = normalizePortfolioWeightsTargetId(props);
-  const accountUid = normalizePortfolioWeightsAccountUid(props);
-  const variant: PortfolioWeightsTableVariant =
+  const sourceType = normalizePositionDetailSourceType(props);
+  const targetPortfolioId = normalizePositionDetailTargetId(props);
+  const accountUid = normalizePositionDetailAccountUid(props);
+  const variant: PositionDetailTableVariant =
     props.editableInPlace === true || sourceType !== "portfolio"
       ? "positions"
-      : normalizePortfolioWeightsVariant(props.variant);
+      : normalizePositionDetailVariant(props.variant);
   const tableMinWidth =
     typeof props.tableMinWidth === "number" ? props.tableMinWidth : variant === "summary" ? 680 : 760;
-  const normalizedRuntimeState = normalizePortfolioWeightsRuntimeState(runtimeState);
+  const normalizedRuntimeState = normalizePositionDetailRuntimeState(runtimeState);
   const [optimisticAccountPayload, setOptimisticAccountPayload] = useState<
-    TargetPortfolioWeightsPositionDetailsResponse | undefined
+    TargetPositionDetailPositionDetailsResponse | undefined
   >(undefined);
   const payload = optimisticAccountPayload ?? normalizedRuntimeState.payload;
-  const persistedRows = normalizePortfolioWeightsPersistedRows(props);
-  const hydratedRows = hydratePortfolioWeightsRowsFromPayload(payload, sourceType);
+  const persistedRows = normalizePositionDetailPersistedRows(props);
+  const hydratedRows = hydratePositionDetailRowsFromPayload(payload, sourceType);
   const effectiveRows = persistedRows.length > 0 ? persistedRows : hydratedRows;
   const resolvedAccountHoldingsDate =
     sourceType === "account"
-      ? normalizePortfolioWeightsHoldingsDate(props.holdingsDate ?? payload?.weights_date)
+      ? normalizePositionDetailHoldingsDate(props.holdingsDate ?? payload?.weights_date)
       : undefined;
-  const allowedPositionTypes = getAllowedPortfolioWeightsPositionTypes(sourceType);
+  const allowedPositionTypes = getAllowedPositionDetailPositionTypes(sourceType);
   const inlineEditingAvailable =
     props.editableInPlace === true && editable && typeof onPropsChange === "function";
   const supportsExplicitEditToggle = sourceType === "portfolio" || sourceType === "account";
@@ -187,7 +216,7 @@ export function PortfolioWeightsWidget({
         throw new Error("A valid account uid is required to save holdings.");
       }
 
-      const normalizedHoldingsDate = normalizePortfolioWeightsHoldingsDate(accountEditDate);
+      const normalizedHoldingsDate = normalizePositionDetailHoldingsDate(accountEditDate);
 
       return saveManagedAccountHoldings(
         accountUid,
@@ -199,7 +228,7 @@ export function PortfolioWeightsWidget({
         return;
       }
 
-      const nextHoldingsDate = normalizePortfolioWeightsHoldingsDate(
+      const nextHoldingsDate = normalizePositionDetailHoldingsDate(
         nextPayload.weights_date ?? accountEditDate,
       );
 
@@ -272,7 +301,7 @@ export function PortfolioWeightsWidget({
       <Card>
         <CardContent className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">
           <Loader2 className="mr-3 h-4 w-4 animate-spin" />
-          {sourceType === "account" ? "Loading account holdings" : "Loading portfolio weights"}
+          {sourceType === "account" ? "Loading account holdings" : "Loading position details"}
         </CardContent>
       </Card>
     );
@@ -296,29 +325,20 @@ export function PortfolioWeightsWidget({
         {supportsExplicitEditToggle ? (
           <div className="flex flex-wrap items-end justify-between gap-3">
             {sourceType === "account" ? (
-              <label className="space-y-2">
-                <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                  Holdings Date
-                </div>
-                <input
-                  type="datetime-local"
-                  step={60}
-                  value={formatDateTimeLocalValue(accountEditDate)}
-                  className="flex h-10 rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus:border-primary/70 focus:ring-2 focus:ring-ring/30"
-                  onChange={(event) => {
-                    const nextDate =
-                      parseDateTimeLocalValue(event.target.value) ?? getCurrentIsoTimestamp();
-                    setAccountEditDate(nextDate);
-                    onPropsChange?.({
-                      ...props,
-                      sourceType,
-                      holdingsDate: nextDate,
-                      variant: "positions",
-                      positionRows: effectiveRows,
-                    });
-                  }}
-                />
-              </label>
+              <PositionDetailHoldingsDateField
+                value={accountEditDate}
+                editable
+                onChange={(nextDate) => {
+                  setAccountEditDate(nextDate);
+                  onPropsChange?.({
+                    ...props,
+                    sourceType,
+                    holdingsDate: nextDate,
+                    variant: "positions",
+                    positionRows: effectiveRows,
+                  });
+                }}
+              />
             ) : (
               <div />
             )}
@@ -349,7 +369,7 @@ export function PortfolioWeightsWidget({
             </div>
           </div>
         ) : null}
-        <PortfolioWeightsInlineEditor
+        <PositionDetailInlineEditor
           rows={effectiveRows}
           sourceType={sourceType}
           allowedPositionTypes={allowedPositionTypes}
@@ -376,7 +396,7 @@ export function PortfolioWeightsWidget({
 
   const rows =
     variant === "summary" && persistedRows.length === 0
-      ? normalizePortfolioWeightSummaryRows(payload?.weights ?? null)
+      ? normalizePositionDetailSummaryRows(payload?.weights ?? null)
       : persistedRows.length > 0
         ? effectiveRows.map((row) => ({
             asset_id: row.assetId,
@@ -384,9 +404,15 @@ export function PortfolioWeightsWidget({
             asset_ticker: row.assetTicker ?? null,
             unique_identifier: row.uniqueIdentifier ?? null,
             figi: row.figi ?? row.uniqueIdentifier ?? null,
-            ...(row.date ? { date: row.date } : {}),
+            ...(
+              row.date
+                ? { date: row.date }
+                : sourceType === "account" && resolvedAccountHoldingsDate
+                  ? { date: resolvedAccountHoldingsDate }
+                  : {}
+            ),
             ...(row.price !== null && row.price !== undefined ? { price: row.price } : {}),
-            position_type: row.positionType,
+            ...(sourceType === "account" ? {} : { position_type: row.positionType }),
             position_value: row.positionValue,
           }))
         : payload?.rows ?? [];
@@ -397,6 +423,17 @@ export function PortfolioWeightsWidget({
 
   return (
     <div className="space-y-3">
+      {sourceType === "account" && resolvedAccountHoldingsDate ? (
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <PositionDetailHoldingsDateField
+            value={resolvedAccountHoldingsDate}
+            editable={false}
+          />
+          {inlineEditingAvailable && supportsExplicitEditToggle ? (
+            <div />
+          ) : null}
+        </div>
+      ) : null}
       {inlineEditingAvailable && supportsExplicitEditToggle ? (
         <div className="flex justify-end">
           <Button
@@ -411,9 +448,9 @@ export function PortfolioWeightsWidget({
         </div>
       ) : null}
       {variant === "positions" && rows.length > 0 && sourceType !== "account" ? (
-        <PortfolioWeightsPositionSummaryStrip rows={rows} />
+        <PositionDetailPositionSummaryStrip rows={rows} />
       ) : null}
-      <PortfolioWeightsTable
+      <PositionDetailTable
         columnDefs={columnDefs}
         rows={rows}
         sourceType={sourceType}

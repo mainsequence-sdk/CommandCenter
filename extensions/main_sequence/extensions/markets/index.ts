@@ -4,7 +4,7 @@ import { mainSequenceMarketsApp } from "./app";
 import { mainSequenceAssetScreenerWidget } from "./widgets/asset-screener/definition";
 import { mainSequenceCurvePlotWidget } from "./widgets/curve-plot/definition";
 import { mainSequenceOhlcBarsWidget } from "./widgets/ohlc-bars/definition";
-import { portfolioWeightsWidget } from "./widgets/portfolio-weights-table/definition";
+import { positionDetailWidget } from "./widgets/position-detail/definition";
 import { mainSequenceZeroCurveWidget } from "./widgets/zero-curve/definition";
 
 const mainSequenceMarketsExtension: AppExtension = {
@@ -16,7 +16,7 @@ const mainSequenceMarketsExtension: AppExtension = {
     mainSequenceCurvePlotWidget,
     mainSequenceZeroCurveWidget,
     mainSequenceOhlcBarsWidget,
-    portfolioWeightsWidget,
+    positionDetailWidget,
   ],
   apps: [mainSequenceMarketsApp],
 };

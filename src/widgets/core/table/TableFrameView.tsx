@@ -2,9 +2,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, ty
 
 import {
   AllCommunityModule,
-  type CellSelectionChangedEvent,
   type CellClickedEvent,
-  type CellRange,
   type CellStyle,
   type ColDef,
   type GridApi,
@@ -125,14 +123,6 @@ function tableActiveCellFromFocusedCell(
   };
 }
 
-function tableCellSelectionKey(row: TableFrameGridRow, columnKey: string) {
-  return `${row.__tableRowKey ?? row.__tableRowIndex}:${columnKey}`;
-}
-
-function tableRowSelectionKey(row: TableFrameGridRow) {
-  return row.__tableRowKey ?? `row:${row.__tableRowIndex}`;
-}
-
 function isTableFrameGroupHeaderRow(
   row: TableWidgetRow | undefined,
 ): row is TableFrameDisplayRow & { __tableGroupHeader: true } {
@@ -200,104 +190,6 @@ function buildGroupedDisplayRows(
       ...groupedRows,
     ];
   });
-}
-
-function resolveDisplayedRangeRow(
-  api: GridApi<TableFrameGridRow>,
-  displayedRowIndex: number,
-) {
-  return api.getDisplayedRowAtIndex(displayedRowIndex)?.data ?? null;
-}
-
-function normalizeCellRangeRows(range: CellRange) {
-  const startRowIndex = range.startRow?.rowIndex;
-  const endRowIndex = range.endRow?.rowIndex;
-
-  if (startRowIndex == null && endRowIndex == null) {
-    return [];
-  }
-
-  const minIndex = Math.min(startRowIndex ?? endRowIndex ?? 0, endRowIndex ?? startRowIndex ?? 0);
-  const maxIndex = Math.max(startRowIndex ?? endRowIndex ?? 0, endRowIndex ?? startRowIndex ?? 0);
-
-  return Array.from({ length: maxIndex - minIndex + 1 }, (_, offset) => minIndex + offset);
-}
-
-function collectTableRangeSelection(
-  api: GridApi<TableFrameGridRow>,
-) {
-  const ranges = typeof api.getCellRanges === "function" ? (api.getCellRanges() ?? []) : [];
-  const selectedCellSet = new Set<string>();
-  const selectedRowSet = new Set<string>();
-  const selectedCells: TableWidgetActiveCellSelection[] = [];
-  const selectedRows: TableFrameGridRow[] = [];
-
-  ranges.forEach((range) => {
-    const columns = range.columns?.length > 0 ? range.columns : [range.startColumn];
-
-    normalizeCellRangeRows(range).forEach((displayedRowIndex) => {
-      const row = resolveDisplayedRangeRow(api, displayedRowIndex);
-
-      if (!row || isTableFrameGroupHeaderRow(row)) {
-        return;
-      }
-
-      const rowIdentity = tableRowSelectionKey(row);
-
-      if (!selectedRowSet.has(rowIdentity)) {
-        selectedRowSet.add(rowIdentity);
-        selectedRows.push(row);
-      }
-
-      columns.forEach((column) => {
-        const columnKey = typeof column?.getColId === "function" ? column.getColId() : "";
-
-        if (!columnKey) {
-          return;
-        }
-
-        const selectionKey = tableCellSelectionKey(row, columnKey);
-
-        if (selectedCellSet.has(selectionKey)) {
-          return;
-        }
-
-        selectedCellSet.add(selectionKey);
-        selectedCells.push({
-          rowKey: row.__tableRowKey,
-          rowIndex: row.__tableRowIndex,
-          columnKey,
-          value: row[columnKey] ?? null,
-        });
-      });
-    });
-  });
-
-  return { selectedCells, selectedRows };
-}
-
-function tableActiveCellFromFocusedSelection(
-  api: GridApi<TableFrameGridRow>,
-  fallbackCells: readonly TableWidgetActiveCellSelection[],
-) {
-  const focusedCell =
-    typeof api.getFocusedCell === "function" ? api.getFocusedCell() : null;
-  const columnKey = focusedCell?.column.getColId();
-
-  if (focusedCell?.rowIndex != null && columnKey) {
-    const row = resolveDisplayedRangeRow(api, focusedCell.rowIndex);
-
-    if (row && !isTableFrameGroupHeaderRow(row)) {
-      return {
-        rowKey: row.__tableRowKey,
-        rowIndex: row.__tableRowIndex,
-        columnKey,
-        value: row[columnKey] ?? null,
-      } satisfies TableWidgetActiveCellSelection;
-    }
-  }
-
-  return fallbackCells[fallbackCells.length - 1];
 }
 
 export interface TableWidgetColumnSchema {
@@ -1576,6 +1468,10 @@ export function TableFrameView({
         return false;
       }
 
+      if (isTableFrameGroupHeaderRow(row)) {
+        return false;
+      }
+
       const activeCell = selectionState.activeCell;
       if (activeCell.columnKey !== columnKey) {
         return false;
@@ -1787,10 +1683,6 @@ export function TableFrameView({
         return;
       }
 
-      if (selectionMode === "cell") {
-        return;
-      }
-
       if (!columnKey) {
         return;
       }
@@ -1814,39 +1706,12 @@ export function TableFrameView({
         : [...selectedRows, event.data];
 
       publishSelectionChange(
-        buildSelectionState(selectedRowsWithActive, event.data, activeCell),
-      );
-    },
-    [
-      buildSelectionState,
-      onSelectionChange,
-      publishSelectionChange,
-      selectionMode,
-    ],
-  );
-  const handleCellSelectionChanged = useCallback(
-    (event: CellSelectionChangedEvent<TableFrameGridRow>) => {
-      if (
-        isApplyingSelectionRef.current ||
-        selectionMode !== "cell" ||
-        !onSelectionChange ||
-        event.finished !== true
-      ) {
-        return;
-      }
-
-      const { selectedCells, selectedRows } = collectTableRangeSelection(event.api);
-      const activeCell = tableActiveCellFromFocusedSelection(event.api, selectedCells);
-      const activeRow = activeCell
-        ? (selectedRows.find((row) =>
-            activeCell.rowKey && row.__tableRowKey
-              ? row.__tableRowKey === activeCell.rowKey
-              : row.__tableRowIndex === activeCell.rowIndex,
-          ) ?? null)
-        : (selectedRows[selectedRows.length - 1] ?? null);
-
-      publishSelectionChange(
-        buildSelectionState(selectedRows, activeRow, activeCell, selectedCells),
+        buildSelectionState(
+          selectedRowsWithActive,
+          event.data,
+          activeCell,
+          selectionMode === "cell" ? [activeCell] : [],
+        ),
       );
     },
     [
@@ -1998,7 +1863,6 @@ export function TableFrameView({
               quickFilterText={resolvedProps.showSearch ? deferredQuickFilter : ""}
               animateRows
               enableCellTextSelection
-              cellSelection={selectionMode === "cell"}
               rowSelection={rowSelection}
               suppressRowClickSelection={selectionMode === "cell"}
               isRowSelectable={(node) => !isTableFrameGroupHeaderRow(node.data)}
@@ -2020,7 +1884,6 @@ export function TableFrameView({
               }}
               onSelectionChanged={handleSelectionChanged}
               onCellClicked={handleCellClicked}
-              onCellSelectionChanged={handleCellSelectionChanged}
               getRowStyle={(params) => {
                 const baseStyle =
                   isTableFrameGroupHeaderRow(params.data)

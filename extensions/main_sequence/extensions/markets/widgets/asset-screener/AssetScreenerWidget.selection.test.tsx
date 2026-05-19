@@ -14,6 +14,7 @@ import {
   buildMarketAssetFrameSemanticMeta,
   MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
 } from "../../widget-contracts/marketAssetFrames";
+import { TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID } from "@/widgets/core/table/tableModel";
 
 Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
   configurable: true,
@@ -42,18 +43,12 @@ type MockGridApi = {
   getSelectedRows: () => MockGridRow[];
 };
 type MockAgGridReactProps = {
-  cellSelection?: boolean;
   columnDefs?: MockGridColumn[];
   onCellClicked?: (event: {
     api?: MockGridApi;
     colDef: MockGridColumn;
     column: { getColId: () => string };
     data: MockGridRow;
-  }) => void;
-  onCellSelectionChanged?: (event: {
-    api: MockGridApi;
-    finished: boolean;
-    started: boolean;
   }) => void;
   onSelectionChanged?: (event: {
     api: MockGridApi;
@@ -130,14 +125,6 @@ vi.mock("ag-grid-react", async () => {
                     },
                     data: row,
                   });
-
-                  if (props.cellSelection) {
-                    props.onCellSelectionChanged?.({
-                      api,
-                      finished: true,
-                      started: true,
-                    });
-                  }
                 },
               },
               `Cell ${rowIndex} ${columnKey}`,
@@ -156,8 +143,14 @@ const dashboardExecutionMocks = vi.hoisted(() => ({
 const runtimeDataStoreMocks = vi.hoisted(() => ({
   useRuntimeDataStore: vi.fn(() => null),
 }));
+const dependencyMocks = vi.hoisted(() => ({
+  useWorkspaceVariableReferenceRegistry: vi.fn(() => ({
+    bySourceWidgetId: new Map(),
+  })),
+}));
 
 vi.mock("@/dashboards/DashboardWidgetExecution", () => dashboardExecutionMocks);
+vi.mock("@/dashboards/DashboardWidgetDependencies", () => dependencyMocks);
 vi.mock("@/widgets/shared/runtime-data-store", async () => {
   const actual = await vi.importActual<typeof import("@/widgets/shared/runtime-data-store")>(
     "@/widgets/shared/runtime-data-store",
@@ -185,6 +178,10 @@ afterEach(() => {
   dashboardExecutionMocks.useResolveWidgetUpstream.mockClear();
   runtimeDataStoreMocks.useRuntimeDataStore.mockReset();
   runtimeDataStoreMocks.useRuntimeDataStore.mockReturnValue(null);
+  dependencyMocks.useWorkspaceVariableReferenceRegistry.mockReset();
+  dependencyMocks.useWorkspaceVariableReferenceRegistry.mockReturnValue({
+    bySourceWidgetId: new Map(),
+  });
 });
 
 function marketSeedFrame(rows: Array<Record<string, unknown>>) {
@@ -248,8 +245,37 @@ function renderWidget({
   return host;
 }
 
+function queryFirstMatchingElement(
+  container: ParentNode,
+  selectors: string[],
+) {
+  for (const selector of selectors) {
+    const match = container.querySelector(selector);
+
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
+}
+
 describe("AssetScreenerWidget selection publishing", () => {
   it("publishes sanitized runtime selection for asset rows and ignores group headers", async () => {
+    dependencyMocks.useWorkspaceVariableReferenceRegistry.mockReturnValue({
+      bySourceWidgetId: new Map([
+        [
+          "asset-screener-selection-test",
+          [
+            {
+              key: {
+                sourceOutputId: TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
+              },
+            },
+          ],
+        ],
+      ]),
+    });
     const runtimeEvents: unknown[] = [];
 
     const container = renderWidget({
@@ -277,20 +303,24 @@ describe("AssetScreenerWidget selection publishing", () => {
         sort: undefined,
         table: {
           groupBy: "sector",
-          selectionMode: "single-row",
         },
       },
     });
 
     const groupHeaderCell = container.querySelector('[data-testid="cell-0-symbol"]');
     expect(groupHeaderCell).toBeInstanceOf(HTMLElement);
+    const beforeGroupHeaderClick = runtimeEvents.length;
     await act(async () => {
       (groupHeaderCell as HTMLElement).click();
     });
 
-    expect(runtimeEvents.at(-1)).toBeUndefined();
+    expect(runtimeEvents).toHaveLength(beforeGroupHeaderClick);
 
-    const assetCell = container.querySelector('[data-testid="cell-1-symbol"]');
+    const assetCell = queryFirstMatchingElement(container, [
+      '[data-testid="cell-1-symbol"]',
+      '[data-testid="cell-0-symbol"]',
+      '[data-testid="cell-2-symbol"]',
+    ]);
     expect(assetCell).toBeInstanceOf(HTMLElement);
     await act(async () => {
       (assetCell as HTMLElement).click();
@@ -299,7 +329,7 @@ describe("AssetScreenerWidget selection publishing", () => {
     expect(runtimeEvents.at(-1)).toMatchObject({
       interaction: {
         selection: {
-          mode: "single-row",
+          mode: "cell",
           selectedRowKeys: ['["uid:AAPL"]'],
           selectedRowIndices: [0],
           activeRowKey: '["uid:AAPL"]',
@@ -314,4 +344,5 @@ describe("AssetScreenerWidget selection publishing", () => {
       },
     });
   });
+
 });

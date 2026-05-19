@@ -201,7 +201,7 @@ progressive mounting:
 - `extensions/main_sequence/extensions/markets/widgets/curve-plot/CurvePlotWidget.tsx`
 - `extensions/main_sequence/extensions/markets/widgets/ohlc-bars/OhlcBarsWidget.tsx`
 - `extensions/main_sequence/extensions/markets/widgets/zero-curve/ZeroCurveWidget.tsx`
-- `extensions/main_sequence/extensions/markets/widgets/portfolio-weights-table/PortfolioWeightsWidget.tsx`
+- `extensions/main_sequence/extensions/markets/widgets/position-detail/PositionDetailWidget.tsx`
 - `extensions/main_sequence/extensions/workbench/widgets/dependency-graph/MainSequenceDependencyGraphWidget.tsx`
 - `extensions/main_sequence/extensions/workbench/widgets/project-infra-graph/MainSequenceProjectInfraGraphWidget.tsx`
 - `extensions/demo/widgets/heatmap-matrix/HeatmapMatrixWidget.tsx`

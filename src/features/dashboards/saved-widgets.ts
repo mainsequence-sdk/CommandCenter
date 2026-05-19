@@ -18,6 +18,7 @@ import type {
 } from "@/dashboards/types";
 import { normalizeWidgetInstanceBindings } from "@/dashboards/widget-dependencies";
 import { migrateLegacyIncrementalTabularBindings } from "@/widgets/shared/incremental-tabular-consumer";
+import { normalizeWidgetTypeId } from "@/widgets/widget-type-normalization";
 import type {
   WidgetPortBinding,
 } from "@/widgets/types";
@@ -281,7 +282,7 @@ function buildAtomicSavedWidgetPayload(
     source: dashboard.source ?? "user",
     schemaVersion: 1,
     sourceInstanceId: widget.id,
-    widgetTypeId: widget.widgetId,
+    widgetTypeId: normalizeWidgetTypeId(widget.widgetId),
     instanceTitle: widget.title ?? "",
     props: cloneJson(widget.props ?? {}),
     presentation: cloneJson(widget.presentation),
@@ -310,7 +311,7 @@ function buildGroupMemberPayload(
     source: dashboard.source ?? "user",
     schemaVersion: 1,
     sourceInstanceId: widget.id,
-    widgetTypeId: widget.widgetId,
+    widgetTypeId: normalizeWidgetTypeId(widget.widgetId),
     instanceTitle: widget.title ?? "",
     props: cloneJson(widget.props ?? {}),
     presentation: cloneJson(widget.presentation),
@@ -400,6 +401,7 @@ function buildImportedWidgetInstance(
   deltaY: number,
   slideIdRemap?: ReadonlyMap<string, string>,
 ): DashboardWidgetInstance {
+  const widgetTypeId = normalizeWidgetTypeId(savedWidget.widgetTypeId);
   const nextPosition: DashboardWidgetPlacement | undefined = savedWidget.position
     ? {
         x: savedWidget.position.x,
@@ -409,23 +411,23 @@ function buildImportedWidgetInstance(
             : savedWidget.position.y,
       }
     : {
-        x: isWorkspaceRowWidgetId(savedWidget.widgetTypeId) ? 0 : 0,
+        x: isWorkspaceRowWidgetId(widgetTypeId) ? 0 : 0,
         y: deltaY,
       };
 
   return {
     id: instanceId,
-    widgetId: savedWidget.widgetTypeId,
+    widgetId: widgetTypeId,
     title: savedWidget.instanceTitle || savedWidget.title || undefined,
     props: cloneJson(savedWidget.props ?? {}),
     presentation: cloneJson(savedWidget.presentation),
     bindings: migrateLegacyIncrementalTabularBindings(
-      savedWidget.widgetTypeId,
+      widgetTypeId,
       normalizeWidgetInstanceBindings(cloneJson(savedWidget.bindings)),
     ),
     row: savedWidget.row
       ? toShallowRowState({
-          widgetId: savedWidget.widgetTypeId,
+          widgetId: widgetTypeId,
           row: savedWidget.row,
         })
       : undefined,

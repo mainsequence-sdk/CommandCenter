@@ -520,6 +520,13 @@ function WorkspaceRuntimeVariableRefreshCoordinator({
       return;
     }
 
+    if (import.meta.env.DEV) {
+      console.log("[widget-runtime-variable-refresh]", {
+        changedWidgetId: nextRefresh.changedWidgetId,
+        queueId: nextRefresh.queueId,
+      });
+    }
+
     onProcessed(nextRefresh.queueId);
 
     void widgetExecution.executeVariableDrivenWidgetCommit({
@@ -1692,6 +1699,14 @@ export function CustomDashboardStudioPage({
     const entries = Array.from(pendingRuntimeStateWritesRef.current.entries());
     pendingRuntimeStateWritesRef.current.clear();
 
+    if (import.meta.env.DEV) {
+      console.log("[widget-runtime-state:flush]", {
+        entries,
+        localRuntimeStateOverridesEnabled,
+        selectedDashboardId: selectedDashboard?.id ?? null,
+      });
+    }
+
     if (localRuntimeStateOverridesEnabled) {
       setRuntimeStateOverridesByWidgetId((current) => {
         let changed = false;
@@ -2721,6 +2736,13 @@ export function CustomDashboardStudioPage({
 	      instanceId: string,
 	      runtimeState: Record<string, unknown> | undefined,
 	    ) => {
+        if (import.meta.env.DEV) {
+          console.log("[widget-runtime-state:enqueue]", {
+            instanceId,
+            runtimeState,
+          });
+        }
+
 	      pendingRuntimeStateWritesRef.current.set(instanceId, runtimeState);
 	      scheduleRuntimeStateWriteFlush();
 	    },

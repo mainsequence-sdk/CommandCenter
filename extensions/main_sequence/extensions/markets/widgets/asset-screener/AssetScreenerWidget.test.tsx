@@ -47,8 +47,14 @@ const dashboardExecutionMocks = vi.hoisted(() => ({
 const runtimeDataStoreMocks = vi.hoisted(() => ({
   useRuntimeDataStore: vi.fn(() => null),
 }));
+const dependencyMocks = vi.hoisted(() => ({
+  useWorkspaceVariableReferenceRegistry: vi.fn(() => ({
+    bySourceWidgetId: new Map(),
+  })),
+}));
 
 vi.mock("@/dashboards/DashboardWidgetExecution", () => dashboardExecutionMocks);
+vi.mock("@/dashboards/DashboardWidgetDependencies", () => dependencyMocks);
 vi.mock("@/widgets/shared/runtime-data-store", async () => {
   const actual = await vi.importActual<typeof import("@/widgets/shared/runtime-data-store")>(
     "@/widgets/shared/runtime-data-store",
@@ -109,6 +115,10 @@ afterEach(() => {
   dashboardExecutionMocks.useResolveWidgetUpstream.mockClear();
   runtimeDataStoreMocks.useRuntimeDataStore.mockReset();
   runtimeDataStoreMocks.useRuntimeDataStore.mockReturnValue(null);
+  dependencyMocks.useWorkspaceVariableReferenceRegistry.mockReset();
+  dependencyMocks.useWorkspaceVariableReferenceRegistry.mockReturnValue({
+    bySourceWidgetId: new Map(),
+  });
 });
 
 function frame(rows: Array<Record<string, unknown>>): TabularFrameSourceV1 {
@@ -552,6 +562,52 @@ describe("AssetScreenerWidget", () => {
 
     expect(container.textContent).not.toContain("No assets match the current bindings and filters.");
     expect(container.textContent).not.toContain("Clear");
+  });
+
+  it("describes activeRow fields up front for variable completion", () => {
+    const props = {
+      ...assetScreenerDefaultProps,
+      columnConfigMode: "custom",
+      columns: [
+        {
+          id: "symbol",
+          kind: "asset-field",
+          label: "Symbol",
+          field: "symbol",
+        },
+        {
+          id: "last",
+          kind: "latest-value",
+          label: "Last",
+          valueField: "price",
+          format: "price",
+        },
+      ],
+    } satisfies MainSequenceAssetScreenerWidgetProps;
+
+    const io = mainSequenceAssetScreenerWidget.resolveIo?.({
+      widgetId: mainSequenceAssetScreenerWidget.id,
+      instanceId: "asset-screener-test",
+      props,
+      runtimeState: undefined,
+    });
+    const activeRowOutput = io?.outputs?.find((output) => output.id === TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID);
+    const activeCellOutput = io?.outputs?.find((output) => output.id === TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID);
+
+    expect(activeRowOutput?.valueDescriptor).toMatchObject({
+      kind: "object",
+      fields: expect.arrayContaining([
+        expect.objectContaining({ key: "symbol", label: "Symbol" }),
+        expect.objectContaining({ key: "last", label: "Last" }),
+      ]),
+    });
+    expect(activeCellOutput?.valueDescriptor).toMatchObject({
+      kind: "object",
+      fields: expect.arrayContaining([
+        expect.objectContaining({ key: "row" }),
+        expect.objectContaining({ key: "columnKey" }),
+      ]),
+    });
   });
 
   it("publishes activeRow for a selected asset row and ignores grouped header rows", () => {

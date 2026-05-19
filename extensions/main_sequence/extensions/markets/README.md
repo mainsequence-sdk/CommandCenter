@@ -11,7 +11,7 @@ This nested extension is the separate application shell for market-facing Main S
   including internal asset snapshot, reference-point, and history-series semantics over generic
   tabular frames.
 - `widgets/`: Markets-owned widgets that can also be reused by Markets surfaces, including the live
-  `Asset Screener`, `Curve Plot`, `Zero Curve`, `OHLC Bars`, and `Portfolio Weights`.
+  `Asset Screener`, `Curve Plot`, `Zero Curve`, `OHLC Bars`, and `Position Detail`.
 
 ## Current Surfaces
 
@@ -36,8 +36,8 @@ This nested extension is the separate application shell for market-facing Main S
 - The live `Curve Plot` and `Zero Curve` widgets currently reuse the existing Workbench
   DataNode-source helpers so they can bind to a `Data Node` widget runtime without introducing a
   second source contract.
-- The live `Portfolio Weights` widget definition is classified as `main_sequence_markets` and is
-  the registered positions-oriented table widget for Markets surfaces and demos.
+- The live `Position Detail` widget definition is classified as `main_sequence_markets` and is the
+  registered positions-oriented table widget for Markets surfaces and demos.
 
 ## Rules
 

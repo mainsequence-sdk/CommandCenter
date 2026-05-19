@@ -14,9 +14,9 @@ import {
   formatMainSequenceError,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
-import { portfolioWeightsWidget } from "../../widgets/portfolio-weights-table/definition";
-import { PortfolioWeightsWidget } from "../../widgets/portfolio-weights-table/PortfolioWeightsWidget";
-import type { PortfolioWeightsWidgetProps } from "../../widgets/portfolio-weights-table/portfolioWeightsRuntime";
+import { positionDetailWidget } from "../../widgets/position-detail/definition";
+import { PositionDetailWidget } from "../../widgets/position-detail/PositionDetailWidget";
+import type { PositionDetailWidgetProps } from "../../widgets/position-detail/positionDetailRuntime";
 import { getManagedAccountsListPath } from "./managedAccountShared";
 
 export const managedAccountDetailTabs = [
@@ -31,7 +31,7 @@ const defaultManagedAccountDetailTabId: ManagedAccountDetailTabId = "holdings";
 
 function buildManagedAccountHoldingsWidgetProps(
   accountUid: string | null,
-): PortfolioWeightsWidgetProps {
+): PositionDetailWidgetProps {
   return {
     editableInPlace: true,
     sourceType: "account",
@@ -41,7 +41,7 @@ function buildManagedAccountHoldingsWidgetProps(
   };
 }
 
-const initialManagedAccountTargetPositionEditorProps: PortfolioWeightsWidgetProps = {
+const initialManagedAccountTargetPositionEditorProps: PositionDetailWidgetProps = {
   editableInPlace: true,
   sourceType: "target_position",
   variant: "positions",
@@ -81,9 +81,9 @@ export function MainSequenceManagedAccountDetailPage() {
     normalizeManagedAccountDetailTabId(searchParams.get("accountTab")) ??
     defaultManagedAccountDetailTabId;
   const [targetPositionEditorProps, setTargetPositionEditorProps] =
-    useState<PortfolioWeightsWidgetProps>(initialManagedAccountTargetPositionEditorProps);
+    useState<PositionDetailWidgetProps>(initialManagedAccountTargetPositionEditorProps);
   const [holdingsWidgetProps, setHoldingsWidgetProps] =
-    useState<PortfolioWeightsWidgetProps>(() =>
+    useState<PositionDetailWidgetProps>(() =>
       buildManagedAccountHoldingsWidgetProps(managedAccountUid),
     );
 
@@ -220,8 +220,8 @@ export function MainSequenceManagedAccountDetailPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-5">
-                <PortfolioWeightsWidget
-                  widget={portfolioWeightsWidget}
+                <PositionDetailWidget
+                  widget={positionDetailWidget}
                   props={holdingsWidgetProps}
                   editable
                   onPropsChange={setHoldingsWidgetProps}
@@ -264,8 +264,8 @@ export function MainSequenceManagedAccountDetailPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-5">
-                <PortfolioWeightsWidget
-                  widget={portfolioWeightsWidget}
+                <PositionDetailWidget
+                  widget={positionDetailWidget}
                   props={targetPositionEditorProps}
                   editable
                   onPropsChange={setTargetPositionEditorProps}

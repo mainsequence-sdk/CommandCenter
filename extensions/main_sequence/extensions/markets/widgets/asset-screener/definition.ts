@@ -6,7 +6,13 @@ import {
   TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
 } from "@/widgets/shared/tabular-frame-source";
 import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
-import { defineWidget } from "@/widgets/types";
+import {
+  defineWidget,
+  type WidgetIoDefinition,
+  type WidgetInputPortDefinition,
+  type WidgetObjectValueDescriptor,
+  type WidgetOutputResolverArgs,
+} from "@/widgets/types";
 
 import {
   buildMarketAssetFrameSemanticMeta,
@@ -28,6 +34,7 @@ import {
 import { AssetScreenerWidgetSettings } from "./AssetScreenerWidgetSettings";
 import {
   assetScreenerDefaultProps,
+  buildAssetScreenerActiveRowValueDescriptor,
   resolveAssetScreenerState,
   type MainSequenceAssetScreenerWidgetProps,
 } from "./assetScreenerModel";
@@ -52,6 +59,204 @@ const screenerJsonValueArrayDescriptor = {
   description: "JSON list derived from asset screener interaction runtime state.",
   items: screenerJsonValueDescriptor,
 } as const;
+
+const assetScreenerInputs: WidgetInputPortDefinition<MainSequenceAssetScreenerWidgetProps>[] = [
+  {
+    id: MARKET_ASSET_SCREENER_SEED_INPUT_ID,
+    label: "Seed data",
+    accepts: [...MARKET_ASSET_SCREENER_INPUT_CONTRACTS],
+    acceptedOutputIds: [datasetOutputId],
+    required: false,
+    description: "Latest/current snapshot used to initialize the screener.",
+    effects: [
+      {
+        kind: "drives-render",
+        sourcePath: "rows",
+        target: { kind: "render", id: "asset-screener" },
+        description: "Snapshot rows initialize latest asset state.",
+      },
+    ],
+  },
+  {
+    id: MARKET_ASSET_SCREENER_LIVE_UPDATES_INPUT_ID,
+    label: "Live updates",
+    accepts: [...MARKET_ASSET_SCREENER_INPUT_CONTRACTS],
+    acceptedOutputIds: [updatesOutputId],
+    required: false,
+    description: "Incremental latest updates that recalculate columns against seeded references.",
+    effects: [
+      {
+        kind: "drives-render",
+        sourcePath: "rows",
+        target: { kind: "render", id: "asset-screener" },
+        description: "Live rows update latest asset state without mutating references.",
+      },
+    ],
+  },
+] ;
+
+function buildAssetScreenerIo(props: MainSequenceAssetScreenerWidgetProps) {
+  const activeRowDescriptor = buildAssetScreenerActiveRowValueDescriptor(props);
+  const activeCellDescriptor = {
+    kind: "object",
+    contract: CORE_VALUE_JSON_CONTRACT,
+    description: "Selected asset screener cell.",
+    fields: [
+      {
+        key: "rowKey",
+        label: "Row key",
+        value: {
+          kind: "primitive",
+          contract: "core.value.string@v1",
+          primitive: "string",
+          description: "Stable row selection key.",
+        },
+      },
+      {
+        key: "rowIndex",
+        label: "Row index",
+        value: {
+          kind: "primitive",
+          contract: "core.value.integer@v1",
+          primitive: "integer",
+          description: "Active row index inside the current screener rows.",
+        },
+      },
+      {
+        key: "columnKey",
+        label: "Column key",
+        value: {
+          kind: "primitive",
+          contract: "core.value.string@v1",
+          primitive: "string",
+          description: "Active column key.",
+        },
+      },
+      {
+        key: "value",
+        label: "Value",
+        value: screenerJsonValueDescriptor,
+      },
+      {
+        key: "row",
+        label: "Row",
+        value: activeRowDescriptor,
+      },
+    ],
+  } satisfies WidgetObjectValueDescriptor;
+
+  const resolveSelectedRows = ({
+    props,
+    resolvedInputs,
+    runtimeState,
+    runtimeDataStore,
+  }: WidgetOutputResolverArgs<MainSequenceAssetScreenerWidgetProps>) =>
+    resolveAssetScreenerSelectedRowsOutput({
+      props,
+      resolvedInputs,
+      runtimeState,
+      runtimeDataStore,
+    });
+  const resolveActiveRow = ({
+    props,
+    resolvedInputs,
+    runtimeState,
+    runtimeDataStore,
+  }: WidgetOutputResolverArgs<MainSequenceAssetScreenerWidgetProps>) =>
+    resolveAssetScreenerActiveRowOutput({
+      props,
+      resolvedInputs,
+      runtimeState,
+      runtimeDataStore,
+    });
+  const resolveActiveCell = ({
+    props,
+    resolvedInputs,
+    runtimeState,
+    runtimeDataStore,
+  }: WidgetOutputResolverArgs<MainSequenceAssetScreenerWidgetProps>) =>
+    resolveAssetScreenerActiveCellOutput({
+      props,
+      resolvedInputs,
+      runtimeState,
+      runtimeDataStore,
+    });
+  const resolveActiveCellValue = ({
+    props,
+    resolvedInputs,
+    runtimeState,
+    runtimeDataStore,
+  }: WidgetOutputResolverArgs<MainSequenceAssetScreenerWidgetProps>) =>
+    resolveAssetScreenerActiveCellValueOutput({
+      props,
+      resolvedInputs,
+      runtimeState,
+      runtimeDataStore,
+    });
+  const resolveSelectedCellValues = ({
+    props,
+    resolvedInputs,
+    runtimeState,
+    runtimeDataStore,
+  }: WidgetOutputResolverArgs<MainSequenceAssetScreenerWidgetProps>) =>
+    resolveAssetScreenerSelectedCellValuesOutput({
+      props,
+      resolvedInputs,
+      runtimeState,
+      runtimeDataStore,
+    });
+
+  return {
+    inputs: assetScreenerInputs,
+    outputs: [
+      {
+        id: TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
+        label: "Selected rows",
+        contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        description:
+          "Publishes the current asset screener rows selected by the user.",
+        valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
+        resolveValue: resolveSelectedRows,
+      },
+      {
+        id: TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
+        label: "Active row",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description:
+          "Publishes the current active asset row selected in the screener, or null.",
+        valueDescriptor: activeRowDescriptor,
+        resolveValue: resolveActiveRow,
+      },
+      {
+        id: TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
+        label: "Active cell",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description:
+          "Publishes the current active screener cell with row index, column key, value, and row payload.",
+        valueDescriptor: activeCellDescriptor,
+        resolveValue: resolveActiveCell,
+      },
+      {
+        id: TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
+        label: "Active cell value",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description:
+          "Publishes the current active screener cell value, or null when no cell is active.",
+        valueDescriptor: screenerJsonValueDescriptor,
+        resolveValue: resolveActiveCellValue,
+      },
+      {
+        id: TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID,
+        label: "Selected cell values",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description:
+          "Publishes the current selected screener cell values as an ordered JSON list.",
+        valueDescriptor: screenerJsonValueArrayDescriptor,
+        resolveValue: resolveSelectedCellValues,
+      },
+    ],
+  } satisfies WidgetIoDefinition<MainSequenceAssetScreenerWidgetProps>;
+}
 
 const mockSeedData = {
   status: "ready",
@@ -239,7 +444,7 @@ const mockSeedData = {
 
 export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScreenerWidgetProps>({
   id: "ms-markets-asset-screener",
-  widgetVersion: "1.8.0",
+  widgetVersion: "1.10.0",
   title: "Asset Screener",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
@@ -255,119 +460,8 @@ export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScr
       seedData: mockSeedData,
     },
   },
-  io: {
-    inputs: [
-      {
-        id: MARKET_ASSET_SCREENER_SEED_INPUT_ID,
-        label: "Seed data",
-        accepts: [...MARKET_ASSET_SCREENER_INPUT_CONTRACTS],
-        acceptedOutputIds: [datasetOutputId],
-        required: false,
-        description: "Latest/current snapshot used to initialize the screener.",
-        effects: [
-          {
-            kind: "drives-render",
-            sourcePath: "rows",
-            target: { kind: "render", id: "asset-screener" },
-            description: "Snapshot rows initialize latest asset state.",
-          },
-        ],
-      },
-      {
-        id: MARKET_ASSET_SCREENER_LIVE_UPDATES_INPUT_ID,
-        label: "Live updates",
-        accepts: [...MARKET_ASSET_SCREENER_INPUT_CONTRACTS],
-        acceptedOutputIds: [updatesOutputId],
-        required: false,
-        description: "Incremental latest updates that recalculate columns against seeded references.",
-        effects: [
-          {
-            kind: "drives-render",
-            sourcePath: "rows",
-            target: { kind: "render", id: "asset-screener" },
-            description: "Live rows update latest asset state without mutating references.",
-          },
-        ],
-      },
-    ],
-    outputs: [
-      {
-        id: TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
-        label: "Selected rows",
-        contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
-        description:
-          "Publishes the current asset screener rows selected by the user.",
-        valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
-        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
-          resolveAssetScreenerSelectedRowsOutput({
-            props: props as MainSequenceAssetScreenerWidgetProps,
-            resolvedInputs,
-            runtimeState,
-            runtimeDataStore,
-          }),
-      },
-      {
-        id: TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
-        label: "Active row",
-        contract: CORE_VALUE_JSON_CONTRACT,
-        description:
-          "Publishes the current active asset row selected in the screener, or null.",
-        valueDescriptor: screenerJsonValueDescriptor,
-        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
-          resolveAssetScreenerActiveRowOutput({
-            props: props as MainSequenceAssetScreenerWidgetProps,
-            resolvedInputs,
-            runtimeState,
-            runtimeDataStore,
-          }),
-      },
-      {
-        id: TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
-        label: "Active cell",
-        contract: CORE_VALUE_JSON_CONTRACT,
-        description:
-          "Publishes the current active screener cell with row index, column key, value, and row payload.",
-        valueDescriptor: screenerJsonValueDescriptor,
-        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
-          resolveAssetScreenerActiveCellOutput({
-            props: props as MainSequenceAssetScreenerWidgetProps,
-            resolvedInputs,
-            runtimeState,
-            runtimeDataStore,
-          }),
-      },
-      {
-        id: TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
-        label: "Active cell value",
-        contract: CORE_VALUE_JSON_CONTRACT,
-        description:
-          "Publishes the current active screener cell value, or null when no cell is active.",
-        valueDescriptor: screenerJsonValueDescriptor,
-        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
-          resolveAssetScreenerActiveCellValueOutput({
-            props: props as MainSequenceAssetScreenerWidgetProps,
-            resolvedInputs,
-            runtimeState,
-            runtimeDataStore,
-          }),
-      },
-      {
-        id: TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID,
-        label: "Selected cell values",
-        contract: CORE_VALUE_JSON_CONTRACT,
-        description:
-          "Publishes the current selected screener cell values as an ordered JSON list.",
-        valueDescriptor: screenerJsonValueArrayDescriptor,
-        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
-          resolveAssetScreenerSelectedCellValuesOutput({
-            props: props as MainSequenceAssetScreenerWidgetProps,
-            resolvedInputs,
-            runtimeState,
-            runtimeDataStore,
-          }),
-      },
-    ],
-  },
+  io: buildAssetScreenerIo(assetScreenerDefaultProps),
+  resolveIo: ({ props }) => buildAssetScreenerIo(props as MainSequenceAssetScreenerWidgetProps),
   workspaceRuntimeMode: "consumer",
   workspaceIcon: Search,
   railIcon: Search,

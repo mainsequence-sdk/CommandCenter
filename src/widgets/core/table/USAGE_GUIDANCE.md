@@ -68,7 +68,7 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - `activeRow`: `core.value.json@v1`. Publishes the active row object, or `null` when no row is active.
 - `activeCell`: `core.value.json@v1`. Publishes `{ rowKey, rowIndex, columnKey, value, row }` for the clicked cell, or `null`.
 - `activeCellValue`: `core.value.json@v1`. Publishes only the active cell value, or `null`.
-- `selectedCellValues`: `core.value.json@v1`. Publishes an ordered list of selected cell values. Row selection clicks return the active clicked cell as a one-item array; cell selection mode returns the selected cell range.
+- `selectedCellValues`: `core.value.json@v1`. Publishes an ordered list of selected cell values. Row selection clicks return the active clicked cell as a one-item array; in Community AG Grid, `cell` mode currently also returns the clicked cell as a one-item array.
 
 ## runtimeOwnership
 
@@ -107,4 +107,4 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Row-index selection fallback can point at a different row after an upstream resort, filter, or refresh. Use stable row key fields for production compositions.
 - Grouped sections are a shared table presentation feature. While grouping is active, AG Grid
   header sorting is disabled so the grouped blocks stay contiguous in first-seen group order.
-- Cell clicks publish `activeCell`, `activeCellValue`, and a one-item `selectedCellValues` list in row and cell selection modes. In `cell` mode, range selection publishes the ordered `selectedCellValues` range and marks the touched rows as the effective `selectedRows` output. Row modes also publish `selectedRows` and `activeRow`. `none` disables manual selection outputs by default, but the runtime may infer the minimal interaction mode when a downstream widget reference actively consumes one of the table interaction outputs.
+- Cell clicks publish `activeCell`, `activeCellValue`, and a one-item `selectedCellValues` list in row and cell selection modes. Row modes also publish `selectedRows` and `activeRow`. `none` disables manual selection outputs by default, but the runtime may infer the minimal interaction mode when a downstream widget reference actively consumes one of the table interaction outputs. Community AG Grid does not currently provide enterprise cell-range selection here.

@@ -5,10 +5,10 @@ import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import {
-  normalizePortfolioWeightsSourceType,
-  type PortfolioWeightsSourceType,
-  type PortfolioWeightsWidgetProps,
-} from "./portfolioWeightsRuntime";
+  normalizePositionDetailSourceType,
+  type PositionDetailSourceType,
+  type PositionDetailWidgetProps,
+} from "./positionDetailRuntime";
 
 function normalizePositiveInt(value: string) {
   const parsed = Number(value);
@@ -23,7 +23,7 @@ function normalizeAccountUid(value: string) {
   return normalized ? normalized : undefined;
 }
 
-const sourceTypeHelpText: Record<PortfolioWeightsSourceType, string> = {
+const sourceTypeHelpText: Record<PositionDetailSourceType, string> = {
   portfolio:
     "Portfolio source rows are always interpreted as weight from notional exposure. Backend hydration is available from the target portfolio weights endpoint until local rows are authored.",
   account:
@@ -32,12 +32,12 @@ const sourceTypeHelpText: Record<PortfolioWeightsSourceType, string> = {
     "Target position source rows can use weight from notional exposure, units, or constant notional.",
 };
 
-export function PortfolioWeightsWidgetSettings({
+export function PositionDetailWidgetSettings({
   draftProps,
   editable,
   onDraftPropsChange,
-}: WidgetSettingsComponentProps<PortfolioWeightsWidgetProps>) {
-  const sourceType = normalizePortfolioWeightsSourceType(draftProps);
+}: WidgetSettingsComponentProps<PositionDetailWidgetProps>) {
+  const sourceType = normalizePositionDetailSourceType(draftProps);
   const portfolioId =
     Number.isFinite(Number(draftProps.portfolioId ?? draftProps.targetPortfolioId)) &&
     Number(draftProps.portfolioId ?? draftProps.targetPortfolioId) > 0
@@ -54,7 +54,7 @@ export function PortfolioWeightsWidgetSettings({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="neutral">Positions widget</Badge>
+        <Badge variant="neutral">Position Detail widget</Badge>
         <span className="text-sm text-muted-foreground">
           Choose the domain source contract first. Inline editing applies to every source type.
         </span>
@@ -73,7 +73,7 @@ export function PortfolioWeightsWidgetSettings({
           onChange={(event) => {
             onDraftPropsChange({
               ...draftProps,
-              sourceType: event.target.value as PortfolioWeightsSourceType,
+              sourceType: event.target.value as PositionDetailSourceType,
               variant:
                 event.target.value === "portfolio" && draftProps.editableInPlace !== true
                   ? draftProps.variant

@@ -2,24 +2,25 @@ import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/
 import { defineWidget } from "@/widgets/types";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
-import { portfolioWeightsExecutionDefinition } from "./portfolioWeightsExecution";
+import { positionDetailExecutionDefinition } from "./positionDetailExecution";
 import {
-  PortfolioWeightsWidget,
-} from "./PortfolioWeightsWidget";
-import { PortfolioWeightsWidgetSettings } from "./PortfolioWeightsWidgetSettings";
-import type { PortfolioWeightsWidgetProps } from "./portfolioWeightsRuntime";
+  PositionDetailWidget,
+} from "./PositionDetailWidget";
+import { PositionDetailWidgetSettings } from "./PositionDetailWidgetSettings";
+import type { PositionDetailWidgetProps } from "./positionDetailRuntime";
 
-export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>({
-  id: "portfolio-weights-table",
-  widgetVersion: "3.4.0",
-  title: "Portfolio Weights",
+export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
+  id: "position-detail",
+  widgetVersion: "4.0.0",
+  title: "Position Detail",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
   kind: "table",
   source: "main_sequence_markets",
   requiredPermissions: ["main_sequence_markets:view"],
-  tags: ["portfolio", "weights", "positions", "tanstack"],
+  tags: ["positions", "detail", "holdings", "tanstack"],
   exampleProps: {
+    sourceType: "portfolio",
     portfolioId: 1,
     variant: "positions",
   },
@@ -61,7 +62,7 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
         : "idle",
       summary: domTextContent?.trim()
       ? domTextContent.trim().slice(0, 240)
-      : "Portfolio Weights is waiting for portfolio data.",
+      : "Position Detail is waiting for data.",
     data: {
       widgetRole: "presentation",
       contentType: "table",
@@ -74,8 +75,8 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
       editableInPlace: props.editableInPlace === true,
     },
   }),
-  settingsComponent: PortfolioWeightsWidgetSettings,
-  execution: portfolioWeightsExecutionDefinition,
+  settingsComponent: PositionDetailWidgetSettings,
+  execution: positionDetailExecutionDefinition,
   workspaceRuntimeMode: "execution-owner",
   registryContract: {
     configuration: {
@@ -160,5 +161,5 @@ export const portfolioWeightsWidget = defineWidget<PortfolioWeightsWidgetProps>(
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
   },
-  component: PortfolioWeightsWidget,
+  component: PositionDetailWidget,
 });

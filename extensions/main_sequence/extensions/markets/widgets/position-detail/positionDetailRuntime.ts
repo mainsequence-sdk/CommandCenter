@@ -1,16 +1,16 @@
 import type {
-  TargetPortfolioWeightsPositionColumnDef,
-  TargetPortfolioWeightsPositionDetailsResponse,
+  TargetPositionDetailPositionColumnDef,
+  TargetPositionDetailPositionDetailsResponse,
 } from "../../../../common/api";
 
-export type PortfolioWeightsSourceType = "portfolio" | "account" | "target_position";
-export type PortfolioWeightsCanonicalPositionType =
+export type PositionDetailSourceType = "portfolio" | "account" | "target_position";
+export type PositionDetailCanonicalPositionType =
   | "weight_notional_exposure"
   | "units"
   | "constant_notional";
-export type PortfolioWeightsInlinePositionType = string;
+export type PositionDetailInlinePositionType = string;
 
-export interface PortfolioWeightsInlineRow extends Record<string, unknown> {
+export interface PositionDetailInlineRow extends Record<string, unknown> {
   rowId: string;
   assetId: number;
   assetName?: string;
@@ -19,11 +19,11 @@ export interface PortfolioWeightsInlineRow extends Record<string, unknown> {
   figi?: string;
   date?: string;
   price?: number | null;
-  positionType: PortfolioWeightsInlinePositionType;
+  positionType: PositionDetailInlinePositionType;
   positionValue: number;
 }
 
-export interface PortfolioWeightsWidgetProps extends Record<string, unknown> {
+export interface PositionDetailWidgetProps extends Record<string, unknown> {
   portfolioId?: number;
   accountUid?: string;
   holdingsDate?: string;
@@ -31,19 +31,19 @@ export interface PortfolioWeightsWidgetProps extends Record<string, unknown> {
   variant?: "summary" | "positions";
   tableMinWidth?: number;
   editableInPlace?: boolean;
-  sourceType?: PortfolioWeightsSourceType;
-  positionRows?: PortfolioWeightsInlineRow[];
+  sourceType?: PositionDetailSourceType;
+  positionRows?: PositionDetailInlineRow[];
   dataMode?: "portfolio" | "inline";
-  inlineRows?: PortfolioWeightsInlineRow[];
+  inlineRows?: PositionDetailInlineRow[];
 }
 
-export interface PortfolioWeightsWidgetRuntimeState extends Record<string, unknown> {
+export interface PositionDetailWidgetRuntimeState extends Record<string, unknown> {
   status?: "idle" | "loading" | "success" | "error";
   error?: string;
   targetPortfolioId?: number;
   accountUid?: string;
   variant?: "summary" | "positions";
-  payload?: TargetPortfolioWeightsPositionDetailsResponse;
+  payload?: TargetPositionDetailPositionDetailsResponse;
   lastLoadedAtMs?: number;
 }
 
@@ -51,7 +51,7 @@ const allPositionTypes = [
   "weight_notional_exposure",
   "units",
   "constant_notional",
-] as const satisfies readonly PortfolioWeightsCanonicalPositionType[];
+] as const satisfies readonly PositionDetailCanonicalPositionType[];
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -69,7 +69,7 @@ function readPositiveInt(value: unknown) {
   return Math.trunc(parsed);
 }
 
-function normalizePortfolioWeightsInlinePositionValue(value: unknown) {
+function normalizePositionDetailInlinePositionValue(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
@@ -84,7 +84,7 @@ function normalizePortfolioWeightsInlinePositionValue(value: unknown) {
   return 0;
 }
 
-function normalizePortfolioWeightsInlinePrice(value: unknown) {
+function normalizePositionDetailInlinePrice(value: unknown) {
   if (value === null || value === undefined || value === "") {
     return null;
   }
@@ -111,7 +111,7 @@ function getCurrentIsoTimestamp() {
   return new Date().toISOString();
 }
 
-function normalizePortfolioWeightsInlineDate(value: unknown, fallback = getTodayIsoDate()) {
+function normalizePositionDetailInlineDate(value: unknown, fallback = getTodayIsoDate()) {
   if (typeof value === "string") {
     const trimmed = value.trim();
     if (!trimmed) {
@@ -136,7 +136,7 @@ function normalizePortfolioWeightsInlineDate(value: unknown, fallback = getToday
   return fallback;
 }
 
-export function normalizePortfolioWeightsHoldingsDate(
+export function normalizePositionDetailHoldingsDate(
   value: unknown,
   fallback = getCurrentIsoTimestamp(),
 ) {
@@ -159,9 +159,9 @@ export function normalizePortfolioWeightsHoldingsDate(
   return fallback;
 }
 
-export function normalizePortfolioWeightsSourceType(
-  props: Pick<PortfolioWeightsWidgetProps, "sourceType" | "dataMode">,
-): PortfolioWeightsSourceType {
+export function normalizePositionDetailSourceType(
+  props: Pick<PositionDetailWidgetProps, "sourceType" | "dataMode">,
+): PositionDetailSourceType {
   if (
     props.sourceType === "portfolio" ||
     props.sourceType === "account" ||
@@ -177,9 +177,9 @@ export function normalizePortfolioWeightsSourceType(
   return "portfolio";
 }
 
-export function getAllowedPortfolioWeightsPositionTypes(
-  sourceType: PortfolioWeightsSourceType,
-): readonly PortfolioWeightsCanonicalPositionType[] {
+export function getAllowedPositionDetailPositionTypes(
+  sourceType: PositionDetailSourceType,
+): readonly PositionDetailCanonicalPositionType[] {
   switch (sourceType) {
     case "portfolio":
       return ["weight_notional_exposure"];
@@ -192,35 +192,35 @@ export function getAllowedPortfolioWeightsPositionTypes(
   }
 }
 
-export function getDefaultPortfolioWeightsPositionType(
-  sourceType: PortfolioWeightsSourceType,
-): PortfolioWeightsCanonicalPositionType {
-  return getAllowedPortfolioWeightsPositionTypes(sourceType)[0] ?? "weight_notional_exposure";
+export function getDefaultPositionDetailPositionType(
+  sourceType: PositionDetailSourceType,
+): PositionDetailCanonicalPositionType {
+  return getAllowedPositionDetailPositionTypes(sourceType)[0] ?? "weight_notional_exposure";
 }
 
-function normalizePortfolioWeightsInlinePositionType(
+function normalizePositionDetailInlinePositionType(
   value: unknown,
-  sourceType: PortfolioWeightsSourceType,
-): PortfolioWeightsInlinePositionType {
+  sourceType: PositionDetailSourceType,
+): PositionDetailInlinePositionType {
   if (sourceType === "account") {
-    return typeof value === "string" ? value.trim() : "units";
+    return "units";
   }
 
-  const allowedPositionTypes = getAllowedPortfolioWeightsPositionTypes(sourceType);
-  return allowedPositionTypes.includes(value as PortfolioWeightsCanonicalPositionType)
-    ? (value as PortfolioWeightsCanonicalPositionType)
-    : getDefaultPortfolioWeightsPositionType(sourceType);
+  const allowedPositionTypes = getAllowedPositionDetailPositionTypes(sourceType);
+  return allowedPositionTypes.includes(value as PositionDetailCanonicalPositionType)
+    ? (value as PositionDetailCanonicalPositionType)
+    : getDefaultPositionDetailPositionType(sourceType);
 }
 
-export function normalizePortfolioWeightsPositionRows(
+export function normalizePositionDetailPositionRows(
   value: unknown,
-  sourceType: PortfolioWeightsSourceType,
-): PortfolioWeightsInlineRow[] {
+  sourceType: PositionDetailSourceType,
+): PositionDetailInlineRow[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
-  return value.reduce<PortfolioWeightsInlineRow[]>((rows, entry, index) => {
+  return value.reduce<PositionDetailInlineRow[]>((rows, entry, index) => {
     if (!isPlainRecord(entry)) {
       return rows;
     }
@@ -245,31 +245,32 @@ export function normalizePortfolioWeightsPositionRows(
       ...(sourceType === "account"
         ? {}
         : {
-            date: normalizePortfolioWeightsInlineDate(
+            date: normalizePositionDetailInlineDate(
               entry.date ?? entry.asOfDate ?? entry.as_of_date ?? entry.effective_date ?? entry.position_date,
             ),
           }),
-      price: normalizePortfolioWeightsInlinePrice(entry.price),
-      positionType: normalizePortfolioWeightsInlinePositionType(entry.positionType, sourceType),
-      positionValue: normalizePortfolioWeightsInlinePositionValue(entry.positionValue),
+      price: normalizePositionDetailInlinePrice(entry.price),
+      positionType: normalizePositionDetailInlinePositionType(entry.positionType, sourceType),
+      positionValue: normalizePositionDetailInlinePositionValue(entry.positionValue),
     });
 
     return rows;
   }, []);
 }
 
-export function normalizePortfolioWeightsPersistedRows(
-  props: Pick<PortfolioWeightsWidgetProps, "positionRows" | "inlineRows" | "sourceType" | "dataMode">,
-): PortfolioWeightsInlineRow[] {
-  const sourceType = normalizePortfolioWeightsSourceType(props);
-  return normalizePortfolioWeightsPositionRows(
+export function normalizePositionDetailPersistedRows(
+  props: Pick<PositionDetailWidgetProps, "positionRows" | "inlineRows" | "sourceType" | "dataMode">,
+): PositionDetailInlineRow[] {
+  const sourceType = normalizePositionDetailSourceType(props);
+  return normalizePositionDetailPositionRows(
     Array.isArray(props.positionRows) ? props.positionRows : props.inlineRows,
     sourceType,
   );
 }
 
-export function buildPortfolioWeightsInlineDisplayRows(
-  rows: PortfolioWeightsInlineRow[],
+export function buildPositionDetailInlineDisplayRows(
+  rows: PositionDetailInlineRow[],
+  sourceType?: PositionDetailSourceType,
 ): Array<Record<string, unknown>> {
   return rows.map((row) => ({
     id: row.assetId,
@@ -280,14 +281,14 @@ export function buildPortfolioWeightsInlineDisplayRows(
     figi: row.figi || row.uniqueIdentifier || null,
     ...(row.date ? { date: row.date } : {}),
     ...(row.price !== null && row.price !== undefined ? { price: row.price } : {}),
-    position_type: row.positionType,
+    ...(sourceType === "account" ? {} : { position_type: row.positionType }),
     position_value: row.positionValue,
   }));
 }
 
-function normalizePortfolioWeightsPayload(
+function normalizePositionDetailPayload(
   value: unknown,
-): TargetPortfolioWeightsPositionDetailsResponse | undefined {
+): TargetPositionDetailPositionDetailsResponse | undefined {
   if (!isPlainRecord(value)) {
     return undefined;
   }
@@ -304,8 +305,8 @@ function normalizePortfolioWeightsPayload(
     weights: value.weights,
     position_columns: Array.isArray(value.position_columns) ? value.position_columns : [],
     rows: value.rows as Array<Record<string, unknown>>,
-    columnDefs: value.columnDefs as TargetPortfolioWeightsPositionColumnDef[],
-    summaryColumnDefs: value.summaryColumnDefs as TargetPortfolioWeightsPositionColumnDef[],
+    columnDefs: value.columnDefs as TargetPositionDetailPositionColumnDef[],
+    summaryColumnDefs: value.summaryColumnDefs as TargetPositionDetailPositionColumnDef[],
     position_map:
       value.position_map && typeof value.position_map === "object"
         ? (value.position_map as Record<string, unknown>)
@@ -314,18 +315,18 @@ function normalizePortfolioWeightsPayload(
   };
 }
 
-export function hydratePortfolioWeightsRowsFromPayload(
-  payload: TargetPortfolioWeightsPositionDetailsResponse | undefined,
-  sourceType: PortfolioWeightsSourceType,
-): PortfolioWeightsInlineRow[] {
+export function hydratePositionDetailRowsFromPayload(
+  payload: TargetPositionDetailPositionDetailsResponse | undefined,
+  sourceType: PositionDetailSourceType,
+): PositionDetailInlineRow[] {
   if (!payload?.rows?.length) {
     return [];
   }
 
-  const fallbackDate = normalizePortfolioWeightsInlineDate(payload.weights_date, getTodayIsoDate());
+  const fallbackDate = normalizePositionDetailInlineDate(payload.weights_date, getTodayIsoDate());
   const useSnapshotDate = sourceType === "portfolio" || sourceType === "account";
 
-  return payload.rows.reduce<PortfolioWeightsInlineRow[]>((rows, entry, index) => {
+  return payload.rows.reduce<PositionDetailInlineRow[]>((rows, entry, index) => {
     if (!isPlainRecord(entry)) {
       return rows;
     }
@@ -342,40 +343,39 @@ export function hydratePortfolioWeightsRowsFromPayload(
       assetTicker: readString(entry.asset_ticker),
       uniqueIdentifier: readString(entry.unique_identifier),
       figi: readString(entry.figi),
-      ...(sourceType === "account"
-        ? {}
-        : {
-            date: useSnapshotDate
-              ? fallbackDate
-              : normalizePortfolioWeightsInlineDate(
-                  entry.date ??
-                    entry.as_of_date ??
-                    entry.effective_date ??
-                    entry.position_date ??
-                    entry.timestamp ??
-                    entry.time_index,
-                  fallbackDate,
-                ),
-          }),
-      price: normalizePortfolioWeightsInlinePrice(
+      date: useSnapshotDate
+        ? fallbackDate
+        : normalizePositionDetailInlineDate(
+            entry.date ??
+              entry.as_of_date ??
+              entry.effective_date ??
+              entry.position_date ??
+              entry.timestamp ??
+              entry.time_index,
+            fallbackDate,
+          ),
+      price: normalizePositionDetailInlinePrice(
         entry.price ?? entry.current_price ?? entry.market_price ?? entry.last_price ?? entry.close,
       ),
-      positionType: normalizePortfolioWeightsInlinePositionType(entry.position_type, sourceType),
-      positionValue: normalizePortfolioWeightsInlinePositionValue(entry.position_value),
+      positionType:
+        sourceType === "account"
+          ? "units"
+          : normalizePositionDetailInlinePositionType(entry.position_type, sourceType),
+      positionValue: normalizePositionDetailInlinePositionValue(entry.position_value),
     });
 
     return rows;
   }, []);
 }
 
-export function normalizePortfolioWeightsDataMode(
-  props: Pick<PortfolioWeightsWidgetProps, "sourceType" | "dataMode">,
+export function normalizePositionDetailDataMode(
+  props: Pick<PositionDetailWidgetProps, "sourceType" | "dataMode">,
 ): "portfolio" | "inline" {
-  return normalizePortfolioWeightsSourceType(props) === "portfolio" ? "portfolio" : "inline";
+  return normalizePositionDetailSourceType(props) === "portfolio" ? "portfolio" : "inline";
 }
 
-export function normalizePortfolioWeightsTargetId(
-  props: Pick<PortfolioWeightsWidgetProps, "portfolioId" | "targetPortfolioId">,
+export function normalizePositionDetailTargetId(
+  props: Pick<PositionDetailWidgetProps, "portfolioId" | "targetPortfolioId">,
 ) {
   const parsed = Number(props.portfolioId ?? props.targetPortfolioId ?? "");
   if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -384,19 +384,19 @@ export function normalizePortfolioWeightsTargetId(
   return Math.trunc(parsed);
 }
 
-export function normalizePortfolioWeightsAccountUid(
-  props: Pick<PortfolioWeightsWidgetProps, "accountUid">,
+export function normalizePositionDetailAccountUid(
+  props: Pick<PositionDetailWidgetProps, "accountUid">,
 ) {
   return readString(props.accountUid) ?? "";
 }
 
-export function normalizePortfolioWeightsVariant(value: unknown): "summary" | "positions" {
+export function normalizePositionDetailVariant(value: unknown): "summary" | "positions" {
   return value === "summary" ? "summary" : "positions";
 }
 
-export function normalizePortfolioWeightsRuntimeState(
+export function normalizePositionDetailRuntimeState(
   runtimeState: Record<string, unknown> | undefined,
-): PortfolioWeightsWidgetRuntimeState {
+): PositionDetailWidgetRuntimeState {
   const value = isPlainRecord(runtimeState) ? runtimeState : {};
 
   return {
@@ -412,8 +412,8 @@ export function normalizePortfolioWeightsRuntimeState(
         ? Math.trunc(value.targetPortfolioId)
         : undefined,
     accountUid: readString(value.accountUid),
-    variant: normalizePortfolioWeightsVariant(value.variant),
-    payload: normalizePortfolioWeightsPayload(value.payload),
+    variant: normalizePositionDetailVariant(value.variant),
+    payload: normalizePositionDetailPayload(value.payload),
     lastLoadedAtMs:
       typeof value.lastLoadedAtMs === "number" && Number.isFinite(value.lastLoadedAtMs)
         ? value.lastLoadedAtMs

@@ -46,7 +46,7 @@ where to go when you need the contract for a specific widget family.
 - `extensions/main_sequence/extensions/markets/widgets/README.md`
 - `extensions/main_sequence/extensions/markets/widgets/curve-plot/README.md`
 - `extensions/main_sequence/extensions/markets/widgets/zero-curve/README.md`
-- `extensions/main_sequence/extensions/markets/widgets/portfolio-weights-table/README.md`
+- `extensions/main_sequence/extensions/markets/widgets/position-detail/README.md`
 
 ## Guidelines
 

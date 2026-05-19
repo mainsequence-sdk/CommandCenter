@@ -37,7 +37,7 @@ const financialMarketsMonitorDashboard: DashboardDefinition = {
   widgets: [
     {
       id: "overview-positions",
-      widgetId: "portfolio-weights-table",
+      widgetId: "position-detail",
       title: "Book Snapshot",
       props: {
         sourceType: "target_position",

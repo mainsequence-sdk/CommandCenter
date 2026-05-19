@@ -39,10 +39,10 @@ datasets, plus a manual table editor that also republishes one canonical tabular
   `core.tabular_frame@v1`, plus `activeRow`, `activeCell`, `activeCellValue`, and
   `selectedCellValues` as JSON values. Cell clicks populate `activeCell`, `activeCellValue`, and
   `selectedCellValues` in row and cell selection modes. Row modes publish the active clicked cell
-  as a one-item `selectedCellValues` list; cell-range selection in `cell` mode publishes the
-  ordered selected-cell list and expands `selectedRows` to the distinct rows touched by the active
-  cell selection. Selection state is stored in widget runtime state so downstream consumers can
-  resolve outputs without mutating the underlying dataset.
+  as a one-item `selectedCellValues` list; in Community AG Grid, `cell` mode currently also
+  publishes the clicked cell as a one-item list instead of using enterprise range selection.
+  Selection state is stored in widget runtime state so downstream consumers can resolve outputs
+  without mutating the underlying dataset.
 - When saved `selectionMode` is still `none` but a downstream widget reference actively consumes a
   table interaction output, the runtime infers the minimal interaction mode needed for that
   consumer so clicks can still drive `activeCellValue`, `activeRow`, or `selectedRows` without a
@@ -115,7 +115,8 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 - Table interaction runtime state now includes one frontend-owned implicit-mode flag so consumer
   driven selection can stay runtime-only even when saved `selectionMode` remains `none`. It also
   stores the ordered `selectedCells` list used to resolve `selectedCellValues` and cell-driven
-  row selection.
+  row selection. In Community AG Grid, `selectedCells` is currently populated from ordinary clicks
+  rather than enterprise range-selection APIs.
 - Selection state is local workspace runtime state. Backend registry sync picks up the extra
   output metadata through the existing widget-type manifest, but the canonical tabular dataset
   contract is unchanged and persisted widget props are unchanged.

@@ -67,8 +67,17 @@ Selection identity is always derived from the canonical asset key, not from a us
 field list. Internally the screener uses `unique_identifier` / `assetKey` so active selection can
 survive sorting, filtering, grouping, and live updates.
 
+When a downstream widget reference actively consumes one of those interaction outputs and saved
+`table.selectionMode` is still `none`, the screener runtime now infers the minimal interaction mode
+needed for that consumer. The saved widget props stay unchanged.
+
 Grouped section headers are synthetic presentation rows only. They are never published as
 `selectedRows`, `activeRow`, or `activeCell` outputs.
+
+Those outputs now resolve through the same shared table-selection helper path used by the core
+Table widget. The screener still owns asset-key sanitization and public-row projection, but nested
+variable references such as `$(screener).activeRow.symbol` now depend on the same interaction
+state semantics as the base table.
 
 The default `Trend` column renders a compact sparkline from an inline `sparklineSeries` seed field
 such as a `sparkline_prices` CSV number cell. Return columns compare latest values against inline

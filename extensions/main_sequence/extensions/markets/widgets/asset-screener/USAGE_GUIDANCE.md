@@ -70,6 +70,9 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
   `previousClose`, `yearStart`, `oneYearAgo`, or `one_day_return`.
 - When downstream widgets need row-driven variables, enable a screener selection mode and bind to
   `selectedRows`, `activeRow`, `activeCell`, `activeCellValue`, or `selectedCellValues`.
+- If a downstream widget reference actively consumes one of those interaction outputs while saved
+  `table.selectionMode` is still `none`, the screener runtime infers the minimal interaction mode
+  needed for that consumer without rewriting saved widget props.
 
 ## blockingRequirements
 
@@ -125,6 +128,8 @@ The screener publishes these runtime-only outputs:
   value, and row payload.
 - `activeCellValue`: `core.value.json@v1`. The active cell value, or `null`.
 - `selectedCellValues`: `core.value.json@v1`. The ordered list of selected cell values.
+- `activeRow` and `activeCell.row` publish a structured row object up front, so widget-reference
+  completion can offer nested fields such as `symbol` before the first live click.
 
 These outputs stay scoped to the screener runtime. They do not change connection ownership,
 upstream data, or the shared widget-variable engine.

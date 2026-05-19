@@ -1,3 +1,8 @@
+import {
+  normalizeWidgetTypeId,
+  normalizeWidgetTypeIds,
+} from "@/widgets/widget-type-normalization";
+
 const WIDGET_CATALOG_PREFERENCES_STORAGE_KEY = "command-center.widget-catalog";
 const MAX_RECENT_WIDGET_IDS = 12;
 
@@ -15,12 +20,10 @@ function normalizeIds(values: unknown, allowedWidgetIds: Set<string>) {
     return [];
   }
 
-  return Array.from(
-    new Set(
-      values
-        .map((value) => (typeof value === "string" ? value.trim() : ""))
-        .filter((value) => value.length > 0 && allowedWidgetIds.has(value)),
-    ),
+  return normalizeWidgetTypeIds(
+    values
+      .map((value) => (typeof value === "string" ? value.trim() : ""))
+      .filter((value) => value.length > 0 && allowedWidgetIds.has(normalizeWidgetTypeId(value))),
   );
 }
 
@@ -80,7 +83,8 @@ export function saveWidgetCatalogPreferences(
 }
 
 export function pushRecentWidgetId(recentWidgetIds: string[], widgetId: string) {
-  return [widgetId, ...recentWidgetIds.filter((entry) => entry !== widgetId)].slice(
+  const normalizedWidgetId = normalizeWidgetTypeId(widgetId);
+  return [normalizedWidgetId, ...recentWidgetIds.filter((entry) => entry !== normalizedWidgetId)].slice(
     0,
     MAX_RECENT_WIDGET_IDS,
   );

@@ -22,8 +22,20 @@ import {
 } from "@/widgets/core/table/tableModel";
 import { resolveIncrementalTabularBindingSnapshot } from "@/widgets/shared/incremental-tabular-consumer";
 import { materializeRuntimeTabularFrame, type RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
+import {
+  CORE_VALUE_INTEGER_CONTRACT,
+  CORE_VALUE_JSON_CONTRACT,
+  CORE_VALUE_NUMBER_CONTRACT,
+  CORE_VALUE_STRING_CONTRACT,
+} from "@/widgets/shared/value-contracts";
 import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
-import type { ResolvedWidgetInput, ResolvedWidgetInputs, WidgetInstancePresentation } from "@/widgets/types";
+import type {
+  ResolvedWidgetInput,
+  ResolvedWidgetInputs,
+  WidgetInstancePresentation,
+  WidgetObjectValueDescriptor,
+  WidgetValueDescriptor,
+} from "@/widgets/types";
 
 export type MainSequenceAssetScreenerDensity = "compact" | "comfortable";
 export type MainSequenceAssetScreenerSortDirection = "asc" | "desc";
@@ -90,6 +102,161 @@ export const assetScreenerDefaultProps = {
   },
   staleAfterMs: 5 * 60 * 1000,
 } satisfies MainSequenceAssetScreenerWidgetProps;
+
+function stringValueDescriptor(description?: string): WidgetValueDescriptor {
+  return {
+    kind: "primitive",
+    contract: CORE_VALUE_STRING_CONTRACT,
+    primitive: "string",
+    description,
+  };
+}
+
+function numberValueDescriptor(description?: string): WidgetValueDescriptor {
+  return {
+    kind: "primitive",
+    contract: CORE_VALUE_NUMBER_CONTRACT,
+    primitive: "number",
+    description,
+  };
+}
+
+function integerValueDescriptor(description?: string): WidgetValueDescriptor {
+  return {
+    kind: "primitive",
+    contract: CORE_VALUE_INTEGER_CONTRACT,
+    primitive: "integer",
+    description,
+  };
+}
+
+function jsonValueDescriptor(description?: string): WidgetValueDescriptor {
+  return {
+    kind: "unknown",
+    contract: CORE_VALUE_JSON_CONTRACT,
+    description,
+  };
+}
+
+function tagsValueDescriptor(description?: string): WidgetValueDescriptor {
+  return {
+    kind: "array",
+    contract: CORE_VALUE_JSON_CONTRACT,
+    description,
+    items: stringValueDescriptor("One asset tag."),
+  };
+}
+
+function descriptorForAssetScreenerColumn(
+  column: MarketAssetScreenerColumn,
+): WidgetValueDescriptor {
+  if (column.kind === "sparkline") {
+    return stringValueDescriptor(`Rendered screener value for ${column.label}.`);
+  }
+
+  if (
+    column.kind === "latest-value" ||
+    column.kind === "reference-value" ||
+    column.kind === "return"
+  ) {
+    return numberValueDescriptor(`Rendered screener value for ${column.label}.`);
+  }
+
+  if (column.field === "tags") {
+    return tagsValueDescriptor(`Asset tags shown in ${column.label}.`);
+  }
+
+  return stringValueDescriptor(`Rendered screener value for ${column.label}.`);
+}
+
+export function buildAssetScreenerActiveRowValueDescriptor(
+  props: MainSequenceAssetScreenerWidgetProps | Record<string, unknown> | undefined,
+): WidgetObjectValueDescriptor {
+  const normalizedProps = normalizeAssetScreenerProps(props);
+  const fields = [
+    {
+      key: "assetKey",
+      label: "Asset key",
+      value: stringValueDescriptor("Canonical asset key."),
+    },
+    {
+      key: "unique_identifier",
+      label: "Unique identifier",
+      value: stringValueDescriptor("Canonical unique identifier for the asset."),
+    },
+    {
+      key: "symbol",
+      label: "Symbol",
+      value: stringValueDescriptor("Primary asset symbol."),
+    },
+    {
+      key: "displayName",
+      label: "Display name",
+      value: stringValueDescriptor("Asset display name."),
+    },
+    {
+      key: "exchange",
+      label: "Exchange",
+      value: stringValueDescriptor("Asset exchange."),
+    },
+    {
+      key: "currency",
+      label: "Currency",
+      value: stringValueDescriptor("Asset currency."),
+    },
+    {
+      key: "country",
+      label: "Country",
+      value: stringValueDescriptor("Asset country."),
+    },
+    {
+      key: "assetClass",
+      label: "Asset class",
+      value: stringValueDescriptor("Asset class."),
+    },
+    {
+      key: "sector",
+      label: "Sector",
+      value: stringValueDescriptor("Asset sector."),
+    },
+    {
+      key: "industry",
+      label: "Industry",
+      value: stringValueDescriptor("Asset industry."),
+    },
+    {
+      key: "group",
+      label: "Group",
+      value: stringValueDescriptor("Asset group."),
+    },
+    {
+      key: "tags",
+      label: "Tags",
+      value: tagsValueDescriptor("Asset tags."),
+    },
+  ] satisfies WidgetObjectValueDescriptor["fields"];
+  const seen = new Set(fields.map((field) => field.key));
+
+  (normalizedProps.columns ?? []).forEach((column) => {
+    if (seen.has(column.id)) {
+      return;
+    }
+
+    seen.add(column.id);
+    fields.push({
+      key: column.id,
+      label: column.label,
+      value: descriptorForAssetScreenerColumn(column),
+    });
+  });
+
+  return {
+    kind: "object",
+    contract: CORE_VALUE_JSON_CONTRACT,
+    description: "Selected asset screener row.",
+    fields,
+  };
+}
 
 function normalizeColumnSignatureEntry(column: {
   id?: unknown;

@@ -407,7 +407,7 @@ This ADR is not complete until every task below is done.
 
 - [x] Add explicit contracts for [extensions/main_sequence/extensions/workbench/widgets/data-node-filter](/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/workbench/widgets/data-node-filter)
 - [x] Add explicit contracts for [extensions/main_sequence/extensions/workbench/widgets/dependency-graph](/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/workbench/widgets/dependency-graph)
-- [x] Add explicit contracts for [extensions/main_sequence/extensions/markets/widgets/portfolio-weights-table](/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/markets/widgets/portfolio-weights-table)
+- [x] Add explicit contracts for [extensions/main_sequence/extensions/markets/widgets/position-detail](/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/markets/widgets/position-detail)
 
 ### Phase 5: Main Sequence consumer widgets
 

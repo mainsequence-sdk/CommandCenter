@@ -14,6 +14,10 @@ import {
   WORKSPACE_SLIDE_GRID_COLUMNS,
   WORKSPACE_SLIDE_GRID_ROW_HEIGHT,
 } from "@/widgets/core/workspace-slide/slide-model";
+import {
+  LEGACY_PORTFOLIO_WEIGHTS_WIDGET_ID,
+  POSITION_DETAIL_WIDGET_ID,
+} from "@/widgets/widget-type-normalization";
 
 import {
   createManagedDashboardWidget,
@@ -264,6 +268,31 @@ function buildRefBackedRuntimeState(input: {
 }
 
 describe("custom dashboard storage managed widgets", () => {
+  it("migrates legacy portfolio weights widget ids to position detail during normalization", () => {
+    const normalized = sanitizeDashboardDefinition({
+      id: "workspace-legacy-position-detail",
+      title: "Workspace",
+      description: "Legacy widget id migration",
+      source: "test",
+      widgets: [
+        {
+          id: "positions-1",
+          widgetId: LEGACY_PORTFOLIO_WEIGHTS_WIDGET_ID,
+          title: "Legacy Positions",
+          layout: {
+            cols: 12,
+            rows: 8,
+          },
+          props: {
+            sourceType: "target_position",
+          },
+        },
+      ],
+    });
+
+    expect(normalized.widgets[0]?.widgetId).toBe(POSITION_DETAIL_WIDGET_ID);
+  });
+
   it("normalizes managed ownership and hidden rail visibility in workspace storage", () => {
     const normalized = sanitizeDashboardDefinition({
       id: "workspace-1",

@@ -38,6 +38,7 @@ import type {
   WidgetPortBindingValue,
 } from "@/widgets/types";
 import { migrateLegacyIncrementalTabularBindings } from "@/widgets/shared/incremental-tabular-consumer";
+import { normalizeWidgetTypeId } from "@/widgets/widget-type-normalization";
 import {
   normalizeWidgetPresentation,
   resolveDefaultWidgetPresentation,
@@ -749,17 +750,19 @@ function normalizeDashboardWidgetInstance(
   instance: DashboardWidgetInstance,
   migration: WorkspaceGridMigration,
 ): DashboardWidgetInstance {
+  const widgetId = normalizeWidgetTypeId(instance.widgetId);
   const { autoGrid: _legacyAutoGrid, ...instanceWithoutLegacyAutoGrid } =
     instance as DashboardWidgetInstance & { autoGrid?: unknown };
   const rawPosition = getWidgetPosition(instance);
   const scaled: DashboardWidgetInstance = {
     ...instanceWithoutLegacyAutoGrid,
+    widgetId,
     props: sanitizeDashboardSlideWidgetProps(
-      instance.widgetId,
+      widgetId,
       isPlainRecord(instance.props) ? cloneJson(instance.props) : instance.props,
     ),
     bindings: migrateLegacyIncrementalTabularBindings(
-      instance.widgetId,
+      widgetId,
       normalizeWidgetInstanceBindings(instance.bindings),
     ),
     managedBy: normalizeDashboardManagedWidgetOwner(instance.managedBy),
@@ -768,8 +771,8 @@ function normalizeDashboardWidgetInstance(
     runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
     publicExecution: normalizeDashboardWidgetPublicExecution(instance.publicExecution),
     layout: {
-      cols: scaleGridW(getLayoutCols(instance.layout, instance.widgetId), migration),
-      rows: scaleGridH(getLayoutRows(instance.layout, instance.widgetId), migration),
+      cols: scaleGridW(getLayoutCols(instance.layout, widgetId), migration),
+      rows: scaleGridH(getLayoutRows(instance.layout, widgetId), migration),
     },
     position: rawPosition
       ? {
@@ -779,7 +782,7 @@ function normalizeDashboardWidgetInstance(
       : undefined,
   };
 
-  const normalizedRowState = isWorkspaceRowWidgetId(instance.widgetId)
+  const normalizedRowState = isWorkspaceRowWidgetId(widgetId)
     ? normalizeDashboardRowState(instance.row, migration) ?? {
         collapsed: false,
         children: [],
@@ -885,15 +888,17 @@ function sanitizeCanonicalDashboardWidgetInstance(
   instance: DashboardWidgetInstance,
   maxColumns: number,
 ): DashboardWidgetInstance {
+  const widgetId = normalizeWidgetTypeId(instance.widgetId);
   const rawPosition = getWidgetPosition(instance);
   const nextWidget: DashboardWidgetInstance = {
     ...instance,
+    widgetId,
     props: sanitizeDashboardSlideWidgetProps(
-      instance.widgetId,
+      widgetId,
       isPlainRecord(instance.props) ? cloneJson(instance.props) : instance.props,
     ),
     bindings: migrateLegacyIncrementalTabularBindings(
-      instance.widgetId,
+      widgetId,
       normalizeWidgetInstanceBindings(instance.bindings),
     ),
     managedBy: normalizeDashboardManagedWidgetOwner(instance.managedBy),
@@ -902,8 +907,8 @@ function sanitizeCanonicalDashboardWidgetInstance(
     runtimeState: normalizeWidgetRuntimeState(instance.runtimeState),
     publicExecution: normalizeDashboardWidgetPublicExecution(instance.publicExecution),
     layout: {
-      cols: getLayoutCols(instance.layout, instance.widgetId),
-      rows: getLayoutRows(instance.layout, instance.widgetId),
+      cols: getLayoutCols(instance.layout, widgetId),
+      rows: getLayoutRows(instance.layout, widgetId),
     },
     position: rawPosition
       ? {
@@ -912,7 +917,7 @@ function sanitizeCanonicalDashboardWidgetInstance(
         }
       : undefined,
   };
-  const normalizedRowState = isWorkspaceRowWidgetId(instance.widgetId)
+  const normalizedRowState = isWorkspaceRowWidgetId(widgetId)
     ? sanitizeCanonicalDashboardRowState(instance.row, maxColumns) ?? {
         collapsed: false,
         children: [],

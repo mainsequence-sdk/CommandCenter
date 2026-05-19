@@ -1,6 +1,7 @@
 import type { AppExtension, AppRegistry, AppShellMenuEntry } from "@/app/registry/types";
 import type { AppSurfaceEntry } from "@/apps/types";
 import { env } from "@/config/env";
+import { normalizeWidgetTypeId } from "@/widgets/widget-type-normalization";
 
 import { connectionRuntimeDefinitions } from "./connection-runtime";
 
@@ -95,7 +96,8 @@ export const appRegistry: AppRegistry = {
 };
 
 export function getWidgetById(id: string) {
-  return appRegistry.widgets.find((widget) => widget.id === id);
+  const normalizedId = normalizeWidgetTypeId(id);
+  return appRegistry.widgets.find((widget) => widget.id === normalizedId);
 }
 
 export function getConnectionTypeById(id: string) {

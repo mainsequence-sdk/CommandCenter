@@ -12,24 +12,24 @@ import {
 } from "../../../../common/api";
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
 import {
-  formatPortfolioWeightPositionTypeLabel,
-  PortfolioWeightsPositionSummaryStrip,
-  PortfolioWeightsTable,
-} from "./PortfolioWeightsTable";
+  formatPositionDetailPositionTypeLabel,
+  PositionDetailPositionSummaryStrip,
+  PositionDetailTable,
+} from "./PositionDetailTable";
 import {
-  buildPortfolioWeightsInlineDisplayRows,
-  getDefaultPortfolioWeightsPositionType,
-  type PortfolioWeightsCanonicalPositionType,
-  type PortfolioWeightsSourceType,
-  type PortfolioWeightsInlinePositionType,
-  type PortfolioWeightsInlineRow,
-} from "./portfolioWeightsRuntime";
+  buildPositionDetailInlineDisplayRows,
+  getDefaultPositionDetailPositionType,
+  type PositionDetailCanonicalPositionType,
+  type PositionDetailSourceType,
+  type PositionDetailInlinePositionType,
+  type PositionDetailInlineRow,
+} from "./positionDetailRuntime";
 
 const inlinePositionTypeOptions = [
   "weight_notional_exposure",
   "units",
   "constant_notional",
-] as const satisfies readonly PortfolioWeightsCanonicalPositionType[];
+] as const satisfies readonly PositionDetailCanonicalPositionType[];
 const minimumAssetSearchLength = 3;
 
 function buildInlinePositionRowId(assetId: number) {
@@ -52,7 +52,10 @@ function safeFormatInlinePositionJson(value: unknown) {
   }
 }
 
-function buildInlineExpandedPositionRecord(row: PortfolioWeightsInlineRow) {
+function buildInlineExpandedPositionRecord(
+  row: PositionDetailInlineRow,
+  sourceType: PositionDetailSourceType,
+) {
   return {
     asset: {
       id: row.assetId,
@@ -62,13 +65,13 @@ function buildInlineExpandedPositionRecord(row: PortfolioWeightsInlineRow) {
       figi: row.figi ?? null,
     },
     ...(row.date ? { date: row.date } : {}),
-    positionType: row.positionType,
+    ...(sourceType === "account" ? {} : { positionType: row.positionType }),
     positionValue: row.positionValue,
     ...(row.price !== null && row.price !== undefined ? { price: row.price } : {}),
   };
 }
 
-function formatInlinePositionValueInput(row: PortfolioWeightsInlineRow) {
+function formatInlinePositionValueInput(row: PositionDetailInlineRow) {
   if (row.positionType === "weight_notional_exposure") {
     return new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 0,
@@ -97,7 +100,7 @@ function formatInlinePositionValueInput(row: PortfolioWeightsInlineRow) {
 
 function parseInlinePositionValueInput(
   value: string,
-  positionType: PortfolioWeightsInlinePositionType,
+  positionType: PositionDetailInlinePositionType,
 ) {
   const normalizedValue = value.replace(/[$,%\s]/g, "").replace(/,/g, "");
   const parsed = Number(normalizedValue);
@@ -113,7 +116,7 @@ function parseInlinePositionValueInput(
   return parsed;
 }
 
-export function PortfolioWeightsInlineEditor({
+export function PositionDetailInlineEditor({
   rows,
   sourceType,
   allowedPositionTypes,
@@ -121,18 +124,21 @@ export function PortfolioWeightsInlineEditor({
   holdingsDate: _holdingsDate,
   onRowsChange,
 }: {
-  rows: PortfolioWeightsInlineRow[];
-  sourceType: PortfolioWeightsSourceType;
-  allowedPositionTypes: readonly PortfolioWeightsInlinePositionType[];
+  rows: PositionDetailInlineRow[];
+  sourceType: PositionDetailSourceType;
+  allowedPositionTypes: readonly PositionDetailInlinePositionType[];
   editable: boolean;
   holdingsDate?: string;
-  onRowsChange?: (rows: PortfolioWeightsInlineRow[]) => void;
+  onRowsChange?: (rows: PositionDetailInlineRow[]) => void;
 }) {
   const [assetSearchValue, setAssetSearchValue] = useState("");
   const deferredAssetSearchValue = useDeferredValue(assetSearchValue);
   const normalizedAssetSearchValue = deferredAssetSearchValue.trim();
   const canSearchAssets = normalizedAssetSearchValue.length >= minimumAssetSearchLength;
-  const displayRows = useMemo(() => buildPortfolioWeightsInlineDisplayRows(rows), [rows]);
+  const displayRows = useMemo(
+    () => buildPositionDetailInlineDisplayRows(rows, sourceType),
+    [rows, sourceType],
+  );
   const selectedAssetIds = useMemo(() => new Set(rows.map((row) => row.assetId)), [rows]);
   const hasUnitsRows = useMemo(
     () => rows.some((row) => row.positionType === "units"),
@@ -147,14 +153,17 @@ export function PortfolioWeightsInlineEditor({
   );
   const canChoosePositionType = sourceType !== "account" && allowedPositionTypes.length > 1;
   const [expandedRowIds, setExpandedRowIds] = useState<string[]>([]);
-  const showRowDateColumn = sourceType !== "account";
+  const showUidColumn = sourceType === "portfolio";
+  const showRowDateColumn = sourceType === "portfolio";
+  const showPositionTypeColumn = sourceType !== "account";
   const showExtraDetailsColumn = sourceType === "account";
+  const showAssetIdentitySubline = sourceType !== "account";
 
   const assetSearchQuery = useQuery({
     queryKey: [
       "main_sequence",
       "assets",
-      "portfolio-weights-inline-search",
+      "position-detail-inline-search",
       normalizedAssetSearchValue,
     ],
     queryFn: () =>
@@ -187,7 +196,7 @@ export function PortfolioWeightsInlineEditor({
     [assetSearchResults, selectedAssetIds],
   );
 
-  function commitRows(nextRows: PortfolioWeightsInlineRow[]) {
+  function commitRows(nextRows: PositionDetailInlineRow[]) {
     onRowsChange?.(nextRows);
   }
 
@@ -215,14 +224,14 @@ export function PortfolioWeightsInlineEditor({
             }
           : {}),
         price: null,
-        positionType: getDefaultPortfolioWeightsPositionType(sourceType),
+        positionType: getDefaultPositionDetailPositionType(sourceType),
         positionValue: 0,
       },
     ]);
     setAssetSearchValue("");
   }
 
-  function updateRow(rowId: string, patch: Partial<PortfolioWeightsInlineRow>) {
+  function updateRow(rowId: string, patch: Partial<PositionDetailInlineRow>) {
     commitRows(
       rows.map((row) =>
         row.rowId === rowId
@@ -252,9 +261,9 @@ export function PortfolioWeightsInlineEditor({
     return (
       <div className="space-y-0">
         {sourceType !== "account" && displayRows.length > 0 ? (
-          <PortfolioWeightsPositionSummaryStrip rows={displayRows} />
+          <PositionDetailPositionSummaryStrip rows={displayRows} />
         ) : null}
-        <PortfolioWeightsTable
+        <PositionDetailTable
           columnDefs={[]}
           rows={displayRows}
           sourceType={sourceType}
@@ -307,7 +316,7 @@ export function PortfolioWeightsInlineEditor({
       ) : null}
 
       {sourceType !== "account" && displayRows.length > 0 ? (
-        <PortfolioWeightsPositionSummaryStrip rows={displayRows} />
+        <PositionDetailPositionSummaryStrip rows={displayRows} />
       ) : null}
 
       <div className="overflow-hidden rounded-[calc(var(--radius)-2px)] border border-border/70 bg-card/75">
@@ -318,9 +327,9 @@ export function PortfolioWeightsInlineEditor({
                 {[
                   "Asset Name",
                   "Asset Ticker",
-                  "UID",
+                  ...(showUidColumn ? ["UID"] : []),
                   ...(showRowDateColumn ? ["Date"] : []),
-                  "Position Type",
+                  ...(showPositionTypeColumn ? ["Position Type"] : []),
                   sourceType === "account" ? "Quantity" : "Position Value",
                   ...(showExtraDetailsColumn ? ["Extra Details"] : []),
                   "",
@@ -360,9 +369,11 @@ export function PortfolioWeightsInlineEditor({
                               <div className="truncate text-sm font-medium text-foreground">
                                 {row.assetName || `Asset ${row.assetId}`}
                               </div>
-                              <div className="mt-0.5 truncate font-mono text-[12px] text-muted-foreground">
-                                {row.figi || `ID ${row.assetId}`}
-                              </div>
+                              {showAssetIdentitySubline ? (
+                                <div className="mt-0.5 truncate font-mono text-[12px] text-muted-foreground">
+                                  {row.figi || `ID ${row.assetId}`}
+                                </div>
+                              ) : null}
                             </div>
                           </div>
                         </td>
@@ -371,11 +382,13 @@ export function PortfolioWeightsInlineEditor({
                             {row.assetTicker || "Not available"}
                           </div>
                         </td>
-                        <td className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)] align-top">
-                          <div className="font-mono text-sm text-foreground">
-                            {row.uniqueIdentifier || "Not available"}
-                          </div>
-                        </td>
+                        {showUidColumn ? (
+                          <td className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)] align-top">
+                            <div className="font-mono text-sm text-foreground">
+                              {row.uniqueIdentifier || "Not available"}
+                            </div>
+                          </td>
+                        ) : null}
                         {showRowDateColumn ? (
                           <td className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)] align-top">
                             <Input
@@ -389,42 +402,33 @@ export function PortfolioWeightsInlineEditor({
                             />
                           </td>
                         ) : null}
-                        <td className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)] align-top">
-                          {sourceType === "account" ? (
-                            <Input
-                              type="text"
-                              value={row.positionType}
-                              placeholder="units"
-                              onChange={(event) => {
-                                updateRow(row.rowId, {
-                                  positionType: event.target.value,
-                                });
-                              }}
-                            />
-                          ) : canChoosePositionType ? (
-                            <select
-                              value={row.positionType}
-                              className="flex h-10 w-full rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus:border-primary/70 focus:ring-2 focus:ring-ring/30"
-                              onChange={(event) => {
-                                updateRow(row.rowId, {
-                                  positionType: event.target.value as PortfolioWeightsInlinePositionType,
-                                });
-                              }}
-                            >
-                              {inlinePositionTypeOptions
-                                .filter((option) => allowedPositionTypes.includes(option))
-                                .map((option) => (
-                                  <option key={option} value={option}>
-                                    {formatPortfolioWeightPositionTypeLabel(option)}
-                                  </option>
-                                ))}
-                            </select>
-                          ) : (
-                            <div className="flex h-10 items-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/50 px-3 text-sm text-foreground">
-                              {formatPortfolioWeightPositionTypeLabel(row.positionType)}
-                            </div>
-                          )}
-                        </td>
+                        {showPositionTypeColumn ? (
+                          <td className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)] align-top">
+                            {canChoosePositionType ? (
+                              <select
+                                value={row.positionType}
+                                className="flex h-10 w-full rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus:border-primary/70 focus:ring-2 focus:ring-ring/30"
+                                onChange={(event) => {
+                                  updateRow(row.rowId, {
+                                    positionType: event.target.value as PositionDetailInlinePositionType,
+                                  });
+                                }}
+                              >
+                                {inlinePositionTypeOptions
+                                  .filter((option) => allowedPositionTypes.includes(option))
+                                  .map((option) => (
+                                    <option key={option} value={option}>
+                                      {formatPositionDetailPositionTypeLabel(option)}
+                                    </option>
+                                  ))}
+                              </select>
+                            ) : (
+                              <div className="flex h-10 items-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/50 px-3 text-sm text-foreground">
+                                {formatPositionDetailPositionTypeLabel(row.positionType)}
+                              </div>
+                            )}
+                          </td>
+                        ) : null}
                         <td className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)] align-top">
                           <div className="relative">
                             <Input
@@ -477,10 +481,12 @@ export function PortfolioWeightsInlineEditor({
                         <tr className="bg-background/45">
                           <td
                             colSpan={
-                              3 +
-                              (showRowDateColumn ? 1 : 0) +
-                              (showExtraDetailsColumn ? 1 : 0) +
                               2 +
+                              (showUidColumn ? 1 : 0) +
+                              (showRowDateColumn ? 1 : 0) +
+                              (showPositionTypeColumn ? 1 : 0) +
+                              (showExtraDetailsColumn ? 1 : 0) +
+                              1 +
                               1
                             }
                             className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)]"
@@ -493,7 +499,7 @@ export function PortfolioWeightsInlineEditor({
                                 Position Details
                               </div>
                               <pre className="overflow-x-auto px-3 py-3 font-mono text-[12px] leading-5 text-foreground whitespace-pre-wrap break-words">
-                                {safeFormatInlinePositionJson(buildInlineExpandedPositionRecord(row))}
+                                {safeFormatInlinePositionJson(buildInlineExpandedPositionRecord(row, sourceType))}
                               </pre>
                             </div>
                           </td>
@@ -506,10 +512,12 @@ export function PortfolioWeightsInlineEditor({
                 <tr>
                   <td
                     colSpan={
-                      3 +
-                      (showRowDateColumn ? 1 : 0) +
-                      (showExtraDetailsColumn ? 1 : 0) +
                       2 +
+                      (showUidColumn ? 1 : 0) +
+                      (showRowDateColumn ? 1 : 0) +
+                      (showPositionTypeColumn ? 1 : 0) +
+                      (showExtraDetailsColumn ? 1 : 0) +
+                      1 +
                       1
                     }
                     className="px-4 py-10"

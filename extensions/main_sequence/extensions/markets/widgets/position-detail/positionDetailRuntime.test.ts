@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  buildPortfolioWeightsInlineDisplayRows,
-  getAllowedPortfolioWeightsPositionTypes,
-  hydratePortfolioWeightsRowsFromPayload,
-  normalizePortfolioWeightsHoldingsDate,
-  normalizePortfolioWeightsPersistedRows,
-  normalizePortfolioWeightsSourceType,
-  type PortfolioWeightsInlineRow,
-} from "./portfolioWeightsRuntime";
+  buildPositionDetailInlineDisplayRows,
+  getAllowedPositionDetailPositionTypes,
+  hydratePositionDetailRowsFromPayload,
+  normalizePositionDetailHoldingsDate,
+  normalizePositionDetailPersistedRows,
+  normalizePositionDetailSourceType,
+  type PositionDetailInlineRow,
+} from "./positionDetailRuntime";
 
-describe("portfolioWeightsRuntime", () => {
+describe("positionDetailRuntime", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-18T12:00:00.000Z"));
@@ -22,24 +22,24 @@ describe("portfolioWeightsRuntime", () => {
 
   it("maps legacy inline widgets to target_position source type", () => {
     expect(
-      normalizePortfolioWeightsSourceType({
+      normalizePositionDetailSourceType({
         dataMode: "inline",
       }),
     ).toBe("target_position");
 
     expect(
-      normalizePortfolioWeightsSourceType({
+      normalizePositionDetailSourceType({
         sourceType: "account",
       }),
     ).toBe("account");
   });
 
   it("restricts allowed position types by source type", () => {
-    expect(getAllowedPortfolioWeightsPositionTypes("portfolio")).toEqual([
+    expect(getAllowedPositionDetailPositionTypes("portfolio")).toEqual([
       "weight_notional_exposure",
     ]);
-    expect(getAllowedPortfolioWeightsPositionTypes("account")).toEqual(["units"]);
-    expect(getAllowedPortfolioWeightsPositionTypes("target_position")).toEqual([
+    expect(getAllowedPositionDetailPositionTypes("account")).toEqual(["units"]);
+    expect(getAllowedPositionDetailPositionTypes("target_position")).toEqual([
       "weight_notional_exposure",
       "units",
       "constant_notional",
@@ -47,7 +47,7 @@ describe("portfolioWeightsRuntime", () => {
   });
 
   it("normalizes persisted rows and coerces position type by source contract", () => {
-    const portfolioRows = normalizePortfolioWeightsPersistedRows({
+    const portfolioRows = normalizePositionDetailPersistedRows({
       sourceType: "portfolio",
       positionRows: [
         {
@@ -61,7 +61,7 @@ describe("portfolioWeightsRuntime", () => {
           positionType: "constant_notional",
           positionValue: "2500000",
         },
-      ] as unknown as PortfolioWeightsInlineRow[],
+      ] as unknown as PositionDetailInlineRow[],
     });
 
     expect(portfolioRows).toEqual([
@@ -79,14 +79,14 @@ describe("portfolioWeightsRuntime", () => {
       },
     ]);
 
-    const accountRows = normalizePortfolioWeightsPersistedRows({
+    const accountRows = normalizePositionDetailPersistedRows({
       sourceType: "account",
       positionRows: [
         {
           assetId: 7,
           positionType: "future_usdm",
         },
-      ] as unknown as PortfolioWeightsInlineRow[],
+      ] as unknown as PositionDetailInlineRow[],
     });
 
     expect(accountRows).toEqual([
@@ -98,12 +98,12 @@ describe("portfolioWeightsRuntime", () => {
         uniqueIdentifier: undefined,
         figi: undefined,
         price: null,
-        positionType: "future_usdm",
+        positionType: "units",
         positionValue: 0,
       },
     ]);
 
-    expect(buildPortfolioWeightsInlineDisplayRows(accountRows)).toEqual([
+    expect(buildPositionDetailInlineDisplayRows(accountRows, "account")).toEqual([
       {
         id: 7,
         asset_id: 7,
@@ -111,22 +111,21 @@ describe("portfolioWeightsRuntime", () => {
         asset_ticker: null,
         unique_identifier: null,
         figi: null,
-        position_type: "future_usdm",
         position_value: 0,
       },
     ]);
   });
 
-  it("preserves transient empty account position types so the field stays editable", () => {
+  it("forces account position types back to units", () => {
     expect(
-      normalizePortfolioWeightsPersistedRows({
+      normalizePositionDetailPersistedRows({
         sourceType: "account",
         positionRows: [
           {
             assetId: 7,
-            positionType: "",
+            positionType: "future_usdm",
           },
-        ] as unknown as PortfolioWeightsInlineRow[],
+        ] as unknown as PositionDetailInlineRow[],
       }),
     ).toEqual([
       {
@@ -137,22 +136,22 @@ describe("portfolioWeightsRuntime", () => {
         uniqueIdentifier: undefined,
         figi: undefined,
         price: null,
-        positionType: "",
+        positionType: "units",
         positionValue: 0,
       },
     ]);
   });
 
   it("normalizes account holdings dates to timezone-aware ISO timestamps", () => {
-    expect(normalizePortfolioWeightsHoldingsDate("2026-05-18")).toBe("2026-05-18T00:00:00.000Z");
-    expect(normalizePortfolioWeightsHoldingsDate("2026-05-18T14:30:00Z")).toBe(
+    expect(normalizePositionDetailHoldingsDate("2026-05-18")).toBe("2026-05-18T00:00:00.000Z");
+    expect(normalizePositionDetailHoldingsDate("2026-05-18T14:30:00Z")).toBe(
       "2026-05-18T14:30:00.000Z",
     );
   });
 
   it("hydrates editable rows from runtime payload using source type rules", () => {
     expect(
-      hydratePortfolioWeightsRowsFromPayload(
+      hydratePositionDetailRowsFromPayload(
         {
           weights: null,
           position_columns: [],
@@ -193,7 +192,7 @@ describe("portfolioWeightsRuntime", () => {
 
   it("hydrates account rows using the holdings snapshot date instead of per-row time_index", () => {
     expect(
-      hydratePortfolioWeightsRowsFromPayload(
+      hydratePositionDetailRowsFromPayload(
         {
           weights: null,
           position_columns: [],
@@ -223,8 +222,9 @@ describe("portfolioWeightsRuntime", () => {
         assetTicker: undefined,
         uniqueIdentifier: "btc_spot",
         figi: undefined,
+        date: "2026-05-18",
         price: 100,
-        positionType: "future_usdm",
+        positionType: "units",
         positionValue: 12,
       },
     ]);

@@ -31,18 +31,12 @@ type MockGridApi = {
   getSelectedRows: () => MockGridRow[];
 };
 type MockAgGridReactProps = {
-  cellSelection?: boolean;
   columnDefs?: MockGridColumn[];
   onCellClicked?: (event: {
     api?: MockGridApi;
     colDef: MockGridColumn;
     column: { getColId: () => string };
     data: MockGridRow;
-  }) => void;
-  onCellSelectionChanged?: (event: {
-    api: MockGridApi;
-    finished: boolean;
-    started: boolean;
   }) => void;
   onSelectionChanged?: (event: {
     api: MockGridApi;
@@ -106,44 +100,6 @@ vi.mock("ag-grid-react", async () => {
           },
           "Select multiple rows",
         ),
-        React.createElement(
-          "button",
-          {
-            key: "select-cell-range-0-1-name",
-            "data-testid": "select-cell-range-0-1-name",
-            type: "button",
-            onClick: () => {
-              props.onCellSelectionChanged?.({
-                api: buildApi(
-                  [],
-                  {
-                    rowIndex: 1,
-                    column: {
-                      getColId: () => "name",
-                    },
-                  },
-                  [
-                    {
-                      startRow: { rowIndex: 0 },
-                      endRow: { rowIndex: 1 },
-                      columns: [
-                        {
-                          getColId: () => "name",
-                        },
-                      ],
-                      startColumn: {
-                        getColId: () => "name",
-                      },
-                    },
-                  ],
-                ),
-                finished: true,
-                started: true,
-              });
-            },
-          },
-          "Select cell range 0-1 name",
-        ),
         ...rows.flatMap((row, rowIndex) =>
           columns.map((column) => {
             const columnKey = column.field ?? column.colId ?? "";
@@ -187,13 +143,6 @@ vi.mock("ag-grid-react", async () => {
                     },
                     data: row,
                   });
-                  if (props.cellSelection) {
-                    props.onCellSelectionChanged?.({
-                      api,
-                      finished: true,
-                      started: true,
-                    });
-                  }
                 },
               },
               `Cell ${rowIndex} ${columnKey}`,
@@ -425,43 +374,6 @@ describe("TableFrameView selection publishing", () => {
           rowIndex: 1,
           columnKey: "score",
           value: 20,
-        },
-      ],
-    });
-  });
-
-  it("publishes multi-cell range state in cell mode", async () => {
-    const harness = createHarness("cell");
-    harnesses.push(harness);
-
-    await harness.render();
-    await harness.click("select-cell-range-0-1-name");
-
-    expect(harness.selectionEvents).toHaveLength(1);
-    expect(harness.selectionEvents[0]).toMatchObject({
-      mode: "cell",
-      selectedRowKeys: ['["a"]', '["b"]'],
-      selectedRowIndices: [0, 1],
-      activeRowKey: '["b"]',
-      activeRowIndex: 1,
-      activeCell: {
-        rowKey: '["b"]',
-        rowIndex: 1,
-        columnKey: "name",
-        value: "Beta",
-      },
-      selectedCells: [
-        {
-          rowKey: '["a"]',
-          rowIndex: 0,
-          columnKey: "name",
-          value: "Alpha",
-        },
-        {
-          rowKey: '["b"]',
-          rowIndex: 1,
-          columnKey: "name",
-          value: "Beta",
         },
       ],
     });

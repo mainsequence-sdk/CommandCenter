@@ -1465,9 +1465,34 @@ export function normalizeTableWidgetSelectionState(
   };
 }
 
-function resolveEffectivePublishedSelectionMode(
+export function resolveImplicitTableSelectionMode(
+  outputIds: Iterable<string>,
+): TableWidgetSelectionMode {
+  const referencedOutputIds = outputIds instanceof Set ? outputIds : new Set(outputIds);
+
+  if (referencedOutputIds.has(TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID)) {
+    return "multi-row";
+  }
+
+  if (referencedOutputIds.has(TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID)) {
+    return "single-row";
+  }
+
+  if (
+    referencedOutputIds.has(TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID) ||
+    referencedOutputIds.has(TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID) ||
+    referencedOutputIds.has(TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID)
+  ) {
+    return "cell";
+  }
+
+  return "none";
+}
+
+export function resolveEffectivePublishedSelectionMode(
   props: Pick<ResolvedTableWidgetProps, "publishSelectionOutputs" | "selectionMode">,
   selection: TableWidgetSelectionState,
+  referencedOutputIds?: Iterable<string>,
 ): TableWidgetSelectionMode {
   if (!props.publishSelectionOutputs) {
     return "none";
@@ -1479,6 +1504,10 @@ function resolveEffectivePublishedSelectionMode(
 
   if (selection.implicitMode === true && selection.mode !== "none") {
     return selection.mode;
+  }
+
+  if (referencedOutputIds) {
+    return resolveImplicitTableSelectionMode(referencedOutputIds);
   }
 
   return "none";
@@ -1634,6 +1663,67 @@ function resolveSelectedCells(
   return selection.activeCell ? [selection.activeCell] : [];
 }
 
+export function resolveTableSelectionOutputsFromFrame(
+  frame: TabularFrameSourceV1,
+  props: Pick<
+    ResolvedTableWidgetProps,
+    "publishSelectionOutputs" | "selectionMode" | "selectionKeyFields" | "uniqueIdentifierList"
+  >,
+  runtimeState?: unknown,
+) {
+  const selection = normalizeTableWidgetSelectionState(runtimeState);
+  const effectiveSelectionMode = resolveEffectivePublishedSelectionMode(props, selection);
+
+  if (effectiveSelectionMode === "none") {
+    return {
+      activeCell: null,
+      activeCellValue: null,
+      activeRow: null,
+      effectiveSelectionMode,
+      selectedCellValues: [],
+      selectedRows: [],
+      selection,
+    };
+  }
+
+  const activeRow = resolveActiveRow(
+    frame,
+    props,
+    selection,
+    { includeActiveCellFallback: effectiveSelectionMode === "cell" },
+  );
+
+  const activeCell =
+    selection.mode !== effectiveSelectionMode || !selection.activeCell
+      ? null
+      : {
+          rowKey: selection.activeCell.rowKey,
+          rowIndex: selection.activeCell.rowIndex,
+          columnKey: selection.activeCell.columnKey,
+          value:
+            (activeRow ? activeRow[selection.activeCell.columnKey] : selection.activeCell.value) ?? null,
+          row: activeRow,
+        };
+
+  const selectedRows = resolveRowsBySelection(frame, props, selection);
+  const selectedCellValues =
+    selection.mode !== effectiveSelectionMode
+      ? []
+      : resolveSelectedCells(selection).map((cell) =>
+          resolveSelectionCellValue(frame, props, cell),
+        );
+
+  return {
+    activeCell,
+    activeCellValue: activeCell ? activeCell.value ?? null : null,
+    activeRow,
+    effectiveSelectionMode,
+    selectedCellValues,
+    selectedRows,
+    selection,
+  };
+}
+
 function selectedRowsSource(frame: TabularFrameSourceV1, selectedRows: Array<Record<string, unknown>>) {
   return {
     kind: "table-widget-selection",
@@ -1653,15 +1743,11 @@ export function resolveTableWidgetSelectedRowsOutput(
 ): TabularFrameSourceV1 {
   const frame = resolveTableWidgetOutput(props, resolvedInputs, runtimeState, runtimeDataStore);
   const normalizedProps = resolveTableWidgetPropsWithFrame(props);
-  const selection = normalizeTableWidgetSelectionState(runtimeState);
-  const effectiveSelectionMode = resolveEffectivePublishedSelectionMode(
+  const { selectedRows } = resolveTableSelectionOutputsFromFrame(
+    frame,
     normalizedProps,
-    selection,
+    runtimeState,
   );
-  const selectionEnabled = effectiveSelectionMode !== "none";
-  const selectedRows = selectionEnabled
-    ? resolveRowsBySelection(frame, normalizedProps, selection)
-    : [];
 
   return {
     ...frame,
@@ -1679,22 +1765,7 @@ export function resolveTableWidgetActiveRowOutput(
 ) {
   const frame = resolveTableWidgetOutput(props, resolvedInputs, runtimeState, runtimeDataStore);
   const normalizedProps = resolveTableWidgetPropsWithFrame(props);
-  const selection = normalizeTableWidgetSelectionState(runtimeState);
-  const effectiveSelectionMode = resolveEffectivePublishedSelectionMode(
-    normalizedProps,
-    selection,
-  );
-
-  if (effectiveSelectionMode === "none") {
-    return null;
-  }
-
-  return resolveActiveRow(
-    frame,
-    normalizedProps,
-    selection,
-    { includeActiveCellFallback: effectiveSelectionMode === "cell" },
-  );
+  return resolveTableSelectionOutputsFromFrame(frame, normalizedProps, runtimeState).activeRow;
 }
 
 export function resolveTableWidgetActiveCellOutput(
@@ -1705,38 +1776,7 @@ export function resolveTableWidgetActiveCellOutput(
 ) {
   const frame = resolveTableWidgetOutput(props, resolvedInputs, runtimeState, runtimeDataStore);
   const normalizedProps = resolveTableWidgetPropsWithFrame(props);
-  const selection = normalizeTableWidgetSelectionState(runtimeState);
-  const effectiveSelectionMode = resolveEffectivePublishedSelectionMode(
-    normalizedProps,
-    selection,
-  );
-
-  if (effectiveSelectionMode === "none") {
-    return null;
-  }
-
-  const activeCell = selection.activeCell;
-
-  if (selection.mode !== effectiveSelectionMode) {
-    return null;
-  }
-
-  if (!activeCell) {
-    return null;
-  }
-
-  const row = resolveActiveRow(frame, normalizedProps, selection, {
-    includeActiveCellFallback: true,
-  });
-  const value = row ? row[activeCell.columnKey] : activeCell.value;
-
-  return {
-    rowKey: activeCell.rowKey,
-    rowIndex: activeCell.rowIndex,
-    columnKey: activeCell.columnKey,
-    value: value ?? null,
-    row,
-  };
+  return resolveTableSelectionOutputsFromFrame(frame, normalizedProps, runtimeState).activeCell;
 }
 
 export function resolveTableWidgetActiveCellValueOutput(
@@ -1745,14 +1785,9 @@ export function resolveTableWidgetActiveCellValueOutput(
   runtimeState?: unknown,
   runtimeDataStore?: RuntimeDataStore | null,
 ) {
-  const activeCell = resolveTableWidgetActiveCellOutput(
-    props,
-    resolvedInputs,
-    runtimeState,
-    runtimeDataStore,
-  );
-
-  return activeCell ? activeCell.value ?? null : null;
+  const frame = resolveTableWidgetOutput(props, resolvedInputs, runtimeState, runtimeDataStore);
+  const normalizedProps = resolveTableWidgetPropsWithFrame(props);
+  return resolveTableSelectionOutputsFromFrame(frame, normalizedProps, runtimeState).activeCellValue;
 }
 
 export function resolveTableWidgetSelectedCellValuesOutput(
@@ -1763,19 +1798,7 @@ export function resolveTableWidgetSelectedCellValuesOutput(
 ) {
   const frame = resolveTableWidgetOutput(props, resolvedInputs, runtimeState, runtimeDataStore);
   const normalizedProps = resolveTableWidgetPropsWithFrame(props);
-  const selection = normalizeTableWidgetSelectionState(runtimeState);
-  const effectiveSelectionMode = resolveEffectivePublishedSelectionMode(
-    normalizedProps,
-    selection,
-  );
-
-  if (effectiveSelectionMode === "none" || selection.mode !== effectiveSelectionMode) {
-    return [];
-  }
-
-  return resolveSelectedCells(selection).map((cell) =>
-    resolveSelectionCellValue(frame, normalizedProps, cell),
-  );
+  return resolveTableSelectionOutputsFromFrame(frame, normalizedProps, runtimeState).selectedCellValues;
 }
 
 function inferRemoteColumnFormatFromKey(

@@ -18,9 +18,10 @@ Render portfolio, account, or target-position rows with a source contract that c
 - If the source type is `portfolio`, optionally set a portfolio id so the widget can hydrate from the target portfolio weights endpoint.
 - If the source type is `account`, optionally set an account uid so the widget can hydrate from the canonical account holdings endpoint.
 - Enable `Editable in place` when authors should add assets directly on the widget and maintain rows there.
-- For `target_position`, choose the desired position type per row. `portfolio` stays fixed to weight exposure; `account` exposes the backend position type string together with quantity when you enter edit mode.
+- For `target_position`, choose the desired position type per row. `portfolio` stays fixed to weight exposure; `account` is units-only and only exposes quantity together with the top-level holdings datetime.
 - For `portfolio` and `account`, enabling `Editable in place` adds an explicit in-widget edit action. The widget still opens in display mode first.
 - In `account` edit mode, the widget shows a top-level `Holdings Date` datetime picker. It seeds from the account holdings snapshot timestamp, or the current time when no holdings rows exist yet.
+- Hydrated `account` read surfaces show that holdings snapshot timestamp back in the table `Date` column, and the expanded detail renders a holdings-shaped JSON record instead of the generic portfolio-weights row aliases.
 
 ## blockingRequirements
 
@@ -61,7 +62,7 @@ Render portfolio, account, or target-position rows with a source contract that c
 
 - Portfolio hydration uses the existing target-portfolio weights/positions endpoint through the shared Markets API layer.
 - Account hydration uses `GET /orm/api/assets/account/<account_uid>/holdings/`. If `holdings_date` is omitted, the backend returns the latest holdings snapshot.
-- Account save uses `POST /orm/api/assets/account/<account_uid>/add-holdings/` with `overwrite: true`. The widget injects `target_trade_time` from `holdingsDate`, maps blank prices to `missing_price: true`, and always sends `extra_details: {}` because that field is API-only in the current frontend contract.
+- Account save uses `POST /orm/api/assets/account/<account_uid>/add-holdings/` with `overwrite: true`. The widget injects `target_trade_time` from `holdingsDate`, maps blank prices to `missing_price: true`, always writes `position_type: "units"`, and always sends `extra_details: {}` because that field is API-only in the current frontend contract.
 - Asset add/search for authored rows reuses the existing asset list endpoint.
 - Persisted widget props now include optional additive fields:
   - `editableInPlace`
@@ -74,17 +75,18 @@ Render portfolio, account, or target-position rows with a source contract that c
 
 - Source type determines valid position types:
   - `portfolio` => only `weight_notional_exposure`
-  - `account` => defaults new rows to `units`, but account edit mode may save any backend `position_type` string that the author enters
+  - `account` => always `units`
   - `target_position` => `weight_notional_exposure`, `units`, or `constant_notional`
 - `weight_notional_exposure` values are interpreted as decimal ratios for formatting, for example `0.15` renders as `15%`.
 - `constant_notional` values are rendered as USD notionals with thousands separators.
-- Row dates apply only to `portfolio` and `target_position`.
+- Row dates on persisted authored rows apply only to `portfolio` and `target_position`.
   - `portfolio` uses the portfolio snapshot `weights_date`
   - `target_position` exposes an inline date picker and defaults new rows to today
-  - `account` keeps the snapshot datetime at the top-level `holdingsDate` field instead of per-row dates
+  - `account` keeps the canonical snapshot datetime at the top-level `holdingsDate` field instead of persisting per-row dates
+  - hydrated `account` rows still render that snapshot datetime in read mode so the date stays visible on holdings tables
 - If any authored row uses `units`, the widget surfaces a warning because there is no connected price feed here to calculate unit notional exposure.
 - Authored rows force the positions view; summary mode does not apply to locally maintained rows.
 - `portfolio` and `account` do not auto-open the editor just because inline editing is enabled. They keep the resolved positions table visible until the user explicitly enters edit mode.
-- In `account` edit mode, the table shows `Position Type`, `Quantity`, and a blocked `Extra Details` cell. `Extra Details` is not authored in the UI and can only be populated through the API.
-- In positions mode, expanding a row shows the full read-only position record as formatted JSON instead of a card-based inspector. Authored rows nest asset metadata under `asset` and keep the position fields separate.
+- In `account` edit mode, the table shows `Quantity` and a blocked `Extra Details` cell. `Position Type` is hidden because the account holdings writer is units-only. `Extra Details` is not authored in the UI and can only be populated through the API.
+- In positions mode, expanding a row shows the full read-only position record as formatted JSON instead of a card-based inspector. Authored rows nest asset metadata under `asset` and keep the position fields separate. Account holdings read mode renders a canonical holdings-shaped JSON block there instead of the generic display-row aliases.
 - The top positions summary separates totals by position type so notionals are not mixed with percentage-based exposure rows. Account mode hides that strip because raw holdings quantities are not meaningful as one aggregate total.
