@@ -30,6 +30,8 @@ const sourceTypeHelpText: Record<PositionDetailSourceType, string> = {
     "Account source hydrates the canonical holdings snapshot first, then saves edited holdings back through the managed-account add-holdings endpoint with a top-level holdings datetime.",
   target_position:
     "Target position source rows can use weight from notional exposure, units, or constant notional.",
+  target_positions_account:
+    "Target positions account rows behave like target position authoring, but save an account-scoped target-position assignment through the managed-account add-target-positions endpoint with a top-level target positions datetime.",
 };
 
 export function PositionDetailWidgetSettings({
@@ -62,7 +64,7 @@ export function PositionDetailWidgetSettings({
 
       <label className="space-y-2">
         <WidgetSettingFieldLabel
-          help="Source type determines how rows are interpreted. Portfolio rows are weights, account rows are holdings rows with a top-level holdings datetime, and target position rows can use any supported position type."
+          help="Source type determines how rows are interpreted. Portfolio rows are weights, account rows are holdings rows with a top-level holdings datetime, target position rows are local-authored, and target positions account rows are local-authored rows that save to an account assignment endpoint."
           textClassName="text-sm font-medium text-topbar-foreground"
         >
           Source type
@@ -84,6 +86,7 @@ export function PositionDetailWidgetSettings({
           <option value="portfolio">Portfolio</option>
           <option value="account">Account</option>
           <option value="target_position">Target Position</option>
+          <option value="target_positions_account">Target Positions Account</option>
         </Select>
         <p className="text-sm text-muted-foreground">{sourceTypeHelpText[sourceType]}</p>
       </label>
@@ -167,7 +170,7 @@ export function PositionDetailWidgetSettings({
             }}
           />
           <p className="text-sm text-muted-foreground">
-            {sourceType === "account"
+            {sourceType === "account" || sourceType === "target_positions_account"
               ? "Hydrates latest account holdings from the canonical holdings endpoint until you enter edit mode and save a new holdings snapshot."
               : "Ignored for portfolio and target position source types."}
           </p>
@@ -196,7 +199,7 @@ export function PositionDetailWidgetSettings({
           <p className="text-sm text-muted-foreground">
             {sourceType === "portfolio" && draftProps.editableInPlace !== true
               ? "Summary is available only for hydrated portfolio data. Once you edit inline, the widget uses detailed positions."
-              : "Account and target position sources always render detailed positions."}
+              : "Account, target position, and target positions account sources always render detailed positions."}
           </p>
         </label>
       </div>

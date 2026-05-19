@@ -1,5 +1,6 @@
 [
   {
+    "uid": "virtual-fund-rates-carry-sleeve",
     "id": 11,
     "target_portfolio_id": 901,
     "target_portfolio_name": "Rates Carry Sleeve",
@@ -7,6 +8,7 @@
     "account_name": "Alpha Rates Book"
   },
   {
+    "uid": "virtual-fund-macro-rotation-sleeve",
     "id": 12,
     "target_portfolio_id": 902,
     "target_portfolio_name": "Macro Rotation Sleeve",
@@ -14,6 +16,7 @@
     "account_name": "Macro Overlay Book"
   },
   {
+    "uid": "virtual-fund-energy-tactical-sleeve",
     "id": 13,
     "target_portfolio_id": 903,
     "target_portfolio_name": "Energy Tactical Sleeve",

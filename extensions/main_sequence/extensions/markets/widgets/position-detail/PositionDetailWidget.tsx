@@ -13,6 +13,7 @@ import type { WidgetComponentProps } from "@/widgets/types";
 import {
   formatMainSequenceError,
   saveManagedAccountHoldings,
+  saveManagedAccountTargetPositions,
   type TargetPositionDetailPositionDetailsResponse,
 } from "../../../../common/api";
 import {
@@ -30,6 +31,7 @@ import {
   normalizePositionDetailRuntimeState,
   normalizePositionDetailSourceType,
   normalizePositionDetailTargetId,
+  normalizePositionDetailTargetPositionsDate,
   normalizePositionDetailVariant,
   type PositionDetailWidgetProps,
 } from "./positionDetailRuntime";
@@ -59,11 +61,13 @@ function parseDateTimeLocalValue(value: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-function PositionDetailHoldingsDateField({
+function PositionDetailDateTimeField({
+  label,
   value,
   editable,
   onChange,
 }: {
+  label: string;
   value: string;
   editable: boolean;
   onChange?: (nextValue: string) => void;
@@ -71,7 +75,7 @@ function PositionDetailHoldingsDateField({
   return (
     <label className="space-y-2">
       <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-        Holdings Date
+        {label}
       </div>
       <input
         type="datetime-local"
@@ -127,6 +131,51 @@ function buildManagedAccountHoldingsPayload(
   };
 }
 
+function buildManagedAccountTargetPositionsPayload(
+  rows: ReturnType<typeof normalizePositionDetailPersistedRows>,
+  targetPositionsDate: string,
+) {
+  if (rows.length === 0) {
+    throw new Error("Add at least one target-position row before saving.");
+  }
+
+  return {
+    target_positions_date: targetPositionsDate,
+    overwrite: false,
+    positions: rows.map((row) => {
+      const uniqueIdentifier = row.uniqueIdentifier?.trim();
+      if (!uniqueIdentifier) {
+        throw new Error(`Asset ${row.assetName ?? row.assetId} is missing a unique identifier.`);
+      }
+
+      if (row.positionType === "weight_notional_exposure") {
+        return {
+          unique_identifier: uniqueIdentifier,
+          weight_notional_exposure: String(row.positionValue),
+        };
+      }
+
+      if (row.positionType === "constant_notional") {
+        return {
+          unique_identifier: uniqueIdentifier,
+          constant_notional_exposure: String(row.positionValue),
+        };
+      }
+
+      if (row.positionType === "units") {
+        return {
+          unique_identifier: uniqueIdentifier,
+          single_asset_quantity: String(row.positionValue),
+        };
+      }
+
+      throw new Error(
+        `Asset ${row.assetName ?? row.assetId} has an unsupported position type: ${row.positionType}.`,
+      );
+    }),
+  };
+}
+
 export function PositionDetailWidget({
   instanceId,
   props,
@@ -155,18 +204,27 @@ export function PositionDetailWidget({
   const persistedRows = normalizePositionDetailPersistedRows(props);
   const hydratedRows = hydratePositionDetailRowsFromPayload(payload, sourceType);
   const effectiveRows = persistedRows.length > 0 ? persistedRows : hydratedRows;
+  const accountHoldingsDateSource = props.holdingsDate ?? payload?.weights_date;
   const resolvedAccountHoldingsDate =
-    sourceType === "account"
-      ? normalizePositionDetailHoldingsDate(props.holdingsDate ?? payload?.weights_date)
+    sourceType === "account" && accountHoldingsDateSource
+      ? normalizePositionDetailHoldingsDate(accountHoldingsDateSource)
+      : undefined;
+  const targetPositionsDateSource = props.targetPositionsDate;
+  const resolvedTargetPositionsDate =
+    sourceType === "target_positions_account" && targetPositionsDateSource
+      ? normalizePositionDetailTargetPositionsDate(targetPositionsDateSource)
       : undefined;
   const allowedPositionTypes = getAllowedPositionDetailPositionTypes(sourceType);
   const inlineEditingAvailable =
     props.editableInPlace === true && editable && typeof onPropsChange === "function";
   const supportsExplicitEditToggle = sourceType === "portfolio" || sourceType === "account";
+  const alwaysInlineAuthoringSource =
+    sourceType === "target_position" || sourceType === "target_positions_account";
   const [inlineEditMode, setInlineEditMode] = useState(
-    inlineEditingAvailable && sourceType === "target_position",
+    inlineEditingAvailable && alwaysInlineAuthoringSource,
   );
   const [accountEditDate, setAccountEditDate] = useState(getCurrentIsoTimestamp());
+  const [targetPositionsEditDate, setTargetPositionsEditDate] = useState(getCurrentIsoTimestamp());
   const canHydrateFromBackend =
     (sourceType === "portfolio" && targetPortfolioId > 0) ||
     (sourceType === "account" && Boolean(accountUid));
@@ -193,10 +251,10 @@ export function PositionDetailWidget({
       return;
     }
 
-    if (sourceType === "target_position") {
+    if (alwaysInlineAuthoringSource) {
       setInlineEditMode(true);
     }
-  }, [inlineEditingAvailable, sourceType]);
+  }, [alwaysInlineAuthoringSource, inlineEditingAvailable]);
 
   useEffect(() => {
     if (!inlineEditMode || sourceType !== "account") {
@@ -205,6 +263,14 @@ export function PositionDetailWidget({
 
     setAccountEditDate(resolvedAccountHoldingsDate ?? getCurrentIsoTimestamp());
   }, [inlineEditMode, resolvedAccountHoldingsDate, sourceType]);
+
+  useEffect(() => {
+    if (!inlineEditMode || sourceType !== "target_positions_account") {
+      return;
+    }
+
+    setTargetPositionsEditDate(resolvedTargetPositionsDate ?? getCurrentIsoTimestamp());
+  }, [inlineEditMode, resolvedTargetPositionsDate, sourceType]);
 
   const saveHoldingsMutation = useMutation({
     mutationFn: async () => {
@@ -262,6 +328,62 @@ export function PositionDetailWidget({
     },
   });
 
+  const saveTargetPositionsMutation = useMutation({
+    mutationFn: async () => {
+      if (widgetPreviewMode) {
+        throw new Error("Saving target positions is not available from widget preview mode.");
+      }
+
+      if (sourceType !== "target_positions_account" || !accountUid) {
+        throw new Error("A valid account uid is required to save target positions.");
+      }
+
+      const normalizedTargetPositionsDate = normalizePositionDetailTargetPositionsDate(
+        targetPositionsEditDate,
+      );
+
+      return saveManagedAccountTargetPositions(
+        accountUid,
+        buildManagedAccountTargetPositionsPayload(
+          effectiveRows,
+          normalizedTargetPositionsDate,
+        ),
+      );
+    },
+    onSuccess: (nextPayload) => {
+      if (sourceType !== "target_positions_account") {
+        return;
+      }
+
+      const nextTargetPositionsDate = normalizePositionDetailTargetPositionsDate(
+        nextPayload.target_positions_date ?? targetPositionsEditDate,
+      );
+
+      setTargetPositionsEditDate(nextTargetPositionsDate);
+      onPropsChange?.({
+        ...props,
+        sourceType,
+        accountUid,
+        targetPositionsDate: nextTargetPositionsDate,
+        variant: "positions",
+        positionRows: effectiveRows,
+      });
+
+      toast({
+        variant: "success",
+        title: "Target positions saved",
+        description: "The account target-position assignment was saved successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Target positions save failed",
+        description: formatMainSequenceError(error),
+      });
+    },
+  });
+
   if (sourceType === "portfolio" && (!Number.isFinite(targetPortfolioId) || targetPortfolioId <= 0) && persistedRows.length === 0) {
     return (
       <Card>
@@ -282,8 +404,18 @@ export function PositionDetailWidget({
     );
   }
 
+  if (sourceType === "target_positions_account" && !accountUid) {
+    return (
+      <Card>
+        <CardContent className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">
+          Set a valid account uid to save target positions for this widget.
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (
-    sourceType === "target_position" &&
+    (sourceType === "target_position" || sourceType === "target_positions_account") &&
     effectiveRows.length === 0 &&
     props.editableInPlace !== true
   ) {
@@ -319,13 +451,14 @@ export function PositionDetailWidget({
     );
   }
 
-  if (inlineEditingAvailable && (sourceType === "target_position" || inlineEditMode)) {
+  if (inlineEditingAvailable && (alwaysInlineAuthoringSource || inlineEditMode)) {
     return (
       <div className="space-y-3">
-        {supportsExplicitEditToggle ? (
+        {supportsExplicitEditToggle || sourceType === "target_positions_account" ? (
           <div className="flex flex-wrap items-end justify-between gap-3">
             {sourceType === "account" ? (
-              <PositionDetailHoldingsDateField
+              <PositionDetailDateTimeField
+                label="Holdings Date"
                 value={accountEditDate}
                 editable
                 onChange={(nextDate) => {
@@ -334,6 +467,23 @@ export function PositionDetailWidget({
                     ...props,
                     sourceType,
                     holdingsDate: nextDate,
+                    variant: "positions",
+                    positionRows: effectiveRows,
+                  });
+                }}
+              />
+            ) : sourceType === "target_positions_account" ? (
+              <PositionDetailDateTimeField
+                label="Target Positions Date"
+                value={targetPositionsEditDate}
+                editable
+                onChange={(nextDate) => {
+                  setTargetPositionsEditDate(nextDate);
+                  onPropsChange?.({
+                    ...props,
+                    sourceType,
+                    accountUid,
+                    targetPositionsDate: nextDate,
                     variant: "positions",
                     positionRows: effectiveRows,
                   });
@@ -358,14 +508,31 @@ export function PositionDetailWidget({
                   Save holdings
                 </Button>
               ) : null}
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setInlineEditMode(false)}
-              >
-                Done editing
-              </Button>
+              {sourceType === "target_positions_account" && !widgetPreviewMode ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    void saveTargetPositionsMutation.mutateAsync();
+                  }}
+                  disabled={saveTargetPositionsMutation.isPending || effectiveRows.length === 0}
+                >
+                  {saveTargetPositionsMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  Save target positions
+                </Button>
+              ) : null}
+              {supportsExplicitEditToggle ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setInlineEditMode(false)}
+                >
+                  Done editing
+                </Button>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -374,7 +541,13 @@ export function PositionDetailWidget({
           sourceType={sourceType}
           allowedPositionTypes={allowedPositionTypes}
           editable={editable}
-          holdingsDate={sourceType === "account" ? accountEditDate : undefined}
+          holdingsDate={
+            sourceType === "account"
+              ? accountEditDate
+              : sourceType === "target_positions_account"
+                ? targetPositionsEditDate
+                : undefined
+          }
           onRowsChange={
             onPropsChange
               ? (nextRows) => {
@@ -383,6 +556,10 @@ export function PositionDetailWidget({
                     sourceType,
                     holdingsDate:
                       sourceType === "account" ? accountEditDate : props.holdingsDate,
+                    targetPositionsDate:
+                      sourceType === "target_positions_account"
+                        ? targetPositionsEditDate
+                        : props.targetPositionsDate,
                     variant: "positions",
                     positionRows: nextRows,
                   });
@@ -425,13 +602,23 @@ export function PositionDetailWidget({
     <div className="space-y-3">
       {sourceType === "account" && resolvedAccountHoldingsDate ? (
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <PositionDetailHoldingsDateField
+          <PositionDetailDateTimeField
+            label="Holdings Date"
             value={resolvedAccountHoldingsDate}
             editable={false}
           />
           {inlineEditingAvailable && supportsExplicitEditToggle ? (
             <div />
           ) : null}
+        </div>
+      ) : null}
+      {sourceType === "target_positions_account" && resolvedTargetPositionsDate ? (
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <PositionDetailDateTimeField
+            label="Target Positions Date"
+            value={resolvedTargetPositionsDate}
+            editable={false}
+          />
         </div>
       ) : null}
       {inlineEditingAvailable && supportsExplicitEditToggle ? (

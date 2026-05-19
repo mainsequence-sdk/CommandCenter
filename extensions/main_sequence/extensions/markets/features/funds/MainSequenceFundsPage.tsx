@@ -47,6 +47,11 @@ function formatFundName(value: string | null | undefined, fallback: string) {
   return trimmedValue ? trimmedValue : fallback;
 }
 
+function formatFundUid(value: string | null | undefined) {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? trimmedValue : "UID unavailable";
+}
+
 function formatLinkedId(value: number | null | undefined, label: string) {
   return Number.isFinite(value) && Number(value) > 0 ? `${label} ${value}` : `${label} not linked`;
 }
@@ -254,10 +259,13 @@ export function MainSequenceFundsPage() {
                 </thead>
                 <tbody>
                   {pageRows.map((fund) => (
-                    <tr key={fund.id}>
+                    <tr key={fund.uid}>
                       <td className={getRegistryTableCellClassName(false, "left")}>
                         <div className="font-medium text-foreground">
-                          {formatFundName(fund.target_portfolio_name, `Portfolio ${fund.target_portfolio_id ?? "—"}`)}
+                          {formatFundName(
+                            fund.target_portfolio_name,
+                            `Portfolio ${fund.target_portfolio_id ?? "—"}`,
+                          )}
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
                           {formatLinkedId(fund.target_portfolio_id, "Portfolio ID")}
@@ -272,7 +280,10 @@ export function MainSequenceFundsPage() {
                         </div>
                       </td>
                       <td className={getRegistryTableCellClassName(false, "right")}>
-                        <div className="font-medium text-foreground">{`Fund ${fund.id}`}</div>
+                        <div className="font-medium text-foreground">Virtual fund</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {formatFundUid(fund.uid)}
+                        </div>
                       </td>
                     </tr>
                   ))}

@@ -41,7 +41,11 @@ export async function executePositionDetailWidget(
   const variant = normalizePositionDetailVariant(props.variant);
   const persistedRows = normalizePositionDetailPersistedRows(props);
 
-  if (sourceType === "target_position" || persistedRows.length > 0) {
+  if (
+    sourceType === "target_position" ||
+    sourceType === "target_positions_account" ||
+    persistedRows.length > 0
+  ) {
     return {
       status: "skipped",
       runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {

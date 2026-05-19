@@ -32,6 +32,11 @@ describe("positionDetailRuntime", () => {
         sourceType: "account",
       }),
     ).toBe("account");
+    expect(
+      normalizePositionDetailSourceType({
+        sourceType: "target_positions_account",
+      }),
+    ).toBe("target_positions_account");
   });
 
   it("restricts allowed position types by source type", () => {
@@ -40,6 +45,11 @@ describe("positionDetailRuntime", () => {
     ]);
     expect(getAllowedPositionDetailPositionTypes("account")).toEqual(["units"]);
     expect(getAllowedPositionDetailPositionTypes("target_position")).toEqual([
+      "weight_notional_exposure",
+      "units",
+      "constant_notional",
+    ]);
+    expect(getAllowedPositionDetailPositionTypes("target_positions_account")).toEqual([
       "weight_notional_exposure",
       "units",
       "constant_notional",
@@ -112,6 +122,32 @@ describe("positionDetailRuntime", () => {
         unique_identifier: null,
         figi: null,
         position_value: 0,
+      },
+    ]);
+
+    const targetPositionsAccountRows = normalizePositionDetailPersistedRows({
+      sourceType: "target_positions_account",
+      positionRows: [
+        {
+          assetId: 9,
+          positionType: "constant_notional",
+          date: "2026-05-17",
+          positionValue: 2500,
+        },
+      ] as unknown as PositionDetailInlineRow[],
+    });
+
+    expect(targetPositionsAccountRows).toEqual([
+      {
+        rowId: "position-row-9-1",
+        assetId: 9,
+        assetName: undefined,
+        assetTicker: undefined,
+        uniqueIdentifier: undefined,
+        figi: undefined,
+        price: null,
+        positionType: "constant_notional",
+        positionValue: 2500,
       },
     ]);
   });

@@ -38,6 +38,29 @@ describe("positionDetailExecution", () => {
     });
   });
 
+  it("does not execute backend loading for target positions account sources", async () => {
+    const result = await executePositionDetailWidget({
+      props: {
+        sourceType: "target_positions_account",
+        accountUid: "managed-account-26",
+        editableInPlace: true,
+        positionRows: [],
+      },
+      runtimeState: undefined,
+      instanceId: "position-detail-account-target-positions",
+      widgetId: "position-detail",
+    } as never);
+
+    expect(fetchTargetPositionDetailPositionDetails).not.toHaveBeenCalled();
+    expect(fetchManagedAccountHoldingsPositionDetails).not.toHaveBeenCalled();
+    expect(result.status).toBe("skipped");
+    expect(result.runtimeStatePatch).toMatchObject({
+      status: "idle",
+      variant: "positions",
+      payload: undefined,
+    });
+  });
+
   it("does not execute backend loading once local rows exist", () => {
     expect(
       positionDetailExecutionDefinition.canExecute({

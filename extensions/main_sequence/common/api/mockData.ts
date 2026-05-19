@@ -1982,15 +1982,49 @@ function handleInstrumentsConfiguration(route: string, method: string, init?: Re
   return undefined;
 }
 
-function handleVirtualFunds(route: string, method: string, searchParams: URLSearchParams) {
+function handleVirtualFunds(
+  route: string,
+  method: string,
+  searchParams: URLSearchParams,
+  init?: RequestInit,
+) {
   if (route === "/orm/api/assets/virtualfund/" && method === "GET") {
     const filtered = state.virtualFunds.filter((fund) =>
       matchesSearch(
-        [fund.id, fund.target_portfolio_name, fund.account_name],
+        [fund.uid, fund.id, fund.target_portfolio_name, fund.account_name],
         searchParams.get("search"),
       ),
     );
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
+  }
+
+  if (route === "/orm/api/assets/virtualfund/" && method === "POST") {
+    const body = parseBody(init);
+    const record = {
+      uid: readOptionalString(body?.uid) || `virtual-fund-${Date.now()}`,
+      id: nextId(state.virtualFunds),
+      target_portfolio_id: readNumber(body?.target_portfolio_id ?? body?.target_portfolio) || null,
+      target_portfolio_name:
+        readString(body?.target_portfolio_name) || "Virtual Fund Portfolio",
+      account_id: readNumber(body?.account_id ?? body?.related_account ?? body?.account) || null,
+      account_name: readString(body?.account_name) || "Managed Account",
+      ...((body as Record<string, unknown> | null) ?? {}),
+    };
+    state.virtualFunds.unshift(record);
+    return record;
+  }
+
+  const detailMatch = route.match(/^\/orm\/api\/assets\/virtualfund\/([^/]+)\/$/);
+  if (detailMatch && method === "GET") {
+    const fundUid = decodeURIComponent(detailMatch[1]);
+    return state.virtualFunds.find((fund) => readOptionalString(fund.uid) === fundUid);
+  }
+
+  if (detailMatch && method === "PATCH") {
+    const fundUid = decodeURIComponent(detailMatch[1]);
+    const record = state.virtualFunds.find((fund) => readOptionalString(fund.uid) === fundUid);
+    Object.assign(record ?? {}, parseBody(init) ?? {});
+    return record;
   }
 
   return undefined;
@@ -2242,6 +2276,36 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
         target_trade_time: readString(position.target_trade_time) || null,
         extra_details:
           isRecord(position.extra_details) ? position.extra_details : {},
+      })),
+    };
+  }
+
+  const addTargetPositionsMatch = route.match(
+    /^\/orm\/api\/assets\/account\/([^/]+)\/add-target-positions\/$/,
+  );
+
+  if (addTargetPositionsMatch && method === "POST") {
+    const accountUid = decodeURIComponent(addTargetPositionsMatch[1]);
+    const account = findManagedAccountByUid(accountUid);
+    const body = parseBody(init) ?? {};
+    const positions = readArray<Record<string, unknown>>(body.positions);
+
+    if (!account) {
+      return {};
+    }
+
+    return {
+      related_account_uid: accountUid,
+      target_positions_date: readString(body.target_positions_date) || new Date().toISOString(),
+      position_set_uid: `mock-target-positions-set-${accountUid}`,
+      positions: positions.map((position) => ({
+        unique_identifier: readString(position.unique_identifier) || null,
+        weight_notional_exposure:
+          readString(position.weight_notional_exposure) || null,
+        constant_notional_exposure:
+          readString(position.constant_notional_exposure) || null,
+        single_asset_quantity:
+          readString(position.single_asset_quantity) || null,
       })),
     };
   }
@@ -3813,7 +3877,7 @@ export function getMainSequenceMockResponse<T>({
     handleTargetPortfolios(route, method, url.searchParams) ??
     handleTranslationTables(route, method, url.searchParams, init) ??
     handleInstrumentsConfiguration(route, method, init) ??
-    handleVirtualFunds(route, method, url.searchParams) ??
+    handleVirtualFunds(route, method, url.searchParams, init) ??
     handleManagedAccounts(route, method, url.searchParams, init) ??
     handleManagedAccountHoldingsDataSources(route, method, url.searchParams) ??
     handleProjectDataSources(route, method, url.searchParams, init) ??

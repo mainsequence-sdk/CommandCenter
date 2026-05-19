@@ -507,13 +507,20 @@ export interface CreateExecutionVenueInput {
   name: string;
 }
 
-export interface VirtualFundListRow {
-  id: number;
-  target_portfolio_id: number | null;
-  target_portfolio_name: string;
-  account_id: number | null;
-  account_name: string;
+export interface VirtualFundListRow extends Record<string, unknown> {
+  uid: string;
+  id?: number | null;
+  target_portfolio_id?: number | null;
+  target_portfolio_name?: string | null;
+  account_id?: number | null;
+  account_name?: string | null;
 }
+
+export interface VirtualFundRecord extends VirtualFundListRow {}
+
+export interface CreateVirtualFundInput extends Record<string, unknown> {}
+
+export interface UpdateVirtualFundInput extends Record<string, unknown> {}
 
 export interface ManagedAccountListRow extends Record<string, unknown> {
   uid: string;
@@ -767,6 +774,33 @@ export interface ManagedAccountHoldingsWriteResponse {
   holdings_date: string | null;
   holdings_set_uid: string | null;
   positions: ManagedAccountSavedHoldingRow[];
+}
+
+export interface ManagedAccountTargetPositionsWritePositionInput {
+  unique_identifier: string;
+  weight_notional_exposure?: string;
+  constant_notional_exposure?: string;
+  single_asset_quantity?: string;
+}
+
+export interface ManagedAccountTargetPositionsWriteInput {
+  target_positions_date: string;
+  overwrite?: boolean;
+  positions: ManagedAccountTargetPositionsWritePositionInput[];
+}
+
+export interface ManagedAccountSavedTargetPositionRow {
+  unique_identifier: string | null;
+  weight_notional_exposure: string | number | null;
+  constant_notional_exposure: string | number | null;
+  single_asset_quantity: string | number | null;
+}
+
+export interface ManagedAccountTargetPositionsWriteResponse {
+  related_account_uid: string | null;
+  target_positions_date: string | null;
+  position_set_uid: string | null;
+  positions: ManagedAccountSavedTargetPositionRow[];
 }
 
 function encodePathSegment(value: string) {
@@ -2090,6 +2124,51 @@ function normalizeManagedAccountHoldingsWriteResponse(
       typeof record.related_account === "number" ? record.related_account : null,
     holdings_date: typeof record.holdings_date === "string" ? record.holdings_date : null,
     holdings_set_uid: typeof record.holdings_set_uid === "string" ? record.holdings_set_uid : null,
+    positions,
+  };
+}
+
+function normalizeManagedAccountTargetPositionsWriteResponse(
+  value: unknown,
+): ManagedAccountTargetPositionsWriteResponse {
+  const record = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+  const positions = Array.isArray(record.positions)
+    ? record.positions
+        .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+        .map((entry) => {
+          const row = entry as Record<string, unknown>;
+          return {
+            unique_identifier:
+              typeof row.unique_identifier === "string" ? row.unique_identifier : null,
+            weight_notional_exposure:
+              typeof row.weight_notional_exposure === "string" ||
+              typeof row.weight_notional_exposure === "number"
+                ? row.weight_notional_exposure
+                : null,
+            constant_notional_exposure:
+              typeof row.constant_notional_exposure === "string" ||
+              typeof row.constant_notional_exposure === "number"
+                ? row.constant_notional_exposure
+                : null,
+            single_asset_quantity:
+              typeof row.single_asset_quantity === "string" ||
+              typeof row.single_asset_quantity === "number"
+                ? row.single_asset_quantity
+                : null,
+          } satisfies ManagedAccountSavedTargetPositionRow;
+        })
+    : [];
+
+  return {
+    related_account_uid:
+      typeof record.related_account_uid === "string" ? record.related_account_uid : null,
+    target_positions_date:
+      typeof record.target_positions_date === "string" ? record.target_positions_date : null,
+    position_set_uid:
+      typeof record.position_set_uid === "string" ? record.position_set_uid : null,
     positions,
   };
 }
@@ -3962,6 +4041,34 @@ export async function listVirtualFunds({
   return normalizeOffsetPaginatedResponse(payload, limit, offset);
 }
 
+export function fetchVirtualFundDetail(fundUid: string) {
+  return requestJson<VirtualFundRecord>(
+    virtualFundEndpoint,
+    `${encodePathSegment(fundUid)}/`,
+  );
+}
+
+export function createVirtualFund(input: CreateVirtualFundInput) {
+  return requestJson<VirtualFundRecord>(virtualFundEndpoint, "", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateVirtualFund(
+  fundUid: string,
+  input: UpdateVirtualFundInput,
+) {
+  return requestJson<VirtualFundRecord>(
+    virtualFundEndpoint,
+    `${encodePathSegment(fundUid)}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
 export async function listManagedAccounts({
   search,
   limit = mainSequenceRegistryPageSize,
@@ -4335,6 +4442,22 @@ export async function saveManagedAccountHoldings(
   return adaptManagedAccountHoldingsWriteResponseToPositionDetails(
     normalizeManagedAccountHoldingsWriteResponse(payload),
   );
+}
+
+export async function saveManagedAccountTargetPositions(
+  accountUid: string,
+  input: ManagedAccountTargetPositionsWriteInput,
+) {
+  const payload = await requestJson<ManagedAccountTargetPositionsWriteResponse | Record<string, unknown>>(
+    managedAccountEndpoint,
+    `${encodePathSegment(accountUid)}/add-target-positions/`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+
+  return normalizeManagedAccountTargetPositionsWriteResponse(payload);
 }
 
 export async function listAssetTranslationTables({

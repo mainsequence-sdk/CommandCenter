@@ -41,12 +41,17 @@ function buildManagedAccountHoldingsWidgetProps(
   };
 }
 
-const initialManagedAccountTargetPositionEditorProps: PositionDetailWidgetProps = {
-  editableInPlace: true,
-  sourceType: "target_position",
-  variant: "positions",
-  positionRows: [],
-};
+function buildManagedAccountTargetPositionWidgetProps(
+  accountUid: string | null,
+): PositionDetailWidgetProps {
+  return {
+    editableInPlace: true,
+    sourceType: "target_positions_account",
+    accountUid: accountUid ?? undefined,
+    variant: "positions",
+    positionRows: [],
+  };
+}
 
 function isManagedAccountDetailTabId(
   value: string | null,
@@ -81,7 +86,9 @@ export function MainSequenceManagedAccountDetailPage() {
     normalizeManagedAccountDetailTabId(searchParams.get("accountTab")) ??
     defaultManagedAccountDetailTabId;
   const [targetPositionEditorProps, setTargetPositionEditorProps] =
-    useState<PositionDetailWidgetProps>(initialManagedAccountTargetPositionEditorProps);
+    useState<PositionDetailWidgetProps>(() =>
+      buildManagedAccountTargetPositionWidgetProps(managedAccountUid),
+    );
   const [holdingsWidgetProps, setHoldingsWidgetProps] =
     useState<PositionDetailWidgetProps>(() =>
       buildManagedAccountHoldingsWidgetProps(managedAccountUid),
@@ -90,6 +97,13 @@ export function MainSequenceManagedAccountDetailPage() {
   useEffect(
     () => {
       setHoldingsWidgetProps(buildManagedAccountHoldingsWidgetProps(managedAccountUid));
+    },
+    [managedAccountUid],
+  );
+
+  useEffect(
+    () => {
+      setTargetPositionEditorProps(buildManagedAccountTargetPositionWidgetProps(managedAccountUid));
     },
     [managedAccountUid],
   );
@@ -260,7 +274,7 @@ export function MainSequenceManagedAccountDetailPage() {
               <CardHeader className="border-b border-border/70 pb-4">
                 <CardTitle className="text-base">Target Position</CardTitle>
                 <CardDescription>
-                  Draft or review target-position rows directly in this account view until a dedicated target-position endpoint exists.
+                  Draft or review target-position rows directly in this account view and save them through the account target-position assignment endpoint.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-5">

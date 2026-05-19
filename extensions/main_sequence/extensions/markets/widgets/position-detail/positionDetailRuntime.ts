@@ -3,7 +3,11 @@ import type {
   TargetPositionDetailPositionDetailsResponse,
 } from "../../../../common/api";
 
-export type PositionDetailSourceType = "portfolio" | "account" | "target_position";
+export type PositionDetailSourceType =
+  | "portfolio"
+  | "account"
+  | "target_position"
+  | "target_positions_account";
 export type PositionDetailCanonicalPositionType =
   | "weight_notional_exposure"
   | "units"
@@ -27,6 +31,7 @@ export interface PositionDetailWidgetProps extends Record<string, unknown> {
   portfolioId?: number;
   accountUid?: string;
   holdingsDate?: string;
+  targetPositionsDate?: string;
   targetPortfolioId?: number;
   variant?: "summary" | "positions";
   tableMinWidth?: number;
@@ -165,7 +170,8 @@ export function normalizePositionDetailSourceType(
   if (
     props.sourceType === "portfolio" ||
     props.sourceType === "account" ||
-    props.sourceType === "target_position"
+    props.sourceType === "target_position" ||
+    props.sourceType === "target_positions_account"
   ) {
     return props.sourceType;
   }
@@ -186,6 +192,7 @@ export function getAllowedPositionDetailPositionTypes(
     case "account":
       return ["units"];
     case "target_position":
+    case "target_positions_account":
       return allPositionTypes;
     default:
       return allPositionTypes;
@@ -242,13 +249,13 @@ export function normalizePositionDetailPositionRows(
       assetTicker: readString(entry.assetTicker),
       uniqueIdentifier: readString(entry.uniqueIdentifier),
       figi: readString(entry.figi),
-      ...(sourceType === "account"
-        ? {}
-        : {
+      ...(sourceType === "portfolio"
+        ? {
             date: normalizePositionDetailInlineDate(
               entry.date ?? entry.asOfDate ?? entry.as_of_date ?? entry.effective_date ?? entry.position_date,
             ),
-          }),
+          }
+        : {}),
       price: normalizePositionDetailInlinePrice(entry.price),
       positionType: normalizePositionDetailInlinePositionType(entry.positionType, sourceType),
       positionValue: normalizePositionDetailInlinePositionValue(entry.positionValue),
@@ -279,7 +286,7 @@ export function buildPositionDetailInlineDisplayRows(
     asset_ticker: row.assetTicker || null,
     unique_identifier: row.uniqueIdentifier || null,
     figi: row.figi || row.uniqueIdentifier || null,
-    ...(row.date ? { date: row.date } : {}),
+    ...(sourceType === "portfolio" && row.date ? { date: row.date } : {}),
     ...(row.price !== null && row.price !== undefined ? { price: row.price } : {}),
     ...(sourceType === "account" ? {} : { position_type: row.positionType }),
     position_value: row.positionValue,
@@ -388,6 +395,13 @@ export function normalizePositionDetailAccountUid(
   props: Pick<PositionDetailWidgetProps, "accountUid">,
 ) {
   return readString(props.accountUid) ?? "";
+}
+
+export function normalizePositionDetailTargetPositionsDate(
+  value: unknown,
+  fallback = getCurrentIsoTimestamp(),
+) {
+  return normalizePositionDetailHoldingsDate(value, fallback);
 }
 
 export function normalizePositionDetailVariant(value: unknown): "summary" | "positions" {
