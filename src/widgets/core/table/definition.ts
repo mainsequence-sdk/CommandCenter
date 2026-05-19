@@ -58,7 +58,7 @@ const TABLE_WIDGET_JSON_VALUE_ARRAY_DESCRIPTOR = {
 
 export const tableWidget = defineWidget<TableWidgetProps>({
   id: "table",
-  widgetVersion: "3.3.0",
+  widgetVersion: "3.4.0",
   title: "Table",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",

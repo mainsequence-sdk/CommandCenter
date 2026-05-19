@@ -8,6 +8,13 @@ import { createRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 import type { ResolvedWidgetInputs } from "@/widgets/types";
 import { buildTableWidgetFrameFromRemoteData } from "@/widgets/core/table/tableModel";
+import {
+  TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
+  TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
+  TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
+  TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID,
+  TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
+} from "@/widgets/core/table/tableModel";
 
 import {
   buildMarketAssetFrameSemanticMeta,
@@ -20,9 +27,15 @@ import {
   buildAssetScreenerResolvedTableProps,
   buildAssetScreenerTableFrame,
   buildSparklineValues,
+  resolveAssetScreenerActiveCellOutput,
+  resolveAssetScreenerActiveCellValueOutput,
+  resolveAssetScreenerActiveRowOutput,
+  resolveAssetScreenerSelectedCellValuesOutput,
+  resolveAssetScreenerSelectedRowsOutput,
 } from "./AssetScreenerWidget";
 import {
   assetScreenerDefaultProps,
+  normalizeAssetScreenerProps,
   resolveAssetScreenerState,
   type MainSequenceAssetScreenerWidgetProps,
 } from "./assetScreenerModel";
@@ -158,6 +171,56 @@ function renderWidget(
   });
 
   return host;
+}
+
+function resolveWidgetOutputValue(
+  outputId: string,
+  input: {
+    props: MainSequenceAssetScreenerWidgetProps;
+    resolvedInputs?: ResolvedWidgetInputs;
+    runtimeDataStore?: ReturnType<typeof createRuntimeDataStore> | null;
+    runtimeState?: unknown;
+  },
+) {
+  switch (outputId) {
+    case TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID:
+      return resolveAssetScreenerActiveRowOutput({
+        props: input.props,
+        resolvedInputs: input.resolvedInputs,
+        runtimeDataStore: input.runtimeDataStore ?? undefined,
+        runtimeState: input.runtimeState,
+      });
+    case TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID:
+      return resolveAssetScreenerActiveCellOutput({
+        props: input.props,
+        resolvedInputs: input.resolvedInputs,
+        runtimeDataStore: input.runtimeDataStore ?? undefined,
+        runtimeState: input.runtimeState,
+      });
+    case TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID:
+      return resolveAssetScreenerActiveCellValueOutput({
+        props: input.props,
+        resolvedInputs: input.resolvedInputs,
+        runtimeDataStore: input.runtimeDataStore ?? undefined,
+        runtimeState: input.runtimeState,
+      });
+    case TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID:
+      return resolveAssetScreenerSelectedCellValuesOutput({
+        props: input.props,
+        resolvedInputs: input.resolvedInputs,
+        runtimeDataStore: input.runtimeDataStore ?? undefined,
+        runtimeState: input.runtimeState,
+      });
+    case TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID:
+      return resolveAssetScreenerSelectedRowsOutput({
+        props: input.props,
+        resolvedInputs: input.resolvedInputs,
+        runtimeDataStore: input.runtimeDataStore ?? undefined,
+        runtimeState: input.runtimeState,
+      });
+    default:
+      throw new Error(`Unsupported output id in test: ${outputId}`);
+  }
 }
 
 describe("AssetScreenerWidget", () => {
@@ -307,7 +370,7 @@ describe("AssetScreenerWidget", () => {
     expect(tableFrame.rowObjects.at(-1)?.symbol).toBe("SYM0999");
   });
 
-  it("inserts grouped section rows when groupBy is configured", () => {
+  it("keeps screener frame rows ungrouped and carries shared table grouping config", () => {
     const props = {
       ...assetScreenerDefaultProps,
       columnConfigMode: "custom",
@@ -328,8 +391,10 @@ describe("AssetScreenerWidget", () => {
           width: 96,
         },
       ],
-      groupBy: "sector",
       sort: undefined,
+      table: {
+        groupBy: "sector",
+      },
       fieldMappings: {
         seed: {
           assetKeyField: "unique_identifier",
@@ -364,18 +429,20 @@ describe("AssetScreenerWidget", () => {
     });
     const tableFrame = buildAssetScreenerTableFrame({
       columns: state.columns,
-      groupBy: props.groupBy,
       rows: state.filteredRows,
     });
+    const tableProps = buildAssetScreenerResolvedTableProps({
+      density: props.density,
+      frame: tableFrame.frame,
+      tableSettings: props.table,
+    });
 
-    expect((tableFrame.rowObjects[0] as Record<string, unknown>).__groupHeader).toBe(true);
-    expect(tableFrame.rowObjects[0]?.symbol).toBe("Technology");
-    expect((tableFrame.rowObjects[2] as Record<string, unknown>).__groupHeader).toBe(true);
-    expect(tableFrame.rowObjects[2]?.symbol).toBe("Financials");
-    expect(tableFrame.rowObjects).toHaveLength(4);
+    expect(tableFrame.rowObjects).toHaveLength(2);
+    expect(tableFrame.rowObjects.map((row) => row.symbol)).toEqual(["AAPL", "JPM"]);
+    expect(tableProps.groupBy).toBe("sector");
   });
 
-  it("keeps grouped rows contiguous even when the incoming row order interleaves groups", () => {
+  it("moves legacy top-level groupBy into shared table settings on normalization", () => {
     const props = {
       ...assetScreenerDefaultProps,
       columnConfigMode: "custom",
@@ -396,68 +463,9 @@ describe("AssetScreenerWidget", () => {
       ],
       groupBy: "sector",
       sort: undefined,
-      fieldMappings: {
-        seed: {
-          assetKeyField: "unique_identifier",
-          symbolField: "Symbol",
-          sectorField: "sector",
-          valueFields: {
-            price: "last_price",
-          },
-        },
-      },
     } satisfies MainSequenceAssetScreenerWidgetProps;
 
-    const seedData = frame([
-      {
-        unique_identifier: "uid:AAPL",
-        Symbol: "AAPL",
-        sector: "Technology",
-        last_price: 112.25,
-      },
-      {
-        unique_identifier: "uid:JPM",
-        Symbol: "JPM",
-        sector: "Financials",
-        last_price: 198.42,
-      },
-      {
-        unique_identifier: "uid:MSFT",
-        Symbol: "MSFT",
-        sector: "Technology",
-        last_price: 421.18,
-      },
-      {
-        unique_identifier: "uid:GS",
-        Symbol: "GS",
-        sector: "Financials",
-        last_price: 451.77,
-      },
-    ]);
-    const state = resolveAssetScreenerState({
-      props,
-      fallbackFrames: {
-        seedData,
-      },
-    });
-    const tableFrame = buildAssetScreenerTableFrame({
-      columns: state.columns,
-      groupBy: props.groupBy,
-      rows: state.filteredRows,
-      sourceColumns: state.sourceColumns,
-    });
-
-    expect(tableFrame.rowObjects.map((row) => row.symbol)).toEqual([
-      "Technology",
-      "AAPL",
-      "MSFT",
-      "Financials",
-      "GS",
-      "JPM",
-    ]);
-    expect(
-      tableFrame.rowObjects.filter((row) => (row as Record<string, unknown>).__groupHeader).length,
-    ).toBe(2);
+    expect(normalizeAssetScreenerProps(props).table?.groupBy).toBe("sector");
   });
 
   it("renders trend sparklines from inline seed sparkline values", () => {
@@ -544,6 +552,219 @@ describe("AssetScreenerWidget", () => {
 
     expect(container.textContent).not.toContain("No assets match the current bindings and filters.");
     expect(container.textContent).not.toContain("Clear");
+  });
+
+  it("publishes activeRow for a selected asset row and ignores grouped header rows", () => {
+    const props = {
+      ...assetScreenerDefaultProps,
+      columnConfigMode: "custom",
+      columns: [
+        {
+          id: "symbol",
+          kind: "asset-field",
+          label: "Symbol",
+          field: "symbol",
+        },
+        {
+          id: "last",
+          kind: "latest-value",
+          label: "Last",
+          valueField: "price",
+          format: "price",
+        },
+      ],
+      sort: undefined,
+      table: {
+        groupBy: "sector",
+        selectionMode: "single-row",
+      },
+      fieldMappings: {
+        seed: {
+          assetKeyField: "unique_identifier",
+          symbolField: "Symbol",
+          sectorField: "sector",
+          valueFields: {
+            price: "last_price",
+          },
+        },
+      },
+    } satisfies MainSequenceAssetScreenerWidgetProps;
+
+    const seedData = frame([
+      {
+        unique_identifier: "uid:AAPL",
+        Symbol: "AAPL",
+        sector: "Technology",
+        last_price: 112.25,
+      },
+      {
+        unique_identifier: "uid:JPM",
+        Symbol: "JPM",
+        sector: "Financials",
+        last_price: 198.42,
+      },
+    ]);
+
+    expect(
+      resolveWidgetOutputValue(TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID, {
+        props,
+        runtimeState: {
+          interaction: {
+            selection: {
+              mode: "single-row",
+              selectedRowIndices: [0],
+              selectedRowKeys: ['["uid:AAPL"]'],
+              activeRowIndex: 0,
+              activeRowKey: '["uid:AAPL"]',
+              selectedCells: [],
+              updatedAtMs: 1,
+            },
+          },
+          marketAssetScreenerDemoFrames: {
+            seedData,
+          },
+        },
+      }),
+    ).toMatchObject({
+      assetKey: "uid:AAPL",
+      unique_identifier: "uid:AAPL",
+      symbol: "AAPL",
+      last: 112.25,
+      sector: "Technology",
+    });
+  });
+
+  it("publishes activeCell, activeCellValue, selectedCellValues, and selectedRows from asset selections", () => {
+    const props = {
+      ...assetScreenerDefaultProps,
+      columnConfigMode: "custom",
+      columns: [
+        {
+          id: "symbol",
+          kind: "asset-field",
+          label: "Symbol",
+          field: "symbol",
+        },
+        {
+          id: "last",
+          kind: "latest-value",
+          label: "Last",
+          valueField: "price",
+          format: "price",
+        },
+      ],
+      sort: undefined,
+      table: {
+        groupBy: "sector",
+        selectionMode: "cell",
+      },
+      fieldMappings: {
+        seed: {
+          assetKeyField: "unique_identifier",
+          symbolField: "Symbol",
+          sectorField: "sector",
+          valueFields: {
+            price: "last_price",
+          },
+        },
+      },
+    } satisfies MainSequenceAssetScreenerWidgetProps;
+
+    const seedData = frame([
+      {
+        unique_identifier: "uid:AAPL",
+        Symbol: "AAPL",
+        sector: "Technology",
+        last_price: 112.25,
+      },
+      {
+        unique_identifier: "uid:JPM",
+        Symbol: "JPM",
+        sector: "Financials",
+        last_price: 198.42,
+      },
+    ]);
+    const runtimeState = {
+      interaction: {
+        selection: {
+          mode: "cell",
+          selectedRowIndices: [0],
+          selectedRowKeys: ['["uid:AAPL"]'],
+          activeRowIndex: 0,
+          activeRowKey: '["uid:AAPL"]',
+          activeCell: {
+            rowIndex: 0,
+            rowKey: '["uid:AAPL"]',
+            columnKey: "symbol",
+            value: "AAPL",
+          },
+          selectedCells: [
+            {
+              rowIndex: 0,
+              rowKey: '["uid:AAPL"]',
+              columnKey: "symbol",
+              value: "AAPL",
+            },
+            {
+              rowIndex: 1,
+              rowKey: '["uid:JPM"]',
+              columnKey: "symbol",
+              value: "JPM",
+            },
+          ],
+          updatedAtMs: 1,
+        },
+      },
+      marketAssetScreenerDemoFrames: {
+        seedData,
+      },
+    };
+
+    expect(
+      resolveWidgetOutputValue(TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID, {
+        props,
+        runtimeState,
+      }),
+    ).toMatchObject({
+      rowIndex: 0,
+      rowKey: '["uid:AAPL"]',
+      columnKey: "symbol",
+      value: "AAPL",
+      row: expect.objectContaining({
+        assetKey: "uid:AAPL",
+        symbol: "AAPL",
+      }),
+    });
+    expect(
+      resolveWidgetOutputValue(TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID, {
+        props,
+        runtimeState,
+      }),
+    ).toBe("AAPL");
+    expect(
+      resolveWidgetOutputValue(TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID, {
+        props,
+        runtimeState,
+      }),
+    ).toEqual(["AAPL", "JPM"]);
+    expect(
+      resolveWidgetOutputValue(TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID, {
+        props,
+        runtimeState,
+      }),
+    ).toMatchObject({
+      columns: expect.arrayContaining(["symbol", "last", "assetKey", "unique_identifier"]),
+      rows: [
+        expect.objectContaining({
+          assetKey: "uid:AAPL",
+          symbol: "AAPL",
+        }),
+        expect.objectContaining({
+          assetKey: "uid:JPM",
+          symbol: "JPM",
+        }),
+      ],
+    });
   });
 
   it("aliases the shared table source contract onto screener column ids", () => {
@@ -667,6 +888,8 @@ describe("AssetScreenerWidget", () => {
       visualMin: -5,
       visualMax: 5,
     });
+    expect(tableProps.selectionKeyFields).toEqual([]);
+    expect(tableProps.selectionMode).toBe("none");
     expect(tableProps.conditionalRules).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ columnKey: "pct", operator: "lt", tone: "warning" }),

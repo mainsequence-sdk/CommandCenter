@@ -111,9 +111,34 @@ describe("portfolioWeightsRuntime", () => {
         asset_ticker: null,
         unique_identifier: null,
         figi: null,
-        price: null,
         position_type: "future_usdm",
         position_value: 0,
+      },
+    ]);
+  });
+
+  it("preserves transient empty account position types so the field stays editable", () => {
+    expect(
+      normalizePortfolioWeightsPersistedRows({
+        sourceType: "account",
+        positionRows: [
+          {
+            assetId: 7,
+            positionType: "",
+          },
+        ] as unknown as PortfolioWeightsInlineRow[],
+      }),
+    ).toEqual([
+      {
+        rowId: "position-row-7-1",
+        assetId: 7,
+        assetName: undefined,
+        assetTicker: undefined,
+        uniqueIdentifier: undefined,
+        figi: undefined,
+        price: null,
+        positionType: "",
+        positionValue: 0,
       },
     ]);
   });

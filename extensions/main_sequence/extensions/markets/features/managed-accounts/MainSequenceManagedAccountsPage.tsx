@@ -28,6 +28,7 @@ import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelect
 import {
   formatManagedAccountValue,
   getManagedAccountDetailPath,
+  getManagedAccountExecutionVenueLabel,
 } from "./managedAccountShared";
 import {
   buildManagedAccountCreatePayload,
@@ -78,9 +79,10 @@ function buildManagedAccountDeleteSummary(accounts: ManagedAccountListRow[]) {
   return (
     <div className="space-y-2">
       {accounts.slice(0, 5).map((account) => {
+        const executionVenueLabel = getManagedAccountExecutionVenueLabel(account);
         const secondaryLine = [
-          account.execution_venue != null && String(account.execution_venue).trim()
-            ? `Execution venue ${String(account.execution_venue).trim()}`
+          executionVenueLabel
+            ? `Execution venue ${executionVenueLabel}`
             : null,
           typeof account.account_is_active === "boolean"
             ? account.account_is_active
@@ -505,12 +507,13 @@ export function MainSequenceManagedAccountsPage() {
                             </span>
                             <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
                           </Link>
+                          <div className="mt-1 truncate text-xs text-muted-foreground">
+                            {`UID ${account.uid}`}
+                          </div>
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           {formatManagedAccountValue(
-                            account.execution_venue != null
-                              ? String(account.execution_venue)
-                              : null,
+                            getManagedAccountExecutionVenueLabel(account) || null,
                           )}
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>

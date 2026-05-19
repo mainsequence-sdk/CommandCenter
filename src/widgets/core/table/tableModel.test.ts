@@ -198,6 +198,15 @@ describe("table widget selection outputs", () => {
     ]);
   });
 
+  it("normalizes shared table grouping from widget props", () => {
+    const props: TableWidgetProps = {
+      ...manualTableProps,
+      groupBy: "name",
+    };
+
+    expect(resolveTableWidgetPropsWithFrame(props).groupBy).toBe("name");
+  });
+
   it("does not publish selections when selection mode is off", () => {
     const selectedRows = resolveTableWidgetSelectedRowsOutput(
       {

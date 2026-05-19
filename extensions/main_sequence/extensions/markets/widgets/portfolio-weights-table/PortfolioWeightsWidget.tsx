@@ -385,7 +385,7 @@ export function PortfolioWeightsWidget({
             unique_identifier: row.uniqueIdentifier ?? null,
             figi: row.figi ?? row.uniqueIdentifier ?? null,
             ...(row.date ? { date: row.date } : {}),
-            price: row.price ?? null,
+            ...(row.price !== null && row.price !== undefined ? { price: row.price } : {}),
             position_type: row.positionType,
             position_value: row.positionValue,
           }))

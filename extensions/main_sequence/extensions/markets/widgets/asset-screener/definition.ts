@@ -1,6 +1,11 @@
 import { Search } from "lucide-react";
 
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
+import {
+  CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+  TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
+} from "@/widgets/shared/tabular-frame-source";
+import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 import { defineWidget } from "@/widgets/types";
 
 import {
@@ -12,16 +17,41 @@ import {
   MARKET_ASSET_SCREENER_INPUT_CONTRACTS,
 } from "../../widget-contracts/marketAssetFrames";
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
-import { AssetScreenerWidget } from "./AssetScreenerWidget";
+import {
+  AssetScreenerWidget,
+  resolveAssetScreenerActiveCellOutput,
+  resolveAssetScreenerActiveCellValueOutput,
+  resolveAssetScreenerActiveRowOutput,
+  resolveAssetScreenerSelectedCellValuesOutput,
+  resolveAssetScreenerSelectedRowsOutput,
+} from "./AssetScreenerWidget";
 import { AssetScreenerWidgetSettings } from "./AssetScreenerWidgetSettings";
 import {
   assetScreenerDefaultProps,
   resolveAssetScreenerState,
   type MainSequenceAssetScreenerWidgetProps,
 } from "./assetScreenerModel";
+import {
+  TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
+  TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
+  TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
+  TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID,
+  TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
+} from "@/widgets/core/table/tableModel";
 
 const datasetOutputId = "dataset";
 const updatesOutputId = "updates";
+const screenerJsonValueDescriptor = {
+  kind: "unknown",
+  contract: CORE_VALUE_JSON_CONTRACT,
+  description: "JSON value derived from asset screener interaction runtime state.",
+} as const;
+const screenerJsonValueArrayDescriptor = {
+  kind: "array",
+  contract: CORE_VALUE_JSON_CONTRACT,
+  description: "JSON list derived from asset screener interaction runtime state.",
+  items: screenerJsonValueDescriptor,
+} as const;
 
 const mockSeedData = {
   status: "ready",
@@ -209,7 +239,7 @@ const mockSeedData = {
 
 export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScreenerWidgetProps>({
   id: "ms-markets-asset-screener",
-  widgetVersion: "1.6.1",
+  widgetVersion: "1.8.0",
   title: "Asset Screener",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
@@ -258,6 +288,83 @@ export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScr
             description: "Live rows update latest asset state without mutating references.",
           },
         ],
+      },
+    ],
+    outputs: [
+      {
+        id: TABLE_WIDGET_SELECTED_ROWS_OUTPUT_ID,
+        label: "Selected rows",
+        contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        description:
+          "Publishes the current asset screener rows selected by the user.",
+        valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
+        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
+          resolveAssetScreenerSelectedRowsOutput({
+            props: props as MainSequenceAssetScreenerWidgetProps,
+            resolvedInputs,
+            runtimeState,
+            runtimeDataStore,
+          }),
+      },
+      {
+        id: TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID,
+        label: "Active row",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description:
+          "Publishes the current active asset row selected in the screener, or null.",
+        valueDescriptor: screenerJsonValueDescriptor,
+        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
+          resolveAssetScreenerActiveRowOutput({
+            props: props as MainSequenceAssetScreenerWidgetProps,
+            resolvedInputs,
+            runtimeState,
+            runtimeDataStore,
+          }),
+      },
+      {
+        id: TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
+        label: "Active cell",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description:
+          "Publishes the current active screener cell with row index, column key, value, and row payload.",
+        valueDescriptor: screenerJsonValueDescriptor,
+        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
+          resolveAssetScreenerActiveCellOutput({
+            props: props as MainSequenceAssetScreenerWidgetProps,
+            resolvedInputs,
+            runtimeState,
+            runtimeDataStore,
+          }),
+      },
+      {
+        id: TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
+        label: "Active cell value",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description:
+          "Publishes the current active screener cell value, or null when no cell is active.",
+        valueDescriptor: screenerJsonValueDescriptor,
+        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
+          resolveAssetScreenerActiveCellValueOutput({
+            props: props as MainSequenceAssetScreenerWidgetProps,
+            resolvedInputs,
+            runtimeState,
+            runtimeDataStore,
+          }),
+      },
+      {
+        id: TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID,
+        label: "Selected cell values",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        description:
+          "Publishes the current selected screener cell values as an ordered JSON list.",
+        valueDescriptor: screenerJsonValueArrayDescriptor,
+        resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
+          resolveAssetScreenerSelectedCellValuesOutput({
+            props: props as MainSequenceAssetScreenerWidgetProps,
+            resolvedInputs,
+            runtimeState,
+            runtimeDataStore,
+          }),
       },
     ],
   },
@@ -324,11 +431,12 @@ export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScr
     io: {
       mode: "consumer",
       summary:
-        "Consumes seedData and optional liveUpdates to derive latest values, return columns, and sparkline columns.",
+        "Consumes seedData and optional liveUpdates to derive latest values, return columns, sparkline columns, and runtime interaction outputs.",
       inputContracts: [...MARKET_ASSET_SCREENER_INPUT_CONTRACTS],
       ioNotes: [
         "seedData initializes latest state and carries referenceValue or sparklineSeries fields.",
         "liveUpdates mutates latest state only.",
+        "Selection outputs are published from screener runtime state and stay keyed to canonical asset identity.",
       ],
     },
     capabilities: {

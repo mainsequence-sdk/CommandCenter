@@ -104,6 +104,7 @@ const tableFieldHelp = {
   sourceBinding: "Shows the upstream Connection Query or transform widget bound to this table. The binding supplies one canonical tabular dataset; this widget only formats it.",
   pageSize: "Sets how many rows AG Grid shows per page when pagination is enabled.",
   surfaceToggles: "Turns optional table surface features on or off without changing the upstream dataset. Quick filter is the global toolbar search; column filters add searchable per-column filter controls.",
+  groupBy: "Renders dense section headers for one field using the current row order. Grouping is display-only and does not change the published dataset. Column-header sorting is disabled while grouping is active so sections stay contiguous.",
   selectionMode: "Controls whether table clicks publish selected rows, the active row, the active cell, or the selected cell values list for downstream widgets. When this stays off, the runtime can still infer the minimal interaction mode if a downstream widget reference actively consumes one of the table interaction outputs.",
   selectionKeyFields: "Optional stable field keys used to keep selections mapped to the same rows after refreshes, sorting, or upstream updates. Leave blank to use row indexes.",
   columnKey: "Maps this table column to an incoming field key from the bound dataset frame.",
@@ -472,6 +473,27 @@ export function TableWidgetSettings({
       ? remoteFrameInput.columns.length > 0 || remoteFrameInput.schemaFallback.length > 0
       : hasRenderableLinkedDataset;
   const displayedColumns = hasResolvedSource ? resolvedColumns : [];
+  const groupingColumns = displayedColumns.length > 0 ? displayedColumns : resolvedColumns;
+  const groupingColumnOptions = useMemo(() => {
+    const options = new Map(
+      groupingColumns.map((column) => [
+        column.key,
+        {
+          key: column.key,
+          label: column.label,
+        },
+      ]),
+    );
+
+    if (resolvedScopedDraft.groupBy && !options.has(resolvedScopedDraft.groupBy)) {
+      options.set(resolvedScopedDraft.groupBy, {
+        key: resolvedScopedDraft.groupBy,
+        label: resolvedScopedDraft.groupBy,
+      });
+    }
+
+    return [...options.values()];
+  }, [groupingColumns, resolvedScopedDraft.groupBy]);
   const textFormattedColumns = displayedColumns.filter((column) => column.format === "text");
   const schemaValidation = validateTableWidgetSchema(frameRows, resolvedColumns);
   const inspectorFields = useMemo(
@@ -983,6 +1005,40 @@ export function TableWidgetSettings({
                 </option>
               ))}
             </Select>
+          </div>
+
+          <div className={fieldClass}>
+            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.groupBy}>
+              Group by
+            </WidgetSettingFieldLabel>
+            <Select
+              className={selectClass}
+              value={resolvedScopedDraft.groupBy ?? ""}
+              disabled={!editable}
+              onChange={(event) => {
+                commit({
+                  ...scopedDraft,
+                  groupBy: event.target.value || undefined,
+                });
+              }}
+            >
+              <option value="">No grouping</option>
+              {groupingColumnOptions.map((column) => (
+                <option key={column.key} value={column.key}>
+                  {column.label}
+                </option>
+              ))}
+            </Select>
+            {groupingColumnOptions.length > 0 ? (
+              <p className={descriptionClass}>
+                Available fields: {groupingColumnOptions.slice(0, 8).map((column) => column.key).join(", ")}
+                {groupingColumnOptions.length > 8 ? ", ..." : ""}
+              </p>
+            ) : (
+              <p className={descriptionClass}>
+                Bind a dataset or add manual columns before enabling grouped sections.
+              </p>
+            )}
           </div>
 
           {!hidePaginationControls ? (

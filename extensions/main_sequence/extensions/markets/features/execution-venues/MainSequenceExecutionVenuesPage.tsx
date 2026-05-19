@@ -198,11 +198,11 @@ export function MainSequenceExecutionVenuesPage() {
       toast({
         variant: "success",
         title: "Execution venue created",
-        description: `${executionVenue.name || executionVenue.symbol || `Venue ${executionVenue.id}`} is now available.`,
+        description: `${executionVenue.name || executionVenue.symbol || "Execution venue"} is now available.`,
       });
 
       setCreateDialogOpen(false);
-      navigate(getExecutionVenueDetailPath(executionVenue.id), {
+      navigate(getExecutionVenueDetailPath(executionVenue.uid), {
         state: {
           from: `${location.pathname}${location.search}`,
         },
@@ -309,10 +309,10 @@ export function MainSequenceExecutionVenuesPage() {
                 <tbody>
                   {pageRows.map((executionVenue) => (
                     <tr
-                      key={executionVenue.id}
+                      key={executionVenue.uid}
                       className="cursor-pointer"
                       onClick={() =>
-                        navigate(getExecutionVenueDetailPath(executionVenue.id), {
+                        navigate(getExecutionVenueDetailPath(executionVenue.uid), {
                           state: {
                             from: `${location.pathname}${location.search}`,
                           },
@@ -323,10 +323,9 @@ export function MainSequenceExecutionVenuesPage() {
                         <div className="font-medium text-foreground">
                           {formatExecutionVenueValue(
                             executionVenue.symbol,
-                            `Venue ${executionVenue.id}`,
+                            "Execution venue",
                           )}
                         </div>
-                        <div className="mt-1 text-xs text-muted-foreground">{`ID ${executionVenue.id}`}</div>
                       </td>
                       <td className={getRegistryTableCellClassName(false, "right")}>
                         {formatExecutionVenueValue(executionVenue.name)}

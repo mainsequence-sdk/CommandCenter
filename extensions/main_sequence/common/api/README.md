@@ -42,6 +42,7 @@
   `/orm/api/assets/account/{uid}/add-holdings/`, normalizes the write response, and adapts it back
   into the same reusable portfolio-weights position-details payload so the holdings widget can stay
   on one rendering contract before and after save.
+- Execution venue helpers also live here. Execution venue list/detail/mutation calls are now UID-based on the detail routes, and managed-account create calls must pass `execution_venue` as the venue UID returned by the execution venue list.
 - Shareable-object permission helpers also live here. They all use the same suffix-based contract:
   the caller provides an object root plus object id, and the API layer appends the configured
   `candidate-users`, `can-view`, `can-edit`, and add/remove permission suffixes from

@@ -22,8 +22,9 @@ field roles on `seedData`.
   builds a resolved table frame, and renders through `src/widgets/core/table/TableFrameView.tsx`.
   Shared table metadata now flows through the base table model instead of being owned privately by
   the screener.
-- `AssetScreenerWidgetSettings.tsx`: settings editor for layout, grouping, row cap, generic
-  tabular field mappings, and the shared core Table display settings mounted in presentation mode.
+- `AssetScreenerWidgetSettings.tsx`: settings editor for screener runtime caps, generic tabular
+  field mappings, columns, and the shared core Table display settings mounted in presentation
+  mode.
 - `assetScreenerModel.ts`: prop normalization, resolved-input materialization, screener runtime
   model derivation, filtering, and sorting.
 - `USAGE_GUIDANCE.md`: backend-synced authoring guidance.
@@ -49,6 +50,25 @@ settings page:
 
 The managed source is still a generic connection widget. The screener remains a consumer and
 interprets market semantics from generic tabular data.
+
+## Interaction Outputs
+
+The screener now publishes the same interaction-style outputs as the core Table widget:
+
+- `selectedRows`
+- `activeRow`
+- `activeCell`
+- `activeCellValue`
+- `selectedCellValues`
+
+These outputs are runtime-only. They do not mutate saved widget props or upstream data.
+
+Selection identity is always derived from the canonical asset key, not from a user-configured row
+field list. Internally the screener uses `unique_identifier` / `assetKey` so active selection can
+survive sorting, filtering, grouping, and live updates.
+
+Grouped section headers are synthetic presentation rows only. They are never published as
+`selectedRows`, `activeRow`, or `activeCell` outputs.
 
 The default `Trend` column renders a compact sparkline from an inline `sparklineSeries` seed field
 such as a `sparkline_prices` CSV number cell. Return columns compare latest values against inline
@@ -169,9 +189,14 @@ order.
   quick-filter search, in-panel titles, row-count headers, empty-state footers, pagination panels,
   diagnostics bars, and opaque card backgrounds belong to the generic Table widget, not the market
   screener workspace presentation.
-- `groupBy` is a screener presentation setting, not a backend query feature. The renderer inserts
-  synthetic section rows into the first visible column, for example `Technology` or `Financials`,
-  buckets rows contiguously under that header, and keeps the underlying dataset rows unchanged.
+- Grouped sections now belong to the shared table settings surface via `table.groupBy`. Asset
+  Screener no longer owns a parallel layout/grouping control; it passes market rows into the
+  shared table layer and lets that renderer synthesize section headers.
+- Interaction outputs resolve against real asset rows after grouping is applied. Synthetic section
+  headers remain non-semantic presentation rows and are scrubbed from published selection state.
+- Legacy top-level screener `groupBy` props are still normalized into `table.groupBy` so existing
+  workspaces keep rendering, but new edits should persist grouping through the shared table
+  settings path.
 - Keep `mockProps` and `mockRuntimeState` representative. The widget catalog and settings demo
   previews use those fixtures to render without live workspace bindings or connection sessions.
 - Do not store backend endpoint URLs, credentials, or transport details in widget props.

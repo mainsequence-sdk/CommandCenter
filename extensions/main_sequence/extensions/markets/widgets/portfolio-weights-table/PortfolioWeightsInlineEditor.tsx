@@ -64,7 +64,7 @@ function buildInlineExpandedPositionRecord(row: PortfolioWeightsInlineRow) {
     ...(row.date ? { date: row.date } : {}),
     positionType: row.positionType,
     positionValue: row.positionValue,
-    price: row.price ?? null,
+    ...(row.price !== null && row.price !== undefined ? { price: row.price } : {}),
   };
 }
 

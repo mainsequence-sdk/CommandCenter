@@ -69,6 +69,10 @@ function buildTableDraftProps(
   return {
     tableSourceMode: "bound",
     density: table.density ?? props.density ?? "compact",
+    groupBy:
+      typeof table.groupBy === "string" && table.groupBy.trim()
+        ? table.groupBy.trim()
+        : props.groupBy,
     showToolbar: false,
     showSearch: false,
     zebraRows: table.zebraRows ?? false,
@@ -79,7 +83,7 @@ function buildTableDraftProps(
     valueLabels: table.valueLabels,
     conditionalRules: table.conditionalRules,
     selectionMode: table.selectionMode,
-    selectionKeyFields: table.selectionKeyFields,
+    selectionKeyFields: ["assetKey"],
     publishSelectionOutputs: table.publishSelectionOutputs,
   };
 }
@@ -87,13 +91,13 @@ function buildTableDraftProps(
 function pickTableSettings(value: TableWidgetProps): Partial<TableWidgetProps> {
   return {
     density: value.density,
+    groupBy: value.groupBy,
     zebraRows: value.zebraRows,
     schema: value.schema,
     columnOverrides: value.columnOverrides,
     valueLabels: value.valueLabels,
     conditionalRules: value.conditionalRules,
     selectionMode: value.selectionMode,
-    selectionKeyFields: value.selectionKeyFields,
     publishSelectionOutputs: value.publishSelectionOutputs,
   };
 }
@@ -146,13 +150,6 @@ export function AssetScreenerWidgetSettings({
   const [mappingError, setMappingError] = useState<string | null>(null);
   const [columnsText, setColumnsText] = useState(() => displayedColumnsJson);
   const [columnsError, setColumnsError] = useState<string | null>(null);
-  const groupableColumns = useMemo(
-    () =>
-      displayedColumns.filter((column) =>
-        column.kind === "asset-field" && column.groupable !== false,
-      ) as Array<Extract<NonNullable<typeof props.columns>[number], { kind: "asset-field" }>>,
-    [displayedColumns],
-  );
 
   useEffect(() => {
     setColumnsText(displayedColumnsJson);
@@ -163,60 +160,12 @@ export function AssetScreenerWidgetSettings({
     <div className="space-y-4">
       <section className={sectionClass}>
         <div>
-          <h3 className={titleClass}>Screener Layout</h3>
+          <h3 className={titleClass}>Screener Runtime</h3>
           <p className={descriptionClass}>
-            Configure row density, grouping, and bounded rendering. Data comes from normal bindings
-            or the widget-owned managed connection source configured on this settings page.
+            Screener-specific runtime caps stay here. Shared density, grouping, table formatting,
+            and selection outputs now live in the embedded Table Settings section below.
           </p>
         </div>
-        <label className={fieldClass}>
-          <WidgetSettingFieldLabel
-            className={labelClass}
-            help="Controls table row height. Compact is intended for terminal-style market screens."
-          >
-            Density
-          </WidgetSettingFieldLabel>
-          <Select
-            className={selectClass}
-            disabled={!editable}
-            value={props.density}
-            onChange={(event) => {
-              onDraftPropsChange({
-                ...props,
-                density: event.target.value === "comfortable" ? "comfortable" : "compact",
-              });
-            }}
-          >
-            <option value="compact">Compact</option>
-            <option value="comfortable">Comfortable</option>
-          </Select>
-        </label>
-        <label className={fieldClass}>
-          <WidgetSettingFieldLabel
-            className={labelClass}
-            help="Optional asset identity field used to create dense section headers."
-          >
-            Group by
-          </WidgetSettingFieldLabel>
-          <Select
-            className={selectClass}
-            disabled={!editable}
-            value={props.groupBy ?? ""}
-            onChange={(event) => {
-              onDraftPropsChange({
-                ...props,
-                groupBy: event.target.value || undefined,
-              });
-            }}
-          >
-            <option value="">No grouping</option>
-            {groupableColumns.map((column) => (
-              <option key={column.id} value={String(column.field)}>
-                {column.label}
-              </option>
-            ))}
-          </Select>
-        </label>
         <label className={fieldClass}>
           <WidgetSettingFieldLabel
             className={labelClass}
@@ -416,7 +365,9 @@ export function AssetScreenerWidgetSettings({
           <h3 className={titleClass}>Table Settings</h3>
           <p className={descriptionClass}>
             These are the shared table display settings used by the core Table widget. The Asset
-            Screener only supplies the market-derived frame.
+            Screener only supplies the market-derived frame. Selection outputs are always keyed to
+            the canonical asset identity (`assetKey` / `unique_identifier`) even though the shared
+            table settings UI also exposes generic stable row key fields.
           </p>
         </div>
         <TableWidgetSettings
@@ -427,6 +378,7 @@ export function AssetScreenerWidgetSettings({
             onDraftPropsChange({
               ...props,
               density: nextTableProps.density === "comfortable" ? "comfortable" : "compact",
+              groupBy: undefined,
               table: pickTableSettings(nextTableProps),
             });
           }}

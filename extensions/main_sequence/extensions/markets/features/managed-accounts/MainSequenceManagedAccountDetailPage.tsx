@@ -143,13 +143,23 @@ export function MainSequenceManagedAccountDetailPage() {
 
   const managedAccountTitle =
     managedAccountSummaryQuery.data?.entity.title?.trim() || "Managed account";
+  const executionVenueSummary =
+    managedAccountSummaryQuery.data?.highlight_fields.find((field) => field.key === "execution_venue")
+      ?.value;
+  const executionVenueLabel =
+    typeof executionVenueSummary === "string" && executionVenueSummary.trim()
+      ? `Execution venue ${executionVenueSummary.trim()}`
+      : "";
+  const headerDescription = [executionVenueLabel, `UID ${managedAccountUid}`]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Main Sequence Markets"
         title={managedAccountTitle}
-        description="Review the canonical managed account summary."
+        description={headerDescription || "Review the canonical managed account summary."}
         actions={
           <Button type="button" variant="outline" onClick={() => navigate(backPath)}>
             <ArrowLeft className="h-4 w-4" />

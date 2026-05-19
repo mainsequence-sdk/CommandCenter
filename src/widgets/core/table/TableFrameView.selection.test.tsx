@@ -235,20 +235,25 @@ const testTokens = {
   "primary" | "success" | "warning" | "danger" | "border" | "foreground" | "muted-foreground"
 >;
 
-function buildResolvedTableProps(selectionMode: TableWidgetSelectionMode) {
+function buildResolvedTableProps(
+  selectionMode: TableWidgetSelectionMode,
+  groupBy?: string,
+) {
   const props: TableWidgetProps = {
     ...tableWidgetDefaultProps,
     tableSourceMode: "manual",
     manualColumns: [
+      { key: "desk", type: "string" },
       { key: "id", type: "string" },
       { key: "name", type: "string" },
       { key: "score", type: "number" },
     ],
     manualRows: [
-      { id: "a", name: "Alpha", score: 10 },
-      { id: "b", name: "Beta", score: 20 },
-      { id: "c", name: "Gamma", score: 30 },
+      { desk: "Blue", id: "a", name: "Alpha", score: 10 },
+      { desk: "Blue", id: "b", name: "Beta", score: 20 },
+      { desk: "Red", id: "c", name: "Gamma", score: 30 },
     ],
+    groupBy,
     pagination: false,
     selectionKeyFields: ["id"],
     selectionMode,
@@ -262,7 +267,10 @@ function buildResolvedTableProps(selectionMode: TableWidgetSelectionMode) {
   );
 }
 
-function createHarness(selectionMode: TableWidgetSelectionMode) {
+function createHarness(
+  selectionMode: TableWidgetSelectionMode,
+  groupBy?: string,
+) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root: Root = createRoot(container);
@@ -275,7 +283,7 @@ function createHarness(selectionMode: TableWidgetSelectionMode) {
       await act(async () => {
         root.render(
           <TableFrameView
-            resolvedProps={buildResolvedTableProps(selectionMode)}
+            resolvedProps={buildResolvedTableProps(selectionMode, groupBy)}
             selectionKeyFields={["id"]}
             selectionMode={selectionMode}
             onSelectionChange={(selection) => {
@@ -456,6 +464,31 @@ describe("TableFrameView selection publishing", () => {
           value: "Beta",
         },
       ],
+    });
+  });
+
+  it("ignores grouped header rows and preserves canonical row indexes", async () => {
+    const harness = createHarness("single-row", "desk");
+    harnesses.push(harness);
+
+    await harness.render();
+    await harness.click("cell-0-desk");
+    expect(harness.selectionEvents).toHaveLength(0);
+
+    await harness.click("cell-1-name");
+    expect(harness.selectionEvents).toHaveLength(1);
+    expect(harness.selectionEvents[0]).toMatchObject({
+      mode: "single-row",
+      selectedRowKeys: ['["a"]'],
+      selectedRowIndices: [0],
+      activeRowKey: '["a"]',
+      activeRowIndex: 0,
+      activeCell: {
+        rowKey: '["a"]',
+        rowIndex: 0,
+        columnKey: "name",
+        value: "Alpha",
+      },
     });
   });
 });

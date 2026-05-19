@@ -54,7 +54,15 @@ export type TableWidgetTone = "neutral" | "primary" | "success" | "warning" | "d
 export type TableWidgetSelectionMode = "none" | "single-row" | "multi-row" | "cell";
 export type TableWidgetCellValue = number | string | boolean | null;
 export type TableWidgetRow = Record<string, TableWidgetCellValue>;
-type TableFrameGridRow = TableWidgetRow & {
+type TableFrameDisplayRow = TableWidgetRow & {
+  __tableGroupCount?: number;
+  __tableGroupDisplayColumnKey?: string;
+  __tableGroupHeader?: boolean;
+  __tableGroupId?: string;
+  __tableGroupLabel?: string;
+  __tableSourceRowIndex?: number;
+};
+type TableFrameGridRow = TableFrameDisplayRow & {
   __tableRowIndex: number;
   __tableRowKey?: string;
 };
@@ -97,7 +105,7 @@ function tableActiveCellFromFocusedCell(
   api: GridApi<TableFrameGridRow>,
   row: TableFrameGridRow | null,
 ): TableWidgetActiveCellSelection | undefined {
-  if (!row) {
+  if (!row || isTableFrameGroupHeaderRow(row)) {
     return undefined;
   }
 
@@ -123,6 +131,75 @@ function tableCellSelectionKey(row: TableFrameGridRow, columnKey: string) {
 
 function tableRowSelectionKey(row: TableFrameGridRow) {
   return row.__tableRowKey ?? `row:${row.__tableRowIndex}`;
+}
+
+function isTableFrameGroupHeaderRow(
+  row: TableWidgetRow | undefined,
+): row is TableFrameDisplayRow & { __tableGroupHeader: true } {
+  return Boolean(
+    row &&
+      typeof row === "object" &&
+      (row as TableFrameDisplayRow).__tableGroupHeader === true,
+  );
+}
+
+function normalizeTableGroupLabel(value: TableWidgetCellValue) {
+  if (typeof value === "string") {
+    return value.trim() || "Ungrouped";
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return "Ungrouped";
+}
+
+function buildGroupedDisplayRows(
+  rows: readonly TableWidgetRow[],
+  groupBy: string | undefined,
+  displayColumnKey: string | undefined,
+) {
+  const normalizedRows = rows.map<TableFrameDisplayRow>((row, sourceRowIndex) => ({
+    ...row,
+    __tableSourceRowIndex: sourceRowIndex,
+  }));
+
+  if (!groupBy || !displayColumnKey || normalizedRows.length === 0) {
+    return normalizedRows;
+  }
+
+  const buckets = new Map<string, TableFrameDisplayRow[]>();
+  const orderedGroupLabels: string[] = [];
+
+  normalizedRows.forEach((row) => {
+    const groupLabel = normalizeTableGroupLabel(row[groupBy]);
+    const existingBucket = buckets.get(groupLabel);
+
+    if (existingBucket) {
+      existingBucket.push(row);
+      return;
+    }
+
+    orderedGroupLabels.push(groupLabel);
+    buckets.set(groupLabel, [row]);
+  });
+
+  return orderedGroupLabels.flatMap((groupLabel, groupIndex) => {
+    const groupedRows = buckets.get(groupLabel) ?? [];
+
+    return [
+      {
+        [displayColumnKey]: groupLabel,
+        __tableGroupCount: groupedRows.length,
+        __tableGroupDisplayColumnKey: displayColumnKey,
+        __tableGroupHeader: true,
+        __tableGroupId: `group:${displayColumnKey}:${groupIndex}:${groupLabel}`,
+        __tableGroupLabel: groupLabel,
+      } satisfies TableFrameDisplayRow,
+      ...groupedRows,
+    ];
+  });
 }
 
 function resolveDisplayedRangeRow(
@@ -161,7 +238,7 @@ function collectTableRangeSelection(
     normalizeCellRangeRows(range).forEach((displayedRowIndex) => {
       const row = resolveDisplayedRangeRow(api, displayedRowIndex);
 
-      if (!row) {
+      if (!row || isTableFrameGroupHeaderRow(row)) {
         return;
       }
 
@@ -210,7 +287,7 @@ function tableActiveCellFromFocusedSelection(
   if (focusedCell?.rowIndex != null && columnKey) {
     const row = resolveDisplayedRangeRow(api, focusedCell.rowIndex);
 
-    if (row) {
+    if (row && !isTableFrameGroupHeaderRow(row)) {
       return {
         rowKey: row.__tableRowKey,
         rowIndex: row.__tableRowIndex,
@@ -302,6 +379,7 @@ export interface ResolvedTableWidgetProps {
   rows: TableWidgetFrameRow[];
   schema: TableWidgetColumnSchema[];
   density: TableWidgetDensity;
+  groupBy?: string;
   showToolbar: boolean;
   showSearch: boolean;
   showColumnFilters: boolean;
@@ -1246,6 +1324,23 @@ function TableFrameCellRenderer({
   resolvedProps,
   tokens,
 }: TableFrameCellRendererParams) {
+  if (isTableFrameGroupHeaderRow(data)) {
+    if (columnConfig.key !== data.__tableGroupDisplayColumnKey) {
+      return <span aria-hidden="true"> </span>;
+    }
+
+    return (
+      <div className="flex h-full w-full items-center overflow-hidden text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <span className="truncate">{data.__tableGroupLabel ?? String(value ?? "")}</span>
+        {typeof data.__tableGroupCount === "number" ? (
+          <span className="ml-2 shrink-0 text-[9px] text-muted-foreground/80">
+            {data.__tableGroupCount}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
   const cellValue = value ?? null;
   const formattedValue = formatTableWidgetValue(cellValue, columnConfig);
   const customCellRenderer = customCellRenderers?.[columnConfig.key];
@@ -1407,35 +1502,59 @@ export function TableFrameView({
   const gridApiRef = useRef<GridApi<TableFrameGridRow> | null>(null);
   const isApplyingSelectionRef = useRef(false);
   const latestSelectionStateRef = useRef<TableWidgetSelectionState | undefined>(selectionState);
-  const rowObjects = useMemo(
+  const baseRowObjects = useMemo(
     () => rowObjectsOverride ?? buildTableWidgetRowObjects(resolvedProps.columns, resolvedProps.rows),
     [resolvedProps.columns, resolvedProps.rows, rowObjectsOverride],
-  );
-  const rowData = useMemo<TableFrameGridRow[]>(
-    () =>
-      rowObjects.map((row, rowIndex) => {
-        const rowKey = buildTableWidgetRowKey(row, selectionKeyFields);
-
-        return rowKey
-          ? {
-              ...row,
-              __tableRowIndex: rowIndex,
-              __tableRowKey: rowKey,
-            }
-          : {
-              ...row,
-              __tableRowIndex: rowIndex,
-            };
-      }),
-    [rowObjects, selectionKeyFields],
   );
   const columns = useMemo(
     () => resolveTableWidgetColumns(resolvedProps),
     [resolvedProps],
   );
+  const groupingDisplayColumnKey = useMemo(() => {
+    if (!resolvedProps.groupBy) {
+      return undefined;
+    }
+
+    const visibleColumns = columns.filter((column) => column.visible);
+    return (
+      visibleColumns.find((column) => column.key === resolvedProps.groupBy)?.key ??
+      visibleColumns[0]?.key ??
+      columns[0]?.key
+    );
+  }, [columns, resolvedProps.groupBy]);
+  const groupingActive = Boolean(resolvedProps.groupBy && groupingDisplayColumnKey);
+  const rowObjects = useMemo(
+    () =>
+      buildGroupedDisplayRows(baseRowObjects, resolvedProps.groupBy, groupingDisplayColumnKey),
+    [baseRowObjects, groupingDisplayColumnKey, resolvedProps.groupBy],
+  );
+  const rowData = useMemo<TableFrameGridRow[]>(
+    () =>
+      rowObjects.map((row, displayRowIndex) => {
+        const sourceRowIndex =
+          typeof row.__tableSourceRowIndex === "number"
+            ? row.__tableSourceRowIndex
+            : displayRowIndex;
+        const rowKey = isTableFrameGroupHeaderRow(row)
+          ? undefined
+          : buildTableWidgetRowKey(row, selectionKeyFields);
+
+        return rowKey
+          ? {
+              ...row,
+              __tableRowIndex: sourceRowIndex,
+              __tableRowKey: rowKey,
+            }
+          : {
+              ...row,
+              __tableRowIndex: sourceRowIndex,
+            };
+      }),
+    [rowObjects, selectionKeyFields],
+  );
   const schemaValidation = useMemo(
-    () => validateTableWidgetSchema(rowObjects, columns),
-    [columns, rowObjects],
+    () => validateTableWidgetSchema(baseRowObjects, columns),
+    [baseRowObjects, columns],
   );
   const theme = useMemo(
     () =>
@@ -1447,9 +1566,9 @@ export function TableFrameView({
   const columnRanges = useMemo(
     () =>
       Object.fromEntries(
-        columns.map((column) => [column.key, getTableWidgetColumnRange(rowObjects, column.key)]),
+        columns.map((column) => [column.key, getTableWidgetColumnRange(baseRowObjects, column.key)]),
       ) satisfies Record<string, TableFrameColumnRange>,
-    [columns, rowObjects],
+    [baseRowObjects, columns],
   );
   const isActiveCell = useCallback(
     (row: TableFrameGridRow | undefined, columnKey: string) => {
@@ -1485,7 +1604,7 @@ export function TableFrameView({
           flex: column.flex ?? 1,
           hide: !column.visible,
           pinned: column.pinned,
-          sortable: true,
+          sortable: !groupingActive,
           resizable: true,
           filter: columnFiltersVisible
             ? numericFormat
@@ -1552,6 +1671,7 @@ export function TableFrameView({
       columns,
       customCellRenderers,
       isActiveCell,
+      groupingActive,
       resolvedProps,
       resolvedTokens,
       showColumnFilters,
@@ -1559,14 +1679,14 @@ export function TableFrameView({
   );
   const defaultColDef = useMemo<ColDef<TableFrameGridRow>>(
     () => ({
-      sortable: true,
+      sortable: !groupingActive,
       resizable: true,
       filter: showColumnFilters && resolvedProps.showColumnFilters,
       floatingFilter: showColumnFilters && resolvedProps.showColumnFilters,
       flex: 1,
       minWidth: 110,
     }),
-    [resolvedProps.showColumnFilters, showColumnFilters],
+    [groupingActive, resolvedProps.showColumnFilters, showColumnFilters],
   );
   const rowHeight =
     resolvedProps.density === "compact"
@@ -1637,7 +1757,9 @@ export function TableFrameView({
         return;
       }
 
-      const selectedRows = event.api.getSelectedRows();
+      const selectedRows = event.api.getSelectedRows().filter(
+        (row): row is TableFrameGridRow => !isTableFrameGroupHeaderRow(row),
+      );
       const activeRow = selectedRows[selectedRows.length - 1] ?? null;
       const previousActiveCell = latestSelectionStateRef.current?.activeCell;
       const activeCell = tableActiveCellBelongsToRow(previousActiveCell, activeRow)
@@ -1658,6 +1780,10 @@ export function TableFrameView({
       const columnKey = event.colDef.field ?? event.column.getColId();
 
       if (selectionMode === "none" || !event.data || !onSelectionChange) {
+        return;
+      }
+
+      if (isTableFrameGroupHeaderRow(event.data)) {
         return;
       }
 
@@ -1754,8 +1880,11 @@ export function TableFrameView({
           }
 
           const shouldSelect =
-            (row.__tableRowKey ? selectedKeySet.has(row.__tableRowKey) : false) ||
-            selectedIndexSet.has(row.__tableRowIndex);
+            !isTableFrameGroupHeaderRow(row) &&
+            (
+              (row.__tableRowKey ? selectedKeySet.has(row.__tableRowKey) : false) ||
+              selectedIndexSet.has(row.__tableRowIndex)
+            );
           if (node.isSelected() !== shouldSelect) {
             node.setSelected(shouldSelect);
           }
@@ -1872,8 +2001,11 @@ export function TableFrameView({
               cellSelection={selectionMode === "cell"}
               rowSelection={rowSelection}
               suppressRowClickSelection={selectionMode === "cell"}
+              isRowSelectable={(node) => !isTableFrameGroupHeaderRow(node.data)}
               getRowId={(params) =>
-                params.data.__tableRowKey ?? String(params.data.__tableRowIndex)
+                isTableFrameGroupHeaderRow(params.data)
+                  ? params.data.__tableGroupId ?? `group:${params.data.__tableRowIndex}`
+                  : params.data.__tableRowKey ?? String(params.data.__tableRowIndex)
               }
               pagination={resolvedProps.pagination}
               paginationPageSize={resolvedProps.pageSize}
@@ -1891,7 +2023,12 @@ export function TableFrameView({
               onCellSelectionChanged={handleCellSelectionChanged}
               getRowStyle={(params) => {
                 const baseStyle =
-                  resolvedProps.zebraRows
+                  isTableFrameGroupHeaderRow(params.data)
+                    ? {
+                        backgroundColor: withAlpha(resolvedTokens.border, transparentSurface ? 0.2 : 0.3),
+                        fontWeight: 600,
+                      }
+                    : resolvedProps.zebraRows
                     ? undefined
                     : {
                         backgroundColor: transparentSurface

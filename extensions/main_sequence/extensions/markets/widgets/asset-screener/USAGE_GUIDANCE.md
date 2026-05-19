@@ -17,6 +17,8 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
 
 - Use when a workspace needs a terminal-style asset table with latest values, dynamic metric
   columns, return columns, grouping, sorting, compact trend sparklines, and live recalculation.
+- Use when downstream widgets should react to the current selected screener rows, active asset row,
+  active cell, or selected cell values through widget-variable references.
 - Use when an existing generic tabular source can publish a snapshot containing asset identity,
   current values, reference values such as previous close or year start, and compact trend cells.
 - Use when a WebSocket or refresh source can publish latest updates that patch current values
@@ -60,9 +62,14 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
 - Let source metadata configure the default visible columns through `meta.marketAsset`,
   `meta.tableTransforms`, and `meta.tableVisuals`, or switch the settings panel to `Instance
   override` to save a local `columns` copy for that widget instance.
+- Use the embedded `Table Settings` section for density, shared grouped sections, column-label
+  overrides, thresholds, and selection outputs. Asset Screener no longer owns a separate layout
+  grouping control.
 - Configure columns dynamically. Columns are view configuration over stable semantic `valueKey`s,
   `referenceKey`s, and source/computed field ids, for example `price`, `volume`, `marketCap`,
   `previousClose`, `yearStart`, `oneYearAgo`, or `one_day_return`.
+- When downstream widgets need row-driven variables, enable a screener selection mode and bind to
+  `selectedRows`, `activeRow`, `activeCell`, `activeCellValue`, or `selectedCellValues`.
 
 ## blockingRequirements
 
@@ -101,6 +108,26 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
 - Computed columns are row-local. If a live update only includes `last_price`, the widget still
   calculates return columns from the seeded inline references, but `meta.tableTransforms` on that
   live frame cannot read fields that are not present in the live row.
+- Do not key screener selection from display columns. The screener always uses the canonical asset
+  key for runtime interaction outputs so grouping and live updates cannot drift selection onto the
+  wrong row.
+- Group headers are presentation rows only. They never publish semantic row outputs or selected
+  cell values.
+
+## interactionOutputs
+
+The screener publishes these runtime-only outputs:
+
+- `selectedRows`: `core.tabular_frame@v1`. The current selected asset rows as a canonical tabular
+  frame.
+- `activeRow`: `core.value.json@v1`. The current active asset row, or `null`.
+- `activeCell`: `core.value.json@v1`. The current active cell with row key, row index, column key,
+  value, and row payload.
+- `activeCellValue`: `core.value.json@v1`. The active cell value, or `null`.
+- `selectedCellValues`: `core.value.json@v1`. The ordered list of selected cell values.
+
+These outputs stay scoped to the screener runtime. They do not change connection ownership,
+upstream data, or the shared widget-variable engine.
 
 ## semanticRelationship
 
@@ -331,16 +358,16 @@ Current table-backed renderer behavior:
   than a separate market-only renderer.
 - The Asset Screener settings mount the shared core Table settings in presentation mode. Source
   ownership stays with `seedData` and `liveUpdates`, while display settings such as density,
-  schema labels, column overrides, value labels, threshold rules, and pagination use the same
-  table configuration model.
+  grouping, schema labels, column overrides, value labels, threshold rules, and pagination use
+  the same table configuration model.
 - The workspace renderer disables the generic table's floating per-column filters and uses a
   transparent surface so the screener does not look like a nested table card. It also suppresses
   the generic table toolbar and footer strips, including the quick filter, clear button, internal
   title or row-count header, empty-message footer, diagnostics footer, and pagination panel.
-- `groupBy` groups the rendered screener by injecting section rows into the first visible column.
-  It is a local presentation feature only; it does not change the incoming source rows or the
-  shared table-backed schema. Groups are rendered contiguously in first-seen group order, while
-  row order inside each group still follows the current screener sort.
+- Shared table `groupBy` groups the rendered screener by injecting section rows into the current
+  table display path. It is a presentation feature only; it does not change the incoming source
+  rows or the shared table-backed schema. Groups are rendered contiguously in first-seen group
+  order, while row order inside each group still follows the current screener sort.
 - `colorScale` is currently treated as a compatibility shorthand and is converted into table
   conditional rules for the derived column id. Prefer table-native threshold/conditional-rule
   semantics for new payloads.

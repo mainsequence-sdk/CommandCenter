@@ -26,8 +26,8 @@ export function getExecutionVenuesListPath() {
   return getAppPath("main_sequence_markets", "execution-venues");
 }
 
-export function getExecutionVenueDetailPath(executionVenueId: number) {
-  return `${getExecutionVenuesListPath()}/${executionVenueId}`;
+export function getExecutionVenueDetailPath(executionVenueUid: string) {
+  return `${getExecutionVenuesListPath()}/${encodeURIComponent(executionVenueUid)}`;
 }
 
 export function formatExecutionVenueValue(value: string | null | undefined, fallback = "Not available") {
@@ -40,7 +40,7 @@ export function buildExecutionVenueListRow(
   executionVenue: ExecutionVenueRecord,
 ): ExecutionVenueListRow {
   return {
-    id: executionVenue.id,
+    uid: executionVenue.uid,
     symbol: executionVenue.symbol,
     name: executionVenue.name,
   };
@@ -89,16 +89,15 @@ export function buildExecutionVenueDeleteSummary(venues: ExecutionVenueListRow[]
   return (
     <div className="space-y-2">
       {venues.slice(0, 5).map((venue) => (
-        <div key={venue.id} className="flex items-start justify-between gap-3">
+        <div key={venue.uid} className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate font-medium text-foreground">
-              {formatExecutionVenueValue(venue.symbol, `Venue ${venue.id}`)}
+              {formatExecutionVenueValue(venue.symbol, "Execution venue")}
             </div>
             <div className="truncate text-xs text-muted-foreground">
               {formatExecutionVenueValue(venue.name)}
             </div>
           </div>
-          <div className="shrink-0 text-xs text-muted-foreground">ID {venue.id}</div>
         </div>
       ))}
       {venues.length > 5 ? (

@@ -1632,36 +1632,44 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
 function handleExecutionVenues(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
   if (route === "/orm/api/assets/execution_venue/" && method === "GET") {
     const filtered = state.executionVenues.filter((venue) =>
-      matchesSearch([venue.id, venue.symbol, venue.name], searchParams.get("search")),
+      matchesSearch([venue.uid, venue.symbol, venue.name], searchParams.get("search")),
     );
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
   if (route === "/orm/api/assets/execution_venue/" && method === "POST") {
     const body = parseBody(init);
+    const symbol = readString(body?.symbol) || "NEW";
+    const name = readString(body?.name) || "New Venue";
     const record = {
-      id: nextId(state.executionVenues),
-      symbol: readString(body?.symbol) || "NEW",
-      name: readString(body?.name) || "New Venue",
+      uid: `${symbol.toLowerCase()}-${Date.now()}`,
+      symbol,
+      name,
     };
     state.executionVenues.unshift(record);
     return record;
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/assets\/execution_venue\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/orm\/api\/assets\/execution_venue\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
-    return findById(state.executionVenues, Number(detailMatch[1]));
+    const executionVenueUid = decodeURIComponent(detailMatch[1]);
+    return state.executionVenues.find((venue) => readOptionalString(venue.uid) === executionVenueUid);
   }
 
   if (detailMatch && method === "PATCH") {
-    const record = findById(state.executionVenues, Number(detailMatch[1]));
+    const executionVenueUid = decodeURIComponent(detailMatch[1]);
+    const record = state.executionVenues.find(
+      (venue) => readOptionalString(venue.uid) === executionVenueUid,
+    );
     Object.assign(record ?? {}, parseBody(init) ?? {});
     return record;
   }
 
   if (detailMatch && method === "DELETE") {
-    const id = Number(detailMatch[1]);
-    state.executionVenues = state.executionVenues.filter((venue) => readNumber(venue.id) !== id);
+    const executionVenueUid = decodeURIComponent(detailMatch[1]);
+    state.executionVenues = state.executionVenues.filter(
+      (venue) => readOptionalString(venue.uid) !== executionVenueUid,
+    );
     return null;
   }
 
@@ -2006,6 +2014,12 @@ function buildManagedAccountUid(accountName: string) {
   return `${slugifyManagedAccountUid(accountName)}-${Date.now()}`;
 }
 
+function findExecutionVenueByUid(executionVenueUid: string) {
+  return state.executionVenues.find(
+    (venue) => readOptionalString(venue.uid) === executionVenueUid,
+  );
+}
+
 function findManagedAccountByUid(accountUid: string) {
   return state.managedAccounts.find(
     (account) => normalizeManagedAccountUid(account.uid) === accountUid,
@@ -2022,6 +2036,7 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
           account.display_name,
           account.name,
           account.execution_venue,
+          account.execution_venue_name,
           account.account_is_active,
         ],
         searchParams.get("search"),
@@ -2032,8 +2047,8 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
 
   if (route === "/orm/api/assets/account/" && method === "POST") {
     const body = parseBody(init) ?? {};
-    const executionVenueId = readNumber(body.execution_venue);
-    const executionVenue = findById(state.executionVenues, executionVenueId);
+    const executionVenueUid = readString(body.execution_venue);
+    const executionVenue = executionVenueUid ? findExecutionVenueByUid(executionVenueUid) : null;
     const holdingsDataSourceId = readNumber(body.holdings_data_source);
     const holdingsDataSource = findById(state.projectDataSources, holdingsDataSourceId);
     const accountName = readString(body.account_name) || "Managed account";
@@ -2041,7 +2056,10 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       uid: buildManagedAccountUid(accountName),
       account_name: accountName,
       display_name: readString(body.display_name) || accountName,
-      execution_venue: executionVenueId || null,
+      execution_venue: executionVenueUid || null,
+      execution_venue_name: readOptionalString(
+        (executionVenue as Record<string, unknown> | null)?.name,
+      ),
       holdings_data_source: holdingsDataSourceId || null,
       holdings_data_source_name:
         readOptionalString((holdingsDataSource as Record<string, unknown> | null)?.display_name),
@@ -2075,7 +2093,9 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
   if (summaryMatch && method === "GET") {
     const accountUid = decodeURIComponent(summaryMatch[1]);
     const account = findManagedAccountByUid(accountUid);
-    const executionVenue = findById(state.executionVenues, readNumber(account?.execution_venue));
+    const executionVenue = account?.execution_venue
+      ? findExecutionVenueByUid(String(account.execution_venue))
+      : null;
 
     if (!account) {
       return undefined;
@@ -2126,8 +2146,8 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
           value:
             readOptionalString((executionVenue as Record<string, unknown> | null)?.name) ||
             readOptionalString((executionVenue as Record<string, unknown> | null)?.symbol) ||
-            (readNumber(account.execution_venue) > 0
-              ? String(readNumber(account.execution_venue))
+            (readOptionalString(account.execution_venue)
+              ? String(readOptionalString(account.execution_venue))
               : "Not available"),
           kind: "text",
         },
@@ -2153,7 +2173,9 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
           kind: "text",
         },
       ],
-      extensions: {},
+      extensions: {
+        execution_venue_uid: readOptionalString(account.execution_venue),
+      },
     };
   }
 

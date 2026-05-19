@@ -32,6 +32,9 @@ datasets, plus a manual table editor that also republishes one canonical tabular
   source publishes retained base plus delta metadata. The table currently renders the retained
   snapshot; it does not apply row deltas imperatively.
 - The widget always publishes one `core.tabular_frame@v1` output on `dataset`.
+- Optional grouped sections can render by one field key through shared `groupBy` table props. The
+  grouped headers are synthetic display rows only; they do not change the published dataset or the
+  canonical row objects used by selection outputs.
 - Optional interaction outputs publish the current user selection: `selectedRows` as a filtered
   `core.tabular_frame@v1`, plus `activeRow`, `activeCell`, `activeCellValue`, and
   `selectedCellValues` as JSON values. Cell clicks populate `activeCell`, `activeCellValue`, and
@@ -94,6 +97,8 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 - The global quick filter and AG Grid floating column filters are separately configurable. Quick
   filter searches across the rendered row values from the toolbar; column filters expose the
   per-column searchable/filterable header controls.
+- While grouped sections are active, AG Grid header sorting is disabled in the shared frame so the
+  synthetic section rows stay contiguous with their grouped children.
 - `TableFrameView` supports domain-specific presentation flags. The generic Table widget keeps
   the card surface and floating column filters; specialized consumers such as Asset Screener can
   opt into a transparent surface and disable per-column filters while still reusing table
@@ -105,6 +110,8 @@ datasets, plus a manual table editor that also republishes one canonical tabular
 - Keep accepted input aligned with `core.tabular_frame@v1`.
 - Keep the primary published output aligned with `core.tabular_frame@v1`; selection-specific JSON
   outputs must remain derived from runtime interaction state.
+- `groupBy` is a frontend presentation prop only. It changes rendered section headers but does not
+  change the output dataset contract or backend query semantics.
 - Table interaction runtime state now includes one frontend-owned implicit-mode flag so consumer
   driven selection can stay runtime-only even when saved `selectionMode` remains `none`. It also
   stores the ordered `selectedCells` list used to resolve `selectedCellValues` and cell-driven

@@ -346,6 +346,15 @@ export function normalizeAssetScreenerProps(
 ): MainSequenceAssetScreenerWidgetProps {
   const value = stripLegacyAssetScreenerDisplayConfig(props);
   const columns = normalizeColumns(value.columns);
+  const normalizedTable = normalizeTableSettings(value.table);
+  const legacyGroupBy = normalizeString(value.groupBy);
+  const table =
+    legacyGroupBy && !normalizedTable?.groupBy
+      ? {
+          ...(normalizedTable ?? {}),
+          groupBy: legacyGroupBy,
+        }
+      : normalizedTable;
 
   return {
     assetScreenerSourceMode: normalizeAssetScreenerSourceMode(value.assetScreenerSourceMode),
@@ -360,7 +369,7 @@ export function normalizeAssetScreenerProps(
       : undefined,
     fieldMappings: normalizeFieldMappings(value.fieldMappings),
     filterText: normalizeString(value.filterText),
-    groupBy: normalizeString(value.groupBy),
+    groupBy: legacyGroupBy,
     maxRenderedRows: normalizePositiveInteger(
       value.maxRenderedRows,
       assetScreenerDefaultProps.maxRenderedRows,
@@ -371,7 +380,7 @@ export function normalizeAssetScreenerProps(
       value.staleAfterMs,
       assetScreenerDefaultProps.staleAfterMs,
     ),
-    table: normalizeTableSettings(value.table),
+    table,
   };
 }
 

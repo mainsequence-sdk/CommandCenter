@@ -495,7 +495,7 @@ export interface AssetCategoryBulkDeleteResponse {
 }
 
 export interface ExecutionVenueListRow {
-  id: number;
+  uid: string;
   symbol: string;
   name: string;
 }
@@ -521,6 +521,7 @@ export interface ManagedAccountListRow extends Record<string, unknown> {
   display_name?: string | null;
   name?: string | null;
   execution_venue?: number | string | null;
+  execution_venue_name?: string | null;
   is_paper?: boolean | null;
   account_is_active?: boolean | null;
   creation_date?: string | null;
@@ -528,7 +529,9 @@ export interface ManagedAccountListRow extends Record<string, unknown> {
 }
 
 export interface ManagedAccountRecord extends ManagedAccountListRow {}
-export interface ManagedAccountSummaryExtensions extends MainSequenceSummaryExtensions {}
+export interface ManagedAccountSummaryExtensions extends MainSequenceSummaryExtensions {
+  execution_venue_uid?: string;
+}
 export type ManagedAccountSummaryResponse = SummaryResponse<ManagedAccountSummaryExtensions>;
 
 export interface ManagedAccountListFilters {
@@ -539,7 +542,7 @@ export interface ManagedAccountListFilters {
 
 export interface CreateManagedAccountInput {
   account_name: string;
-  execution_venue: number;
+  execution_venue: string;
   is_paper?: boolean;
   holdings_data_source?: number | null;
 }
@@ -4010,8 +4013,11 @@ export function updateCurrentInstrumentsConfiguration({
   );
 }
 
-export function fetchExecutionVenueDetail(executionVenueId: number) {
-  return requestJson<ExecutionVenueRecord>(executionVenueEndpoint, `${executionVenueId}/`);
+export function fetchExecutionVenueDetail(executionVenueUid: string) {
+  return requestJson<ExecutionVenueRecord>(
+    executionVenueEndpoint,
+    `${encodePathSegment(executionVenueUid)}/`,
+  );
 }
 
 export async function listPortfolioGroups({
@@ -4095,12 +4101,12 @@ export function createExecutionVenue(input: CreateExecutionVenueInput) {
 }
 
 export function updateExecutionVenue(
-  executionVenueId: number,
+  executionVenueUid: string,
   input: UpdateExecutionVenueInput,
 ) {
   return requestJson<ExecutionVenueRecord>(
     executionVenueEndpoint,
-    `${executionVenueId}/`,
+    `${encodePathSegment(executionVenueUid)}/`,
     {
       method: "PATCH",
       body: JSON.stringify(input),
@@ -4108,10 +4114,10 @@ export function updateExecutionVenue(
   );
 }
 
-export function deleteExecutionVenue(executionVenueId: number) {
+export function deleteExecutionVenue(executionVenueUid: string) {
   return requestJson<Record<string, unknown> | null>(
     executionVenueEndpoint,
-    `${executionVenueId}/`,
+    `${encodePathSegment(executionVenueUid)}/`,
     {
       method: "DELETE",
     },

@@ -182,6 +182,7 @@ export interface TableWidgetProps
   rows?: TableWidgetFrameRow[];
   schema?: TableWidgetColumnSchema[];
   density?: TableWidgetDensity;
+  groupBy?: string;
   showToolbar?: boolean;
   showSearch?: boolean;
   showColumnFilters?: boolean;
@@ -450,6 +451,7 @@ export interface ResolvedTableWidgetProps {
   rows: TableWidgetFrameRow[];
   schema: TableWidgetColumnSchema[];
   density: TableWidgetDensity;
+  groupBy?: string;
   showToolbar: boolean;
   showSearch: boolean;
   showColumnFilters: boolean;
@@ -1343,6 +1345,10 @@ export const tableWidgetSelectionModeOptions: Array<{
 
 function normalizeSelectionKeyFields(value: unknown) {
   return normalizeUniqueIdentifierList(value) ?? [];
+}
+
+function normalizeGroupBy(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function normalizeRowIndex(value: unknown) {
@@ -2572,6 +2578,7 @@ export function resolveTableWidgetPropsWithFrame(
     rows,
     schema,
     density: migratedProps.density === "compact" ? "compact" : "comfortable",
+    groupBy: normalizeGroupBy(migratedProps.groupBy),
     showToolbar: migratedProps.showToolbar !== false,
     showSearch: migratedProps.showSearch !== false,
     showColumnFilters: migratedProps.showColumnFilters !== false,
@@ -3019,6 +3026,7 @@ export const tableWidgetDefaultProps: TableWidgetProps = {
   manualRows: [],
   schema: [],
   density: "comfortable",
+  groupBy: undefined,
   showToolbar: true,
   showSearch: true,
   showColumnFilters: true,

@@ -35,6 +35,7 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
 - The create flow assumes:
   - `POST /orm/api/assets/account/`
   - required payload fields: `account_name`, `execution_venue`
+  - `execution_venue` must be the execution venue UID
   - optional payload fields: `is_paper`, `holdings_data_source`
 - The list surface also supports deleting selected accounts through:
   - `DELETE /orm/api/assets/account/{uid}/`

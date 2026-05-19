@@ -5,7 +5,6 @@ import { ArrowLeft, Loader2, PencilLine, Trash2 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -27,10 +26,9 @@ import {
   type ExecutionVenueEditorValues,
 } from "./executionVenueShared";
 
-function readPositiveInt(value: string | null | undefined) {
-  const parsed = Number(value ?? "");
-
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+function normalizeExecutionVenueUid(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 }
 
 function readDeleteDetail(result: unknown, fallback: string) {
@@ -54,20 +52,20 @@ export function MainSequenceExecutionVenueDetailPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const executionVenueId = readPositiveInt(params.venueId);
+  const executionVenueUid = normalizeExecutionVenueUid(params.venueUid);
   const backPath =
     ((location.state as { from?: string } | null)?.from || "").trim() ||
     getExecutionVenuesListPath();
 
   const executionVenueDetailQuery = useQuery({
-    queryKey: ["main_sequence", "execution_venues", "detail", executionVenueId],
-    queryFn: () => fetchExecutionVenueDetail(executionVenueId as number),
-    enabled: executionVenueId !== null,
+    queryKey: ["main_sequence", "execution_venues", "detail", executionVenueUid],
+    queryFn: () => fetchExecutionVenueDetail(executionVenueUid as string),
+    enabled: executionVenueUid !== null,
   });
 
   const updateExecutionVenueMutation = useMutation({
     mutationFn: (values: ExecutionVenueEditorValues) =>
-      updateExecutionVenue(executionVenueId as number, buildExecutionVenueUpdatePayload(values)),
+      updateExecutionVenue(executionVenueUid as string, buildExecutionVenueUpdatePayload(values)),
     onSuccess: async (executionVenue) => {
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "execution_venues"],
@@ -76,7 +74,7 @@ export function MainSequenceExecutionVenueDetailPage() {
       toast({
         variant: "success",
         title: "Execution venue updated",
-        description: `${executionVenue.name || executionVenue.symbol || `Venue ${executionVenue.id}`} was updated.`,
+        description: `${executionVenue.name || executionVenue.symbol || "Execution venue"} was updated.`,
       });
 
       setEditDialogOpen(false);
@@ -95,7 +93,7 @@ export function MainSequenceExecutionVenueDetailPage() {
     : null;
 
   function submitUpdate(values: ExecutionVenueEditorValues) {
-    if (executionVenueId === null) {
+    if (executionVenueUid === null) {
       return;
     }
 
@@ -118,13 +116,13 @@ export function MainSequenceExecutionVenueDetailPage() {
     navigate(backPath, { replace: true });
   }
 
-  if (executionVenueId === null) {
+  if (executionVenueUid === null) {
     return (
       <div className="space-y-6">
         <PageHeader
           eyebrow="Main Sequence Markets"
           title="Execution Venue"
-          description="The requested execution venue id is invalid."
+          description="The requested execution venue uid is invalid."
           actions={
             <Button type="button" variant="outline" onClick={() => navigate(backPath)}>
               <ArrowLeft className="h-4 w-4" />
@@ -139,7 +137,7 @@ export function MainSequenceExecutionVenueDetailPage() {
   const executionVenueTitle =
     executionVenueDetailQuery.data?.name?.trim() ||
     executionVenueDetailQuery.data?.symbol?.trim() ||
-    `Execution Venue ${executionVenueId}`;
+    "Execution Venue";
   const executionVenueSubtitle = executionVenueDetailQuery.data?.symbol?.trim() || "";
 
   return (
@@ -148,13 +146,12 @@ export function MainSequenceExecutionVenueDetailPage() {
         eyebrow="Main Sequence Markets"
         title={executionVenueTitle}
         description={
-          executionVenueSubtitle
+    executionVenueSubtitle
             ? `Execution venue symbol ${executionVenueSubtitle}`
             : "Review and edit execution venue metadata."
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="neutral">{`ID ${executionVenueId}`}</Badge>
             <Button type="button" variant="outline" onClick={() => navigate(backPath)}>
               <ArrowLeft className="h-4 w-4" />
               Back to execution venues
@@ -260,7 +257,7 @@ export function MainSequenceExecutionVenueDetailPage() {
                 : null
             }
             onClose={() => setDeleteDialogOpen(false)}
-            onConfirm={() => deleteExecutionVenue(executionVenueId)}
+            onConfirm={() => deleteExecutionVenue(executionVenueUid as string)}
             onSuccess={handleDeleteSuccess}
             open={deleteDialogOpen}
             successToast={{

@@ -201,7 +201,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "main_sequence_markets/execution-venues/:venueId",
+        path: "main_sequence_markets/execution-venues/:venueUid",
         element: (
           <PermissionRoute anyOf={["main_sequence_markets:view"]}>
             <MainSequenceExecutionVenueDetailPage />

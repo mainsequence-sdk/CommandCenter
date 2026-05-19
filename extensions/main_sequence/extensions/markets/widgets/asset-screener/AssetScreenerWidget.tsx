@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { Database } from "lucide-react";
 
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
@@ -13,7 +13,12 @@ import {
 } from "@/widgets/core/table/TableFrameView";
 import {
   buildTableWidgetSourceVisualContractFromFrame,
+  buildTableWidgetRowKey,
+  normalizeTableWidgetSelectionState,
   resolveTableWidgetPropsWithFrame,
+  type TableWidgetSelectionMode,
+  withTableWidgetSelectionRuntimeState,
+  type TableWidgetSelectionState,
   type TableWidgetProps,
   type TableWidgetResolvedFrameInput,
 } from "@/widgets/core/table/tableModel";
@@ -21,7 +26,7 @@ import { useOptionalTheme } from "@/themes/ThemeProvider";
 import { mainSequenceSpaceTheme } from "@/themes/presets/main-sequence-space";
 import { useIncrementalTabularConsumerBindingState } from "@/widgets/shared/incremental-tabular-consumer";
 import { useRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
-import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
+import type { TabularFrameFieldSchema, TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 import type { ResolvedWidgetInput, ResolvedWidgetInputs, WidgetComponentProps } from "@/widgets/types";
 
 import {
@@ -45,11 +50,209 @@ import {
 type Props = WidgetComponentProps<MainSequenceAssetScreenerWidgetProps>;
 type AssetScreenerTableRowObject = TableWidgetRow & {
   __assetKey?: string;
-  __groupCount?: number;
-  __groupHeader?: boolean;
-  __groupLabel?: string;
 };
-const assetScreenerBlankCellValue = " ";
+const assetScreenerSelectionKeyFields = ["__assetKey"] as const;
+
+type AssetScreenerResolvedRowSelection = {
+  assetKey: string;
+  rowIndex: number;
+  rowKey: string;
+  rowObject: AssetScreenerTableRowObject;
+};
+
+function cloneJsonValue<T>(value: T): T {
+  if (value === null || value === undefined || typeof value !== "object") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(JSON.stringify(value)) as T;
+  } catch {
+    return value;
+  }
+}
+
+function assetScreenerSelectionRowKey(row: Pick<AssetScreenerTableRowObject, "__assetKey">) {
+  return buildTableWidgetRowKey(row as Record<string, unknown>, assetScreenerSelectionKeyFields);
+}
+
+function isAssetScreenerAssetRow(
+  row: TableWidgetRow | undefined,
+): row is AssetScreenerTableRowObject & { __assetKey: string } {
+  return Boolean(
+    row &&
+      typeof row === "object" &&
+      typeof (row as AssetScreenerTableRowObject).__assetKey === "string",
+  );
+}
+
+function createAssetScreenerSelectionRowLookups(
+  rowObjects: TableWidgetRow[],
+) {
+  const byIndex = new Map<number, AssetScreenerResolvedRowSelection>();
+  const byRowKey = new Map<string, AssetScreenerResolvedRowSelection>();
+  const byAssetKey = new Map<string, AssetScreenerResolvedRowSelection>();
+
+  rowObjects.forEach((rowObject, rowIndex) => {
+    if (!isAssetScreenerAssetRow(rowObject)) {
+      return;
+    }
+
+    const rowKey = assetScreenerSelectionRowKey(rowObject);
+
+    if (!rowKey) {
+      return;
+    }
+
+    const resolved = {
+      assetKey: rowObject.__assetKey,
+      rowIndex,
+      rowKey,
+      rowObject,
+    } satisfies AssetScreenerResolvedRowSelection;
+
+    byIndex.set(rowIndex, resolved);
+    byRowKey.set(rowKey, resolved);
+    byAssetKey.set(resolved.assetKey, resolved);
+  });
+
+  return {
+    byAssetKey,
+    byIndex,
+    byRowKey,
+  };
+}
+
+function resolveAssetScreenerSelectionRow(
+  selection: {
+    rowIndex: number;
+    rowKey?: string;
+  },
+  lookups: ReturnType<typeof createAssetScreenerSelectionRowLookups>,
+) {
+  if (selection.rowKey) {
+    const byKey = lookups.byRowKey.get(selection.rowKey);
+
+    if (byKey) {
+      return byKey;
+    }
+  }
+
+  return lookups.byIndex.get(selection.rowIndex) ?? null;
+}
+
+function uniqueAssetScreenerSelectionRows(
+  rows: Array<AssetScreenerResolvedRowSelection | null | undefined>,
+) {
+  const seen = new Set<string>();
+  const normalized: AssetScreenerResolvedRowSelection[] = [];
+
+  rows.forEach((row) => {
+    if (!row || seen.has(row.assetKey)) {
+      return;
+    }
+
+    seen.add(row.assetKey);
+    normalized.push(row);
+  });
+
+  return normalized;
+}
+
+function sanitizeAssetScreenerSelectionState(
+  selection: TableWidgetSelectionState,
+  rowObjects: TableWidgetRow[],
+): TableWidgetSelectionState {
+  const lookups = createAssetScreenerSelectionRowLookups(rowObjects);
+  const selectedRows = uniqueAssetScreenerSelectionRows([
+    ...selection.selectedRowKeys.map((rowKey) =>
+      resolveAssetScreenerSelectionRow({ rowKey, rowIndex: -1 }, lookups)
+    ),
+    ...selection.selectedRowIndices.map((rowIndex) =>
+      resolveAssetScreenerSelectionRow({ rowIndex }, lookups)
+    ),
+    ...selection.selectedCells.map((cell) =>
+      resolveAssetScreenerSelectionRow(cell, lookups)
+    ),
+  ]);
+  const activeCellRow = selection.activeCell
+    ? resolveAssetScreenerSelectionRow(selection.activeCell, lookups)
+    : null;
+  const activeRow =
+    resolveAssetScreenerSelectionRow(
+      {
+        rowKey: selection.activeRowKey,
+        rowIndex: selection.activeRowIndex ?? -1,
+      },
+      lookups,
+    ) ??
+    activeCellRow;
+  const selectedRowsWithActive = activeRow
+    ? uniqueAssetScreenerSelectionRows([...selectedRows, activeRow])
+    : selectedRows;
+  const selectedCells = selection.selectedCells.flatMap((cell) => {
+    const resolvedRow = resolveAssetScreenerSelectionRow(cell, lookups);
+
+    if (!resolvedRow) {
+      return [];
+    }
+
+    return [{
+      ...cell,
+      rowKey: resolvedRow.rowKey,
+      rowIndex: resolvedRow.rowIndex,
+      value: cell.value ?? resolvedRow.rowObject[cell.columnKey] ?? null,
+    }];
+  });
+
+  return {
+    ...selection,
+    selectedRowKeys: selectedRowsWithActive.map((row) => row.rowKey),
+    selectedRowIndices: selectedRowsWithActive.map((row) => row.rowIndex),
+    activeRowKey: activeRow?.rowKey,
+    activeRowIndex: activeRow?.rowIndex,
+    activeCell:
+      selection.activeCell && activeCellRow
+        ? {
+            ...selection.activeCell,
+            rowKey: activeCellRow.rowKey,
+            rowIndex: activeCellRow.rowIndex,
+            value:
+              selection.activeCell.value ??
+              activeCellRow.rowObject[selection.activeCell.columnKey] ??
+              null,
+          }
+        : undefined,
+    selectedCells,
+  };
+}
+
+function resolveAssetScreenerEffectiveSelectionMode(
+  props: MainSequenceAssetScreenerWidgetProps,
+  selection: TableWidgetSelectionState,
+) {
+  const publishSelectionOutputs = props.table?.publishSelectionOutputs !== false;
+  const explicitSelectionMode =
+    props.table?.selectionMode === "single-row" ||
+    props.table?.selectionMode === "multi-row" ||
+    props.table?.selectionMode === "cell"
+      ? props.table.selectionMode
+      : "none";
+
+  if (!publishSelectionOutputs) {
+    return "none";
+  }
+
+  if (explicitSelectionMode !== "none") {
+    return explicitSelectionMode;
+  }
+
+  if (selection.implicitMode === true && selection.mode !== "none") {
+    return selection.mode;
+  }
+
+  return "none";
+}
 
 function firstResolvedInput(
   resolvedInputs: ResolvedWidgetInputs | undefined,
@@ -231,110 +434,13 @@ function tableValueForColumn(
   return normalizeTableCellValue(row.metrics[column.id]);
 }
 
-function isAssetScreenerGroupHeaderRow(
-  row: TableWidgetRow | undefined,
-): row is AssetScreenerTableRowObject {
-  return Boolean(
-    row &&
-      typeof row === "object" &&
-      (row as AssetScreenerTableRowObject).__groupHeader === true,
-  );
-}
-
-function resolveAssetScreenerGroupValue(
-  row: MarketAssetScreenerRow,
-  groupBy: string | undefined,
-) {
-  if (!groupBy) {
-    return undefined;
-  }
-
-  const value = row.asset[groupBy as keyof typeof row.asset];
-
-  if (typeof value === "string" && value.trim()) {
-    return value.trim();
-  }
-
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return String(value);
-  }
-
-  if (Array.isArray(value)) {
-    const firstValue = value.find((entry) => typeof entry === "string" && entry.trim());
-    return typeof firstValue === "string" ? firstValue.trim() : undefined;
-  }
-
-  return undefined;
-}
-
-function buildGroupedRowObjects({
-  columnIds,
-  groupBy,
-  rowObjects,
-  rows,
-}: {
-  columnIds: string[];
-  groupBy: string | undefined;
-  rowObjects: AssetScreenerTableRowObject[];
-  rows: MarketAssetScreenerRow[];
-}) {
-  const firstColumnId = columnIds[0];
-
-  if (!groupBy || !firstColumnId || rowObjects.length === 0) {
-    return rowObjects;
-  }
-
-  const buckets = new Map<string, AssetScreenerTableRowObject[]>();
-  const orderedGroups: string[] = [];
-
-  rows.forEach((row, rowIndex) => {
-    const rowObject = rowObjects[rowIndex];
-
-    if (!rowObject) {
-      return;
-    }
-
-    const groupValue = resolveAssetScreenerGroupValue(row, groupBy) ?? "Ungrouped";
-    const groupRows = buckets.get(groupValue);
-
-    if (groupRows) {
-      groupRows.push(rowObject);
-      return;
-    }
-
-    orderedGroups.push(groupValue);
-    buckets.set(groupValue, [rowObject]);
-  });
-
-  return orderedGroups.flatMap((groupValue) => {
-    const groupRows = buckets.get(groupValue) ?? [];
-
-    return [
-      {
-        __groupCount: groupRows.length,
-        __groupHeader: true,
-        __groupLabel: groupValue,
-        ...Object.fromEntries(
-          columnIds.map((columnId, columnIndex) => [
-            columnId,
-            columnIndex === 0 ? groupValue : assetScreenerBlankCellValue,
-          ]),
-        ),
-      } satisfies AssetScreenerTableRowObject,
-      ...groupRows,
-    ];
-  });
-}
-
 export function buildAssetScreenerTableFrame({
   columns,
-  groupBy,
   rows,
   sourceFrame,
   sourceColumns,
 }: {
   columns: MarketAssetScreenerColumn[];
-  groupBy?: string;
   rows: MarketAssetScreenerRow[];
   sourceFrame?: TabularFrameSourceV1 | null;
   sourceColumns?: MarketAssetScreenerColumn[];
@@ -429,12 +535,7 @@ export function buildAssetScreenerTableFrame({
         aliasedSourceConditionalRules.length > 0 ? aliasedSourceConditionalRules : undefined,
       sourceLabel: "Market asset screener",
     },
-    rowObjects: buildGroupedRowObjects({
-      columnIds,
-      groupBy,
-      rowObjects,
-      rows,
-    }),
+    rowObjects,
   };
 }
 
@@ -459,6 +560,10 @@ export function buildAssetScreenerResolvedTableProps({
     {
       tableSourceMode: "bound",
       density: densityOverride ?? (density === "comfortable" ? "comfortable" : "compact"),
+      groupBy:
+        typeof tableSettings?.groupBy === "string" && tableSettings.groupBy.trim()
+          ? tableSettings.groupBy.trim()
+          : undefined,
       showToolbar: false,
       showSearch: false,
       showColumnFilters: tableSettings?.showColumnFilters !== false,
@@ -579,43 +684,20 @@ function Sparkline({
 
 function buildSparklineCellRenderers({
   columns,
-  firstColumnId,
   rows,
 }: {
   columns: MarketAssetScreenerColumn[];
-  firstColumnId: string | undefined;
   rows: MarketAssetScreenerRow[];
 }) {
   const rowByAssetKey = new Map(rows.map((row) => [row.asset.assetKey, row]));
 
   return Object.fromEntries(
     columns.flatMap((column) => {
-      if (column.kind !== "sparkline" && column.id !== firstColumnId) {
+      if (column.kind !== "sparkline") {
         return [];
       }
 
       const renderer: TableFrameCustomCellRenderer = ({ row, value }) => {
-        if (isAssetScreenerGroupHeaderRow(row)) {
-          if (column.id !== firstColumnId) {
-            return <span aria-hidden="true">{assetScreenerBlankCellValue}</span>;
-          }
-
-          return (
-            <div className="flex h-full w-full items-center overflow-hidden text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              <span className="truncate">{row.__groupLabel ?? String(value ?? "")}</span>
-              {typeof row.__groupCount === "number" ? (
-                <span className="ml-2 shrink-0 text-[9px] text-muted-foreground/80">
-                  {row.__groupCount}
-                </span>
-              ) : null}
-            </div>
-          );
-        }
-
-        if (column.kind !== "sparkline") {
-          return undefined;
-        }
-
         const screenerRow = typeof value === "string" ? rowByAssetKey.get(value) : undefined;
 
         if (!screenerRow) {
@@ -687,12 +769,11 @@ export function AssetScreenerWidget({
     () =>
       buildAssetScreenerTableFrame({
         columns: state.columns,
-        groupBy: normalizedProps.groupBy,
         rows: state.filteredRows,
         sourceFrame: state.sourceFrame,
         sourceColumns: state.sourceColumns,
       }),
-    [normalizedProps.groupBy, state.columns, state.filteredRows, state.sourceColumns, state.sourceFrame],
+    [state.columns, state.filteredRows, state.sourceColumns, state.sourceFrame],
   );
   const resolvedTableProps = useMemo(
     () =>
@@ -703,14 +784,59 @@ export function AssetScreenerWidget({
       }),
     [normalizedProps.density, normalizedProps.table, tableFrame.frame],
   );
+  const selectionState = useMemo(
+    () => normalizeTableWidgetSelectionState(runtimeState),
+    [runtimeState],
+  );
+  const effectiveSelectionMode =
+    normalizedProps.table?.selectionMode === "single-row" ||
+    normalizedProps.table?.selectionMode === "multi-row" ||
+    normalizedProps.table?.selectionMode === "cell"
+      ? normalizedProps.table.selectionMode
+      : "none";
+  const handleSelectionChange = useCallback(
+    (selection: TableWidgetSelectionState) => {
+      if (!onRuntimeStateChange) {
+        return;
+      }
+
+      const sanitized = sanitizeAssetScreenerSelectionState(selection, tableFrame.rowObjects);
+
+      onRuntimeStateChange(
+        withTableWidgetSelectionRuntimeState(runtimeState as Record<string, unknown> | undefined, {
+          ...sanitized,
+          implicitMode:
+            (normalizedProps.table?.selectionMode ?? "none") === "none" &&
+            effectiveSelectionMode !== "none",
+        }),
+      );
+    },
+    [
+      effectiveSelectionMode,
+      normalizedProps.table?.selectionMode,
+      onRuntimeStateChange,
+      runtimeState,
+      tableFrame.rowObjects,
+    ],
+  );
+  const selectionViewProps = useMemo(
+    () =>
+      effectiveSelectionMode === "none"
+        ? {}
+        : {
+            selectionMode: effectiveSelectionMode,
+            selectionState,
+            onSelectionChange: handleSelectionChange,
+          },
+    [effectiveSelectionMode, handleSelectionChange, selectionState],
+  );
   const customCellRenderers = useMemo(
     () =>
       buildSparklineCellRenderers({
         columns: state.columns,
-        firstColumnId: tableFrame.frame.columns[0],
         rows: state.filteredRows,
       }),
-    [state.columns, state.filteredRows, tableFrame.frame.columns],
+    [state.columns, state.filteredRows],
   );
 
   if (!state.hasAnyBinding && state.rows.length === 0) {
@@ -748,24 +874,390 @@ export function AssetScreenerWidget({
         <TableFrameView
           customCellRenderers={customCellRenderers}
           emptyMessage=""
-          getRowStyle={(row) =>
-            isAssetScreenerGroupHeaderRow(row)
-              ? {
-                  backgroundColor: "rgba(148, 163, 184, 0.08)",
-                  fontWeight: 600,
-                }
-              : undefined
-          }
           resolvedProps={resolvedTableProps}
           resolvedTokens={resolvedTokens}
           rowObjects={tableFrame.rowObjects}
           showColumnFilters={false}
           surface="transparent"
           tightness={tightness}
+          {...selectionViewProps}
         />
       </div>
     </div>
   );
+}
+
+function inferAssetScreenerFieldType(value: unknown): TabularFrameFieldSchema["type"] {
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? "integer" : "number";
+  }
+
+  if (typeof value === "boolean") {
+    return "boolean";
+  }
+
+  if (typeof value === "string") {
+    return /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value) ? "datetime" : "string";
+  }
+
+  if (value === null || value === undefined) {
+    return "unknown";
+  }
+
+  return Array.isArray(value) || typeof value === "object" ? "json" : "unknown";
+}
+
+function buildAssetScreenerPublicRow(
+  row: MarketAssetScreenerRow,
+  columns: MarketAssetScreenerColumn[],
+) {
+  const publicRow: Record<string, unknown> = {
+    assetKey: row.asset.assetKey,
+    unique_identifier: row.asset.assetKey,
+  };
+
+  [
+    "symbol",
+    "displayName",
+    "exchange",
+    "currency",
+    "country",
+    "assetClass",
+    "sector",
+    "industry",
+    "group",
+    "tags",
+  ].forEach((key) => {
+    const value = row.asset[key as keyof typeof row.asset];
+
+    if (value !== undefined) {
+      publicRow[key] = cloneJsonValue(value);
+    }
+  });
+
+  Object.entries(row.metrics).forEach(([key, value]) => {
+    if (!(key in publicRow)) {
+      publicRow[key] = cloneJsonValue(value);
+    }
+  });
+
+  columns.forEach((column) => {
+    publicRow[column.id] = cloneJsonValue(tableValueForColumn(row, column));
+  });
+
+  return publicRow;
+}
+
+function buildAssetScreenerSelectedRowsOutputColumns(
+  columns: MarketAssetScreenerColumn[],
+  rows: Array<Record<string, unknown>>,
+) {
+  const ordered = new Set<string>([
+    ...columns.map((column) => column.id),
+    "assetKey",
+    "unique_identifier",
+    "symbol",
+    "displayName",
+    "exchange",
+    "currency",
+    "country",
+    "assetClass",
+    "sector",
+    "industry",
+    "group",
+    "tags",
+  ]);
+
+  rows.forEach((row) => {
+    Object.keys(row).forEach((key) => {
+      ordered.add(key);
+    });
+  });
+
+  return Array.from(ordered).filter((key) =>
+    rows.some((row) => row[key] !== undefined),
+  );
+}
+
+function buildAssetScreenerSelectedRowsOutputFields(
+  columns: string[],
+  rows: Array<Record<string, unknown>>,
+): TabularFrameFieldSchema[] | undefined {
+  if (columns.length === 0) {
+    return undefined;
+  }
+
+  return columns.map((column) => {
+    const sample = rows.find((row) => row[column] !== undefined)?.[column];
+
+    return {
+      key: column,
+      label: column,
+      provenance: "derived",
+      type: inferAssetScreenerFieldType(sample),
+    } satisfies TabularFrameFieldSchema;
+  });
+}
+
+type AssetScreenerOutputContext = {
+  columns: MarketAssetScreenerColumn[];
+  effectiveSelectionMode: TableWidgetSelectionMode;
+  filteredRows: MarketAssetScreenerRow[];
+  publicRowByAssetKey: Map<string, Record<string, unknown>>;
+  rowLookup: ReturnType<typeof createAssetScreenerSelectionRowLookups>;
+  selection: TableWidgetSelectionState;
+  sourceFrame?: TabularFrameSourceV1 | null;
+};
+
+function buildAssetScreenerOutputContext({
+  props,
+  resolvedInputs,
+  runtimeState,
+  runtimeDataStore,
+}: {
+  props: MainSequenceAssetScreenerWidgetProps;
+  resolvedInputs: ResolvedWidgetInputs | undefined;
+  runtimeState?: unknown;
+  runtimeDataStore?: unknown;
+}): AssetScreenerOutputContext {
+  const normalizedProps = normalizeAssetScreenerProps(props);
+  const state = resolveAssetScreenerState({
+    props: normalizedProps,
+    resolvedInputs,
+    runtimeDataStore: runtimeDataStore as never,
+    fallbackFrames: isAssetScreenerDemoRuntimeState(runtimeState)
+      ? runtimeState.marketAssetScreenerDemoFrames
+      : undefined,
+  });
+  const tableFrame = buildAssetScreenerTableFrame({
+    columns: state.columns,
+    rows: state.filteredRows,
+    sourceFrame: state.sourceFrame,
+    sourceColumns: state.sourceColumns,
+  });
+  const selection = normalizeTableWidgetSelectionState(runtimeState);
+  const publicRowByAssetKey = new Map(
+    state.filteredRows.map((row) => [
+      row.asset.assetKey,
+      buildAssetScreenerPublicRow(row, state.columns),
+    ] as const),
+  );
+
+  return {
+    columns: state.columns,
+    effectiveSelectionMode: resolveAssetScreenerEffectiveSelectionMode(normalizedProps, selection),
+    filteredRows: state.filteredRows,
+    publicRowByAssetKey,
+    rowLookup: createAssetScreenerSelectionRowLookups(tableFrame.rowObjects),
+    selection,
+    sourceFrame: state.sourceFrame,
+  };
+}
+
+function resolveAssetScreenerSelectedAssetRows(
+  context: AssetScreenerOutputContext,
+) {
+  return uniqueAssetScreenerSelectionRows([
+    ...context.selection.selectedRowKeys.map((rowKey) =>
+      resolveAssetScreenerSelectionRow({ rowKey, rowIndex: -1 }, context.rowLookup)
+    ),
+    ...context.selection.selectedRowIndices.map((rowIndex) =>
+      resolveAssetScreenerSelectionRow({ rowIndex }, context.rowLookup)
+    ),
+    ...context.selection.selectedCells.map((cell) =>
+      resolveAssetScreenerSelectionRow(cell, context.rowLookup)
+    ),
+  ]);
+}
+
+function resolveAssetScreenerActiveSelectionRow(
+  context: AssetScreenerOutputContext,
+) {
+  return (
+    resolveAssetScreenerSelectionRow(
+      {
+        rowKey: context.selection.activeRowKey,
+        rowIndex: context.selection.activeRowIndex ?? -1,
+      },
+      context.rowLookup,
+    ) ??
+    (context.selection.activeCell
+      ? resolveAssetScreenerSelectionRow(context.selection.activeCell, context.rowLookup)
+      : null)
+  );
+}
+
+function resolveAssetScreenerSelectedCells(
+  context: AssetScreenerOutputContext,
+) {
+  if (context.selection.selectedCells.length > 0) {
+    return context.selection.selectedCells
+      .map((cell) => {
+        const resolvedRow = resolveAssetScreenerSelectionRow(cell, context.rowLookup);
+
+        return resolvedRow
+          ? {
+              ...cell,
+              rowKey: resolvedRow.rowKey,
+              rowIndex: resolvedRow.rowIndex,
+            }
+          : null;
+      })
+      .filter((cell): cell is NonNullable<typeof cell> => cell !== null);
+  }
+
+  return context.selection.activeCell
+    ? (() => {
+        const resolvedRow = resolveAssetScreenerSelectionRow(
+          context.selection.activeCell,
+          context.rowLookup,
+        );
+
+        return resolvedRow
+          ? [{
+              ...context.selection.activeCell,
+              rowKey: resolvedRow.rowKey,
+              rowIndex: resolvedRow.rowIndex,
+            }]
+          : [];
+      })()
+    : [];
+}
+
+export function resolveAssetScreenerSelectedRowsOutput({
+  props,
+  resolvedInputs,
+  runtimeState,
+  runtimeDataStore,
+}: {
+  props: MainSequenceAssetScreenerWidgetProps;
+  resolvedInputs: ResolvedWidgetInputs | undefined;
+  runtimeState?: unknown;
+  runtimeDataStore?: unknown;
+}): TabularFrameSourceV1 {
+  const context = buildAssetScreenerOutputContext({
+    props,
+    resolvedInputs,
+    runtimeState,
+    runtimeDataStore,
+  });
+
+  if (context.effectiveSelectionMode === "none") {
+    return {
+      status: context.sourceFrame?.status === "error"
+        ? "error"
+        : context.sourceFrame?.status === "loading"
+          ? "loading"
+          : "ready",
+      columns: context.columns.map((column) => column.id),
+      rows: [],
+      source: {
+        kind: "asset-screener-selection",
+        label: "Selected screener rows",
+        context: {
+          selectedRowCount: 0,
+        },
+      },
+    };
+  }
+
+  const rows = resolveAssetScreenerSelectedAssetRows(context)
+    .map((row) => context.publicRowByAssetKey.get(row.assetKey))
+    .filter((row): row is Record<string, unknown> => Boolean(row));
+  const columns = buildAssetScreenerSelectedRowsOutputColumns(context.columns, rows);
+
+  return {
+    status: context.sourceFrame?.status === "error"
+      ? "error"
+      : context.sourceFrame?.status === "loading"
+        ? "loading"
+        : "ready",
+    columns,
+    rows,
+    fields: buildAssetScreenerSelectedRowsOutputFields(columns, rows),
+    source: {
+      kind: "asset-screener-selection",
+      label: "Selected screener rows",
+      context: {
+        selectedRowCount: rows.length,
+      },
+    },
+  };
+}
+
+export function resolveAssetScreenerActiveRowOutput(input: {
+  props: MainSequenceAssetScreenerWidgetProps;
+  resolvedInputs: ResolvedWidgetInputs | undefined;
+  runtimeState?: unknown;
+  runtimeDataStore?: unknown;
+}) {
+  const context = buildAssetScreenerOutputContext(input);
+
+  if (context.effectiveSelectionMode === "none") {
+    return null;
+  }
+
+  const activeRow = resolveAssetScreenerActiveSelectionRow(context);
+  return activeRow ? context.publicRowByAssetKey.get(activeRow.assetKey) ?? null : null;
+}
+
+export function resolveAssetScreenerActiveCellOutput(input: {
+  props: MainSequenceAssetScreenerWidgetProps;
+  resolvedInputs: ResolvedWidgetInputs | undefined;
+  runtimeState?: unknown;
+  runtimeDataStore?: unknown;
+}) {
+  const context = buildAssetScreenerOutputContext(input);
+
+  if (context.effectiveSelectionMode === "none" || !context.selection.activeCell) {
+    return null;
+  }
+
+  const activeRow = resolveAssetScreenerActiveSelectionRow(context);
+
+  if (!activeRow) {
+    return null;
+  }
+
+  const row = context.publicRowByAssetKey.get(activeRow.assetKey) ?? null;
+  const value = row ? row[context.selection.activeCell.columnKey] ?? null : context.selection.activeCell.value ?? null;
+
+  return {
+    rowKey: activeRow.rowKey,
+    rowIndex: activeRow.rowIndex,
+    columnKey: context.selection.activeCell.columnKey,
+    value,
+    row,
+  };
+}
+
+export function resolveAssetScreenerActiveCellValueOutput(input: {
+  props: MainSequenceAssetScreenerWidgetProps;
+  resolvedInputs: ResolvedWidgetInputs | undefined;
+  runtimeState?: unknown;
+  runtimeDataStore?: unknown;
+}) {
+  const activeCell = resolveAssetScreenerActiveCellOutput(input);
+  return activeCell ? activeCell.value ?? null : null;
+}
+
+export function resolveAssetScreenerSelectedCellValuesOutput(input: {
+  props: MainSequenceAssetScreenerWidgetProps;
+  resolvedInputs: ResolvedWidgetInputs | undefined;
+  runtimeState?: unknown;
+  runtimeDataStore?: unknown;
+}) {
+  const context = buildAssetScreenerOutputContext(input);
+
+  if (context.effectiveSelectionMode === "none") {
+    return [];
+  }
+
+  return resolveAssetScreenerSelectedCells(context).map((cell) => {
+    const row = resolveAssetScreenerSelectionRow(cell, context.rowLookup);
+    const publicRow = row ? context.publicRowByAssetKey.get(row.assetKey) : undefined;
+    return publicRow ? publicRow[cell.columnKey] ?? cell.value ?? null : cell.value ?? null;
+  });
 }
 
 function isAssetScreenerDemoRuntimeState(

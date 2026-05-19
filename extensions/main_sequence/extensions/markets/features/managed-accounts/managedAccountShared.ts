@@ -19,6 +19,53 @@ export function formatManagedAccountValue(
   return normalized || fallback;
 }
 
+function readExecutionVenueObjectLabel(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return "";
+  }
+
+  const record = value as Record<string, unknown>;
+  const candidates = [
+    record.name,
+    record.display_name,
+    record.symbol,
+    record.text,
+    record.uid,
+    record.id,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+    if (typeof candidate === "number" && Number.isFinite(candidate)) {
+      return String(candidate);
+    }
+  }
+
+  return "";
+}
+
+export function getManagedAccountExecutionVenueLabel(account?: ManagedAccountRecord | null) {
+  const executionVenueName =
+    typeof account?.execution_venue_name === "string" ? account.execution_venue_name.trim() : "";
+
+  if (executionVenueName) {
+    return executionVenueName;
+  }
+
+  const objectLabel = readExecutionVenueObjectLabel(account?.execution_venue);
+  if (objectLabel) {
+    return objectLabel;
+  }
+
+  if (account?.execution_venue != null && String(account.execution_venue).trim()) {
+    return String(account.execution_venue).trim();
+  }
+
+  return "";
+}
+
 export function getManagedAccountTitle(account?: ManagedAccountRecord | null) {
   return (
     account?.display_name?.trim() ||
@@ -29,8 +76,9 @@ export function getManagedAccountTitle(account?: ManagedAccountRecord | null) {
 }
 
 export function getManagedAccountSubtitle(account?: ManagedAccountRecord | null) {
-  if (account?.execution_venue != null && String(account.execution_venue).trim()) {
-    return `Execution venue ${String(account.execution_venue).trim()}`;
+  const executionVenueLabel = getManagedAccountExecutionVenueLabel(account);
+  if (executionVenueLabel) {
+    return `Execution venue ${executionVenueLabel}`;
   }
 
   return "";

@@ -5,6 +5,8 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 ## whenToUse
 
 - Use when a workspace needs row-level inspection, sorting, filtering, search, pagination, pinned columns, or compact table density.
+- Use `Group by` when the same dataset should render dense section headers for one field such as
+  `sector`, `desk`, or `exchange`.
 - Use when a tabular frame needs display configuration: header labels, descriptions, visibility, alignment, pinning, datetime rendering, numeric precision, prefix, suffix, compact-number notation, heatmaps, data bars, gauges, threshold rules, or value-label chips.
 - Use the managed connection flow when this table should own its own hidden `connection-query` or
   `connection-stream-query` source instead of sharing a visible upstream source widget.
@@ -33,6 +35,9 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Gauge visuals use a centered diverging fill. Positive values extend from the middle of the cell
   toward the right edge; negative values extend from the middle toward the left edge.
 - Configure table-level presentation first. In the per-column editor, the default row keeps only key, label, format, and visibility inline; expand `Advanced` when a column needs descriptions, pinning, Date/time input or output patterns, numeric visuals, or display overrides.
+- Use `Group by` for display-only grouped sections. The grouped headers are synthetic render rows;
+  they do not change the published `dataset` output or the row payloads used by selection
+  outputs.
 - Add threshold rules from each numeric column's `Advanced` panel. Rules are evaluated top to
   bottom for that column, and the first matching rule wins.
 - Use `Quick filter` when users need one global search box across rendered rows. Turn it off for denser table embeds.
@@ -100,4 +105,6 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Prefix and suffix are literal display text. Do not use them to convert units or change numeric scale upstream.
 - Date/time formatting is presentation-only. It does not convert the published `dataset` output values for downstream widgets.
 - Row-index selection fallback can point at a different row after an upstream resort, filter, or refresh. Use stable row key fields for production compositions.
+- Grouped sections are a shared table presentation feature. While grouping is active, AG Grid
+  header sorting is disabled so the grouped blocks stay contiguous in first-seen group order.
 - Cell clicks publish `activeCell`, `activeCellValue`, and a one-item `selectedCellValues` list in row and cell selection modes. In `cell` mode, range selection publishes the ordered `selectedCellValues` range and marks the touched rows as the effective `selectedRows` output. Row modes also publish `selectedRows` and `activeRow`. `none` disables manual selection outputs by default, but the runtime may infer the minimal interaction mode when a downstream widget reference actively consumes one of the table interaction outputs.

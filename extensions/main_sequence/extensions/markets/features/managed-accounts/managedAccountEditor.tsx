@@ -18,7 +18,7 @@ import { PickerField, type PickerOption } from "../../../../common/components/Pi
 
 export type ManagedAccountEditorValues = {
   accountName: string;
-  executionVenueId: string;
+  executionVenueUid: string;
   isPaper: boolean;
   holdingsDataSourceId: string;
 };
@@ -26,7 +26,7 @@ export type ManagedAccountEditorValues = {
 export function buildManagedAccountInitialValues(): ManagedAccountEditorValues {
   return {
     accountName: "",
-    executionVenueId: "",
+    executionVenueUid: "",
     isPaper: true,
     holdingsDataSourceId: "",
   };
@@ -36,13 +36,13 @@ export function buildManagedAccountCreatePayload(
   values: ManagedAccountEditorValues,
 ): CreateManagedAccountInput {
   const accountName = values.accountName.trim();
-  const executionVenueId = Number(values.executionVenueId);
+  const executionVenueUid = values.executionVenueUid.trim();
 
   if (!accountName) {
     throw new Error("Account name is required.");
   }
 
-  if (!Number.isFinite(executionVenueId) || executionVenueId <= 0) {
+  if (!executionVenueUid) {
     throw new Error("Execution venue is required.");
   }
 
@@ -52,7 +52,7 @@ export function buildManagedAccountCreatePayload(
 
   return {
     account_name: accountName,
-    execution_venue: executionVenueId,
+    execution_venue: executionVenueUid,
     is_paper: values.isPaper,
     holdings_data_source:
       holdingsDataSourceId && Number.isFinite(holdingsDataSourceId)
@@ -96,10 +96,10 @@ export function ManagedAccountEditorDialog({
   const executionVenueOptions = useMemo<PickerOption[]>(
     () =>
       (executionVenuesQuery.data?.results ?? []).map((venue) => ({
-        value: String(venue.id),
-        label: venue.name?.trim() || venue.symbol?.trim() || `Venue ${venue.id}`,
+        value: venue.uid,
+        label: venue.name?.trim() || venue.symbol?.trim() || "Execution venue",
         description: venue.symbol?.trim() || undefined,
-        keywords: [venue.name ?? "", venue.symbol ?? "", String(venue.id)],
+        keywords: [venue.name ?? "", venue.symbol ?? "", venue.uid ?? ""],
       })),
     [executionVenuesQuery.data?.results],
   );
@@ -195,12 +195,12 @@ export function ManagedAccountEditorDialog({
               Execution Venue
             </label>
             <PickerField
-              value={values.executionVenueId}
+              value={values.executionVenueUid}
               onChange={(value) => {
                 setValidationError(null);
                 setValues((current) => ({
                   ...current,
-                  executionVenueId: value,
+                  executionVenueUid: value,
                 }));
               }}
               options={executionVenueOptions}
@@ -309,7 +309,7 @@ export function ManagedAccountEditorDialog({
                 return;
               }
 
-              if (!values.executionVenueId.trim()) {
+              if (!values.executionVenueUid.trim()) {
                 setValidationError("Execution venue is required.");
                 return;
               }

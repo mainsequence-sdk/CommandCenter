@@ -12,9 +12,14 @@ This feature owns the Main Sequence Markets execution venue registry and the ded
 
 - `GET /orm/api/assets/execution_venue/` for the list flow using the standard DRF `limit` and `offset` contract.
 - `POST /orm/api/assets/execution_venue/` for venue creation from the list screen.
-- `GET /orm/api/assets/execution_venue/{id}/` for the minimal detail payload.
-- `PATCH /orm/api/assets/execution_venue/{id}/` for symbol and name updates.
-- `DELETE /orm/api/assets/execution_venue/{id}/` for detail-screen deletion.
+- `GET /orm/api/assets/execution_venue/{uid}/` for the minimal detail payload.
+- `PATCH /orm/api/assets/execution_venue/{uid}/` for symbol and name updates.
+- `DELETE /orm/api/assets/execution_venue/{uid}/` for detail-screen deletion.
+
+## Contract Notes
+
+- Execution venue records now expose `uid`, `symbol`, and `name`. The frontend should never rely on numeric venue ids for navigation or mutation.
+- Managed-account create flows must send `execution_venue` as that venue UID, not a database pk.
 
 ## Rules
 
