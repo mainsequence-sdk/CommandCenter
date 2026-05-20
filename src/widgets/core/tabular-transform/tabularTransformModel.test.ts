@@ -263,4 +263,140 @@ describe("tabular transform filter mode", () => {
     expect(output.status).toBe("error");
     expect(output.error).toContain("Filter rule 1");
   });
+
+  it("authors computed columns in the transform widget and projects them downstream", () => {
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        computedColumns: [
+          {
+            key: "one_day_return",
+            label: "1D",
+            type: "number",
+            formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+          },
+        ],
+        projectFields: ["symbol", "one_day_return"],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(
+        frame(
+          [
+            { symbol: "BTCUSDT", last_price: 110, previous_close: 100 },
+            { symbol: "ETHUSDT", last_price: 95, previous_close: 100 },
+          ],
+          [
+            { key: "symbol", type: "string", provenance: "manual" },
+            { key: "last_price", type: "number", provenance: "manual" },
+            { key: "previous_close", type: "number", provenance: "manual" },
+          ],
+        ),
+      ),
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.columns).toEqual(["symbol", "one_day_return"]);
+    expect(output.rows).toEqual([
+      { symbol: "BTCUSDT", one_day_return: 10 },
+      { symbol: "ETHUSDT", one_day_return: -5 },
+    ]);
+    expect(output.meta).toMatchObject({
+      tableTransforms: {
+        computedColumns: [
+          {
+            id: "one_day_return",
+            label: "1D",
+            type: "number",
+          },
+        ],
+      },
+    });
+    expect(output.fields?.find((field) => field.key === "one_day_return")).toMatchObject({
+      provenance: "derived",
+      derivedFrom: ["last_price", "previous_close"],
+    });
+  });
+
+  it("publishes computed columns into transformed deltas when the transform can stream row deltas", () => {
+    const baseFrame = frame(
+      [{ symbol: "BTCUSDT", last_price: 110, previous_close: 100 }],
+      [
+        { key: "symbol", type: "string", provenance: "manual" },
+        { key: "last_price", type: "number", provenance: "manual" },
+        { key: "previous_close", type: "number", provenance: "manual" },
+      ],
+    );
+    const deltaFrame = frame(
+      [{ symbol: "ETHUSDT", last_price: 95, previous_close: 100 }],
+      [
+        { key: "symbol", type: "string", provenance: "manual" },
+        { key: "last_price", type: "number", provenance: "manual" },
+        { key: "previous_close", type: "number", provenance: "manual" },
+      ],
+    );
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "filter",
+        filterRules: [{ field: "symbol", operator: "not-equals", value: "ignore-me" }],
+        computedColumns: [
+          {
+            key: "one_day_return",
+            type: "number",
+            formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+          },
+        ],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(baseFrame, {
+        upstreamBase: baseFrame,
+        upstreamDelta: deltaFrame,
+        upstreamUpdate: {
+          contractVersion: "widget-runtime-update@v1",
+          mode: "delta",
+          sourceWidgetId: "source-widget",
+          sourceOutputId: "dataset",
+          outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          retainedOutputLocation: "carrier",
+        },
+      }),
+    });
+
+    expect(output.status).toBe("ready");
+    const update = readWidgetRuntimeUpdateContext(output);
+    const deltaOutput = update?.deltaOutput as TabularFrameSourceV1 | undefined;
+    expect(deltaOutput?.rows).toEqual([
+      { symbol: "ETHUSDT", last_price: 95, previous_close: 100, one_day_return: -5 },
+    ]);
+    expect(deltaOutput?.meta).toMatchObject({
+      tableTransforms: {
+        computedColumns: [
+          {
+            id: "one_day_return",
+          },
+        ],
+      },
+    });
+  });
+
+  it("returns a configuration error when a computed-column formula is invalid", () => {
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        computedColumns: [
+          {
+            key: "broken_return",
+            type: "number",
+            formulaExpression: "last_price * 10",
+          },
+        ],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(
+        frame(
+          [{ last_price: 110 }],
+          [{ key: "last_price", type: "number", provenance: "manual" }],
+        ),
+      ),
+    });
+
+    expect(output.status).toBe("error");
+    expect(output.error).toContain("Wrap field names in brackets");
+  });
 });

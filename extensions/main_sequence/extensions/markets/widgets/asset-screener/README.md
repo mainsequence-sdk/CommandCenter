@@ -20,11 +20,12 @@ field roles on `seedData`.
   create one hidden `connection-query` or `connection-stream-query` source for this screener.
 - `AssetScreenerWidget.tsx`: market-to-table adapter and runtime renderer. It derives market rows,
   builds a resolved table frame, and renders through `src/widgets/core/table/TableFrameView.tsx`.
-  Shared table metadata now flows through the base table model instead of being owned privately by
-  the screener.
+  Shared table metadata and local formula columns now flow through the base table model instead of
+  being owned privately by the screener.
 - `AssetScreenerWidgetSettings.tsx`: settings editor for screener runtime caps, generic tabular
   field mappings, columns, and the shared core Table display settings mounted in presentation
-  mode.
+  mode. The embedded table settings now inherit the same Pro-table capability path as
+  `pro-table`, including column-formula authoring.
 - `assetScreenerModel.ts`: prop normalization, resolved-input materialization, screener runtime
   model derivation, filtering, and sorting.
 - `USAGE_GUIDANCE.md`: backend-synced authoring guidance.
@@ -94,25 +95,31 @@ such as `volume`, `marketCap`, or `peRatio` as additional `valueKey`s, and the w
 them through `latest-value`, `reference-value`, `return`, or `sparkline` column definitions without
 changing the IO contract.
 
-Frames can also include `meta.tableTransforms.computedColumns` and `meta.tableVisuals.columns`.
-Those are shared table/tabular metadata blocks, not screener-specific metadata. Transforms run
-before `meta.marketAsset` semantic adaptation, so a row-local calculation such as
-`one_day_return = percentChange(last_price, previous_close)` can become a normal `valueKey`.
-Visual metadata is row-shape guidance for compact visuals, ranges, and the default
-settings-visible column model; the base table path consumes it directly and the screener inherits
-those defaults through its table-backed frame.
+Frames can include `meta.tableVisuals.columns` as the source-owned column proposal. That block can
+declare raw columns, hidden formula inputs, sparklines, and formula display columns. Mock
+connection responses that publish raw checkpoints such as `previous_close`, `one_month_ago`,
+`year_start`, and `one_year_ago` should keep those as flat row fields and declare return columns
+with `format: "formula"` plus a `formulaExpression` in `tableVisuals.columns`; they should not
+publish those returns as source-owned market `value` roles.
+`meta.tableTransforms.computedColumns` is still consumed for backward compatibility and for
+upstream `tabular-transform` output, but it is no longer the recommended way to hand-author an
+Asset Screener mock response.
+
+Local screener formulas now belong to the shared Pro-table settings path as well. If a user wants
+one screener-only computed display column such as `YTD` or `Spread %`, that column is authored in
+the embedded shared table settings and rendered through the same formula runtime used by
+`pro-table`. Asset Screener itself still only owns market identity, latest/reference semantics,
+and sparkline cell rendering.
 
 ## Metadata Capabilities
 
 - `meta.marketAsset.role` should be `snapshot` for public Asset Screener inputs.
 - `meta.marketAsset.fieldRoles` maps generic columns to identity, observation, latest value,
   inline `referenceValue`, and inline `sparklineSeries` semantics.
-- `meta.tableTransforms.computedColumns` adds row-local derived fields before field roles are
-  evaluated. This block is owned by the shared table/tabular layer and is also consumed directly by
-  the generic Table widget. Supported numeric operators are `percentChange`,
-  `difference`/`subtract`, `ratio`/`divide`, `add`, and `multiply`.
 - `meta.tableVisuals.columns` carries display hints for formats, table visual behavior, ranges, and
-  compact visual encodings. This block is also shared table/tabular metadata. In default
+  compact visual encodings. It also carries source-declared formula display columns with
+  `format: "formula"`, `formulaExpression`, and `formulaResultFormat`. This block is shared
+  table/tabular metadata. In default
   `columnConfigMode: "source"`, those metadata keys propose the visible column configuration shown
   in settings. `tableVisuals.columns` is enough to populate the settings column list even when
   `meta.marketAsset` is absent; market field roles add stronger semantic mapping when the source
@@ -197,7 +204,9 @@ order.
   surface square-edged so it matches workspace widget chrome.
 - Do not reintroduce a standalone grid for Asset Screener. Market-specific code should stop at
   adapting seed/live data into table rows, table schema, table column overrides, conditional rules,
-  and optional custom cell renderers such as the sparkline cell.
+  and Enterprise sparkline column wiring for the shared table frame.
+- Do not add screener-only formula semantics. Column formulas now belong to the shared Pro-table
+  settings/runtime path so `pro-table` and Asset Screener stay aligned.
 - The Asset Screener uses the shared table frame with column floating filters disabled and a
   transparent surface and no internal toolbar or footer strip. Per-column filter rows,
   quick-filter search, in-panel titles, row-count headers, empty-state footers, pagination panels,

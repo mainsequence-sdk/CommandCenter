@@ -8,7 +8,8 @@ This folder now holds the shared AG Grid utilities reused by table-oriented widg
 - `community-modules.ts`: Community module bundle used by the default `table` widget and shared
   editors unless a variant injects another module set.
 - `enterprise-modules.ts`: Enterprise module bundle plus optional license-key bootstrap for
-  `pro-table`.
+  `pro-table`. This bundle also wires Enterprise sparklines through the free
+  `ag-charts-community` module instead of the paid charts package.
 
 ## Maintenance Notes
 

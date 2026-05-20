@@ -82,6 +82,14 @@ const tableWidgetMockProps: TableWidgetProps = {
 };
 
 export function buildTableWidgetDefinition(options: TableWidgetDefinitionOptions) {
+  const defaultProps = {
+    ...tableWidgetDefaultProps,
+    ...(options.defaultProps as Partial<TableWidgetProps> | undefined),
+  } satisfies TableWidgetProps;
+  const mockProps = {
+    ...tableWidgetMockProps,
+    ...(options.defaultProps as Partial<TableWidgetProps> | undefined),
+  } satisfies TableWidgetProps;
   const component = createTableWidgetComponent({
     gridModules: options.gridModules,
   });
@@ -89,6 +97,7 @@ export function buildTableWidgetDefinition(options: TableWidgetDefinitionOptions
     editionLabel: options.title,
     enterpriseModules: options.capabilities.enterpriseModules,
     gridModules: options.gridModules,
+    defaultDraftProps: defaultProps,
   });
 
   return defineWidget<TableWidgetProps>({
@@ -101,8 +110,8 @@ export function buildTableWidgetDefinition(options: TableWidgetDefinitionOptions
     source: "core",
     requiredPermissions: ["workspaces:view"],
     tags: [...tableWidgetBaseTags, ...(options.tags ?? [])],
-    exampleProps: tableWidgetDefaultProps,
-    mockProps: tableWidgetMockProps,
+    exampleProps: defaultProps,
+    mockProps,
     io: {
       inputs: [
         {
@@ -355,6 +364,9 @@ export function buildTableWidgetDefinition(options: TableWidgetDefinitionOptions
           "For Connection query or Stream connection, use Bindings -> Add connection and configure the Connection tab.",
           "For Manual table, add columns and rows in the table editor.",
           "Adjust visible fields and formatting options in settings.",
+          ...(options.capabilities.supportsFormulas
+            ? ["Optionally keep Formula columns enabled and author column formulas in settings."]
+            : []),
         ],
       },
       runtime: {
@@ -383,12 +395,18 @@ export function buildTableWidgetDefinition(options: TableWidgetDefinitionOptions
         supportedSourceModes: ["bound", "connection", "connection-stream", "manual"],
         renderingSurface: "table",
         gridEdition: options.capabilities.enterpriseModules ? "enterprise" : "community",
+        formulas: options.capabilities.supportsFormulas
+          ? ["columnLevelFormulas", "settingsOnlyAuthoring"]
+          : [],
         columnConfiguration: [
           "visibility",
           "key",
           "label",
           "description",
           "format",
+          ...(options.capabilities.supportsFormulas
+            ? ["formulaExpression", "formulaResultFormat"]
+            : []),
           "datetimeInputFormat",
           "datetimeOutputFormat",
           "alignment",

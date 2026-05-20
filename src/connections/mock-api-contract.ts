@@ -1,7 +1,13 @@
-import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
+import {
+  CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+  normalizeTabularFrameSource,
+  type TabularFrameFieldType,
+  type TabularFrameSourceV1,
+} from "@/widgets/shared/tabular-frame-source";
 
 import type {
   CommandCenterFrame,
+  CommandCenterFrameField,
   CommandCenterFrameFieldType,
   ConnectionHealthResult,
   ConnectionId,
@@ -116,6 +122,80 @@ function inferFieldType(values: unknown[]): CommandCenterFrameFieldType {
   return "json";
 }
 
+function mapTabularFieldTypeToFrameFieldType(
+  type: TabularFrameFieldType | undefined,
+): CommandCenterFrameFieldType {
+  if (type === "number" || type === "integer") {
+    return "number";
+  }
+
+  if (type === "boolean") {
+    return "boolean";
+  }
+
+  if (type === "datetime" || type === "date" || type === "time") {
+    return "time";
+  }
+
+  if (type === "string") {
+    return "string";
+  }
+
+  return "json";
+}
+
+function columnsFromTabularFrame(frame: TabularFrameSourceV1) {
+  const fieldKeys = (frame.fields ?? []).flatMap((field) => field.key ? [field.key] : []);
+  const rowKeys = frame.rows.flatMap((row) => Object.keys(row));
+  const seen = new Set<string>();
+
+  return [...frame.columns, ...fieldKeys, ...rowKeys].flatMap((column) => {
+    const normalized = column.trim();
+
+    if (!normalized || seen.has(normalized)) {
+      return [];
+    }
+
+    seen.add(normalized);
+    return [normalized];
+  });
+}
+
+function canonicalTabularFrameToCommandCenterFrame(
+  body: unknown,
+): CommandCenterFrame | null {
+  const frame = normalizeTabularFrameSource(body);
+
+  if (!frame) {
+    return null;
+  }
+
+  const fieldByKey = new Map((frame.fields ?? []).map((field) => [field.key, field] as const));
+  const columns = columnsFromTabularFrame(frame);
+  const fields = columns.map((column) => {
+    const field = fieldByKey.get(column);
+    const values = frame.rows.map((row) =>
+      Object.prototype.hasOwnProperty.call(row, column) ? row[column] : null,
+    );
+
+    return {
+      name: column,
+      type: field
+        ? mapTabularFieldTypeToFrameFieldType(field.type)
+        : inferFieldType(values),
+      values,
+      config: { displayName: field?.label ?? column },
+    } satisfies CommandCenterFrameField;
+  });
+
+  return {
+    name: frame.source?.label ?? "Mock API response",
+    contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+    fields,
+    meta: frame.meta,
+  };
+}
+
 function normalizeRows(value: unknown): Array<Record<string, unknown>> {
   if (isRecord(value) && Array.isArray(value.rows)) {
     return normalizeRows(value.rows);
@@ -159,6 +239,21 @@ function normalizeColumns(value: unknown, rows: Array<Record<string, unknown>>) 
 }
 
 function tabularLikeBodyToFrame(body: unknown): CommandCenterFrame {
+  const canonicalFrame = canonicalTabularFrameToCommandCenterFrame(body);
+
+  if (canonicalFrame) {
+    return {
+      ...canonicalFrame,
+      meta: {
+        ...(canonicalFrame.meta ?? {}),
+        mockApi: {
+          rowCount: Math.max(0, ...canonicalFrame.fields.map((field) => field.values.length)),
+          generatedAtMs: Date.now(),
+        },
+      },
+    };
+  }
+
   const rows = normalizeRows(body);
   const columns = normalizeColumns(body, rows);
   const fields = columns.map((column) => {
@@ -225,12 +320,16 @@ function responseBodyToConnectionResponse(
   }
 
   if (mode === "tabular-frame") {
-    if (!isCommandCenterFrame(body)) {
-      throw new Error("Mock API response body must be a Command Center frame object.");
+    const canonicalFrame = canonicalTabularFrameToCommandCenterFrame(body);
+
+    if (!isCommandCenterFrame(body) && !canonicalFrame) {
+      throw new Error(
+        "Mock API response body must be a Command Center frame object or canonical tabular frame source.",
+      );
     }
 
     return {
-      frames: [body],
+      frames: [isCommandCenterFrame(body) ? body : canonicalFrame!],
       traceId,
       warnings,
     };

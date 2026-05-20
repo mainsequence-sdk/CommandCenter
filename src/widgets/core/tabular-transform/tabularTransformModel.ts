@@ -2,6 +2,12 @@ import type {
   ResolvedWidgetInput,
   ResolvedWidgetInputs,
 } from "@/widgets/types";
+import { compileTableFormulaExpression } from "@/widgets/core/table/tableFormulaCompiler";
+import {
+  applyResolvedTableComputedColumns,
+  tableTransformsMetaKey,
+  type TableFrameComputedColumn,
+} from "@/widgets/core/table/tableFrameMetadata";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   normalizeTabularFrameSource,
@@ -24,6 +30,7 @@ export const TABULAR_TRANSFORM_DATASET_OUTPUT_ID = "dataset";
 export type TabularTransformMode = "none" | "filter" | "aggregate" | "pivot" | "unpivot";
 export type TabularAggregateMode = "first" | "last" | "sum" | "mean" | "min" | "max";
 export type TabularFilterCombineMode = "all" | "any";
+export type TabularTransformComputedColumnType = NonNullable<TableFrameComputedColumn["type"]>;
 export type TabularFilterOperator =
   | "equals"
   | "not-equals"
@@ -43,10 +50,19 @@ export interface TabularFilterRule {
   value?: TabularFilterRuleValue | TabularFilterRuleValue[];
 }
 
+export interface TabularTransformComputedColumnConfig {
+  key?: string;
+  label?: string;
+  type?: TabularTransformComputedColumnType;
+  formulaExpression?: string;
+}
+
 interface TabularTransformDataset {
   columns: string[];
   rows: Record<string, unknown>[];
   derivedColumns: Set<string>;
+  fields?: TabularFrameFieldSchema[];
+  metaComputedColumns?: TableFrameComputedColumn[];
 }
 
 interface TabularTransformErrorResult extends TabularTransformDataset {
@@ -75,9 +91,14 @@ interface BuiltFilterPredicateError {
   error: string;
 }
 
+interface ResolvedTabularTransformComputedColumn extends TableFrameComputedColumn {
+  sourceIndex: number;
+}
+
 export interface TabularTransformWidgetProps extends Record<string, unknown> {
   transformMode?: TabularTransformMode;
   aggregateMode?: TabularAggregateMode;
+  computedColumns?: TabularTransformComputedColumnConfig[];
   filterCombineMode?: TabularFilterCombineMode;
   filterRules?: TabularFilterRule[];
   keyFields?: string[];
@@ -120,6 +141,17 @@ function normalizeFieldList(value: unknown) {
 
 function normalizeOptionalField(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function normalizeComputedColumnType(
+  value: unknown,
+): TabularTransformComputedColumnType | undefined {
+  return value === "number" ||
+    value === "string" ||
+    value === "boolean" ||
+    value === "json"
+    ? value
+    : undefined;
 }
 
 function normalizeTransformMode(value: unknown): TabularTransformMode {
@@ -235,6 +267,44 @@ function normalizeFilterRules(value: unknown) {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function normalizeComputedColumnConfig(
+  value: unknown,
+): TabularTransformComputedColumnConfig | null {
+  if (!isPlainRecord(value)) {
+    return null;
+  }
+
+  const key = normalizeOptionalField(value.key ?? value.id);
+  const label = normalizeOptionalField(value.label);
+  const type = normalizeComputedColumnType(value.type) ?? "number";
+  const formulaExpression =
+    typeof value.formulaExpression === "string" ? value.formulaExpression : undefined;
+
+  if (!key && !label && !formulaExpression) {
+    return null;
+  }
+
+  return {
+    key,
+    label,
+    type,
+    formulaExpression,
+  };
+}
+
+function normalizeComputedColumnConfigs(value: unknown) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = value.flatMap((entry) => {
+    const column = normalizeComputedColumnConfig(entry);
+    return column ? [column] : [];
+  });
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 export function normalizeTabularTransformProps(
   props: TabularTransformWidgetProps,
 ): Required<
@@ -252,6 +322,7 @@ export function normalizeTabularTransformProps(
     ...props,
     transformMode: normalizeTransformMode(props.transformMode),
     aggregateMode: normalizeAggregateMode(props.aggregateMode),
+    computedColumns: normalizeComputedColumnConfigs(props.computedColumns),
     filterCombineMode: normalizeFilterCombineMode(props.filterCombineMode),
     filterRules: normalizeFilterRules(props.filterRules),
     keyFields: normalizeFieldList(props.keyFields),
@@ -319,6 +390,50 @@ function inferFields(
       derivedFrom: derivedColumns.has(column) ? [column] : undefined,
     };
   });
+}
+
+export function resolveTabularTransformComputedColumns(
+  props: Pick<TabularTransformWidgetProps, "computedColumns">,
+) {
+  const normalized = normalizeTabularTransformProps(props);
+  const errorsByIndex = new Map<number, string>();
+  const seenKeys = new Set<string>();
+
+  const computedColumns = (normalized.computedColumns ?? []).flatMap((column, index) => {
+    if (!column.key) {
+      errorsByIndex.set(index, `Computed column ${index + 1} needs a column key.`);
+      return [];
+    }
+
+    if (seenKeys.has(column.key)) {
+      errorsByIndex.set(index, `Computed column ${index + 1} reuses "${column.key}". Use a unique key.`);
+      return [];
+    }
+
+    const compiled = compileTableFormulaExpression(column.formulaExpression);
+
+    if (!compiled.expression) {
+      errorsByIndex.set(
+        index,
+        compiled.error ?? `Computed column ${index + 1} has an invalid formula.`,
+      );
+      return [];
+    }
+
+    seenKeys.add(column.key);
+    return [{
+      id: column.key,
+      label: column.label ?? column.key,
+      type: column.type ?? "number",
+      expression: compiled.expression,
+      sourceIndex: index,
+    } satisfies ResolvedTabularTransformComputedColumn];
+  });
+
+  return {
+    computedColumns,
+    errorsByIndex,
+  };
 }
 
 function isNumericValue(value: unknown) {
@@ -982,6 +1097,66 @@ function projectDataset(
   } satisfies TabularTransformDataset;
 }
 
+function applyConfiguredComputedColumns(
+  source: TabularFrameSourceV1,
+  dataset: TabularTransformDataset,
+  props: ReturnType<typeof normalizeTabularTransformProps>,
+) {
+  const resolved = resolveTabularTransformComputedColumns(props);
+
+  if (resolved.errorsByIndex.size > 0) {
+    const firstError = [...resolved.errorsByIndex.values()][0];
+    return {
+      columns: [...dataset.columns],
+      rows: [...dataset.rows],
+      derivedColumns: new Set(dataset.derivedColumns),
+      error: firstError ?? "One or more computed columns are invalid.",
+    } satisfies TabularTransformErrorResult;
+  }
+
+  const collision = resolved.computedColumns.find((column) => dataset.columns.includes(column.id));
+
+  if (collision) {
+    return {
+      columns: [...dataset.columns],
+      rows: [...dataset.rows],
+      derivedColumns: new Set(dataset.derivedColumns),
+      error: `Computed column ${collision.sourceIndex + 1} reuses "${collision.id}", which already exists in the transformed dataset.`,
+    } satisfies TabularTransformErrorResult;
+  }
+
+  if (resolved.computedColumns.length === 0) {
+    return {
+      ...dataset,
+      metaComputedColumns: [] as TableFrameComputedColumn[],
+    };
+  }
+
+  const baseFrame = {
+    status: "ready",
+    columns: dataset.columns,
+    rows: dataset.rows.map((row) => ({ ...row })),
+    fields: inferFields(
+      dataset.columns,
+      dataset.rows,
+      source.fields,
+      dataset.derivedColumns,
+    ),
+  } satisfies TabularFrameSourceV1;
+  const computedFrame = applyResolvedTableComputedColumns(baseFrame, resolved.computedColumns);
+
+  return {
+    columns: computedFrame.columns,
+    rows: computedFrame.rows,
+    fields: computedFrame.fields,
+    derivedColumns: new Set([
+      ...dataset.derivedColumns,
+      ...resolved.computedColumns.map((column) => column.id),
+    ]),
+    metaComputedColumns: resolved.computedColumns.map(({ sourceIndex: _sourceIndex, ...column }) => column),
+  };
+}
+
 function transformFrame(
   source: TabularFrameSourceV1,
   props: ReturnType<typeof normalizeTabularTransformProps>,
@@ -1006,7 +1181,26 @@ function transformFrame(
     return base;
   }
 
-  return projectDataset(base.rows, base.columns, props.projectFields, base.derivedColumns);
+  const withComputedColumns = applyConfiguredComputedColumns(source, base, props);
+
+  if ("error" in withComputedColumns) {
+    return withComputedColumns;
+  }
+
+  const projected = projectDataset(
+    withComputedColumns.rows,
+    withComputedColumns.columns,
+    props.projectFields,
+    withComputedColumns.derivedColumns,
+  );
+
+  return {
+    ...projected,
+    fields:
+      withComputedColumns.fields?.filter((field) => projected.columns.includes(field.key)) ??
+      inferFields(projected.columns, projected.rows, source.fields, projected.derivedColumns),
+    metaComputedColumns: withComputedColumns.metaComputedColumns,
+  };
 }
 
 function canTransformDeltaFromRows(props: ReturnType<typeof normalizeTabularTransformProps>) {
@@ -1157,12 +1351,22 @@ export function resolveTabularTransformOutput(input: {
       status: "ready",
       columns: transformed.columns,
       rows: transformed.rows,
-      fields: inferFields(
-        transformed.columns,
-        transformed.rows,
-        source.fields,
-        transformed.derivedColumns,
-      ),
+      fields:
+        transformed.fields ??
+        inferFields(
+          transformed.columns,
+          transformed.rows,
+          source.fields,
+          transformed.derivedColumns,
+        ),
+      meta:
+        (transformed.metaComputedColumns ?? []).length > 0
+          ? {
+              [tableTransformsMetaKey]: {
+                computedColumns: transformed.metaComputedColumns ?? [],
+              },
+            }
+          : undefined,
       source: {
         kind: "tabular-transform",
         label: "Tabular transform",
@@ -1195,12 +1399,22 @@ export function resolveTabularTransformOutput(input: {
             ...outputFrame,
             rows: transformedDelta.rows,
             columns: transformedDelta.columns,
-            fields: inferFields(
-              transformedDelta.columns,
-              transformedDelta.rows,
-              deltaSource.fields,
-              transformedDelta.derivedColumns,
-            ),
+            fields:
+              transformedDelta.fields ??
+              inferFields(
+                transformedDelta.columns,
+                transformedDelta.rows,
+                deltaSource.fields,
+                transformedDelta.derivedColumns,
+              ),
+            meta:
+              (transformedDelta.metaComputedColumns ?? []).length > 0
+                ? {
+                    [tableTransformsMetaKey]: {
+                      computedColumns: transformedDelta.metaComputedColumns ?? [],
+                    },
+                  }
+                : undefined,
             source: {
               ...outputFrame.source,
               context: {
@@ -1283,6 +1497,10 @@ export function formatTabularTransformSummary(props: TabularTransformWidgetProps
 
   if (normalized.projectFields?.length) {
     return `Project ${normalized.projectFields.length.toLocaleString()} columns`;
+  }
+
+  if ((normalized.computedColumns?.length ?? 0) > 0) {
+    return `Compute ${normalized.computedColumns!.length.toLocaleString()} columns`;
   }
 
   return "Pass through";

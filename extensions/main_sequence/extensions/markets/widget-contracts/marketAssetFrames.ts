@@ -104,6 +104,7 @@ export type MarketTableVisualRangeMode = SharedTableFrameVisualRangeMode;
 export type MarketTableThresholdRuleMetadata = SharedTableFrameThresholdRuleMetadata;
 export type MarketTableVisualColumnMetadata = SharedTableFrameVisualColumnMetadata;
 export type MarketTableVisualsMetadata = SharedTableFrameVisualsMetadata;
+export type MarketAssetScreenerColumnFormat = NonNullable<MarketTableVisualColumnMetadata["format"]>;
 
 export interface MarketAssetIdentity {
   assetKey: MarketAssetKey;
@@ -185,7 +186,7 @@ export type MarketAssetScreenerColumn =
       kind: "latest-value";
       label: string;
       valueField: string;
-      format?: "number" | "price" | "percent" | "volume" | "currency";
+      format?: MarketAssetScreenerColumnFormat;
       width?: number;
       visual?: MarketTableVisualColumnMetadata;
     }
@@ -195,7 +196,7 @@ export type MarketAssetScreenerColumn =
       label: string;
       referenceKey: string;
       valueField: string;
-      format?: "number" | "price" | "percent" | "volume" | "currency";
+      format?: MarketAssetScreenerColumnFormat;
       width?: number;
       visual?: MarketTableVisualColumnMetadata;
     }
@@ -206,7 +207,7 @@ export type MarketAssetScreenerColumn =
       referenceKey: string;
       valueField: string;
       returnMode: "absolute" | "percent";
-      format?: "number" | "price" | "percent" | "volume" | "currency";
+      format?: MarketAssetScreenerColumnFormat;
       width?: number;
       visual?: MarketTableVisualColumnMetadata;
     }

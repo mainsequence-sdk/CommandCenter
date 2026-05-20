@@ -9,6 +9,8 @@ Transforms one bound `core.tabular_frame@v1` dataset and republishes the result 
 - Use to filter rows by lightweight field predicates before downstream rendering.
 - Use to pivot a categorical field into columns.
 - Use to unpivot wide columns into long-form series/value rows.
+- Use to publish reusable computed columns that downstream widgets should consume as part of the
+  transformed dataset.
 - Use to project a smaller set of columns for downstream widgets.
 
 ## whenNotToUse
@@ -21,7 +23,8 @@ Transforms one bound `core.tabular_frame@v1` dataset and republishes the result 
 
 - Bind `sourceData` to a widget that publishes `core.tabular_frame@v1`.
 - Select a transform mode.
-- Configure filter rules, key fields, pivot fields, unpivot value fields, or projection fields as needed.
+- Configure filter rules, key fields, pivot fields, unpivot value fields, computed columns, or
+  projection fields as needed.
 - Bind downstream widgets to this widget's `dataset` output.
 
 ## blockingRequirements
@@ -34,10 +37,14 @@ Transforms one bound `core.tabular_frame@v1` dataset and republishes the result 
 - Filter mode requires at least one valid rule.
 - Pivot mode requires a pivot field and a value field.
 - Unpivot mode requires at least one value column.
+- Computed columns require a unique output key and a valid bracketed formula such as
+  `[last_price] - [previous_close]` or `PERCENT_CHANGE([last_price], [previous_close])`.
 
 ## commonPitfalls
 
 - Projection runs after the selected transform. Projecting away key, value, or generated fields can make downstream widgets empty.
 - Filter mode is intentionally limited to lightweight field comparisons. Regex, substring search, and computed expressions do not belong here.
+- Computed columns run after the selected transform and before projection. This is the right place
+  to turn raw builder fields into reusable derived dataset columns.
 - Aggregate, pivot, and unpivot preserve source fields only when they survive the transform unchanged; generated fields are marked as derived.
 - This widget intentionally owns analytical reshaping as a visible graph node so execution and debugging stay inspectable.

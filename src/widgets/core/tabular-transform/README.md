@@ -10,7 +10,7 @@ for `core.tabular_frame@v1` datasets.
   resolution.
 - `TabularTransformWidget.tsx`: compact runtime renderer for transformed dataset status.
 - `TabularTransformWidgetSettings.tsx`: settings UI for transform mode, fields, aggregate mode,
-  filter rules, pivot, unpivot, and projection.
+  filter rules, pivot, unpivot, computed columns, and projection.
 - `USAGE_GUIDANCE.md`: user-facing registry guidance imported by the widget definition.
 
 ## Behavior
@@ -26,6 +26,12 @@ for `core.tabular_frame@v1` datasets.
   partial row deltas cannot preserve correctness there.
 - Supported initial transforms are `none`, `filter`, `aggregate`, `pivot`, `unpivot`, and final
   projection.
+- Shared computed-column authoring now lives here. The widget stores user-authored formula columns
+  in persisted props, compiles them into the shared `meta.tableTransforms.computedColumns`
+  contract, materializes them into the published rows, and keeps them visible as an explicit graph
+  step instead of a hidden table-only convention.
+- Computed columns run after the selected transform mode and before projection, which lets authors
+  keep raw builder columns upstream while publishing only derived fields downstream.
 - Filter mode applies lightweight row predicates such as equality, membership, and numeric/date
   comparisons. It intentionally excludes regex, substring search, computed expressions, and other
   heavier client-side operators.
@@ -39,6 +45,8 @@ for `core.tabular_frame@v1` datasets.
 - Keep analytical transforms here instead of expanding binding-level transforms.
 - Keep output shape aligned with `core.tabular_frame@v1`.
 - Avoid source-specific terms such as Data Node in this generic widget.
+- Keep computed-column authoring aligned with the shared table expression contract. Do not create a
+  second formula language in this widget.
 - Keep filter semantics generic and cheap. Do not add source-specific predicates, regex, or other
   heavy client-side matching operators without a new decision.
 - Bump `widgetVersion` when props, output shape, execution behavior, or authoring semantics change.

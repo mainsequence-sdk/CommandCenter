@@ -26,9 +26,9 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
 - Use the managed connection flow when this screener should own its own hidden generic
   `connection-query` or `connection-stream-query` source instead of sharing a visible upstream
   source widget.
-- Use when a generic table needs widget-side calculations such as `1D % = (last_price /
-  previous_close - 1) * 100` through `meta.tableTransforms`, without creating a screener-specific
-  connection.
+- Use when a generic tabular source plus an explicit upstream `tabular-transform` should publish
+  derived market columns such as `1D % = (last_price / previous_close - 1) * 100`, without
+  creating a screener-specific connection.
 
 ## whenNotToUse
 
@@ -39,6 +39,8 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
   `core.tabular_frame@v1`; this widget owns the market semantics.
 - Do not add separate reference or history bindings. Baselines and low-resolution sparklines belong
   in `seedData` metadata for this widget.
+- Do not build screener-specific formula logic when the shared Pro-table formula path can express
+  the column. Asset Screener inherits the shared table formula settings/runtime instead.
 - Do not use for a one-off generic table without asset, value, reference, or trend semantics; use
   the core Table widget instead.
 
@@ -57,14 +59,23 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
   JSON number array, or a native number array.
 - Optionally bind WebSocket or incremental latest rows to `liveUpdates` from an `updates` output
   using the exact live-update shape shown in `liveUpdatesExample`.
-- Add `meta.tableTransforms.computedColumns` when a displayed metric should be derived client-side
-  from fields in the same incoming row.
+- For mock or source-owned column proposals, keep raw checkpoint fields in the row and declare
+  displayed return columns in `meta.tableVisuals.columns` with `format: "formula"`.
+- Add a `tabular-transform` upstream only when the workspace needs an explicit transform widget to
+  publish a transformed dataset for other consumers.
+- Do not publish derived return columns such as `one_day_return` as raw market `value` roles when
+  the source already exposes the checkpoint fields needed to compute them. Keep the raw fields in
+  the row, declare formula display columns in `tableVisuals.columns`, and expose only the finished
+  visible columns in the grid.
 - Let source metadata configure the default visible columns through `meta.marketAsset`,
-  `meta.tableTransforms`, and `meta.tableVisuals`, or switch the settings panel to `Instance
-  override` to save a local `columns` copy for that widget instance.
+  and `meta.tableVisuals`, or switch the settings panel to `Instance override` to save a local
+  `columns` copy for that widget instance.
 - Use the embedded `Table Settings` section for density, shared grouped sections, column-label
   overrides, thresholds, and selection outputs. Asset Screener no longer owns a separate layout
   grouping control.
+- Use the embedded shared Pro-table settings when a screener column should be a local formula.
+  Mark the column as `Formula`, then author one expression such as
+  `PERCENT_CHANGE([last_price], [yearStart])` or `[last_price] * 10`.
 - Configure columns dynamically. Columns are view configuration over stable semantic `valueKey`s,
   `referenceKey`s, and source/computed field ids, for example `price`, `volume`, `marketCap`,
   `previousClose`, `yearStart`, `oneYearAgo`, or `one_day_return`.
@@ -90,8 +101,8 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
   such as `previousClose`, `oneMonthAgo`, `yearStart`, or `oneYearAgo`.
 - Sparkline columns require inline `sparklineSeries` fields on `seedData` when a trend should
   render before or without live updates.
-- `meta.tableTransforms.computedColumns` expressions can only reference fields present in the same
-  incoming row after tabular normalization.
+- Formula display columns can only reference fields present in the same incoming row after tabular
+  normalization and market adaptation.
 - `liveUpdates` must use the same `assetKey` and `valueKey` semantics as `seedData`; a live price
   update is just the newest `valueKey: "price"` observation for that asset.
 - Managed connection mode requires a valid backend-owned connection instance selected in the hidden
@@ -111,9 +122,11 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
   values affect only sparkline columns.
 - Do not send high-resolution intraday history in one cell. Inline `sparklineSeries` is for compact
   visual context, not a chart-grade historical data API.
-- Computed columns are row-local. If a live update only includes `last_price`, the widget still
-  calculates return columns from the seeded inline references, but `meta.tableTransforms` on that
-  live frame cannot read fields that are not present in the live row.
+- Formula columns are row-local. If a live update only includes `last_price`, the widget still
+  calculates return columns from the seeded inline references, but formula expressions cannot read
+  fields that are not present in the current screener row.
+- Shared local formula columns follow the same rule: they recalculate from fields present on the
+  current screener row after latest/reference merge.
 - Do not key screener selection from display columns. The screener always uses the canonical asset
   key for runtime interaction outputs so grouping and live updates cannot drift selection onto the
   wrong row.
@@ -152,8 +165,9 @@ sparkline values.
   `oneMonthAgo`, `yearStart`, and `oneYearAgo`.
 - `sparklineSeries` fields on `seedData` create compact ordered history points from CSV strings,
   JSON number arrays, or number arrays.
-- `meta.tableTransforms` runs before market semantic adaptation, so computed fields can be declared
-  as normal `value` roles in `meta.marketAsset.fieldRoles`.
+- `meta.tableVisuals.columns` can declare formula display columns over the adapted screener row.
+  Keep raw checkpoint fields hidden with `visible: false` when they are formula inputs but not
+  user-facing columns.
 - Return columns compare the latest `valueField` against the seeded `referenceValue` with the same
   `valueKey` and matching `referenceKey`.
 - Sparkline columns render the seeded `sparklineSeries` for the same `valueKey`; live updates may
@@ -161,10 +175,10 @@ sparkline values.
 
 ## metadataCapabilities
 
-The widget understands three optional metadata blocks on bound `core.tabular_frame@v1` frames.
-`meta.marketAsset` is Asset Screener-specific semantic metadata. `meta.tableTransforms` and
-`meta.tableVisuals` are shared table/tabular metadata blocks that the generic Table widget also
-consumes. None of them are new connection output contracts.
+The widget understands two primary metadata blocks on bound `core.tabular_frame@v1` frames.
+`meta.marketAsset` is Asset Screener-specific semantic metadata. `meta.tableVisuals` is shared
+table metadata that proposes labels, formats, hidden raw inputs, formula display columns, and
+visual behavior. Neither block is a new connection output contract.
 
 ### `meta.marketAsset`
 
@@ -225,64 +239,30 @@ over naming heuristics. Explicit mappings can map identity and latest value fiel
 references and sparklines should be expressed with `meta.marketAsset` field roles so their
 `referenceKey`, `valueKey`, encoding, and order stay unambiguous.
 
-### `meta.tableTransforms`
-
-Use `meta.tableTransforms.computedColumns` to derive row-local fields before market semantic
-adaptation:
-
-```json
-{
-  "tableTransforms": {
-    "computedColumns": [
-      {
-        "id": "one_day_return",
-        "label": "1D %",
-        "type": "number",
-        "expression": {
-          "op": "percentChange",
-          "current": { "field": "last_price" },
-          "reference": { "field": "previous_close" }
-        }
-      }
-    ]
-  }
-}
-```
-
-Supported expression forms:
-
-- `{ "field": "field_name" }`
-- `{ "value": 123 }`
-- `{ "op": "percentChange", "current": expression, "reference": expression }`
-- `{ "op": "difference", "left": expression, "right": expression }`
-- `{ "op": "subtract", "left": expression, "right": expression }`
-- `{ "op": "ratio", "numerator": expression, "denominator": expression }`
-- `{ "op": "divide", "numerator": expression, "denominator": expression }`
-- `{ "op": "add", "args": [expression, expression] }`
-- `{ "op": "multiply", "args": [expression, expression] }`
-
-Transform rules:
-
-- Computed fields are added to each row before `meta.marketAsset.fieldRoles` are evaluated.
-- A computed field can become a normal `value` role by adding a matching field role.
-- Computations are row-local only; they cannot read external bindings, previous rows, or backend
-  state.
-- Missing or non-numeric operands produce `null` for numeric operations.
-- Division by zero produces `null`.
-- The same `meta.tableTransforms` block is consumed by the generic Table widget. Asset Screener
-  inherits the computed fields through its table-backed frame instead of owning a separate
-  transform engine.
-
 ### `meta.tableVisuals`
 
-Use `meta.tableVisuals.columns` to attach display hints to source or computed fields:
+Use `meta.tableVisuals.columns` to attach display hints and formula display columns to flat source
+fields. This is the right shape for mock connection responses that publish raw market checkpoints
+and want Asset Screener to calculate visible return columns:
 
 ```json
 {
   "tableVisuals": {
     "columns": {
+      "last_price": {
+        "label": "Last",
+        "format": "price"
+      },
+      "previous_close": {
+        "label": "Previous close",
+        "format": "price",
+        "visible": false
+      },
       "one_day_return": {
-        "format": "percent",
+        "label": "1D",
+        "format": "formula",
+        "formulaExpression": "PERCENT_CHANGE([last_price], [previous_close])",
+        "formulaResultFormat": "percent",
         "thresholds": [
           { "operator": "lt", "value": 0, "tone": "warning" },
           { "operator": "eq", "value": 0, "tone": "neutral" },
@@ -311,8 +291,14 @@ local instance override for the touched field.
 Supported visual fields:
 
 - `label`: optional display label for the settings-visible derived column.
-- `format`: `number`, `price`, `percent`, `volume`, or `currency`.
+- `format`: `number`, `price`, `percent`, `volume`, `currency`, or `formula`.
+- `formulaExpression`: formula text for `format: "formula"` columns. Field references must use
+  bracket syntax, for example `PERCENT_CHANGE([last_price], [previous_close])`.
+- `formulaResultFormat`: rendered result format for formula columns, for example `number`,
+  `currency`, `percent`, or `bps`.
 - `decimals`: optional numeric precision override for rendered number-like columns.
+- `visible`: set `false` to keep a raw input field in the table schema while hiding it from the
+  rendered Asset Screener grid.
 - `kind`: `sparkline`, `bar`, or `heatmap`.
 - `encoding`: `csv-number`, `json-number-array`, or `number-array`.
 - `order`: `oldest-to-newest` or `newest-to-oldest`.
@@ -329,12 +315,11 @@ Supported visual fields:
 Current table-backed renderer behavior:
 
 - `columnConfigMode: "source"` is the default. In that mode, the settings panel derives the
-  visible column JSON from `meta.marketAsset.fieldRoles`, `meta.tableTransforms.computedColumns`,
-  and `meta.tableVisuals.columns`.
+  visible column JSON from `meta.marketAsset.fieldRoles` and `meta.tableVisuals.columns`.
 - If neither source metadata nor instance override columns exist, the widget shows a no-source-
   columns state. It does not invent predefined Symbol, Name, Trend, Last, or return columns.
 - `tableVisuals.columns` is the source's column proposal. Its keys should match source field ids or
-  computed column ids, for example `last_price`, `one_day_return`, or `sparkline_prices`.
+  formula display column ids, for example `last_price`, `one_day_return`, or `sparkline_prices`.
 - When `tableVisuals.columns` is present, it is authoritative for the visible source column list
   and order. Semantic identity fields not listed there stay available for screener calculations and
   grouping, but they do not appear as visible columns until the source includes them or the user
@@ -472,85 +457,65 @@ Ticker, Sector grouping, Last Price, 1D Return, 1M Return, YTD Return, 1Y Return
           "valueKey": "price",
           "encoding": "csv-number",
           "order": "oldest-to-newest"
-        },
-        { "field": "one_day_return", "role": "value", "valueKey": "oneDayReturn" },
-        { "field": "one_month_return", "role": "value", "valueKey": "oneMonthReturn" },
-        { "field": "ytd_return", "role": "value", "valueKey": "ytdReturn" },
-        { "field": "one_year_return", "role": "value", "valueKey": "oneYearReturn" }
-      ]
-    },
-    "tableTransforms": {
-      "computedColumns": [
-        {
-          "id": "one_day_return",
-          "label": "1D",
-          "type": "number",
-          "expression": {
-            "op": "percentChange",
-            "current": { "field": "last_price" },
-            "reference": { "field": "previous_close" }
-          }
-        },
-        {
-          "id": "one_month_return",
-          "label": "1M",
-          "type": "number",
-          "expression": {
-            "op": "percentChange",
-            "current": { "field": "last_price" },
-            "reference": { "field": "one_month_ago" }
-          }
-        },
-        {
-          "id": "ytd_return",
-          "label": "YTD",
-          "type": "number",
-          "expression": {
-            "op": "percentChange",
-            "current": { "field": "last_price" },
-            "reference": { "field": "year_start" }
-          }
-        },
-        {
-          "id": "one_year_return",
-          "label": "1Y",
-          "type": "number",
-          "expression": {
-            "op": "percentChange",
-            "current": { "field": "last_price" },
-            "reference": { "field": "one_year_ago" }
-          }
         }
       ]
     },
     "tableVisuals": {
       "columns": {
+        "Symbol": {
+          "label": "Symbol",
+          "width": 112
+        },
+        "sector": {
+          "label": "Sector",
+          "width": 140
+        },
         "last_price": {
+          "label": "Last",
+          "width": 108,
           "format": "price"
         },
-        "one_day_return": {
-          "format": "percent",
-          "thresholds": [
-            { "operator": "lt", "value": 0, "tone": "warning" },
-            { "operator": "eq", "value": 0, "tone": "neutral" },
-            { "operator": "gt", "value": 0, "tone": "success" }
-          ],
-          "heatmap": true,
-          "gradientMode": "fill",
-          "visualRangeMode": "fixed",
-          "visualMin": -10,
-          "visualMax": 10
+        "previous_close": {
+          "label": "Previous close",
+          "format": "price",
+          "visible": false
         },
-        "one_month_return": {
-          "format": "percent",
-          "thresholds": [
-            { "operator": "lt", "value": 0, "tone": "warning" },
-            { "operator": "eq", "value": 0, "tone": "neutral" },
-            { "operator": "gt", "value": 0, "tone": "success" }
-          ]
+        "one_month_ago": {
+          "label": "One month ago",
+          "format": "price",
+          "visible": false
+        },
+        "year_start": {
+          "label": "Year start",
+          "format": "price",
+          "visible": false
+        },
+        "one_year_ago": {
+          "label": "One year ago",
+          "format": "price",
+          "visible": false
         },
         "ytd_return": {
-          "format": "percent",
+          "label": "YTD",
+          "format": "formula",
+          "formulaExpression": "PERCENT_CHANGE([last_price], [year_start])",
+          "formulaResultFormat": "percent",
+          "heatmap": true,
+          "gradientMode": "fill",
+          "heatmapPalette": "red-yellow-green",
+          "visualRangeMode": "fixed",
+          "visualMin": -20,
+          "visualMax": 20
+        },
+        "one_day_return": {
+          "label": "1D",
+          "format": "formula",
+          "formulaExpression": "PERCENT_CHANGE([last_price], [previous_close])",
+          "formulaResultFormat": "percent",
+          "gaugeMode": "ring",
+          "visualRangeMode": "fixed",
+          "visualMin": -3,
+          "visualMax": 3,
           "thresholds": [
             { "operator": "lt", "value": 0, "tone": "warning" },
             { "operator": "eq", "value": 0, "tone": "neutral" },
@@ -558,17 +523,37 @@ Ticker, Sector grouping, Last Price, 1D Return, 1M Return, YTD Return, 1Y Return
           ]
         },
         "one_year_return": {
-          "format": "percent",
-          "thresholds": [
-            { "operator": "lt", "value": 0, "tone": "warning" },
-            { "operator": "eq", "value": 0, "tone": "neutral" },
-            { "operator": "gt", "value": 0, "tone": "success" }
-          ]
+          "label": "1Y",
+          "format": "formula",
+          "formulaExpression": "PERCENT_CHANGE([last_price], [one_year_ago])",
+          "formulaResultFormat": "percent",
+          "colorScale": {
+            "negative": "danger",
+            "positive": "success"
+          },
+          "visualRangeMode": "fixed",
+          "visualMin": -12,
+          "visualMax": 30
         },
         "sparkline_prices": {
           "kind": "sparkline",
-          "encoding": "csv-number",
-          "order": "oldest-to-newest"
+          "label": "Trend",
+          "order": "oldest-to-newest",
+          "width": 132,
+          "encoding": "csv-number"
+        },
+        "one_month_return": {
+          "label": "1M",
+          "format": "formula",
+          "formulaExpression": "PERCENT_CHANGE([last_price], [one_month_ago])",
+          "formulaResultFormat": "percent",
+          "colorScale": {
+            "negative": "danger",
+            "positive": "success"
+          },
+          "visualRangeMode": "fixed",
+          "visualMin": -10,
+          "visualMax": 10
         }
       }
     }

@@ -35,9 +35,12 @@ import {
 } from "@/widgets/shared/upstream-consumer-state";
 import {
   applyTableComputedColumns,
+  applyResolvedTableComputedColumns,
   resolveTableVisualsMetadata,
+  type TableFrameComputedColumn,
   type TableFrameVisualColumnMetadata,
 } from "./tableFrameMetadata";
+import { compileTableFormulaExpression } from "./tableFormulaCompiler";
 
 export type TableWidgetDateRangeMode = "dashboard" | "fixed";
 export type TableWidgetSourceMode = "bound" | "connection" | "connection-stream" | "manual";
@@ -48,7 +51,8 @@ export type TableWidgetColumnFormat =
   | "number"
   | "currency"
   | "percent"
-  | "bps";
+  | "bps"
+  | "formula";
 export type TableWidgetDensity = "compact" | "comfortable";
 export type TableWidgetBarMode = "none" | "fill";
 export type TableWidgetGradientMode = "none" | "fill";
@@ -85,6 +89,8 @@ export interface TableWidgetColumnSchema {
   label: string;
   description?: string;
   format: Exclude<TableWidgetColumnFormat, "auto">;
+  formulaExpression?: string;
+  formulaResultFormat?: Exclude<TableWidgetColumnFormat, "auto" | "formula">;
   minWidth?: number;
   flex?: number;
   pinned?: Exclude<TableWidgetPinned, "none">;
@@ -192,6 +198,7 @@ export interface TableWidgetProps
   columnOverrides?: Record<string, TableWidgetColumnOverride>;
   valueLabels?: TableWidgetValueLabel[];
   conditionalRules?: TableWidgetConditionalRule[];
+  formulasEnabled?: boolean;
   selectionMode?: TableWidgetSelectionMode;
   selectionKeyFields?: string[];
   publishSelectionOutputs?: boolean;
@@ -388,7 +395,7 @@ export function resolveTableWidgetOutput(
       };
     }
 
-    return sourceDataset;
+    return applyTableWidgetFormulaColumnsToPublishedFrame(migratedProps, sourceDataset);
   }
 
   const manualFrame = buildTableWidgetFrameFromManualData({
@@ -400,7 +407,7 @@ export function resolveTableWidgetOutput(
     rows: migratedProps.manualRows,
   }).map(mapTableFieldOptionToFrameField);
 
-  return {
+  const manualOutputFrame = {
     status:
       manualFrame.columns.length > 0 || manualFrame.rows.length > 0 || manualFields.length > 0
         ? "ready"
@@ -415,10 +422,13 @@ export function resolveTableWidgetOutput(
         tableSourceMode: "manual",
       },
     },
-  };
+  } satisfies TabularFrameSourceV1;
+
+  return applyTableWidgetFormulaColumnsToPublishedFrame(migratedProps, manualOutputFrame);
 }
 
 export interface ResolvedTableWidgetColumnConfig extends TableWidgetColumnSchema {
+  schemaFormat: Exclude<TableWidgetColumnFormat, "auto">;
   visible: boolean;
   align: Exclude<TableWidgetAlign, "auto">;
   heatmap: boolean;
@@ -430,6 +440,7 @@ export interface ResolvedTableWidgetColumnConfig extends TableWidgetColumnSchema
   visualMin?: number;
   visualMax?: number;
   compact: boolean;
+  formulaError?: string;
   pinned?: Exclude<TableWidgetPinned, "none">;
 }
 
@@ -461,6 +472,7 @@ export interface ResolvedTableWidgetProps {
   columnOverrides: Record<string, TableWidgetColumnOverride>;
   valueLabels: TableWidgetValueLabel[];
   conditionalRules: TableWidgetConditionalRule[];
+  formulasEnabled: boolean;
   selectionMode: TableWidgetSelectionMode;
   selectionKeyFields: string[];
   publishSelectionOutputs: boolean;
@@ -501,6 +513,71 @@ export const TABLE_WIDGET_DEFAULT_DATETIME_OUTPUT_FORMAT = "yyyy-MM-dd HH:mm:ss"
 
 export function isTableWidgetNumericFormat(format: TableWidgetColumnFormat) {
   return format === "number" || format === "currency" || format === "percent" || format === "bps";
+}
+
+function isTableWidgetFormulaResultFormat(
+  format: unknown,
+): format is Exclude<TableWidgetColumnFormat, "auto" | "formula"> {
+  return (
+    format === "text" ||
+    format === "datetime" ||
+    format === "number" ||
+    format === "currency" ||
+    format === "percent" ||
+    format === "bps"
+  );
+}
+
+function normalizeTableWidgetFormulaResultFormat(
+  value: unknown,
+): Exclude<TableWidgetColumnFormat, "auto" | "formula"> | undefined {
+  return isTableWidgetFormulaResultFormat(value) ? value : undefined;
+}
+
+function normalizeTableWidgetFormulasEnabled(value: unknown) {
+  return value === true;
+}
+
+function tableFormulaComputedColumnType(
+  format: Exclude<TableWidgetColumnFormat, "auto" | "formula"> | undefined,
+): TableFrameComputedColumn["type"] {
+  if (format === "text" || format === "datetime") {
+    return "string";
+  }
+
+  return "number";
+}
+
+function tableFieldTypeFromWidgetFormat(
+  format: Exclude<TableWidgetColumnFormat, "auto" | "formula">,
+): TabularFrameFieldSchema["type"] {
+  if (format === "datetime") {
+    return "datetime";
+  }
+
+  if (isTableWidgetNumericFormat(format)) {
+    return "number";
+  }
+
+  return "string";
+}
+
+function buildFrameFieldSchemaFromTableColumn(
+  column: TableWidgetColumnSchema,
+): TabularFrameFieldSchema {
+  const format =
+    column.format === "formula"
+      ? column.formulaResultFormat ?? "number"
+      : column.format;
+
+  return {
+    key: column.key,
+    label: column.label,
+    description: column.description ?? null,
+    provenance: "derived",
+    type: tableFieldTypeFromWidgetFormat(format),
+    nativeType: format,
+  };
 }
 
 function isTimeLikeField(field: Pick<TabularFieldOption, "key" | "type"> | undefined) {
@@ -554,6 +631,10 @@ function tableWidgetFormatFromSourceVisual(
 ): Exclude<TableWidgetColumnFormat, "auto"> | undefined {
   if (!visual?.format) {
     return undefined;
+  }
+
+  if (visual.format === "formula") {
+    return visual.formulaExpression ? "formula" : undefined;
   }
 
   if (visual.format === "percent") {
@@ -658,6 +739,10 @@ export function buildTableWidgetColumnVisualOverrideFromSourceVisual(
     compact: visual.format === "volume",
   };
 
+  if (typeof visual.visible === "boolean") {
+    override.visible = visual.visible;
+  }
+
   override.barMode = visual.barMode ?? (visual.kind === "bar" ? "fill" : undefined);
   override.gradientMode = visual.gradientMode ?? (visual.kind === "heatmap" ? "fill" : undefined);
   override.gaugeMode = visual.gaugeMode;
@@ -727,6 +812,14 @@ export function buildTableWidgetSourceVisualContractFromFrame(
       label: visual?.label?.trim() || field?.label?.trim() || columnKey,
       description: field?.description ?? undefined,
       format,
+      formulaExpression:
+        format === "formula" && visual?.formulaExpression
+          ? visual.formulaExpression
+          : undefined,
+      formulaResultFormat:
+        format === "formula" && visual?.formulaResultFormat
+          ? visual.formulaResultFormat
+          : undefined,
       decimals:
         typeof visual?.decimals === "number" && Number.isFinite(visual.decimals)
           ? Math.max(0, Math.min(Math.trunc(visual.decimals), 6))
@@ -741,7 +834,9 @@ export function buildTableWidgetSourceVisualContractFromFrame(
               : 120,
       pinned: isKeyLikeField(field) ? "left" : undefined,
       categorical: format === "text",
-      heatmapEligible: isTableWidgetNumericFormat(format),
+      heatmapEligible: isTableWidgetNumericFormat(
+        format === "formula" ? (visual?.formulaResultFormat ?? "number") : format,
+      ),
       compact:
         visual?.format === "volume" ||
         (
@@ -2030,6 +2125,179 @@ function createSchemaTemplateFromFrame(
   });
 }
 
+function buildResolvedFrameInputFromPublishedFrame(
+  frame: Pick<TabularFrameSourceV1, "columns" | "rows" | "fields">,
+): TableWidgetResolvedFrameInput {
+  const fieldByKey = new Map((frame.fields ?? []).map((field) => [field.key, field] as const));
+  const rowKeys = uniqueStrings(frame.rows.flatMap((row) => Object.keys(row)));
+  const columns =
+    frame.columns.length > 0 || rowKeys.length > 0
+      ? uniqueStrings([...frame.columns, ...rowKeys])
+      : uniqueStrings(Array.from(fieldByKey.keys()));
+  const rows = frame.rows.map((row) => columns.map((columnKey) => normalizeCellValue(row[columnKey])));
+  const schemaFallback = columns.map<TableWidgetColumnSchema>((columnKey, index) => {
+    const field = fieldByKey.get(columnKey);
+    const format = inferRemoteColumnFormatFromKey(
+      columnKey,
+      field?.type === "unknown" ? undefined : field?.type,
+      field?.nativeType ?? null,
+      rows,
+      index,
+    );
+
+    return {
+      key: columnKey,
+      label: field?.label?.trim() || columnKey,
+      description: field?.description ?? undefined,
+      format,
+      minWidth: isTimeLikeField(field) ? 160 : format === "text" ? 140 : 120,
+      pinned: isKeyLikeField(field) ? "left" : undefined,
+      categorical: format === "text",
+      heatmapEligible: isTableWidgetNumericFormat(format),
+      compact:
+        format === "currency" &&
+        /gross|net|pnl|notional|amount|exposure|value/i.test(columnKey),
+    };
+  });
+
+  return {
+    columns,
+    rows,
+    schemaFallback,
+  };
+}
+
+function resolveTableWidgetFormulaColumns(
+  formulasEnabled: boolean,
+  schema: readonly TableWidgetColumnSchema[],
+) {
+  const errorsByKey = new Map<string, string>();
+
+  if (!formulasEnabled) {
+    return {
+      computedColumns: [] as TableFrameComputedColumn[],
+      errorsByKey,
+    };
+  }
+
+  const computedColumns = schema.flatMap((column) => {
+    if (column.format !== "formula") {
+      return [];
+    }
+
+    const compiled = compileTableFormulaExpression(column.formulaExpression);
+
+    if (!compiled.expression) {
+      if (compiled.error) {
+        errorsByKey.set(column.key, compiled.error);
+      }
+
+      return [];
+    }
+
+    return [{
+      id: column.key,
+      label: column.label,
+      type: tableFormulaComputedColumnType(column.formulaResultFormat),
+      expression: compiled.expression,
+    } satisfies TableFrameComputedColumn];
+  });
+
+  return {
+    computedColumns,
+    errorsByKey,
+  };
+}
+
+function appendSchemaColumnsToFrameFallback(
+  frameInput: TableWidgetResolvedFrameInput,
+  schema: readonly TableWidgetColumnSchema[],
+) {
+  const seen = new Set(frameInput.schemaFallback.map((column) => column.key));
+  const appended = schema
+    .filter((column) => !seen.has(column.key))
+    .map((column) => ({ ...column }));
+
+  return appended.length > 0
+    ? [...cloneTableWidgetSchema(frameInput.schemaFallback), ...appended]
+    : cloneTableWidgetSchema(frameInput.schemaFallback);
+}
+
+function applyTableWidgetFormulaColumnsToResolvedFrameInput(
+  props: Pick<TableWidgetProps, "formulasEnabled" | "schema">,
+  frameInput: TableWidgetResolvedFrameInput | null | undefined,
+) {
+  if (!frameInput) {
+    return null;
+  }
+
+  const formulasEnabled = normalizeTableWidgetFormulasEnabled(props.formulasEnabled);
+  const schema = resolveTableWidgetSchemaFromFrame(props, frameInput);
+  const formulaColumnKeys = schema
+    .filter((column) => column.format === "formula")
+    .map((column) => column.key);
+  const schemaFallback = appendSchemaColumnsToFrameFallback(frameInput, schema);
+  const { computedColumns } = resolveTableWidgetFormulaColumns(formulasEnabled, schema);
+  const sourceFrame = {
+    status: "ready",
+    columns: frameInput.columns,
+    rows: buildTableWidgetRowObjects(frameInput.columns, frameInput.rows),
+    fields: schemaFallback.map((column) => buildFrameFieldSchemaFromTableColumn(column)),
+  } satisfies TabularFrameSourceV1;
+  const computedFrame =
+    computedColumns.length > 0
+      ? applyResolvedTableComputedColumns(sourceFrame, computedColumns)
+      : sourceFrame;
+  const columns = uniqueStrings([...computedFrame.columns, ...formulaColumnKeys]);
+
+  return {
+    ...frameInput,
+    columns,
+    rows: computedFrame.rows.map((row) => columns.map((columnKey) => normalizeCellValue(row[columnKey]))),
+    schemaFallback,
+  } satisfies TableWidgetResolvedFrameInput;
+}
+
+export function applyTableWidgetFormulaColumnsToPublishedFrame(
+  props: Pick<TableWidgetProps, "formulasEnabled" | "schema">,
+  frame: TabularFrameSourceV1,
+) {
+  const formulasEnabled = normalizeTableWidgetFormulasEnabled(props.formulasEnabled);
+  const frameInput = buildResolvedFrameInputFromPublishedFrame(frame);
+  const schema = resolveTableWidgetSchemaFromFrame(props, frameInput);
+  const formulaColumnKeys = schema
+    .filter((column) => column.format === "formula")
+    .map((column) => column.key);
+  const { computedColumns } = resolveTableWidgetFormulaColumns(formulasEnabled, schema);
+  const nextFrame =
+    computedColumns.length > 0
+      ? applyResolvedTableComputedColumns(frame, computedColumns)
+      : frame;
+
+  if (formulaColumnKeys.length === 0) {
+    return nextFrame;
+  }
+
+  const columns = uniqueStrings([...nextFrame.columns, ...formulaColumnKeys]);
+  const existingFieldKeys = new Set((nextFrame.fields ?? []).map((field) => field.key));
+  const fields = [
+    ...(nextFrame.fields ?? []),
+    ...schema.flatMap((column) => {
+      if (column.format !== "formula" || existingFieldKeys.has(column.key)) {
+        return [];
+      }
+
+      return [buildFrameFieldSchemaFromTableColumn(column)];
+    }),
+  ];
+
+  return {
+    ...nextFrame,
+    columns,
+    fields: fields.length > 0 ? fields : undefined,
+  } satisfies TabularFrameSourceV1;
+}
+
 function normalizeColumnSchema(value: unknown): TableWidgetColumnSchema | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
@@ -2050,7 +2318,8 @@ function normalizeColumnSchema(value: unknown): TableWidgetColumnSchema | undefi
     record.format !== "number" &&
     record.format !== "currency" &&
     record.format !== "percent" &&
-    record.format !== "bps"
+    record.format !== "bps" &&
+    record.format !== "formula"
   ) {
     return undefined;
   }
@@ -2063,6 +2332,16 @@ function normalizeColumnSchema(value: unknown): TableWidgetColumnSchema | undefi
 
   if (typeof record.description === "string" && record.description.trim()) {
     nextValue.description = record.description.trim();
+  }
+
+  if (record.format === "formula") {
+    if (typeof record.formulaExpression === "string") {
+      nextValue.formulaExpression = record.formulaExpression;
+    }
+
+    if (normalizeTableWidgetFormulaResultFormat(record.formulaResultFormat)) {
+      nextValue.formulaResultFormat = record.formulaResultFormat;
+    }
   }
 
   if (typeof record.minWidth === "number" && Number.isFinite(record.minWidth)) {
@@ -2518,7 +2797,11 @@ function resolveTableWidgetSchemaFromFrame(
             key: column.key,
           }
         : column;
-    });
+    }).concat(
+      normalizedSchema
+        .filter((column) => !schemaFallback.some((entry) => entry.key === column.key))
+        .map((column) => ({ ...column })),
+    );
   }
 
   const normalizedOverrides = normalizeColumnOverrides(props.columnOverrides);
@@ -2561,10 +2844,14 @@ export function resolveTableWidgetPropsWithFrame(
           manualRows,
         })
       : frameInput;
-  const columns = normalizeFrameColumns(resolvedFrameInput?.columns, []);
-  const rows = normalizeFrameRows(resolvedFrameInput?.rows, columns.length);
+  const resolvedFrameWithLocalFormulas = applyTableWidgetFormulaColumnsToResolvedFrameInput(
+    migratedProps,
+    resolvedFrameInput,
+  );
+  const columns = normalizeFrameColumns(resolvedFrameWithLocalFormulas?.columns, []);
+  const rows = normalizeFrameRows(resolvedFrameWithLocalFormulas?.rows, columns.length);
   const sourceColumnOverrides = normalizeColumnOverrides(
-    resolvedFrameInput?.sourceColumnOverrides,
+    resolvedFrameWithLocalFormulas?.sourceColumnOverrides,
   );
   const localColumnOverrides = stripSchemaManagedFieldsFromColumnOverrides(
     migratedProps.columnOverrides,
@@ -2574,7 +2861,7 @@ export function resolveTableWidgetPropsWithFrame(
     {
       columns,
       rows,
-      schemaFallback: resolvedFrameInput?.schemaFallback ?? [],
+      schemaFallback: resolvedFrameWithLocalFormulas?.schemaFallback ?? [],
     },
   );
 
@@ -2597,6 +2884,7 @@ export function resolveTableWidgetPropsWithFrame(
     manualRows,
     limit: normalizedLimit,
     supportsUniqueIdentifierList: Boolean(resolvedFrameInput?.supportsUniqueIdentifierList),
+    formulasEnabled: normalizeTableWidgetFormulasEnabled(migratedProps.formulasEnabled),
     columns,
     rows,
     schema,
@@ -2621,7 +2909,7 @@ export function resolveTableWidgetPropsWithFrame(
           .filter((entry): entry is TableWidgetValueLabel => Boolean(entry))
       : [],
     conditionalRules: [
-      ...((resolvedFrameInput?.sourceConditionalRules ?? [])
+      ...((resolvedFrameWithLocalFormulas?.sourceConditionalRules ?? [])
         .map((entry) => normalizeConditionalRule(entry))
         .filter((entry): entry is TableWidgetConditionalRule => Boolean(entry))),
       ...(Array.isArray(migratedProps.conditionalRules)
@@ -2643,14 +2931,22 @@ export function resolveTableWidgetProps(props: TableWidgetProps): ResolvedTableW
 export function resolveTableWidgetColumns(
   props: ResolvedTableWidgetProps,
 ) {
+  const { errorsByKey } = resolveTableWidgetFormulaColumns(props.formulasEnabled, props.schema);
+
   return props.schema.map<ResolvedTableWidgetColumnConfig>((column) => {
     const override = props.columnOverrides[column.key] ?? {};
+    const schemaFormat = column.format;
     const effectiveFormat =
-      override.format && override.format !== "auto" ? override.format : column.format;
+      schemaFormat === "formula"
+        ? (column.formulaResultFormat ?? "number")
+        : override.format && override.format !== "auto"
+          ? override.format
+          : column.format;
     const numericFormat = isTableWidgetNumericFormat(effectiveFormat);
 
     return {
       ...column,
+      schemaFormat,
       label: override.label ?? column.label,
       format: effectiveFormat,
       decimals: override.decimals ?? column.decimals,
@@ -2680,6 +2976,7 @@ export function resolveTableWidgetColumns(
         numericFormat && typeof override.visualMax === "number" && Number.isFinite(override.visualMax)
           ? override.visualMax
           : undefined,
+      formulaError: errorsByKey.get(column.key),
       align:
         override.align && override.align !== "auto"
           ? override.align
@@ -2747,7 +3044,9 @@ export function getTableWidgetCategoricalValues(
 
 export function validateTableWidgetSchema(
   rows: readonly TableWidgetRow[],
-  columns: readonly Pick<ResolvedTableWidgetColumnConfig, "format" | "key">[],
+  columns: readonly (Pick<ResolvedTableWidgetColumnConfig, "format" | "key"> & {
+    schemaFormat?: ResolvedTableWidgetColumnConfig["schemaFormat"];
+  })[],
 ): TableWidgetSchemaValidationResult {
   const issues: TableWidgetSchemaValidationIssue[] = [];
 
@@ -2768,6 +3067,7 @@ export function validateTableWidgetSchema(
 
   const sampledRows = rows.slice(0, 50);
   const missingColumns = columns
+    .filter((column) => column.schemaFormat !== "formula")
     .filter((column) =>
       sampledRows.every((row) => !Object.prototype.hasOwnProperty.call(row, column.key)),
     )
@@ -2945,6 +3245,7 @@ export const tableWidgetFormatOptions: Array<{
   { value: "currency", label: "Currency" },
   { value: "percent", label: "Percent" },
   { value: "bps", label: "Bps" },
+  { value: "formula", label: "Formula" },
 ];
 
 export const tableWidgetDensityOptions: Array<{
@@ -3059,6 +3360,7 @@ export const tableWidgetDefaultProps: TableWidgetProps = {
   columnOverrides: {},
   valueLabels: [],
   conditionalRules: [],
+  formulasEnabled: false,
   selectionMode: "none",
   selectionKeyFields: [],
   publishSelectionOutputs: true,

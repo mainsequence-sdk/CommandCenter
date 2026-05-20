@@ -74,6 +74,13 @@ export type TableFrameVisualHeatmapPalette =
   | "red-yellow-green";
 export type TableFrameVisualGaugeMode = "none" | "ring";
 export type TableFrameVisualRangeMode = "auto" | "fixed";
+export type TableFrameVisualFormulaResultFormat =
+  | "text"
+  | "datetime"
+  | "number"
+  | "currency"
+  | "percent"
+  | "bps";
 
 export interface TableFrameThresholdRuleMetadata {
   backgroundColor?: string;
@@ -86,8 +93,11 @@ export interface TableFrameThresholdRuleMetadata {
 
 export interface TableFrameVisualColumnMetadata {
   label?: string;
-  format?: "number" | "price" | "percent" | "volume" | "currency";
+  format?: "number" | "price" | "percent" | "volume" | "currency" | "formula";
+  formulaExpression?: string;
+  formulaResultFormat?: TableFrameVisualFormulaResultFormat;
   decimals?: number;
+  visible?: boolean;
   colorScale?: TableFrameColorScaleMetadata;
   range?: TableFrameRangeMetadata;
   thresholds?: TableFrameThresholdRuleMetadata[];
@@ -351,7 +361,21 @@ function normalizeVisualFormat(value: unknown): TableFrameVisualColumnMetadata["
     value === "price" ||
     value === "percent" ||
     value === "volume" ||
-    value === "currency"
+    value === "currency" ||
+    value === "formula"
+    ? value
+    : undefined;
+}
+
+function normalizeVisualFormulaResultFormat(
+  value: unknown,
+): TableFrameVisualFormulaResultFormat | undefined {
+  return value === "text" ||
+    value === "datetime" ||
+    value === "number" ||
+    value === "currency" ||
+    value === "percent" ||
+    value === "bps"
     ? value
     : undefined;
 }
@@ -373,10 +397,13 @@ function normalizeVisualColumnMetadata(value: unknown): TableFrameVisualColumnMe
   const metadata = {
     label: normalizeString(value.label),
     format: normalizeVisualFormat(value.format),
+    formulaExpression: normalizeString(value.formulaExpression),
+    formulaResultFormat: normalizeVisualFormulaResultFormat(value.formulaResultFormat),
     decimals:
       typeof value.decimals === "number" && Number.isFinite(value.decimals)
         ? Math.max(0, Math.min(Math.trunc(value.decimals), 6))
         : undefined,
+    visible: typeof value.visible === "boolean" ? value.visible : undefined,
     colorScale: normalizeColorScale(value.colorScale),
     range: normalizeRangeMetadata(value.range),
     thresholds: thresholds && thresholds.length > 0 ? thresholds : undefined,
@@ -585,12 +612,10 @@ function coerceComputedValue(
   return value;
 }
 
-export function applyTableComputedColumns(
+export function applyResolvedTableComputedColumns(
   frame: TabularFrameSourceV1,
+  computedColumns: readonly TableFrameComputedColumn[],
 ): TabularFrameSourceV1 {
-  const transforms = resolveTableTransformsMetadata(frame);
-  const computedColumns = transforms?.computedColumns ?? [];
-
   if (computedColumns.length === 0) {
     return frame;
   }
@@ -638,4 +663,11 @@ export function applyTableComputedColumns(
     rows,
     fields: fields.length > 0 ? fields : undefined,
   };
+}
+
+export function applyTableComputedColumns(
+  frame: TabularFrameSourceV1,
+): TabularFrameSourceV1 {
+  const transforms = resolveTableTransformsMetadata(frame);
+  return applyResolvedTableComputedColumns(frame, transforms?.computedColumns ?? []);
 }

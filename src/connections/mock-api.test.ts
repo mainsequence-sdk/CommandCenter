@@ -54,6 +54,52 @@ describe("Mock API connection", () => {
     expect(response.frames[0]?.name).toBe("Direct frame");
   });
 
+  it("accepts canonical tabular frame JSON in tabular-frame mode", async () => {
+    const response = await executeMockApiConnectionQuery({
+      connectionId: MOCK_API_LOCAL_INSTANCE_ID,
+      query: {
+        kind: MOCK_API_QUERY_KIND,
+        responseMode: "tabular-frame",
+        responseBody: {
+          status: "ready",
+          columns: ["unique_identifier", "Symbol", "last_price"],
+          rows: [
+            {
+              unique_identifier: "uid:BTCUSDT",
+              Symbol: "BTCUSDT",
+              last_price: 109420,
+            },
+          ],
+          meta: {
+            tableVisuals: {
+              columns: {
+                Symbol: { label: "Symbol" },
+                last_price: { label: "Last", format: "price" },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(response.frames[0]).toMatchObject({
+      contract: "core.tabular_frame@v1",
+      fields: [
+        { name: "unique_identifier", type: "string", values: ["uid:BTCUSDT"] },
+        { name: "Symbol", type: "string", values: ["BTCUSDT"] },
+        { name: "last_price", type: "number", values: [109420] },
+      ],
+      meta: {
+        tableVisuals: {
+          columns: {
+            Symbol: { label: "Symbol" },
+            last_price: { label: "Last", format: "price" },
+          },
+        },
+      },
+    });
+  });
+
   it("throws local query errors for non-2xx simulated statuses", async () => {
     await expect(
       executeMockApiConnectionQuery({

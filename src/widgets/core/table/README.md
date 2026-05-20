@@ -9,6 +9,8 @@ tabular frame.
 - `definition.shared.ts`: shared widget-definition factory for `table` and `pro-table`.
 - `definition.ts`: Community `table` widget entrypoint.
 - `proDefinition.ts`: Enterprise-backed `pro-table` widget entrypoint.
+- `proTableOptions.ts`: shared Pro-table capability bundle reused by `pro-table` and table-backed
+  domain widgets that should inherit the Enterprise path.
 - `TableWidget.tsx`: source/binding owner for the shared table runtime. It resolves bound, manual,
   connection, and incremental table sources, then delegates rendering to `TableFrameView`.
 - `TableFrameView.tsx`: reusable AG Grid-backed table frame renderer for table-backed widgets.
@@ -21,6 +23,8 @@ tabular frame.
   `connection-stream-query` source for either widget id.
 - `ManualTableEditor.tsx`: spreadsheet-style editor for manual display rows.
 - `tableModel.ts`: table configuration normalization, frame adaptation, schema resolution, selection output resolution, formatting helpers, datetime parsing/rendering, and validation.
+- `tableFormulaCompiler.ts`: shared column-formula parser that compiles settings-authored formula
+  strings into the existing `meta.tableTransforms` expression model.
 - `tableVariant.ts`: shared Community vs Pro variant typing for the table-definition layer.
 - `USAGE_GUIDANCE.md`: registry-synced authoring guidance.
 
@@ -76,12 +80,25 @@ tabular frame.
   Query and Tabular Transform.
 - Incoming `fields[]` metadata is preserved where possible. When missing, the table infers display
   schema from columns and sampled rows.
-- Incoming `meta.tableTransforms` and `meta.tableVisuals` are shared table-owned metadata blocks.
-  The table applies computed columns before schema resolution, then uses visual metadata as the
-  effective source defaults for labels, formats, decimal precision, widths, conditional rules, and
-  numeric visuals. `buildTableWidgetSourceVisualContractFromFrame(...)` in `tableModel.ts` is the
-  canonical constructor for that source-owned visual contract; table-backed domain widgets should
-  reuse it instead of rebuilding threshold or visual metadata privately.
+- Incoming `meta.tableTransforms` and `meta.tableVisuals` are shared frame metadata blocks that
+  the table consumes. The normal client authoring surface for shared computed columns is now
+  `tabular-transform`; the table remains a consumer of that frame contract. It applies computed
+  columns before schema resolution, then uses visual metadata as the effective source defaults for
+  labels, formats, decimal precision, widths, conditional rules, and numeric visuals.
+  `buildTableWidgetSourceVisualContractFromFrame(...)` in `tableModel.ts` is the canonical
+  constructor for that source-owned visual contract; table-backed domain widgets should reuse it
+  instead of rebuilding threshold or visual metadata privately.
+- `meta.tableVisuals.columns` can also describe source-declared formula display columns with
+  `format: "formula"`, `formulaExpression`, and `formulaResultFormat`. This is used for flat mock
+  or source frames that publish raw fields plus a proposed formula column model. Raw input columns
+  that formulas need can be kept in the table schema but hidden from the rendered grid with
+  `visible: false`.
+- `pro-table` adds one shared column-formula authoring path on top of that same runtime contract.
+  Formula columns are persisted in shared table props, compiled by `tableFormulaCompiler.ts`, and
+  then applied through the same computed-column frame path used by source-owned
+  `meta.tableTransforms`.
+- Formula authoring is settings-only in the first implementation. The live widget surface stays
+  selection-oriented and does not become a spreadsheet editor.
 - Gauge columns render as centered diverging bars in the shared table frame. Positive values fill
   from the middle of the cell toward the right edge; negative values fill from the middle toward
   the left edge.
@@ -112,7 +129,7 @@ tabular frame.
   formatting, conditional rules, and custom cell rendering.
 - `table` and `pro-table` intentionally reuse the same table model, source handling, settings
   surface, selection outputs, and canonical dataset publication. The only intended divergence is
-  widget identity plus AG Grid module capability wiring.
+  widget identity plus AG Grid module and formula-capability wiring.
 
 ## Maintenance Constraints
 
@@ -121,6 +138,8 @@ tabular frame.
   forced migration when `pro-table` evolves.
 - Keep `pro-table` additive. It is a second widget id on the same shared table core, not a forked
   table implementation.
+- Keep column-formula semantics in the shared table layer. Do not add a screener-only or
+  widget-specific formula engine when a table-backed widget needs computed display columns.
 - Keep accepted input aligned with `core.tabular_frame@v1`.
 - Keep the primary published output aligned with `core.tabular_frame@v1`; selection-specific JSON
   outputs must remain derived from runtime interaction state.

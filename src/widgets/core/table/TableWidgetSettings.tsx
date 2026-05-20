@@ -77,6 +77,7 @@ import {
 
 export interface TableWidgetSettingsOptions {
   editionLabel?: string;
+  defaultDraftProps?: TableWidgetProps;
   enterpriseModules?: boolean;
   gridModules?: Module[];
   hideToolbarSearchToggles?: boolean;
@@ -115,6 +116,9 @@ const tableFieldHelp = {
   columnKey: "Maps this table column to an incoming field key from the bound dataset frame.",
   columnLabel: "Overrides the header text shown for this column.",
   columnFormat: "Controls how values are parsed and displayed. Text enables value chips; numeric formats enable decimals, compact numbers, heatmaps, data bars, gauges, and thresholds.",
+  formulasEnabled: "Turns shared column-level formulas on for this widget instance. Formula authoring stays in settings and does not turn the live grid into a spreadsheet editor.",
+  formulaExpression: "Formula fields must be wrapped in brackets. Use expressions like [last_price] * 10, ([last_price] - [open]) / [open] * 100, or PERCENT_CHANGE([last_price], [yearStart]). If a field name contains spaces, keep the same bracket syntax, for example [Last Price]. Formula columns render like ordinary columns once computed.",
+  formulaResultFormat: "Controls how the computed formula value renders after evaluation.",
   columnVisibility: "Shows or hides this column in the rendered table without removing it from the saved schema.",
   columnDescription: "Optional header tooltip text for this table column.",
   align: "Controls horizontal cell alignment. Auto chooses a default from the current column format.",
@@ -172,7 +176,7 @@ function parseSelectionKeyFields(value: string) {
 
 type TableWidgetSettingsFactoryOptions = Pick<
   TableWidgetSettingsOptions,
-  "editionLabel" | "enterpriseModules" | "gridModules"
+  "defaultDraftProps" | "editionLabel" | "enterpriseModules" | "gridModules"
 >;
 
 export function createTableWidgetSettingsComponent(
@@ -191,6 +195,7 @@ export function TableWidgetSettings(
   return (
     <TableWidgetSettingsComponent
       {...props}
+      defaultDraftProps={props.defaultDraftProps ?? tableWidgetDefaultProps}
       editionLabel={props.editionLabel ?? "Table"}
       enterpriseModules={props.enterpriseModules ?? false}
       gridModules={props.gridModules ?? communityAgGridModules}
@@ -285,7 +290,9 @@ function hasAdvancedColumnConfiguration(
   override: TableWidgetColumnOverride,
 ) {
   return Boolean(
-    (column.description && column.description.trim()) ||
+    column.schemaFormat === "formula" ||
+      (column.formulaExpression && column.formulaExpression.trim()) ||
+      (column.description && column.description.trim()) ||
       column.pinned ||
       typeof column.decimals === "number" ||
       (column.prefix && column.prefix.trim()) ||
@@ -310,6 +317,29 @@ function buildDefaultConditionalRule(columnKey: string): TableWidgetConditionalR
     operator: "gt",
     value: 0,
     tone: "primary",
+  };
+}
+
+function buildDefaultFormulaColumn(
+  existingColumns: readonly TableWidgetColumnSchema[],
+): TableWidgetColumnSchema {
+  const existingKeys = new Set(existingColumns.map((column) => column.key));
+  let index = existingColumns.length + 1;
+  let key = `formula_${index}`;
+
+  while (existingKeys.has(key)) {
+    index += 1;
+    key = `formula_${index}`;
+  }
+
+  return {
+    key,
+    label: `Formula ${index}`,
+    format: "formula",
+    formulaExpression: "",
+    formulaResultFormat: "number",
+    heatmapEligible: true,
+    minWidth: 120,
   };
 }
 
@@ -407,6 +437,7 @@ function stripLegacyTableSourceFields(
 function TableWidgetSettingsComponent({
   instanceId,
   draftProps,
+  defaultDraftProps = tableWidgetDefaultProps,
   editionLabel = "Table",
   editable,
   enterpriseModules = false,
@@ -503,6 +534,7 @@ function TableWidgetSettingsComponent({
   );
   const schemaColumns = resolvedScopedDraft.schema;
   const resolvedColumns = resolveTableWidgetColumns(resolvedScopedDraft);
+  const formulasEnabled = enterpriseModules && resolvedScopedDraft.formulasEnabled;
   const hasResolvedSource = isManualTableMode
     ? resolvedScopedDraft.columns.length > 0
     : presentationOnly
@@ -842,7 +874,7 @@ function TableWidgetSettingsComponent({
             if (onReset) {
               onReset();
             } else {
-              onDraftPropsChange(tableWidgetDefaultProps);
+              onDraftPropsChange(defaultDraftProps);
             }
           }}
         >
@@ -1086,6 +1118,48 @@ function TableWidgetSettingsComponent({
             )}
           </div>
 
+          {enterpriseModules ? (
+            <div className="space-y-2 md:col-span-2">
+              <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.formulasEnabled}>
+                Formula columns
+              </WidgetSettingFieldLabel>
+              <div className={widgetTightFormButtonGroupClass}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={resolvedScopedDraft.formulasEnabled ? "default" : "outline"}
+                  disabled={!editable}
+                  onClick={() => {
+                    commit({
+                      ...scopedDraft,
+                      formulasEnabled: true,
+                    });
+                  }}
+                >
+                  Enabled
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={!resolvedScopedDraft.formulasEnabled ? "default" : "outline"}
+                  disabled={!editable}
+                  onClick={() => {
+                    commit({
+                      ...scopedDraft,
+                      formulasEnabled: false,
+                    });
+                  }}
+                >
+                  Disabled
+                </Button>
+              </div>
+              <p className={descriptionClass}>
+                Formulas are authored per column in settings only. The live grid keeps its current
+                selection and interaction behavior.
+              </p>
+            </div>
+          ) : null}
+
           {!hidePaginationControls ? (
             <div className={fieldClass}>
               <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.pageSize}>
@@ -1286,27 +1360,49 @@ function TableWidgetSettingsComponent({
             </p>
           </div>
 
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!editable || !hasResolvedSource || activeFrameInput.schemaFallback.length === 0}
-            onClick={() => {
-              if (!hasResolvedSource || activeFrameInput.schemaFallback.length === 0) {
-                return;
-              }
+          <div className="flex flex-wrap items-center gap-2">
+            {enterpriseModules ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!editable || !formulasEnabled}
+                onClick={() => {
+                  commit({
+                    ...scopedDraft,
+                    schema: [
+                      ...cloneTableWidgetSchema(schemaColumns),
+                      buildDefaultFormulaColumn(schemaColumns),
+                    ],
+                  });
+                }}
+              >
+                Add formula column
+              </Button>
+            ) : null}
 
-              commit({
-                ...scopedDraft,
-                schema: cloneTableWidgetSchema(activeFrameInput.schemaFallback),
-                columnOverrides: {},
-                valueLabels: [],
-                conditionalRules: [],
-              });
-            }}
-          >
-            Reset columns from current frame
-          </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!editable || !hasResolvedSource || activeFrameInput.schemaFallback.length === 0}
+              onClick={() => {
+                if (!hasResolvedSource || activeFrameInput.schemaFallback.length === 0) {
+                  return;
+                }
+
+                commit({
+                  ...scopedDraft,
+                  schema: cloneTableWidgetSchema(activeFrameInput.schemaFallback),
+                  columnOverrides: {},
+                  valueLabels: [],
+                  conditionalRules: [],
+                });
+              }}
+            >
+              Reset columns from current frame
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -1319,6 +1415,7 @@ function TableWidgetSettingsComponent({
           ) : displayedColumns.map((column, index) => {
             const override = resolvedScopedDraft.columnOverrides[column.key] ?? {};
             const advancedExpanded = expandedColumnKeys[column.key] ?? false;
+            const columnIsFormula = column.schemaFormat === "formula";
             const columnConditionalRules = conditionalRules.flatMap((rule, ruleIndex) =>
               rule.columnKey === column.key ? [{ index: ruleIndex, rule } as const] : [],
             );
@@ -1418,7 +1515,7 @@ function TableWidgetSettingsComponent({
                     </WidgetSettingFieldLabel>
                     <Select
                       className={`${selectClass} h-8 text-xs`}
-                      value={column.format}
+                      value={column.schemaFormat}
                       disabled={!editable}
                       onChange={(event) => {
                         updateSchemaColumn(index, (current) => ({
@@ -1429,6 +1526,11 @@ function TableWidgetSettingsComponent({
                     >
                       {tableWidgetFormatOptions
                         .filter((option) => option.value !== "auto")
+                        .filter((option) =>
+                          enterpriseModules ||
+                          option.value !== "formula" ||
+                          column.schemaFormat === "formula",
+                        )
                         .map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
@@ -1492,6 +1594,66 @@ function TableWidgetSettingsComponent({
                         Advanced formatting is configured for this column.
                       </p>
                     ) : null}
+
+                    {columnIsFormula ? (
+                      <div className="space-y-3 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 p-3">
+                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+                          <div className={fieldClass}>
+                            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.formulaExpression}>
+                              Formula expression
+                            </WidgetSettingFieldLabel>
+                            <Input
+                              className={inputClass}
+                              value={column.formulaExpression ?? ""}
+                              placeholder="[last_price] * 10"
+                              disabled={!editable || !formulasEnabled}
+                              onChange={(event) => {
+                                updateSchemaColumn(index, (current) => ({
+                                  ...current,
+                                  format: "formula",
+                                  formulaExpression: event.target.value,
+                                }));
+                              }}
+                            />
+                            {column.formulaError ? (
+                              <p className="mt-1 text-xs text-destructive">{column.formulaError}</p>
+                            ) : (
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Field names must be wrapped in brackets. Example: `[last_price] * 10`, `([last_price] - [open]) / [open] * 100`, or `PERCENT_CHANGE([last_price], [yearStart])`. If the field name has spaces, use the same syntax, for example `[Last Price]`.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className={fieldClass}>
+                            <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.formulaResultFormat}>
+                              Result format
+                            </WidgetSettingFieldLabel>
+                            <Select
+                              className={selectClass}
+                              value={column.formulaResultFormat ?? "number"}
+                              disabled={!editable || !formulasEnabled}
+                              onChange={(event) => {
+                                updateSchemaColumn(index, (current) => ({
+                                  ...current,
+                                  format: "formula",
+                                  formulaResultFormat:
+                                    event.target.value as TableWidgetColumnSchema["formulaResultFormat"],
+                                }));
+                              }}
+                            >
+                              {tableWidgetFormatOptions
+                                .filter((option) => option.value !== "auto" && option.value !== "formula")
+                                .map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
                     <div className={fieldClass}>
                       <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.columnDescription}>
                         Description

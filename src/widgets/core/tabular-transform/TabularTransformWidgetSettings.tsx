@@ -11,7 +11,10 @@ import {
   formatFieldListText,
   normalizeTabularTransformProps,
   parseFieldListText,
+  resolveTabularTransformComputedColumns,
   type TabularAggregateMode,
+  type TabularTransformComputedColumnConfig,
+  type TabularTransformComputedColumnType,
   type TabularFilterOperator,
   type TabularFilterRule,
   type TabularTransformMode,
@@ -31,6 +34,16 @@ const FILTER_OPERATOR_OPTIONS: Array<{ value: TabularFilterOperator; label: stri
   { value: "lte", label: "Less than or equal" },
   { value: "is-empty", label: "Is empty" },
   { value: "is-not-empty", label: "Is not empty" },
+];
+
+const COMPUTED_COLUMN_TYPE_OPTIONS: Array<{
+  value: TabularTransformComputedColumnType;
+  label: string;
+}> = [
+  { value: "number", label: "Number" },
+  { value: "string", label: "String" },
+  { value: "boolean", label: "Boolean" },
+  { value: "json", label: "JSON" },
 ];
 
 function operatorNeedsValue(operator: TabularFilterOperator | undefined) {
@@ -259,11 +272,31 @@ export function TabularTransformWidgetSettings({
     [availableFields],
   );
   const filterRules = props.filterRules ?? [];
+  const computedColumns = props.computedColumns ?? [];
+  const computedColumnErrors = useMemo(
+    () => resolveTabularTransformComputedColumns(props).errorsByIndex,
+    [props],
+  );
+  const projectableColumns = useMemo(
+    () =>
+      Array.from(new Set([
+        ...availableColumns,
+        ...computedColumns.flatMap((column) => (column.key ? [column.key] : [])),
+      ])),
+    [availableColumns, computedColumns],
+  );
 
   function updateFilterRules(nextRules: TabularFilterRule[] | undefined) {
     onDraftPropsChange({
       ...draftProps,
       filterRules: nextRules && nextRules.length > 0 ? nextRules : undefined,
+    });
+  }
+
+  function updateComputedColumns(nextColumns: TabularTransformComputedColumnConfig[] | undefined) {
+    onDraftPropsChange({
+      ...draftProps,
+      computedColumns: nextColumns && nextColumns.length > 0 ? nextColumns : undefined,
     });
   }
 
@@ -571,6 +604,157 @@ export function TabularTransformWidgetSettings({
             </div>
           </>
         ) : null}
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Computed columns</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Add reusable derived columns to the published dataset. Formulas run after the selected
+            transform and before projection. Wrap field names in brackets, for example{" "}
+            <code>[last_price] * 10</code> or{" "}
+            <code>PERCENT_CHANGE([last_price], [previous_close])</code>.
+          </p>
+        </div>
+
+        {computedColumns.length === 0 ? (
+          <div className="rounded-[calc(var(--radius)-4px)] border border-dashed border-border/70 bg-background/25 px-3 py-3 text-xs text-muted-foreground">
+            No computed columns yet. Use this section when the transformed dataset should publish
+            derived fields for downstream widgets.
+          </div>
+        ) : null}
+
+        <div className="space-y-3">
+          {computedColumns.map((column, index) => {
+            const error = computedColumnErrors.get(index);
+
+            return (
+              <div
+                key={`${column.key ?? "computed-column"}:${index}`}
+                className="space-y-3 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/25 p-3"
+              >
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,160px)_auto]">
+                  <TextInput
+                    label="Column key"
+                    value={column.key}
+                    disabled={!editable}
+                    onChange={(key) => {
+                      const nextColumns = [...computedColumns];
+                      nextColumns[index] = {
+                        ...column,
+                        key,
+                      };
+                      updateComputedColumns(nextColumns);
+                    }}
+                    placeholder="one_day_return"
+                  />
+                  <TextInput
+                    label="Label"
+                    value={column.label}
+                    disabled={!editable}
+                    onChange={(label) => {
+                      const nextColumns = [...computedColumns];
+                      nextColumns[index] = {
+                        ...column,
+                        label,
+                      };
+                      updateComputedColumns(nextColumns);
+                    }}
+                    placeholder="1D"
+                  />
+                  <label className="block space-y-2">
+                    <span className="text-xs font-medium text-muted-foreground">Result type</span>
+                    <select
+                      value={column.type ?? "number"}
+                      onChange={(event) => {
+                        const nextColumns = [...computedColumns];
+                        nextColumns[index] = {
+                          ...column,
+                          type: event.target.value as TabularTransformComputedColumnType,
+                        };
+                        updateComputedColumns(nextColumns);
+                      }}
+                      disabled={!editable}
+                      className="h-10 w-full rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground outline-none transition-colors focus:border-ring/70 focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {COMPUTED_COLUMN_TYPE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateComputedColumns(
+                          computedColumns.filter((_, columnIndex) => columnIndex !== index),
+                        );
+                      }}
+                      disabled={!editable}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground transition-colors hover:border-danger/40 hover:text-danger disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Remove
+                    </button>
+                  </div>
+                </div>
+
+                <label className="block space-y-2">
+                  <span className="text-xs font-medium text-muted-foreground">Formula</span>
+                  <input
+                    value={column.formulaExpression ?? ""}
+                    onChange={(event) => {
+                      const nextColumns = [...computedColumns];
+                      nextColumns[index] = {
+                        ...column,
+                        formulaExpression: event.target.value,
+                      };
+                      updateComputedColumns(nextColumns);
+                    }}
+                    disabled={!editable}
+                    placeholder="[last_price] * 10"
+                    className="h-10 w-full rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground outline-none transition-colors focus:border-ring/70 focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                </label>
+
+                <p className="text-[11px] text-muted-foreground">
+                  Available upstream fields: {availableColumns.length > 0 ? availableColumns.join(", ") : "none resolved"}.
+                </p>
+                {error ? <p className="text-[11px] text-danger">{error}</p> : null}
+              </div>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            updateComputedColumns([
+              ...computedColumns,
+              {
+                type: "number",
+              },
+            ]);
+          }}
+          disabled={!editable}
+          className="inline-flex h-10 items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Plus className="h-4 w-4" />
+          Add computed column
+        </button>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Projection</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Keep only the columns that downstream widgets should receive. Computed columns can be
+            projected by key after you add them above. Available fields:{" "}
+            {projectableColumns.length > 0 ? projectableColumns.join(", ") : "none resolved"}.
+          </p>
+        </div>
         <FieldListInput
           label="Project columns"
           value={props.projectFields}

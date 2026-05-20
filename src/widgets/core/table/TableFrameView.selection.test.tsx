@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { act } from "react";
+import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -11,8 +11,12 @@ Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
 
 type MockGridRow = Record<string, unknown>;
 type MockGridColumn = {
+  cellRenderer?: unknown;
+  cellRendererParams?: unknown;
   colId?: string;
   field?: string;
+  filter?: unknown;
+  valueGetter?: unknown;
 };
 type MockGridFocusedCell = {
   rowIndex: number;
@@ -44,6 +48,10 @@ type MockAgGridReactProps = {
   rowData?: MockGridRow[];
 };
 
+const agGridReactMockState = vi.hoisted(() => ({
+  lastProps: null as MockAgGridReactProps | null,
+}));
+
 vi.mock("ag-grid-react", async () => {
   const React = await import("react");
 
@@ -51,6 +59,7 @@ vi.mock("ag-grid-react", async () => {
     AgGridProvider: ({ children }: { children: React.ReactNode }) =>
       React.createElement(React.Fragment, null, children),
     AgGridReact: (props: MockAgGridReactProps) => {
+      agGridReactMockState.lastProps = props;
       const rows = props.rowData ?? [];
       const columns = props.columnDefs ?? [];
       const buildApi = (
@@ -219,6 +228,9 @@ function buildResolvedTableProps(
 function createHarness(
   selectionMode: TableWidgetSelectionMode,
   groupBy?: string,
+  options: {
+    columnDefOverrides?: ComponentProps<typeof TableFrameView>["columnDefOverrides"];
+  } = {},
 ) {
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -232,6 +244,7 @@ function createHarness(
       await act(async () => {
         root.render(
           <TableFrameView
+            columnDefOverrides={options.columnDefOverrides}
             resolvedProps={buildResolvedTableProps(selectionMode, groupBy)}
             selectionKeyFields={["id"]}
             selectionMode={selectionMode}
@@ -265,6 +278,8 @@ afterEach(() => {
   while (harnesses.length > 0) {
     harnesses.pop()?.cleanup();
   }
+
+  agGridReactMockState.lastProps = null;
 });
 
 describe("TableFrameView selection publishing", () => {
@@ -323,6 +338,27 @@ describe("TableFrameView selection publishing", () => {
         value: 20,
       },
     });
+  });
+
+  it("applies per-column AG Grid overrides without forking the shared table view", async () => {
+    const harness = createHarness("none", undefined, {
+      columnDefOverrides: {
+        score: {
+          cellRenderer: "agSparklineCellRenderer",
+          filter: false,
+        },
+      },
+    });
+    harnesses.push(harness);
+
+    await harness.render();
+
+    const scoreColumn = agGridReactMockState.lastProps?.columnDefs?.find(
+      (column) => column.field === "score",
+    );
+
+    expect(scoreColumn?.cellRenderer).toBe("agSparklineCellRenderer");
+    expect(scoreColumn?.filter).toBe(false);
   });
 
   it("preserves active-cell state when row selection fires after a cell click", async () => {

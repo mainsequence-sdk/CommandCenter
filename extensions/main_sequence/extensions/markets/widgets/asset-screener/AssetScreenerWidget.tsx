@@ -1,17 +1,20 @@
 import { useCallback, useMemo } from "react";
 import { Database } from "lucide-react";
+import type { ISparklineCellRendererParams } from "ag-grid-community";
 
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
 import { useWorkspaceVariableReferenceRegistry } from "@/dashboards/DashboardWidgetDependencies";
 import {
   TableFrameView,
-  type TableFrameCustomCellRenderer,
+  type TableFrameColumnDefOverride,
   type TableWidgetCellValue,
   type TableWidgetColumnSchema,
   type TableWidgetFrameRow,
   type TableWidgetRow,
 } from "@/widgets/core/table/TableFrameView";
 import {
+  applyTableWidgetFormulaColumnsToPublishedFrame,
+  buildTableWidgetRowObjects,
   buildTableWidgetSourceVisualContractFromFrame,
   buildTableWidgetRowKey,
   normalizeTableWidgetSelectionState,
@@ -25,6 +28,7 @@ import {
   type TableWidgetProps,
   type TableWidgetResolvedFrameInput,
 } from "@/widgets/core/table/tableModel";
+import { proTableSharedOptions, withProTableDefaultProps } from "@/widgets/core/table/proTableOptions";
 import { useOptionalTheme } from "@/themes/ThemeProvider";
 import { mainSequenceSpaceTheme } from "@/themes/presets/main-sequence-space";
 import { useIncrementalTabularConsumerBindingState } from "@/widgets/shared/incremental-tabular-consumer";
@@ -52,7 +56,7 @@ import {
 
 type Props = WidgetComponentProps<MainSequenceAssetScreenerWidgetProps>;
 type AssetScreenerTableRowObject = TableWidgetRow & {
-  __assetKey?: string;
+  __assetKey?: string | null;
 };
 const assetScreenerSelectionKeyFields = ["__assetKey"] as const;
 
@@ -427,6 +431,10 @@ function tableFormatForColumn(
 ): TableWidgetColumnSchema["format"] {
   const format = ("format" in column ? column.format : undefined) ?? visual?.format;
 
+  if (format === "formula") {
+    return "formula";
+  }
+
   if (format === "percent") {
     return "percent";
   }
@@ -487,6 +495,8 @@ export function buildAssetScreenerTableFrame({
       label: column.label,
       description: sourceSchema?.description,
       format,
+      formulaExpression: format === "formula" ? sourceSchema?.formulaExpression : undefined,
+      formulaResultFormat: format === "formula" ? sourceSchema?.formulaResultFormat : undefined,
       decimals: sourceSchema?.decimals,
       minWidth:
         column.width ??
@@ -496,7 +506,11 @@ export function buildAssetScreenerTableFrame({
       categorical: sourceSchema?.categorical ?? (column.kind === "asset-field"),
       heatmapEligible:
         sourceSchema?.heatmapEligible ??
-        (format === "number" || format === "percent" || format === "currency" || format === "bps"),
+        (format === "number" ||
+          format === "percent" ||
+          format === "currency" ||
+          format === "bps" ||
+          format === "formula"),
       compact: sourceSchema?.compact,
     };
   });
@@ -567,32 +581,34 @@ export function buildAssetScreenerResolvedTableProps({
   frame: TableWidgetResolvedFrameInput;
   tableSettings?: Partial<TableWidgetProps>;
 }): ResolvedTableWidgetProps {
+  const normalizedTableSettings = withProTableDefaultProps(tableSettings);
   const densityOverride =
-    tableSettings?.density === "comfortable" || tableSettings?.density === "compact"
-      ? tableSettings.density
+    normalizedTableSettings.density === "comfortable" || normalizedTableSettings.density === "compact"
+      ? normalizedTableSettings.density
       : undefined;
   const pageSize =
-    typeof tableSettings?.pageSize === "number" && Number.isFinite(tableSettings.pageSize)
-      ? Math.max(5, Math.min(Math.trunc(tableSettings.pageSize), 200))
+    typeof normalizedTableSettings.pageSize === "number" && Number.isFinite(normalizedTableSettings.pageSize)
+      ? Math.max(5, Math.min(Math.trunc(normalizedTableSettings.pageSize), 200))
       : 100;
   const resolved = resolveTableWidgetPropsWithFrame(
     {
       tableSourceMode: "bound",
       density: densityOverride ?? (density === "comfortable" ? "comfortable" : "compact"),
       groupBy:
-        typeof tableSettings?.groupBy === "string" && tableSettings.groupBy.trim()
-          ? tableSettings.groupBy.trim()
+        typeof normalizedTableSettings.groupBy === "string" && normalizedTableSettings.groupBy.trim()
+          ? normalizedTableSettings.groupBy.trim()
           : undefined,
       showToolbar: false,
       showSearch: false,
-      showColumnFilters: tableSettings?.showColumnFilters !== false,
-      zebraRows: tableSettings?.zebraRows === true,
+      showColumnFilters: normalizedTableSettings.showColumnFilters !== false,
+      zebraRows: normalizedTableSettings.zebraRows === true,
       pagination: false,
       pageSize,
-      schema: Array.isArray(tableSettings?.schema) ? tableSettings.schema : undefined,
-      columnOverrides: tableSettings?.columnOverrides,
-      valueLabels: Array.isArray(tableSettings?.valueLabels) ? tableSettings.valueLabels : [],
-      conditionalRules: Array.isArray(tableSettings?.conditionalRules) ? tableSettings.conditionalRules : [],
+      schema: Array.isArray(normalizedTableSettings.schema) ? normalizedTableSettings.schema : undefined,
+      columnOverrides: normalizedTableSettings.columnOverrides,
+      valueLabels: Array.isArray(normalizedTableSettings.valueLabels) ? normalizedTableSettings.valueLabels : [],
+      conditionalRules: Array.isArray(normalizedTableSettings.conditionalRules) ? normalizedTableSettings.conditionalRules : [],
+      formulasEnabled: normalizedTableSettings.formulasEnabled,
     },
     frame,
   );
@@ -601,28 +617,11 @@ export function buildAssetScreenerResolvedTableProps({
     ...resolved,
     showToolbar: false,
     showSearch: false,
-    showColumnFilters: tableSettings?.showColumnFilters !== false,
-    zebraRows: tableSettings?.zebraRows === true,
+    showColumnFilters: normalizedTableSettings.showColumnFilters !== false,
+    zebraRows: normalizedTableSettings.zebraRows === true,
     pagination: false,
     pageSize,
   };
-}
-
-function getSparklinePath(values: number[], width: number, height: number) {
-  if (values.length === 0) {
-    return "";
-  }
-
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const xStep = values.length > 1 ? width / (values.length - 1) : width;
-
-  return values.map((value, index) => {
-    const x = index * xStep;
-    const y = min === max ? height / 2 : height - ((value - min) / range) * height;
-    return `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
-  }).join(" ");
 }
 
 function pointSortValue(point: MarketAssetValuePoint) {
@@ -676,39 +675,24 @@ export function buildSparklineValues(row: MarketAssetScreenerRow, valueField: st
     .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
 }
 
-function Sparkline({
-  row,
-  valueField,
-}: {
-  row: MarketAssetScreenerRow;
-  valueField: string;
-}) {
-  const values = buildSparklineValues(row, valueField);
-  const path = getSparklinePath(values, 84, 22);
-
-  if (!path || values.length < 2) {
-    return <span className="text-muted-foreground">—</span>;
-  }
-
-  return (
-    <svg
-      aria-hidden="true"
-      className="h-6 w-24 overflow-visible"
-      viewBox="0 0 84 22"
-    >
-      <path d={path} fill="none" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-function buildSparklineCellRenderers({
+export function buildAssetScreenerSparklineColumnDefOverrides({
   columns,
   rows,
+  strokeColor,
 }: {
   columns: MarketAssetScreenerColumn[];
   rows: MarketAssetScreenerRow[];
+  strokeColor: string;
 }) {
   const rowByAssetKey = new Map(rows.map((row) => [row.asset.assetKey, row]));
+  const sparklineOptions = {
+    axis: { visible: false },
+    stroke: strokeColor,
+    strokeWidth: 1.5,
+    marker: { enabled: false },
+    tooltip: { enabled: false },
+    type: "line",
+  } as NonNullable<ISparklineCellRendererParams["sparklineOptions"]>;
 
   return Object.fromEntries(
     columns.flatMap((column) => {
@@ -716,21 +700,33 @@ function buildSparklineCellRenderers({
         return [];
       }
 
-      const renderer: TableFrameCustomCellRenderer = ({ row, value }) => {
-        const screenerRow = typeof value === "string" ? rowByAssetKey.get(value) : undefined;
+      const columnDefOverride: TableFrameColumnDefOverride = {
+        cellDataType: false,
+        cellRenderer: "agSparklineCellRenderer",
+        cellRendererParams: {
+          sparklineOptions,
+        },
+        filter: false,
+        sortable: false,
+        suppressHeaderMenuButton: true,
+        tooltipValueGetter: undefined,
+        valueGetter: ({ data }) => {
+          const assetKey =
+            data && typeof data === "object" && typeof data.__assetKey === "string"
+              ? data.__assetKey
+              : undefined;
+          const screenerRow = assetKey ? rowByAssetKey.get(assetKey) : undefined;
 
-        if (!screenerRow) {
-          return <span className="text-muted-foreground">—</span>;
-        }
+          if (!screenerRow) {
+            return null;
+          }
 
-        return (
-          <div className="flex h-full w-full items-center overflow-hidden text-primary">
-            <Sparkline row={screenerRow} valueField={column.valueField} />
-          </div>
-        );
+          const values = buildSparklineValues(screenerRow, column.valueField);
+          return values.length >= 2 ? values : null;
+        },
       };
 
-      return [[column.id, renderer] as const];
+      return [[column.id, columnDefOverride] as const];
     }),
   );
 }
@@ -804,6 +800,20 @@ export function AssetScreenerWidget({
       }),
     [normalizedProps.density, normalizedProps.table, tableFrame.frame],
   );
+  const resolvedRowObjects = useMemo(() => {
+    const baseRows = buildTableWidgetRowObjects(
+      resolvedTableProps.columns,
+      resolvedTableProps.rows,
+    );
+
+    return baseRows.map<AssetScreenerTableRowObject>((row, index) => ({
+      __assetKey:
+        typeof tableFrame.rowObjects[index]?.__assetKey === "string"
+          ? tableFrame.rowObjects[index]?.__assetKey
+          : null,
+      ...row,
+    }));
+  }, [resolvedTableProps.columns, resolvedTableProps.rows, tableFrame.rowObjects]);
   const selectionState = useMemo(
     () => normalizeAssetScreenerSelectionStateMode(
       normalizeTableWidgetSelectionState(runtimeState),
@@ -855,7 +865,7 @@ export function AssetScreenerWidget({
         return;
       }
 
-      const sanitized = sanitizeAssetScreenerSelectionState(selection, tableFrame.rowObjects);
+      const sanitized = sanitizeAssetScreenerSelectionState(selection, resolvedRowObjects);
       const nextRuntimeState = withTableWidgetSelectionRuntimeState(
         runtimeState as Record<string, unknown> | undefined,
         {
@@ -882,9 +892,9 @@ export function AssetScreenerWidget({
     [
       effectiveSelectionMode,
       onRuntimeStateChange,
+      resolvedRowObjects,
       runtimeState,
       selectionOutputProps.selectionMode,
-      tableFrame.rowObjects,
     ],
   );
   const selectionViewProps = useMemo(
@@ -899,13 +909,14 @@ export function AssetScreenerWidget({
     [effectiveSelectionMode, handleSelectionChange, selectionState],
   );
 
-  const customCellRenderers = useMemo(
+  const sparklineColumnDefOverrides = useMemo(
     () =>
-      buildSparklineCellRenderers({
+      buildAssetScreenerSparklineColumnDefOverrides({
         columns: state.columns,
         rows: state.filteredRows,
+        strokeColor: resolvedTokens.primary,
       }),
-    [state.columns, state.filteredRows],
+    [resolvedTokens.primary, state.columns, state.filteredRows],
   );
 
   if (!state.hasAnyBinding && state.rows.length === 0) {
@@ -941,11 +952,12 @@ export function AssetScreenerWidget({
     <div className="flex h-full min-h-[260px] flex-col">
       <div className="min-h-0 flex-1">
         <TableFrameView
-          customCellRenderers={customCellRenderers}
+          columnDefOverrides={sparklineColumnDefOverrides}
           emptyMessage=""
+          gridModules={proTableSharedOptions.gridModules}
           resolvedProps={resolvedTableProps}
           resolvedTokens={resolvedTokens}
-          rowObjects={tableFrame.rowObjects}
+          rowObjects={resolvedRowObjects}
           showColumnFilters={false}
           surface="transparent"
           tightness={tightness}
@@ -1079,11 +1091,11 @@ function buildAssetScreenerPublicFrame(
   rows: MarketAssetScreenerRow[],
   columns: MarketAssetScreenerColumn[],
   sourceFrame?: TabularFrameSourceV1 | null,
+  tableSettings?: Partial<TableWidgetProps>,
 ): TabularFrameSourceV1 {
   const publicRows = buildAssetScreenerPublicRows(rows, columns);
   const publicColumns = buildAssetScreenerSelectedRowsOutputColumns(columns, publicRows);
-
-  return {
+  const publicFrame = {
     status: sourceFrame?.status === "error"
       ? "error"
       : sourceFrame?.status === "loading"
@@ -1099,7 +1111,12 @@ function buildAssetScreenerPublicFrame(
         uniqueIdentifierList: ["assetKey"],
       },
     },
-  };
+  } satisfies TabularFrameSourceV1;
+
+  return applyTableWidgetFormulaColumnsToPublishedFrame(
+    withProTableDefaultProps(tableSettings),
+    publicFrame,
+  );
 }
 
 type AssetScreenerOutputContext = {
@@ -1143,6 +1160,7 @@ function buildAssetScreenerOutputContext({
     state.filteredRows,
     state.columns,
     state.sourceFrame,
+    normalizedProps.table,
   );
   const normalizedRuntimeState = normalizeAssetScreenerSelectionRuntimeState(runtimeState);
   const selectionOutputProps: Pick<

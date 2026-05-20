@@ -5,8 +5,10 @@ import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 
 import { tableWidget } from "./definition";
 import { proTableWidget } from "./proDefinition";
+import { compileTableFormulaExpression } from "./tableFormulaCompiler";
 import {
   buildTableWidgetFrameFromRemoteData,
+  buildTableWidgetRowObjects,
   buildTableWidgetRowKey,
   formatTableWidgetValue,
   moveTableWidgetSchemaColumn,
@@ -53,6 +55,16 @@ describe("table widget datetime formatting", () => {
     );
 
     expect(validation.issues).toEqual([]);
+  });
+});
+
+describe("table widget formula compiler", () => {
+  it("requires bracketed field references and explains invalid bare identifiers", () => {
+    expect(compileTableFormulaExpression("last_price*10")).toEqual({
+      expression: null,
+      error:
+        "Formula syntax is invalid. Wrap field names in brackets, for example [last_price] * 10. Functions must also use bracketed fields, for example PERCENT_CHANGE([last_price], [yearStart]).",
+    });
   });
 });
 
@@ -515,6 +527,112 @@ describe("table widget table controls", () => {
     );
     expect(resolved.rows[0]?.[resolved.columns.indexOf("one_day_return")]).toBe(10);
   });
+
+  it("accepts source-declared formula columns from table visual metadata", () => {
+    const frameInput = buildTableWidgetFrameFromRemoteData(
+      null,
+      [
+        {
+          unique_identifier: "uid:BTCUSDT",
+          last_price: 109420,
+          previous_close: 107980,
+        },
+      ],
+      ["unique_identifier", "last_price", "previous_close"],
+      [],
+      {
+        tableVisuals: {
+          columns: {
+            unique_identifier: {
+              label: "Identifier",
+            },
+            last_price: {
+              label: "Last",
+              format: "price",
+            },
+            previous_close: {
+              label: "Previous close",
+              format: "price",
+              visible: false,
+            },
+            one_day_return: {
+              label: "1D",
+              format: "formula",
+              formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+              formulaResultFormat: "percent",
+              gaugeMode: "ring",
+            },
+          },
+        },
+      },
+    );
+    const resolved = resolveTableWidgetPropsWithFrame({
+      formulasEnabled: true,
+    }, frameInput);
+    const rows = buildTableWidgetRowObjects(resolved.columns, resolved.rows);
+
+    expect(frameInput.columns).toEqual([
+      "unique_identifier",
+      "last_price",
+      "previous_close",
+      "one_day_return",
+    ]);
+    expect(frameInput.schemaFallback.find((column) => column.key === "one_day_return")).toMatchObject({
+      label: "1D",
+      format: "formula",
+      formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+      formulaResultFormat: "percent",
+    });
+    expect(resolved.columnOverrides.previous_close).toMatchObject({
+      visible: false,
+    });
+    expect(resolved.columnOverrides.one_day_return).toMatchObject({
+      gaugeMode: "ring",
+    });
+    expect(rows[0]?.one_day_return).toBeCloseTo(1.3335802926467864);
+  });
+
+  it("computes local formula columns through the shared table frame path", () => {
+    const props: TableWidgetProps = {
+      tableSourceMode: "manual",
+      formulasEnabled: true,
+      manualColumns: [
+        { key: "symbol", type: "string" },
+        { key: "last_price", type: "number" },
+        { key: "yearStart", type: "number" },
+      ],
+      manualRows: [
+        { symbol: "AAPL", last_price: 118, yearStart: 100 },
+      ],
+      schema: [
+        { key: "symbol", label: "Symbol", format: "text" },
+        { key: "last_price", label: "Last", format: "number" },
+        { key: "yearStart", label: "Year Start", format: "number" },
+        {
+          key: "ytd",
+          label: "YTD",
+          format: "formula",
+          formulaExpression: "PERCENT_CHANGE([last_price], [yearStart])",
+          formulaResultFormat: "percent",
+        },
+      ],
+    };
+
+    const output = resolveTableWidgetOutput(props, undefined);
+    expect(output.columns).toEqual(["symbol", "last_price", "yearStart", "ytd"]);
+    expect(output.rows[0]).toMatchObject({
+      symbol: "AAPL",
+      last_price: 118,
+      yearStart: 100,
+      ytd: 18,
+    });
+
+    const resolved = resolveTableWidgetPropsWithFrame(props);
+    const rows = buildTableWidgetRowObjects(resolved.columns, resolved.rows);
+
+    expect(resolved.formulasEnabled).toBe(true);
+    expect(rows[0]?.ytd).toBe(18);
+  });
 });
 
 describe("table widget definition selection outputs", () => {
@@ -535,12 +653,15 @@ describe("table widget definition selection outputs", () => {
   it("adds a Pro variant without changing the Community table contract", () => {
     expect(tableWidget.id).toBe("table");
     expect(proTableWidget.id).toBe("pro-table");
+    expect((tableWidget.exampleProps as TableWidgetProps).formulasEnabled).toBe(false);
+    expect((proTableWidget.exampleProps as TableWidgetProps).formulasEnabled).toBe(true);
     expect(tableWidget.registryContract?.capabilities).toMatchObject({
       gridEdition: "community",
       supportedSourceModes: ["bound", "connection", "connection-stream", "manual"],
     });
     expect(proTableWidget.registryContract?.capabilities).toMatchObject({
       gridEdition: "enterprise",
+      formulas: ["columnLevelFormulas", "settingsOnlyAuthoring"],
       supportedSourceModes: ["bound", "connection", "connection-stream", "manual"],
     });
 

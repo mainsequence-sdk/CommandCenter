@@ -20,22 +20,38 @@ import {
 
 export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>({
   id: "tabular-transform",
-  widgetVersion: "1.1.0",
+  widgetVersion: "1.2.0",
   title: "Tabular Transform",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
   kind: "custom",
   source: "core",
   requiredPermissions: ["workspaces:view"],
-  tags: ["tabular", "transform", "filter", "aggregate", "pivot", "unpivot", "projection"],
+  tags: ["tabular", "transform", "filter", "aggregate", "pivot", "unpivot", "projection", "formula"],
   exampleProps: {
     transformMode: "none",
     aggregateMode: "last",
+    computedColumns: [
+      {
+        key: "net_change",
+        label: "Net Chg",
+        type: "number",
+        formulaExpression: "[last_price] - [previous_close]",
+      },
+    ],
   },
   mockProps: {
     transformMode: "aggregate",
     aggregateMode: "mean",
     keyFields: ["series"],
+    computedColumns: [
+      {
+        key: "value_x10",
+        label: "Value x10",
+        type: "number",
+        formulaExpression: "[value] * 10",
+      },
+    ],
     projectFields: ["series", "value"],
   },
   mockResolvedInputs: {
@@ -192,11 +208,13 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
       requiredSetupSteps: [
         "Bind sourceData to an upstream tabular dataset.",
         "Select a transform mode.",
-        "Configure filter, key, pivot, unpivot, or projection fields.",
+        "Configure filter, key, pivot, unpivot, computed-column, or projection fields.",
         "Bind downstream widgets to the transformed dataset output.",
       ],
       configurationNotes: [
         "Projection runs after the selected transform.",
+        "Computed columns run after the selected transform and before projection.",
+        "Computed-column formulas must wrap field names in brackets, for example [last_price] * 10.",
         "Filter mode is intentionally limited to lightweight field predicates.",
         "Analytical transforms are explicit graph nodes, not binding-level transforms.",
       ],
@@ -218,6 +236,7 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
       publishesContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
       supportedTransformModes: ["none", "filter", "aggregate", "pivot", "unpivot"],
       supportedAggregateModes: ["first", "last", "sum", "mean", "min", "max"],
+      supportsComputedColumns: true,
       supportsProjection: true,
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),

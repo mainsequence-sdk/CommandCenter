@@ -30,13 +30,19 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - For connection mode, open `Bindings`, click `Add connection`, then configure the dedicated `Connection` tab. Managed HTTP sources bind `dataset` to `seedData`; managed WS sources bind `updates` to `liveUpdates`.
 - For manual mode, define columns and rows in the table editor. Manual rows are stored in this table widget's props and are published as the table `dataset` output.
 - Inspect the incoming field schema before editing columns. Prefer upstream `fields` metadata when available; otherwise the table infers labels, types, and numeric eligibility from the current row sample.
-- When a source publishes `meta.tableTransforms` or `meta.tableVisuals`, the table uses those as
-  the effective source defaults for computed columns, labels, formats, decimal precision, widths,
-  thresholds, and numeric visuals. Editing a setting creates only a local override for the touched
-  field.
+- When an upstream source or `tabular-transform` widget publishes `meta.tableTransforms` or
+  `meta.tableVisuals`, the table uses those as the effective source defaults for computed columns,
+  labels, formats, decimal precision, widths, thresholds, and numeric visuals. Editing a setting
+  creates only a local override for the touched field.
+- Source frames can propose formula display columns through `meta.tableVisuals.columns` by setting
+  `format: "formula"`, `formulaExpression`, and `formulaResultFormat`. Include any raw input fields
+  the expression references in the frame and set `visible: false` on those input columns when they
+  should remain available for formulas but hidden from the rendered table.
 - Gauge visuals use a centered diverging fill. Positive values extend from the middle of the cell
   toward the right edge; negative values extend from the middle toward the left edge.
 - Configure table-level presentation first. In the per-column editor, the default row keeps only key, label, format, and visibility inline; expand `Advanced` when a column needs descriptions, pinning, Date/time input or output patterns, numeric visuals, or display overrides.
+- Community `table` keeps formulas off. If a workspace needs shared column formulas, use
+  `pro-table` instead of trying to turn the Community widget into a spreadsheet surface.
 - Use `Group by` for display-only grouped sections. The grouped headers are synthetic render rows;
   they do not change the published `dataset` output or the row payloads used by selection
   outputs.
@@ -126,6 +132,8 @@ breaking the existing Community widget.
   canonical `core.tabular_frame@v1` input and output behavior as `table`.
 - Use when you want the same bound dataset, hidden connection source, stream source, or manual row
   workflow as `table`, but want the widget identity reserved for Enterprise-only capabilities.
+- Use when the widget should author shared column formulas in settings and render the computed
+  result like an ordinary table column.
 - Use when downstream widgets should keep consuming `dataset`, `selectedRows`, `activeRow`,
   `activeCell`, `activeCellValue`, or `selectedCellValues` with the same semantics as `table`.
 
@@ -146,6 +154,14 @@ breaking the existing Community widget.
   `table`.
 - Configure labels, formats, grouping, search, filters, pagination, and selection outputs through
   the same shared settings surface.
+- `Formulas` is enabled by default on `pro-table`. Mark a column as `Formula`, then author one
+  expression in that column's `Advanced` section.
+- Wrap field names in brackets. Use arithmetic such as `([last_price] - [open]) / [open] * 100`
+  or functions such as `PERCENT_CHANGE([last_price], [yearStart])`.
+- If a field name contains spaces or punctuation, use the same bracket syntax, for example
+  `[Last Price]` or `[1D Return %]`.
+- Formula authoring is settings-only in the first implementation. The live grid remains read-only
+  and keeps its current row/cell interaction meaning.
 - Treat `pro-table` as additive. Existing `table` widgets stay valid and do not require migration.
 
 ### inputPorts
@@ -181,6 +197,8 @@ breaking the existing Community widget.
 
 - `pro-table` is not a forked table implementation. It shares the same core settings and output
   semantics as `table`.
+- Formula columns are persisted shared table settings, not transient AG Grid state. If a formula
+  column should move with a dataset, keep the formula column key stable in the widget settings.
 - If you need backward compatibility for an existing workspace, leave saved `table` instances on
   `table`. `pro-table` is additive.
 - Enterprise module support does not change the upstream source contract, row payload shape, or the

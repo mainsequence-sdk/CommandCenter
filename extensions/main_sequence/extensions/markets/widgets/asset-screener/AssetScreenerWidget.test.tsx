@@ -7,7 +7,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 import type { ResolvedWidgetInputs } from "@/widgets/types";
-import { buildTableWidgetFrameFromRemoteData } from "@/widgets/core/table/tableModel";
+import {
+  buildTableWidgetFrameFromRemoteData,
+  buildTableWidgetRowObjects,
+} from "@/widgets/core/table/tableModel";
 import {
   TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID,
   TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID,
@@ -24,6 +27,7 @@ import {
 import { mainSequenceAssetScreenerWidget } from "./definition";
 import {
   AssetScreenerWidget,
+  buildAssetScreenerSparklineColumnDefOverrides,
   buildAssetScreenerResolvedTableProps,
   buildAssetScreenerTableFrame,
   buildSparklineValues,
@@ -290,6 +294,224 @@ describe("AssetScreenerWidget", () => {
     expect(container.textContent).not.toContain("No source columns are available yet");
   });
 
+  it("inherits Pro table formulas by default through the shared table path", () => {
+    const resolved = buildAssetScreenerResolvedTableProps({
+      density: "compact",
+      frame: {
+        columns: ["last_price", "yearStart"],
+        rows: [[118, 100]],
+        schemaFallback: [
+          { key: "last_price", label: "Last", format: "number" },
+          { key: "yearStart", label: "Year Start", format: "number" },
+        ],
+      },
+      tableSettings: {
+        schema: [
+          { key: "last_price", label: "Last", format: "number" },
+          { key: "yearStart", label: "Year Start", format: "number" },
+          {
+            key: "ytd",
+            label: "YTD",
+            format: "formula",
+            formulaExpression: "PERCENT_CHANGE([last_price], [yearStart])",
+            formulaResultFormat: "percent",
+          },
+        ],
+      },
+    });
+    const rows = buildTableWidgetRowObjects(resolved.columns, resolved.rows);
+
+    expect(resolved.formulasEnabled).toBe(true);
+    expect(rows[0]?.ytd).toBe(18);
+  });
+
+  it("renders source-declared return formulas from table visual column metadata", () => {
+    const props = {
+      ...assetScreenerDefaultProps,
+      groupBy: undefined,
+      sort: undefined,
+    } satisfies MainSequenceAssetScreenerWidgetProps;
+    const seedData = {
+      ...frame([
+        {
+          unique_identifier: "uid:BTCUSDT",
+          Symbol: "BTCUSDT",
+          sector: "Layer 1",
+          time: "2026-05-19T13:00:00.000Z",
+          last_price: 109420,
+          previous_close: 107980,
+          one_month_ago: 101300,
+          year_start: 92400,
+          one_year_ago: 76800,
+          price_sparkline: "100800,102400,104950,106700,107980,109420",
+        },
+      ]),
+      meta: {
+        ...buildMarketAssetFrameSemanticMeta({
+          role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
+          fieldRoles: [
+            { field: "unique_identifier", role: "assetKey" },
+            { field: "Symbol", role: "symbol" },
+            { field: "sector", role: "sector" },
+            { field: "time", role: "observedAt" },
+            { field: "last_price", role: "value", valueKey: "price" },
+            {
+              field: "previous_close",
+              role: "referenceValue",
+              referenceKey: "previousClose",
+              valueKey: "price",
+            },
+            {
+              field: "one_month_ago",
+              role: "referenceValue",
+              referenceKey: "oneMonthAgo",
+              valueKey: "price",
+            },
+            {
+              field: "year_start",
+              role: "referenceValue",
+              referenceKey: "yearStart",
+              valueKey: "price",
+            },
+            {
+              field: "one_year_ago",
+              role: "referenceValue",
+              referenceKey: "oneYearAgo",
+              valueKey: "price",
+            },
+            {
+              field: "price_sparkline",
+              role: "sparklineSeries",
+              valueKey: "price",
+              encoding: "csv-number",
+            },
+          ],
+        }),
+        ...buildMarketTableFrameMeta({
+          tableVisuals: {
+            columns: {
+              Symbol: {
+                label: "Symbol",
+                width: 112,
+              },
+              sector: {
+                label: "Sector",
+                width: 140,
+              },
+              last_price: {
+                label: "Last",
+                format: "price",
+                width: 108,
+              },
+              previous_close: {
+                label: "Previous close",
+                format: "price",
+                visible: false,
+              },
+              one_month_ago: {
+                label: "One month ago",
+                format: "price",
+                visible: false,
+              },
+              year_start: {
+                label: "Year start",
+                format: "price",
+                visible: false,
+              },
+              one_year_ago: {
+                label: "One year ago",
+                format: "price",
+                visible: false,
+              },
+              price_sparkline: {
+                kind: "sparkline",
+                label: "Trend",
+                encoding: "csv-number",
+                width: 132,
+              },
+              one_day_return: {
+                label: "1D",
+                format: "formula",
+                formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+                formulaResultFormat: "percent",
+                gaugeMode: "ring",
+                visualRangeMode: "fixed",
+                visualMin: -3,
+                visualMax: 3,
+              },
+              one_month_return: {
+                label: "1M",
+                format: "formula",
+                formulaExpression: "PERCENT_CHANGE([last_price], [one_month_ago])",
+                formulaResultFormat: "percent",
+              },
+              ytd_return: {
+                label: "YTD",
+                format: "formula",
+                formulaExpression: "PERCENT_CHANGE([last_price], [year_start])",
+                formulaResultFormat: "percent",
+                heatmap: true,
+              },
+              one_year_return: {
+                label: "1Y",
+                format: "formula",
+                formulaExpression: "PERCENT_CHANGE([last_price], [one_year_ago])",
+                formulaResultFormat: "percent",
+              },
+            },
+          },
+        }),
+      },
+    } satisfies TabularFrameSourceV1;
+    const state = resolveAssetScreenerState({
+      props,
+      fallbackFrames: {
+        seedData,
+      },
+    });
+    const tableFrame = buildAssetScreenerTableFrame({
+      columns: state.columns,
+      rows: state.filteredRows,
+      sourceFrame: state.sourceFrame,
+      sourceColumns: state.sourceColumns,
+    });
+    const tableProps = buildAssetScreenerResolvedTableProps({
+      density: props.density,
+      frame: tableFrame.frame,
+    });
+    const rows = buildTableWidgetRowObjects(tableProps.columns, tableProps.rows);
+
+    expect(state.columns.map((column) => column.id)).toEqual([
+      "Symbol",
+      "sector",
+      "last_price",
+      "previous_close",
+      "one_month_ago",
+      "year_start",
+      "one_year_ago",
+      "price_sparkline",
+      "one_day_return",
+      "one_month_return",
+      "ytd_return",
+      "one_year_return",
+    ]);
+    expect(tableProps.schema.find((column) => column.key === "one_day_return")).toMatchObject({
+      format: "formula",
+      formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+      formulaResultFormat: "percent",
+    });
+    expect(tableProps.columnOverrides.previous_close).toMatchObject({
+      visible: false,
+    });
+    expect(tableProps.columnOverrides.one_day_return).toMatchObject({
+      gaugeMode: "ring",
+    });
+    expect(rows[0]?.one_day_return).toBeCloseTo(1.3335802926467864);
+    expect(rows[0]?.one_month_return).toBeCloseTo(8.01579466929911);
+    expect(rows[0]?.ytd_return).toBeCloseTo(18.41991341991342);
+    expect(rows[0]?.one_year_return).toBeCloseTo(42.47395833333333);
+  });
+
   it("does not invent default columns when source metadata has no column proposal", () => {
     const props = {
       ...assetScreenerDefaultProps,
@@ -505,6 +727,65 @@ describe("AssetScreenerWidget", () => {
     });
 
     expect(buildSparklineValues(state.filteredRows[0]!, "price")).toEqual([82, 96, 100, 110]);
+  });
+
+  it("builds AG Grid Enterprise sparkline overrides backed by derived sparkline values", () => {
+    const props = {
+      ...assetScreenerDefaultProps,
+      groupBy: undefined,
+      sort: undefined,
+    } satisfies MainSequenceAssetScreenerWidgetProps;
+
+    const seedData = marketSeedFrame([
+      {
+        unique_identifier: "uid:AAPL",
+        Symbol: "AAPL",
+        time: "2026-05-16T13:00:00.000Z",
+        last_price: 110,
+        price_sparkline: "82,96,100,110",
+      },
+    ]);
+    const state = resolveAssetScreenerState({
+      props,
+      fallbackFrames: {
+        seedData,
+      },
+    });
+    const tableFrame = buildAssetScreenerTableFrame({
+      columns: state.columns,
+      rows: state.filteredRows,
+    });
+    const overrides = buildAssetScreenerSparklineColumnDefOverrides({
+      columns: state.columns,
+      rows: state.filteredRows,
+      strokeColor: "#ffffff",
+    });
+    const sparklineColumn = state.columns.find((column) => column.kind === "sparkline");
+
+    expect(sparklineColumn).toBeDefined();
+
+    const override = sparklineColumn ? overrides[sparklineColumn.id] : undefined;
+    const sparklineValues =
+      typeof override?.valueGetter === "function"
+        ? override.valueGetter({
+            data: tableFrame.rowObjects[0],
+          } as Parameters<NonNullable<typeof override.valueGetter>>[0])
+        : undefined;
+
+    expect(override?.cellRenderer).toBe("agSparklineCellRenderer");
+    expect(override?.filter).toBe(false);
+    expect(override?.sortable).toBe(false);
+    expect(override?.cellRendererParams).toEqual(
+      expect.objectContaining({
+        sparklineOptions: expect.objectContaining({
+          stroke: "#ffffff",
+          strokeWidth: 1.5,
+          marker: expect.objectContaining({ enabled: false }),
+          type: "line",
+        }),
+      }),
+    );
+    expect(sparklineValues).toEqual([82, 96, 100, 110]);
   });
 
   it("does not render an internal toolbar or title strip", () => {

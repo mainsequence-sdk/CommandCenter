@@ -1,3 +1,4 @@
+import { AgChartsCommunityModule } from "ag-charts-community";
 import type { Module } from "ag-grid-community";
 import { AllEnterpriseModule, LicenseManager } from "ag-grid-enterprise";
 
@@ -21,4 +22,6 @@ configureAgGridEnterpriseLicense();
 
 // `ag-grid-enterprise` carries its own module typings even when versions match, so cast the
 // shared Enterprise bundle to the Community module interface used by AgGridReact.
-export const enterpriseAgGridModules = [AllEnterpriseModule] as unknown as Module[];
+export const enterpriseAgGridModules = [
+  AllEnterpriseModule.with(AgChartsCommunityModule),
+] as unknown as Module[];

@@ -1,200 +1,200 @@
-# ADR 066: Shared Table Formula Contract And Asset Screener Metric De-specialization
+# ADR 066: Pro Table Formula Enablement And Asset Screener Pro Inheritance
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-05-20
 - Related:
+  - [ADR 065: Shared Table Core With Community And Pro Table Widgets](./adr-065-shared-table-core-with-community-and-pro-table-widgets.md)
   - [ADR 049: Publication-Driven Seed/Live Runtime Reduction](./adr-049-publication-driven-seed-live-runtime-reduction.md)
   - [ADR 041: Query-Shaped WebSocket Streaming for Connections](./adr-041-connection-query-websocket-streaming.md)
-  - [ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles](./adr-044-incremental-connection-publications-seed-live-roles.md)
 
 ## Context
 
-Asset Screener already follows the intended live-data shape:
+ADR 065 already split the table stack into:
 
-- `seedData` carries the full seeded snapshot
-- `liveUpdates` can carry partial latest-value rows keyed by asset identity
-- the runtime merges those live updates into the current latest state and recomputes visible rows
+- `table`: Community widget
+- `pro-table`: Enterprise widget
+- one shared table core underneath both
 
-That part is correct and should be preserved.
+That shared-core split is now implemented.
 
-The architectural problem is elsewhere: the metric operations are still split between a generic
-table computation layer and Asset Screener-specific runtime semantics.
+Asset Screener already reuses substantial parts of the shared table implementation:
 
-Today there are two different operation layers:
+- [`AssetScreenerWidget.tsx`](../../../extensions/main_sequence/extensions/markets/widgets/asset-screener/AssetScreenerWidget.tsx)
+  renders through `TableFrameView`
+- [`AssetScreenerWidgetSettings.tsx`](../../../extensions/main_sequence/extensions/markets/widgets/asset-screener/AssetScreenerWidgetSettings.tsx)
+  already embeds `TableWidgetSettings`
+- the screener already persists shared table display settings inside `props.table`
 
-1. shared table transform metadata through `meta.tableTransforms.computedColumns`
-2. screener-owned metric semantics such as `Net Chg`, `% Chg`, `1M`, `YTD`, and `1Y`
+So this migration should stay small.
 
-The current screener implementation still owns return semantics directly in the market runtime. It
-computes return columns from latest values plus seeded references such as `previousClose`,
-`oneMonthAgo`, `yearStart`, and `oneYearAgo`.
+The remaining gap is that the screener is still effectively consuming the Community table path by
+default rather than explicitly inheriting the `pro-table` capability path.
 
-That works for Asset Screener, but it does not scale well:
+The intended scope of this ADR is only:
 
-- derived row metrics become widget-specific behavior instead of a reusable table capability
-- table-derived metrics cannot be owned consistently across generic Table and table-derived widgets
-- any future table-like widget risks introducing another custom operation layer
-- the live update contract becomes harder to reason about because part of the recomputation logic is
-  generic and part of it is market-specific
+1. `pro-table` includes a formulas setting, enabled by default.
+2. Asset Screener inherits from the `pro-table` path rather than the Community `table` path.
 
-The intended direction is:
-
-- keep `liveUpdates` minimal, often just latest price by symbol or asset key
-- keep seeded reference values in `seedData`
-- let the visible metrics recompute locally from the current latest value plus seeded references
-- make that derived-metric behavior a general table capability instead of a screener-specific one
-
-There is also a product/implementation opportunity to evaluate AG Grid Enterprise formulas as an
-Excel-like editing surface. That could reduce the need to invent a custom authoring UI for derived
-table metrics, but it must be assessed carefully before it becomes any part of the runtime
-contract.
+This ADR is intentionally not the place to redesign screener metric semantics, live-update
+contracts, or build a spreadsheet-style editing surface. The goal is to align capability ownership
+with the shared `pro-table` implementation that now exists and keep formula authoring narrow.
 
 ## Decision
 
-### 1. Derived Row Metrics Become A Shared Table Capability
+### 1. Pro Table Owns The Formula-Capable Table Path
 
-Row-level derived metrics belong to the shared Table contract, not to one specialized widget.
+The shared table core will expose one formula-capability setting in the `pro-table` path.
 
-The canonical source of truth should be a grid-agnostic, serializable table formula / computed
-column contract owned by the shared table layer.
+That means:
 
-This capability must work for:
+- `pro-table` gets a user-facing formulas setting
+- that setting defaults to `true`
+- the Community `table` widget does not become formula-capable just because `pro-table` is
+  introduced
 
-- generic Table
-- Asset Screener
-- any widget that renders or derives from the shared table frame path
+The setting must be implemented in the shared table settings surface, but capability-gated so it
+is only exposed where Enterprise-backed formula behavior is allowed.
 
-### 2. Asset Screener Stops Owning Custom Metric Operators
+### 2. Formulas Are Column-Level, Not Spreadsheet Editing
 
-Asset Screener should keep only the market-specific semantics that are truly market-specific:
+The first implementation scope is only column formulas.
 
-- stable asset identity
-- the required `unique_identifier` / canonical asset key requirement
-- mapping seeded rows into latest/reference/history/value semantics
-- merging partial live updates into the current latest value state
-- inline sparkline/reference metadata interpretation where required by market semantics
+That means:
 
-Asset Screener should not remain the long-term owner of generic derived metric operations such as:
+- a column can be declared as a formula column
+- the user provides one formula expression for that column
+- the formula renders as a normal table column in the live widget
+- formulas are not authored by editing live cells
+- formulas are not a second embedded grid inside settings
+- formulas are not arbitrary spreadsheet state spread across rows and cells
 
-- absolute difference
-- percent change
-- month-to-date / year-to-date return logic
-- any future row-level arithmetic derived from one latest value and one reference value
+The authoring model should stay simple:
 
-Those operations should resolve through the shared table formula / computed-column contract.
+- choose or mark a column as `formula`
+- enter the formula expression in the existing settings surface
+- render the computed values in the table output
 
-### 3. Live Updates Stay Minimal And Partial
+This keeps the scope to “formula column rendering” rather than “Excel inside the widget”.
 
-The live stream contract remains intentionally small.
+### 3. Asset Screener Moves To The Pro Table Capability Path
 
-`liveUpdates` may publish only the changed latest values for a keyed asset row, for example:
+Asset Screener should inherit the same Enterprise table capability path used by `pro-table`.
 
-- asset key
-- observed timestamp
-- latest price
+In practice that means the screener should stop implicitly consuming the Community table defaults
+and instead consume the shared table core using the same Pro-oriented options:
 
-The stream does not need to resend:
+- Enterprise AG Grid modules
+- Pro table settings surface
+- formula capability enabled by default
 
-- seeded reference points
-- full historical sparkline payloads
-- the already-seeded static identity payload
+The screener should keep its own market-specific runtime semantics, but its shared table surface
+should be aligned with `pro-table`, not `table`.
 
-The runtime should recompute derived metrics locally from:
+### 4. The Migration Must Stay Minimal
 
-- current merged latest value
-- seeded references
-- seeded or source-owned computed columns
+This is not a request to fork table logic or move the screener onto a separate table
+implementation.
 
-### 4. AG Grid Enterprise Formulas Are An Evaluation Candidate, Not The Runtime Contract
+The migration should be minimal because the screener already reuses:
 
-AG Grid Enterprise formulas are worth evaluating as an editing and authoring surface, but they must
-not become the canonical runtime semantics by default.
+- shared table rendering
+- shared table settings
+- shared persisted `props.table` settings structure
 
-The canonical runtime contract must remain:
+The preferred implementation is to route the screener through reusable Pro table configuration
+options rather than duplicating any render or settings logic.
 
-- serializable
-- headless
-- deterministic outside the grid UI
-- safe to evaluate for output publication and downstream widget consumption
+### 5. Formula Authoring Stays In Settings First
 
-If AG Grid formulas are adopted, they should compile into or synchronize with the shared canonical
-table formula contract, rather than replacing it.
+The first formula-authoring implementation should stay out of the live widget surface.
 
-## Why AG Grid Formulas Cannot Be Assumed As The Whole Solution
+That means:
 
-The current AG Grid Enterprise formulas feature is promising, but it has important constraints:
+- formulas are authored inside widget settings
+- view mode remains read-only
+- workspace edit mode remains move/resize/configure mode
+- live grid cell interaction keeps its current meaning for selection and variable publication
+- persisted formulas must live in shared table props/settings, not transient AG Grid instance
+  state
 
-- it is an Enterprise-only feature
-- it is cell/grid-oriented, not inherently widget-runtime-oriented
-- it requires row ids and formula-enabled columns
-- it is designed around interactive grid editing behavior
-- it is documented with feature compatibility limits, including unsupported combinations such as
-  row grouping and some advanced row models
-- it uses formula caching and explicit refresh semantics that are grid-instance concerns, not
-  general widget-runtime concerns
-
-That means AG Grid formulas may be a strong UI/editor layer, but they are not automatically the
-right source of truth for:
-
-- workspace runtime outputs
-- public/private workspace parity
-- headless recomputation after stream updates
-- persisted widget contracts
-- agent-readable or backend-synced widget metadata
+This keeps the current interaction contract stable while allowing formula capability to ship on the
+`pro-table` path.
 
 ## Implementation Tasks
 
-- [ ] Define one canonical shared Table formula / computed-column contract that is serializable and
-  grid-agnostic.
-- [ ] Decide where that contract can live:
-  source metadata, widget props, or both, and define precedence rules clearly.
-- [ ] Keep shared table formula evaluation independent from AG Grid runtime state so derived values
-  can be recomputed without relying on grid UI internals.
-- [ ] Expose shared table formula authoring as a general Table capability rather than a
-  screener-only setting pattern.
-- [ ] Make table-derived widgets consume the same shared formula contract, including Asset
-  Screener.
-- [ ] Migrate Asset Screener default metric columns such as `Net Chg`, `% Chg`, `1M`, `YTD`, and
-  `1Y` to the shared table formula / computed-column layer.
-- [ ] Remove screener-owned generic return helpers after shared-table parity exists.
-- [ ] Keep Asset Screener-specific requirements limited to:
-  asset identity semantics, `unique_identifier`, latest/reference/history mapping, and live-update
-  merge behavior.
-- [ ] Preserve the current stream contract where `liveUpdates` may publish partial latest values
-  only, keyed by canonical asset identity.
-- [ ] Verify that derived metrics recompute correctly when only the latest streamed value changes
-  and seeded references remain unchanged.
-- [ ] Evaluate AG Grid Enterprise formulas in a dedicated spike focused on:
-  authoring UX, persistence shape, grouping compatibility, public/private parity, and runtime
-  recomputation behavior.
-- [ ] Verify whether AG Grid formulas are compatible with our grouped/synthetic row presentation
-  needs before using them in any table-derived widget workflow.
-- [ ] If AG Grid formulas are adopted, implement an adapter/compiler so persisted formulas resolve
-  through the canonical shared table formula contract instead of becoming a grid-only side system.
-- [ ] If AG Grid formulas are not compatible enough, keep them out of the runtime contract and
-  continue with the shared in-house canonical formula evaluator only.
-- [ ] Update `README.md` and `USAGE_GUIDANCE.md` for Table and Asset Screener when the runtime
-  ownership changes are implemented.
-- [ ] Add regression coverage for:
-  partial live updates, derived metric recomputation, grouped table/screener rendering, and
-  persisted formula compatibility.
+### Formula Authoring
 
-## Consequences
+- [x] Add one shared table formulas setting to the shared table props/settings model.
+- [x] Add one shared table column-level formula field to the shared table props/settings model.
+- [x] Allow a column to be marked or declared as a `formula` column in the shared table settings
+  model.
+- [x] Add a formula expression input to the existing shared table settings surface for formula
+  columns.
+- [x] Keep first-version formula authoring inside widget settings only.
+- [x] Do not add a second grid or spreadsheet-style editing surface inside widget settings.
+- [x] Keep view mode read-only for formula-capable tables.
+- [x] Keep workspace edit mode limited to move/resize/configure behavior rather than live
+  spreadsheet editing.
+- [x] Preserve current live cell interaction semantics for selection outputs, active cell outputs,
+  and variable publication.
+- [x] Persist authored formulas in the shared table props/settings contract rather than transient
+  AG Grid instance state.
+- [x] Ensure formula columns render as ordinary table columns once computed, with no separate
+  runtime interaction model.
 
-### Positive
+### Pro Table
 
-- derived metric behavior becomes reusable across table-derived widgets
-- Asset Screener keeps the market-specific semantics that actually belong to it
-- live stream payloads remain small and scalable
-- derived metrics can recompute from partial latest-value updates without forcing upstreams to
-  publish full recalculated rows
-- AG Grid formulas can be adopted later as a UX layer without forcing the runtime contract to
-  depend on the grid engine
+- [x] Gate that setting by table edition/capability so it is exposed on `pro-table`, not forced
+  onto the Community `table` widget.
+- [x] Make the `pro-table` widget default that formulas setting to `true`.
+- [x] Ensure the shared table registry metadata and usage guidance describe that formula capability
+  as part of the `pro-table` path.
 
-### Tradeoffs
+### Asset Screener Inheritance
 
-- this introduces a migration from screener-owned metric semantics to shared table semantics
-- formula authoring, persistence, and evaluation rules must be defined carefully to avoid
-  introducing a second incompatible formula system
-- AG Grid Enterprise formulas may still prove too constrained for our grouped/read-only/runtime
-  needs, in which case we keep the shared formula engine and do extra authoring work ourselves
+- [x] Introduce or reuse one shared Pro-table configuration bundle so `pro-table` and
+  Asset Screener consume the same Enterprise table options instead of duplicating flags.
+- [x] Update Asset Screener rendering to use the shared Pro-table capability path rather than the
+  Community table defaults.
+- [x] Update Asset Screener settings to use the shared Pro-table settings path rather than the
+  Community table defaults.
+- [x] Default Asset Screener table settings to formulas enabled unless the user explicitly turns
+  them off.
+- [x] Keep Asset Screener runtime merge behavior, identity semantics, and live-update contracts
+  unchanged in this ADR.
+- [x] Preserve backward compatibility for existing Asset Screener instances by treating the new
+  formula setting as additive, with sane defaults when older saved widgets do not persist it yet.
+
+### Regression And Compatibility
+
+- [x] Add regression coverage proving:
+  - `pro-table` enables formulas by default
+  - Community `table` stays backward compatible
+  - Asset Screener uses the shared Pro table capability path without forking shared table logic
+
+## Plan Notes
+
+This should be a small implementation if the shared table split is being used correctly.
+
+The minimal code path should be:
+
+1. add one shared `formulasEnabled`-style setting in the shared table settings contract
+2. add one shared column-level formula field and formula expression input in the existing table
+   settings UI
+3. keep formula authoring settings-only and avoid introducing a second grid/editor surface
+4. wire `pro-table` so that setting defaults to `true`
+5. pass the same Pro table capability options into Asset Screener’s existing shared
+   `TableFrameView` and `TableWidgetSettings` integration
+
+The screener should not need its own formula UI or a second table settings implementation.
+
+## Contract Notes
+
+This ADR is expected to introduce an additive persisted table-setting field for formula enablement.
+
+That means:
+
+- existing `table` widget behavior should remain backward compatible
+- existing Asset Screener saved instances should still load without a migration
+- backend contract review is still required if the persisted shared table settings shape changes in
+  a backend-visible way

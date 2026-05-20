@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { TableWidgetSettings } from "@/widgets/core/table/TableWidgetSettings";
+import { proTableSharedOptions, withProTableDefaultProps } from "@/widgets/core/table/proTableOptions";
 import type {
   TableWidgetProps,
 } from "@/widgets/core/table/tableModel";
@@ -64,7 +65,7 @@ function parseJsonArray(value: string) {
 function buildTableDraftProps(
   props: MainSequenceAssetScreenerWidgetProps,
 ): TableWidgetProps {
-  const table = props.table ?? {};
+  const table = withProTableDefaultProps(props.table ?? {});
 
   return {
     tableSourceMode: "bound",
@@ -82,6 +83,7 @@ function buildTableDraftProps(
     columnOverrides: table.columnOverrides,
     valueLabels: table.valueLabels,
     conditionalRules: table.conditionalRules,
+    formulasEnabled: table.formulasEnabled,
     selectionMode: table.selectionMode,
     selectionKeyFields: ["assetKey"],
     publishSelectionOutputs: table.publishSelectionOutputs,
@@ -97,6 +99,7 @@ function pickTableSettings(value: TableWidgetProps): Partial<TableWidgetProps> {
     columnOverrides: value.columnOverrides,
     valueLabels: value.valueLabels,
     conditionalRules: value.conditionalRules,
+    formulasEnabled: value.formulasEnabled,
     selectionMode: value.selectionMode,
     publishSelectionOutputs: value.publishSelectionOutputs,
   };
@@ -374,6 +377,7 @@ export function AssetScreenerWidgetSettings({
           widget={widget as never}
           instanceId={instanceId}
           draftProps={tableDraftProps}
+          defaultDraftProps={withProTableDefaultProps(tableDraftProps) as TableWidgetProps}
           onDraftPropsChange={(nextTableProps) => {
             onDraftPropsChange({
               ...props,
@@ -389,6 +393,9 @@ export function AssetScreenerWidgetSettings({
           instanceTitle={instanceTitle}
           onInstanceTitleChange={onInstanceTitleChange}
           editable={editable}
+          editionLabel={proTableSharedOptions.editionLabel}
+          enterpriseModules={proTableSharedOptions.enterpriseModules}
+          gridModules={proTableSharedOptions.gridModules}
           hideToolbarSearchToggles
           hidePaginationControls
           presentationOnly

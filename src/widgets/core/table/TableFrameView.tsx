@@ -30,7 +30,8 @@ export type TableWidgetColumnFormat =
   | "number"
   | "currency"
   | "percent"
-  | "bps";
+  | "bps"
+  | "formula";
 export type TableWidgetDensity = "compact" | "comfortable";
 export type TableWidgetBarMode = "none" | "fill";
 export type TableWidgetGradientMode = "none" | "fill";
@@ -198,6 +199,8 @@ export interface TableWidgetColumnSchema {
   label: string;
   description?: string;
   format: Exclude<TableWidgetColumnFormat, "auto">;
+  formulaExpression?: string;
+  formulaResultFormat?: Exclude<TableWidgetColumnFormat, "auto" | "formula">;
   minWidth?: number;
   flex?: number;
   pinned?: Exclude<TableWidgetPinned, "none">;
@@ -253,6 +256,7 @@ export interface TableWidgetConditionalRule {
 }
 
 export interface ResolvedTableWidgetColumnConfig extends TableWidgetColumnSchema {
+  schemaFormat: Exclude<TableWidgetColumnFormat, "auto">;
   visible: boolean;
   align: Exclude<TableWidgetAlign, "auto">;
   heatmap: boolean;
@@ -264,6 +268,7 @@ export interface ResolvedTableWidgetColumnConfig extends TableWidgetColumnSchema
   visualMin?: number;
   visualMax?: number;
   compact: boolean;
+  formulaError?: string;
   pinned?: Exclude<TableWidgetPinned, "none">;
 }
 
@@ -282,6 +287,7 @@ export interface ResolvedTableWidgetProps {
   columnOverrides: Record<string, TableWidgetColumnOverride>;
   valueLabels: TableWidgetValueLabel[];
   conditionalRules: TableWidgetConditionalRule[];
+  formulasEnabled?: boolean;
   selectionMode?: TableWidgetSelectionMode;
   selectionKeyFields?: string[];
   publishSelectionOutputs?: boolean;
@@ -308,7 +314,10 @@ export type TableFrameCustomCellRenderer = (
   input: TableFrameCustomCellRendererInput,
 ) => ReactNode | undefined;
 
+export type TableFrameColumnDefOverride = Partial<ColDef<TableWidgetRow>>;
+
 export interface TableFrameViewProps {
+  columnDefOverrides?: Record<string, TableFrameColumnDefOverride>;
   customCellRenderers?: Record<string, TableFrameCustomCellRenderer>;
   dataErrorMessage?: string | null;
   emptyMessage?: string;
@@ -388,12 +397,18 @@ function resolveTableWidgetColumns(
 ) {
   return props.schema.map<ResolvedTableWidgetColumnConfig>((column) => {
     const override = props.columnOverrides[column.key] ?? {};
+    const schemaFormat = column.format;
     const effectiveFormat =
-      override.format && override.format !== "auto" ? override.format : column.format;
+      schemaFormat === "formula"
+        ? (column.formulaResultFormat ?? "number")
+        : override.format && override.format !== "auto"
+          ? override.format
+          : column.format;
     const numericFormat = isTableWidgetNumericFormat(effectiveFormat);
 
     return {
       ...column,
+      schemaFormat,
       label: override.label ?? column.label,
       format: effectiveFormat,
       decimals: override.decimals ?? column.decimals,
@@ -423,6 +438,7 @@ function resolveTableWidgetColumns(
         numericFormat && typeof override.visualMax === "number" && Number.isFinite(override.visualMax)
           ? override.visualMax
           : undefined,
+      formulaError: undefined,
       align:
         override.align && override.align !== "auto"
           ? override.align
@@ -1371,6 +1387,7 @@ function TableFrameCellRenderer({
 }
 
 export function TableFrameView({
+  columnDefOverrides,
   customCellRenderers,
   dataErrorMessage,
   emptyMessage = "No rows were returned for the selected period.",
@@ -1492,8 +1509,11 @@ export function TableFrameView({
       columns.map((column) => {
         const numericFormat = isTableWidgetNumericFormat(column.format);
         const columnFiltersVisible = showColumnFilters && resolvedProps.showColumnFilters;
+        const columnDefOverride = columnDefOverrides?.[column.key] as Partial<
+          ColDef<TableFrameGridRow>
+        > | undefined;
 
-        return {
+        const baseColumnDef: ColDef<TableFrameGridRow> = {
           field: column.key,
           colId: column.key,
           headerName: column.label,
@@ -1563,8 +1583,22 @@ export function TableFrameView({
             tokens: resolvedTokens,
           },
         };
+
+        if (!columnDefOverride) {
+          return baseColumnDef;
+        }
+
+        return {
+          ...baseColumnDef,
+          ...columnDefOverride,
+          cellRendererParams:
+            columnDefOverride.cellRendererParams === undefined
+              ? baseColumnDef.cellRendererParams
+              : columnDefOverride.cellRendererParams,
+        };
       }),
     [
+      columnDefOverrides,
       columnRanges,
       columns,
       customCellRenderers,
