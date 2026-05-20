@@ -329,6 +329,46 @@ function resolveRetainedFrame(runtimeState: unknown) {
     : null;
 }
 
+function retainedFrameMatchesSourceRun(
+  retainedFrame: ConnectionStreamQueryRuntimeState,
+  sourceRunId?: string,
+) {
+  const nextSourceRunId =
+    typeof sourceRunId === "string" && sourceRunId.trim()
+      ? sourceRunId.trim()
+      : undefined;
+
+  if (!nextSourceRunId) {
+    return true;
+  }
+
+  const retainedSourceRunId =
+    typeof retainedFrame.sourceRunId === "string" && retainedFrame.sourceRunId.trim()
+      ? retainedFrame.sourceRunId.trim()
+      : undefined;
+
+  return retainedSourceRunId === nextSourceRunId;
+}
+
+function resolveRetainedFrameForSourceRun(
+  runtimeState: unknown,
+  sourceRunId?: string,
+) {
+  const retainedFrame = resolveRetainedFrame(runtimeState);
+
+  if (!retainedFrame || !retainedFrameMatchesSourceRun(retainedFrame, sourceRunId)) {
+    return {
+      retainedFrame: null,
+      retainedState: undefined,
+    };
+  }
+
+  return {
+    retainedFrame,
+    retainedState: runtimeState,
+  };
+}
+
 function stableJsonStringify(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map((entry) => stableJsonStringify(entry)).join(",")}]`;
@@ -912,7 +952,10 @@ export function buildConnectionStreamQueryLifecycleFrame(input: {
   lastDisconnectAtMs?: number;
   lastDisconnectReason?: string;
 }) {
-  const retainedFrame = resolveRetainedFrame(input.retainedState);
+  const { retainedFrame } = resolveRetainedFrameForSourceRun(
+    input.retainedState,
+    input.sourceRunId,
+  );
 
   if (!retainedFrame) {
     return buildEmptyStreamFrame(input);
@@ -965,7 +1008,10 @@ export function reduceConnectionStreamQueryMessage(input: {
   assertConnectionQueryModelStreamable(input.queryModel);
 
   const normalizedProps = normalizeConnectionStreamQueryProps(input.props);
-  const retainedFrame = resolveRetainedFrame(input.retainedState);
+  const { retainedFrame, retainedState } = resolveRetainedFrameForSourceRun(
+    input.retainedState,
+    input.sourceRunId,
+  );
   const nowMs = input.nowMs ?? Date.now();
   const baseLifecycle = {
     sequence: input.message.sequence,
@@ -978,7 +1024,7 @@ export function reduceConnectionStreamQueryMessage(input: {
       return buildConnectionStreamQueryLifecycleFrame({
         props: normalizedProps,
         status: "live",
-        retainedState: input.retainedState,
+        retainedState,
         sequence: input.message.sequence,
         connectedAtMs: nowMs,
         lastMessageAtMs: nowMs,
@@ -991,7 +1037,7 @@ export function reduceConnectionStreamQueryMessage(input: {
       return buildConnectionStreamQueryLifecycleFrame({
         props: normalizedProps,
         status: "live",
-        retainedState: input.retainedState,
+        retainedState,
         sequence: input.message.sequence,
         lastHeartbeatAtMs: nowMs,
         lastMessageAtMs: nowMs,
@@ -1090,7 +1136,7 @@ export function reduceConnectionStreamQueryMessage(input: {
       return buildConnectionStreamQueryLifecycleFrame({
         props: normalizedProps,
         status: input.message.retryable ? "reconnecting" : "error",
-        retainedState: input.message.retryable ? input.retainedState : undefined,
+        retainedState: input.message.retryable ? retainedState : undefined,
         error: input.message.message,
         errorCode: input.message.code,
         sequence: input.message.sequence,
@@ -1103,7 +1149,7 @@ export function reduceConnectionStreamQueryMessage(input: {
       return buildConnectionStreamQueryLifecycleFrame({
         props: normalizedProps,
         status: "closed",
-        retainedState: input.retainedState,
+        retainedState,
         sequence: input.message.sequence,
         lastMessageAtMs: nowMs,
         closedAtMs: nowMs,
@@ -1112,7 +1158,7 @@ export function reduceConnectionStreamQueryMessage(input: {
         sourceRunId: input.sourceRunId,
       });
     default:
-      return input.retainedState as ConnectionStreamQueryRuntimeState;
+      return retainedState as ConnectionStreamQueryRuntimeState;
   }
 }
 

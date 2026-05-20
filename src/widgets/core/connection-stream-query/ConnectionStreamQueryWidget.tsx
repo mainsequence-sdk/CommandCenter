@@ -103,6 +103,23 @@ function isStreamingActive(status: string) {
   return status === "connecting" || status === "live" || status === "reconnecting";
 }
 
+function resolveInitialRuntimeStateForSubscription(input: {
+  runtimeState: ConnectionStreamQueryRuntimeState | null;
+  subscriptionKey?: string;
+}) {
+  if (!input.runtimeState || !input.subscriptionKey) {
+    return undefined;
+  }
+
+  const sourceRunId = typeof input.runtimeState.sourceRunId === "string"
+    ? input.runtimeState.sourceRunId.trim()
+    : "";
+
+  return sourceRunId.startsWith(`${input.subscriptionKey}:`)
+    ? input.runtimeState
+    : undefined;
+}
+
 function containsReferenceExpressionValue(value: unknown): boolean {
   if (isWidgetReferenceExpressionValue(value)) {
     return true;
@@ -478,6 +495,21 @@ export function ConnectionStreamQueryWidget({
 
     let session: ReturnType<typeof createConnectionStreamQueryWidgetRuntimeSession> | undefined;
     let storeHandle: ConnectionRuntimeSessionHandle | undefined;
+    const sessionSubscriptionKey = runtimeKey ?? executionKey;
+    const initialRuntimeState = resolveInitialRuntimeStateForSubscription({
+      runtimeState: runtimeRef.current,
+      subscriptionKey: sessionSubscriptionKey,
+    });
+
+    if (import.meta.env.DEV && STREAM_QUERY_DEBUG_LOGS_ENABLED) {
+      console.log("[stream-run-boundary]", {
+        instanceId,
+        runtimeKey: summarizeStreamKey(runtimeKey),
+        executionKey: summarizeStreamKey(executionKey),
+        previousSourceRunId: runtimeRef.current?.sourceRunId,
+        reusedInitialRuntimeState: Boolean(initialRuntimeState),
+      });
+    }
 
     try {
       if (runtimeKey && connectionRuntimeStore) {
@@ -513,7 +545,7 @@ export function ConnectionStreamQueryWidget({
               queryModel: runtimeQueryModel,
               executionSurface: widgetExecution?.executionSurface,
               publicExecution,
-              initialRuntimeState: runtimeRef.current,
+              initialRuntimeState,
               sourceWidgetId: instanceId,
               onRuntimeStateChange: (nextRuntimeState) => {
                 runtimeRef.current = nextRuntimeState;
@@ -531,13 +563,13 @@ export function ConnectionStreamQueryWidget({
       } else {
         logEffectDecision("direct-session");
         session = createConnectionStreamQueryWidgetRuntimeSession({
-          subscriptionKey: runtimeKey ?? executionKey,
+          subscriptionKey: sessionSubscriptionKey,
           request,
           props: normalizedProps,
           queryModel: runtimeQueryModel,
           executionSurface: widgetExecution?.executionSurface,
           publicExecution,
-          initialRuntimeState: runtimeRef.current,
+          initialRuntimeState,
           sourceWidgetId: instanceId,
           onRuntimeStateChange: (nextRuntimeState) => {
             runtimeRef.current = nextRuntimeState;

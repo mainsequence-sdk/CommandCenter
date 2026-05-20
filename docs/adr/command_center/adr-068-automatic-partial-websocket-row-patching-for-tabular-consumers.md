@@ -7,6 +7,7 @@
   - [ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles](./adr-044-incremental-connection-publications-seed-live-roles.md)
   - [ADR 047: Workspace Runtime Data Reference Store](./adr-047-workspace-runtime-data-reference-store.md)
   - [ADR 049: Publication-Driven Seed/Live Runtime Reduction](./adr-049-publication-driven-seed-live-runtime-reduction.md)
+  - [ADR 067-B: WebSocket Stream Run Boundary Reset](./adr-067b-websocket-stream-run-boundary-reset.md)
   - [ADR 065: Shared Table Core With Community And Pro Table Widgets](./adr-065-shared-table-core-with-community-and-pro-table-widgets.md)
   - [ADR 066: Pro Table Formula Enablement And Asset Screener Pro Inheritance](./adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization.md)
 

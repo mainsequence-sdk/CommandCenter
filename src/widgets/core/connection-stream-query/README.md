@@ -86,6 +86,10 @@ for connection query models that advertise a WebSocket stream contract.
   the existing stream lifecycle releases the old session and acquires a new one. If the referenced
   value is not available, the widget publishes an idle waiting state instead of opening a socket
   with stale or unresolved tokens.
+- Runtime request changes are hard stream-run boundaries. A new runtime key, for example a selected
+  symbol changing from `BTCUSDT` to `ETHUSDT`, starts with no retained rows from the previous run.
+  Same-key reconnects still keep retained rows and resume tokens, but resubscriptions do not reuse
+  stale runtime data refs or prior `sourceRunId` frames.
 - Runtime now includes a browser-side reconnect supervisor that:
   - retries after socket close/error and retryable stream errors
   - reacquires a fresh SPA WebSocket ticket before each reconnect

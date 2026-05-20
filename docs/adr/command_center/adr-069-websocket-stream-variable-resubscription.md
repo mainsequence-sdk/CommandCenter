@@ -7,6 +7,7 @@
   - [ADR 046: WebSocket Stream Survivability And Reconnect Supervision](./adr-046-websocket-stream-survivability-and-reconnect-supervision.md)
   - [ADR 058: Cross-Widget References And Variables](./adr-058-cross-widget-references-and-variables.md)
   - [ADR 064: Variable References as Widget Graph Edges](./adr-064-variable-reference-graph-integration.md)
+  - [ADR 067-B: WebSocket Stream Run Boundary Reset](./adr-067b-websocket-stream-run-boundary-reset.md)
   - [ADR 068: Automatic Partial WebSocket Row Patching For Tabular Consumers](./adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers.md)
   - [ADR: Managed Connection Query Sources for Consumer Widgets](./adr-managed-connection-query-widget-sources.md)
 

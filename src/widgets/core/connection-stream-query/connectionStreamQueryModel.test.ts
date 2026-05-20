@@ -7,6 +7,7 @@ import {
   createRuntimeDataStore,
   getRuntimeDataRef,
   materializeRuntimeTabularFrame,
+  storeTabularFrameRuntimeState,
 } from "@/widgets/shared/runtime-data-store";
 
 import {
@@ -381,6 +382,67 @@ describe("connection stream query runtime model", () => {
     expect(update?.deltaOutput).toBeUndefined();
   });
 
+  it("does not reuse retained rows when the stream sourceRunId changes", () => {
+    const retained = reduceConnectionStreamQueryMessage({
+      message: streamMessage("snapshot", [{ symbol: "BTCUSDT", price: 70000 }]),
+      props,
+      queryModel,
+      sourceWidgetId: "stream-1",
+      sourceRunId: "stream-1:btc",
+      nowMs: 1000,
+    });
+    const ack = reduceConnectionStreamQueryMessage({
+      message: {
+        type: "ack",
+        connectionId: 42,
+        queryKind: "ticker",
+        sequence: 2,
+        acceptedAt: "2026-04-28T00:00:02.000Z",
+      },
+      props,
+      queryModel,
+      retainedState: retained,
+      sourceWidgetId: "stream-1",
+      sourceRunId: "stream-1:eth",
+      nowMs: 2000,
+    });
+    const heartbeat = reduceConnectionStreamQueryMessage({
+      message: {
+        type: "heartbeat",
+        sequence: 3,
+        emittedAt: "2026-04-28T00:00:03.000Z",
+      },
+      props,
+      queryModel,
+      retainedState: retained,
+      sourceWidgetId: "stream-1",
+      sourceRunId: "stream-1:eth",
+      nowMs: 2500,
+    });
+    const nextDelta = reduceConnectionStreamQueryMessage({
+      message: streamMessage("delta", [{ symbol: "ETHUSDT", price: 3500 }]),
+      props,
+      queryModel,
+      retainedState: retained,
+      sourceWidgetId: "stream-1",
+      sourceRunId: "stream-1:eth",
+      nowMs: 3000,
+    });
+
+    expect(ack.streamStatus).toBe("live");
+    expect(ack.status).toBe("loading");
+    expect(ack.rows).toEqual([]);
+    expect(ack.sourceRunId).toBe("stream-1:eth");
+    expect(heartbeat.status).toBe("loading");
+    expect(heartbeat.rows).toEqual([]);
+    expect(heartbeat.sourceRunId).toBe("stream-1:eth");
+    expect(nextDelta.rows).toEqual([{ symbol: "ETHUSDT", price: 3500 }]);
+    expect(readWidgetRuntimeUpdateContext(nextDelta)).toMatchObject({
+      publicationRole: "seed",
+      sourceRunId: "stream-1:eth",
+    });
+  });
+
   it("rejects delta frames with a different schema", () => {
     const retained = reduceConnectionStreamQueryMessage({
       message: streamMessage("snapshot", [{ symbol: "BTCUSDT", price: 70000 }]),
@@ -477,6 +539,84 @@ describe("connection stream query runtime model", () => {
     expect(sockets[0]?.closeCalls).toEqual([
       { code: 1000, reason: "connection stream query widget unmounted" },
     ]);
+  });
+
+  it("does not select old runtime data refs when a new subscription starts for another run", async () => {
+    const runtimeDataStore = createRuntimeDataStore("workspace-1");
+    const previousRunFrame = reduceConnectionStreamQueryMessage({
+      message: streamMessage("snapshot", [{ symbol: "BTCUSDT", price: 70000 }]),
+      props,
+      queryModel,
+      sourceWidgetId: "stream-old",
+      sourceRunId: "stream-old:btc",
+      nowMs: 1000,
+    });
+    const previousRunState = storeTabularFrameRuntimeState({
+      frame: previousRunFrame,
+      ownerId: "stream-old",
+      outputId: "dataset",
+      store: runtimeDataStore,
+      refKey: "stream-old:dataset",
+      includeRowsInShell: false,
+    }) as ConnectionStreamQueryRuntimeState;
+    const sockets: MockConnectionWebSocket[] = [];
+    const states: ConnectionStreamQueryRuntimeState[] = [];
+
+    expect(materializeRuntimeTabularFrame(previousRunState, runtimeDataStore)?.rows).toEqual([
+      { symbol: "BTCUSDT", price: 70000 },
+    ]);
+
+    const session = createConnectionStreamQueryWidgetRuntimeSession({
+      subscriptionKey: "stream-new",
+      request: {
+        connectionId: 42,
+        query: {
+          kind: "ticker",
+          symbols: ["ETHUSDT"],
+        },
+        requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+      },
+      props: {
+        ...props,
+        query: {
+          kind: "ticker",
+          symbols: ["ETHUSDT"],
+        },
+      },
+      queryModel,
+      initialRuntimeState: previousRunState,
+      sourceWidgetId: "stream-new",
+      onRuntimeStateChange: (state) => states.push(state),
+      options: {
+        apiBaseUrl: "https://api.example.test",
+        webSocketFactory: createMockSocketFactory(sockets),
+        runtimeDataStore,
+        ticketProvider: createMockTicketProvider(),
+      },
+    });
+
+    await flushAsyncSubscriptionStart();
+    const socket = sockets[0]!;
+
+    expect(states[0]?.streamStatus).toBe("connecting");
+    expect(states[0]?.rows).toEqual([]);
+    expect(materializeRuntimeTabularFrame(states[0], runtimeDataStore)?.rows).toEqual([]);
+    expect(states[0]?.sourceRunId).toMatch(/^stream-new:/);
+
+    socket.open();
+    socket.message(JSON.stringify(streamMessage("snapshot", [
+      { symbol: "ETHUSDT", price: 3500 },
+    ])));
+
+    expect(states.at(-1)?.rows).toEqual([]);
+    expect(materializeRuntimeTabularFrame(states.at(-1), runtimeDataStore)?.rows).toEqual([
+      { symbol: "ETHUSDT", price: 3500 },
+    ]);
+    expect(materializeRuntimeTabularFrame(previousRunState, runtimeDataStore)?.rows).toEqual([
+      { symbol: "BTCUSDT", price: 70000 },
+    ]);
+
+    session.close();
   });
 
   it("reconnects after a recoverable socket close and refreshes ticket auth", async () => {
