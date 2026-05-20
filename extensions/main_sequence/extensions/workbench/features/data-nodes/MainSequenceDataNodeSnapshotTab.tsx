@@ -7,17 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import {
-  fetchDataNodeDataBetweenDatesFromRemote,
   fetchDataNodeDetail,
-  fetchDataNodeLastObservation,
+  fetchDataNodeTailObservations,
   formatMainSequenceError,
   type DataNodeDetail,
-  type DataNodeLastObservation,
 } from "../../../../common/api";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { DataNodePreviewTable } from "../../widgets/data-node-shared/DataNodePreviewTable";
 import { buildDataNodeFieldOptions } from "../../widgets/data-node-shared/dataNodeShared";
-import { resolveDataNodeWidgetPreviewAnchorMs } from "../../widgets/data-node-shared/dataNodeWidgetSource";
 
 const snapshotRowLimit = 100;
 
@@ -46,7 +43,7 @@ function buildSnapshotSearchText(row: Record<string, unknown>, columns: string[]
 
 function getSnapshotColumns(
   detail?: DataNodeDetail | null,
-  lastObservation?: DataNodeLastObservation,
+  snapshotRows?: ReadonlyArray<Record<string, unknown>>,
 ) {
   const metadataColumns = buildDataNodeFieldOptions(detail).map((field) => field.key);
 
@@ -54,8 +51,10 @@ function getSnapshotColumns(
     return metadataColumns;
   }
 
-  if (lastObservation && typeof lastObservation === "object") {
-    return Object.keys(lastObservation).filter((key) => key.trim().length > 0);
+  const firstRow = snapshotRows?.[0];
+
+  if (firstRow && typeof firstRow === "object") {
+    return Object.keys(firstRow).filter((key) => key.trim().length > 0);
   }
 
   return [];
@@ -74,47 +73,28 @@ export function MainSequenceDataNodeSnapshotTab({
     enabled: dataNodeId > 0,
     staleTime: 300_000,
   });
-  const lastObservationQuery = useQuery<DataNodeLastObservation>({
-    queryKey: ["main_sequence", "data_nodes", "snapshot", "last_observation", dataNodeId],
-    queryFn: () => fetchDataNodeLastObservation(dataNodeId),
-    enabled: dataNodeId > 0,
-    staleTime: 300_000,
-  });
-  const snapshotAnchorMs = useMemo(
-    () => resolveDataNodeWidgetPreviewAnchorMs(detailQuery.data, lastObservationQuery.data),
-    [detailQuery.data, lastObservationQuery.data],
-  );
-  const snapshotColumns = useMemo(
-    () => getSnapshotColumns(detailQuery.data, lastObservationQuery.data),
-    [detailQuery.data, lastObservationQuery.data],
-  );
   const snapshotQuery = useQuery({
     queryKey: [
       "main_sequence",
       "data_nodes",
-      "snapshot",
+      "tail_observations",
       dataNodeId,
-      snapshotAnchorMs,
-      snapshotColumns.join("|"),
       snapshotRowLimit,
     ],
     queryFn: () =>
-      fetchDataNodeDataBetweenDatesFromRemote(dataNodeId, {
-        start_date: Math.floor(snapshotAnchorMs! / 1000),
-        end_date: Math.floor(snapshotAnchorMs! / 1000),
-        columns: snapshotColumns,
-        great_or_equal: true,
-        less_or_equal: true,
-        limit: snapshotRowLimit,
-        offset: 0,
+      fetchDataNodeTailObservations(dataNodeId, {
+        n: snapshotRowLimit,
+        order: "desc",
       }),
     enabled:
       dataNodeId > 0 &&
-      detailQuery.data?.sourcetableconfiguration != null &&
-      snapshotAnchorMs != null &&
-      snapshotColumns.length > 0,
+      detailQuery.data?.sourcetableconfiguration != null,
     staleTime: 60_000,
   });
+  const snapshotColumns = useMemo(
+    () => getSnapshotColumns(detailQuery.data, snapshotQuery.data),
+    [detailQuery.data, snapshotQuery.data],
+  );
   const filteredRows = useMemo(() => {
     const rows = snapshotQuery.data ?? [];
     const needle = deferredFilterValue.trim().toLowerCase();
@@ -127,7 +107,6 @@ export function MainSequenceDataNodeSnapshotTab({
   }, [deferredFilterValue, snapshotColumns, snapshotQuery.data]);
   const isLoading =
     detailQuery.isLoading ||
-    lastObservationQuery.isLoading ||
     (snapshotQuery.isLoading && snapshotQuery.fetchStatus !== "idle");
 
   return (
@@ -178,13 +157,6 @@ export function MainSequenceDataNodeSnapshotTab({
               rows={[]}
               maxRows={snapshotRowLimit}
               emptyMessage="No source-table configuration is available for this data node."
-            />
-          ) : snapshotAnchorMs == null ? (
-            <DataNodePreviewTable
-              columns={[]}
-              rows={[]}
-              maxRows={snapshotRowLimit}
-              emptyMessage="No latest snapshot timestamp is available for this data node."
             />
           ) : snapshotColumns.length === 0 ? (
             <DataNodePreviewTable

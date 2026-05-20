@@ -199,7 +199,9 @@ order.
   gauges through the same shared table contract as the generic Table widget on the same frame.
 - When no source metadata or instance override columns exist, the widget must render an empty
   source-column state. It must not fall back to Symbol/Name/Trend or any other predefined market
-  column set.
+  column set. If the bound source is still loading or has failed, prefer a source-status message
+  over raw metadata jargon; reserve the source-column empty state for frames that arrived without a
+  usable visible-column proposal.
 - The renderer must not draw a rounded nested card inside the workspace frame. Keep the screener
   surface square-edged so it matches workspace widget chrome.
 - Do not reintroduce a standalone grid for Asset Screener. Market-specific code should stop at

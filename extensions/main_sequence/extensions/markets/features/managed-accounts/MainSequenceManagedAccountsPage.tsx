@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Database, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowUpRight, Database, Loader2, Trash2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
@@ -12,7 +12,6 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toaster";
 
 import {
-  createManagedAccount,
   deleteManagedAccount,
   formatMainSequenceError,
   listManagedAccounts,
@@ -29,11 +28,6 @@ import {
   formatManagedAccountValue,
   getManagedAccountDetailPath,
 } from "./managedAccountShared";
-import {
-  buildManagedAccountCreatePayload,
-  ManagedAccountEditorDialog,
-  type ManagedAccountEditorValues,
-} from "./managedAccountEditor";
 
 type ManagedAccountDeleteIntent = {
   accounts: ManagedAccountListRow[];
@@ -115,7 +109,6 @@ export function MainSequenceManagedAccountsPage() {
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteIntent, setDeleteIntent] = useState<ManagedAccountDeleteIntent | null>(null);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
@@ -248,67 +241,6 @@ export function MainSequenceManagedAccountsPage() {
     });
   }
 
-  const createManagedAccountMutation = useMutation({
-    mutationFn: async (input: Parameters<typeof createManagedAccount>[0]) => {
-      const normalizedAccountName = input.account_name.trim().toLowerCase();
-      const existingAccounts = await listManagedAccounts({
-        search: input.account_name,
-        limit: 25,
-        offset: 0,
-      });
-
-      const duplicate = existingAccounts.results.some((account) => {
-        const candidate =
-          account.display_name ?? account.account_name ?? account.name ?? "";
-
-        return candidate.trim().toLowerCase() === normalizedAccountName;
-      });
-
-      if (duplicate) {
-        throw new Error("Account name must be unique.");
-      }
-
-      return createManagedAccount(input);
-    },
-    onSuccess: async (account) => {
-      await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "managed_accounts"],
-      });
-
-      toast({
-        variant: "success",
-        title: "Account created",
-        description: `${formatManagedAccountValue(account.display_name ?? account.account_name ?? account.name, "Managed account")} is now available.`,
-      });
-
-      setCreateDialogOpen(false);
-      navigate(getManagedAccountDetailPath(account.uid), {
-        state: {
-          from: `${location.pathname}${location.search}`,
-        },
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: "error",
-        title: "Account creation failed",
-        description: error instanceof Error ? error.message : "The request failed.",
-      });
-    },
-  });
-
-  function submitCreate(values: ManagedAccountEditorValues) {
-    try {
-      createManagedAccountMutation.mutate(buildManagedAccountCreatePayload(values));
-    } catch (error) {
-      toast({
-        variant: "error",
-        title: "Account creation failed",
-        description: error instanceof Error ? error.message : "The request failed.",
-      });
-    }
-  }
-
   const deleteManagedAccountsMutation = useMutation({
     mutationFn: async (accounts: ManagedAccountListRow[]) => {
       await Promise.all(accounts.map((account) => deleteManagedAccount(account.uid)));
@@ -372,13 +304,7 @@ export function MainSequenceManagedAccountsPage() {
         title="Accounts"
         description="Browse managed accounts and open dedicated account detail in the shared registry style."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="neutral">{`${totalCount} accounts`}</Badge>
-            <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Create account
-            </Button>
-          </div>
+          <Badge variant="neutral">{`${totalCount} accounts`}</Badge>
         }
       />
 
@@ -537,14 +463,6 @@ export function MainSequenceManagedAccountsPage() {
           onPageChange={handlePageChange}
         />
       </Card>
-
-      <ManagedAccountEditorDialog
-        open={createDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
-        onSubmit={submitCreate}
-        isPending={createManagedAccountMutation.isPending}
-        error={createManagedAccountMutation.error}
-      />
 
       <ActionConfirmationDialog
         open={deleteIntent !== null}

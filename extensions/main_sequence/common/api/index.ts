@@ -528,28 +528,6 @@ export interface ManagedAccountListFilters {
   offset?: number;
 }
 
-export interface CreateManagedAccountInput {
-  account_name: string;
-  is_paper?: boolean;
-  holdings_data_source?: number | null;
-}
-
-export interface ManagedAccountHoldingsDataSourceRow extends Record<string, unknown> {
-  id: number;
-  display_name?: string | null;
-  class_type?: string | null;
-  description?: string | null;
-  status?: string | null;
-  metadata?: Record<string, unknown> | null;
-  is_default_data_source?: boolean | null;
-}
-
-export interface ManagedAccountHoldingsDataSourceFilters {
-  search?: string;
-  limit?: number;
-  offset?: number;
-}
-
 export interface InstrumentsConfigurationNodeOption {
   id: number;
   label: string;
@@ -4134,13 +4112,6 @@ export function fetchManagedAccountSummary(managedAccountUid: string) {
   );
 }
 
-export function createManagedAccount(input: CreateManagedAccountInput) {
-  return requestJson<ManagedAccountRecord>(managedAccountEndpoint, "", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-}
-
 export function deleteManagedAccount(managedAccountUid: string) {
   return requestJson<Record<string, unknown> | null>(
     managedAccountEndpoint,
@@ -4149,27 +4120,6 @@ export function deleteManagedAccount(managedAccountUid: string) {
       method: "DELETE",
     },
   );
-}
-
-export async function listManagedAccountHoldingsDataSources({
-  search,
-  limit = mainSequenceRegistryPageSize,
-  offset = 0,
-}: ManagedAccountHoldingsDataSourceFilters = {}) {
-  const payload = await requestJson<
-    PaginatedResponse<ManagedAccountHoldingsDataSourceRow> | ManagedAccountHoldingsDataSourceRow[]
-  >(
-    mainSequenceConnectionDataSourceEndpoint,
-    "",
-    undefined,
-    {
-      search,
-      limit,
-      offset,
-    },
-  );
-
-  return normalizeOffsetPaginatedResponse(payload, limit, offset);
 }
 
 export function fetchCurrentInstrumentsConfiguration() {
@@ -7000,6 +6950,25 @@ export async function fetchDataNodeLastObservation(dataNodeId: number) {
   );
 
   return normalizeDataNodeLastObservation(payload);
+}
+
+export async function fetchDataNodeTailObservations(
+  dataNodeId: number,
+  input: { n?: number; order?: "asc" | "desc" } = {},
+  traceMeta?: DashboardRequestTraceMeta,
+) {
+  const payload = await requestJson<unknown>(
+    dynamicTableMetadataEndpoint,
+    `${dataNodeId}/get-tail-observations/`,
+    undefined,
+    {
+      n: input.n,
+      order: input.order,
+    },
+    traceMeta,
+  );
+
+  return normalizeDataNodeRemoteDataRows(payload);
 }
 
 export async function fetchDataNodeDataBetweenDatesFromRemote(

@@ -5,19 +5,16 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
 ## Purpose
 
 - Render the `Accounts` registry as a standard list/detail Markets workflow.
-- Support the first-pass create flow for managed accounts directly from the registry list.
 - Keep managed-account navigation aligned with the existing markets registry surfaces instead of
   introducing a new shell or nested app pattern.
 
 ## Entry Points
 
 - `MainSequenceManagedAccountsPage.tsx`: registry list with shared search, offset pagination, and
-  account creation entry point.
+  delete actions for selected accounts.
 - `MainSequenceManagedAccountDetailPage.tsx`: summary-driven detail page for one managed account,
   with `Holdings` and `Target Position` tabs.
 - `managedAccountShared.ts`: route helpers and label/value formatting shared by list and detail.
-- `managedAccountEditor.tsx`: account creation dialog, option loading, validation, and payload
-  shaping.
 
 ## Maintenance Notes
 
@@ -31,16 +28,8 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
   - `account_is_active`
 - Do not infer broker names, account numbers, account types, or other removed relationship labels from the list
   payload unless the backend contract explicitly adds them.
-- The create flow assumes:
-  - `POST /orm/api/assets/account/`
-  - required payload fields: `account_name`
-  - optional payload fields: `is_paper`, `holdings_data_source`
 - The list surface also supports deleting selected accounts through:
   - `DELETE /orm/api/assets/account/{uid}/`
-- The create modal also depends on option loaders at:
-  - `GET /orm/api/connections/data_source/`
-- Client-side validation treats `account_name` as unique and requires a holdings data source only
-  when no organization default data source is visible in the loaded options payload.
 - If the backend later adds edit flows or a dedicated bulk-delete account contract, keep them in
   this feature instead of overloading the shared API layer without a concrete UI contract.
 - `Holdings` now mounts the positions widget directly with `sourceType: "account"`,

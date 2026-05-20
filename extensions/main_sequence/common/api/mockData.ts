@@ -2030,26 +2030,6 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
-  if (route === "/orm/api/assets/account/" && method === "POST") {
-    const body = parseBody(init) ?? {};
-    const holdingsDataSourceId = readNumber(body.holdings_data_source);
-    const holdingsDataSource = findById(state.projectDataSources, holdingsDataSourceId);
-    const accountName = readString(body.account_name) || "Managed account";
-    const createdAccount = {
-      uid: buildManagedAccountUid(accountName),
-      account_name: accountName,
-      display_name: readString(body.display_name) || accountName,
-      holdings_data_source: holdingsDataSourceId || null,
-      holdings_data_source_name:
-        readOptionalString((holdingsDataSource as Record<string, unknown> | null)?.display_name),
-      is_paper: typeof body.is_paper === "boolean" ? body.is_paper : true,
-      account_is_active: true,
-      creation_date: new Date().toISOString(),
-    };
-    state.managedAccounts.unshift(createdAccount);
-    return createdAccount;
-  }
-
   const detailMatch = route.match(/^\/orm\/api\/assets\/account\/([^/]+)\/$/);
 
   if (detailMatch && method === "GET") {
@@ -3025,6 +3005,27 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
   const lastObservationMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/get_last_observation\/$/);
   if (lastObservationMatch && method === "POST") {
     return resolveMockDataNodeLastObservation(lastObservationMatch[1] ?? "");
+  }
+
+  const tailObservationsMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/get-tail-observations\/$/);
+  if (tailObservationsMatch && method === "GET") {
+    const dataNodeId = tailObservationsMatch[1] ?? "";
+    const node = state.dataNodes.find((candidate) => String(readNumber(candidate.id)) === dataNodeId);
+    const { timeIndexName } = node ? getDataNodeIndexContext(node) : { timeIndexName: "" };
+    const requestedOrder = readString(searchParams.get("order")).toLowerCase() === "asc" ? "asc" : "desc";
+    const requestedCount = Math.max(0, Number(searchParams.get("n") ?? "") || 100);
+    const rows = [...resolveMockDataNodeRemoteRows(dataNodeId)].sort((left, right) => {
+      const leftValue = Date.parse(readString(left[timeIndexName]));
+      const rightValue = Date.parse(readString(right[timeIndexName]));
+
+      if (Number.isNaN(leftValue) || Number.isNaN(rightValue)) {
+        return 0;
+      }
+
+      return requestedOrder === "asc" ? leftValue - rightValue : rightValue - leftValue;
+    });
+
+    return rows.slice(0, requestedCount);
   }
 
   const dataBetweenDatesMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/get_data_between_dates_from_remote\/$/);

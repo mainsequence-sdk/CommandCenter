@@ -918,6 +918,20 @@ export function AssetScreenerWidget({
       }),
     [resolvedTokens.primary, state.columns, state.filteredRows],
   );
+  const sourceFrameStatus = state.sourceFrame?.status;
+  const sourceFrameError =
+    typeof state.sourceFrame?.error === "string" && state.sourceFrame.error.trim()
+      ? state.sourceFrame.error.trim()
+      : undefined;
+  const awaitingSourceFrame =
+    state.hasAnyBinding &&
+    state.columns.length === 0 &&
+    (
+      sourceFrameStatus === "idle" ||
+      sourceFrameStatus === "loading" ||
+      state.sourceStatuses.seed === "valid" ||
+      state.sourceStatuses.live === "valid"
+    );
 
   if (!state.hasAnyBinding && state.rows.length === 0) {
     return (
@@ -934,14 +948,44 @@ export function AssetScreenerWidget({
     );
   }
 
+  if (sourceFrameStatus === "error" && state.columns.length === 0) {
+    return (
+      <div className="flex h-full min-h-[260px] flex-col items-center justify-center gap-3 rounded-none border border-dashed border-danger/35 bg-transparent p-6 text-center">
+        <Database className="h-9 w-9 text-danger" />
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Source data failed to load</div>
+          <div className="max-w-md text-xs text-muted-foreground">
+            {sourceFrameError ?? "Run the source again or check the connection configuration."}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (awaitingSourceFrame) {
+    return (
+      <div className="flex h-full min-h-[260px] flex-col items-center justify-center gap-3 rounded-none border border-dashed border-border/70 bg-transparent p-6 text-center">
+        <Database className="h-9 w-9 text-muted-foreground" />
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">Waiting for source data</div>
+          <div className="max-w-md text-xs text-muted-foreground">
+            Run the source connection or complete the upstream selection so the screener can infer
+            its columns.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (state.columns.length === 0) {
     return (
       <div className="flex h-full min-h-[260px] flex-col items-center justify-center gap-3 rounded-none border border-dashed border-border/70 bg-transparent p-6 text-center">
         <Database className="h-9 w-9 text-muted-foreground" />
         <div className="space-y-1">
           <div className="max-w-md text-xs text-muted-foreground">
-            No source columns are available yet. Publish `meta.tableVisuals.columns`, market field
-            roles, or save instance override columns in settings.
+            The source returned data, but it did not describe which columns the screener should
+            show. Add source column metadata or save a visible column override in screener
+            settings.
           </div>
         </div>
       </div>

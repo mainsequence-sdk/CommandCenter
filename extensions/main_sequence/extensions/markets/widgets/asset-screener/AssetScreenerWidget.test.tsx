@@ -307,7 +307,7 @@ describe("AssetScreenerWidget", () => {
     });
 
     const emptyColumnMessageCount = host.textContent
-      ?.split("No source columns are available yet")
+      ?.split("The source returned data, but it did not describe which columns")
       .length ?? 0;
 
     expect(emptyColumnMessageCount - 1).toBe(1);
@@ -374,7 +374,9 @@ describe("AssetScreenerWidget", () => {
       },
     });
 
-    expect(container.textContent).not.toContain("No source columns are available yet");
+    expect(container.textContent).not.toContain(
+      "The source returned data, but it did not describe which columns",
+    );
   });
 
   it("inherits Pro table formulas by default through the shared table path", () => {
@@ -621,7 +623,9 @@ describe("AssetScreenerWidget", () => {
       ]),
     });
 
-    expect(container.textContent).toContain("No source columns are available yet");
+    expect(container.textContent).toContain(
+      "The source returned data, but it did not describe which columns",
+    );
     expect(container.textContent).not.toContain("Trend");
     expect(container.textContent).not.toContain("Net Chg");
   });
