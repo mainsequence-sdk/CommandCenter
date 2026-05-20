@@ -511,7 +511,7 @@ const assetKeyCandidates = [
 const fieldCandidatesByRole = {
   symbol: ["symbol", "ticker"],
   displayName: ["displayName", "display_name", "name", "assetName", "asset_name", "description"],
-  exchange: ["exchange", "venue", "executionVenue", "execution_venue"],
+  exchange: ["exchange", "venue"],
   currency: ["currency", "ccy"],
   country: ["country", "region"],
   assetClass: ["assetClass", "asset_class", "class"],

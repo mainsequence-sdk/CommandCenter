@@ -10,7 +10,6 @@ import { MainSequenceAssetCategoriesPage } from "./features/asset-categories/Mai
 import { MainSequenceAssetTranslationTablesPage } from "./features/asset-translation-tables/MainSequenceAssetTranslationTablesPage";
 import { MainSequenceAssetsPage } from "./features/assets/MainSequenceAssetsPage";
 import { MainSequenceManagedAccountsPage } from "./features/managed-accounts/MainSequenceManagedAccountsPage";
-import { MainSequenceExecutionVenuesPage } from "./features/execution-venues/MainSequenceExecutionVenuesPage";
 import { MainSequenceFundsPage } from "./features/funds/MainSequenceFundsPage";
 import { MainSequenceInstrumentsPage } from "./features/instruments/MainSequenceInstrumentsPage";
 import { MainSequencePortfolioGroupsPage } from "./features/portfolio-groups/MainSequencePortfolioGroupsPage";
@@ -208,25 +207,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceInstrumentsPage,
-    },
-    {
-      id: "execution-venues",
-      title: "Execution Venues",
-      navLabel: "Execution Venues",
-      description: "Browse execution venues and manage their basic metadata.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Execution Venues. This page shows execution venue records and their metadata workflows.",
-        availableActions: [
-          "Browse execution venues",
-          "Open venue detail",
-          "Create or update a venue",
-        ],
-      }),
-      navigationSection: settingsSection,
-      kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
-      component: MainSequenceExecutionVenuesPage,
     },
   ],
 };

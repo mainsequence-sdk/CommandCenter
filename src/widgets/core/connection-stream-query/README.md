@@ -11,13 +11,18 @@ for connection query models that advertise a WebSocket stream contract.
   compatibility dataset projection, incremental publication metadata, and WebSocket runtime session helpers.
 - `ConnectionStreamQueryWidget.tsx`: hidden/sidebar runtime mount that acquires one shared
   workspace WebSocket subscription through `src/connections/connection-runtime-store.tsx` and
-  publishes runtime state through `onRuntimeStateChange`.
+  publishes runtime state through `onRuntimeStateChange`. Runtime request building resolves the
+  widget through the shared reference-backed effective-props contract instead of reading raw saved
+  props directly from the mount surface.
 - `ConnectionStreamQueryWidgetSettings.tsx`: settings wrapper around the shared connection query
   authoring surface. It filters selectable paths to streamable query models, constrains the
   connection picker to stream-capable connections, switches the shared workbench into stream
   authoring mode, reuses typed connection query editors with stream-specific copy, then renders a
-  lightweight active runtime summary. The shared stream diagnostic/test panel is opt-in so opening
-  settings does not subscribe to high-frequency live diagnostics or open a second test socket.
+  lightweight active runtime summary. It now passes both raw draft props and resolved draft props
+  into the shared query workbench so variable-backed previews, active runtime lookup, and optional
+  diagnostics match the runtime request contract. The shared stream diagnostic/test panel is opt-in
+  so opening settings does not subscribe to high-frequency live diagnostics or open a second test
+  socket.
 - `ConnectionStreamQueryRailSummary.tsx`: workspace rail hover summary for selected connection,
   path, backend id, and stream lifecycle.
 - `USAGE_GUIDANCE.md`: user-facing registry guidance imported by the widget definition.
@@ -93,6 +98,10 @@ for connection query models that advertise a WebSocket stream contract.
   [ADR 046](../../../docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision.md).
 - The widget is fixed to sidebar placement. It can be used as a normal hidden source widget because
   its output contract and bindings are identical to other tabular source widgets.
+- Hidden/sidebar runtime mounts must resolve bindings through the same effective widget-state
+  contract used by visible graph execution. Stream runtime behavior must never depend on whether
+  the widget was mounted from a visible canvas card, a hidden source container, or a settings
+  surface preview.
 
 ## Maintenance Constraints
 

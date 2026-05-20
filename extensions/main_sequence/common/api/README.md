@@ -49,7 +49,6 @@
   requests the latest assignment with `order=desc&limit=1` when no exact
   `target_positions_date` filter is provided, preserves `include_asset_detail=true`, and normalizes
   empty collection responses to an empty positions payload.
-- Execution venue helpers also live here. Execution venue list/detail/mutation calls are now UID-based on the detail routes, and managed-account create calls must pass `execution_venue` as the venue UID returned by the execution venue list.
 - Shareable-object permission helpers also live here. They all use the same suffix-based contract:
   the caller provides an object root plus object id, and the API layer appends the configured
   `candidate-users`, `can-view`, `can-edit`, and add/remove permission suffixes from

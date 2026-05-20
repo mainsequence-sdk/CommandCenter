@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 
 import {
   formatMainSequenceError,
-  listExecutionVenues,
   listManagedAccountHoldingsDataSources,
   type CreateManagedAccountInput,
 } from "../../../../common/api";
@@ -18,7 +17,6 @@ import { PickerField, type PickerOption } from "../../../../common/components/Pi
 
 export type ManagedAccountEditorValues = {
   accountName: string;
-  executionVenueUid: string;
   isPaper: boolean;
   holdingsDataSourceId: string;
 };
@@ -26,7 +24,6 @@ export type ManagedAccountEditorValues = {
 export function buildManagedAccountInitialValues(): ManagedAccountEditorValues {
   return {
     accountName: "",
-    executionVenueUid: "",
     isPaper: true,
     holdingsDataSourceId: "",
   };
@@ -36,14 +33,9 @@ export function buildManagedAccountCreatePayload(
   values: ManagedAccountEditorValues,
 ): CreateManagedAccountInput {
   const accountName = values.accountName.trim();
-  const executionVenueUid = values.executionVenueUid.trim();
 
   if (!accountName) {
     throw new Error("Account name is required.");
-  }
-
-  if (!executionVenueUid) {
-    throw new Error("Execution venue is required.");
   }
 
   const holdingsDataSourceId = values.holdingsDataSourceId.trim()
@@ -52,7 +44,6 @@ export function buildManagedAccountCreatePayload(
 
   return {
     account_name: accountName,
-    execution_venue: executionVenueUid,
     is_paper: values.isPaper,
     holdings_data_source:
       holdingsDataSourceId && Number.isFinite(holdingsDataSourceId)
@@ -79,30 +70,12 @@ export function ManagedAccountEditorDialog({
   );
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const executionVenuesQuery = useQuery({
-    queryKey: ["main_sequence", "execution_venues", "account-create-options"],
-    queryFn: () => listExecutionVenues({ limit: 200, offset: 0 }),
-    enabled: open,
-    staleTime: 300_000,
-  });
-
   const holdingsDataSourcesQuery = useQuery({
     queryKey: ["main_sequence", "managed_accounts", "holdings_data_sources", "account-create-options"],
     queryFn: () => listManagedAccountHoldingsDataSources({ limit: 200, offset: 0 }),
     enabled: open,
     staleTime: 300_000,
   });
-
-  const executionVenueOptions = useMemo<PickerOption[]>(
-    () =>
-      (executionVenuesQuery.data?.results ?? []).map((venue) => ({
-        value: venue.uid,
-        label: venue.name?.trim() || venue.symbol?.trim() || "Execution venue",
-        description: venue.symbol?.trim() || undefined,
-        keywords: [venue.name ?? "", venue.symbol ?? "", venue.uid ?? ""],
-      })),
-    [executionVenuesQuery.data?.results],
-  );
 
   const holdingsDataSourceRows = holdingsDataSourcesQuery.data?.results ?? [];
   const hasDefaultHoldingsDataSource = holdingsDataSourceRows.some((source) => {
@@ -152,8 +125,7 @@ export function ManagedAccountEditorDialog({
     setValidationError(null);
   }, [open]);
 
-  const optionsError =
-    executionVenuesQuery.error || holdingsDataSourcesQuery.error;
+  const optionsError = holdingsDataSourcesQuery.error;
 
   return (
     <Dialog
@@ -188,27 +160,6 @@ export function ManagedAccountEditorDialog({
             <div className="text-xs text-muted-foreground">
               Account names must be unique.
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              Execution Venue
-            </label>
-            <PickerField
-              value={values.executionVenueUid}
-              onChange={(value) => {
-                setValidationError(null);
-                setValues((current) => ({
-                  ...current,
-                  executionVenueUid: value,
-                }));
-              }}
-              options={executionVenueOptions}
-              placeholder="Choose an execution venue"
-              searchPlaceholder="Search execution venues"
-              emptyMessage="No matching execution venues."
-              loading={executionVenuesQuery.isLoading}
-            />
           </div>
 
           <div className="space-y-2 md:col-span-2">
@@ -306,11 +257,6 @@ export function ManagedAccountEditorDialog({
 
               if (!accountName) {
                 setValidationError("Account name is required.");
-                return;
-              }
-
-              if (!values.executionVenueUid.trim()) {
-                setValidationError("Execution venue is required.");
                 return;
               }
 

@@ -27,20 +27,17 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
   - summary: `/orm/api/assets/account/{uid}/summary/`
 - The registry list intentionally stays narrow to the current list contract. It should only rely on:
   - `account_name` / `display_name`
-  - `execution_venue`
   - `is_paper`
   - `account_is_active`
-- Do not infer broker names, account numbers, account types, or venue display labels from the list
+- Do not infer broker names, account numbers, account types, or other removed relationship labels from the list
   payload unless the backend contract explicitly adds them.
 - The create flow assumes:
   - `POST /orm/api/assets/account/`
-  - required payload fields: `account_name`, `execution_venue`
-  - `execution_venue` must be the execution venue UID
+  - required payload fields: `account_name`
   - optional payload fields: `is_paper`, `holdings_data_source`
 - The list surface also supports deleting selected accounts through:
   - `DELETE /orm/api/assets/account/{uid}/`
 - The create modal also depends on option loaders at:
-  - `GET /orm/api/assets/execution_venue/`
   - `GET /orm/api/connections/data_source/`
 - Client-side validation treats `account_name` as unique and requires a holdings data source only
   when no organization default data source is visible in the loaded options payload.

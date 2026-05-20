@@ -19,6 +19,7 @@ import { isConnectionQueryModelStreamable } from "@/connections/types";
 import { useConnectionInstances } from "@/connections/hooks";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import { useDashboardWidgetRegistry } from "@/dashboards/DashboardWidgetRegistry";
+import { resolveReferenceBackedWidgetState } from "@/dashboards/widget-instance-references";
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
 import type { ConnectionQueryWidgetProps } from "@/widgets/core/connection-query/connectionQueryModel";
@@ -177,6 +178,7 @@ export function ConnectionStreamQueryWidgetSettings({
   draftPresentation,
   editable,
   controllerContext,
+  resolvedInputs,
   onPreviewRuntimeStateChange,
   onDraftPropsChange,
   onDraftPresentationChange,
@@ -189,6 +191,19 @@ export function ConnectionStreamQueryWidgetSettings({
   const normalizedDraftProps = useMemo(
     () => normalizeConnectionStreamQueryProps(draftProps),
     [draftProps],
+  );
+  const resolvedDraftProps = useMemo(
+    () =>
+      resolveReferenceBackedWidgetState({
+        instanceTitle,
+        props: normalizedDraftProps,
+        resolvedInputs,
+      }).props as ConnectionStreamQueryWidgetProps,
+    [instanceTitle, normalizedDraftProps, resolvedInputs],
+  );
+  const normalizedResolvedDraftProps = useMemo(
+    () => normalizeConnectionStreamQueryProps(resolvedDraftProps),
+    [resolvedDraftProps],
   );
   const selectedConnectionType = normalizedDraftProps.connectionRef?.typeId
     ? getConnectionTypeById(normalizedDraftProps.connectionRef.typeId)
@@ -233,7 +248,7 @@ export function ConnectionStreamQueryWidgetSettings({
   );
   const activeRuntimeKey = useMemo(() => {
     const request = buildConnectionStreamQueryRequest(
-      normalizedDraftProps,
+      normalizedResolvedDraftProps,
       dashboardState,
       selectedQueryModel,
     );
@@ -243,7 +258,7 @@ export function ConnectionStreamQueryWidgetSettings({
           request,
         })
       : undefined;
-  }, [dashboardState, normalizedDraftProps, selectedQueryModel]);
+  }, [dashboardState, normalizedResolvedDraftProps, selectedQueryModel]);
   const activeRuntimeEntry = useThrottledConnectionRuntimeEntry(activeRuntimeKey, 1000);
   const effectiveRuntimeState = currentWidget?.runtimeState ?? previewRuntimeState;
   const runtimeFrame = normalizeConnectionStreamQueryRuntimeState(effectiveRuntimeState);
@@ -326,6 +341,7 @@ export function ConnectionStreamQueryWidgetSettings({
       <ConnectionQuerySettingsSurface
         authoringMode="stream"
         value={normalizedDraftProps as ConnectionQueryWidgetProps}
+        resolvedValue={normalizedResolvedDraftProps as ConnectionQueryWidgetProps}
         onChange={(nextValue) => {
           updateStreamProps(nextValue as ConnectionStreamQueryWidgetProps);
         }}
@@ -395,7 +411,7 @@ export function ConnectionStreamQueryWidgetSettings({
         testPanelReady ? (
           <ConnectionStreamQueryTestPanel
             editable={editable}
-            value={normalizedDraftProps}
+            value={normalizedResolvedDraftProps}
             queryModel={selectedQueryModel}
             onPreviewRuntimeStateChange={onPreviewRuntimeStateChange}
             sourceWidgetId={instanceId}

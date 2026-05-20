@@ -26,7 +26,6 @@ This nested extension is the separate application shell for market-facing Main S
 - `Settings`
 - `asset-translation-tables/`: translation table registry with a dedicated detail page and embedded rules manager.
 - `instruments/`: quick editor for the org-scoped instrument storage-node configuration.
-- `execution-venues/`: execution venue registry with create flow and a dedicated detail page for edit/delete.
 
 ## Dependencies
 

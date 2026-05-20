@@ -62,7 +62,6 @@ function readCollectionDataset(name: string): Array<Record<string, unknown>> {
 type MockState = {
   assets: Array<Record<string, unknown>>;
   assetCategories: Array<Record<string, unknown>>;
-  executionVenues: Array<Record<string, unknown>>;
   virtualFunds: Array<Record<string, unknown>>;
   managedAccounts: Array<Record<string, unknown>>;
   managedAccountTargetPositionsByAccountUid: Record<string, Record<string, unknown>>;
@@ -106,7 +105,6 @@ function createMockState(): MockState {
   return {
     assets: readDataset("assets"),
     assetCategories: readDataset("asset_categories"),
-    executionVenues: readDataset("execution_venues"),
     virtualFunds: readDataset("virtual_funds"),
     managedAccounts: readDataset("managed_accounts"),
     managedAccountTargetPositionsByAccountUid: {},
@@ -1631,53 +1629,6 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
   return undefined;
 }
 
-function handleExecutionVenues(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
-  if (route === "/orm/api/assets/execution_venue/" && method === "GET") {
-    const filtered = state.executionVenues.filter((venue) =>
-      matchesSearch([venue.uid, venue.symbol, venue.name], searchParams.get("search")),
-    );
-    return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
-  }
-
-  if (route === "/orm/api/assets/execution_venue/" && method === "POST") {
-    const body = parseBody(init);
-    const symbol = readString(body?.symbol) || "NEW";
-    const name = readString(body?.name) || "New Venue";
-    const record = {
-      uid: `${symbol.toLowerCase()}-${Date.now()}`,
-      symbol,
-      name,
-    };
-    state.executionVenues.unshift(record);
-    return record;
-  }
-
-  const detailMatch = route.match(/^\/orm\/api\/assets\/execution_venue\/([^/]+)\/$/);
-  if (detailMatch && method === "GET") {
-    const executionVenueUid = decodeURIComponent(detailMatch[1]);
-    return state.executionVenues.find((venue) => readOptionalString(venue.uid) === executionVenueUid);
-  }
-
-  if (detailMatch && method === "PATCH") {
-    const executionVenueUid = decodeURIComponent(detailMatch[1]);
-    const record = state.executionVenues.find(
-      (venue) => readOptionalString(venue.uid) === executionVenueUid,
-    );
-    Object.assign(record ?? {}, parseBody(init) ?? {});
-    return record;
-  }
-
-  if (detailMatch && method === "DELETE") {
-    const executionVenueUid = decodeURIComponent(detailMatch[1]);
-    state.executionVenues = state.executionVenues.filter(
-      (venue) => readOptionalString(venue.uid) !== executionVenueUid,
-    );
-    return null;
-  }
-
-  return undefined;
-}
-
 function handlePortfolioGroups(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
   if (route === "/orm/api/assets/portfolio_group/" && method === "GET") {
     const filtered = state.portfolioGroups.filter((group) =>
@@ -2050,12 +2001,6 @@ function buildManagedAccountUid(accountName: string) {
   return `${slugifyManagedAccountUid(accountName)}-${Date.now()}`;
 }
 
-function findExecutionVenueByUid(executionVenueUid: string) {
-  return state.executionVenues.find(
-    (venue) => readOptionalString(venue.uid) === executionVenueUid,
-  );
-}
-
 function findManagedAccountByUid(accountUid: string) {
   return state.managedAccounts.find(
     (account) => normalizeManagedAccountUid(account.uid) === accountUid,
@@ -2077,8 +2022,6 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
           account.account_name,
           account.display_name,
           account.name,
-          account.execution_venue,
-          account.execution_venue_name,
           account.account_is_active,
         ],
         searchParams.get("search"),
@@ -2089,8 +2032,6 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
 
   if (route === "/orm/api/assets/account/" && method === "POST") {
     const body = parseBody(init) ?? {};
-    const executionVenueUid = readString(body.execution_venue);
-    const executionVenue = executionVenueUid ? findExecutionVenueByUid(executionVenueUid) : null;
     const holdingsDataSourceId = readNumber(body.holdings_data_source);
     const holdingsDataSource = findById(state.projectDataSources, holdingsDataSourceId);
     const accountName = readString(body.account_name) || "Managed account";
@@ -2098,10 +2039,6 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       uid: buildManagedAccountUid(accountName),
       account_name: accountName,
       display_name: readString(body.display_name) || accountName,
-      execution_venue: executionVenueUid || null,
-      execution_venue_name: readOptionalString(
-        (executionVenue as Record<string, unknown> | null)?.name,
-      ),
       holdings_data_source: holdingsDataSourceId || null,
       holdings_data_source_name:
         readOptionalString((holdingsDataSource as Record<string, unknown> | null)?.display_name),
@@ -2135,9 +2072,6 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
   if (summaryMatch && method === "GET") {
     const accountUid = decodeURIComponent(summaryMatch[1]);
     const account = findManagedAccountByUid(accountUid);
-    const executionVenue = account?.execution_venue
-      ? findExecutionVenueByUid(String(account.execution_venue))
-      : null;
 
     if (!account) {
       return undefined;
@@ -2183,17 +2117,6 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       ],
       highlight_fields: [
         {
-          key: "execution_venue",
-          label: "Execution Venue",
-          value:
-            readOptionalString((executionVenue as Record<string, unknown> | null)?.name) ||
-            readOptionalString((executionVenue as Record<string, unknown> | null)?.symbol) ||
-            (readOptionalString(account.execution_venue)
-              ? String(readOptionalString(account.execution_venue))
-              : "Not available"),
-          kind: "text",
-        },
-        {
           key: "holdings_data_source_name",
           label: "Holdings Data Source",
           value: readString(account.holdings_data_source_name) || "Not available",
@@ -2215,9 +2138,7 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
           kind: "text",
         },
       ],
-      extensions: {
-        execution_venue_uid: readOptionalString(account.execution_venue),
-      },
+      extensions: {},
     };
   }
 
@@ -3931,7 +3852,6 @@ export function getMainSequenceMockResponse<T>({
     handleProjects(route, method, url.searchParams, init) ??
     handleAssets(route, method, url.searchParams, init) ??
     handleAssetCategories(route, method, url.searchParams, init) ??
-    handleExecutionVenues(route, method, url.searchParams, init) ??
     handlePortfolioGroups(route, method, url.searchParams, init) ??
     handleTargetPortfolios(route, method, url.searchParams) ??
     handleTranslationTables(route, method, url.searchParams, init) ??

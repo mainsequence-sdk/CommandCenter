@@ -850,7 +850,6 @@ export function DashboardWidgetExecutionProvider({
     });
 
     if (refreshTargets.length === 0) {
-      initialRefreshCompletedRef.current = true;
       setInitialRefreshSettled(true);
       return;
     }
@@ -976,6 +975,7 @@ export function DashboardWidgetExecutionProvider({
     initialRefreshCycleId,
     publicWorkspaceToken,
     scopeId,
+    widgetConfigurationKey,
   ]);
 
   useEffect(() => {

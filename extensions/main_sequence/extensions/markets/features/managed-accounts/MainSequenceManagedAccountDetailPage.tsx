@@ -170,16 +170,7 @@ export function MainSequenceManagedAccountDetailPage() {
 
   const managedAccountTitle =
     managedAccountSummaryQuery.data?.entity.title?.trim() || "Managed account";
-  const executionVenueSummary =
-    managedAccountSummaryQuery.data?.highlight_fields.find((field) => field.key === "execution_venue")
-      ?.value;
-  const executionVenueLabel =
-    typeof executionVenueSummary === "string" && executionVenueSummary.trim()
-      ? `Execution venue ${executionVenueSummary.trim()}`
-      : "";
-  const headerDescription = [executionVenueLabel, `UID ${managedAccountUid}`]
-    .filter(Boolean)
-    .join(" · ");
+  const headerDescription = `UID ${managedAccountUid}`;
 
   return (
     <div className="space-y-6">

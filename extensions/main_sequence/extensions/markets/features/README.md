@@ -8,7 +8,6 @@ Feature folders in this extension should contain market-facing Main Sequence scr
 - `asset-translation-tables/`: translation table registry, dedicated detail page, and embedded rules manager.
 - `assets/`: read-only asset registry list with dedicated detail loading.
 - `managed-accounts/`: read-only managed-account registry with dedicated detail pages.
-- `execution-venues/`: execution venue registry with dedicated detail editing and deletion.
 - `funds/`: read-only virtual-fund registry with shared search and pagination.
 - `instruments/`: quick editor for the current instrument storage-node configuration.
 - `portfolio-groups/`: portfolio-group registry with shared list behavior and a dedicated read-only detail page.

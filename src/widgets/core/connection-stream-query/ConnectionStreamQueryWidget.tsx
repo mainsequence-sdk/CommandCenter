@@ -11,6 +11,7 @@ import {
 import type { ConnectionQueryModel } from "@/connections/types";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import { useDashboardWidgetExecution } from "@/dashboards/DashboardWidgetExecution";
+import { resolveReferenceBackedWidgetState } from "@/dashboards/widget-instance-references";
 import {
   getRuntimeDataRef,
   useRuntimeDataStore,
@@ -99,7 +100,9 @@ function isStreamingActive(status: string) {
 
 export function ConnectionStreamQueryWidget({
   instanceId,
+  instanceTitle,
   props,
+  resolvedInputs,
   runtimeState,
   onRuntimeStateChange,
 }: Props) {
@@ -107,7 +110,19 @@ export function ConnectionStreamQueryWidget({
   const widgetExecution = useDashboardWidgetExecution();
   const connectionRuntimeStore = useConnectionRuntimeStore();
   const runtimeDataStore = useRuntimeDataStore();
-  const normalizedProps = useMemo(() => normalizeConnectionStreamQueryProps(props), [props]);
+  const effectiveState = useMemo(
+    () =>
+      resolveReferenceBackedWidgetState({
+        instanceTitle,
+        props,
+        resolvedInputs,
+      }),
+    [instanceTitle, props, resolvedInputs],
+  );
+  const normalizedProps = useMemo(
+    () => normalizeConnectionStreamQueryProps(effectiveState.props as ConnectionStreamQueryWidgetProps),
+    [effectiveState.props],
+  );
   const connectionType = normalizedProps.connectionRef?.typeId
     ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
     : undefined;

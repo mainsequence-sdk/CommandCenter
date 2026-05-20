@@ -229,28 +229,6 @@ function resolveSpecialRouteContext(
     );
   }
 
-  const executionVenueDetailMatch = matchPath(
-    "/app/main_sequence_markets/execution-venues/:venueId",
-    input.pathname,
-  );
-
-  if (executionVenueDetailMatch) {
-    return resolveLinkedSurfaceContext(
-      input,
-      "main_sequence_markets",
-      "execution-venues",
-      {
-        summary:
-          "User is viewing one execution venue and its editable metadata.",
-        details: {
-          "Venue ID": executionVenueDetailMatch.params.venueId,
-          View: "Execution venue detail",
-        },
-      },
-      "route",
-    );
-  }
-
   const portfolioGroupDetailMatch = matchPath(
     "/app/main_sequence_markets/portfolio-groups/:groupId",
     input.pathname,

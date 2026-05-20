@@ -176,6 +176,64 @@ The issue is caused by inconsistent frontend ownership of:
 Backend connection query and WebSocket subscription contracts remain unchanged. The frontend must
 present one consistent effective widget state to every runtime owner.
 
+## Implementation Tasks
+
+### Canonical Effective State
+
+- [ ] Introduce one shared effective widget state resolver that returns `effectiveTitle`,
+  `effectiveProps`, `resolvedInputs`, `unresolvedReferencePaths`, `rawTitle`, and `rawProps` for a
+  widget instance.
+- [ ] Define where that canonical effective widget state lives so visible mounts, hidden mounts,
+  execution, and settings surfaces all read the same contract instead of recomputing it
+  independently.
+- [ ] Replace direct raw-props reads in runtime-owner entry points with the canonical effective
+  widget state contract.
+
+### Runtime Owners
+
+- [ ] Refactor `connection-stream-query` to subscribe from canonical effective props instead of raw
+  mounted props.
+- [ ] Audit other self-owned runtime widgets and align them to the same effective-state contract so
+  this does not remain a `connection-stream-query`-only fix.
+- [ ] Ensure unresolved reference-backed props produce an explicit waiting state instead of an idle
+  but misleading empty configured state.
+
+### Hidden And Sidebar Mounts
+
+- [ ] Update hidden/sidebar widget mount paths so they receive graph-resolved effective state rather
+  than raw persisted instance props.
+- [ ] Verify hidden source widgets behave the same as visible widgets for variable-backed bindings
+  and runtime readiness.
+
+### Selection-Backed Runtime State
+
+- [ ] Define the shared ownership model for selection-backed runtime outputs such as `activeRow`,
+  `activeCell`, `activeCellValue`, `selectedRows`, and `selectedCellValues`.
+- [ ] Ensure selection-backed runtime state survives dashboard, widget-settings, and graph surface
+  transitions while the workspace runtime remains active.
+- [ ] Remove any page-local-only assumptions that make selection-backed variables disappear when the
+  user changes surfaces.
+
+### Settings And Preview Surfaces
+
+- [ ] Refactor widget settings preview/runtime composition so draft target overrides layer onto the
+  canonical workspace dependency and runtime state instead of creating a separate truth source.
+- [ ] Align `connection-stream-query` settings authoring with `connection-query` so variable-backed
+  previews use resolved effective props.
+- [ ] Ensure source-binding previews, managed connection previews, and route-level widget settings
+  all surface the same unresolved/waiting diagnostics.
+
+### Validation And Regression Coverage
+
+- [ ] Add tests that prove variable-backed `connection-query` and `connection-stream-query` behave
+  identically when bound to selection-backed variables.
+- [ ] Add tests that prove hidden/sidebar runtime mounts consume canonical effective props rather
+  than raw persisted props.
+- [ ] Add tests that prove selection-backed variables remain available across dashboard,
+  widget-settings, and graph surface transitions.
+- [ ] Add tests that prove unresolved reference-backed stream sources report waiting state instead
+  of silently subscribing with empty or stale props.
+
 ## Consequences
 
 ### Benefits

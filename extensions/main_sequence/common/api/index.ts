@@ -22,7 +22,6 @@ const assetCategoryEndpoint = "/orm/api/assets/asset-category/";
 const instrumentsConfigurationEndpoint = "/orm/api/assets/instruments-configuration/";
 const virtualFundEndpoint = "/orm/api/assets/virtualfund/";
 const managedAccountEndpoint = "/orm/api/assets/account/";
-const executionVenueEndpoint = "/orm/api/assets/execution_venue/";
 const portfolioGroupEndpoint = "/orm/api/assets/portfolio_group/";
 const targetPortfolioEndpoint = "/orm/api/assets/target_portfolio/";
 const assetTranslationTableEndpoint = "/orm/api/assets/asset-translation-tables/";
@@ -494,19 +493,6 @@ export interface AssetCategoryBulkDeleteResponse {
   deleted_count: number;
 }
 
-export interface ExecutionVenueListRow {
-  uid: string;
-  symbol: string;
-  name: string;
-}
-
-export interface ExecutionVenueRecord extends ExecutionVenueListRow {}
-
-export interface CreateExecutionVenueInput {
-  symbol: string;
-  name: string;
-}
-
 export interface VirtualFundListRow extends Record<string, unknown> {
   uid: string;
   id?: number | null;
@@ -527,8 +513,6 @@ export interface ManagedAccountListRow extends Record<string, unknown> {
   account_name?: string | null;
   display_name?: string | null;
   name?: string | null;
-  execution_venue?: number | string | null;
-  execution_venue_name?: string | null;
   is_paper?: boolean | null;
   account_is_active?: boolean | null;
   creation_date?: string | null;
@@ -536,10 +520,7 @@ export interface ManagedAccountListRow extends Record<string, unknown> {
 }
 
 export interface ManagedAccountRecord extends ManagedAccountListRow {}
-export interface ManagedAccountSummaryExtensions extends MainSequenceSummaryExtensions {
-  execution_venue_uid?: string;
-}
-export type ManagedAccountSummaryResponse = SummaryResponse<ManagedAccountSummaryExtensions>;
+export type ManagedAccountSummaryResponse = SummaryResponse<MainSequenceSummaryExtensions>;
 
 export interface ManagedAccountListFilters {
   search?: string;
@@ -549,7 +530,6 @@ export interface ManagedAccountListFilters {
 
 export interface CreateManagedAccountInput {
   account_name: string;
-  execution_venue: string;
   is_paper?: boolean;
   holdings_data_source?: number | null;
 }
@@ -582,11 +562,6 @@ export interface InstrumentsConfigurationCurrentResponse {
   discount_nodes: InstrumentsConfigurationNodeOption[];
   fixings_nodes: InstrumentsConfigurationNodeOption[];
   can_edit: boolean;
-}
-
-export interface UpdateExecutionVenueInput {
-  symbol: string;
-  name: string;
 }
 
 export interface PortfolioGroupListRow extends Record<string, unknown> {
@@ -3317,17 +3292,6 @@ export interface AssetCategoryListFilters {
   offset?: number;
 }
 
-export interface ExecutionVenueListFilters {
-  search?: string;
-  limit?: number;
-  offset?: number;
-  symbol?: string;
-  symbolIn?: string[];
-  name?: string;
-  nameIn?: string[];
-  nameContains?: string;
-}
-
 export interface PortfolioGroupListFilters {
   search?: string;
   limit?: number;
@@ -3821,26 +3785,6 @@ function buildAssetCategoryListSearch(
   } satisfies Record<string, QueryValue>;
 }
 
-function buildDelimitedSearchValue(values?: string[]) {
-  const normalizedValues =
-    values?.map((value) => value.trim()).filter((value) => value.length > 0) ?? [];
-
-  return normalizedValues.length > 0 ? normalizedValues.join(",") : undefined;
-}
-
-function buildExecutionVenueListSearch(filters: ExecutionVenueListFilters) {
-  return {
-    search: filters.search?.trim() || undefined,
-    limit: filters.limit,
-    offset: filters.offset,
-    symbol: filters.symbol?.trim() || undefined,
-    symbol__in: buildDelimitedSearchValue(filters.symbolIn),
-    name: filters.name?.trim() || undefined,
-    name__in: buildDelimitedSearchValue(filters.nameIn),
-    name__contains: filters.nameContains?.trim() || undefined,
-  } satisfies Record<string, QueryValue>;
-}
-
 function buildPortfolioGroupListSearch(filters: PortfolioGroupListFilters) {
   return {
     response_format: "frontend_list",
@@ -4109,37 +4053,6 @@ export function bulkDeleteAssetCategories(input: AssetCategoryBulkDeleteInput) {
   );
 }
 
-export async function listExecutionVenues({
-  search,
-  limit = mainSequenceRegistryPageSize,
-  offset = 0,
-  symbol,
-  symbolIn,
-  name,
-  nameIn,
-  nameContains,
-}: ExecutionVenueListFilters = {}) {
-  const filters = {
-    search,
-    limit,
-    offset,
-    symbol,
-    symbolIn,
-    name,
-    nameIn,
-    nameContains,
-  } satisfies ExecutionVenueListFilters;
-
-  const payload = await requestJson<PaginatedResponse<ExecutionVenueListRow> | ExecutionVenueListRow[]>(
-    executionVenueEndpoint,
-    "",
-    undefined,
-    buildExecutionVenueListSearch(filters),
-  );
-
-  return normalizeOffsetPaginatedResponse(payload, limit, offset);
-}
-
 export async function listVirtualFunds({
   search,
   limit = mainSequenceRegistryPageSize,
@@ -4286,13 +4199,6 @@ export function updateCurrentInstrumentsConfiguration({
   );
 }
 
-export function fetchExecutionVenueDetail(executionVenueUid: string) {
-  return requestJson<ExecutionVenueRecord>(
-    executionVenueEndpoint,
-    `${encodePathSegment(executionVenueUid)}/`,
-  );
-}
-
 export async function listPortfolioGroups({
   search,
   limit = mainSequenceRegistryPageSize,
@@ -4362,37 +4268,6 @@ export function removePortfolioGroupPortfolios(
     {
       method: "POST",
       body: JSON.stringify(input),
-    },
-  );
-}
-
-export function createExecutionVenue(input: CreateExecutionVenueInput) {
-  return requestJson<ExecutionVenueRecord>(executionVenueEndpoint, "", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-}
-
-export function updateExecutionVenue(
-  executionVenueUid: string,
-  input: UpdateExecutionVenueInput,
-) {
-  return requestJson<ExecutionVenueRecord>(
-    executionVenueEndpoint,
-    `${encodePathSegment(executionVenueUid)}/`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(input),
-    },
-  );
-}
-
-export function deleteExecutionVenue(executionVenueUid: string) {
-  return requestJson<Record<string, unknown> | null>(
-    executionVenueEndpoint,
-    `${encodePathSegment(executionVenueUid)}/`,
-    {
-      method: "DELETE",
     },
   );
 }

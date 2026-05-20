@@ -28,7 +28,6 @@ import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelect
 import {
   formatManagedAccountValue,
   getManagedAccountDetailPath,
-  getManagedAccountExecutionVenueLabel,
 } from "./managedAccountShared";
 import {
   buildManagedAccountCreatePayload,
@@ -79,11 +78,7 @@ function buildManagedAccountDeleteSummary(accounts: ManagedAccountListRow[]) {
   return (
     <div className="space-y-2">
       {accounts.slice(0, 5).map((account) => {
-        const executionVenueLabel = getManagedAccountExecutionVenueLabel(account);
         const secondaryLine = [
-          executionVenueLabel
-            ? `Execution venue ${executionVenueLabel}`
-            : null,
           typeof account.account_is_active === "boolean"
             ? account.account_is_active
               ? "Active"
@@ -405,7 +400,7 @@ export function MainSequenceManagedAccountsPage() {
               }
               value={searchValue}
               onChange={(event) => updateSearch(event.target.value)}
-              placeholder="Search by account name or execution venue"
+              placeholder="Search by account name or UID"
               selectionCount={managedAccountSelection.selectedCount}
               searchClassName="max-w-xl"
             />
@@ -455,7 +450,7 @@ export function MainSequenceManagedAccountsPage() {
                           onChange={managedAccountSelection.toggleAll}
                         />
                       </th>
-                      {["Account", "Execution Venue", "Paper", "Active"].map((label, index) => (
+                      {["Account", "Paper", "Active"].map((label, index) => (
                         <th
                           key={label}
                           className={index === 0 ? "px-4 pb-2 w-[28%]" : "px-4 pb-2"}
@@ -510,11 +505,6 @@ export function MainSequenceManagedAccountsPage() {
                           <div className="mt-1 truncate text-xs text-muted-foreground">
                             {`UID ${account.uid}`}
                           </div>
-                        </td>
-                        <td className={getRegistryTableCellClassName(selected)}>
-                          {formatManagedAccountValue(
-                            getManagedAccountExecutionVenueLabel(account) || null,
-                          )}
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           {typeof account.is_paper === "boolean"

@@ -1,6 +1,0 @@
-[
-  { "uid": "venue-otc-1", "symbol": "OTC", "name": "Over The Counter" },
-  { "uid": "venue-cme-2", "symbol": "CME", "name": "Chicago Mercantile Exchange" },
-  { "uid": "venue-nyse-3", "symbol": "NYSE", "name": "New York Stock Exchange" },
-  { "uid": "venue-nymex-4", "symbol": "NYMEX", "name": "New York Mercantile Exchange" }
-]

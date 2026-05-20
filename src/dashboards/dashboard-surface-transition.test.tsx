@@ -211,6 +211,10 @@ function createInitialWidgets(): DashboardWidgetInstance[] {
   ];
 }
 
+function createWidgetsWithoutSource(): DashboardWidgetInstance[] {
+  return createInitialWidgets().filter((widget) => widget.id !== "source-widget-1");
+}
+
 interface RecordedExecution {
   instanceId: string;
   reason: WidgetExecutionReason;
@@ -445,6 +449,18 @@ function DashboardSurface({
   );
 }
 
+function DashboardHydrationStatusProbe() {
+  const execution = useDashboardWidgetExecution();
+
+  return (
+    <div data-testid="dashboard-surface">
+      <div data-testid="dashboard-hydration-reason">
+        {execution?.dashboardSurfaceHydrationReason ?? "none"}
+      </div>
+    </div>
+  );
+}
+
 function GraphSurface() {
   return <div data-testid="graph-surface">graph</div>;
 }
@@ -518,6 +534,55 @@ function TestWorkspaceHarness({
   );
 }
 
+function TestConfigurationHydrationHarness({
+  includeSource,
+  tracker,
+}: {
+  includeSource: boolean;
+  tracker: ReturnType<typeof createExecutionTracker>;
+}) {
+  const widgets = useMemo(
+    () => (includeSource ? createInitialWidgets() : createWidgetsWithoutSource()),
+    [includeSource],
+  );
+  const resolveWidgetDefinition = useMemo(
+    () => createWidgetDefinitions(tracker),
+    [tracker],
+  );
+
+  return (
+    <MemoryRouter initialEntries={["/workspaces/test"]}>
+      <DashboardControlsProvider
+        controls={{
+          enabled: true,
+          actions: {
+            enabled: false,
+          },
+        }}
+        onStateChange={() => undefined}
+      >
+        <DashboardWidgetRegistryProvider widgets={widgets}>
+          <DashboardWidgetExecutionProvider
+            activeSurface="dashboard"
+            enableAutomaticHydration
+            scopeId="workspace-test"
+            widgets={widgets}
+            writeRuntimeState={() => undefined}
+            resolveWidgetDefinition={resolveWidgetDefinition}
+          >
+            <DashboardWidgetDependenciesProvider
+              widgets={widgets}
+              resolveWidgetDefinition={resolveWidgetDefinition}
+            >
+              <DashboardHydrationStatusProbe />
+            </DashboardWidgetDependenciesProvider>
+          </DashboardWidgetExecutionProvider>
+        </DashboardWidgetRegistryProvider>
+      </DashboardControlsProvider>
+    </MemoryRouter>
+  );
+}
+
 function queryByTestId(container: HTMLElement, testId: string) {
   return container.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
 }
@@ -566,13 +631,41 @@ function createMountedHarness(
   };
 }
 
-let activeHarness:
-  | {
-      container: HTMLElement;
-      render: (activeSurface: DashboardExecutionSurface) => Promise<void>;
-      unmount: () => Promise<void>;
-    }
-  | undefined;
+function createMountedConfigurationHarness(
+  tracker: ReturnType<typeof createExecutionTracker>,
+) {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+
+  return {
+    container,
+    async render(includeSource: boolean) {
+      await act(async () => {
+        root.render(
+          <TestConfigurationHydrationHarness
+            includeSource={includeSource}
+            tracker={tracker}
+          />,
+        );
+      });
+    },
+    async unmount() {
+      await act(async () => {
+        root.unmount();
+      });
+      container.remove();
+    },
+  };
+}
+
+interface MountedHarness {
+  container: HTMLElement;
+  render: (...args: any[]) => Promise<void>;
+  unmount: () => Promise<void>;
+}
+
+let activeHarness: MountedHarness | undefined;
 
 afterEach(async () => {
   if (activeHarness) {
@@ -582,6 +675,38 @@ afterEach(async () => {
 });
 
 describe("dashboard surface transition hydration", () => {
+  it("retries automatic hydration when the widget configuration becomes refreshable after an empty first pass", async () => {
+    const tracker = createExecutionTracker();
+    activeHarness = createMountedConfigurationHarness(tracker);
+
+    await activeHarness!.render(false);
+
+    await act(async () => {
+      await flushTimers(25);
+    });
+
+    expect(tracker.allExecutionReasons()).toEqual([]);
+    expect(getTextByTestId(activeHarness!.container, "dashboard-hydration-reason"))
+      .toBe("none");
+
+    await activeHarness!.render(true);
+
+    await waitFor(() => {
+      expect(tracker.allExecutionReasons()).toEqual(["dashboard-refresh"]);
+      expect(tracker.pendingExecutionReasons()).toEqual(["dashboard-refresh"]);
+      expect(getTextByTestId(activeHarness!.container, "dashboard-hydration-reason"))
+        .toBe("initial-entry");
+    });
+
+    tracker.releaseNext("dashboard-refresh");
+
+    await waitFor(() => {
+      expect(tracker.pendingExecutionCount()).toBe(0);
+      expect(getTextByTestId(activeHarness!.container, "dashboard-hydration-reason"))
+        .toBe("none");
+    });
+  });
+
   it("runs passive upstream resolution once per invalidation even when the consumer still asks after runtime writes", async () => {
     const tracker = createExecutionTracker();
     activeHarness = createMountedHarness(tracker, {
@@ -589,7 +714,7 @@ describe("dashboard surface transition hydration", () => {
       forcePassiveResolution: true,
     });
 
-    await activeHarness.render("dashboard");
+    await activeHarness!.render("dashboard");
 
     await waitFor(() => {
       expect(tracker.allExecutionReasons()).toEqual(["manual-recalculate"]);
@@ -625,7 +750,7 @@ describe("dashboard surface transition hydration", () => {
       forcePassiveResolution: true,
     });
 
-    await activeHarness.render("dashboard");
+    await activeHarness!.render("dashboard");
 
     await waitFor(() => {
       expect(tracker.allExecutionReasons()).toEqual(["manual-recalculate"]);
@@ -643,7 +768,7 @@ describe("dashboard surface transition hydration", () => {
     });
 
     expect(tracker.allExecutionReasons()).toEqual(["manual-recalculate"]);
-    expect(getTextByTestId(activeHarness.container, "visible-consumer-state"))
+    expect(getTextByTestId(activeHarness!.container, "visible-consumer-state"))
       .toBe("needs-resolution");
   });
 
@@ -651,7 +776,7 @@ describe("dashboard surface transition hydration", () => {
     const tracker = createExecutionTracker();
     activeHarness = createMountedHarness(tracker);
 
-    await activeHarness.render("dashboard");
+    await activeHarness!.render("dashboard");
 
     await waitFor(() => {
       expect(tracker.allExecutionReasons()).toEqual(["dashboard-refresh"]);
@@ -679,16 +804,16 @@ describe("dashboard surface transition hydration", () => {
       expect(tracker.pendingExecutionCount()).toBe(0);
     });
 
-    await activeHarness.render("graph");
+    await activeHarness!.render("graph");
 
     await waitFor(() => {
       expect(queryByTestId(activeHarness!.container, "dashboard-surface")).toBeNull();
       expect(queryByTestId(activeHarness!.container, "graph-surface")).not.toBeNull();
     });
 
-    await activeHarness.render("dashboard");
+    await activeHarness!.render("dashboard");
 
-    expect(queryByTestId(activeHarness.container, "dashboard-surface")).not.toBeNull();
+    expect(queryByTestId(activeHarness!.container, "dashboard-surface")).not.toBeNull();
 
     await waitFor(() => {
       expect(getTextByTestId(activeHarness!.container, "dashboard-hydration-reason"))
