@@ -80,7 +80,10 @@ This directory contains reusable widget presentation primitives that are shared 
   token and `.`, the same picker completes exposed source roots; after a source root and `.`, it
   completes descriptor-backed object fields when known. Enter/Tab commits the selected completion.
   Completed whole-value references render as removable token UI in shared base text inputs so reference values do not look like ordinary
-  literal strings. Custom settings controls that do not use the shared base inputs can opt in with
+  literal strings. Completion keeps the underlying text editable until blur so users can continue
+  from `$(table).activeRow` into `$(table).activeRow.symbol`; Backspace/Delete on a visible token
+  reopens the literal text for editing instead of clearing it. Custom settings controls that do
+  not use the shared base inputs can opt in with
   `ms-widget-variable-reference-input` or
   `data-widget-variable-reference-input="true"` while inside the shared settings provider.
 - `widget-canvas-controls.tsx`: host for schema fields that are exposed as external companion cards beside a widget instance. The workspace studio still uses it to edit exposed-field state, while the shared dashboard viewer now renders companion fields through the dashboard canvas-item/runtime layout path instead of widget-local overlays.

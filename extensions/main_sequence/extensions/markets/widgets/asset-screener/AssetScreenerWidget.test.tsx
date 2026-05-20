@@ -238,6 +238,89 @@ function resolveWidgetOutputValue(
 }
 
 describe("AssetScreenerWidget", () => {
+  it("keeps source-column failures isolated per widget instance", () => {
+    const badSeedData = frame([{ unsupported: "row" }]);
+    const goodSeedData = marketSeedFrame([
+      {
+        unique_identifier: "uid:BTCUSDT",
+        Symbol: "BTCUSDT",
+        sector: "Layer 1",
+        time: "2026-05-20T12:00:00.000Z",
+        last_price: 109420,
+        price_sparkline: "100800,102400,104950,106700,107980,109420",
+      },
+    ]);
+    const badState = resolveAssetScreenerState({
+      props: assetScreenerDefaultProps,
+      fallbackFrames: {
+        seedData: badSeedData,
+      },
+    });
+    const goodState = resolveAssetScreenerState({
+      props: assetScreenerDefaultProps,
+      fallbackFrames: {
+        seedData: goodSeedData,
+      },
+    });
+
+    expect(badState.columns).toHaveLength(0);
+    expect(goodState.columns.length).toBeGreaterThan(0);
+    expect(goodState.filteredRows[0]?.asset.symbol).toBe("BTCUSDT");
+
+    host = document.createElement("div");
+    host.style.height = "840px";
+    host.style.width = "900px";
+    document.body.appendChild(host);
+    root = createRoot(host);
+
+    act(() => {
+      root!.render(
+        <div>
+          <div style={{ height: "420px", width: "900px" }}>
+            <AssetScreenerWidget
+              instanceId="asset-screener-bad"
+              widget={mainSequenceAssetScreenerWidget}
+              instanceTitle="Broken screener"
+              props={assetScreenerDefaultProps}
+              runtimeState={{
+                marketAssetScreenerDemoFrames: {
+                  seedData: badSeedData,
+                },
+              }}
+            />
+          </div>
+          <div style={{ height: "420px", width: "900px" }}>
+            <AssetScreenerWidget
+              instanceId="asset-screener-good"
+              widget={mainSequenceAssetScreenerWidget}
+              instanceTitle="Valid screener"
+              props={assetScreenerDefaultProps}
+              runtimeState={{
+                marketAssetScreenerDemoFrames: {
+                  seedData: goodSeedData,
+                },
+              }}
+            />
+          </div>
+        </div>,
+      );
+    });
+
+    const emptyColumnMessageCount = host.textContent
+      ?.split("No source columns are available yet")
+      .length ?? 0;
+
+    expect(emptyColumnMessageCount - 1).toBe(1);
+    expect(dashboardExecutionMocks.useResolveWidgetUpstream).toHaveBeenCalledWith(
+      "asset-screener-bad",
+      expect.any(Object),
+    );
+    expect(dashboardExecutionMocks.useResolveWidgetUpstream).toHaveBeenCalledWith(
+      "asset-screener-good",
+      expect.any(Object),
+    );
+  });
+
   it("requests passive upstream resolution for awaiting seed bindings", () => {
     renderWidget(assetScreenerDefaultProps, undefined, {
       resolvedInputs: {

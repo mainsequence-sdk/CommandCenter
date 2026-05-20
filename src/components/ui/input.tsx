@@ -43,7 +43,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       disabled: disabled || !textInputType,
       onChange,
       onCompletionInserted: ({ option, value }) => {
-        setReferenceTokenEditing(false);
+        setReferenceTokenEditing(true);
         onWidgetReferenceCommit?.({
           value,
           reason: "completion",
@@ -103,6 +103,17 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         }}
         onKeyDown={(event) => {
           variableReference.onKeyDown(event);
+
+          if (
+            !event.defaultPrevented &&
+            showReferenceToken &&
+            (event.key === "Backspace" || event.key === "Delete") &&
+            inputRef.current
+          ) {
+            event.preventDefault();
+            editReferenceToken(inputRef.current);
+            return;
+          }
 
           if (
             !event.defaultPrevented &&

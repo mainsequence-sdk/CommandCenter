@@ -393,11 +393,22 @@ export function QueryStringListField({
     [entries, normalizeEntry, suggestions],
   );
   const [draft, setDraft] = useState("");
+  const editingEntryRef = useRef(false);
 
   useEffect(() => {
-    if (normalizeStringList(value, normalizeEntry).length === 0) {
+    const nextEntries = normalizeStringList(value, normalizeEntry);
+
+    if (nextEntries.length === 0) {
+      if (editingEntryRef.current) {
+        editingEntryRef.current = false;
+        return;
+      }
+
       setDraft("");
+      return;
     }
+
+    editingEntryRef.current = false;
   }, [normalizeEntry, value]);
 
   function updateEntries(nextEntries: string[]) {
@@ -442,6 +453,33 @@ export function QueryStringListField({
     updateEntries(entries.filter((entry) => entry !== entryToRemove));
   }
 
+  function editEntry(entryToEdit: string) {
+    if (disabled) {
+      return;
+    }
+
+    editingEntryRef.current = true;
+    updateEntries(entries.filter((entry) => entry !== entryToEdit));
+    setDraft(entryToEdit);
+
+    const focusDraft = () => {
+      const input = inputRef.current;
+
+      if (!input) {
+        return;
+      }
+
+      input.focus();
+      input.setSelectionRange(entryToEdit.length, entryToEdit.length);
+    };
+
+    if (typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(focusDraft);
+    } else {
+      focusDraft();
+    }
+  }
+
   function commitReferenceDraft(
     nextValue: string,
     options?: {
@@ -479,7 +517,13 @@ export function QueryStringListField({
           {entries.map((entry) => (
             <span
               key={entry}
-              className="inline-flex max-w-full items-center gap-1 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-muted/55 px-2 py-1 font-mono text-xs text-foreground"
+              className="inline-flex max-w-full cursor-text items-center gap-1 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-muted/55 px-2 py-1 font-mono text-xs text-foreground"
+              title="Click to edit"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                editEntry(entry);
+              }}
             >
               <span className="truncate">{entry}</span>
               <button
@@ -527,7 +571,11 @@ export function QueryStringListField({
 
               if (event.key === "Backspace" && draft.length === 0 && entries.length > 0) {
                 event.preventDefault();
-                updateEntries(entries.slice(0, -1));
+                const lastEntry = entries.at(-1);
+
+                if (lastEntry) {
+                  editEntry(lastEntry);
+                }
               }
             }}
             onBlur={() => {

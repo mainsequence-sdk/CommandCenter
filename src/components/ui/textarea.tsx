@@ -40,7 +40,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       disabled,
       onChange,
       onCompletionInserted: ({ option, value }) => {
-        setReferenceTokenEditing(false);
+        setReferenceTokenEditing(true);
         onWidgetReferenceCommit?.({
           value,
           reason: "completion",
@@ -100,6 +100,17 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         }}
         onKeyDown={(event) => {
           variableReference.onKeyDown(event);
+
+          if (
+            !event.defaultPrevented &&
+            showReferenceToken &&
+            (event.key === "Backspace" || event.key === "Delete") &&
+            textareaRef.current
+          ) {
+            event.preventDefault();
+            editReferenceToken(textareaRef.current);
+            return;
+          }
 
           if (
             !event.defaultPrevented &&

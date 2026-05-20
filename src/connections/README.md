@@ -57,7 +57,10 @@ connection ADR. Connections are platform data-access resources, not widgets.
 - `components/ConnectionPicker.tsx`: reusable widget/settings picker for selecting a configured
   connection instance by stable `ConnectionRef`.
 - `components/ConnectionQueryEditorFields.tsx`: reusable controls for connection-specific
-  `queryEditor` components rendered by the Connection Query widget.
+  `queryEditor` components rendered by the Connection Query widget. Buffered string-list fields
+  support widget-reference authoring without forcing premature tokenization: source completions
+  remain editable for nested field selection, and Backspace on an empty draft moves the last chip
+  back into the draft input for editing instead of deleting it.
 - `assets/`: shared connector logo assets used by connection type definitions and generic
   connection UI.
 

@@ -172,6 +172,78 @@ describe("QueryStringListField widget references", () => {
     );
   });
 
+  it("keeps source completions editable so nested fields can be selected next", async () => {
+    function Harness() {
+      const [value, setValue] = useState<string[] | undefined>(undefined);
+
+      return (
+        <WidgetVariableReferenceInputProvider sourceWidgets={sourceWidgets}>
+          <QueryStringListField
+            label="Symbols"
+            value={value}
+            onChange={setValue}
+            placeholder="AAPL, MSFT"
+          />
+          <div data-testid="value">{JSON.stringify(value ?? null)}</div>
+        </WidgetVariableReferenceInputProvider>
+      );
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+      await flushEffects();
+    });
+
+    const input = container.querySelector("input");
+    expect(input).not.toBeNull();
+
+    await act(async () => {
+      input!.focus();
+      setNativeInputValue(input!, "$(table-1).");
+      input!.setSelectionRange(input!.value.length, input!.value.length);
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+      input!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await flushEffects();
+    });
+
+    const activeRowOption = Array.from(container.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Active row"),
+    );
+    expect(activeRowOption).not.toBeUndefined();
+
+    await act(async () => {
+      activeRowOption!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      await flushEffects();
+      await flushEffects();
+    });
+
+    expect(input!.value).toBe("$(table-1).activeRow");
+    expect(container.querySelector('[data-testid="value"]')?.textContent).toBe("null");
+
+    await act(async () => {
+      setNativeInputValue(input!, `${input!.value}.`);
+      input!.setSelectionRange(input!.value.length, input!.value.length);
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+      input!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await flushEffects();
+    });
+
+    const symbolOption = Array.from(container.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Symbol"),
+    );
+    expect(symbolOption).not.toBeUndefined();
+
+    await act(async () => {
+      symbolOption!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      await flushEffects();
+      await flushEffects();
+    });
+
+    expect(container.querySelector('[data-testid="value"]')?.textContent).toBe(
+      '["$(table-1).activeRow.symbol"]',
+    );
+  });
+
   it("removes a committed widget reference token from a list input", async () => {
     function Harness() {
       const [value, setValue] = useState<string[] | undefined>([
@@ -209,5 +281,65 @@ describe("QueryStringListField widget references", () => {
     });
 
     expect(container.querySelector('[data-testid="value"]')?.textContent).toBe("null");
+  });
+
+  it("moves the last token into the draft on Backspace instead of deleting it", async () => {
+    function Harness() {
+      const [value, setValue] = useState<string[] | undefined>([
+        "$(table-1).activeRow.symbol",
+      ]);
+
+      return (
+        <WidgetVariableReferenceInputProvider sourceWidgets={sourceWidgets}>
+          <QueryStringListField
+            label="Symbols"
+            value={value}
+            onChange={setValue}
+            placeholder="AAPL, MSFT"
+          />
+          <div data-testid="value">{JSON.stringify(value ?? null)}</div>
+        </WidgetVariableReferenceInputProvider>
+      );
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+      await flushEffects();
+    });
+
+    const input = container.querySelector("input");
+    expect(input).not.toBeNull();
+
+    await act(async () => {
+      input!.focus();
+      input!.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "Backspace",
+        }),
+      );
+      await flushEffects();
+      await flushEffects();
+    });
+
+    expect(input!.value).toBe("$(table-1).activeRow.symbol");
+    expect(container.querySelector('[data-testid="value"]')?.textContent).toBe("null");
+
+    await act(async () => {
+      input!.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "Enter",
+        }),
+      );
+      await flushEffects();
+      await flushEffects();
+    });
+
+    expect(container.querySelector('[data-testid="value"]')?.textContent).toBe(
+      '["$(table-1).activeRow.symbol"]',
+    );
   });
 });
