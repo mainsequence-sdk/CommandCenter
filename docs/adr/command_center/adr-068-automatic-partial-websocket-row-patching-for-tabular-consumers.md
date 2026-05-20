@@ -19,12 +19,15 @@ Tables and table-backed widgets now have the right high-level streaming shape:
 - `table`, `pro-table`, and Asset Screener can consume retained tabular runtime data
 - Asset Screener already models live market updates as latest-value mutations
 
-But the current generic tabular stream implementation still behaves like full-row replacement.
+But the current generic tabular stream implementation still behaves like full-row replacement and
+does not distinguish same-source streams from user-composed table joins.
 
 The current implementation has two concrete problems:
 
 - stream deltas are validated as if they must have the same complete schema as the retained frame
 - keyed deltas replace the whole retained row instead of patching only the changed fields
+- table seed/live joins do not let the user define how differently shaped seed and live tables
+  should be aligned before patching
 
 That is wrong for WebSocket table updates.
 
@@ -46,6 +49,19 @@ without also resending `sector`, `display_name`, reference prices, sparkline dat
 hidden source columns, or visual metadata.
 
 The seed/snapshot owns the table contract. The WebSocket delta owns only the changed values.
+
+There is a second, equally important case: users can compose a table from a seed dataset and a live
+dataset that do not use the same provider shape.
+
+Example:
+
+- seed rows contain `symbol`, `last`, reference values, formulas, and other display columns
+- live WebSocket rows contain `symbol`, `close`
+
+In that case the live stream should first be transformed into the table patch shape, for example
+`symbol, last`, and then joined to the seed rows by a user-authored merge mapping such as
+`seed.symbol = live.symbol`. The client cannot assume that source-owned stream metadata is enough
+for arbitrary table transformations.
 
 ## Decision
 
@@ -122,36 +138,108 @@ This must apply consistently across:
 - generic `table` and `pro-table`
 - Asset Screener when it consumes the shared incremental table path
 
-### 2. Users Must Not Configure Patch Behavior
+### 2. Patch Mechanics Are Automatic, Merge Mapping Can Be User Authored
 
-There must be no user-facing table setting for:
+There must be no user-facing setting for low-level patch mechanics:
 
 - patch mode versus replace mode
 - partial-column WebSocket behavior
-- merge strategy for normal live table updates
 
-This behavior should be automatic.
+Those mechanics should be automatic after row identity is known.
 
 The table consumer should not ask users to understand stream internals. If a source advertises a
-stream as keyed tabular data, partial deltas patch rows. If it cannot provide a safe row identity,
-the runtime must not guess.
+stream as keyed tabular data and the seed/live shapes are the same source contract, partial deltas
+patch rows automatically. If it cannot provide a safe row identity, the runtime must not guess.
 
-### 3. Row Identity Resolution Is Automatic But Source-Owned
+However, table composition is different from a same-source graph stream. A user may intentionally
+join a seed dataset and a live dataset from different providers, different field names, or an
+intermediate transform. In that case the table/live consumer must expose a merge mapping that tells
+the runtime how to match live rows to seed rows.
+
+The user-facing mapping is identity mapping, not patch algorithm selection.
+
+Example mapping:
+
+```json
+{
+  "mergeKeys": [
+    {
+      "seedField": "symbol",
+      "liveField": "symbol"
+    }
+  ]
+}
+```
+
+For differently named providers:
+
+```json
+{
+  "mergeKeys": [
+    {
+      "seedField": "symbol",
+      "liveField": "ticker"
+    }
+  ]
+}
+```
+
+For multi-key joins:
+
+```json
+{
+  "mergeKeys": [
+    {
+      "seedField": "venue",
+      "liveField": "exchange"
+    },
+    {
+      "seedField": "symbol",
+      "liveField": "instrument"
+    }
+  ]
+}
+```
+
+### 3. Row Identity Resolution Has Automatic And Configured Modes
 
 Automatic does not mean guessing from arbitrary column names.
 
-The runtime resolves row identity from source-owned metadata in this order:
+For same-source streams, the runtime resolves row identity from source-owned metadata in this order:
 
 1. runtime update diagnostics such as `mergeKeyFields`
 2. connection query model stream metadata such as `defaultMergeKeyFields`
 3. canonical frame semantics such as market `assetKey` field roles
 4. explicit widget/source adapter defaults for a known widget contract
 
+For user-composed table seed/live inputs, an explicit merge mapping can override automatic identity.
+This is required when:
+
+- seed and live fields use different names
+- the live stream is transformed before reaching the table
+- the seed has multiple possible keys and only the user knows the intended join
+- the live provider exposes a narrower or differently named row identity
+
 If no row identity can be resolved, deltas are append-only event rows or the stream is marked
 invalid for patching. The table UI should surface a clear diagnostic instead of silently corrupting
 rows.
 
-### 4. Seed/Snapshot Owns The Table Contract
+### 4. Live Shape Normalization Happens Before Merge
+
+When live updates do not already match the seed patch shape, users should normalize them with an
+explicit transform node before binding them to the table live input.
+
+Example:
+
+- WebSocket source publishes `symbol`, `close`
+- Tabular Transform projects/computes `symbol`, `last`
+- Table live input receives `symbol`, `last`
+- Table merge mapping patches seed rows by `symbol`
+
+This keeps column renaming and value derivation visible in the graph instead of hiding provider
+semantics inside the table widget.
+
+### 5. Seed/Snapshot Owns The Table Contract
 
 The seed or latest snapshot frame owns:
 
@@ -170,7 +258,7 @@ contract on every WebSocket message.
 The delta frame may introduce new fields only under an explicit schema-expansion policy. Normal
 live-price or live-value streams should not use deltas to create display schema.
 
-### 5. Formulas Recompute From The Patched Retained Row
+### 6. Formulas Recompute From The Patched Retained Row
 
 Formula columns are not sent over WebSockets as computed results unless the source explicitly owns
 those results.
@@ -187,7 +275,7 @@ For Asset Screener:
 - live updates can provide only `assetKey`, timestamp, and changed latest values
 - return columns and other formulas recompute locally from the patched latest values
 
-### 6. Asset Screener Uses The Same Generic Contract
+### 7. Asset Screener Uses The Same Generic Contract
 
 Asset Screener should not need a separate WebSocket-specific table contract.
 
@@ -223,7 +311,8 @@ The WebSocket update should not resend those fields unless they actually changed
 ## Non-Goals
 
 - Do not add a table setting that asks users to pick patch or replace mode.
-- Do not make users manually configure merge keys in normal table or Asset Screener usage.
+- Do not require manual merge mapping when same-source stream metadata already provides safe
+  identity.
 - Do not make passive table consumers open WebSockets directly.
 - Do not require WebSocket messages to resend the full table schema.
 - Do not infer row identity by unsafe column-name guessing.
@@ -249,10 +338,21 @@ The WebSocket update should not resend those fields unless they actually changed
 - [ ] Resolve merge keys from query model stream metadata when diagnostics are absent.
 - [ ] Resolve market asset identity from `assetKey` field roles for Asset Screener and market
   tabular frames.
-- [ ] Remove or hide normal user-facing merge-key configuration from table-backed live-update
-  flows once automatic resolution covers the path.
 - [ ] Keep developer/source metadata explicit so adapters, query models, and widget contracts own
   identity rather than arbitrary UI guesses.
+
+### User Authored Table Merge Mapping
+
+- [ ] Add a table/pro-table live merge mapping for composed seed/live inputs.
+- [ ] Support one or more merge key pairs such as `seed.symbol = live.symbol`.
+- [ ] Support differently named fields such as `seed.symbol = live.ticker`.
+- [ ] Prefer explicit merge mapping over automatic source metadata when the user configures it.
+- [ ] Validate that configured seed and live fields are available from their respective inputs.
+- [ ] Surface a clear table settings/runtime diagnostic when a live input needs a merge mapping but
+  none is available.
+- [ ] Keep patch mechanics automatic after the mapping resolves row identity.
+- [ ] Document that shape normalization belongs in Tabular Transform before the table live input
+  when live fields need renaming or formula derivation.
 
 ### Runtime Data Store
 
@@ -275,6 +375,8 @@ The WebSocket update should not resend those fields unless they actually changed
 
 - [ ] Ensure `table` and `pro-table` render patched retained rows without requiring a full delta
   schema.
+- [ ] Expose merge-key mapping for composed seed/live table inputs.
+- [ ] Keep same-provider graph streams automatic when source metadata provides merge keys.
 - [ ] Recompute formula columns after patched source values change.
 - [ ] Preserve selection state using resolved selection keys when patched rows update.
 - [ ] Avoid resetting grid state or column configuration when only row values changed.
@@ -310,6 +412,8 @@ It does affect the stream adapter/query model contract:
 - stream-capable sources must expose safe row identity metadata for patchable streams
 - WebSocket delta responses may carry subset-column tabular frames
 - existing full-row deltas remain valid
+- table/pro-table props need a user-authored merge mapping for composed seed/live inputs where
+  automatic source metadata is not sufficient
 
 Backend and connection adapter review is required if any backend stream validation currently
 requires delta frames to repeat the full retained schema.
@@ -322,11 +426,13 @@ requires delta frames to repeat the full retained schema.
 - Asset Screener can update live prices without resending the entire screener row.
 - Formula columns can recompute from live values without source-owned hardcoded metric columns.
 - The same stream behavior works for generic tables and market-specific table consumers.
-- Users do not need to understand or configure patch semantics.
+- Users do not need to understand or configure patch semantics; they only configure row identity
+  when they intentionally compose different seed/live shapes.
 
 ### Negative
 
-- Source metadata must be reliable because the client will not guess unsafe row identity.
+- Source metadata must be reliable for same-source streams, and table merge mappings must be clear
+  for composed seed/live inputs.
 - Debugging moves toward source diagnostics and runtime update metadata.
 - Schema expansion from live deltas needs a separate explicit policy.
 - Tests that assumed exact schema matching need to be rewritten.

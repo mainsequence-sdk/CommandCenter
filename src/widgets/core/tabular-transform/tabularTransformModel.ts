@@ -5,7 +5,6 @@ import type {
 import { compileTableFormulaExpression } from "@/widgets/core/table/tableFormulaCompiler";
 import {
   applyResolvedTableComputedColumns,
-  tableTransformsMetaKey,
   type TableFrameComputedColumn,
 } from "@/widgets/core/table/tableFrameMetadata";
 import {
@@ -1379,14 +1378,6 @@ export function resolveTabularTransformOutput(input: {
           source.fields,
           transformed.derivedColumns,
         ),
-      meta:
-        (transformed.metaComputedColumns ?? []).length > 0
-          ? {
-              [tableTransformsMetaKey]: {
-                computedColumns: transformed.metaComputedColumns ?? [],
-              },
-            }
-          : undefined,
       source: {
         kind: "tabular-transform",
         label: "Tabular transform",
@@ -1432,14 +1423,6 @@ export function resolveTabularTransformOutput(input: {
                 deltaSource.fields,
                 transformedDelta.derivedColumns,
               ),
-            meta:
-              (transformedDelta.metaComputedColumns ?? []).length > 0
-                ? {
-                    [tableTransformsMetaKey]: {
-                      computedColumns: transformedDelta.metaComputedColumns ?? [],
-                    },
-                  }
-                : undefined,
             source: {
               ...outputFrame.source,
               context: {

@@ -6,6 +6,7 @@ import {
 } from "@/widgets/shared/tabular-frame-source";
 import { readWidgetRuntimeUpdateContext } from "@/widgets/shared/runtime-update";
 import { createRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
+import { applyTableComputedColumns } from "@/widgets/core/table/tableFrameMetadata";
 
 import { resolveTabularTransformOutput, type TabularTransformWidgetProps } from "./tabularTransformModel";
 
@@ -300,17 +301,7 @@ describe("tabular transform filter mode", () => {
       { symbol: "BTCUSDT", one_day_return: 10 },
       { symbol: "ETHUSDT", one_day_return: -5 },
     ]);
-    expect(output.meta).toMatchObject({
-      tableTransforms: {
-        computedColumns: [
-          {
-            id: "one_day_return",
-            label: "1D",
-            type: "number",
-          },
-        ],
-      },
-    });
+    expect(output.meta).toBeUndefined();
     expect(output.fields?.find((field) => field.key === "one_day_return")).toMatchObject({
       provenance: "derived",
       derivedFrom: ["last_price", "previous_close"],
@@ -366,15 +357,7 @@ describe("tabular transform filter mode", () => {
     expect(deltaOutput?.rows).toEqual([
       { symbol: "ETHUSDT", last_price: 95, previous_close: 100, one_day_return: -5 },
     ]);
-    expect(deltaOutput?.meta).toMatchObject({
-      tableTransforms: {
-        computedColumns: [
-          {
-            id: "one_day_return",
-          },
-        ],
-      },
-    });
+    expect(deltaOutput?.meta).toBeUndefined();
   });
 
   it("materializes retained stream rows from runtime refs before projection", () => {
@@ -459,6 +442,7 @@ describe("tabular transform filter mode", () => {
       { symbol: "ETHUSDT", last: 2136.36 },
       { symbol: "BTCUSDT", last: 109420.5 },
     ]);
+    expect(applyTableComputedColumns(output).rows).toEqual(output.rows);
   });
 
   it("returns a configuration error when a computed-column formula is invalid", () => {
