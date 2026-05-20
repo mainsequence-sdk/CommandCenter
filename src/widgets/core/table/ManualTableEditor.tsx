@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { AllCommunityModule, type ColDef } from "ag-grid-community";
+import { type ColDef, type Module } from "ag-grid-community";
 import { AgGridProvider, AgGridReact } from "ag-grid-react";
 import { Plus, Table2, Trash2, Upload } from "lucide-react";
 
@@ -10,12 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getThemeTightnessMetrics } from "@/themes/tightness";
-import { useTheme } from "@/themes/ThemeProvider";
+import { useTheme } from "@/themes/ThemeContext";
+import { communityAgGridModules } from "@/widgets/extensions/ag-grid/community-modules";
 import { createAgGridTerminalTheme } from "@/widgets/extensions/ag-grid/grid-theme";
 
 import type { ManualTableColumnDefinition } from "@/widgets/shared/tabular-widget-source";
-
-const agGridModules = [AllCommunityModule];
 
 const manualColumnTypeOptions: Array<{
   label: string;
@@ -257,11 +256,13 @@ function ColumnKeyInput({
 export function ManualTableEditor({
   columns,
   editable,
+  gridModules = communityAgGridModules,
   rows,
   onChange,
 }: {
   columns: ManualTableColumnDefinition[];
   editable: boolean;
+  gridModules?: Module[];
   rows: Array<Record<string, unknown>>;
   onChange: (nextState: {
     columns: ManualTableColumnDefinition[];
@@ -757,7 +758,7 @@ export function ManualTableEditor({
                 Add a column or import a table to open the grid editor.
               </div>
             ) : (
-              <AgGridProvider modules={agGridModules}>
+              <AgGridProvider modules={gridModules}>
                 <div className="h-[min(62vh,640px)] min-h-[420px] overflow-hidden rounded-[calc(var(--radius)-8px)] border border-border/70 bg-card/70">
                   <AgGridReact<ManualGridRow>
                     theme={theme}

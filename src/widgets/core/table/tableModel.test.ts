@@ -4,6 +4,7 @@ import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-fra
 import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 
 import { tableWidget } from "./definition";
+import { proTableWidget } from "./proDefinition";
 import {
   buildTableWidgetFrameFromRemoteData,
   buildTableWidgetRowKey,
@@ -529,5 +530,24 @@ describe("table widget definition selection outputs", () => {
     expect(outputContracts.get(TABLE_WIDGET_ACTIVE_CELL_OUTPUT_ID)).toBe(CORE_VALUE_JSON_CONTRACT);
     expect(outputContracts.get(TABLE_WIDGET_ACTIVE_CELL_VALUE_OUTPUT_ID)).toBe(CORE_VALUE_JSON_CONTRACT);
     expect(outputContracts.get(TABLE_WIDGET_SELECTED_CELL_VALUES_OUTPUT_ID)).toBe(CORE_VALUE_JSON_CONTRACT);
+  });
+
+  it("adds a Pro variant without changing the Community table contract", () => {
+    expect(tableWidget.id).toBe("table");
+    expect(proTableWidget.id).toBe("pro-table");
+    expect(tableWidget.registryContract?.capabilities).toMatchObject({
+      gridEdition: "community",
+      supportedSourceModes: ["bound", "connection", "connection-stream", "manual"],
+    });
+    expect(proTableWidget.registryContract?.capabilities).toMatchObject({
+      gridEdition: "enterprise",
+      supportedSourceModes: ["bound", "connection", "connection-stream", "manual"],
+    });
+
+    expect(
+      (proTableWidget.io?.outputs ?? []).map((output) => [output.id, output.contract]),
+    ).toEqual(
+      (tableWidget.io?.outputs ?? []).map((output) => [output.id, output.contract]),
+    );
   });
 });

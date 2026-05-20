@@ -1,12 +1,12 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import {
-  AllCommunityModule,
   type CellClickedEvent,
   type CellStyle,
   type ColDef,
   type GridApi,
   type ICellRendererParams,
+  type Module,
   type RowSelectionOptions,
   type SelectionChangedEvent,
 } from "ag-grid-community";
@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { mainSequenceSpaceTheme } from "@/themes/presets/main-sequence-space";
 import { getThemeTightnessMetrics } from "@/themes/tightness";
 import type { ThemeTightness, ThemeTokens } from "@/themes/types";
+import { communityAgGridModules } from "@/widgets/extensions/ag-grid/community-modules";
 import { createAgGridTerminalTheme } from "@/widgets/extensions/ag-grid/grid-theme";
 
 export type TableWidgetColumnFormat =
@@ -312,6 +313,7 @@ export interface TableFrameViewProps {
   dataErrorMessage?: string | null;
   emptyMessage?: string;
   getRowStyle?: (row: TableWidgetRow | undefined) => CSSProperties | undefined;
+  gridModules?: Module[];
   isDataLoading?: boolean;
   quickFilterPlaceholder?: string;
   resolvedProps: ResolvedTableWidgetProps;
@@ -336,7 +338,6 @@ interface TableFrameCellRendererParams
   tokens: ThemeTokens;
 }
 
-const agGridModules = [AllCommunityModule];
 const TABLE_FRAME_DEFAULT_DATETIME_OUTPUT_FORMAT = "yyyy-MM-dd HH:mm:ss";
 const numberFormatterCache = new Map<string, Intl.NumberFormat>();
 
@@ -1374,6 +1375,7 @@ export function TableFrameView({
   dataErrorMessage,
   emptyMessage = "No rows were returned for the selected period.",
   getRowStyle,
+  gridModules = communityAgGridModules,
   isDataLoading = false,
   quickFilterPlaceholder = "Quick filter rows, labels, and routes",
   resolvedProps,
@@ -1792,7 +1794,7 @@ export function TableFrameView({
   }
 
   return (
-    <AgGridProvider modules={agGridModules}>
+    <AgGridProvider modules={gridModules}>
       <div
         className={cn(
           "flex h-full min-h-[280px] flex-col overflow-hidden border border-border/70 text-foreground",

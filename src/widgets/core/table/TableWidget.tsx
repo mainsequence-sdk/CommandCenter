@@ -2,9 +2,10 @@ import { useCallback, useMemo } from "react";
 
 import { Database } from "lucide-react";
 
-import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
-import { useWorkspaceVariableReferenceRegistry } from "@/dashboards/DashboardWidgetDependencies";
-import { useTheme } from "@/themes/ThemeProvider";
+import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecutionContext";
+import { useWorkspaceVariableReferenceRegistry } from "@/dashboards/DashboardWidgetDependenciesContext";
+import { useTheme } from "@/themes/ThemeContext";
+import { communityAgGridModules } from "@/widgets/extensions/ag-grid/community-modules";
 import { useIncrementalTabularConsumerBindingState } from "@/widgets/shared/incremental-tabular-consumer";
 import { useResolvedTabularWidgetSourceBinding } from "@/widgets/shared/tabular-widget-source";
 import type { WidgetComponentProps } from "@/widgets/types";
@@ -22,8 +23,10 @@ import {
   type TableWidgetSelectionState,
   type TableWidgetProps,
 } from "./tableModel";
+import type { TableWidgetSharedOptions } from "./tableVariant";
 
 type Props = WidgetComponentProps<TableWidgetProps>;
+type TableWidgetComponentOptions = Pick<TableWidgetSharedOptions, "gridModules">;
 
 function TableWidgetSourceState({
   description,
@@ -45,13 +48,14 @@ function TableWidgetSourceState({
   );
 }
 
-export function TableWidget({
+function TableWidgetComponent({
   props,
   resolvedInputs,
   instanceId,
+  gridModules,
   runtimeState,
   onRuntimeStateChange,
-}: Props) {
+}: Props & TableWidgetComponentOptions) {
   const { resolvedTokens, tightness } = useTheme();
   const variableRegistry = useWorkspaceVariableReferenceRegistry();
   const normalizedProps = useMemo(
@@ -233,6 +237,7 @@ export function TableWidget({
   return (
     <TableFrameView
       dataErrorMessage={dataErrorMessage}
+      gridModules={gridModules}
       isDataLoading={isDataLoading}
       resolvedProps={resolvedProps}
       resolvedTokens={resolvedTokens}
@@ -245,3 +250,13 @@ export function TableWidget({
     />
   );
 }
+
+export function createTableWidgetComponent(options: TableWidgetComponentOptions) {
+  return function TableWidgetVariant(props: Props) {
+    return <TableWidgetComponent {...props} gridModules={options.gridModules} />;
+  };
+}
+
+export const TableWidget = createTableWidgetComponent({
+  gridModules: communityAgGridModules,
+});

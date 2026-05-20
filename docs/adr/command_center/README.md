@@ -51,6 +51,8 @@ one file or one feature folder.
 
 ## Widget Contract And Execution ADRs
 
+- [ADR 065: Shared Table Core With Community And Pro Table Widgets](./adr-065-shared-table-core-with-community-and-pro-table-widgets.md)
+- [ADR 066: Shared Table Formula Contract And Asset Screener Metric De-specialization](./adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization.md)
 - [ADR 064: Variable References as Widget Graph Edges](./adr-064-variable-reference-graph-integration.md)
 - [ADR 063: Rename Portfolio Weights Widget To Position Detail](./adr-063-position-detail-widget-rename.md)
 - [ADR 062: Typed Widget Module Pattern](./adr-062-typed-widget-module-pattern.md)

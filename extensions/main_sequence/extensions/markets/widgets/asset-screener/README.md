@@ -63,6 +63,11 @@ The screener now publishes the same interaction-style outputs as the core Table 
 
 These outputs are runtime-only. They do not mutate saved widget props or upstream data.
 
+Asset Screener interactions are row-oriented even when a downstream widget consumes
+`activeCell`, `activeCellValue`, or `selectedCellValues`. Clicking any screener cell selects the
+full asset row first, then records the clicked column as the active cell inside that selected row.
+The screener does not use free-form cell-range selection as its primary interaction model.
+
 Selection identity is always derived from the canonical asset key, not from a user-configured row
 field list. Internally the screener uses `unique_identifier` / `assetKey` so active selection can
 survive sorting, filtering, grouping, and live updates.
@@ -179,8 +184,8 @@ order.
 - `columnConfigMode` defaults to `source`. Do not reintroduce hardcoded default `columns` into
   `assetScreenerDefaultProps`; source metadata must be able to drive the effective table columns
   and settings must expose those derived columns before local overrides are saved.
-- The old shipped `Symbol/Name/Trend/Last/...` preset is treated as legacy display config and is
-  stripped during prop normalization. Existing widgets that still carry that preset are migrated
+- The old shipped screener market preset is treated as legacy display config and is stripped
+  during prop normalization. Existing widgets that still carry that copied preset are migrated
   back to source-driven columns instead of forcing stale local headers forever.
 - Persisted screener columns must not become the owner of shared table visuals. Source metadata
   should win over any stale copied screener `visual` snapshot so the screener resolves colors and

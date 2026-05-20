@@ -22,12 +22,6 @@ import {
 } from "@/widgets/core/table/tableModel";
 import { resolveIncrementalTabularBindingSnapshot } from "@/widgets/shared/incremental-tabular-consumer";
 import { materializeRuntimeTabularFrame, type RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
-import {
-  CORE_VALUE_INTEGER_CONTRACT,
-  CORE_VALUE_JSON_CONTRACT,
-  CORE_VALUE_NUMBER_CONTRACT,
-  CORE_VALUE_STRING_CONTRACT,
-} from "@/widgets/shared/value-contracts";
 import type { TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 import type {
   ResolvedWidgetInput,
@@ -89,24 +83,36 @@ export interface MainSequenceAssetScreenerFallbackFrames {
   liveUpdates?: TabularFrameSourceV1 | null;
 }
 
+function defaultAssetScreenerSort(): MainSequenceAssetScreenerSort {
+  return {
+    columnId: "pct",
+    direction: "desc",
+  };
+}
+
+function defaultAssetScreenerMaxRenderedRows() {
+  return 500;
+}
+
+function defaultAssetScreenerStaleAfterMs() {
+  return 5 * 60 * 1000;
+}
+
 export const assetScreenerDefaultProps = {
   assetScreenerSourceMode: "bound",
   columnConfigMode: "source",
   density: "compact",
   groupBy: "sector",
-  maxRenderedRows: 500,
+  maxRenderedRows: defaultAssetScreenerMaxRenderedRows(),
   showDiagnostics: true,
-  sort: {
-    columnId: "pct",
-    direction: "desc",
-  },
-  staleAfterMs: 5 * 60 * 1000,
+  sort: defaultAssetScreenerSort(),
+  staleAfterMs: defaultAssetScreenerStaleAfterMs(),
 } satisfies MainSequenceAssetScreenerWidgetProps;
 
 function stringValueDescriptor(description?: string): WidgetValueDescriptor {
   return {
     kind: "primitive",
-    contract: CORE_VALUE_STRING_CONTRACT,
+    contract: "core.value.string@v1",
     primitive: "string",
     description,
   };
@@ -115,7 +121,7 @@ function stringValueDescriptor(description?: string): WidgetValueDescriptor {
 function numberValueDescriptor(description?: string): WidgetValueDescriptor {
   return {
     kind: "primitive",
-    contract: CORE_VALUE_NUMBER_CONTRACT,
+    contract: "core.value.number@v1",
     primitive: "number",
     description,
   };
@@ -124,7 +130,7 @@ function numberValueDescriptor(description?: string): WidgetValueDescriptor {
 function integerValueDescriptor(description?: string): WidgetValueDescriptor {
   return {
     kind: "primitive",
-    contract: CORE_VALUE_INTEGER_CONTRACT,
+    contract: "core.value.integer@v1",
     primitive: "integer",
     description,
   };
@@ -133,7 +139,7 @@ function integerValueDescriptor(description?: string): WidgetValueDescriptor {
 function jsonValueDescriptor(description?: string): WidgetValueDescriptor {
   return {
     kind: "unknown",
-    contract: CORE_VALUE_JSON_CONTRACT,
+    contract: "core.value.json@v1",
     description,
   };
 }
@@ -141,7 +147,7 @@ function jsonValueDescriptor(description?: string): WidgetValueDescriptor {
 function tagsValueDescriptor(description?: string): WidgetValueDescriptor {
   return {
     kind: "array",
-    contract: CORE_VALUE_JSON_CONTRACT,
+    contract: "core.value.json@v1",
     description,
     items: stringValueDescriptor("One asset tag."),
   };
@@ -252,134 +258,11 @@ export function buildAssetScreenerActiveRowValueDescriptor(
 
   return {
     kind: "object",
-    contract: CORE_VALUE_JSON_CONTRACT,
+    contract: "core.value.json@v1",
     description: "Selected asset screener row.",
     fields,
   };
 }
-
-function normalizeColumnSignatureEntry(column: {
-  id?: unknown;
-  kind?: unknown;
-  label?: unknown;
-  field?: unknown;
-  valueField?: unknown;
-  referenceKey?: unknown;
-  returnMode?: unknown;
-}) {
-  return {
-    id: typeof column.id === "string" ? column.id : null,
-    kind: typeof column.kind === "string" ? column.kind : null,
-    label: typeof column.label === "string" ? column.label : null,
-    field: typeof column.field === "string" ? column.field : null,
-    valueField: typeof column.valueField === "string" ? column.valueField : null,
-    referenceKey: typeof column.referenceKey === "string" ? column.referenceKey : null,
-    returnMode: typeof column.returnMode === "string" ? column.returnMode : null,
-  };
-}
-
-function serializeColumnsForComparison(columns: unknown) {
-  if (!Array.isArray(columns)) {
-    return "[]";
-  }
-
-  return JSON.stringify(columns.map((column) =>
-    normalizeColumnSignatureEntry(isPlainRecord(column) ? column : {}),
-  ));
-}
-
-const legacyShippedAssetScreenerColumnsSignature = JSON.stringify([
-  {
-    id: "symbol",
-    kind: "asset-field",
-    label: "Symbol",
-    field: "symbol",
-    valueField: null,
-    referenceKey: null,
-    returnMode: null,
-  },
-  {
-    id: "name",
-    kind: "asset-field",
-    label: "Name",
-    field: "displayName",
-    valueField: null,
-    referenceKey: null,
-    returnMode: null,
-  },
-  {
-    id: "trend",
-    kind: "sparkline",
-    label: "Trend",
-    field: null,
-    valueField: "price",
-    referenceKey: null,
-    returnMode: null,
-  },
-  {
-    id: "last",
-    kind: "latest-value",
-    label: "Last",
-    field: null,
-    valueField: "price",
-    referenceKey: null,
-    returnMode: null,
-  },
-  {
-    id: "net",
-    kind: "return",
-    label: "Net Chg",
-    field: null,
-    valueField: "price",
-    referenceKey: "previousClose",
-    returnMode: "absolute",
-  },
-  {
-    id: "pct",
-    kind: "return",
-    label: "% Chg",
-    field: null,
-    valueField: "price",
-    referenceKey: "previousClose",
-    returnMode: "percent",
-  },
-  {
-    id: "mtd",
-    kind: "return",
-    label: "1M",
-    field: null,
-    valueField: "price",
-    referenceKey: "oneMonthAgo",
-    returnMode: "percent",
-  },
-  {
-    id: "ytd",
-    kind: "return",
-    label: "YTD",
-    field: null,
-    valueField: "price",
-    referenceKey: "yearStart",
-    returnMode: "percent",
-  },
-  {
-    id: "oneYear",
-    kind: "return",
-    label: "1Y",
-    field: null,
-    valueField: "price",
-    referenceKey: "oneYearAgo",
-    returnMode: "percent",
-  },
-  {
-    id: "sector",
-    kind: "asset-field",
-    label: "Sector",
-    field: "sector",
-    valueField: null,
-    referenceKey: null,
-    returnMode: null,
-  },
-]);
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -415,7 +298,7 @@ export function normalizeAssetScreenerColumnConfigMode(
 
 function normalizeSort(value: unknown): MainSequenceAssetScreenerSort | undefined {
   if (!isPlainRecord(value)) {
-    return assetScreenerDefaultProps.sort;
+    return defaultAssetScreenerSort();
   }
 
   const columnId = normalizeString(value.columnId);
@@ -457,6 +340,71 @@ function normalizeColumns(value: unknown) {
   return columns.length > 0 ? columns : undefined;
 }
 
+function isLegacyAssetScreenerDisplayConfig(
+  columns: MarketAssetScreenerColumn[] | undefined,
+): boolean {
+  if (!columns || columns.length !== 10) {
+    return false;
+  }
+
+  const assetFields = columns.filter((column) => column.kind === "asset-field");
+  const latestColumns = columns.filter((column) => column.kind === "latest-value");
+  const sparklineColumns = columns.filter((column) => column.kind === "sparkline");
+  const returnColumns = columns.filter((column) => column.kind === "return");
+
+  if (
+    assetFields.length !== 3 ||
+    latestColumns.length !== 1 ||
+    sparklineColumns.length !== 1 ||
+    returnColumns.length !== 5
+  ) {
+    return false;
+  }
+
+  const assetFieldSet = new Set(assetFields.map((column) => column.field));
+
+  if (
+    assetFieldSet.size !== 3 ||
+    !assetFieldSet.has("symbol") ||
+    !assetFieldSet.has("displayName") ||
+    !assetFieldSet.has("sector")
+  ) {
+    return false;
+  }
+
+  const trackedValueField = latestColumns[0]?.valueField;
+
+  if (
+    typeof trackedValueField !== "string" ||
+    !trackedValueField ||
+    sparklineColumns[0]?.valueField !== trackedValueField
+  ) {
+    return false;
+  }
+
+  if (returnColumns.some((column) => column.valueField !== trackedValueField)) {
+    return false;
+  }
+
+  const returnModeCounts = returnColumns.reduce<Record<string, number>>((accumulator, column) => {
+    accumulator[column.returnMode] = (accumulator[column.returnMode] ?? 0) + 1;
+    return accumulator;
+  }, {});
+  const referenceKeyCounts = returnColumns.reduce<Record<string, number>>((accumulator, column) => {
+    accumulator[column.referenceKey] = (accumulator[column.referenceKey] ?? 0) + 1;
+    return accumulator;
+  }, {});
+
+  return (
+    returnModeCounts.absolute === 1 &&
+    returnModeCounts.percent === 4 &&
+    referenceKeyCounts.previousClose === 2 &&
+    referenceKeyCounts.oneMonthAgo === 1 &&
+    referenceKeyCounts.yearStart === 1 &&
+    referenceKeyCounts.oneYearAgo === 1
+  );
+}
+
 export function prepareAssetScreenerColumnsForPersistence(
   columns: MarketAssetScreenerColumn[] | undefined,
 ) : MarketAssetScreenerColumn[] | undefined {
@@ -493,11 +441,9 @@ export function stripLegacyAssetScreenerDisplayConfig(
   props: MainSequenceAssetScreenerWidgetProps | Record<string, unknown> | undefined,
 ): MainSequenceAssetScreenerWidgetProps | Record<string, unknown> {
   const value = props ?? {};
+  const normalizedColumns = normalizeColumns(isPlainRecord(value) ? value.columns : undefined);
 
-  if (
-    serializeColumnsForComparison(isPlainRecord(value) ? value.columns : undefined) !==
-    legacyShippedAssetScreenerColumnsSignature
-  ) {
+  if (!isLegacyAssetScreenerDisplayConfig(normalizedColumns)) {
     return value;
   }
 
@@ -539,13 +485,13 @@ export function normalizeAssetScreenerProps(
     groupBy: legacyGroupBy,
     maxRenderedRows: normalizePositiveInteger(
       value.maxRenderedRows,
-      assetScreenerDefaultProps.maxRenderedRows,
+      defaultAssetScreenerMaxRenderedRows(),
     ),
     showDiagnostics: value.showDiagnostics !== false,
     sort: normalizeSort(value.sort),
     staleAfterMs: normalizeNonNegativeNumber(
       value.staleAfterMs,
-      assetScreenerDefaultProps.staleAfterMs,
+      defaultAssetScreenerStaleAfterMs(),
     ),
     table,
   };

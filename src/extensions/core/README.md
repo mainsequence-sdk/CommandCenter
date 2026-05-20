@@ -13,7 +13,7 @@ This extension owns the built-in registry entries that ship with Command Center 
 - the `Workspaces` app and its local-development workspace builder flows
 - the admin-facing built-in apps
 - the shared user-settings `Credits & Billing` section for personal credit state
-- the live core widget catalog, currently `markdown-note`, `app-component`, and the collapsible `workspace-row`
+- the live core widget catalog, including the shared `table` and additive `pro-table` widgets
 - bundled theme presets that belong to the shell
 
 ## Bundled themes
@@ -25,7 +25,8 @@ This extension owns the built-in registry entries that ship with Command Center 
 ## Dependencies
 
 - Core widget source still lives under `src/widgets/core/`.
-- This extension currently registers `markdown-note`, `app-component`, and `workspace-row` in the live widget catalog.
+- This extension currently registers the built-in core widget catalog, including `table` and
+  `pro-table`, in the live widget catalog.
 - Treat `AppComponent`, `Markdown`, and `Row` as core shell widgets. Their stable widget ids,
   props, and runtime behavior should stay generic and must not be reclassified as Main Sequence
   product widgets.

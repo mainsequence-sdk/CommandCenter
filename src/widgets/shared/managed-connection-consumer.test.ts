@@ -4,6 +4,7 @@ import {
   buildManagedConnectionConsumerDraftSignature,
   type AnyManagedConnectionConsumerAdapter,
 } from "./managed-connection-consumer";
+import { getManagedConnectionConsumerAdapter } from "./managed-connection-consumer-registry";
 
 const testAdapter = {
   widgetId: "table",
@@ -79,5 +80,18 @@ describe("buildManagedConnectionConsumerDraftSignature", () => {
         baseProps,
       ),
     );
+  });
+
+  it("registers pro-table as a managed connection consumer on the shared table adapter path", () => {
+    const adapter = getManagedConnectionConsumerAdapter("pro-table");
+
+    expect(adapter).not.toBeNull();
+    expect(adapter).toMatchObject({
+      widgetId: "pro-table",
+      sourceInputId: "seedData",
+      streamSourceInputId: "liveUpdates",
+      sourceOutputId: "dataset",
+      streamSourceOutputId: "updates",
+    });
   });
 });

@@ -1,12 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { getWidgetById } from "@/app/registry";
 import {
@@ -18,17 +10,12 @@ import { useDashboardControls } from "@/dashboards/DashboardControls";
 import {
   resolveDashboardSurfaceHydrationState,
   shouldStartDashboardSurfaceReturnHydration,
-  shouldSuppressPassiveUpstreamResolution,
   type DashboardExecutionSurface,
   type DashboardSurfaceHydrationReason,
 } from "@/dashboards/dashboard-surface-hydration";
 import {
   beginDashboardRequestTraceCycle,
-  buildDashboardExecutionRequestTraceMeta,
   completeDashboardRequestTraceCycle,
-  type DashboardRequestTraceMeta,
-  type DashboardRequestTraceReason,
-  type DashboardRequestTraceSource,
 } from "@/dashboards/dashboard-request-trace";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import {
@@ -44,15 +31,12 @@ import {
   listDashboardWidgetExecutionOrder,
   listDashboardRefreshableExecutionTargets,
   planDashboardVariableDrivenCommit,
-  type DashboardUpstreamResolutionRequirement,
-  type DashboardVariableDrivenCommitPlan,
   type DashboardWidgetGraphExecutionResult,
 } from "@/dashboards/widget-graph-execution";
 import type {
   WidgetDefinition,
   WidgetExecutionContext,
   WidgetExecutionDashboardState,
-  WidgetExecutionReason,
   WidgetExecutionSurface,
   WidgetExecutionTargetOverrides,
 } from "@/widgets/types";
@@ -60,103 +44,19 @@ import {
   createRuntimeDataStore,
   RuntimeDataStoreProvider,
 } from "@/widgets/shared/runtime-data-store";
-
-export interface WidgetExecutionState {
-  status: "idle" | "running" | "success" | "error";
-  reason?: WidgetExecutionReason;
-  targetInstanceId?: string;
-  startedAtMs?: number;
-  finishedAtMs?: number;
-  error?: string;
-}
-
-export interface ExecuteWidgetGraphOptions {
-  reason: WidgetExecutionReason;
-  refreshCycleId?: string;
-  targetOverrides?: WidgetExecutionTargetOverrides;
-  persistTargetRuntimeStateWithOverrides?: boolean;
-  sourceBoundaryInstanceId?: string;
-  signal?: AbortSignal;
-}
-
-export interface ResolveWidgetUpstreamOptions {
-  targetOverrides?: WidgetExecutionTargetOverrides;
-}
-
-export interface ResolveWidgetUpstreamHookOptions
-  extends ResolveWidgetUpstreamOptions {
-  enabled: boolean;
-}
+import {
+  DashboardWidgetExecutionContext,
+  type DashboardWidgetExecutionContextValue,
+  type DashboardVariableDrivenCommitExecutionResult,
+  type DashboardWidgetFlowExecutionResult,
+  type ExecuteWidgetGraphOptions,
+  type ResolveWidgetUpstreamOptions,
+  type WidgetExecutionState,
+} from "./DashboardWidgetExecutionContext";
 
 interface PassiveUpstreamResolutionOptions extends ResolveWidgetUpstreamOptions {
   settledKey: string;
 }
-
-export interface DashboardWidgetFlowExecutionResult {
-  status: "success" | "error" | "skipped";
-  error?: string;
-  widgets: DashboardWidgetInstance[];
-  sourceInstanceId: string;
-  sourceResult: DashboardWidgetGraphExecutionResult;
-  downstreamResults: DashboardWidgetGraphExecutionResult[];
-  executedInstanceIds: Set<string>;
-}
-
-export interface DashboardVariableDrivenCommitExecutionResult {
-  status: "success" | "error" | "skipped";
-  error?: string;
-  changedWidgetId: string;
-  plan: DashboardVariableDrivenCommitPlan;
-  widgets: DashboardWidgetInstance[];
-  downstreamResults: DashboardWidgetGraphExecutionResult[];
-  executedInstanceIds: Set<string>;
-}
-
-interface DashboardWidgetExecutionContextValue {
-  scopeId: string;
-  activeSurface: DashboardExecutionSurface;
-  executionSurface: WidgetExecutionSurface;
-  publicWorkspaceToken?: string;
-  activeRefreshCycleId?: string;
-  initialHydrationActive: boolean;
-  dashboardSurfaceHydrationActive: boolean;
-  dashboardSurfaceHydrationReason?: DashboardSurfaceHydrationReason;
-  getWidgetInstance: (instanceId?: string) => DashboardWidgetInstance | undefined;
-  executeWidgetGraph: (
-    targetInstanceId: string,
-    options: ExecuteWidgetGraphOptions,
-  ) => Promise<DashboardWidgetGraphExecutionResult>;
-  executeWidgetFlow: (
-    sourceInstanceId: string,
-    options: ExecuteWidgetGraphOptions,
-  ) => Promise<DashboardWidgetFlowExecutionResult>;
-  executeVariableDrivenWidgetCommit: (input: {
-    changedWidgetId: string;
-    beforeWidgets: DashboardWidgetInstance[];
-    afterWidgets: DashboardWidgetInstance[];
-    changeOrigin?: "settings" | "runtime";
-  }) => Promise<DashboardVariableDrivenCommitExecutionResult>;
-  resolveUpstream: (
-    targetInstanceId: string,
-    options?: ResolveWidgetUpstreamOptions,
-  ) => Promise<DashboardWidgetGraphExecutionResult>;
-  resolvePassiveUpstream: (
-    targetInstanceId: string,
-    options: PassiveUpstreamResolutionOptions,
-  ) => Promise<void>;
-  getExecutionState: (instanceId?: string) => WidgetExecutionState | undefined;
-  getUpstreamRequirement: (
-    instanceId?: string,
-    options?: ResolveWidgetUpstreamOptions,
-  ) => DashboardUpstreamResolutionRequirement | undefined;
-  publishRuntimeState: (
-    instanceId: string,
-    runtimeState: Record<string, unknown> | undefined,
-  ) => void;
-}
-
-const DashboardWidgetExecutionContext =
-  createContext<DashboardWidgetExecutionContextValue | null>(null);
 
 function serializeExecutionOverrides(value: WidgetExecutionTargetOverrides | undefined) {
   if (!value) {
@@ -1384,106 +1284,12 @@ export function DashboardWidgetExecutionProvider({
   );
 }
 
-export function useDashboardWidgetExecution() {
-  return useContext(DashboardWidgetExecutionContext);
-}
-
-export function useResolveWidgetUpstream(
-  instanceId: string | undefined,
-  options: ResolveWidgetUpstreamHookOptions,
-) {
-  const context = useDashboardWidgetExecution();
-  const lastRequestKeyRef = useRef("");
-  const { enabled, targetOverrides } = options;
-  const upstreamRequirement = useMemo(
-    () => context?.getUpstreamRequirement(instanceId, { targetOverrides }),
-    [context, instanceId, targetOverrides],
-  );
-
-  useEffect(() => {
-    if (!context || !instanceId || !enabled || !upstreamRequirement?.needsResolution) {
-      lastRequestKeyRef.current = "";
-      return;
-    }
-
-    if (
-      shouldSuppressPassiveUpstreamResolution({
-        dashboardSurfaceHydrationActive:
-          context.dashboardSurfaceHydrationActive === true,
-      })
-    ) {
-      lastRequestKeyRef.current = "";
-      return;
-    }
-
-    const nextRequestKey = `${instanceId}::${upstreamRequirement.settledKey}`;
-
-    if (lastRequestKeyRef.current === nextRequestKey) {
-      return;
-    }
-
-    lastRequestKeyRef.current = nextRequestKey;
-    void context.resolvePassiveUpstream(instanceId, {
-      targetOverrides,
-      settledKey: upstreamRequirement.settledKey,
-    }).catch(() => undefined);
-  }, [
-    context,
-    enabled,
-    instanceId,
-    targetOverrides,
-    upstreamRequirement?.needsResolution,
-    upstreamRequirement?.settledKey,
-  ]);
-
-  return upstreamRequirement;
-}
-
-export function useEnsureWidgetGraphResolved(
-  instanceId: string | undefined,
-  options: ResolveWidgetUpstreamHookOptions,
-) {
-  return useResolveWidgetUpstream(instanceId, options);
-}
-
-export function useWidgetExecutionState(instanceId?: string) {
-  const context = useDashboardWidgetExecution();
-
-  return useMemo(
-    () => context?.getExecutionState(instanceId),
-    [context, instanceId],
-  );
-}
-
-export function useDashboardWidgetRequestTraceMeta({
-  instanceId,
-  reason,
-  source = "component",
-  widgetId,
-}: {
-  instanceId?: string;
-  reason?: DashboardRequestTraceReason;
-  source?: DashboardRequestTraceSource;
-  widgetId?: string;
-}) {
-  const context = useDashboardWidgetExecution();
-
-  return useMemo<DashboardRequestTraceMeta | undefined>(() => {
-    if (!context?.scopeId) {
-      return undefined;
-    }
-
-    return {
-      scopeId: context.scopeId,
-      refreshCycleId: context.activeRefreshCycleId,
-      instanceId,
-      widgetId,
-      source,
-      reason:
-        reason ??
-        (context.activeRefreshCycleId ? "dashboard-refresh" : "component-query"),
-    };
-  }, [context?.activeRefreshCycleId, context?.scopeId, instanceId, reason, source, widgetId]);
-}
-
-export { buildDashboardExecutionRequestTraceMeta };
+export {
+  buildDashboardExecutionRequestTraceMeta,
+  useDashboardWidgetExecution,
+  useDashboardWidgetRequestTraceMeta,
+  useEnsureWidgetGraphResolved,
+  useResolveWidgetUpstream,
+  useWidgetExecutionState,
+} from "./DashboardWidgetExecutionContext";
+export type { WidgetExecutionState } from "./DashboardWidgetExecutionContext";

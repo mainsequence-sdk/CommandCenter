@@ -1,20 +1,27 @@
-# Table Widget
+# Table Widgets
 
-This folder owns the core `table` widget. It is a generic consumer for `core.tabular_frame@v1`
-datasets, plus a manual table editor that also republishes one canonical tabular frame.
+This folder owns the core `table` and `pro-table` widgets. Both are generic consumers for
+`core.tabular_frame@v1` datasets, plus a manual table editor that also republishes one canonical
+tabular frame.
 
 ## Entry Points
 
-- `definition.ts`: core widget definition, IO metadata, registry contract, agent snapshot, and settings/component wiring.
-- `TableWidget.tsx`: source/binding owner for the generic table widget. It resolves bound,
-  manual, connection, and incremental table sources, then delegates rendering to `TableFrameView`.
+- `definition.shared.ts`: shared widget-definition factory for `table` and `pro-table`.
+- `definition.ts`: Community `table` widget entrypoint.
+- `proDefinition.ts`: Enterprise-backed `pro-table` widget entrypoint.
+- `TableWidget.tsx`: source/binding owner for the shared table runtime. It resolves bound, manual,
+  connection, and incremental table sources, then delegates rendering to `TableFrameView`.
 - `TableFrameView.tsx`: reusable AG Grid-backed table frame renderer for table-backed widgets.
   It owns table-native formatting, threshold rules, heatmaps, data bars, gauges, quick filtering,
-  schema validation display, and optional per-column custom cell renderers.
-- `TableWidgetSettings.tsx`: settings editor for source binding status, manual rows, compact per-column schema controls, selection outputs, collapsible advanced formatting, datetime display patterns, value labels, and per-column numeric threshold rules.
-- `managedConnectionConsumer.ts`: shared managed-connection adapter that lets the generic widget-settings route create one hidden `connection-query` or `connection-stream-query` source for this table.
+  schema validation display, optional per-column custom cell renderers, and variant-specific AG
+  Grid module injection.
+- `TableWidgetSettings.tsx`: shared settings editor for Community and Pro table widgets.
+- `managedConnectionConsumer.ts`: shared managed-connection adapters for `table` and `pro-table`
+  so the generic widget-settings route can create one hidden `connection-query` or
+  `connection-stream-query` source for either widget id.
 - `ManualTableEditor.tsx`: spreadsheet-style editor for manual display rows.
 - `tableModel.ts`: table configuration normalization, frame adaptation, schema resolution, selection output resolution, formatting helpers, datetime parsing/rendering, and validation.
+- `tableVariant.ts`: shared Community vs Pro variant typing for the table-definition layer.
 - `USAGE_GUIDANCE.md`: registry-synced authoring guidance.
 
 ## Behavior
@@ -103,10 +110,17 @@ datasets, plus a manual table editor that also republishes one canonical tabular
   the card surface and floating column filters; specialized consumers such as Asset Screener can
   opt into a transparent surface and disable per-column filters while still reusing table
   formatting, conditional rules, and custom cell rendering.
+- `table` and `pro-table` intentionally reuse the same table model, source handling, settings
+  surface, selection outputs, and canonical dataset publication. The only intended divergence is
+  widget identity plus AG Grid module capability wiring.
 
 ## Maintenance Constraints
 
-- Keep the registered id as `table`.
+- Keep the registered ids stable as `table` and `pro-table`.
+- Keep `table` backward compatible. Existing saved `table` widgets must keep rendering without a
+  forced migration when `pro-table` evolves.
+- Keep `pro-table` additive. It is a second widget id on the same shared table core, not a forked
+  table implementation.
 - Keep accepted input aligned with `core.tabular_frame@v1`.
 - Keep the primary published output aligned with `core.tabular_frame@v1`; selection-specific JSON
   outputs must remain derived from runtime interaction state.
@@ -122,7 +136,7 @@ datasets, plus a manual table editor that also republishes one canonical tabular
   contract is unchanged and persisted widget props are unchanged.
 - Do not reintroduce table-owned date-range or source-resolution runtime behavior; execution and
   refresh belong upstream to Connection Query and Tabular Transform.
-- Keep AG Grid usage inside the community feature set unless a future change explicitly documents
-  an enterprise dependency.
+- Keep Community and Enterprise wiring isolated to the variant entrypoints and shared AG Grid
+  utility helpers. Do not duplicate table logic just to expose Enterprise-backed widgets.
 - Bump `widgetVersion` when props, accepted input behavior, registry metadata, or user-facing
   authoring semantics change.

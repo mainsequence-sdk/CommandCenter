@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type DragEvent as ReactDragEvent } from "react";
+import type { Module } from "ag-grid-community";
 import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,8 @@ import { resolveManagedConnectionQuerySource } from "@/connections/managedConnec
 import { useDashboardWidgetRegistry } from "@/dashboards/DashboardWidgetRegistry";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { useTheme } from "@/themes/ThemeProvider";
+import { useTheme } from "@/themes/ThemeContext";
+import { communityAgGridModules } from "@/widgets/extensions/ag-grid/community-modules";
 import {
   widgetTightFormButtonGroupClass,
   widgetTightFormColorInputClass,
@@ -74,6 +76,9 @@ import {
 } from "./tableModel";
 
 export interface TableWidgetSettingsOptions {
+  editionLabel?: string;
+  enterpriseModules?: boolean;
+  gridModules?: Module[];
   hideToolbarSearchToggles?: boolean;
   hidePaginationControls?: boolean;
   presentationFrameInput?: TableWidgetResolvedFrameInput | null;
@@ -162,6 +167,34 @@ function parseSelectionKeyFields(value: string) {
         .map((entry) => entry.trim())
         .filter(Boolean),
     ),
+  );
+}
+
+type TableWidgetSettingsFactoryOptions = Pick<
+  TableWidgetSettingsOptions,
+  "editionLabel" | "enterpriseModules" | "gridModules"
+>;
+
+export function createTableWidgetSettingsComponent(
+  options: TableWidgetSettingsFactoryOptions,
+) {
+  return function TableWidgetSettingsVariant(
+    props: WidgetSettingsComponentProps<TableWidgetProps>,
+  ) {
+    return <TableWidgetSettingsComponent {...props} {...options} />;
+  };
+}
+
+export function TableWidgetSettings(
+  props: WidgetSettingsComponentProps<TableWidgetProps> & TableWidgetSettingsOptions,
+) {
+  return (
+    <TableWidgetSettingsComponent
+      {...props}
+      editionLabel={props.editionLabel ?? "Table"}
+      enterpriseModules={props.enterpriseModules ?? false}
+      gridModules={props.gridModules ?? communityAgGridModules}
+    />
   );
 }
 
@@ -371,10 +404,13 @@ function stripLegacyTableSourceFields(
   return nextValue;
 }
 
-export function TableWidgetSettings({
+function TableWidgetSettingsComponent({
   instanceId,
   draftProps,
+  editionLabel = "Table",
   editable,
+  enterpriseModules = false,
+  gridModules = communityAgGridModules,
   onDraftPropsChange,
   hideToolbarSearchToggles = false,
   hidePaginationControls = false,
@@ -814,6 +850,14 @@ export function TableWidgetSettings({
         </Button>
       </div>
 
+      {enterpriseModules ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-3 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{editionLabel}</span> uses the same shared
+          table contract, settings surface, and output semantics as <span className="font-medium text-foreground">Table</span>,
+          but renders through AG Grid Enterprise modules.
+        </div>
+      ) : null}
+
       {shouldShowSchemaValidation ? (
         <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
           <div className="font-medium text-foreground">Wrong schema affects rendering</div>
@@ -876,6 +920,7 @@ export function TableWidgetSettings({
                 columns={manualColumns}
                 rows={manualRows}
                 editable={editable}
+                gridModules={gridModules}
                 onChange={({ columns: nextColumns, rows: nextRows }) => {
                   commit({
                     ...scopedDraft,

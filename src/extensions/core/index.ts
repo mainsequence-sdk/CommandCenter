@@ -48,6 +48,7 @@ import { graphWidget } from "@/widgets/core/graph/definition";
 import { tabularTransformWidget } from "@/widgets/core/tabular-transform/definition";
 import { statisticWidget } from "@/widgets/core/statistic/definition";
 import { tableWidget } from "@/widgets/core/table/definition";
+import { proTableWidget } from "@/widgets/core/table/proDefinition";
 import { workspaceRowWidget } from "@/widgets/core/workspace-row/definition";
 import { workspaceSlideWidget } from "@/widgets/core/workspace-slide/definition";
 
@@ -675,6 +676,7 @@ const coreExtension: AppExtension = {
     debugStreamWidget,
     tabularTransformWidget,
     tableWidget,
+    proTableWidget,
     graphWidget,
     statisticWidget,
     workspaceRowWidget,

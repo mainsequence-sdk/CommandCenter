@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import { useDashboardWidgetRegistry, type DashboardWidgetRegistryEntry } from "@/dashboards/DashboardWidgetRegistry";
-import { useResolvedWidgetInput } from "@/dashboards/DashboardWidgetDependencies";
+import { useResolvedWidgetInput } from "@/dashboards/DashboardWidgetDependenciesContext";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   LEGACY_TIME_SERIES_FRAME_SOURCE_CONTRACT,

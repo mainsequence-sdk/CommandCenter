@@ -63,6 +63,35 @@ type AssetScreenerResolvedRowSelection = {
   rowObject: AssetScreenerTableRowObject;
 };
 
+function normalizeAssetScreenerSelectionMode(
+  mode: TableWidgetSelectionMode,
+): TableWidgetSelectionMode {
+  return mode === "cell" ? "single-row" : mode;
+}
+
+function normalizeAssetScreenerSelectionStateMode(
+  selection: TableWidgetSelectionState,
+): TableWidgetSelectionState {
+  const normalizedMode = normalizeAssetScreenerSelectionMode(selection.mode);
+
+  return normalizedMode === selection.mode
+    ? selection
+    : {
+        ...selection,
+        mode: normalizedMode,
+      };
+}
+
+function resolveAssetScreenerPublishedSelectionMode(
+  props: Pick<ResolvedTableWidgetProps, "publishSelectionOutputs" | "selectionMode">,
+  selection: TableWidgetSelectionState,
+  referencedOutputIds?: Iterable<string>,
+) {
+  return normalizeAssetScreenerSelectionMode(
+    resolveEffectivePublishedSelectionMode(props, selection, referencedOutputIds),
+  );
+}
+
 function cloneJsonValue<T>(value: T): T {
   if (value === null || value === undefined || typeof value !== "object") {
     return value;
@@ -166,26 +195,27 @@ function sanitizeAssetScreenerSelectionState(
   selection: TableWidgetSelectionState,
   rowObjects: TableWidgetRow[],
 ): TableWidgetSelectionState {
+  const normalizedSelection = normalizeAssetScreenerSelectionStateMode(selection);
   const lookups = createAssetScreenerSelectionRowLookups(rowObjects);
   const selectedRows = uniqueAssetScreenerSelectionRows([
-    ...selection.selectedRowKeys.map((rowKey) =>
+    ...normalizedSelection.selectedRowKeys.map((rowKey) =>
       resolveAssetScreenerSelectionRow({ rowKey, rowIndex: -1 }, lookups)
     ),
-    ...selection.selectedRowIndices.map((rowIndex) =>
+    ...normalizedSelection.selectedRowIndices.map((rowIndex) =>
       resolveAssetScreenerSelectionRow({ rowIndex }, lookups)
     ),
-    ...selection.selectedCells.map((cell) =>
+    ...normalizedSelection.selectedCells.map((cell) =>
       resolveAssetScreenerSelectionRow(cell, lookups)
     ),
   ]);
-  const activeCellRow = selection.activeCell
-    ? resolveAssetScreenerSelectionRow(selection.activeCell, lookups)
+  const activeCellRow = normalizedSelection.activeCell
+    ? resolveAssetScreenerSelectionRow(normalizedSelection.activeCell, lookups)
     : null;
   const activeRow =
     resolveAssetScreenerSelectionRow(
       {
-        rowKey: selection.activeRowKey,
-        rowIndex: selection.activeRowIndex ?? -1,
+        rowKey: normalizedSelection.activeRowKey,
+        rowIndex: normalizedSelection.activeRowIndex ?? -1,
       },
       lookups,
     ) ??
@@ -193,7 +223,7 @@ function sanitizeAssetScreenerSelectionState(
   const selectedRowsWithActive = activeRow
     ? uniqueAssetScreenerSelectionRows([...selectedRows, activeRow])
     : selectedRows;
-  const selectedCells = selection.selectedCells.flatMap((cell) => {
+  const selectedCells = normalizedSelection.selectedCells.flatMap((cell) => {
     const resolvedRow = resolveAssetScreenerSelectionRow(cell, lookups);
 
     if (!resolvedRow) {
@@ -209,25 +239,38 @@ function sanitizeAssetScreenerSelectionState(
   });
 
   return {
-    ...selection,
+    ...normalizedSelection,
     selectedRowKeys: selectedRowsWithActive.map((row) => row.rowKey),
     selectedRowIndices: selectedRowsWithActive.map((row) => row.rowIndex),
     activeRowKey: activeRow?.rowKey,
     activeRowIndex: activeRow?.rowIndex,
     activeCell:
-      selection.activeCell && activeCellRow
+      normalizedSelection.activeCell && activeCellRow
         ? {
-            ...selection.activeCell,
+            ...normalizedSelection.activeCell,
             rowKey: activeCellRow.rowKey,
             rowIndex: activeCellRow.rowIndex,
             value:
-              selection.activeCell.value ??
-              activeCellRow.rowObject[selection.activeCell.columnKey] ??
+              normalizedSelection.activeCell.value ??
+              activeCellRow.rowObject[normalizedSelection.activeCell.columnKey] ??
               null,
           }
         : undefined,
     selectedCells,
   };
+}
+
+function normalizeAssetScreenerSelectionRuntimeState(
+  runtimeState: unknown,
+): unknown {
+  const normalizedSelection = normalizeAssetScreenerSelectionStateMode(
+    normalizeTableWidgetSelectionState(runtimeState),
+  );
+
+  return withTableWidgetSelectionRuntimeState(
+    runtimeState as Record<string, unknown> | undefined,
+    normalizedSelection,
+  );
 }
 
 function firstResolvedInput(
@@ -762,7 +805,9 @@ export function AssetScreenerWidget({
     [normalizedProps.density, normalizedProps.table, tableFrame.frame],
   );
   const selectionState = useMemo(
-    () => normalizeTableWidgetSelectionState(runtimeState),
+    () => normalizeAssetScreenerSelectionStateMode(
+      normalizeTableWidgetSelectionState(runtimeState),
+    ),
     [runtimeState],
   );
   const referencedOutputIds = useMemo(
@@ -786,7 +831,7 @@ export function AssetScreenerWidget({
         normalizedProps.table?.selectionMode === "single-row" ||
         normalizedProps.table?.selectionMode === "multi-row" ||
         normalizedProps.table?.selectionMode === "cell"
-          ? normalizedProps.table.selectionMode
+          ? normalizeAssetScreenerSelectionMode(normalizedProps.table.selectionMode)
           : "none",
     }),
     [
@@ -796,7 +841,7 @@ export function AssetScreenerWidget({
   );
   const effectiveSelectionMode = useMemo(
     () =>
-      resolveEffectivePublishedSelectionMode(
+      resolveAssetScreenerPublishedSelectionMode(
         selectionOutputProps,
         selectionState,
         referencedOutputIds,
@@ -1060,6 +1105,7 @@ function buildAssetScreenerPublicFrame(
 type AssetScreenerOutputContext = {
   columns: MarketAssetScreenerColumn[];
   effectiveSelectionMode: TableWidgetSelectionMode;
+  normalizedRuntimeState: unknown;
   publicFrame: TabularFrameSourceV1;
   sourceFrame?: TabularFrameSourceV1 | null;
 };
@@ -1090,33 +1136,37 @@ function buildAssetScreenerOutputContext({
     sourceFrame: state.sourceFrame,
     sourceColumns: state.sourceColumns,
   });
-  const selection = normalizeTableWidgetSelectionState(runtimeState);
+  const selection = normalizeAssetScreenerSelectionStateMode(
+    normalizeTableWidgetSelectionState(runtimeState),
+  );
   const publicFrame = buildAssetScreenerPublicFrame(
     state.filteredRows,
     state.columns,
     state.sourceFrame,
   );
-    const selectionOutputProps: Pick<
-      ResolvedTableWidgetProps,
-      "publishSelectionOutputs" | "selectionMode" | "selectionKeyFields" | "uniqueIdentifierList"
-    > = {
-      publishSelectionOutputs: normalizedProps.table?.publishSelectionOutputs !== false,
-      selectionMode:
-        normalizedProps.table?.selectionMode === "single-row" ||
-        normalizedProps.table?.selectionMode === "multi-row" ||
-        normalizedProps.table?.selectionMode === "cell"
-        ? normalizedProps.table.selectionMode
+  const normalizedRuntimeState = normalizeAssetScreenerSelectionRuntimeState(runtimeState);
+  const selectionOutputProps: Pick<
+    ResolvedTableWidgetProps,
+    "publishSelectionOutputs" | "selectionMode" | "selectionKeyFields" | "uniqueIdentifierList"
+  > = {
+    publishSelectionOutputs: normalizedProps.table?.publishSelectionOutputs !== false,
+    selectionMode:
+      normalizedProps.table?.selectionMode === "single-row" ||
+      normalizedProps.table?.selectionMode === "multi-row" ||
+      normalizedProps.table?.selectionMode === "cell"
+        ? normalizeAssetScreenerSelectionMode(normalizedProps.table.selectionMode)
         : "none",
-      selectionKeyFields: ["assetKey"],
-      uniqueIdentifierList: ["assetKey"],
-    };
+    selectionKeyFields: ["assetKey"],
+    uniqueIdentifierList: ["assetKey"],
+  };
 
   return {
     columns: state.columns,
-    effectiveSelectionMode: resolveEffectivePublishedSelectionMode(
+    effectiveSelectionMode: resolveAssetScreenerPublishedSelectionMode(
       selectionOutputProps,
       selection,
     ),
+    normalizedRuntimeState,
     publicFrame,
     sourceFrame: state.sourceFrame,
   };
@@ -1147,7 +1197,7 @@ export function resolveAssetScreenerSelectedRowsOutput({
       selectionKeyFields: ["assetKey"],
       uniqueIdentifierList: ["assetKey"],
     },
-    runtimeState,
+    context.normalizedRuntimeState,
   );
   const columns = buildAssetScreenerSelectedRowsOutputColumns(context.columns, selectedRows);
 
@@ -1185,7 +1235,7 @@ export function resolveAssetScreenerActiveRowOutput(input: {
       selectionKeyFields: ["assetKey"],
       uniqueIdentifierList: ["assetKey"],
     },
-    input.runtimeState,
+    context.normalizedRuntimeState,
   ).activeRow;
 }
 
@@ -1204,7 +1254,7 @@ export function resolveAssetScreenerActiveCellOutput(input: {
       selectionKeyFields: ["assetKey"],
       uniqueIdentifierList: ["assetKey"],
     },
-    input.runtimeState,
+    context.normalizedRuntimeState,
   ).activeCell;
 }
 
@@ -1223,7 +1273,7 @@ export function resolveAssetScreenerActiveCellValueOutput(input: {
       selectionKeyFields: ["assetKey"],
       uniqueIdentifierList: ["assetKey"],
     },
-    input.runtimeState,
+    context.normalizedRuntimeState,
   );
 
   return resolved.activeCellValue;
@@ -1244,7 +1294,7 @@ export function resolveAssetScreenerSelectedCellValuesOutput(input: {
       selectionKeyFields: ["assetKey"],
       uniqueIdentifierList: ["assetKey"],
     },
-    input.runtimeState,
+    context.normalizedRuntimeState,
   ).selectedCellValues;
 }
 

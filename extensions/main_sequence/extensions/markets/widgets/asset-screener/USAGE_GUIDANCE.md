@@ -70,6 +70,9 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
   `previousClose`, `yearStart`, `oneYearAgo`, or `one_day_return`.
 - When downstream widgets need row-driven variables, enable a screener selection mode and bind to
   `selectedRows`, `activeRow`, `activeCell`, `activeCellValue`, or `selectedCellValues`.
+- Screener clicks always select the full asset row. `activeCell`, `activeCellValue`, and
+  `selectedCellValues` still come from the clicked column, but the interaction anchor is the row,
+  not a free-form cell range.
 - If a downstream widget reference actively consumes one of those interaction outputs while saved
   `table.selectionMode` is still `none`, the screener runtime infers the minimal interaction mode
   needed for that consumer without rewriting saved widget props.
@@ -116,6 +119,8 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
   wrong row.
 - Group headers are presentation rows only. They never publish semantic row outputs or selected
   cell values.
+- Do not expect spreadsheet-style cell-range selection in Asset Screener. The widget is optimized
+  for row-driven market inspection and downstream row variables.
 
 ## interactionOutputs
 
@@ -127,7 +132,8 @@ The screener publishes these runtime-only outputs:
 - `activeCell`: `core.value.json@v1`. The current active cell with row key, row index, column key,
   value, and row payload.
 - `activeCellValue`: `core.value.json@v1`. The active cell value, or `null`.
-- `selectedCellValues`: `core.value.json@v1`. The ordered list of selected cell values.
+- `selectedCellValues`: `core.value.json@v1`. The ordered list of selected cell values. In normal
+  screener clicks this is derived from the clicked cell within the selected row.
 - `activeRow` and `activeCell.row` publish a structured row object up front, so widget-reference
   completion can offer nested fields such as `symbol` before the first live click.
 

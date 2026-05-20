@@ -1,8 +1,10 @@
-## buildPurpose
+## table
+
+### buildPurpose
 
 Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidden connection source, or manually authored rows, with one canonical dataset output and optional row/cell selection outputs for downstream composition.
 
-## whenToUse
+### whenToUse
 
 - Use when a workspace needs row-level inspection, sorting, filtering, search, pagination, pinned columns, or compact table density.
 - Use `Group by` when the same dataset should render dense section headers for one field such as
@@ -14,13 +16,13 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Use it as a lightweight tabular source when a downstream widget should consume the table's canonical underlying rows.
 - Enable selection outputs when downstream widgets should react to selected row(s), the active row, a clicked cell value, or the ordered list of selected cell values.
 
-## whenNotToUse
+### whenNotToUse
 
 - Do not use when the widget must own data loading, filtering, aggregation, pivoting, or reshaping; use Connection Query and Tabular Transform upstream.
 - Do not use for charting or KPI reduction when Graph or Statistic better matches the task.
 - Do not expect hidden columns, renamed labels, or formatting rules to change the published dataset. Those are presentation-only.
 
-## authoringSteps
+### authoringSteps
 
 - Choose `Bound dataset` when the table should render an upstream `core.tabular_frame@v1` output, `Connection query` when the table should own a hidden `connection-query` source, `Stream connection` when it should own a hidden `connection-stream-query` source, or `Manual table` when rows should be authored directly in this widget.
 - For bound mode, bind `seedData` to a retained `dataset` output or an incremental `updates` seed publication.
@@ -56,12 +58,12 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Configure `Stable row key fields` with durable source fields such as `id`, `symbol`, or another
   unique identifier when selections must survive refreshes, sorting, or incoming row updates.
 
-## inputPorts
+### inputPorts
 
 - `seedData`: optional `core.tabular_frame@v1` input. Initializes or replaces the table frame.
 - `liveUpdates`: optional `core.tabular_frame@v1` updates input. Applies explicit incremental row publications when bound.
 
-## outputPorts
+### outputPorts
 
 - `dataset`: `core.tabular_frame@v1`. Publishes the current canonical table dataset before display-only formatting, hiding, or selection.
 - `selectedRows`: `core.tabular_frame@v1`. Publishes the current canonical table frame filtered to the selected row(s). Returns an empty ready frame when selection is enabled but no rows are selected.
@@ -70,13 +72,13 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - `activeCellValue`: `core.value.json@v1`. Publishes only the active cell value, or `null`.
 - `selectedCellValues`: `core.value.json@v1`. Publishes an ordered list of selected cell values. Row selection clicks return the active clicked cell as a one-item array; in Community AG Grid, `cell` mode currently also returns the clicked cell as a one-item array.
 
-## runtimeOwnership
+### runtimeOwnership
 
 - The table is a consumer. Source loading belongs to upstream Connection Query, Connection Stream Query, or Tabular Transform widgets.
 - Selection outputs are local UI runtime state. They do not change source rows, saved manual rows, or the primary `dataset` output.
 - `selectedCellValues` and the cell-driven `selectedRows` fallback are derived from frontend-managed selection runtime state. They do not mutate source data or saved widget props.
 
-## blockingRequirements
+### blockingRequirements
 
 - Bound mode requires a compatible upstream `core.tabular_frame@v1` binding.
 - Connection and stream connection modes require a valid backend-owned connection instance selected
@@ -93,7 +95,7 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Date/time formatting requires values that can be parsed automatically or by the configured input pattern.
 - Stable selection key fields should point at fields that are present in the canonical dataset. Without them, selection outputs fall back to row indexes.
 
-## commonPitfalls
+### commonPitfalls
 
 - Bound mode stays empty until it is bound to a compatible source in the workspace bindings.
 - Connection modes still depend on the hidden managed source publishing a canonical dataset. Fix
@@ -108,3 +110,78 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Grouped sections are a shared table presentation feature. While grouping is active, AG Grid
   header sorting is disabled so the grouped blocks stay contiguous in first-seen group order.
 - Cell clicks publish `activeCell`, `activeCellValue`, and a one-item `selectedCellValues` list in row and cell selection modes. Row modes also publish `selectedRows` and `activeRow`. `none` disables manual selection outputs by default, but the runtime may infer the minimal interaction mode when a downstream widget reference actively consumes one of the table interaction outputs. Community AG Grid does not currently provide enterprise cell-range selection here.
+
+## pro-table
+
+### buildPurpose
+
+Enterprise-backed version of the shared Table widget. It preserves the same canonical tabular
+dataset contract, source modes, field formatting model, and selection outputs as `table`, but runs
+through AG Grid Enterprise modules so Pro-only grid capabilities can be introduced without
+breaking the existing Community widget.
+
+### whenToUse
+
+- Use when a workspace should opt into the Enterprise-backed table path while keeping the same
+  canonical `core.tabular_frame@v1` input and output behavior as `table`.
+- Use when you want the same bound dataset, hidden connection source, stream source, or manual row
+  workflow as `table`, but want the widget identity reserved for Enterprise-only capabilities.
+- Use when downstream widgets should keep consuming `dataset`, `selectedRows`, `activeRow`,
+  `activeCell`, `activeCellValue`, or `selectedCellValues` with the same semantics as `table`.
+
+### whenNotToUse
+
+- Do not migrate existing `table` widgets to `pro-table` unless you specifically want the
+  Enterprise-backed widget identity.
+- Do not use `pro-table` as a different data contract. It publishes the same canonical dataset and
+  interaction outputs as `table`.
+- Do not expect Enterprise module support to change upstream query ownership, transform behavior,
+  or persisted source bindings. Those stay shared with `table`.
+
+### authoringSteps
+
+- Author `pro-table` exactly like `table`: choose `Bound dataset`, `Connection query`, `Stream connection`,
+  or `Manual table`.
+- Bind `seedData` and `liveUpdates` using the same upstream contracts and output ids used by
+  `table`.
+- Configure labels, formats, grouping, search, filters, pagination, and selection outputs through
+  the same shared settings surface.
+- Treat `pro-table` as additive. Existing `table` widgets stay valid and do not require migration.
+
+### inputPorts
+
+- `seedData`: optional `core.tabular_frame@v1` input. Initializes or replaces the table frame.
+- `liveUpdates`: optional `core.tabular_frame@v1` updates input. Applies explicit incremental row publications when bound.
+
+### outputPorts
+
+- `dataset`: `core.tabular_frame@v1`. Publishes the current canonical table dataset before display-only formatting, hiding, or selection.
+- `selectedRows`: `core.tabular_frame@v1`. Publishes the current canonical table frame filtered to the selected row(s). Returns an empty ready frame when selection is enabled but no rows are selected.
+- `activeRow`: `core.value.json@v1`. Publishes the active row object, or `null` when no row is active.
+- `activeCell`: `core.value.json@v1`. Publishes `{ rowKey, rowIndex, columnKey, value, row }` for the clicked cell, or `null`.
+- `activeCellValue`: `core.value.json@v1`. Publishes only the active cell value, or `null`.
+- `selectedCellValues`: `core.value.json@v1`. Publishes an ordered list of selected cell values using the same runtime semantics as `table`.
+
+### runtimeOwnership
+
+- `pro-table` is still a consumer. Source loading belongs to upstream Connection Query, Connection Stream Query, or Tabular Transform widgets.
+- Selection outputs remain local UI runtime state and do not mutate source rows, saved manual rows, or the primary `dataset` output.
+- Enterprise module support changes grid capabilities, not the canonical dataset contract.
+
+### blockingRequirements
+
+- `pro-table` has the same binding and source-shape requirements as `table`.
+- The runtime still expects canonical tabular frames and the same stable key guidance used by
+  `table`.
+- Enterprise module support requires the AG Grid Enterprise package in the frontend build. A
+  license key is optional for development but required to remove the standard enterprise watermark
+  and warnings in licensed environments.
+
+### commonPitfalls
+
+- `pro-table` is not a forked table implementation. It shares the same core settings and output
+  semantics as `table`.
+- If you need backward compatibility for an existing workspace, leave saved `table` instances on
+  `table`. `pro-table` is additive.
+- Enterprise module support does not change the upstream source contract, row payload shape, or the
+  canonical published dataset.

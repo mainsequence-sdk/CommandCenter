@@ -31,6 +31,7 @@ describe("mainSequenceAssetScreenerWidget", () => {
     expect(mainSequenceAssetScreenerWidget.registryContract?.io?.ioNotes).toEqual([
       "seedData initializes latest state and carries referenceValue or sparklineSeries fields.",
       "liveUpdates mutates latest state only.",
+      "Selection outputs are published from screener runtime state and stay keyed to canonical asset identity.",
     ]);
     expect(mainSequenceAssetScreenerWidget.registryContract?.configuration?.requiredSetupSteps).toEqual([
       "Bind the full semantic snapshot to seedData, or click Add connection to create a hidden managed source.",

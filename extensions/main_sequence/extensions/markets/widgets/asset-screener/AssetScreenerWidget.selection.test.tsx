@@ -261,7 +261,7 @@ function queryFirstMatchingElement(
 }
 
 describe("AssetScreenerWidget selection publishing", () => {
-  it("publishes sanitized runtime selection for asset rows and ignores group headers", async () => {
+  it("publishes row-based runtime selection for asset rows and ignores group headers", async () => {
     dependencyMocks.useWorkspaceVariableReferenceRegistry.mockReturnValue({
       bySourceWidgetId: new Map([
         [
@@ -329,11 +329,70 @@ describe("AssetScreenerWidget selection publishing", () => {
     expect(runtimeEvents.at(-1)).toMatchObject({
       interaction: {
         selection: {
-          mode: "cell",
+          mode: "single-row",
           selectedRowKeys: ['["uid:AAPL"]'],
           selectedRowIndices: [0],
           activeRowKey: '["uid:AAPL"]',
           activeRowIndex: 0,
+          activeCell: {
+            rowKey: '["uid:AAPL"]',
+            rowIndex: 0,
+            columnKey: "symbol",
+            value: "AAPL",
+          },
+        },
+      },
+    });
+  });
+
+  it("normalizes explicit cell selection mode to row selection while keeping activeCell", async () => {
+    const runtimeEvents: unknown[] = [];
+
+    const container = renderWidget({
+      onRuntimeStateChange: (nextRuntimeState) => {
+        runtimeEvents.push(nextRuntimeState);
+      },
+      props: {
+        ...assetScreenerDefaultProps,
+        columnConfigMode: "custom",
+        columns: [
+          {
+            id: "symbol",
+            kind: "asset-field",
+            label: "Symbol",
+            field: "symbol",
+          },
+          {
+            id: "last",
+            kind: "latest-value",
+            label: "Last",
+            valueField: "price",
+            format: "price",
+          },
+        ],
+        sort: undefined,
+        table: {
+          groupBy: "sector",
+          selectionMode: "cell",
+        },
+      },
+    });
+
+    const assetCell = queryFirstMatchingElement(container, [
+      '[data-testid="cell-1-symbol"]',
+      '[data-testid="cell-0-symbol"]',
+      '[data-testid="cell-2-symbol"]',
+    ]);
+    expect(assetCell).toBeInstanceOf(HTMLElement);
+    await act(async () => {
+      (assetCell as HTMLElement).click();
+    });
+
+    expect(runtimeEvents.at(-1)).toMatchObject({
+      interaction: {
+        selection: {
+          mode: "single-row",
+          selectedRowKeys: ['["uid:AAPL"]'],
           activeCell: {
             rowKey: '["uid:AAPL"]',
             rowIndex: 0,
