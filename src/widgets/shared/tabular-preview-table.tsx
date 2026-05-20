@@ -36,7 +36,7 @@ export function TabularPreviewTable({
   maxRows?: number;
   rows: Array<Record<string, unknown>>;
 }) {
-  if (rows.length === 0 || columns.length === 0) {
+  if (columns.length === 0) {
     return (
       <div
         className={cn(
@@ -73,21 +73,32 @@ export function TabularPreviewTable({
           </tr>
         </thead>
         <tbody>
-          {displayedRows.map((row, rowIndex) => (
-            <tr key={`${rowIndex}-${columns.map((column) => String(row[column] ?? "")).join("|")}`}>
-              {columns.map((column, columnIndex) => (
-                <td
-                  key={`${rowIndex}-${column}`}
-                  className={cn(
-                    "border-b border-border/50 px-2.5 py-[var(--table-compact-cell-padding-y)] align-top text-foreground",
-                    columnIndex === 0 ? "font-mono text-[11px]" : "text-[11px]",
-                  )}
-                >
-                  {formatPreviewValue(row[column])}
-                </td>
-              ))}
+          {displayedRows.length > 0 ? (
+            displayedRows.map((row, rowIndex) => (
+              <tr key={`${rowIndex}-${columns.map((column) => String(row[column] ?? "")).join("|")}`}>
+                {columns.map((column, columnIndex) => (
+                  <td
+                    key={`${rowIndex}-${column}`}
+                    className={cn(
+                      "border-b border-border/50 px-2.5 py-[var(--table-compact-cell-padding-y)] align-top text-foreground",
+                      columnIndex === 0 ? "font-mono text-[11px]" : "text-[11px]",
+                    )}
+                  >
+                    {formatPreviewValue(row[column])}
+                  </td>
+                ))}
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td
+                colSpan={columns.length}
+                className="px-3 py-10 text-center text-sm text-muted-foreground"
+              >
+                {emptyMessage}
+              </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
       {rows.length > displayedRows.length ? (

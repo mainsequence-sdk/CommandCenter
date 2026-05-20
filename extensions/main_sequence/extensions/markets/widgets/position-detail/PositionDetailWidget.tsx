@@ -27,6 +27,7 @@ import {
   normalizePositionDetailAccountUid,
   hydratePositionDetailRowsFromPayload,
   normalizePositionDetailHoldingsDate,
+  type PositionDetailInlineRow,
   normalizePositionDetailPersistedRows,
   normalizePositionDetailRuntimeState,
   normalizePositionDetailSourceType,
@@ -201,9 +202,18 @@ export function PositionDetailWidget({
     TargetPositionDetailPositionDetailsResponse | undefined
   >(undefined);
   const payload = optimisticAccountPayload ?? normalizedRuntimeState.payload;
+  const backendAuthoritativeSource =
+    sourceType === "account" || sourceType === "target_positions_account";
   const persistedRows = normalizePositionDetailPersistedRows(props);
   const hydratedRows = hydratePositionDetailRowsFromPayload(payload, sourceType);
-  const effectiveRows = persistedRows.length > 0 ? persistedRows : hydratedRows;
+  const [inlineDraftRows, setInlineDraftRows] = useState<PositionDetailInlineRow[] | null>(null);
+  const usingLocalDraftRows = backendAuthoritativeSource && inlineDraftRows !== null;
+  const usingPersistedRows = !backendAuthoritativeSource && persistedRows.length > 0;
+  const effectiveRows = backendAuthoritativeSource
+    ? (inlineDraftRows ?? hydratedRows)
+    : usingPersistedRows
+      ? persistedRows
+      : hydratedRows;
   const accountHoldingsDateSource = props.holdingsDate ?? payload?.weights_date;
   const resolvedAccountHoldingsDate =
     sourceType === "account" && accountHoldingsDateSource
@@ -229,15 +239,16 @@ export function PositionDetailWidget({
     (sourceType === "portfolio" && targetPortfolioId > 0) ||
     ((sourceType === "account" || sourceType === "target_positions_account") &&
       Boolean(accountUid));
+  const hasLocalRows = usingPersistedRows || usingLocalDraftRows;
   const isLoading =
     (canHydrateFromBackend &&
-      persistedRows.length === 0 &&
+      !hasLocalRows &&
       executionState?.status === "running") ||
     (canHydrateFromBackend &&
-      persistedRows.length === 0 &&
+      !hasLocalRows &&
       normalizedRuntimeState.status === "loading") ||
     (canHydrateFromBackend &&
-      persistedRows.length === 0 &&
+      !hasLocalRows &&
       !payload &&
       Boolean(instanceId) &&
       normalizedRuntimeState.status !== "error");
@@ -245,6 +256,17 @@ export function PositionDetailWidget({
   useEffect(() => {
     setOptimisticAccountPayload(undefined);
   }, [accountUid, normalizedRuntimeState.payload, sourceType]);
+
+  useEffect(() => {
+    if (!backendAuthoritativeSource) {
+      setInlineDraftRows(null);
+      return;
+    }
+
+    if (!inlineEditMode) {
+      setInlineDraftRows(null);
+    }
+  }, [backendAuthoritativeSource, inlineEditMode, accountUid, sourceType]);
 
   useEffect(() => {
     if (!inlineEditingAvailable) {
@@ -300,6 +322,7 @@ export function PositionDetailWidget({
       );
 
       setOptimisticAccountPayload(nextPayload);
+      setInlineDraftRows(null);
       setAccountEditDate(nextHoldingsDate);
       setInlineEditMode(false);
       onPropsChange?.({
@@ -361,6 +384,7 @@ export function PositionDetailWidget({
       );
 
       setOptimisticAccountPayload(nextPayload);
+      setInlineDraftRows(null);
       setTargetPositionsEditDate(nextTargetPositionsDate);
       onPropsChange?.({
         ...props,
@@ -390,7 +414,7 @@ export function PositionDetailWidget({
     },
   });
 
-  if (sourceType === "portfolio" && (!Number.isFinite(targetPortfolioId) || targetPortfolioId <= 0) && persistedRows.length === 0) {
+  if (sourceType === "portfolio" && (!Number.isFinite(targetPortfolioId) || targetPortfolioId <= 0) && !hasLocalRows) {
     return (
       <Card>
         <CardContent className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">
@@ -400,7 +424,7 @@ export function PositionDetailWidget({
     );
   }
 
-  if (sourceType === "account" && !accountUid && persistedRows.length === 0) {
+  if (sourceType === "account" && !accountUid && !hasLocalRows) {
     return (
       <Card>
         <CardContent className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">
@@ -471,33 +495,14 @@ export function PositionDetailWidget({
                 label="Holdings Date"
                 value={accountEditDate}
                 editable
-                onChange={(nextDate) => {
-                  setAccountEditDate(nextDate);
-                  onPropsChange?.({
-                    ...props,
-                    sourceType,
-                    holdingsDate: nextDate,
-                    variant: "positions",
-                    positionRows: effectiveRows,
-                  });
-                }}
+                onChange={setAccountEditDate}
               />
             ) : sourceType === "target_positions_account" ? (
               <PositionDetailDateTimeField
                 label="Target Positions Date"
                 value={targetPositionsEditDate}
                 editable
-                onChange={(nextDate) => {
-                  setTargetPositionsEditDate(nextDate);
-                  onPropsChange?.({
-                    ...props,
-                    sourceType,
-                    accountUid,
-                    targetPositionsDate: nextDate,
-                    variant: "positions",
-                    positionRows: effectiveRows,
-                  });
-                }}
+                onChange={setTargetPositionsEditDate}
               />
             ) : (
               <div />
@@ -538,7 +543,11 @@ export function PositionDetailWidget({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setInlineEditMode(false)}
+                  onClick={() => {
+                    setInlineDraftRows(null);
+                    setAccountEditDate(resolvedAccountHoldingsDate ?? getCurrentIsoTimestamp());
+                    setInlineEditMode(false);
+                  }}
                 >
                   Done editing
                 </Button>
@@ -561,15 +570,16 @@ export function PositionDetailWidget({
           onRowsChange={
             onPropsChange
               ? (nextRows) => {
+                  if (backendAuthoritativeSource) {
+                    setInlineDraftRows(nextRows);
+                    return;
+                  }
+
                   onPropsChange({
                     ...props,
                     sourceType,
-                    holdingsDate:
-                      sourceType === "account" ? accountEditDate : props.holdingsDate,
-                    targetPositionsDate:
-                      sourceType === "target_positions_account"
-                        ? targetPositionsEditDate
-                        : props.targetPositionsDate,
+                    holdingsDate: props.holdingsDate,
+                    targetPositionsDate: props.targetPositionsDate,
                     variant: "positions",
                     positionRows: nextRows,
                   });
@@ -582,9 +592,9 @@ export function PositionDetailWidget({
   }
 
   const rows =
-    variant === "summary" && persistedRows.length === 0
+    variant === "summary" && !usingPersistedRows
       ? normalizePositionDetailSummaryRows(payload?.weights ?? null)
-      : persistedRows.length > 0
+      : hasLocalRows
         ? effectiveRows.map((row) => ({
             asset_id: row.assetId,
             asset_name: row.assetName ?? `Asset ${row.assetId}`,
@@ -604,7 +614,7 @@ export function PositionDetailWidget({
           }))
         : payload?.rows ?? [];
   const columnDefs =
-    variant === "summary" && persistedRows.length === 0
+    variant === "summary" && !usingPersistedRows
       ? payload?.summaryColumnDefs ?? []
       : payload?.columnDefs ?? [];
 
@@ -637,7 +647,11 @@ export function PositionDetailWidget({
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => setInlineEditMode(true)}
+            onClick={() => {
+              setInlineDraftRows(hydratedRows);
+              setAccountEditDate(resolvedAccountHoldingsDate ?? getCurrentIsoTimestamp());
+              setInlineEditMode(true);
+            }}
           >
             <PencilLine className="h-4 w-4" />
             Edit positions

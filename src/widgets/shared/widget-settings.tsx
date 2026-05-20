@@ -45,6 +45,7 @@ import {
 } from "@/widgets/shared/chrome";
 import { WidgetErrorBoundary } from "@/widgets/shared/widget-error-boundary";
 import { WidgetFrame } from "@/widgets/shared/widget-frame";
+import { useRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import { WidgetSchemaForm } from "@/widgets/shared/widget-schema-form";
 import {
   resolveDefaultWidgetPresentation,
@@ -328,6 +329,7 @@ function WidgetPanelPreview<
 }) {
   const previewShellWidget = widget as unknown as WidgetDefinition<Record<string, unknown>>;
   const PreviewComponent = widget.component;
+  const runtimeDataStore = useRuntimeDataStore();
   const showHeader = resolveWidgetHeaderVisibility(props);
   const previewInstanceId = `${instanceId}::settings-preview`;
 
@@ -397,6 +399,7 @@ function WidgetPanelPreview<
                   presentation={presentation}
                   runtimeState={previewRuntimeState}
                   resolvedInputs={previewResolvedInputs}
+                  runtimeDataStore={runtimeDataStore}
                   onRuntimeStateChange={onRuntimeStateChange}
                 />
               </WidgetFrame>
@@ -892,12 +895,6 @@ export function WidgetSettingsPanel<
     );
   }, [activeDraftPropsJson]);
 
-  const dirty =
-    instanceTitle !== initialTitle ||
-    JSON.stringify(activeDraftBindings ?? null) !== initialBindingsJson ||
-    serializeWidgetProps(resolvedDraftProps) !== initialPropsJson ||
-    JSON.stringify(resolvedDraftPresentation) !== initialPresentationJson;
-
   function handleDraftBindingsChange(nextBindings: WidgetInstanceBindings | undefined) {
     const normalizedBindings = normalizeWidgetInstanceBindings(nextBindings);
 
@@ -1078,27 +1075,34 @@ export function WidgetSettingsPanel<
       return;
     }
 
-    const parsed = showRawPropsEditor
-      ? parseWidgetProps<TProps>(rawPropsValue)
-      : {
-          error: null,
-          props: cloneWidgetProps(activeDraftProps),
-        };
+    if (jsonError) {
+      return;
+    }
 
-    if (parsed.error || !parsed.props) {
-      setJsonError(parsed.error ?? "Invalid JSON.");
+    const finalizedProps = cloneWidgetProps(activeDraftProps);
+    const serializedProps = serializeWidgetProps(finalizedProps);
+
+    if (showRawPropsEditor && rawPropsValue !== serializedProps) {
+      setRawPropsValue(serializedProps);
+    }
+
+    if (
+      showRawPropsEditor &&
+      parseWidgetProps<TProps>(serializedProps).error
+    ) {
+      setJsonError("Invalid widget props.");
       return;
     }
 
     const finalizedBindings = syncReferenceLanguageBindings(
       activeInstanceTitle,
-      parsed.props,
+      finalizedProps,
       activeDraftBindings,
     );
 
     onSave?.({
       title: activeInstanceTitle.trim() ? activeInstanceTitle.trim() : undefined,
-      props: parsed.props,
+      props: finalizedProps,
       bindings: finalizedBindings,
       presentation: effectiveActiveDraftPresentation,
     });
@@ -1377,7 +1381,7 @@ export function WidgetSettingsPanel<
               {secondaryActionLabel ?? (editable ? "Cancel" : "Close")}
             </Button>
             {editable ? (
-              <Button onClick={handleSave} disabled={demoModeActive || Boolean(jsonError) || !dirty}>
+              <Button onClick={handleSave} disabled={demoModeActive || Boolean(jsonError)}>
                 Save settings
               </Button>
             ) : null}

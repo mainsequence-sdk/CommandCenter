@@ -598,7 +598,16 @@ function coerceComputedValue(
   }
 
   if (type === "number") {
-    return typeof value === "number" ? value : null;
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : null;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    return null;
   }
 
   if (type === "string") {

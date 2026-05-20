@@ -1,5 +1,7 @@
 import { Shuffle } from "lucide-react";
 
+import { TABULAR_UPDATES_OUTPUT_ID } from "@/widgets/shared/incremental-tabular-consumer";
+import { projectWidgetRuntimeUpdateOutput } from "@/widgets/shared/runtime-update";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
@@ -20,7 +22,7 @@ import {
 
 export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>({
   id: "tabular-transform",
-  widgetVersion: "1.2.0",
+  widgetVersion: "1.2.1",
   title: "Tabular Transform",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -75,12 +77,13 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
   },
   workspaceIcon: Shuffle,
   workspaceRuntimeMode: "execution-owner",
-  buildAgentSnapshot: ({ props, resolvedInputs, runtimeState }) => {
+  buildAgentSnapshot: ({ props, resolvedInputs, runtimeDataStore, runtimeState }) => {
     const normalizedProps = normalizeTabularTransformProps(props);
     const output = resolveTabularTransformOutput({
       props: normalizedProps,
       runtimeState,
       resolvedInputs,
+      runtimeDataStore,
     });
 
     return {
@@ -142,12 +145,34 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
         contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
         description: "Publishes the transformed tabular dataset.",
         valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
-        resolveValue: ({ props, runtimeState, resolvedInputs }) =>
+        resolveValue: ({ props, runtimeDataStore, runtimeState, resolvedInputs }) =>
           resolveTabularTransformOutput({
             props: props as TabularTransformWidgetProps,
             runtimeState,
             resolvedInputs,
+            runtimeDataStore,
           }),
+      },
+      {
+        id: TABULAR_UPDATES_OUTPUT_ID,
+        label: "Live updates",
+        contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        description:
+          "Publishes the transformed stream publication for downstream live-update inputs.",
+        valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
+        resolveValue: ({ props, runtimeDataStore, runtimeState, resolvedInputs }) => {
+          const output = resolveTabularTransformOutput({
+            props: props as TabularTransformWidgetProps,
+            runtimeState,
+            resolvedInputs,
+            runtimeDataStore,
+          });
+
+          return projectWidgetRuntimeUpdateOutput(output, {
+            outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+            sourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
+          });
+        },
       },
     ],
   },
@@ -159,6 +184,7 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
         ),
         runtimeState: context.targetOverrides?.runtimeState ?? context.runtimeState,
         resolvedInputs: context.resolvedInputs,
+        runtimeDataStore: context.runtimeDataStore,
       });
 
       return output.status !== "idle" && output.status !== "error";
@@ -170,6 +196,7 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
         ),
         runtimeState: context.targetOverrides?.runtimeState ?? context.runtimeState,
         resolvedInputs: context.resolvedInputs,
+        runtimeDataStore: context.runtimeDataStore,
       });
 
       if (output.status === "error") {
@@ -192,6 +219,7 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
         ),
         runtimeState: context.targetOverrides?.runtimeState ?? context.runtimeState,
         resolvedInputs: context.resolvedInputs,
+        runtimeDataStore: context.runtimeDataStore,
       });
 
       return output.status === "idle" || output.status === "error"
@@ -209,13 +237,14 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
         "Bind sourceData to an upstream tabular dataset.",
         "Select a transform mode.",
         "Configure filter, key, pivot, unpivot, computed-column, or projection fields.",
-        "Bind downstream widgets to the transformed dataset output.",
+        "Bind downstream seed inputs to dataset or live-update inputs to updates.",
       ],
       configurationNotes: [
         "Projection runs after the selected transform.",
         "Computed columns run after the selected transform and before projection.",
         "Computed-column formulas must wrap field names in brackets, for example [last_price] * 10.",
         "Filter mode is intentionally limited to lightweight field predicates.",
+        "The updates output preserves stream publications for live consumers.",
         "Analytical transforms are explicit graph nodes, not binding-level transforms.",
       ],
     },
@@ -227,7 +256,8 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
     },
     io: {
       mode: "static",
-      summary: "Consumes one tabular dataset and publishes one transformed tabular dataset.",
+      summary:
+        "Consumes one tabular dataset and publishes transformed dataset and live-update outputs.",
       inputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
       outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
     },

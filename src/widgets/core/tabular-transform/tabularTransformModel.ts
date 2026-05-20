@@ -20,6 +20,10 @@ import {
   mapWidgetRuntimeUpdateEnvelope,
 } from "@/widgets/shared/runtime-update";
 import {
+  materializeRuntimeTabularFrame,
+  type RuntimeDataStore,
+} from "@/widgets/shared/runtime-data-store";
+import {
   resolveUpstreamConsumerState,
   type ResolvedUpstreamConsumerState,
 } from "@/widgets/shared/upstream-consumer-state";
@@ -1246,15 +1250,23 @@ function resolveInvalidInputError(input: ResolvedWidgetInput | undefined) {
 
 export function resolveTabularTransformSourceConsumerState(
   resolvedInputs: ResolvedWidgetInputs | undefined,
+  runtimeDataStore?: RuntimeDataStore | null,
 ): ResolvedUpstreamConsumerState<TabularFrameSourceV1> {
   const sourceInput = resolveSourceInput(resolvedInputs);
-  const sourceValue = sourceInput?.upstreamBase ?? sourceInput?.value;
+  const sourceValue =
+    sourceInput?.upstreamBaseRef ??
+    sourceInput?.valueRef ??
+    sourceInput?.upstreamBase ??
+    sourceInput?.value;
+  const sourceFrame =
+    materializeRuntimeTabularFrame(sourceValue, runtimeDataStore) ??
+    normalizeTabularFrameSource(sourceInput?.upstreamBase ?? sourceInput?.value);
 
   return resolveUpstreamConsumerState({
     hasCanonicalSourceBinding: Boolean(sourceInput?.sourceWidgetId),
     hasPublishedValue: sourceValue !== undefined,
     resolvedSourceInput: sourceInput,
-    dataset: normalizeTabularFrameSource(sourceValue),
+    dataset: sourceFrame,
     invalidPublishedValueMessage: "The bound source did not publish a valid tabular dataset.",
   });
 }
@@ -1263,14 +1275,22 @@ export function resolveTabularTransformOutput(input: {
   props: TabularTransformWidgetProps;
   runtimeState?: unknown;
   resolvedInputs?: ResolvedWidgetInputs;
+  runtimeDataStore?: RuntimeDataStore | null;
 }): TabularTransformRuntimeState {
   const props = normalizeTabularTransformProps(input.props);
   const sourceInput = resolveSourceInput(input.resolvedInputs);
-  const sourceConsumerState = resolveTabularTransformSourceConsumerState(input.resolvedInputs);
+  const sourceConsumerState = resolveTabularTransformSourceConsumerState(
+    input.resolvedInputs,
+    input.runtimeDataStore,
+  );
 
   if (sourceInput?.status === "valid") {
     const source = sourceConsumerState.dataset;
-    const sourceValue = sourceInput.upstreamBase ?? sourceInput.value;
+    const sourceValue =
+      sourceInput.upstreamBaseRef ??
+      sourceInput.valueRef ??
+      sourceInput.upstreamBase ??
+      sourceInput.value;
 
     if (sourceConsumerState.kind === "awaiting-upstream" || sourceValue === undefined) {
       return {
@@ -1385,7 +1405,12 @@ export function resolveTabularTransformOutput(input: {
       return outputFrame;
     }
 
-    const deltaSource = normalizeTabularFrameSource(sourceInput.upstreamDelta);
+    const deltaSource =
+      materializeRuntimeTabularFrame(
+        sourceInput.upstreamDeltaRef ?? sourceInput.upstreamDelta,
+        input.runtimeDataStore,
+      ) ??
+      normalizeTabularFrameSource(sourceInput.upstreamDelta);
     const canPublishDelta =
       sourceInput.upstreamUpdate.mode === "delta" &&
       canTransformDeltaFromRows(props) &&

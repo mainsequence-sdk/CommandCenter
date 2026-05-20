@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_MOCK_API_LATENCY_MS,
   executeMockApiConnectionQuery,
   MOCK_API_CONNECTION_TYPE_ID,
   MOCK_API_LOCAL_INSTANCE_ID,
@@ -13,6 +14,7 @@ describe("Mock API connection", () => {
       connectionId: MOCK_API_LOCAL_INSTANCE_ID,
       query: {
         kind: MOCK_API_QUERY_KIND,
+        latencyMs: 1,
         responseBody: [
           { x: 1, y: 2, label: "a" },
           { x: 2, y: 4, label: "b" },
@@ -36,6 +38,7 @@ describe("Mock API connection", () => {
       connectionId: MOCK_API_LOCAL_INSTANCE_ID,
       query: {
         kind: MOCK_API_QUERY_KIND,
+        latencyMs: 1,
         responseMode: "connection-query-response",
         responseBody: {
           frames: [
@@ -59,6 +62,7 @@ describe("Mock API connection", () => {
       connectionId: MOCK_API_LOCAL_INSTANCE_ID,
       query: {
         kind: MOCK_API_QUERY_KIND,
+        latencyMs: 1,
         responseMode: "tabular-frame",
         responseBody: {
           status: "ready",
@@ -106,6 +110,7 @@ describe("Mock API connection", () => {
         connectionId: MOCK_API_LOCAL_INSTANCE_ID,
         query: {
           kind: MOCK_API_QUERY_KIND,
+          latencyMs: 1,
           responseStatus: 500,
           responseBody: { error: "boom" },
         },
@@ -116,5 +121,28 @@ describe("Mock API connection", () => {
   it("uses a stable local type id and sentinel instance id", () => {
     expect(MOCK_API_CONNECTION_TYPE_ID).toBe("command_center.mock_api");
     expect(MOCK_API_LOCAL_INSTANCE_ID).toBe("__local_mock_api__");
+  });
+
+  it("uses the configured mock response body as the simulated request response", async () => {
+    const response = await executeMockApiConnectionQuery({
+      connectionId: MOCK_API_LOCAL_INSTANCE_ID,
+      query: {
+        kind: MOCK_API_QUERY_KIND,
+        latencyMs: 1,
+        responseBody: [{ symbol: "ETHUSDT", last_price: 5860 }],
+      },
+    });
+
+    expect(response.frames[0]).toMatchObject({
+      contract: "core.tabular_frame@v1",
+      fields: [
+        { name: "symbol", type: "string", values: ["ETHUSDT"] },
+        { name: "last_price", type: "number", values: [5860] },
+      ],
+    });
+  });
+
+  it("publishes a non-zero default latency for visible workspace execution", () => {
+    expect(DEFAULT_MOCK_API_LATENCY_MS).toBeGreaterThan(0);
   });
 });

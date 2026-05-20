@@ -21,6 +21,9 @@ export type ConnectionRuntimeEntryKind = "stream";
 
 export type ConnectionRuntimeSessionKind = "live" | "retained" | "draft-preview";
 
+// Temporary stream diagnostics are disabled by default to avoid console spam.
+const CONNECTION_RUNTIME_STORE_DEBUG_LOGS_ENABLED = false;
+
 export interface ConnectionRuntimeSession {
   close: (code?: number, reason?: string) => void;
 }
@@ -145,6 +148,10 @@ function resolveRuntimeErrorCode(runtimeState: Record<string, unknown> | undefin
   return typeof stream?.errorCode === "string" ? stream.errorCode : undefined;
 }
 
+function summarizeRuntimeStoreKey(value: string) {
+  return value.length > 180 ? `${value.slice(0, 90)}...${value.slice(-70)}` : value;
+}
+
 function buildSnapshot(entry: InternalConnectionRuntimeEntry): ConnectionRuntimeEntrySnapshot {
   const summary = resolveRuntimeStateSummary(entry.runtimeState);
 
@@ -185,8 +192,11 @@ class InMemoryConnectionRuntimeStore implements ConnectionRuntimeStore {
       throw new Error("Connection runtime session requires a stable key.");
     }
 
+    const existingEntry = this.entries.get(key);
     const entry = this.getOrCreateEntry(key, input.kind ?? "stream");
+    const refCountBefore = entry.ownerIds.size;
     let released = false;
+    let startCalled = false;
 
     entry.ownerIds.add(ownerId);
     if (input.onRuntimeStateChange) {
@@ -199,6 +209,7 @@ class InMemoryConnectionRuntimeStore implements ConnectionRuntimeStore {
     if (!entry.session) {
       entry.status = entry.runtimeState ? entry.status : "connecting";
       entry.updatedAtMs = Date.now();
+      startCalled = true;
 
       try {
         entry.session = input.start();
@@ -215,6 +226,16 @@ class InMemoryConnectionRuntimeStore implements ConnectionRuntimeStore {
       }
     }
 
+    if (import.meta.env.DEV && CONNECTION_RUNTIME_STORE_DEBUG_LOGS_ENABLED) {
+      console.log("[stream-runtime-store-acquire]", {
+        key: summarizeRuntimeStoreKey(key),
+        ownerId,
+        hadEntry: Boolean(existingEntry),
+        refCountBefore,
+        startCalled,
+      });
+    }
+
     this.commit(entry);
 
     return {
@@ -225,6 +246,15 @@ class InMemoryConnectionRuntimeStore implements ConnectionRuntimeStore {
         }
 
         released = true;
+        if (import.meta.env.DEV && CONNECTION_RUNTIME_STORE_DEBUG_LOGS_ENABLED) {
+          const currentEntry = this.entries.get(key);
+          console.log("[stream-runtime-store-release]", {
+            key: summarizeRuntimeStoreKey(key),
+            ownerId,
+            refCountAfter: Math.max((currentEntry?.ownerIds.size ?? 1) - 1, 0),
+            closed: (currentEntry?.ownerIds.size ?? 0) <= 1,
+          });
+        }
         this.releaseOwner(key, ownerId);
       },
     };

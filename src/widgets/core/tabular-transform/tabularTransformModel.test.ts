@@ -5,6 +5,7 @@ import {
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
 import { readWidgetRuntimeUpdateContext } from "@/widgets/shared/runtime-update";
+import { createRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 
 import { resolveTabularTransformOutput, type TabularTransformWidgetProps } from "./tabularTransformModel";
 
@@ -374,6 +375,90 @@ describe("tabular transform filter mode", () => {
         ],
       },
     });
+  });
+
+  it("materializes retained stream rows from runtime refs before projection", () => {
+    const store = createRuntimeDataStore("tabular-transform-test");
+    const retainedFrame = frame(
+      [{ symbol: "ETHUSDT", close: 2136.36 }],
+      [
+        { key: "symbol", type: "string", provenance: "backend" },
+        { key: "close", type: "number", provenance: "backend" },
+      ],
+    );
+    const retainedRef = store.putSnapshot({
+      ownerId: "stream-1",
+      outputId: "updates",
+      frame: retainedFrame,
+    });
+    const carrierFrame = {
+      ...retainedFrame,
+      rows: [],
+    };
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        computedColumns: [
+          {
+            key: "last",
+            label: "Last",
+            type: "number",
+            formulaExpression: "[close]",
+          },
+        ],
+        projectFields: ["symbol", "last"],
+      } satisfies TabularTransformWidgetProps,
+      runtimeDataStore: store,
+      resolvedInputs: resolvedInputs(carrierFrame, {
+        upstreamBaseRef: retainedRef,
+        upstreamUpdate: {
+          contractVersion: "widget-runtime-update@v1",
+          mode: "snapshot",
+          sourceWidgetId: "stream-1",
+          sourceOutputId: "updates",
+          outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          retainedOutputLocation: "carrier",
+          outputRef: retainedRef,
+        },
+      }),
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.columns).toEqual(["symbol", "last"]);
+    expect(output.rows).toEqual([{ symbol: "ETHUSDT", last: 2136.36 }]);
+  });
+
+  it("computes numeric columns from numeric string row values even when the source field is not declared", () => {
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        computedColumns: [
+          {
+            key: "last",
+            label: "Last",
+            type: "number",
+            formulaExpression: "[close]",
+          },
+        ],
+        projectFields: ["symbol", "last"],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs({
+        status: "ready",
+        columns: ["symbol"],
+        fields: [{ key: "symbol", type: "string", provenance: "backend" }],
+        rows: [
+          { symbol: "ETHUSDT", close: "2136.36" },
+          { symbol: "BTCUSDT", close: "109420.5" },
+        ],
+      }),
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.columns).toEqual(["symbol", "last"]);
+    expect(output.rows).toEqual([
+      { symbol: "ETHUSDT", last: 2136.36 },
+      { symbol: "BTCUSDT", last: 109420.5 },
+    ]);
   });
 
   it("returns a configuration error when a computed-column formula is invalid", () => {

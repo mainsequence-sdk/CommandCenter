@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { Plus, Trash2 } from "lucide-react";
 
@@ -45,6 +45,19 @@ const COMPUTED_COLUMN_TYPE_OPTIONS: Array<{
   { value: "boolean", label: "Boolean" },
   { value: "json", label: "JSON" },
 ];
+
+function getKeyFieldsHelpText(mode: TabularTransformMode) {
+  switch (mode) {
+    case "aggregate":
+      return "Group rows by these fields before reducing the other columns with the selected aggregate mode.";
+    case "pivot":
+      return "Keep one output row per key-field combination while the pivot field becomes output columns.";
+    case "unpivot":
+      return "Copy these fields into every generated long-form row.";
+    default:
+      return null;
+  }
+}
 
 function operatorNeedsValue(operator: TabularFilterOperator | undefined) {
   return operator !== "is-empty" && operator !== "is-not-empty";
@@ -163,6 +176,142 @@ function FieldListInput({
   );
 }
 
+function addUniqueFields(
+  current: string[] | undefined,
+  additions: string[],
+) {
+  const seen = new Set<string>();
+  const next: string[] = [];
+
+  [...(current ?? []), ...additions].forEach((entry) => {
+    const normalized = entry.trim();
+
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+
+    seen.add(normalized);
+    next.push(normalized);
+  });
+
+  return next.length > 0 ? next : undefined;
+}
+
+function TokenFieldListInput({
+  disabled,
+  label,
+  onChange,
+  options,
+  placeholder,
+  value,
+}: {
+  disabled: boolean;
+  label: string;
+  onChange: (value: string[] | undefined) => void;
+  options: string[];
+  placeholder?: string;
+  value: string[] | undefined;
+}) {
+  const [draftValue, setDraftValue] = useState("");
+  const selectedValues = value ?? [];
+  const availableOptions = options.filter((option) => !selectedValues.includes(option));
+
+  function commitDraft(rawValue: string) {
+    const fields = parseFieldListText(rawValue);
+
+    if (fields.length === 0) {
+      setDraftValue("");
+      return;
+    }
+
+    onChange(addUniqueFields(selectedValues, fields));
+    setDraftValue("");
+  }
+
+  return (
+    <div className="space-y-2">
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <div className="min-h-10 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-2 py-2 transition-colors focus-within:border-ring/70 focus-within:ring-2 focus-within:ring-ring/20">
+        <div className="flex flex-wrap gap-2">
+          {selectedValues.map((field) => (
+            <span
+              key={field}
+              className="inline-flex max-w-full items-center gap-1 rounded-md border border-border/70 bg-background/70 px-2 py-1 text-xs text-foreground"
+            >
+              <span className="truncate">{field}</span>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => {
+                  const nextValue = selectedValues.filter((entry) => entry !== field);
+                  onChange(nextValue.length > 0 ? nextValue : undefined);
+                }}
+                className="rounded px-1 text-muted-foreground transition-colors hover:text-danger disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label={`Remove ${field}`}
+              >
+                x
+              </button>
+            </span>
+          ))}
+          <input
+            value={draftValue}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+
+              if (/[\n,]/.test(nextValue)) {
+                commitDraft(nextValue);
+                return;
+              }
+
+              setDraftValue(nextValue);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === "Tab" || event.key === ",") {
+                if (draftValue.trim()) {
+                  event.preventDefault();
+                  commitDraft(draftValue);
+                }
+              } else if (event.key === "Backspace" && !draftValue && selectedValues.length > 0) {
+                event.preventDefault();
+                const nextValue = selectedValues.slice(0, -1);
+                onChange(nextValue.length > 0 ? nextValue : undefined);
+              }
+            }}
+            onBlur={() => {
+              if (draftValue.trim()) {
+                commitDraft(draftValue);
+              }
+            }}
+            disabled={disabled}
+            placeholder={selectedValues.length === 0 ? placeholder ?? "Add field" : "Add field"}
+            className="min-w-[11rem] flex-1 bg-transparent px-1 py-1 text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          />
+        </div>
+      </div>
+      {availableOptions.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {availableOptions.slice(0, 24).map((option) => (
+            <button
+              key={option}
+              type="button"
+              disabled={disabled}
+              onMouseDown={(event) => {
+                event.preventDefault();
+              }}
+              onClick={() => {
+                onChange(addUniqueFields(selectedValues, [option]));
+              }}
+              className="rounded-md border border-border/70 bg-background/35 px-2 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function TextInput({
   disabled,
   label,
@@ -272,11 +421,14 @@ export function TabularTransformWidgetSettings({
     [availableFields],
   );
   const filterRules = props.filterRules ?? [];
-  const computedColumns = props.computedColumns ?? [];
+  const computedColumns = Array.isArray(draftProps.computedColumns)
+    ? draftProps.computedColumns
+    : props.computedColumns ?? [];
   const computedColumnErrors = useMemo(
     () => resolveTabularTransformComputedColumns(props).errorsByIndex,
     [props],
   );
+  const keyFieldsHelpText = getKeyFieldsHelpText(props.transformMode);
   const projectableColumns = useMemo(
     () =>
       Array.from(new Set([
@@ -422,7 +574,7 @@ export function TabularTransformWidgetSettings({
 
               return (
                 <div
-                  key={`${rule.field ?? "field"}:${rule.operator ?? "op"}:${index}`}
+                  key={`filter-rule:${index}`}
                   className="space-y-3 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/25 p-3"
                 >
                   <div className="grid gap-3 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_auto]">
@@ -540,18 +692,24 @@ export function TabularTransformWidgetSettings({
         <div>
           <h3 className="text-sm font-semibold text-foreground">Fields</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Use comma-separated field keys. Available fields:{" "}
-            {availableColumns.length > 0 ? availableColumns.join(", ") : "none resolved"}.
+            Available source fields:{" "}
+            {availableColumns.length > 0 ? availableColumns.join(", ") : "none resolved"}.{" "}
+            Mode-specific field inputs appear only when the selected transform uses them.
           </p>
         </div>
-        <FieldListInput
-          label="Key fields"
-          value={props.keyFields}
-          disabled={!editable}
-          onChange={(keyFields) => {
-            onDraftPropsChange({ ...draftProps, keyFields });
-          }}
-        />
+        {keyFieldsHelpText ? (
+          <div className="space-y-2">
+            <FieldListInput
+              label="Key fields"
+              value={props.keyFields}
+              disabled={!editable}
+              onChange={(keyFields) => {
+                onDraftPropsChange({ ...draftProps, keyFields });
+              }}
+            />
+            <p className="text-[11px] text-muted-foreground">{keyFieldsHelpText}</p>
+          </div>
+        ) : null}
         {props.transformMode === "pivot" ? (
           <div className="grid gap-3 md:grid-cols-2">
             <TextInput
@@ -630,7 +788,7 @@ export function TabularTransformWidgetSettings({
 
             return (
               <div
-                key={`${column.key ?? "computed-column"}:${index}`}
+                key={`computed-column:${index}`}
                 className="space-y-3 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/25 p-3"
               >
                 <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,160px)_auto]">
@@ -755,10 +913,12 @@ export function TabularTransformWidgetSettings({
             {projectableColumns.length > 0 ? projectableColumns.join(", ") : "none resolved"}.
           </p>
         </div>
-        <FieldListInput
+        <TokenFieldListInput
           label="Project columns"
           value={props.projectFields}
           disabled={!editable}
+          options={projectableColumns}
+          placeholder="symbol, last"
           onChange={(projectFields) => {
             onDraftPropsChange({ ...draftProps, projectFields });
           }}

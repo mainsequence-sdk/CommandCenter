@@ -1,6 +1,10 @@
 import { AgChartsCommunityModule } from "ag-charts-community";
 import type { Module } from "ag-grid-community";
-import { AllEnterpriseModule, LicenseManager } from "ag-grid-enterprise";
+import {
+  AllEnterpriseModule,
+  LicenseManager,
+  SparklinesModule,
+} from "ag-grid-enterprise";
 
 const rawEnv = import.meta.env as Record<string, string | undefined>;
 let enterpriseLicenseConfigured = false;
@@ -20,8 +24,10 @@ function configureAgGridEnterpriseLicense() {
 
 configureAgGridEnterpriseLicense();
 
-// `ag-grid-enterprise` carries its own module typings even when versions match, so cast the
-// shared Enterprise bundle to the Community module interface used by AgGridReact.
+// Register Enterprise grid features and wire only Sparklines to the free AG Charts community
+// runtime. Avoid AllEnterpriseModule.with(...) here because it also initialises Integrated Charts,
+// while Command Center only needs chart-backed sparkline cells in Pro Table surfaces.
 export const enterpriseAgGridModules = [
-  AllEnterpriseModule.with(AgChartsCommunityModule),
+  AllEnterpriseModule,
+  SparklinesModule.with(AgChartsCommunityModule),
 ] as unknown as Module[];

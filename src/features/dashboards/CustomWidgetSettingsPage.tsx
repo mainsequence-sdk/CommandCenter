@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { getWidgetById } from "@/app/registry";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toaster";
 import { DashboardControlsProvider } from "@/dashboards/DashboardControls";
 import { DashboardWidgetDependenciesProvider } from "@/dashboards/DashboardWidgetDependencies";
 import {
@@ -74,7 +75,7 @@ function buildWidgetCommitSourceSignature(
   widgets: DashboardWidgetInstance[],
   changedWidgetId: string,
 ) {
-  const widget = widgets.find((entry) => entry.id === changedWidgetId);
+  const widget = findDashboardWidgetInSettingsTree(widgets, changedWidgetId);
 
   try {
     return JSON.stringify({
@@ -89,6 +90,54 @@ function buildWidgetCommitSourceSignature(
   } catch {
     return `unserializable:${changedWidgetId}`;
   }
+}
+
+function flattenDashboardWidgetsForSettings(
+  widgets: DashboardWidgetInstance[],
+): DashboardWidgetInstance[] {
+  return widgets.flatMap((widget) => [
+    widget,
+    ...flattenDashboardWidgetsForSettings(widget.row?.children ?? []),
+  ]);
+}
+
+function findDashboardWidgetInSettingsTree(
+  widgets: DashboardWidgetInstance[],
+  instanceId: string,
+): DashboardWidgetInstance | undefined {
+  return flattenDashboardWidgetsForSettings(widgets).find(
+    (widget) => widget.id === instanceId,
+  );
+}
+
+function findExecutableSettingsSourceWidgetIds(
+  widgets: DashboardWidgetInstance[],
+  changedWidgetId: string,
+) {
+  const sourceIds = new Set<string>();
+  const changedWidget = findDashboardWidgetInSettingsTree(widgets, changedWidgetId);
+  const changedDefinition = changedWidget
+    ? getWidgetById(changedWidget.widgetId)
+    : undefined;
+
+  if (changedDefinition?.execution) {
+    sourceIds.add(changedWidgetId);
+  }
+
+  for (const widget of flattenDashboardWidgetsForSettings(widgets)) {
+    if (
+      widget.managedBy?.role !== "embedded-connection-source" ||
+      widget.managedBy.ownerInstanceId !== changedWidgetId
+    ) {
+      continue;
+    }
+
+    if (getWidgetById(widget.widgetId)?.execution) {
+      sourceIds.add(widget.id);
+    }
+  }
+
+  return [...sourceIds];
 }
 
 function VariableDrivenWidgetCommitCoordinator({
@@ -111,6 +160,7 @@ function VariableDrivenWidgetCommitCoordinator({
   const widgetExecution = useDashboardWidgetExecution();
   const [pendingCommit, setPendingCommit] = useState<{
     changedWidgetId: string;
+    executableSourceWidgetIds: string[];
     beforeWidgets: DashboardWidgetInstance[];
     afterWidgets: DashboardWidgetInstance[];
     sourceSignature: string;
@@ -133,6 +183,19 @@ function VariableDrivenWidgetCommitCoordinator({
     const nextPendingCommit = pendingCommit;
     setPendingCommit(null);
 
+    if (nextPendingCommit.executableSourceWidgetIds.length > 0) {
+      void (async () => {
+        await Promise.resolve();
+
+        for (const sourceWidgetId of nextPendingCommit.executableSourceWidgetIds) {
+          await widgetExecution.executeWidgetFlow(sourceWidgetId, {
+            reason: "manual-recalculate",
+          });
+        }
+      })();
+      return;
+    }
+
     void widgetExecution.executeVariableDrivenWidgetCommit({
       changedWidgetId: nextPendingCommit.changedWidgetId,
       beforeWidgets: nextPendingCommit.beforeWidgets,
@@ -144,6 +207,10 @@ function VariableDrivenWidgetCommitCoordinator({
     updateSelectedWorkspace(() => nextDashboard);
     setPendingCommit({
       changedWidgetId,
+      executableSourceWidgetIds: findExecutableSettingsSourceWidgetIds(
+        nextDashboard.widgets,
+        changedWidgetId,
+      ),
       beforeWidgets,
       afterWidgets: nextDashboard.widgets,
       sourceSignature: buildWidgetCommitSourceSignature(nextDashboard.widgets, changedWidgetId),
@@ -261,6 +328,7 @@ export function CustomWidgetSettingsPage({
   onRequestOpenWidgetSettings?: (widgetId: string, tab?: WidgetSettingsTabId) => void;
   widgetId?: string | null;
 } = {}) {
+  const { toast } = useToast();
   const {
     user,
     isSaving,
@@ -846,6 +914,11 @@ export function CustomWidgetSettingsPage({
           );
 
           commitWidgetSettingsChange(nextDashboard);
+          toast({
+            title: "Widget settings saved",
+            description: "Workspace draft updated. Save the workspace to persist it.",
+            variant: "success",
+          });
         };
 
         const applyManagedConnectionDraftWithCommit = () => {

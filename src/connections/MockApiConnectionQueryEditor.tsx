@@ -10,6 +10,7 @@ import {
 import type { ConnectionQueryEditorProps } from "@/connections/types";
 
 import {
+  DEFAULT_MOCK_API_LATENCY_MS,
   DEFAULT_MOCK_API_RESPONSE_BODY,
   MOCK_API_QUERY_KIND,
   type MockApiConnectionQuery,
@@ -91,7 +92,7 @@ export function MockApiConnectionQueryEditor({
   return (
     <ConnectionQueryEditorSection
       title="Mock response"
-      description="Define the JSON returned by this local mock connection. The normal connection query widget consumes the generated frame, but no backend data source or registry sync is used."
+      description="Define the JSON placed into the local mock request. Runtime execution waits for the configured latency, returns this same body, and publishes it through the normal connection query widget."
     >
       <ConnectionQueryField
         label="Response mode"
@@ -135,12 +136,12 @@ export function MockApiConnectionQueryEditor({
 
       <ConnectionQueryField
         label="Latency ms"
-        help="Optional local delay before the mock response resolves. Values are clamped by the mock executor."
+        help="Local delay before the simulated request returns the configured response body. Empty or 0 uses the default visible delay so workspace execution shows the same pending flow as a real connection."
       >
         <Input
           type="number"
           min={0}
-          value={value.latencyMs ?? publicConfig.latencyMs ?? 0}
+          value={value.latencyMs ?? publicConfig.latencyMs ?? DEFAULT_MOCK_API_LATENCY_MS}
           disabled={disabled}
           onChange={(event) => {
             const parsed = Number(event.target.value);
@@ -154,7 +155,7 @@ export function MockApiConnectionQueryEditor({
       <ConnectionQueryField
         className="md:col-span-2"
         label="Response JSON"
-        help="JSON body to feed into Mock API. Arrays become table rows, objects become one row, canonical tabular frames are normalized, and full ConnectionQueryResponse objects pass through."
+        help="JSON body sent as the simulated mock request payload and returned as the response. Arrays become table rows, objects become one row, canonical tabular frames are normalized, and full ConnectionQueryResponse objects pass through."
       >
         <Textarea
           className="min-h-72 font-mono text-xs"

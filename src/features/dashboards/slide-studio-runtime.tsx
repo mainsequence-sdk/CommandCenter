@@ -15,9 +15,10 @@ import type {
   WidgetHeaderActionsProps,
   WidgetInstancePresentation,
 } from "@/widgets/types";
-
-import { WorkspaceCanvasWidgetCard } from "./WorkspaceCanvasWidgetHost";
 import type { WorkspaceSlideRegionId } from "@/widgets/core/workspace-slide/slide-model";
+
+import { HiddenSidebarRuntimeWidgetMount } from "./HiddenSidebarRuntimeWidgetMount";
+import { WorkspaceCanvasWidgetCard } from "./WorkspaceCanvasWidgetHost";
 
 interface WidgetInstanceOverride {
   props?: Record<string, unknown>;
@@ -265,36 +266,21 @@ export function useSlideStudioProjectionData({
             return null;
           }
 
-          const Component = widget.component as ComponentType<{
-            widget: typeof widget;
-            instanceId?: string;
-            instanceTitle?: string;
-            props: Record<string, unknown>;
-            presentation?: WidgetInstancePresentation;
-            runtimeState?: Record<string, unknown>;
-            onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
-          }>;
-
           return (
-            <div key={instance.id} className="h-px w-px overflow-hidden">
-              <Component
-                widget={widget}
-                instanceId={instance.id}
-                instanceTitle={instance.title}
-                props={instance.props ?? {}}
-                presentation={instance.presentation}
-                runtimeState={instance.runtimeState}
-                onRuntimeStateChange={(state) => {
-                  setWidgetOverrides((current) => ({
-                    ...current,
-                    [instance.id]: {
-                      ...current[instance.id],
-                      runtimeState: state ?? null,
-                    },
-                  }));
-                }}
-              />
-            </div>
+            <HiddenSidebarRuntimeWidgetMount
+              key={instance.id}
+              instance={instance}
+              widget={widget}
+              onRuntimeStateChange={(state) => {
+                setWidgetOverrides((current) => ({
+                  ...current,
+                  [instance.id]: {
+                    ...current[instance.id],
+                    runtimeState: state ?? null,
+                  },
+                }));
+              }}
+            />
           );
         })}
       </div>

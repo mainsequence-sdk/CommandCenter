@@ -43,6 +43,9 @@ import type {
   WidgetPublicExecutionContract,
 } from "@/widgets/types";
 
+// Temporary stream diagnostics are disabled by default to avoid console spam.
+const STREAM_SESSION_DEBUG_LOGS_ENABLED = false;
+
 export type ConnectionStreamLifecycleStatus =
   | "idle"
   | "connecting"
@@ -1146,6 +1149,43 @@ export function resolveConnectionStreamQueryOutput(runtimeState: unknown) {
   return normalizeConnectionStreamQueryRuntimeState(runtimeState);
 }
 
+function summarizeStreamSessionKey(value: string) {
+  return value.length > 180 ? `${value.slice(0, 90)}...${value.slice(-70)}` : value;
+}
+
+function summarizeStreamSessionRuntimeState(state: ConnectionStreamQueryRuntimeState) {
+  return {
+    status: state.status,
+    streamStatus: state.streamStatus,
+    rowCount: state.rows.length,
+    columnCount: state.columns.length,
+    hasRuntimeDataRef: Boolean(getRuntimeDataRef(state)),
+    sourceRunId: state.sourceRunId,
+  };
+}
+
+function logStreamSessionSocket(input: {
+  subscriptionKey: string;
+  event: "open" | "ack" | "snapshot" | "delta" | "heartbeat" | "complete" | "error" | "parse-error" | "close" | "start-failed";
+  sequence?: number;
+  rowCount?: number;
+  columnCount?: number;
+  message?: string;
+}) {
+  if (!import.meta.env.DEV || !STREAM_SESSION_DEBUG_LOGS_ENABLED) {
+    return;
+  }
+
+  console.log("[stream-session-socket]", {
+    subscriptionKey: summarizeStreamSessionKey(input.subscriptionKey),
+    event: input.event,
+    sequence: input.sequence,
+    rowCount: input.rowCount,
+    columnCount: input.columnCount,
+    message: input.message,
+  });
+}
+
 export function createConnectionStreamQueryWidgetRuntimeSession(input: {
   subscriptionKey: string;
   request: ConnectionStreamQueryRequest<Record<string, unknown>>;
@@ -1171,6 +1211,20 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
   }
 
   if (activeStreamRuntimeSessions.has(subscriptionKey)) {
+    if (import.meta.env.DEV && STREAM_SESSION_DEBUG_LOGS_ENABLED) {
+      console.log("[stream-session-start]", {
+        subscriptionKey: summarizeStreamSessionKey(subscriptionKey),
+        sourceWidgetId: input.sourceWidgetId,
+        executionSurface: input.executionSurface,
+        connectionId: input.request.connectionId,
+        queryKind: input.request.query?.kind,
+        query: input.request.query,
+        requestedOutputContract: input.request.requestedOutputContract,
+        hasPublicExecution: Boolean(input.publicExecution),
+        duplicateActiveSession: true,
+      });
+    }
+
     return {
       close() {
         // Another mounted source already owns this subscription.
@@ -1203,6 +1257,20 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
       ? input.publicExecution.streamUrl.trim()
       : undefined;
 
+  if (import.meta.env.DEV && STREAM_SESSION_DEBUG_LOGS_ENABLED) {
+    console.log("[stream-session-start]", {
+      subscriptionKey: summarizeStreamSessionKey(subscriptionKey),
+      sourceWidgetId: input.sourceWidgetId,
+      executionSurface: input.executionSurface,
+      connectionId: input.request.connectionId,
+      queryKind: input.request.query?.kind,
+      query: input.request.query,
+      requestedOutputContract: input.request.requestedOutputContract,
+      hasPublicExecution: Boolean(input.publicExecution),
+      duplicateActiveSession: false,
+    });
+  }
+
   function publish(state: ConnectionStreamQueryRuntimeState) {
     if (!active) {
       return;
@@ -1218,6 +1286,12 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
     }) as ConnectionStreamQueryRuntimeState;
 
     retainedState = storedState;
+    if (import.meta.env.DEV && STREAM_SESSION_DEBUG_LOGS_ENABLED) {
+      console.log("[stream-runtime-publish]", {
+        subscriptionKey: summarizeStreamSessionKey(subscriptionKey),
+        ...summarizeStreamSessionRuntimeState(storedState),
+      });
+    }
     input.onRuntimeStateChange(storedState);
   }
 
@@ -1437,6 +1511,11 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
 
     const handlers: ConnectionQueryWebSocketHandlers = {
       onOpen: () => {
+        logStreamSessionSocket({
+          subscriptionKey,
+          event: "open",
+          message: isReconnect ? "reconnect-open" : "open",
+        });
         publishLifecycleFrame({
           status: isReconnect ? "reconnecting" : "connecting",
           retainedState,
@@ -1474,6 +1553,14 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
           }
 
           publish(decorateRuntimeState(nextState));
+          logStreamSessionSocket({
+            subscriptionKey,
+            event: message.type,
+            sequence: "sequence" in message ? message.sequence : undefined,
+            rowCount: nextState.rows.length,
+            columnCount: nextState.columns.length,
+            message: message.type === "error" ? message.message : undefined,
+          });
 
           if (message.type === "error" && message.retryable) {
             handleRecoverableDisconnect({
@@ -1493,6 +1580,11 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
         } catch (error) {
           attemptFinished = true;
           clearHeartbeatTimer();
+          logStreamSessionSocket({
+            subscriptionKey,
+            event: "error",
+            message: error instanceof Error ? error.message : "Connection stream message failed.",
+          });
           publishLifecycleFrame({
             status: "error",
             retainedState: undefined,
@@ -1508,6 +1600,11 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
       onParseError: (error) => {
         attemptFinished = true;
         clearHeartbeatTimer();
+        logStreamSessionSocket({
+          subscriptionKey,
+          event: "parse-error",
+          message: error.message,
+        });
         publishLifecycleFrame({
           status: "error",
           error: error.message,
@@ -1519,6 +1616,11 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
         });
       },
       onError: () => {
+        logStreamSessionSocket({
+          subscriptionKey,
+          event: "error",
+          message: "Connection stream WebSocket error.",
+        });
         handleRecoverableDisconnect({
           reason: "Connection stream WebSocket error.",
           errorCode: "socket_error",
@@ -1531,6 +1633,11 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
 
         lastDisconnectAtMs = now();
         lastDisconnectReason = event.reason?.trim() || `Connection stream socket closed (${event.code}).`;
+        logStreamSessionSocket({
+          subscriptionKey,
+          event: "close",
+          message: lastDisconnectReason,
+        });
 
         if (event.code === 1000) {
           attemptFinished = true;
@@ -1607,6 +1714,11 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
         lastDisconnectAtMs = now();
         lastDisconnectReason =
           error instanceof Error ? error.message : "Connection stream could not start.";
+        logStreamSessionSocket({
+          subscriptionKey,
+          event: "start-failed",
+          message: lastDisconnectReason,
+        });
         scheduleReconnect(lastDisconnectReason, "subscription_start_failed");
       });
   }
@@ -1624,6 +1736,11 @@ export function createConnectionStreamQueryWidgetRuntimeSession(input: {
       clearReconnectTimer();
       clearHeartbeatTimer();
       activeStreamRuntimeSessions.delete(subscriptionKey);
+      logStreamSessionSocket({
+        subscriptionKey,
+        event: "close",
+        message: reason,
+      });
       closeSubscription(code, reason);
     },
   };

@@ -170,9 +170,9 @@ import {
   resolveWorkspaceCanvasMinHeight,
 } from "./workspace-canvas-height";
 import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
-import { WidgetErrorBoundary } from "@/widgets/shared/widget-error-boundary";
 import { MissingWidgetFrame } from "@/widgets/shared/widget-frame";
 import type { WidgetInstancePresentation } from "@/widgets/types";
+import { HiddenSidebarRuntimeWidgetMount } from "./HiddenSidebarRuntimeWidgetMount";
 import { WorkspaceCanvasWidgetCard as BuilderWidgetCard } from "./WorkspaceCanvasWidgetHost";
 import {
   WORKSPACE_SLIDE_GRID_COLUMNS,
@@ -291,16 +291,6 @@ function SidebarOnlyRuntimeMounts({
           return null;
         }
 
-        const Component = widget.component as ComponentType<{
-          widget: typeof widget;
-          instanceId?: string;
-          instanceTitle?: string;
-          props: Record<string, unknown>;
-          presentation?: WidgetInstancePresentation;
-          runtimeState?: Record<string, unknown>;
-          onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
-        }>;
-
         return (
           <div
             key={instance.id}
@@ -309,24 +299,13 @@ function SidebarOnlyRuntimeMounts({
             data-workspace-widget-id={widget.id}
             data-workspace-widget-visibility="hidden"
           >
-            <WidgetErrorBoundary
-              widgetId={widget.id}
-              widgetTitle={instance.title ?? widget.title}
-              instanceId={instance.id}
-              surface="hidden"
-            >
-              <Component
-                widget={widget}
-                instanceId={instance.id}
-                instanceTitle={instance.title}
-                props={instance.props ?? {}}
-                presentation={instance.presentation}
-                runtimeState={instance.runtimeState}
-                onRuntimeStateChange={(state) => {
-                  onRuntimeStateChange(instance.id, state);
-                }}
-              />
-            </WidgetErrorBoundary>
+            <HiddenSidebarRuntimeWidgetMount
+              instance={instance}
+              widget={widget}
+              onRuntimeStateChange={(state) => {
+                onRuntimeStateChange(instance.id, state);
+              }}
+            />
           </div>
         );
       })}

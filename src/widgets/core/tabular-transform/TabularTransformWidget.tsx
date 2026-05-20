@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { AlertTriangle, Database, Loader2, Shuffle } from "lucide-react";
 
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
+import { TabularPreviewTable } from "@/widgets/shared/tabular-preview-table";
 import type { WidgetComponentProps } from "@/widgets/types";
 
 import {
@@ -39,10 +40,11 @@ export function TabularTransformWidget({
   runtimeState,
   resolvedInputs,
   instanceId,
+  runtimeDataStore,
 }: Props) {
   const sourceConsumerState = useMemo(
-    () => resolveTabularTransformSourceConsumerState(resolvedInputs),
-    [resolvedInputs],
+    () => resolveTabularTransformSourceConsumerState(resolvedInputs, runtimeDataStore),
+    [resolvedInputs, runtimeDataStore],
   );
   useResolveWidgetUpstream(instanceId, {
     enabled: sourceConsumerState.requiresUpstreamResolution,
@@ -53,8 +55,9 @@ export function TabularTransformWidget({
         props,
         runtimeState,
         resolvedInputs,
+        runtimeDataStore,
       }),
-    [props, resolvedInputs, runtimeState],
+    [props, resolvedInputs, runtimeDataStore, runtimeState],
   );
   const status = frame?.status ?? "idle";
   const isLoading =
@@ -131,7 +134,7 @@ export function TabularTransformWidget({
   }
 
   return (
-    <div className="flex h-full min-h-[160px] flex-col justify-between gap-4 p-4">
+    <div className="flex h-full min-h-[160px] flex-col gap-3 p-4">
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/50 text-muted-foreground">
           {isLoading ? (
@@ -163,24 +166,17 @@ export function TabularTransformWidget({
           {errorMessage}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              Rows
-            </div>
-            <div className="mt-1 text-lg font-semibold text-foreground">
-              {(frame?.rows.length ?? 0).toLocaleString()}
-            </div>
-          </div>
-          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2">
-            <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              Columns
-            </div>
-            <div className="mt-1 text-lg font-semibold text-foreground">
-              {(frame?.columns.length ?? 0).toLocaleString()}
-            </div>
-          </div>
-        </div>
+        <TabularPreviewTable
+          className="min-h-0 flex-1"
+          columns={frame?.columns ?? []}
+          rows={frame?.rows ?? []}
+          emptyMessage={
+            frame?.columns.length
+              ? "No transformed rows are available for the current source and settings."
+              : "No transformed columns are available for the current source and settings."
+          }
+          maxRows={50}
+        />
       )}
     </div>
   );

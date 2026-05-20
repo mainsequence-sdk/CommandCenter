@@ -20,6 +20,7 @@ export const MOCK_API_CONNECTION_TYPE_ID = "command_center.mock_api";
 export const MOCK_API_CONNECTION_TYPE_VERSION = 1;
 export const MOCK_API_LOCAL_INSTANCE_ID = "__local_mock_api__";
 export const MOCK_API_QUERY_KIND = "mock-api-response";
+export const DEFAULT_MOCK_API_LATENCY_MS = 750;
 
 export type MockApiResponseMode =
   | "auto"
@@ -48,6 +49,14 @@ export const DEFAULT_MOCK_API_RESPONSE_BODY = [
   { x: 1, y: 5, label: "beta" },
   { x: 2, y: 3, label: "gamma" },
 ] as const;
+
+interface MockApiSimulatedRequest {
+  latencyMs: number;
+  mode: MockApiResponseMode;
+  responseBody: unknown;
+  status: number;
+  warnings?: string[];
+}
 
 const MOCK_API_CREATED_AT = "1970-01-01T00:00:00.000Z";
 
@@ -80,6 +89,13 @@ function normalizeLatencyMs(value: unknown) {
   }
 
   return Math.min(30_000, Math.max(0, Math.trunc(parsed)));
+}
+
+function normalizeMockApiLatencyMs(value: unknown) {
+  const normalized = normalizeLatencyMs(value);
+  return normalized === undefined || normalized <= 0
+    ? undefined
+    : normalized;
 }
 
 function sleep(ms: number) {
@@ -350,6 +366,48 @@ function responseBodyToConnectionResponse(
   };
 }
 
+function buildMockApiSimulatedRequest(
+  query: MockApiConnectionQuery,
+  publicConfig: MockApiPublicConfig,
+): MockApiSimulatedRequest {
+  return {
+    latencyMs:
+      normalizeMockApiLatencyMs(query.latencyMs) ??
+      normalizeMockApiLatencyMs(publicConfig.latencyMs) ??
+      DEFAULT_MOCK_API_LATENCY_MS,
+    mode: query.responseMode ?? publicConfig.defaultResponseMode ?? "auto",
+    responseBody:
+      query.responseBody === undefined
+        ? publicConfig.defaultResponseBody ?? DEFAULT_MOCK_API_RESPONSE_BODY
+        : query.responseBody,
+    status:
+      normalizeStatus(query.responseStatus) ??
+      normalizeStatus(publicConfig.defaultResponseStatus) ??
+      200,
+    warnings: Array.isArray(query.warnings)
+      ? query.warnings.filter(isNonEmptyString)
+      : undefined,
+  };
+}
+
+async function resolveMockApiSimulatedResponse(
+  simulatedRequest: MockApiSimulatedRequest,
+): Promise<ConnectionQueryResponse> {
+  if (simulatedRequest.latencyMs > 0) {
+    await sleep(simulatedRequest.latencyMs);
+  }
+
+  if (simulatedRequest.status < 200 || simulatedRequest.status >= 300) {
+    throw new Error(`Mock API response failed with HTTP ${simulatedRequest.status}.`);
+  }
+
+  return responseBodyToConnectionResponse(
+    simulatedRequest.responseBody,
+    simulatedRequest.mode,
+    simulatedRequest.warnings,
+  );
+}
+
 export function isMockApiConnectionId(id: ConnectionId | undefined) {
   return id !== undefined && String(id) === MOCK_API_LOCAL_INSTANCE_ID;
 }
@@ -382,7 +440,7 @@ export function buildMockApiConnectionInstance(): ConnectionInstance {
       defaultResponseBody: DEFAULT_MOCK_API_RESPONSE_BODY,
       defaultResponseStatus: 200,
       defaultResponseMode: "auto",
-      latencyMs: 0,
+      latencyMs: DEFAULT_MOCK_API_LATENCY_MS,
     } satisfies MockApiPublicConfig,
     secureFields: {},
     status: "ok",
@@ -423,30 +481,7 @@ export async function executeMockApiConnectionQuery(
     : {};
   const localInstance = buildMockApiConnectionInstance();
   const publicConfig = localInstance.publicConfig as MockApiPublicConfig;
-  const responseStatus =
-    normalizeStatus(query.responseStatus) ??
-    normalizeStatus(publicConfig.defaultResponseStatus) ??
-    200;
-  const latencyMs =
-    normalizeLatencyMs(query.latencyMs) ??
-    normalizeLatencyMs(publicConfig.latencyMs) ??
-    0;
-  const mode = query.responseMode ?? publicConfig.defaultResponseMode ?? "auto";
-  const responseBody =
-    query.responseBody === undefined
-      ? publicConfig.defaultResponseBody ?? DEFAULT_MOCK_API_RESPONSE_BODY
-      : query.responseBody;
-  const warnings = Array.isArray(query.warnings)
-    ? query.warnings.filter(isNonEmptyString)
-    : undefined;
+  const simulatedRequest = buildMockApiSimulatedRequest(query, publicConfig);
 
-  if (latencyMs > 0) {
-    await sleep(latencyMs);
-  }
-
-  if (responseStatus < 200 || responseStatus >= 300) {
-    throw new Error(`Mock API response failed with HTTP ${responseStatus}.`);
-  }
-
-  return responseBodyToConnectionResponse(responseBody, mode, warnings);
+  return resolveMockApiSimulatedResponse(simulatedRequest);
 }

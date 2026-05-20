@@ -12,6 +12,8 @@ Transforms one bound `core.tabular_frame@v1` dataset and republishes the result 
 - Use to publish reusable computed columns that downstream widgets should consume as part of the
   transformed dataset.
 - Use to project a smaller set of columns for downstream widgets.
+- Use between a WebSocket source and a live consumer when live rows need filtering, computed
+  columns, or projection before they reach the consumer.
 
 ## whenNotToUse
 
@@ -23,16 +25,21 @@ Transforms one bound `core.tabular_frame@v1` dataset and republishes the result 
 
 - Bind `sourceData` to a widget that publishes `core.tabular_frame@v1`.
 - Select a transform mode.
-- Configure filter rules, key fields, pivot fields, unpivot value fields, computed columns, or
-  projection fields as needed.
-- Bind downstream widgets to this widget's `dataset` output.
+- Configure only the mode-specific fields that appear: filter rules for filtering, key fields for
+  aggregate/pivot/unpivot, pivot fields for pivoting, unpivot value fields for unpivoting, computed
+  columns, or projection fields.
+- Use the panel preview to inspect the transformed columns and sample rows before connecting
+  downstream widgets.
+- Bind downstream seed inputs to this widget's `dataset` output.
+- Bind downstream live-update inputs to this widget's `updates` output.
 
 ## blockingRequirements
 
 - A compatible upstream tabular frame is required.
 - Incremental upstream sources expose retained rows through `upstreamBase` and changed rows through
-  `upstreamDelta`. Pass-through/projection transforms can publish transformed deltas; aggregate,
-  pivot, and unpivot modes recompute from the retained frame and publish a snapshot result.
+  `upstreamDelta`. The `updates` output republishes the transformed stream publication.
+  Pass-through/projection transforms can publish transformed deltas; aggregate, pivot, and unpivot
+  modes recompute from the retained frame and publish a snapshot result.
 - Aggregate mode requires one or more key fields to reduce rows.
 - Filter mode requires at least one valid rule.
 - Pivot mode requires a pivot field and a value field.

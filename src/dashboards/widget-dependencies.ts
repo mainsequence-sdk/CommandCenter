@@ -215,6 +215,7 @@ export interface DashboardWidgetDependencyModel {
   resolveIo: (instanceId: string) => WidgetIoDefinition | undefined;
   resolveOutputs: (instanceId: string) => ResolvedWidgetOutputs | undefined;
   resolveInputs: (instanceId: string) => ResolvedWidgetInputs | undefined;
+  resolveInputsForInstance: (instance: DashboardWidgetInstance) => ResolvedWidgetInputs | undefined;
 }
 
 export interface UnresolvedReferenceBackedInput {
@@ -671,6 +672,81 @@ function resolveWidgetIoForInstance(
   });
 }
 
+function summarizeStreamDownstreamValue(value: unknown) {
+  if (Array.isArray(value)) {
+    return {
+      kind: "array",
+      length: value.length,
+    };
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const runtimeDataRef = getRuntimeDataRef(record);
+
+    return {
+      kind: "object",
+      keys: Object.keys(record),
+      rowCount: Array.isArray(record.rows)
+        ? record.rows.length
+        : runtimeDataRef?.rowCount,
+      columnCount: Array.isArray(record.columns) ? record.columns.length : undefined,
+      hasRuntimeDataRef: Boolean(runtimeDataRef),
+      hasUpstreamUpdate: Boolean(readWidgetRuntimeUpdateContext(record)),
+    };
+  }
+
+  return value;
+}
+
+// Temporary stream diagnostics are disabled by default to avoid console spam.
+const STREAM_DOWNSTREAM_INPUT_DEBUG_LOGS_ENABLED = false;
+const streamDownstreamInputDebugSignatures = new Map<string, string>();
+
+function logStreamDownstreamInput(input: {
+  result: ResolvedWidgetInput;
+  sourceInstance: DashboardWidgetInstance;
+  targetInstance: DashboardWidgetInstance;
+}) {
+  if (
+    !import.meta.env.DEV ||
+    !STREAM_DOWNSTREAM_INPUT_DEBUG_LOGS_ENABLED ||
+    input.sourceInstance.widgetId !== "connection-stream-query"
+  ) {
+    return;
+  }
+
+  const payload = {
+    targetWidgetId: input.targetInstance.id,
+    sourceWidgetId: input.sourceInstance.id,
+    inputId: input.result.inputId,
+    outputId: input.result.sourceOutputId,
+    status: input.result.status,
+    contractId: input.result.contractId,
+    hasValue: input.result.value !== undefined,
+    hasUpstreamUpdate: Boolean(input.result.upstreamUpdate),
+    valueSummary: summarizeStreamDownstreamValue(input.result.value),
+  };
+  const key = [
+    payload.sourceWidgetId,
+    payload.targetWidgetId,
+    payload.inputId,
+    payload.outputId,
+  ].join(":");
+  const signature = JSON.stringify(payload);
+
+  if (streamDownstreamInputDebugSignatures.get(key) === signature) {
+    return;
+  }
+
+  if (streamDownstreamInputDebugSignatures.size > 200) {
+    streamDownstreamInputDebugSignatures.clear();
+  }
+
+  streamDownstreamInputDebugSignatures.set(key, signature);
+  console.log("[stream-downstream-input]", payload);
+}
+
 export function resolveWidgetGraphConnection(
   connectionLike: WidgetGraphConnectionLike,
   instanceIndex: ReadonlyMap<string, DashboardWidgetInstance>,
@@ -926,7 +1002,7 @@ function resolveSingleInput(
     const resolvedSourceOutput = resolveOutputs(sourceInstance.id)?.[binding.sourceOutputId];
 
     if (!sourceOutput || !resolvedSourceOutput) {
-      return {
+      const result = {
         inputId: input.id,
         label: input.label,
         sourceWidgetId: binding.sourceWidgetId,
@@ -935,6 +1011,14 @@ function resolveSingleInput(
         status: "missing-output",
         effects: input.effects ?? [],
       } satisfies ResolvedWidgetInput;
+
+      logStreamDownstreamInput({
+        result,
+        sourceInstance,
+        targetInstance: instance,
+      });
+
+      return result;
     }
 
     if (input.acceptedOutputIds?.length && !input.acceptedOutputIds.includes(binding.sourceOutputId)) {
@@ -1027,7 +1111,7 @@ function resolveSingleInput(
       runtimeDataStore,
     });
 
-    return {
+    const result = {
       inputId: input.id,
       label: input.label,
       sourceWidgetId: binding.sourceWidgetId,
@@ -1045,6 +1129,14 @@ function resolveSingleInput(
       status: "valid",
       effects: input.effects ?? [],
     } satisfies ResolvedWidgetInput;
+
+    logStreamDownstreamInput({
+      result,
+      sourceInstance,
+      targetInstance: instance,
+    });
+
+    return result;
   });
 
   return bindings.length === 1 && input.cardinality !== "many"
@@ -1205,6 +1297,43 @@ export function createDashboardWidgetDependencyModel(
   const resolvedInputCache = new Map<string, ResolvedWidgetInputs | undefined>();
   const resolvedOutputCache = new Map<string, ResolvedWidgetOutputs | undefined>();
 
+  const resolveInputsForInstance = (
+    instance: DashboardWidgetInstance,
+  ): ResolvedWidgetInputs | undefined => {
+    const inputs =
+      (resolveWidgetIoForInstance(
+        getWidgetDefinition(instance.widgetId),
+        instance,
+      )?.inputs ?? []) as WidgetInputPortDefinition<Record<string, unknown>>[];
+
+    if (inputs.length === 0) {
+      return undefined;
+    }
+
+    const effectiveBindings = resolveEffectiveWidgetBindings({
+      entries,
+      getWidgetDefinition,
+      instance,
+      resolveIo,
+    }) ?? {};
+
+    return Object.fromEntries(
+      inputs.map((input) => [
+        input.id,
+        resolveSingleInput(
+          instance,
+          input,
+          toBindingArray(effectiveBindings[input.id]),
+          instanceIndex,
+          getWidgetDefinition,
+          resolveIo,
+          resolveOutputs,
+          options?.runtimeDataStore,
+        ),
+      ]),
+    ) satisfies ResolvedWidgetInputs;
+  };
+
   const resolveOutputs = (instanceId: string): ResolvedWidgetOutputs | undefined => {
     if (resolvedOutputCache.has(instanceId)) {
       return resolvedOutputCache.get(instanceId);
@@ -1255,36 +1384,8 @@ export function createDashboardWidgetDependencyModel(
       return undefined;
     }
 
-    const inputs =
-      (resolveIo(instanceId)?.inputs ?? []) as WidgetInputPortDefinition<Record<string, unknown>>[];
-
-    if (inputs.length === 0) {
-      resolvedInputCache.set(instanceId, undefined);
-      return undefined;
-    }
-
     resolvedInputCache.set(instanceId, undefined);
-    const effectiveBindings = resolveEffectiveWidgetBindings({
-      entries,
-      getWidgetDefinition,
-      instance,
-      resolveIo,
-    }) ?? {};
-    const resolvedInputs: ResolvedWidgetInputs = Object.fromEntries(
-      inputs.map((input) => [
-        input.id,
-        resolveSingleInput(
-          instance,
-          input,
-          toBindingArray(effectiveBindings[input.id]),
-          instanceIndex,
-          getWidgetDefinition,
-          resolveIo,
-          resolveOutputs,
-          options?.runtimeDataStore,
-        ),
-      ]),
-    ) satisfies ResolvedWidgetInputs;
+    const resolvedInputs = resolveInputsForInstance(instance);
 
     resolvedInputCache.set(instanceId, resolvedInputs);
     return resolvedInputs;
@@ -1311,5 +1412,6 @@ export function createDashboardWidgetDependencyModel(
     resolveIo,
     resolveOutputs,
     resolveInputs,
+    resolveInputsForInstance,
   };
 }

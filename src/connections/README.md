@@ -86,8 +86,13 @@ connection ADR. Connections are platform data-access resources, not widgets.
   runtime execution use backend-owned instances only.
 - The exception is an explicit frontend compatibility shim marked `registrySync: "local-only"`.
   `command_center.mock_api` uses this path to provide one documented local mock instance for
-  JSON-backed widget and connection-query prototyping. It must never be included in backend
-  connection-type sync.
+  JSON-backed widget and connection-query prototyping. Its query editor stores the user-authored
+  response JSON in the query payload; runtime execution builds a browser-local simulated request,
+  waits for the configured latency, and returns that same body through the normal connection-query
+  response normalization so workspace graphs see pending and ready states like a real connection.
+  Missing or zero latency values are interpreted as the default visible mock delay to keep older
+  saved mock widgets from resolving before the rail/graph can render running state.
+  It must never be included in backend connection-type sync.
 - When a saved widget ref points at a stale or malformed connection id but still names a valid
   connection type, the shared workbench repairs that ref to a resolvable backend/default backend
   instance of the same type before running preview requests. If the saved ref is a retired

@@ -15,7 +15,7 @@ one file or one feature folder.
 
 ## Workspace And Runtime ADRs
 
-- [ADR 069: Canonical Effective Widget State Across Runtime Surfaces](./adr-069-selection-backed-variable-state-across-settings-surfaces.md)
+- [ADR 069: Variable-Driven WebSocket Stream Resubscription](./adr-069-websocket-stream-variable-resubscription.md)
 - [ADR 068: Automatic Partial WebSocket Row Patching For Tabular Consumers](./adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers.md)
 - [ADR 064: Variable References as Widget Graph Edges](./adr-064-variable-reference-graph-integration.md)
 - [ADR 060: Instant Widget Settings Runtime](./adr-060-instant-widget-settings-runtime.md)
@@ -53,7 +53,7 @@ one file or one feature folder.
 
 ## Widget Contract And Execution ADRs
 
-- [ADR 069: Canonical Effective Widget State Across Runtime Surfaces](./adr-069-selection-backed-variable-state-across-settings-surfaces.md)
+- [ADR 069: Variable-Driven WebSocket Stream Resubscription](./adr-069-websocket-stream-variable-resubscription.md)
 - [ADR 068: Automatic Partial WebSocket Row Patching For Tabular Consumers](./adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers.md)
 - [ADR 067: Tabular Transform Owns Shared Computed Column Authoring](./adr-067-tabular-transform-owns-shared-computed-column-authoring.md)
 - [ADR 065: Shared Table Core With Community And Pro Table Widgets](./adr-065-shared-table-core-with-community-and-pro-table-widgets.md)

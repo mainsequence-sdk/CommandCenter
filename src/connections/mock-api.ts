@@ -2,6 +2,7 @@ import type { ConnectionTypeDefinition } from "@/connections/types";
 
 import { MockApiConnectionQueryEditor } from "./MockApiConnectionQueryEditor";
 import {
+  DEFAULT_MOCK_API_LATENCY_MS,
   DEFAULT_MOCK_API_RESPONSE_BODY,
   MOCK_API_CONNECTION_TYPE_ID,
   MOCK_API_CONNECTION_TYPE_VERSION,
@@ -15,6 +16,7 @@ export {
   MOCK_API_CONNECTION_TYPE_VERSION,
   MOCK_API_LOCAL_INSTANCE_ID,
   MOCK_API_QUERY_KIND,
+  DEFAULT_MOCK_API_LATENCY_MS,
   buildMockApiConnectionInstance,
   executeMockApiConnectionQuery,
   isMockApiConnectionId,
@@ -54,7 +56,7 @@ Provides a local-only Mock API connection for prototyping connection-query widge
 - Example: [{ "x": 0, "y": 2, "label": "alpha" }]
 - Used by: frontend mock executor
 - Meaning: fallback response body used when a query does not provide its own response JSON.
-- Constraints: must be valid JSON. The local executor never sends this value to the backend.
+- Constraints: must be valid JSON. The local executor places this value into the simulated request and returns it as the simulated response body; it never sends the value to the backend.
 - UI help: Default JSON response used by the local mock executor when the query payload does not override it.
 
 ### defaultResponseStatus
@@ -86,21 +88,21 @@ Provides a local-only Mock API connection for prototyping connection-query widge
 - Label: Latency ms
 - Type: number
 - Required: no
-- Default: 0
-- Example: 250
+- Default: ${DEFAULT_MOCK_API_LATENCY_MS}
+- Example: ${DEFAULT_MOCK_API_LATENCY_MS}
 - Used by: frontend mock executor
-- Meaning: optional local delay before the mock response resolves.
-- Constraints: clamped to a finite non-negative delay by the local executor.
-- UI help: Optional local delay before the mock response resolves.
+- Meaning: local delay before the simulated request resolves, so workspace execution shows the same pending/active flow as real query connections.
+- Constraints: clamped to a finite non-negative delay by the local executor. Missing or 0 values use the default visible delay so legacy saved widgets do not complete too fast to show runtime execution.
+- UI help: Local delay before the simulated request returns the configured response body. Leave empty or 0 to use the default visible delay.
 
 ## queryModels
 
 ### mock-api-response
 
-- Payload: { "kind": "mock-api-response", "responseMode": "auto", "responseStatus": 200, "responseBody": [{ "x": 0, "y": 2 }] }
+- Payload: { "kind": "mock-api-response", "responseMode": "auto", "responseStatus": 200, "latencyMs": ${DEFAULT_MOCK_API_LATENCY_MS}, "responseBody": [{ "x": 0, "y": 2 }] }
 - Returns: \`core.tabular_frame@v1\` by converting arrays or objects into rows. Full \`ConnectionQueryResponse\` payloads can also pass through when responseMode is \`connection-query-response\` or auto-detected.
 - Time-range-aware: no.
-- Notes: This query runs entirely in the browser. The query editor commits valid response JSON into the widget draft as the user types so normal widget dirty/save behavior works before blur; invalid JSON stays local with a parse error. It intentionally bypasses backend connection instance creation, registry sync, credentials, cache, and network IO.
+- Notes: This query runs entirely in the browser. The query editor commits valid response JSON into the widget draft as the user types. Execution builds a simulated request from that draft, waits for the configured latency, and returns the same response body through the normal connection-query runtime. It intentionally bypasses backend connection instance creation, registry sync, credentials, cache, and network IO.
 
 ## backendOwnership
 
@@ -174,10 +176,11 @@ export const mockApiConnection: ConnectionTypeDefinition<
         id: "latencyMs",
         sectionId: "response",
         label: "Latency ms",
-        description: "Optional local delay before the mock response resolves.",
+        description:
+          "Local delay before the simulated request returns the configured response body. Empty or 0 uses the default visible delay.",
         type: "number",
         required: false,
-        defaultValue: 0,
+        defaultValue: DEFAULT_MOCK_API_LATENCY_MS,
       },
     ],
   },
@@ -193,7 +196,7 @@ export const mockApiConnection: ConnectionTypeDefinition<
         kind: MOCK_API_QUERY_KIND,
         responseMode: "auto",
         responseStatus: 200,
-        latencyMs: 0,
+        latencyMs: DEFAULT_MOCK_API_LATENCY_MS,
         responseBody: DEFAULT_MOCK_API_RESPONSE_BODY,
       },
       controls: ["responseMode", "responseStatus", "latencyMs", "responseBody"],
@@ -212,12 +215,13 @@ export const mockApiConnection: ConnectionTypeDefinition<
         defaultResponseBody: DEFAULT_MOCK_API_RESPONSE_BODY,
         defaultResponseStatus: 200,
         defaultResponseMode: "auto",
-        latencyMs: 0,
+        latencyMs: DEFAULT_MOCK_API_LATENCY_MS,
       },
       query: {
         kind: MOCK_API_QUERY_KIND,
         responseMode: "auto",
         responseStatus: 200,
+        latencyMs: DEFAULT_MOCK_API_LATENCY_MS,
         responseBody: DEFAULT_MOCK_API_RESPONSE_BODY,
       },
     },

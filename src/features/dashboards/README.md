@@ -128,6 +128,11 @@ These flows are all part of one app surface, with instance state selected throug
   `widget.publicExecution.streamUrl` and sends `subscribe` messages that include
   `subscriptionId`, `widgetInstanceId`, `capability`, and a nested `request` containing only the
   allowed `timeRange` and `variables` inputs.
+- Hidden/sidebar runtime mounting now keeps `connection-stream-query` scoped to its own lifecycle:
+  direct stream sources receive dependency-model `resolvedInputs`, managed stream sources receive
+  runtime-only embedded props projected from their owner, and all other hidden widgets keep the
+  existing raw-props mount path. This lets variable-backed streams resubscribe without moving them
+  into graph execution or changing table selection ownership.
 - Before enabling a public link, workspace settings now show a local public-readiness control plane.
   It is intentionally a frontend preflight, not the final authority; backend publication validation
   must still make the authoritative allow/block decision.
@@ -171,6 +176,10 @@ These flows are all part of one app surface, with instance state selected throug
 - Opening the direct bindings inspector adds `?workspace=<id>&view=widget-settings&widget=<instanceId>&tab=bindings`.
 - Widget-instance settings include a direct `Widget type details` link to the canonical catalog
   detail route for the underlying widget definition.
+- Widget-instance settings commits that modify an executable source, including managed embedded
+  connection sources, immediately run that source through the shared widget flow executor so saved
+  source props materialize as runtime output and downstream consumers refresh from the graph
+  contract.
 - Widget-instance settings now keep reference-backed title and schema-setting authoring inside the
   existing settings controls through a compact inline link affordance. The dedicated `Bindings`
   tab remains for true widget IO ports such as datasets and live updates. Synthetic setting/title

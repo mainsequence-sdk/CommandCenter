@@ -9,7 +9,7 @@ for connection query models that advertise a WebSocket stream contract.
   ownership.
 - `connectionStreamQueryModel.ts`: prop normalization, stream request building, lifecycle frames,
   compatibility dataset projection, incremental publication metadata, and WebSocket runtime session helpers.
-- `ConnectionStreamQueryWidget.tsx`: hidden/sidebar runtime mount that acquires one shared
+- `ConnectionStreamQueryWidget.tsx`: hidden/sidebar runtime component that acquires one shared
   workspace WebSocket subscription through `src/connections/connection-runtime-store.tsx` and
   publishes runtime state through `onRuntimeStateChange`. Runtime request building resolves the
   widget through the shared reference-backed effective-props contract instead of reading raw saved
@@ -82,6 +82,10 @@ for connection query models that advertise a WebSocket stream contract.
   `reconnecting`, `error`, or `closed`. Canonical frame `status` remains `idle`, `loading`,
   `ready`, or `error` so existing consumer-state resolution can distinguish awaiting publication,
   loading, ready, empty, and error states.
+- Variable-backed stream props are resolved before subscription. If the resolved request changes,
+  the existing stream lifecycle releases the old session and acquires a new one. If the referenced
+  value is not available, the widget publishes an idle waiting state instead of opening a socket
+  with stale or unresolved tokens.
 - Runtime now includes a browser-side reconnect supervisor that:
   - retries after socket close/error and retryable stream errors
   - reacquires a fresh SPA WebSocket ticket before each reconnect
@@ -98,10 +102,10 @@ for connection query models that advertise a WebSocket stream contract.
   [ADR 046](../../../docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision.md).
 - The widget is fixed to sidebar placement. It can be used as a normal hidden source widget because
   its output contract and bindings are identical to other tabular source widgets.
-- Hidden/sidebar runtime mounts must resolve bindings through the same effective widget-state
-  contract used by visible graph execution. Stream runtime behavior must never depend on whether
-  the widget was mounted from a visible canvas card, a hidden source container, or a settings
-  surface preview.
+- Hidden/sidebar runtime mounting for this widget is owned by
+  `src/features/dashboards/HiddenSidebarRuntimeWidgetMount.tsx`. That helper passes resolved
+  inputs for direct stream sources and runtime-only projected embedded props for managed stream
+  sources. Do not persist those projected props back to workspace storage.
 
 ## Maintenance Constraints
 

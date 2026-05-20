@@ -9,6 +9,7 @@ Large retained frames are stored in the workspace runtime data store and carried
 - Use when downstream widgets should bind to explicit `updates` publications while the source keeps a WebSocket open.
 - Use when several widgets need the same stream request; matching active requests share one workspace runtime connection instead of opening duplicate browser sockets.
 - Use when snapshot and delta messages should feed the same table, graph, statistic, transform, or debug widgets that already consume connection query output.
+- Use when the stream request depends on a workspace variable, such as a selected symbol. When the variable changes, the source resubscribes with the new resolved request.
 
 ## whenNotToUse
 
@@ -35,6 +36,7 @@ Large retained frames are stored in the workspace runtime data store and carried
 - The widget stores connection/query selection and stream merge settings only; credentials and provider URLs must stay on the backend connection instance.
 - Runtime state should carry stream lifecycle plus runtime data refs. Do not rely on active source widgets keeping retained rows inline; materialize rows through the shared runtime data store when row data is needed.
 - Widget settings read an active workspace stream from the shared connection runtime store. If the same request is already live, settings should show that status instead of requiring a separate test stream.
+- Variable-backed requests wait for the referenced value before subscribing. If the selected row or active cell is empty, choose a value in the source widget first instead of expecting the stream to open with an empty symbol.
 - Stream diagnostics and test controls are opt-in from settings. Opening settings should show lightweight active runtime status first and must not automatically mount a live diagnostic stream panel.
 - The shared settings panel uses demo-only preview for this source widget so previewing settings does not open a second runtime owner for the real draft request.
 - The visible source card should observe shared stream status at a throttled cadence, not per WebSocket frame. High-frequency streams must not make settings buttons or canvas controls wait behind status-card rerenders.

@@ -8,24 +8,32 @@ for `core.tabular_frame@v1` datasets.
 - `definition.ts`: widget definition, IO contract, registry metadata, and execution ownership.
 - `tabularTransformModel.ts`: props normalization, field inference, transform helpers, and output
   resolution.
-- `TabularTransformWidget.tsx`: compact runtime renderer for transformed dataset status.
+- `TabularTransformWidget.tsx`: compact runtime renderer for the transformed dataset preview.
 - `TabularTransformWidgetSettings.tsx`: settings UI for transform mode, fields, aggregate mode,
-  filter rules, pivot, unpivot, computed columns, and projection.
+  filter rules, pivot, unpivot, computed columns, and projection. Mode-specific field controls are
+  only shown when the active transform uses them.
 - `USAGE_GUIDANCE.md`: user-facing registry guidance imported by the widget definition.
 
 ## Behavior
 
-- The widget consumes one `core.tabular_frame@v1` input and republishes one
-  `core.tabular_frame@v1` output.
+- The widget consumes one `core.tabular_frame@v1` input and republishes transformed
+  `dataset` and `updates` outputs. Downstream seed inputs bind to `dataset`; downstream live
+  inputs bind to `updates`.
 - Source-input validity and mounted waiting/loading/error semantics now go through the shared
   upstream consumer contract before transform execution or UI rendering. A valid binding with no
   published upstream value is treated as `awaiting-upstream`, not as a malformed dataset.
 - When an upstream source publishes incremental metadata, the transform reads the retained
-  `upstreamBase` frame for correctness. Pass-through/projection transforms also publish transformed
+  `upstreamBase` frame for correctness and republishes the transformed publication through the
+  explicit `updates` output. Pass-through/projection transforms also publish transformed
   `upstreamDelta` metadata; aggregate, pivot, and unpivot modes fall back to snapshot output because
   partial row deltas cannot preserve correctness there.
 - Supported initial transforms are `none`, `filter`, `aggregate`, `pivot`, `unpivot`, and final
   projection.
+- The settings UI keeps available source fields visible as reference text, but hides key-field
+  editing for modes such as `none` and `filter` where key fields have no effect.
+- The runtime panel and settings preview render the actual transformed columns and sample rows,
+  rather than only row/column counts, so authors can verify projection and formulas before binding
+  downstream widgets.
 - Shared computed-column authoring now lives here. The widget stores user-authored formula columns
   in persisted props, compiles them into the shared `meta.tableTransforms.computedColumns`
   contract, materializes them into the published rows, and keeps them visible as an explicit graph

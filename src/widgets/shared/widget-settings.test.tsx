@@ -120,6 +120,35 @@ const bufferedSymbolsWidgetDefinition: WidgetDefinition<{ symbols?: string[] }> 
   ),
 };
 
+const rawPropsDraftWidgetDefinition: WidgetDefinition<{ value?: string }> = {
+  id: "raw-props-draft-card",
+  widgetVersion: "test",
+  title: "Raw props draft",
+  description: "Raw props synchronization test widget",
+  category: "Core",
+  kind: "custom",
+  source: "core",
+  defaultSize: { w: 4, h: 4 },
+  settingsPreviewMode: "none",
+  component: () => null,
+  settingsComponent: ({ draftProps, editable, onDraftPropsChange }) => (
+    <label>
+      <span>Value</span>
+      <input
+        placeholder="Widget value"
+        value={draftProps.value ?? ""}
+        disabled={!editable}
+        onChange={(event) => {
+          onDraftPropsChange({
+            ...draftProps,
+            value: event.currentTarget.value,
+          });
+        }}
+      />
+    </label>
+  ),
+};
+
 const sourceInstance: DashboardWidgetInstance = {
   id: "table-1",
   widgetId: "table",
@@ -138,6 +167,17 @@ describe("WidgetSettingsPanel variable references", () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
+    Object.defineProperty(window, "requestAnimationFrame", {
+      configurable: true,
+      value: (callback: FrameRequestCallback) =>
+        window.setTimeout(() => callback(performance.now()), 0),
+    });
+    Object.defineProperty(window, "cancelAnimationFrame", {
+      configurable: true,
+      value: (id: number) => {
+        window.clearTimeout(id);
+      },
+    });
   });
 
   afterEach(async () => {
@@ -306,5 +346,108 @@ describe("WidgetSettingsPanel variable references", () => {
     });
 
     expect(saveButton?.disabled).toBe(false);
+  });
+
+  it("saves the current draft props instead of stale raw JSON text", async () => {
+    const onSave = vi.fn();
+
+    function Harness() {
+      const [draftProps, setDraftProps] = useState<{ value?: string }>({
+        value: "initial",
+      });
+      const targetInstance: DashboardWidgetInstance = {
+        id: "card-3",
+        widgetId: "raw-props-draft-card",
+        title: "Raw props draft",
+        props: {
+          value: "initial",
+        },
+        bindings: undefined,
+        layout: { w: 4, h: 4 },
+        presentation: targetPresentation,
+      };
+
+      return (
+        <DashboardWidgetDependenciesProvider
+          widgets={[targetInstance]}
+          resolveWidgetDefinition={(widgetId) => {
+            if (widgetId === "raw-props-draft-card") {
+              return rawPropsDraftWidgetDefinition;
+            }
+
+            return undefined;
+          }}
+        >
+          <WidgetSettingsPanel
+            widget={rawPropsDraftWidgetDefinition}
+            instance={targetInstance}
+            draftBindings={undefined}
+            draftPresentation={targetPresentation}
+            draftProps={draftProps}
+            draftTitle="Raw props draft"
+            onClose={() => {}}
+            onDraftBindingsChange={() => {}}
+            onDraftPresentationChange={() => {}}
+            onDraftPropsChange={setDraftProps}
+            onDraftTitleChange={() => {}}
+            onSave={onSave}
+          />
+        </DashboardWidgetDependenciesProvider>
+      );
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+      await flushEffects();
+      await flushEffects();
+    });
+
+    const rawToggleButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Show Props JSON",
+    );
+
+    expect(rawToggleButton).not.toBeUndefined();
+
+    await act(async () => {
+      rawToggleButton!.click();
+      await flushEffects();
+      await flushEffects();
+      await flushEffects();
+    });
+
+    const draftInput = container.querySelector<HTMLInputElement>(
+      'input[placeholder="Widget value"]',
+    );
+
+    expect(draftInput).not.toBeNull();
+
+    await act(async () => {
+      setNativeInputValue(draftInput!, "from-ui");
+      draftInput!.dispatchEvent(new Event("input", { bubbles: true }));
+      await flushEffects();
+      await flushEffects();
+    });
+
+    const rawPropsTextarea = container.querySelector("textarea");
+    expect(rawPropsTextarea?.value).toContain('"value": "from-ui"');
+
+    const saveButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Save settings",
+    );
+
+    expect(saveButton).not.toBeUndefined();
+
+    await act(async () => {
+      saveButton!.click();
+      await flushEffects();
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        props: {
+          value: "from-ui",
+        },
+      }),
+    );
   });
 });

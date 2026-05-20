@@ -45,7 +45,6 @@ import {
   MissingWidgetFrame,
 } from "@/widgets/shared/widget-frame";
 import { resolveWidgetSidebarOnly } from "@/widgets/shared/chrome";
-import { WidgetErrorBoundary } from "@/widgets/shared/widget-error-boundary";
 import { WidgetSettingsPanel } from "@/widgets/shared/widget-settings";
 import {
   getVisibleWidgetSchemaFields,
@@ -69,6 +68,7 @@ import { clonePublicWorkspaceRenderPermissions } from "./public-workspace-permis
 import { WorkspaceWidgetRail } from "./WorkspaceChrome";
 import { WorkspaceCanvasWidgetCard } from "./WorkspaceCanvasWidgetHost";
 import { WorkspaceSlideSubgridHost } from "./WorkspaceSlideSubgridHost";
+import { HiddenSidebarRuntimeWidgetMount } from "./HiddenSidebarRuntimeWidgetMount";
 import { isManagedDashboardWidgetHiddenFromNormalRail } from "./workspace-widget-visibility";
 
 const EMPTY_PERMISSIONS: string[] = [];
@@ -943,37 +943,15 @@ function DashboardCanvasSurface({
                 return null;
               }
 
-              const Component = widget.component as ComponentType<{
-                widget: typeof widget;
-                instanceId?: string;
-                instanceTitle?: string;
-                props: Record<string, unknown>;
-                presentation?: WidgetInstancePresentation;
-                runtimeState?: Record<string, unknown>;
-                onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
-              }>;
-
               return (
-                <div key={instance.id} className="h-px w-px overflow-hidden">
-                  <WidgetErrorBoundary
-                    widgetId={widget.id}
-                    widgetTitle={instance.title ?? widget.title}
-                    instanceId={instance.id}
-                    surface="hidden"
-                  >
-                    <Component
-                      widget={widget}
-                      instanceId={instance.id}
-                      instanceTitle={instance.title}
-                      props={instance.props ?? {}}
-                      presentation={instance.presentation}
-                      runtimeState={instance.runtimeState}
-                      onRuntimeStateChange={(state) => {
-                        handleRuntimeStateChange(instance.id, state);
-                      }}
-                    />
-                  </WidgetErrorBoundary>
-                </div>
+                <HiddenSidebarRuntimeWidgetMount
+                  key={instance.id}
+                  instance={instance}
+                  widget={widget}
+                  onRuntimeStateChange={(state) => {
+                    handleRuntimeStateChange(instance.id, state);
+                  }}
+                />
               );
             })}
               </div>

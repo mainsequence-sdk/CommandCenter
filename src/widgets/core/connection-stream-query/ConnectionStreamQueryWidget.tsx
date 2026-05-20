@@ -11,7 +11,9 @@ import {
 import type { ConnectionQueryModel } from "@/connections/types";
 import { useDashboardControls } from "@/dashboards/DashboardControls";
 import { useDashboardWidgetExecution } from "@/dashboards/DashboardWidgetExecution";
+import { listUnresolvedReferenceBackedPropInputs } from "@/dashboards/widget-dependencies";
 import { resolveReferenceBackedWidgetState } from "@/dashboards/widget-instance-references";
+import { isWidgetReferenceExpressionValue } from "@/dashboards/widget-reference-language";
 import {
   getRuntimeDataRef,
   useRuntimeDataStore,
@@ -31,6 +33,9 @@ import {
 } from "./connectionStreamQueryModel";
 
 type Props = WidgetComponentProps<ConnectionStreamQueryWidgetProps>;
+
+// Temporary stream diagnostics are disabled by default to avoid console spam.
+const STREAM_QUERY_DEBUG_LOGS_ENABLED = false;
 
 function stableJsonStringify(value: unknown): string {
   if (Array.isArray(value)) {
@@ -98,6 +103,71 @@ function isStreamingActive(status: string) {
   return status === "connecting" || status === "live" || status === "reconnecting";
 }
 
+function containsReferenceExpressionValue(value: unknown): boolean {
+  if (isWidgetReferenceExpressionValue(value)) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.some((entry) => containsReferenceExpressionValue(entry));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.values(value).some((entry) => containsReferenceExpressionValue(entry));
+  }
+
+  return false;
+}
+
+export function hasPendingConnectionStreamReferenceValues(input: {
+  props: ConnectionStreamQueryWidgetProps;
+  resolvedInputs?: Props["resolvedInputs"];
+}) {
+  const subscriptionProps = {
+    connectionRef: input.props.connectionRef,
+    queryModelId: input.props.queryModelId,
+    query: input.props.query,
+    timeRangeMode: input.props.timeRangeMode,
+    fixedStartMs: input.props.fixedStartMs,
+    fixedEndMs: input.props.fixedEndMs,
+    variables: input.props.variables,
+    maxRows: input.props.maxRows,
+    mergeKeyFields: input.props.mergeKeyFields,
+    retentionMaxRows: input.props.retentionMaxRows,
+  } satisfies Partial<ConnectionStreamQueryWidgetProps>;
+
+  return (
+    listUnresolvedReferenceBackedPropInputs(input.resolvedInputs).length > 0 ||
+    containsReferenceExpressionValue(subscriptionProps)
+  );
+}
+
+function summarizeStreamResolvedInputs(resolvedInputs: Props["resolvedInputs"]) {
+  return Object.fromEntries(
+    Object.entries(resolvedInputs ?? {}).map(([inputId, resolved]) => {
+      const entries = Array.isArray(resolved) ? resolved : resolved ? [resolved] : [];
+
+      return [
+        inputId,
+        entries.map((entry) => ({
+          status: entry.status,
+          sourceWidgetId: entry.sourceWidgetId,
+          sourceOutputId: entry.sourceOutputId,
+          value: entry.value,
+        })),
+      ];
+    }),
+  );
+}
+
+function summarizeStreamKey(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+
+  return value.length > 180 ? `${value.slice(0, 90)}...${value.slice(-70)}` : value;
+}
+
 export function ConnectionStreamQueryWidget({
   instanceId,
   instanceTitle,
@@ -123,6 +193,13 @@ export function ConnectionStreamQueryWidget({
     () => normalizeConnectionStreamQueryProps(effectiveState.props as ConnectionStreamQueryWidgetProps),
     [effectiveState.props],
   );
+  const unresolvedReferenceMessage = useMemo(() => {
+    if (hasPendingConnectionStreamReferenceValues({ props: normalizedProps, resolvedInputs })) {
+      return "Waiting for referenced value.";
+    }
+
+    return null;
+  }, [normalizedProps, resolvedInputs]);
   const connectionType = normalizedProps.connectionRef?.typeId
     ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
     : undefined;
@@ -179,6 +256,7 @@ export function ConnectionStreamQueryWidget({
       }),
     [normalizedProps, runtimeQueryModel, widgetExecution?.executionSurface],
   );
+  const effectiveValidationError = unresolvedReferenceMessage ?? validationError;
   const publicExecution = instanceId
     ? widgetExecution?.getWidgetInstance(instanceId)?.publicExecution
     : undefined;
@@ -194,9 +272,16 @@ export function ConnectionStreamQueryWidget({
         queryModel: runtimeQueryModel,
         request,
         publicExecutionKey,
-        validationError,
+        validationError: effectiveValidationError,
       }),
-    [instanceId, normalizedProps, publicExecutionKey, request, runtimeQueryModel, validationError],
+    [
+      effectiveValidationError,
+      instanceId,
+      normalizedProps,
+      publicExecutionKey,
+      request,
+      runtimeQueryModel,
+    ],
   );
   const runtimeKey = useMemo(
     () =>
@@ -233,6 +318,59 @@ export function ConnectionStreamQueryWidget({
   );
 
   useEffect(() => {
+    if (!import.meta.env.DEV || !STREAM_QUERY_DEBUG_LOGS_ENABLED) {
+      return;
+    }
+
+    console.log("[stream-widget-resolution]", {
+      instanceId,
+      propsQuery: props.query,
+      resolvedInputIds: Object.keys(resolvedInputs ?? {}).sort(),
+      resolvedInputsSummary: summarizeStreamResolvedInputs(resolvedInputs),
+      effectiveQuery: (effectiveState.props as ConnectionStreamQueryWidgetProps).query,
+      normalizedQuery: normalizedProps.query,
+      unresolvedReferenceMessage,
+      validationError,
+      queryModelId: normalizedProps.queryModelId,
+      hasRuntimeQueryModel: Boolean(runtimeQueryModel),
+      queryModelStream: runtimeQueryModel?.stream,
+    });
+  }, [
+    effectiveState.props,
+    instanceId,
+    normalizedProps,
+    props.query,
+    resolvedInputs,
+    runtimeQueryModel,
+    unresolvedReferenceMessage,
+    validationError,
+  ]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV || !STREAM_QUERY_DEBUG_LOGS_ENABLED) {
+      return;
+    }
+
+    console.log("[stream-request-key]", {
+      instanceId,
+      request,
+      runtimeKey: summarizeStreamKey(runtimeKey),
+      executionKey: summarizeStreamKey(executionKey),
+      streamSessionConfigKey: summarizeStreamKey(streamSessionConfigKey),
+      publicExecutionKey,
+      executionSurface: widgetExecution?.executionSurface,
+    });
+  }, [
+    executionKey,
+    instanceId,
+    publicExecutionKey,
+    request,
+    runtimeKey,
+    streamSessionConfigKey,
+    widgetExecution?.executionSurface,
+  ]);
+
+  useEffect(() => {
     runtimeRef.current = normalizedRuntimeState;
   }, [normalizedRuntimeState]);
 
@@ -252,6 +390,19 @@ export function ConnectionStreamQueryWidget({
     }
 
     const publishState = (state: Record<string, unknown>) => {
+      if (import.meta.env.DEV && STREAM_QUERY_DEBUG_LOGS_ENABLED) {
+        console.log("[stream-runtime-publish]", {
+          instanceId,
+          runtimeKey: summarizeStreamKey(runtimeKey),
+          status: state.status,
+          streamStatus: state.streamStatus,
+          rowCount: Array.isArray(state.rows) ? state.rows.length : undefined,
+          columnCount: Array.isArray(state.columns) ? state.columns.length : undefined,
+          hasRuntimeDataRef: Boolean(state.runtimeDataRef),
+          sourceRunId: state.sourceRunId,
+        });
+      }
+
       if (runtimeKey && connectionRuntimeStore) {
         connectionRuntimeStore.publishStreamState({
           key: runtimeKey,
@@ -263,7 +414,47 @@ export function ConnectionStreamQueryWidget({
       publishRuntimeState?.(state);
     };
 
+    const logEffectDecision = (
+      branch:
+        | "waiting"
+        | "validation-error"
+        | "idle-no-request"
+        | "acquire-store"
+        | "direct-session",
+    ) => {
+      if (!import.meta.env.DEV || !STREAM_QUERY_DEBUG_LOGS_ENABLED) {
+        return;
+      }
+
+      console.log("[stream-effect-decision]", {
+        instanceId,
+        hasPublishRuntimeState: Boolean(publishRuntimeState),
+        hasConnectionRuntimeStore: Boolean(connectionRuntimeStore),
+        hasExecutableConfig,
+        unresolvedReferenceMessage,
+        validationError,
+        hasRequest: Boolean(request),
+        hasRuntimeQueryModel: Boolean(runtimeQueryModel),
+        runtimeKey: summarizeStreamKey(runtimeKey),
+        branch,
+      });
+    };
+
+    if (unresolvedReferenceMessage) {
+      logEffectDecision("waiting");
+      publishState(
+        buildConnectionStreamQueryLifecycleFrame({
+          props: normalizedProps,
+          status: "idle",
+          error: unresolvedReferenceMessage,
+          errorCode: "waiting-for-reference",
+        }) as unknown as Record<string, unknown>,
+      );
+      return undefined;
+    }
+
     if (validationError) {
+      logEffectDecision("validation-error");
       publishState(
         buildConnectionStreamQueryLifecycleFrame({
           props: normalizedProps,
@@ -275,6 +466,7 @@ export function ConnectionStreamQueryWidget({
     }
 
     if (!request || !runtimeQueryModel) {
+      logEffectDecision("idle-no-request");
       publishState(
         buildConnectionStreamQueryLifecycleFrame({
           props: normalizedProps,
@@ -289,13 +481,30 @@ export function ConnectionStreamQueryWidget({
 
     try {
       if (runtimeKey && connectionRuntimeStore) {
+        logEffectDecision("acquire-store");
         storeHandle = connectionRuntimeStore.acquireStreamSession({
           key: runtimeKey,
           ownerId: instanceId ?? runtimeKey,
-          onRuntimeStateChange: (nextRuntimeState) => {
-            runtimeRef.current = normalizeConnectionStreamQueryRuntimeState(nextRuntimeState);
-            onRuntimeStateChangeRef.current?.(nextRuntimeState);
-          },
+            onRuntimeStateChange: (nextRuntimeState) => {
+              runtimeRef.current = normalizeConnectionStreamQueryRuntimeState(nextRuntimeState);
+              if (import.meta.env.DEV && STREAM_QUERY_DEBUG_LOGS_ENABLED) {
+                console.log("[stream-runtime-publish]", {
+                  instanceId,
+                  runtimeKey: summarizeStreamKey(runtimeKey),
+                  status: nextRuntimeState.status,
+                  streamStatus: nextRuntimeState.streamStatus,
+                  rowCount: Array.isArray(nextRuntimeState.rows)
+                    ? nextRuntimeState.rows.length
+                    : undefined,
+                  columnCount: Array.isArray(nextRuntimeState.columns)
+                    ? nextRuntimeState.columns.length
+                    : undefined,
+                  hasRuntimeDataRef: Boolean(nextRuntimeState.runtimeDataRef),
+                  sourceRunId: nextRuntimeState.sourceRunId,
+                });
+              }
+              onRuntimeStateChangeRef.current?.(nextRuntimeState);
+            },
           start: () =>
             createConnectionStreamQueryWidgetRuntimeSession({
               subscriptionKey: runtimeKey,
@@ -320,6 +529,7 @@ export function ConnectionStreamQueryWidget({
             }),
         });
       } else {
+        logEffectDecision("direct-session");
         session = createConnectionStreamQueryWidgetRuntimeSession({
           subscriptionKey: runtimeKey ?? executionKey,
           request,
@@ -358,6 +568,8 @@ export function ConnectionStreamQueryWidget({
     instanceId,
     runtimeDataStore,
     streamSessionConfigKey,
+    unresolvedReferenceMessage,
+    validationError,
     widgetExecution?.executionSurface,
   ]);
 
