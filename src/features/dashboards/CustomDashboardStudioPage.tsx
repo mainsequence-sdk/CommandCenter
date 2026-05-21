@@ -23,6 +23,7 @@ import GridLayout, {
 
 import {
   BookOpenText,
+  Braces,
   Bug,
   Boxes,
   Camera,
@@ -144,6 +145,7 @@ import {
   WorkspaceWidgetRail,
 } from "./WorkspaceChrome";
 import { WorkspaceRequestDebugPanel } from "./WorkspaceRequestDebugPanel";
+import { WorkspaceVariableExplorerPanel } from "./WorkspaceVariableExplorerPanel";
 import { CustomWidgetSettingsPage } from "./CustomWidgetSettingsPage";
 import {
   appendSavedWidgetGroupToDashboard,
@@ -1254,6 +1256,7 @@ export function CustomDashboardStudioPage({
   const [activeSlideWidgetId, setActiveSlideWidgetId] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [requestDebugOpen, setRequestDebugOpen] = useState(false);
+  const [variableExplorerOpen, setVariableExplorerOpen] = useState(false);
   const [savedWidgetLibraryOpen, setSavedWidgetLibraryOpen] = useState(false);
   const [savedWidgetSaveTargetId, setSavedWidgetSaveTargetId] = useState<string | null>(null);
   const [slideRegionComposer, setSlideRegionComposer] = useState<{
@@ -3532,6 +3535,16 @@ export function CustomDashboardStudioPage({
                         <Eye className="h-3.5 w-3.5" />
                       </WorkspaceToolbarButton>
                     ) : null}
+                    <WorkspaceToolbarButton
+                      active={variableExplorerOpen}
+                      title="Variable Explorer"
+                      onClick={() => {
+                        setVariableExplorerOpen((current) => !current);
+                        setRequestDebugOpen(false);
+                      }}
+                    >
+                      <Braces className="h-3.5 w-3.5" />
+                    </WorkspaceToolbarButton>
                     {editMode ? (
                       <WorkspaceToolbarButton
                         active={libraryOpen}
@@ -3557,6 +3570,7 @@ export function CustomDashboardStudioPage({
                         title="Debug Request"
                         onClick={() => {
                           setRequestDebugOpen((current) => !current);
+                          setVariableExplorerOpen(false);
                         }}
                       >
                         <Bug className="h-3.5 w-3.5" />
@@ -4167,6 +4181,15 @@ export function CustomDashboardStudioPage({
           }}
           placementClassName={dashboardMenuHidden ? "right-4 top-4 bottom-4" : "right-4 top-16 bottom-4"}
           scopeId={selectedDashboard.id}
+          widgets={renderedResolvedDashboard.widgets}
+        />
+
+        <WorkspaceVariableExplorerPanel
+          open={variableExplorerOpen}
+          onClose={() => {
+            setVariableExplorerOpen(false);
+          }}
+          placementClassName={dashboardMenuHidden ? "right-4 top-4 bottom-4" : "right-4 top-16 bottom-4"}
           widgets={renderedResolvedDashboard.widgets}
         />
 

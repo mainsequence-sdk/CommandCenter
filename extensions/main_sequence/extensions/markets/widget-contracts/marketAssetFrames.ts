@@ -2285,6 +2285,218 @@ function buildLiveAssetKeyAliases(input: {
   return liveAssetKeyAliases;
 }
 
+function addLiveToSeedFieldAlias(
+  aliases: Map<string, string>,
+  input: {
+    liveField: string | undefined;
+    seedField: string | undefined;
+  },
+) {
+  if (!input.liveField || !input.seedField || input.liveField === input.seedField) {
+    return;
+  }
+
+  aliases.set(input.liveField, input.seedField);
+}
+
+function buildLiveToSeedFieldAliases(input: {
+  seedData?: TabularFrameSourceV1 | null;
+  liveUpdates?: TabularFrameSourceV1 | null;
+  seedMapping?: MarketAssetSnapshotFieldMapping;
+  liveMapping?: MarketAssetSnapshotFieldMapping;
+  liveMergeKeyMappings?: readonly TabularMergeKeyMapping[];
+}) {
+  const seedFrame = normalizeFrame(input.seedData);
+  const liveFrame = normalizeFrame(input.liveUpdates);
+  const aliases = new Map<string, string>();
+
+  if (seedFrame?.status !== "ready" || liveFrame?.status !== "ready") {
+    return aliases;
+  }
+
+  const seedFieldNames = fieldNamesFromFrame(seedFrame);
+  const liveFieldNames = fieldNamesFromFrame(liveFrame);
+  const seedMapping = resolveSnapshotMapping(seedFrame, input.seedMapping);
+  const liveMapping = resolveSnapshotMapping(liveFrame, input.liveMapping);
+
+  normalizeLiveMergeKeyMappings(input.liveMergeKeyMappings).forEach((mapping) => {
+    addLiveToSeedFieldAlias(aliases, {
+      seedField: resolveMergeField(seedFieldNames, mapping.seedField),
+      liveField: resolveMergeField(liveFieldNames, mapping.liveField),
+    });
+  });
+
+  [
+    [liveMapping.assetKeyField, seedMapping.assetKeyField],
+    [liveMapping.symbolField, seedMapping.symbolField],
+    [liveMapping.displayNameField, seedMapping.displayNameField],
+    [liveMapping.exchangeField, seedMapping.exchangeField],
+    [liveMapping.currencyField, seedMapping.currencyField],
+    [liveMapping.countryField, seedMapping.countryField],
+    [liveMapping.assetClassField, seedMapping.assetClassField],
+    [liveMapping.sectorField, seedMapping.sectorField],
+    [liveMapping.industryField, seedMapping.industryField],
+    [liveMapping.groupField, seedMapping.groupField],
+    [liveMapping.tagsField, seedMapping.tagsField],
+    [liveMapping.observedAtField, seedMapping.observedAtField],
+    [liveMapping.sequenceField, seedMapping.sequenceField],
+    [liveMapping.qualityField, seedMapping.qualityField],
+  ].forEach(([liveField, seedField]) => {
+    addLiveToSeedFieldAlias(aliases, { liveField, seedField });
+  });
+
+  Object.entries(seedMapping.valueFields).forEach(([valueKey, seedField]) => {
+    addLiveToSeedFieldAlias(aliases, {
+      seedField,
+      liveField: liveMapping.valueFields[valueKey],
+    });
+  });
+
+  return aliases;
+}
+
+function renameFieldWithAliases(field: string, aliases: ReadonlyMap<string, string>) {
+  return aliases.get(field) ?? field;
+}
+
+function renameFieldListWithAliases(
+  fields: readonly string[],
+  aliases: ReadonlyMap<string, string>,
+) {
+  const seen = new Set<string>();
+
+  return fields.flatMap((field) => {
+    const renamed = renameFieldWithAliases(field, aliases);
+
+    if (seen.has(renamed)) {
+      return [];
+    }
+
+    seen.add(renamed);
+    return [renamed];
+  });
+}
+
+function renameRowWithAliases(
+  row: Record<string, unknown>,
+  aliases: ReadonlyMap<string, string>,
+) {
+  const nextRow = { ...row };
+
+  aliases.forEach((seedField, liveField) => {
+    if (!Object.prototype.hasOwnProperty.call(row, liveField)) {
+      return;
+    }
+
+    nextRow[seedField] = row[liveField];
+    delete nextRow[liveField];
+  });
+
+  return nextRow;
+}
+
+function renameFieldSchemasWithAliases(
+  fields: readonly TabularFrameFieldSchema[] | undefined,
+  aliases: ReadonlyMap<string, string>,
+) {
+  if (!fields) {
+    return undefined;
+  }
+
+  const seen = new Set<string>();
+  const renamed = fields.flatMap((field) => {
+    const key = renameFieldWithAliases(field.key, aliases);
+
+    if (seen.has(key)) {
+      return [];
+    }
+
+    seen.add(key);
+    return [{ ...field, key }];
+  });
+
+  return renamed.length > 0 ? renamed : undefined;
+}
+
+function renameTableVisualColumnsWithAliases(
+  columns: unknown,
+  aliases: ReadonlyMap<string, string>,
+) {
+  if (!isPlainRecord(columns)) {
+    return columns;
+  }
+
+  return Object.entries(columns).reduce<Record<string, unknown>>((nextColumns, [field, value]) => {
+    nextColumns[renameFieldWithAliases(field, aliases)] = value;
+    return nextColumns;
+  }, {});
+}
+
+function renameMarketAssetMetaWithAliases(
+  meta: TabularFrameSourceV1["meta"],
+  aliases: ReadonlyMap<string, string>,
+): TabularFrameSourceV1["meta"] {
+  if (!isPlainRecord(meta)) {
+    return meta;
+  }
+
+  const nextMeta: Record<string, unknown> = { ...meta };
+  const marketAsset = nextMeta[semanticMetaKey];
+
+  if (isPlainRecord(marketAsset) && Array.isArray(marketAsset.fieldRoles)) {
+    nextMeta[semanticMetaKey] = {
+      ...marketAsset,
+      fieldRoles: marketAsset.fieldRoles.map((fieldRole) =>
+        isPlainRecord(fieldRole) && typeof fieldRole.field === "string"
+          ? {
+              ...fieldRole,
+              field: renameFieldWithAliases(fieldRole.field, aliases),
+            }
+          : fieldRole,
+      ),
+    };
+  }
+
+  const tableVisuals = nextMeta[tableVisualsMetaKey];
+
+  if (isPlainRecord(tableVisuals)) {
+    nextMeta[tableVisualsMetaKey] = {
+      ...tableVisuals,
+      columns: renameTableVisualColumnsWithAliases(tableVisuals.columns, aliases),
+    };
+  }
+
+  return nextMeta as TabularFrameSourceV1["meta"];
+}
+
+function normalizeLiveFrameToSeedFields(input: {
+  seedData?: TabularFrameSourceV1 | null;
+  liveUpdates?: TabularFrameSourceV1 | null;
+  seedMapping?: MarketAssetSnapshotFieldMapping;
+  liveMapping?: MarketAssetSnapshotFieldMapping;
+  liveMergeKeyMappings?: readonly TabularMergeKeyMapping[];
+}) {
+  const liveFrame = normalizeFrame(input.liveUpdates);
+
+  if (!liveFrame || liveFrame.status !== "ready") {
+    return input.liveUpdates ?? null;
+  }
+
+  const aliases = buildLiveToSeedFieldAliases(input);
+
+  if (aliases.size === 0) {
+    return input.liveUpdates ?? null;
+  }
+
+  return normalizeTabularFrameSource({
+    ...liveFrame,
+    columns: renameFieldListWithAliases(liveFrame.columns, aliases),
+    rows: liveFrame.rows.map((row) => renameRowWithAliases(row, aliases)),
+    fields: renameFieldSchemasWithAliases(liveFrame.fields, aliases),
+    meta: renameMarketAssetMetaWithAliases(liveFrame.meta, aliases),
+  });
+}
+
 function remapAssetsByAlias(
   assetsByKey: Record<MarketAssetKey, MarketAssetIdentity>,
   aliases: ReadonlyMap<MarketAssetKey, MarketAssetKey>,
@@ -2418,8 +2630,12 @@ export function buildMarketAssetScreenerRuntimeModelFromTabularFrames(
   }
 
   if (input.liveUpdates) {
-    const live = adaptMarketAssetSnapshotFrame(input.liveUpdates, input.liveMapping);
     const liveAssetKeyAliases = buildLiveAssetKeyAliases(input);
+    const normalizedLiveUpdates = normalizeLiveFrameToSeedFields(input);
+    const live = adaptMarketAssetSnapshotFrame(
+      normalizedLiveUpdates,
+      input.seedMapping ?? input.liveMapping,
+    );
     model.assetsByKey = mergeAssets(
       model.assetsByKey,
       remapAssetsByAlias(live.assetsByKey, liveAssetKeyAliases),

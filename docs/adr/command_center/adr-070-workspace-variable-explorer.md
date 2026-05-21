@@ -1,6 +1,6 @@
 # ADR 070: Workspace Variable Explorer
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-05-21
 - Related:
   - [ADR 058: Cross-Widget References And Variables](./adr-058-cross-widget-references-and-variables.md)
@@ -154,41 +154,41 @@ per-user workspace UI state, not as shared workspace content.
 
 ### Data Source
 
-- [ ] Reuse the existing workspace variable store as the source for current variable entries.
-- [ ] Reuse the existing dependency/reference graph to derive actively referenced variables.
-- [ ] Build one normalized explorer model that separates materialized variables from referenced but
+- [x] Reuse the existing workspace variable store as the source for current variable entries.
+- [x] Reuse the existing dependency/reference graph to derive actively referenced variables.
+- [x] Build one normalized explorer model that separates materialized variables from referenced but
   unresolved variables.
-- [ ] Include consumers per variable, including target widget id, target kind, target input id, and
+- [x] Include consumers per variable, including target widget id, target kind, target input id, and
   prop path when available.
-- [ ] Add compact value serialization for scalar, array, object, null, and unavailable values.
+- [x] Add compact value serialization for scalar, array, object, null, and unavailable values.
 
 ### UI Surface
 
-- [ ] Add a workspace-level Variable Explorer rail beside the existing debug/request tooling.
-- [ ] Add a dedicated Variable Explorer icon to the workspace navigation bar.
-- [ ] Ensure the navigation-bar icon is visible in both workspace edit mode and workspace view mode.
-- [ ] Ensure the explorer opens from canvas mode.
-- [ ] Ensure the explorer opens from graph mode.
-- [ ] Keep the explorer read-only in both edit and view mode.
-- [ ] Group entries into `Current variables` and `Referenced variables`.
-- [ ] Add search/filter over source widget, output id, target widget, and token text.
-- [ ] Render current values with safe truncation and expandable JSON details.
-- [ ] Render unresolved references with a clear waiting state and consumer list.
+- [x] Add a workspace-level Variable Explorer rail beside the existing debug/request tooling.
+- [x] Add a dedicated Variable Explorer icon to the workspace navigation bar.
+- [x] Ensure the navigation-bar icon is visible in both workspace edit mode and workspace view mode.
+- [x] Ensure the explorer opens from canvas mode.
+- [x] Ensure the explorer opens from graph mode.
+- [x] Keep the explorer read-only in both edit and view mode.
+- [x] Group entries into `Current variables` and `Referenced variables`.
+- [x] Add search/filter over source widget, output id, target widget, and token text.
+- [x] Render current values with safe truncation and expandable JSON details.
+- [x] Render unresolved references with a clear waiting state and consumer list.
 
 ### Guardrails
 
-- [ ] Do not show all possible source widget outputs.
-- [ ] Do not reuse the reference authoring picker as the explorer body.
-- [ ] Do not mutate widget props, bindings, runtime state, or workspace storage from the explorer.
-- [ ] Do not trigger graph execution, refresh, or stream resubscription from the explorer.
-- [ ] Keep user-facing copy focused on variables and values, not internal implementation names.
+- [x] Do not show all possible source widget outputs.
+- [x] Do not reuse the reference authoring picker as the explorer body.
+- [x] Do not mutate widget props, bindings, runtime state, or workspace storage from the explorer.
+- [x] Do not trigger graph execution, refresh, or stream resubscription from the explorer.
+- [x] Keep user-facing copy focused on variables and values, not internal implementation names.
 
 ### Verification
 
-- [ ] Add tests for explorer model construction from variable store entries.
-- [ ] Add tests for referenced-but-unresolved variables.
-- [ ] Add tests proving unused possible outputs do not appear.
-- [ ] Add tests for consumer grouping and value preview truncation.
+- [x] Add tests for explorer model construction from variable store entries.
+- [x] Add tests for referenced-but-unresolved variables.
+- [x] Add tests proving unused possible outputs do not appear.
+- [x] Add tests for consumer grouping and value preview truncation.
 - [ ] Manually verify a table selection variable updates live in the explorer.
 - [ ] Manually verify a waiting connection/WebSocket reference appears as unresolved.
 

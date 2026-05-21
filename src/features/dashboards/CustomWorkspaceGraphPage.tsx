@@ -21,7 +21,7 @@ import {
   type XYPosition,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ArrowLeft, Boxes, Bug, Eye, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Boxes, Braces, Bug, Eye, Loader2, Save } from "lucide-react";
 
 import { getWidgetById } from "@/app/registry";
 import { hasAllPermissions } from "@/auth/permissions";
@@ -79,6 +79,7 @@ import {
   WorkspaceWidgetRail,
 } from "./WorkspaceChrome";
 import { WorkspaceRequestDebugPanel } from "./WorkspaceRequestDebugPanel";
+import { WorkspaceVariableExplorerPanel } from "./WorkspaceVariableExplorerPanel";
 import { loadPersistedWorkspaceDetail } from "./workspace-persistence";
 import {
   isManagedDashboardWidgetHiddenFromNormalRail,
@@ -2113,6 +2114,7 @@ export function CustomWorkspaceGraphPage({
   } = useCustomWorkspaceStudio();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [requestDebugOpen, setRequestDebugOpen] = useState(false);
+  const [variableExplorerOpen, setVariableExplorerOpen] = useState(false);
   const [showManagedWidgets, setShowManagedWidgets] = useState(false);
   const [returningToDashboard, setReturningToDashboard] = useState(false);
   const pendingReturnFrameRef = useRef<number | null>(null);
@@ -2120,6 +2122,7 @@ export function CustomWorkspaceGraphPage({
   useEffect(() => {
     setLibraryOpen(false);
     setRequestDebugOpen(false);
+    setVariableExplorerOpen(false);
     setShowManagedWidgets(false);
     setReturningToDashboard(false);
   }, [selectedDashboard?.id]);
@@ -2218,10 +2221,21 @@ export function CustomWorkspaceGraphPage({
                 <Eye className="h-3.5 w-3.5" />
               </WorkspaceToolbarButton>
               <WorkspaceToolbarButton
+                active={variableExplorerOpen}
+                title="Variable Explorer"
+                onClick={() => {
+                  setVariableExplorerOpen((current) => !current);
+                  setRequestDebugOpen(false);
+                }}
+              >
+                <Braces className="h-3.5 w-3.5" />
+              </WorkspaceToolbarButton>
+              <WorkspaceToolbarButton
                 active={requestDebugOpen}
                 title="Debug Request"
                 onClick={() => {
                   setRequestDebugOpen((current) => !current);
+                  setVariableExplorerOpen(false);
                 }}
               >
                 <Bug className="h-3.5 w-3.5" />
@@ -2328,6 +2342,14 @@ export function CustomWorkspaceGraphPage({
           }}
           placementClassName="right-4 top-4 bottom-4"
           scopeId={selectedDashboard.id}
+          widgets={resolvedDashboard.widgets}
+        />
+        <WorkspaceVariableExplorerPanel
+          open={variableExplorerOpen}
+          onClose={() => {
+            setVariableExplorerOpen(false);
+          }}
+          placementClassName="right-4 top-4 bottom-4"
           widgets={resolvedDashboard.widgets}
         />
       </div>

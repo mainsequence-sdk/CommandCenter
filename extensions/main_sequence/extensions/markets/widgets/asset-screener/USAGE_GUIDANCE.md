@@ -77,6 +77,10 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
   patch existing screener rows by identity instead of creating repeated latest rows. For example,
   map seed field `symbol` to live field `symbol`, or map seed field `symbol` to live field
   `ticker` when the feed uses different names.
+- The live merge runs before the screener resolves display columns. If the seed has `last_price`
+  and the live transform publishes `last`, both fields should represent the same value semantic
+  such as `price`; after the merge the screener keeps the seed field identity and updates
+  `last_price`.
 - Use the embedded shared Pro-table settings when a screener column should be a local formula.
   Mark the column as `Formula`, then author one expression such as
   `PERCENT_CHANGE([last_price], [yearStart])` or `[last_price] * 10`.

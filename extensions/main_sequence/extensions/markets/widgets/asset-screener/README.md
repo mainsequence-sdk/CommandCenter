@@ -221,6 +221,10 @@ order.
 - `table.liveMergeKeyMappings` is exposed through the embedded shared table settings. It uses the
   same seed/live row identity model as Table and Pro Table, so a screener can patch retained rows
   when live update rows use different field names or arrive as repeated latest events.
+- Live update rows are normalized into the retained seed field names before market-asset
+  resolution. For example, a mapping of seed `Symbol` to live `symbol` plus matching `price`
+  semantics lets an incoming live `last` value patch the retained seed `last_price` field instead
+  of creating a second display column.
 - Interaction outputs resolve against real asset rows after grouping is applied. Synthetic section
   headers remain non-semantic presentation rows and are scrubbed from published selection state.
 - Legacy top-level screener `groupBy` props are still normalized into `table.groupBy` so existing

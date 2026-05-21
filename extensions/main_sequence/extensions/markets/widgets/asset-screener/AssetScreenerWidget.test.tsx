@@ -1740,4 +1740,70 @@ describe("AssetScreenerWidget", () => {
     expect(tableProps.valueLabels).toEqual(props.table.valueLabels);
     expect(tableProps.conditionalRules).toEqual(props.table.conditionalRules);
   });
+
+  it("normalizes live fields into seed fields before resolving table columns", () => {
+    const props = {
+      ...assetScreenerDefaultProps,
+      table: {
+        liveMergeKeyMappings: [{ seedField: "Symbol", liveField: "symbol" }],
+        columnOverrides: {
+          last_price: {
+            decimals: 4,
+          },
+        },
+      },
+    } satisfies MainSequenceAssetScreenerWidgetProps;
+    const seedData = {
+      ...marketSeedFrame([
+        {
+          unique_identifier: "uid:BTCUSDT",
+          Symbol: "BTCUSDT",
+          time: "2026-05-19T13:00:00.000Z",
+          last_price: 109420,
+        },
+      ]),
+      meta: {
+        ...marketSeedFrame([]).meta,
+        ...buildMarketTableFrameMeta({
+          tableVisuals: {
+            columns: {
+              Symbol: { label: "Symbol" },
+              last_price: { label: "Last", format: "price" },
+            },
+          },
+        }),
+      },
+    } satisfies TabularFrameSourceV1;
+    const liveUpdates = frame([
+      {
+        symbol: "BTCUSDT",
+        last: 109500.12345,
+      },
+    ]);
+    const state = resolveAssetScreenerState({
+      props,
+      fallbackFrames: {
+        seedData,
+        liveUpdates,
+      },
+    });
+    const tableFrame = buildAssetScreenerTableFrame({
+      columns: state.columns,
+      rows: state.filteredRows,
+      sourceFrame: state.sourceFrame,
+      sourceColumns: state.sourceColumns,
+    });
+    const tableProps = buildAssetScreenerResolvedTableProps({
+      density: props.density,
+      frame: tableFrame.frame,
+      tableSettings: props.table,
+    });
+
+    expect(tableFrame.frame.columns).toContain("last_price");
+    expect(tableFrame.frame.columns).not.toContain("last");
+    expect(tableFrame.rowObjects[0]?.last_price).toBe(109500.12345);
+    expect(tableProps.columnOverrides.last_price).toMatchObject({
+      decimals: 4,
+    });
+  });
 });
