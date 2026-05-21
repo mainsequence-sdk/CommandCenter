@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
+import {
+  TABULAR_LIVE_UPDATES_INPUT_ID,
+  TABULAR_SEED_INPUT_ID,
+  resolveIncrementalTabularOutputFrame,
+} from "@/widgets/shared/incremental-tabular-consumer";
 import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
+import type { ResolvedWidgetInputs } from "@/widgets/types";
 
 import { tableWidget } from "./definition";
 import { proTableWidget } from "./proDefinition";
@@ -632,6 +638,85 @@ describe("table widget table controls", () => {
 
     expect(resolved.formulasEnabled).toBe(true);
     expect(rows[0]?.ytd).toBe(18);
+  });
+
+  it("recomputes formula columns after partial live row patches", () => {
+    const seedFrame = {
+      status: "ready",
+      columns: ["symbol", "last_price", "previous_close", "one_day_return"],
+      rows: [
+        {
+          symbol: "BTCUSDT",
+          last_price: 100,
+          previous_close: 100,
+        },
+      ],
+      meta: {
+        tableVisuals: {
+          columns: {
+            one_day_return: {
+              label: "1D",
+              format: "formula",
+              formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+              formulaResultFormat: "percent",
+            },
+          },
+        },
+      },
+      source: { kind: "seed" },
+    };
+    const liveFrame = {
+      status: "ready",
+      columns: ["symbol", "last_price"],
+      rows: [
+        {
+          symbol: "BTCUSDT",
+          last_price: 110,
+        },
+      ],
+      source: { kind: "live" },
+    };
+    const patchedFrame = resolveIncrementalTabularOutputFrame({
+      resolvedInputs: {
+        [TABULAR_SEED_INPUT_ID]: {
+          inputId: TABULAR_SEED_INPUT_ID,
+          label: "Seed",
+          status: "valid",
+          sourceWidgetId: "seed",
+          sourceOutputId: "dataset",
+          contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          value: seedFrame,
+          upstreamBase: seedFrame,
+        },
+        [TABULAR_LIVE_UPDATES_INPUT_ID]: {
+          inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+          label: "Live",
+          status: "valid",
+          sourceWidgetId: "live",
+          sourceOutputId: "updates",
+          contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          value: liveFrame,
+          upstreamBase: liveFrame,
+        },
+      } satisfies ResolvedWidgetInputs,
+      liveMergeKeyFields: ["symbol"],
+    });
+    const frameInput = buildTableWidgetFrameFromRemoteData(
+      null,
+      patchedFrame?.rows ?? [],
+      patchedFrame?.columns ?? [],
+      patchedFrame?.fields ?? [],
+      patchedFrame?.meta,
+    );
+    const resolved = resolveTableWidgetPropsWithFrame(
+      { formulasEnabled: true },
+      frameInput,
+    );
+    const rows = buildTableWidgetRowObjects(resolved.columns, resolved.rows);
+
+    expect(rows[0]?.previous_close).toBe(100);
+    expect(rows[0]?.last_price).toBe(110);
+    expect(rows[0]?.one_day_return).toBe(10);
   });
 });
 

@@ -31,6 +31,10 @@ export const TABULAR_UPDATES_OUTPUT_ID = "updates";
 
 export type IncrementalPublicationSemantics = "incremental";
 export type IncrementalPublicationRole = "seed" | "update";
+export interface TabularMergeKeyMapping {
+  seedField: string;
+  liveField: string;
+}
 
 const LEGACY_TABULAR_CONSUMER_WIDGET_IDS = new Set([
   "graph",
@@ -48,6 +52,7 @@ interface IncrementalTabularConsumerMeta {
   lastLiveSourceRunId?: string;
   reductionSignature?: string;
   liveMergeKeyFields?: string[];
+  liveMergeKeyMappings?: TabularMergeKeyMapping[];
   seedRef?: RuntimeTabularFrameRef | null;
   liveRef?: RuntimeTabularFrameRef | null;
   outputRef?: RuntimeTabularFrameRef | null;
@@ -137,6 +142,108 @@ function normalizeMergeKeyValue(value: unknown) {
 
 function buildRowMergeKey(row: Record<string, unknown>, mergeKeyFields: string[]) {
   return mergeKeyFields.map((field) => normalizeMergeKeyValue(row[field])).join("\u001f");
+}
+
+function normalizeMergeKeyMappings(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!isPlainRecord(entry)) {
+      return [];
+    }
+
+    const seedField = typeof entry.seedField === "string" ? entry.seedField.trim() : "";
+    const liveField = typeof entry.liveField === "string" ? entry.liveField.trim() : "";
+
+    return seedField && liveField ? [{ seedField, liveField }] : [];
+  });
+}
+
+function mergeKeyFieldsToMappings(fields: string[]): TabularMergeKeyMapping[] {
+  return fields.map((field) => ({ seedField: field, liveField: field }));
+}
+
+function normalizeResolvedMergeKeyMappings(input: {
+  mergeKeyFields?: string[];
+  mergeKeyMappings?: TabularMergeKeyMapping[];
+}) {
+  const mappings = normalizeMergeKeyMappings(input.mergeKeyMappings);
+
+  return mappings.length > 0
+    ? mappings
+    : mergeKeyFieldsToMappings(input.mergeKeyFields ?? []);
+}
+
+function buildMappedRowMergeKey(
+  row: Record<string, unknown>,
+  mappings: TabularMergeKeyMapping[],
+  side: "seed" | "live",
+) {
+  return mappings
+    .map((mapping) =>
+      normalizeMergeKeyValue(row[side === "seed" ? mapping.seedField : mapping.liveField]),
+    )
+    .join("\u001f");
+}
+
+function normalizeLivePatchRow(
+  liveRow: Record<string, unknown>,
+  mappings: TabularMergeKeyMapping[],
+) {
+  const patch = { ...liveRow };
+
+  mappings.forEach((mapping) => {
+    if (mapping.seedField === mapping.liveField || !(mapping.liveField in patch)) {
+      return;
+    }
+
+    if (!(mapping.seedField in patch)) {
+      patch[mapping.seedField] = patch[mapping.liveField];
+    }
+    delete patch[mapping.liveField];
+  });
+
+  return patch;
+}
+
+function patchRetainedRow(
+  retainedRow: Record<string, unknown> | undefined,
+  liveRow: Record<string, unknown>,
+  mappings: TabularMergeKeyMapping[],
+) {
+  const patch = normalizeLivePatchRow(liveRow, mappings);
+
+  return retainedRow
+    ? {
+        ...retainedRow,
+        ...patch,
+      }
+    : patch;
+}
+
+function resolveMarketAssetKeyFields(frame: Pick<TabularFrameSourceV1, "meta"> | null | undefined) {
+  const marketAsset = isPlainRecord(frame?.meta?.marketAsset)
+    ? frame.meta.marketAsset
+    : undefined;
+  const fieldRoles = Array.isArray(marketAsset?.fieldRoles)
+    ? marketAsset.fieldRoles
+    : [];
+
+  return Array.from(
+    new Set(
+      fieldRoles.flatMap((entry) => {
+        if (!isPlainRecord(entry) || entry.role !== "assetKey") {
+          return [];
+        }
+
+        return typeof entry.field === "string" && entry.field.trim()
+          ? [entry.field.trim()]
+          : [];
+      }),
+    ),
+  );
 }
 
 function collectColumns(...frames: TabularFrameSourceV1[]) {
@@ -273,6 +380,7 @@ function readConsumerMeta(
         reductionSignature:
           typeof meta.reductionSignature === "string" ? meta.reductionSignature : undefined,
         liveMergeKeyFields: normalizeStringArray(meta.liveMergeKeyFields),
+        liveMergeKeyMappings: normalizeMergeKeyMappings(meta.liveMergeKeyMappings),
         seedRef: isRuntimeTabularFrameRef(meta.seedRef) ? meta.seedRef : null,
         liveRef: isRuntimeTabularFrameRef(meta.liveRef) ? meta.liveRef : null,
         outputRef: isRuntimeTabularFrameRef(meta.outputRef) ? meta.outputRef : null,
@@ -345,6 +453,55 @@ function resolvePublicationMergeKeyFields(
 
   const mergeKeyFields = normalizeStringArray(publication?.update?.diagnostics?.mergeKeyFields);
   return mergeKeyFields.length > 0 ? mergeKeyFields : (fallback ?? []);
+}
+
+function resolvePublicationMergeKeyMappings(input: {
+  publication: IncrementalTabularPublication | null | undefined;
+  previousFrame?: TabularFrameSourceV1 | null;
+  fallbackFields?: string[];
+  fallbackMappings?: TabularMergeKeyMapping[];
+  overrideFields?: string[];
+  overrideMappings?: TabularMergeKeyMapping[];
+}) {
+  const overrideMappings = normalizeMergeKeyMappings(input.overrideMappings);
+
+  if (overrideMappings.length > 0) {
+    return overrideMappings;
+  }
+
+  if (input.overrideFields !== undefined) {
+    return mergeKeyFieldsToMappings(normalizeStringArray(input.overrideFields));
+  }
+
+  const diagnosticsMappings = normalizeMergeKeyMappings(
+    input.publication?.update?.diagnostics?.mergeKeyMappings,
+  );
+
+  if (diagnosticsMappings.length > 0) {
+    return diagnosticsMappings;
+  }
+
+  const diagnosticsFields = normalizeStringArray(
+    input.publication?.update?.diagnostics?.mergeKeyFields,
+  );
+
+  if (diagnosticsFields.length > 0) {
+    return mergeKeyFieldsToMappings(diagnosticsFields);
+  }
+
+  const fallbackMappings = normalizeMergeKeyMappings(input.fallbackMappings);
+
+  if (fallbackMappings.length > 0) {
+    return fallbackMappings;
+  }
+
+  const fallbackFields = normalizeStringArray(input.fallbackFields);
+
+  if (fallbackFields.length > 0) {
+    return mergeKeyFieldsToMappings(fallbackFields);
+  }
+
+  return mergeKeyFieldsToMappings(resolveMarketAssetKeyFields(input.previousFrame));
 }
 
 function normalizeResolvedWidgetInput(
@@ -442,6 +599,7 @@ function buildReductionSignature(input: {
   seedPublication: IncrementalTabularPublication | null;
   livePublication: IncrementalTabularPublication | null;
   mergeKeyFields: string[];
+  mergeKeyMappings?: TabularMergeKeyMapping[];
   retention?: RuntimeRetentionPolicy;
   rowSelector?: RuntimeRowSelector;
 }) {
@@ -449,6 +607,7 @@ function buildReductionSignature(input: {
     seedSignature: input.seedPublication?.signature ?? null,
     liveSignature: input.livePublication?.signature ?? null,
     mergeKeyFields: input.mergeKeyFields,
+    mergeKeyMappings: input.mergeKeyMappings ?? [],
     retention: serializeRetentionPolicy(input.retention),
     rowSelector: serializeRowSelector(input.rowSelector),
   });
@@ -761,21 +920,22 @@ function buildInputConsumerState(input: ResolvedWidgetInput | undefined) {
 function mergeDeltaFrame(
   retainedFrame: TabularFrameSourceV1,
   deltaFrame: TabularFrameSourceV1,
-  mergeKeyFields: string[],
+  mergeKeyMappings: TabularMergeKeyMapping[],
 ) {
   let mergedRows: Array<Record<string, unknown>>;
 
-  if (mergeKeyFields.length === 0) {
+  if (mergeKeyMappings.length === 0) {
     mergedRows = [...retainedFrame.rows, ...deltaFrame.rows];
   } else {
     const rowsByKey = new Map<string, Record<string, unknown>>();
 
     retainedFrame.rows.forEach((row) => {
-      rowsByKey.set(buildRowMergeKey(row, mergeKeyFields), row);
+      rowsByKey.set(buildMappedRowMergeKey(row, mergeKeyMappings, "seed"), row);
     });
 
     deltaFrame.rows.forEach((row) => {
-      rowsByKey.set(buildRowMergeKey(row, mergeKeyFields), row);
+      const key = buildMappedRowMergeKey(row, mergeKeyMappings, "live");
+      rowsByKey.set(key, patchRetainedRow(rowsByKey.get(key), row, mergeKeyMappings));
     });
 
     mergedRows = Array.from(rowsByKey.values());
@@ -784,10 +944,10 @@ function mergeDeltaFrame(
   return {
     ...retainedFrame,
     status: resolveRenderableFrameStatus([retainedFrame, deltaFrame], mergedRows.length),
-    columns: collectColumns(retainedFrame, deltaFrame),
-    fields: collectFields(retainedFrame, deltaFrame),
+    columns: retainedFrame.columns,
+    fields: retainedFrame.fields,
     rows: mergedRows,
-    meta: deltaFrame.meta ?? retainedFrame.meta,
+    meta: retainedFrame.meta,
     source: {
       ...retainedFrame.source,
       kind: retainedFrame.source?.kind ?? "incremental-tabular-consumer",
@@ -822,6 +982,7 @@ function applyLivePublication(
   publication: IncrementalTabularPublication,
   meta: IncrementalTabularConsumerMeta | undefined,
   liveMergeKeyFieldsOverride?: string[],
+  liveMergeKeyMappingsOverride?: TabularMergeKeyMapping[],
 ) {
   if (publication.role === "seed") {
     return applySeedFrame(previousFrame, publication);
@@ -843,19 +1004,26 @@ function applyLivePublication(
     return publication.baseFrame ?? previousFrame;
   }
 
-  const mergeKeyFields = resolvePublicationMergeKeyFields(
+  const mergeKeyMappings = resolvePublicationMergeKeyMappings({
     publication,
-    meta?.liveMergeKeyFields,
-    liveMergeKeyFieldsOverride,
-  );
+    previousFrame,
+    fallbackFields: meta?.liveMergeKeyFields,
+    fallbackMappings: meta?.liveMergeKeyMappings,
+    overrideFields: liveMergeKeyFieldsOverride,
+    overrideMappings: liveMergeKeyMappingsOverride?.map((mapping) => ({
+      seedField: mapping.liveField,
+      liveField: mapping.liveField,
+    })),
+  });
 
-  return mergeDeltaFrame(previousFrame, publication.deltaFrame, mergeKeyFields);
+  return mergeDeltaFrame(previousFrame, publication.deltaFrame, mergeKeyMappings);
 }
 
 function combineSeedAndLiveFrames(input: {
   seedFrame: TabularFrameSourceV1 | null;
   liveFrame: TabularFrameSourceV1 | null;
   mergeKeyFields: string[];
+  mergeKeyMappings?: TabularMergeKeyMapping[];
 }) {
   if (!input.seedFrame && !input.liveFrame) {
     return null;
@@ -880,16 +1048,21 @@ function combineSeedAndLiveFrames(input: {
   }
 
   const rows: Array<Record<string, unknown>> = [];
+  const mergeKeyMappings = normalizeResolvedMergeKeyMappings({
+    mergeKeyFields: input.mergeKeyFields,
+    mergeKeyMappings: input.mergeKeyMappings,
+  });
 
-  if (input.mergeKeyFields.length > 0) {
+  if (mergeKeyMappings.length > 0) {
     const rowsByKey = new Map<string, Record<string, unknown>>();
 
     input.seedFrame.rows.forEach((row) => {
-      rowsByKey.set(buildRowMergeKey(row, input.mergeKeyFields), row);
+      rowsByKey.set(buildMappedRowMergeKey(row, mergeKeyMappings, "seed"), row);
     });
 
     input.liveFrame.rows.forEach((row) => {
-      rowsByKey.set(buildRowMergeKey(row, input.mergeKeyFields), row);
+      const key = buildMappedRowMergeKey(row, mergeKeyMappings, "live");
+      rowsByKey.set(key, patchRetainedRow(rowsByKey.get(key), row, mergeKeyMappings));
     });
 
     rows.push(...rowsByKey.values());
@@ -911,13 +1084,13 @@ function combineSeedAndLiveFrames(input: {
   return {
     ...input.seedFrame,
     status: resolveRenderableFrameStatus(
-      [input.seedFrame, input.liveFrame],
+    [input.seedFrame, input.liveFrame],
       rows.length,
     ),
-    columns: collectColumns(input.seedFrame, input.liveFrame),
-    fields: collectFields(input.seedFrame, input.liveFrame),
+    columns: input.seedFrame.columns,
+    fields: input.seedFrame.fields,
     rows,
-    meta: input.liveFrame.meta ?? input.seedFrame.meta,
+    meta: input.seedFrame.meta,
     source: {
       ...input.seedFrame.source,
       kind: input.seedFrame.source?.kind ?? "incremental-tabular-consumer",
@@ -953,6 +1126,8 @@ function sameConsumerMeta(
     left?.reductionSignature === right?.reductionSignature &&
     stableJsonStringify(left?.liveMergeKeyFields ?? []) ===
       stableJsonStringify(right?.liveMergeKeyFields ?? []) &&
+    stableJsonStringify(left?.liveMergeKeyMappings ?? []) ===
+      stableJsonStringify(right?.liveMergeKeyMappings ?? []) &&
     serializeRuntimeDataRef(left?.seedRef) === serializeRuntimeDataRef(right?.seedRef) &&
     serializeRuntimeDataRef(left?.liveRef) === serializeRuntimeDataRef(right?.liveRef) &&
     serializeRuntimeDataRef(left?.outputRef) === serializeRuntimeDataRef(right?.outputRef) &&
@@ -1153,6 +1328,7 @@ export function resolveIncrementalTabularRuntimeFrame(
 export function resolveIncrementalTabularOutputFrame(input: {
   resolvedInputs: ResolvedWidgetInputs | undefined;
   liveMergeKeyFields?: string[];
+  liveMergeKeyMappings?: TabularMergeKeyMapping[];
   runtimeState?: unknown;
   runtimeDataStore?: RuntimeDataStore | null;
   runtimeRowSelector?: RuntimeRowSelector;
@@ -1219,9 +1395,15 @@ export function resolveIncrementalTabularOutputFrame(input: {
     liveFrame,
     mergeKeyFields: resolvePublicationMergeKeyFields(
       livePublication,
-      undefined,
+      resolveMarketAssetKeyFields(seedFrame),
       input.liveMergeKeyFields,
     ),
+    mergeKeyMappings: resolvePublicationMergeKeyMappings({
+      publication: livePublication,
+      previousFrame: seedFrame,
+      overrideFields: input.liveMergeKeyFields,
+      overrideMappings: input.liveMergeKeyMappings,
+    }),
   });
 
   return combinedFrame?.status === "idle" ? null : combinedFrame;
@@ -1230,6 +1412,7 @@ export function resolveIncrementalTabularOutputFrame(input: {
 export function resolveIncrementalTabularBindingSnapshot(input: {
   resolvedInputs: ResolvedWidgetInputs | undefined;
   liveMergeKeyFields?: string[];
+  liveMergeKeyMappings?: TabularMergeKeyMapping[];
   runtimeState?: unknown;
   runtimeDataStore?: RuntimeDataStore | null;
   runtimeRowSelector?: RuntimeRowSelector;
@@ -1273,6 +1456,7 @@ export function resolveIncrementalTabularBindingSnapshot(input: {
 export function useIncrementalTabularConsumerBindingState(input: {
   instanceId?: string;
   liveMergeKeyFields?: string[];
+  liveMergeKeyMappings?: TabularMergeKeyMapping[];
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   resolvedInputs?: ResolvedWidgetInputs;
   runtimeRetention?: RuntimeRetentionPolicy;
@@ -1286,6 +1470,13 @@ export function useIncrementalTabularConsumerBindingState(input: {
         ? undefined
         : normalizeStringArray(input.liveMergeKeyFields),
     [input.liveMergeKeyFields],
+  );
+  const liveMergeKeyMappingsOverride = useMemo(
+    () =>
+      input.liveMergeKeyMappings === undefined
+        ? undefined
+        : normalizeMergeKeyMappings(input.liveMergeKeyMappings),
+    [input.liveMergeKeyMappings],
   );
   const seedInput = normalizeResolvedWidgetInput(input.resolvedInputs?.[TABULAR_SEED_INPUT_ID]);
   const liveInput = normalizeResolvedWidgetInput(input.resolvedInputs?.[TABULAR_LIVE_UPDATES_INPUT_ID]);
@@ -1341,13 +1532,22 @@ export function useIncrementalTabularConsumerBindingState(input: {
     const currentMeta = readConsumerMeta(currentRuntimeStateFrame) ?? readConsumerMeta(currentFrame);
     const effectiveLiveMergeKeyFields = resolvePublicationMergeKeyFields(
       livePublication,
-      currentMeta?.liveMergeKeyFields,
+      currentMeta?.liveMergeKeyFields ?? resolveMarketAssetKeyFields(currentFrame),
       liveMergeKeyFieldsOverride,
     );
+    const effectiveLiveMergeKeyMappings = resolvePublicationMergeKeyMappings({
+      publication: livePublication,
+      previousFrame: currentFrame,
+      fallbackFields: currentMeta?.liveMergeKeyFields,
+      fallbackMappings: currentMeta?.liveMergeKeyMappings,
+      overrideFields: liveMergeKeyFieldsOverride,
+      overrideMappings: liveMergeKeyMappingsOverride,
+    });
     const reductionSignature = buildReductionSignature({
       seedPublication,
       livePublication,
       mergeKeyFields: effectiveLiveMergeKeyFields,
+      mergeKeyMappings: effectiveLiveMergeKeyMappings,
       retention: input.runtimeRetention ?? runtimeRetentionFromSelector(input.runtimeRowSelector),
       rowSelector: input.runtimeRowSelector,
     });
@@ -1360,6 +1560,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
       currentMeta?.liveFrame ??
       null;
     let nextLiveMergeKeyFields = effectiveLiveMergeKeyFields;
+    let nextLiveMergeKeyMappings = effectiveLiveMergeKeyMappings;
     let nextMeta = currentMeta ?? buildConsumerMeta(undefined, {});
     let frameChanged = false;
     let metaChanged = !currentMeta;
@@ -1393,6 +1594,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
         livePublication,
         currentMeta,
         liveMergeKeyFieldsOverride,
+        liveMergeKeyMappingsOverride,
       );
 
       if (liveFrame) {
@@ -1402,10 +1604,19 @@ export function useIncrementalTabularConsumerBindingState(input: {
           currentMeta?.liveMergeKeyFields,
           liveMergeKeyFieldsOverride,
         );
+        nextLiveMergeKeyMappings = resolvePublicationMergeKeyMappings({
+          publication: livePublication,
+          previousFrame: nextSeedFrame ?? currentFrame,
+          fallbackFields: currentMeta?.liveMergeKeyFields,
+          fallbackMappings: currentMeta?.liveMergeKeyMappings,
+          overrideFields: liveMergeKeyFieldsOverride,
+          overrideMappings: liveMergeKeyMappingsOverride,
+        });
         nextMeta = buildConsumerMeta(nextMeta, {
           lastLiveSignature: livePublication.signature,
           lastLiveSourceRunId: livePublication.sourceRunId,
           liveMergeKeyFields: nextLiveMergeKeyFields,
+          liveMergeKeyMappings: nextLiveMergeKeyMappings,
         });
         frameChanged = true;
         liveChanged = true;
@@ -1486,6 +1697,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
           liveFrame: null,
           reductionSignature,
           liveMergeKeyFields: nextLiveMergeKeyFields,
+          liveMergeKeyMappings: nextLiveMergeKeyMappings,
         });
       } else {
         const outputRef = runtimeDataStore.combine({
@@ -1496,6 +1708,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
           seedFrame: seedRef ? null : nextSeedFrame,
           liveFrame: liveRef ? null : nextLiveFrame,
           mergeKeyFields: nextLiveMergeKeyFields,
+          mergeKeyMappings: nextLiveMergeKeyMappings,
           retention: input.runtimeRetention ?? runtimeRetentionFromSelector(input.runtimeRowSelector),
           refKey: `${ownerId}:dataset`,
           signature: reductionSignature,
@@ -1515,6 +1728,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
           liveFrame: null,
           reductionSignature,
           liveMergeKeyFields: nextLiveMergeKeyFields,
+          liveMergeKeyMappings: nextLiveMergeKeyMappings,
         });
       }
     } else {
@@ -1527,6 +1741,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
             seedFrame: nextSeedFrame,
             liveFrame: nextLiveFrame,
             mergeKeyFields: nextLiveMergeKeyFields,
+            mergeKeyMappings: nextLiveMergeKeyMappings,
           });
 
       if (!nextFrame) {
@@ -1542,6 +1757,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
         liveFrame: stripConsumerContextFromFrame(nextLiveFrame),
         reductionSignature,
         liveMergeKeyFields: nextLiveMergeKeyFields,
+        liveMergeKeyMappings: nextLiveMergeKeyMappings,
       });
     }
 
@@ -1568,6 +1784,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
     input.runtimeRowSelector,
     input.runtimeState,
     liveMergeKeyFieldsOverride,
+    liveMergeKeyMappingsOverride,
     livePublication,
     runtimeFrameSignature,
     runtimeDataStore,
@@ -1578,6 +1795,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
     () =>
       resolveIncrementalTabularBindingSnapshot({
         liveMergeKeyFields: liveMergeKeyFieldsOverride,
+        liveMergeKeyMappings: liveMergeKeyMappingsOverride,
         resolvedInputs: input.resolvedInputs,
         runtimeState: input.runtimeState,
         runtimeDataStore,
@@ -1586,6 +1804,7 @@ export function useIncrementalTabularConsumerBindingState(input: {
     [
       input.resolvedInputs,
       liveMergeKeyFieldsOverride,
+      liveMergeKeyMappingsOverride,
       input.runtimeRowSelector,
       input.runtimeState,
       runtimeDataStore,

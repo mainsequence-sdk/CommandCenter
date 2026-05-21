@@ -39,9 +39,12 @@ tabular frame.
 - When the table owns a hidden managed connection source, settings show that source's
   current runtime status and error message even though the source widget stays out of the normal
   rail.
-- Bound mode reads the resolved input's generic `upstreamBase` frame when an incremental upstream
-  source publishes retained base plus delta metadata. The table currently renders the retained
-  snapshot; it does not apply row deltas imperatively.
+- Bound mode reads the shared incremental consumer's patched retained frame when `seedData` and
+  `liveUpdates` are bound. Keyed live rows patch only the fields they publish; omitted seed fields
+  remain intact, and the seed frame owns columns, fields, visual metadata, and formula metadata.
+- `liveMergeKeyMappings` lets composed seed/live tables match different identity field names, for
+  example seed `symbol` to live `ticker`. It controls row identity only; live shape normalization
+  and value renaming still belong upstream in Tabular Transform.
 - The widget always publishes one `core.tabular_frame@v1` output on `dataset`.
 - Optional grouped sections can render by one field key through shared `groupBy` table props. The
   grouped headers are synthetic display rows only; they do not change the published dataset or the

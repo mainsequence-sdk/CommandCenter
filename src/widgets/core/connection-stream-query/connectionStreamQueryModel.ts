@@ -404,12 +404,37 @@ function buildRowMergeKey(row: Record<string, unknown>, mergeKeyFields: string[]
   return mergeKeyFields.map((field) => normalizeMergeKeyValue(row[field])).join("\u001f");
 }
 
+function resolveMarketAssetKeyFields(frame: Pick<TabularFrameSourceV1, "meta"> | null | undefined) {
+  const marketAsset = isPlainRecord(frame?.meta?.marketAsset)
+    ? frame.meta.marketAsset
+    : undefined;
+  const fieldRoles = Array.isArray(marketAsset?.fieldRoles)
+    ? marketAsset.fieldRoles
+    : [];
+
+  return Array.from(
+    new Set(
+      fieldRoles.flatMap((entry) => {
+        if (!isPlainRecord(entry) || entry.role !== "assetKey") {
+          return [];
+        }
+
+        return typeof entry.field === "string" && entry.field.trim()
+          ? [entry.field.trim()]
+          : [];
+      }),
+    ),
+  );
+}
+
 function resolveStreamMergeKeyFields(input: {
   props: ConnectionStreamQueryWidgetProps;
   queryModel: ConnectionQueryModel;
+  frame?: Pick<TabularFrameSourceV1, "meta"> | null;
 }) {
   return normalizeStringArray(input.props.mergeKeyFields) ??
     normalizeStringArray(input.queryModel.stream?.defaultMergeKeyFields) ??
+    normalizeStringArray(resolveMarketAssetKeyFields(input.frame)) ??
     [];
 }
 
@@ -442,14 +467,55 @@ function sameFieldSchema(
 function assertCompatibleDeltaSchema(
   retainedFrame: TabularFrameSourceV1,
   deltaFrame: TabularFrameSourceV1,
+  mergeKeyFields: string[],
 ) {
-  if (!sameStringArray(retainedFrame.columns, deltaFrame.columns)) {
-    throw new Error("Stream delta schema does not match the retained frame columns.");
+  const fullSchema = sameStringArray(retainedFrame.columns, deltaFrame.columns) &&
+    sameFieldSchema(retainedFrame.fields, deltaFrame.fields);
+
+  if (fullSchema) {
+    return;
   }
 
-  if (!sameFieldSchema(retainedFrame.fields, deltaFrame.fields)) {
-    throw new Error("Stream delta schema does not match the retained frame fields.");
+  if (mergeKeyFields.length === 0) {
+    throw new Error("Stream delta published partial columns but no merge key fields are available for patching.");
   }
+
+  const retainedColumns = new Set(retainedFrame.columns);
+  const unknownColumns = deltaFrame.columns.filter((column) => !retainedColumns.has(column));
+
+  if (unknownColumns.length > 0) {
+    throw new Error(`Stream delta introduced unsupported columns: ${unknownColumns.join(", ")}.`);
+  }
+
+  const retainedFields = new Map((retainedFrame.fields ?? []).map((field) => [field.key, field]));
+
+  for (const field of deltaFrame.fields ?? []) {
+    const retainedField = retainedFields.get(field.key);
+
+    if (retainedField && retainedField.type !== field.type) {
+      throw new Error(`Stream delta field "${field.key}" changed type from ${retainedField.type} to ${field.type}.`);
+    }
+  }
+
+  const missingMergeKeyRows = deltaFrame.rows.filter((row) =>
+    mergeKeyFields.some((field) => row[field] === undefined),
+  );
+
+  if (missingMergeKeyRows.length > 0) {
+    throw new Error("Stream delta row is missing one or more merge key fields required for patching.");
+  }
+}
+
+function patchRetainedRow(
+  retainedRow: Record<string, unknown> | undefined,
+  deltaRow: Record<string, unknown>,
+) {
+  return retainedRow
+    ? {
+        ...retainedRow,
+        ...deltaRow,
+      }
+    : deltaRow;
 }
 
 function buildDeltaOnlyFrame(input: {
@@ -480,16 +546,17 @@ function mergeDeltaFrame(input: {
   sequence?: number;
   emittedAt?: string;
 }) {
-  assertCompatibleDeltaSchema(input.retainedFrame, input.deltaFrame);
-
   const mergeKeyFields = resolveStreamMergeKeyFields({
     props: input.props,
     queryModel: input.queryModel,
+    frame: input.retainedFrame,
   });
+  assertCompatibleDeltaSchema(input.retainedFrame, input.deltaFrame, mergeKeyFields);
+
   const retentionMaxRows = normalizePositiveInteger(input.props.retentionMaxRows);
   const rowsByKey = new Map<string, Record<string, unknown>>();
   let rowsAppended = 0;
-  let rowsReplaced = 0;
+  let rowsPatched = 0;
 
   if (mergeKeyFields.length > 0) {
     input.retainedFrame.rows.forEach((row) => {
@@ -498,12 +565,12 @@ function mergeDeltaFrame(input: {
 
     input.deltaFrame.rows.forEach((row) => {
       const mergeKey = buildRowMergeKey(row, mergeKeyFields);
-      const existing = rowsByKey.has(mergeKey);
+      const existing = rowsByKey.get(mergeKey);
 
-      rowsByKey.set(mergeKey, row);
+      rowsByKey.set(mergeKey, patchRetainedRow(existing, row));
 
       if (existing) {
-        rowsReplaced += 1;
+        rowsPatched += 1;
       } else {
         rowsAppended += 1;
       }
@@ -553,7 +620,8 @@ function mergeDeltaFrame(input: {
     deltaOutput,
     operations: {
       appended: mergeKeyFields.length > 0 ? rowsAppended : deltaRows.length,
-      replaced: rowsReplaced,
+      patched: rowsPatched,
+      replaced: rowsPatched,
       pruned: rowsPruned,
       returned: deltaRows.length,
       retained: rows.length,
@@ -583,6 +651,7 @@ function accumulateSnapshotFrame(input: {
   const mergeKeyFields = resolveStreamMergeKeyFields({
     props: input.props,
     queryModel: input.queryModel,
+    frame: input.retainedFrame,
   });
 
   if (mergeKeyFields.length === 0) {
@@ -633,7 +702,7 @@ function accumulateSnapshotFrame(input: {
     const mergeKey = buildRowMergeKey(row, mergeKeyFields);
     const existing = rowsByKey.has(mergeKey);
 
-    rowsByKey.set(mergeKey, row);
+    rowsByKey.set(mergeKey, patchRetainedRow(rowsByKey.get(mergeKey), row));
 
     if (existing) {
       rowsReplaced += 1;

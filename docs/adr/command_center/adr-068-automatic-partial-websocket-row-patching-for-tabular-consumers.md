@@ -1,6 +1,6 @@
 # ADR 068: Automatic Partial WebSocket Row Patching For Tabular Consumers
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-05-20
 - Related:
   - [ADR 041: Query-Shaped WebSocket Streaming for Connections](./adr-041-connection-query-websocket-streaming.md)
@@ -325,84 +325,84 @@ The WebSocket update should not resend those fields unless they actually changed
 
 ### Stream Delta Contract
 
-- [ ] Replace exact-schema delta validation in `connection-stream-query` with patch-compatible
+- [x] Replace exact-schema delta validation in `connection-stream-query` with patch-compatible
   validation.
-- [ ] Require a resolved row identity before applying keyed partial patches.
-- [ ] Allow delta frames to publish only merge key fields plus changed fields.
-- [ ] Preserve full-row delta compatibility.
-- [ ] Treat missing fields as unchanged and explicit `null` as a real update.
-- [ ] Surface a clear runtime diagnostic when a patch delta has no safe row identity.
+- [x] Require a resolved row identity before applying keyed partial patches.
+- [x] Allow delta frames to publish only merge key fields plus changed fields.
+- [x] Preserve full-row delta compatibility.
+- [x] Treat missing fields as unchanged and explicit `null` as a real update.
+- [x] Surface a clear runtime diagnostic when a patch delta has no safe row identity.
 
 ### Automatic Identity Resolution
 
-- [ ] Resolve merge keys automatically from runtime update diagnostics when present.
-- [ ] Resolve merge keys from query model stream metadata when diagnostics are absent.
-- [ ] Resolve market asset identity from `assetKey` field roles for Asset Screener and market
+- [x] Resolve merge keys automatically from runtime update diagnostics when present.
+- [x] Resolve merge keys from query model stream metadata when diagnostics are absent.
+- [x] Resolve market asset identity from `assetKey` field roles for Asset Screener and market
   tabular frames.
-- [ ] Keep developer/source metadata explicit so adapters, query models, and widget contracts own
+- [x] Keep developer/source metadata explicit so adapters, query models, and widget contracts own
   identity rather than arbitrary UI guesses.
 
 ### User Authored Table Merge Mapping
 
-- [ ] Add a table/pro-table live merge mapping for composed seed/live inputs.
-- [ ] Support one or more merge key pairs such as `seed.symbol = live.symbol`.
-- [ ] Support differently named fields such as `seed.symbol = live.ticker`.
-- [ ] Prefer explicit merge mapping over automatic source metadata when the user configures it.
-- [ ] Validate that configured seed and live fields are available from their respective inputs.
-- [ ] Surface a clear table settings/runtime diagnostic when a live input needs a merge mapping but
+- [x] Add a table/pro-table live merge mapping for composed seed/live inputs.
+- [x] Support one or more merge key pairs such as `seed.symbol = live.symbol`.
+- [x] Support differently named fields such as `seed.symbol = live.ticker`.
+- [x] Prefer explicit merge mapping over automatic source metadata when the user configures it.
+- [x] Validate that configured seed and live fields are available from their respective inputs.
+- [x] Surface a clear table settings/runtime diagnostic when a live input needs a merge mapping but
   none is available.
-- [ ] Keep patch mechanics automatic after the mapping resolves row identity.
-- [ ] Document that shape normalization belongs in Tabular Transform before the table live input
+- [x] Keep patch mechanics automatic after the mapping resolves row identity.
+- [x] Document that shape normalization belongs in Tabular Transform before the table live input
   when live fields need renaming or formula derivation.
 
 ### Runtime Data Store
 
-- [ ] Change keyed `applyDelta(...)` behavior from row replacement to row patching.
-- [ ] Change keyed `combine(...)` behavior from seed/live row replacement to row patching.
-- [ ] Keep retained frame columns, fields, and metadata anchored to the seed/snapshot frame.
-- [ ] Add operation counters or diagnostics that distinguish patched, appended, pruned, and
+- [x] Change keyed `applyDelta(...)` behavior from row replacement to row patching.
+- [x] Change keyed `combine(...)` behavior from seed/live row replacement to row patching.
+- [x] Keep retained frame columns, fields, and metadata anchored to the seed/snapshot frame.
+- [x] Add operation counters or diagnostics that distinguish patched, appended, pruned, and
   returned rows.
-- [ ] Preserve existing ref/version dedupe behavior from ADR 049.
+- [x] Preserve existing ref/version dedupe behavior from ADR 049.
 
 ### Incremental Consumer Reduction
 
-- [ ] Change the shared incremental tabular consumer merge from row replacement to row patching.
-- [ ] Ensure live update refs can contain subset-column delta frames.
-- [ ] Keep seed/live reduction publication-driven and not render-driven.
-- [ ] Preserve `deltaDataset` as the delta-only payload for consumers that need the raw update.
-- [ ] Ensure table consumers receive the patched retained dataset as their normal render input.
+- [x] Change the shared incremental tabular consumer merge from row replacement to row patching.
+- [x] Ensure live update refs can contain subset-column delta frames.
+- [x] Keep seed/live reduction publication-driven and not render-driven.
+- [x] Preserve `deltaDataset` as the delta-only payload for consumers that need the raw update.
+- [x] Ensure table consumers receive the patched retained dataset as their normal render input.
 
 ### Table And Pro Table
 
-- [ ] Ensure `table` and `pro-table` render patched retained rows without requiring a full delta
+- [x] Ensure `table` and `pro-table` render patched retained rows without requiring a full delta
   schema.
-- [ ] Expose merge-key mapping for composed seed/live table inputs.
-- [ ] Keep same-provider graph streams automatic when source metadata provides merge keys.
-- [ ] Recompute formula columns after patched source values change.
-- [ ] Preserve selection state using resolved selection keys when patched rows update.
-- [ ] Avoid resetting grid state or column configuration when only row values changed.
-- [ ] Keep Community and Pro table behavior backward compatible for non-streamed sources.
+- [x] Expose merge-key mapping for composed seed/live table inputs.
+- [x] Keep same-provider graph streams automatic when source metadata provides merge keys.
+- [x] Recompute formula columns after patched source values change.
+- [x] Preserve selection state using resolved selection keys when patched rows update.
+- [x] Avoid resetting grid state or column configuration when only row values changed.
+- [x] Keep Community and Pro table behavior backward compatible for non-streamed sources.
 
 ### Asset Screener
 
-- [ ] Make Asset Screener consume partial live updates through the same shared tabular patch
+- [x] Make Asset Screener consume partial live updates through the same shared tabular patch
   semantics.
-- [ ] Use market `assetKey` semantics, normally `unique_identifier`, as automatic row identity.
-- [ ] Allow live update rows to include only identity, timestamp, and changed latest values.
-- [ ] Preserve seed-owned reference values, sparkline source data, formulas, visuals, and hidden
+- [x] Use market `assetKey` semantics, normally `unique_identifier`, as automatic row identity.
+- [x] Allow live update rows to include only identity, timestamp, and changed latest values.
+- [x] Preserve seed-owned reference values, sparkline source data, formulas, visuals, and hidden
   columns when live values update.
-- [ ] Add regression coverage proving a live `last_price` patch recomputes return formula columns
+- [x] Add regression coverage proving a live `last_price` patch recomputes return formula columns
   without resending reference columns.
 
 ### Tests
 
-- [ ] Add `connectionStreamQueryModel` coverage for subset-column keyed delta patches.
-- [ ] Add runtime data store coverage proving partial deltas preserve untouched fields.
-- [ ] Add incremental consumer coverage proving seed/live partial patches produce a retained
+- [x] Add `connectionStreamQueryModel` coverage for subset-column keyed delta patches.
+- [x] Add runtime data store coverage proving partial deltas preserve untouched fields.
+- [x] Add incremental consumer coverage proving seed/live partial patches produce a retained
   patched dataset.
-- [ ] Add table/pro-table coverage for formula recomputation after partial row patches.
-- [ ] Add Asset Screener coverage for partial live market updates keyed by `unique_identifier`.
-- [ ] Update tests that currently assert different-schema deltas are rejected.
+- [x] Add table/pro-table coverage for formula recomputation after partial row patches.
+- [x] Add Asset Screener coverage for partial live market updates keyed by `unique_identifier`.
+- [x] Update tests that currently assert different-schema deltas are rejected.
 
 ## Contract Notes
 

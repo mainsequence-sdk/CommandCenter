@@ -23,14 +23,19 @@ import {
   widgetTightFormTitleClass,
 } from "@/widgets/shared/form-density";
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
-import type { WidgetSettingsComponentProps } from "@/widgets/types";
+import type { ResolvedWidgetInput, WidgetSettingsComponentProps } from "@/widgets/types";
 
 import { TabularFieldSchemaInspector } from "@/widgets/shared/tabular-field-schema-inspector";
 import {
   isEmptyTabularFrameSource,
+  normalizeAnyTabularFrameSource,
   normalizeManualTableColumns,
   normalizeManualTableRows,
 } from "@/widgets/shared/tabular-widget-source";
+import {
+  TABULAR_LIVE_UPDATES_INPUT_ID,
+  TABULAR_SEED_INPUT_ID,
+} from "@/widgets/shared/incremental-tabular-consumer";
 import { ManualTableEditor } from "./ManualTableEditor";
 import {
   buildTableWidgetFrameFromRemoteData,
@@ -113,6 +118,7 @@ const tableFieldHelp = {
   groupBy: "Renders dense section headers for one field using the current row order. Grouping is display-only and does not change the published dataset. Column-header sorting is disabled while grouping is active so sections stay contiguous.",
   selectionMode: "Controls whether table clicks publish selected rows, the active row, the active cell, or the selected cell values list for downstream widgets. When this stays off, the runtime can still infer the minimal interaction mode if a downstream widget reference actively consumes one of the table interaction outputs.",
   selectionKeyFields: "Optional stable field keys used to keep selections mapped to the same rows after refreshes, sorting, or upstream updates. Leave blank to use row indexes.",
+  liveMergeMapping: "Maps seed rows to live update rows for composed seed/live tables. Use this when the live feed has a different shape or field names. The table patches row values automatically after row identity is known.",
   columnKey: "Maps this table column to an incoming field key from the bound dataset frame.",
   columnLabel: "Overrides the header text shown for this column.",
   columnFormat: "Controls how values are parsed and displayed. Text enables value chips; numeric formats enable decimals, compact numbers, heatmaps, data bars, gauges, and thresholds.",
@@ -172,6 +178,18 @@ function parseSelectionKeyFields(value: string) {
         .filter(Boolean),
     ),
   );
+}
+
+function resolveFirstValidInput(
+  value: ResolvedWidgetInput | ResolvedWidgetInput[] | undefined,
+) {
+  return Array.isArray(value)
+    ? value.find((entry) => entry.status === "valid") ?? value[0]
+    : value;
+}
+
+function resolveInputColumns(input: ResolvedWidgetInput | undefined) {
+  return normalizeAnyTabularFrameSource(input?.upstreamBase ?? input?.value)?.columns ?? [];
 }
 
 type TableWidgetSettingsFactoryOptions = Pick<
@@ -472,6 +490,24 @@ function TableWidgetSettingsComponent({
     () => resolveTableWidgetSourceDataset(resolvedInputs),
     [resolvedInputs],
   );
+  const seedInput = useMemo(
+    () => resolveFirstValidInput(resolvedInputs?.[TABULAR_SEED_INPUT_ID]),
+    [resolvedInputs],
+  );
+  const liveInput = useMemo(
+    () => resolveFirstValidInput(resolvedInputs?.[TABULAR_LIVE_UPDATES_INPUT_ID]),
+    [resolvedInputs],
+  );
+  const seedFieldOptions = useMemo(() => resolveInputColumns(seedInput), [seedInput]);
+  const liveFieldOptions = useMemo(() => resolveInputColumns(liveInput), [liveInput]);
+  const seedFieldOptionSet = useMemo(
+    () => new Set(seedFieldOptions),
+    [seedFieldOptions],
+  );
+  const liveFieldOptionSet = useMemo(
+    () => new Set(liveFieldOptions),
+    [liveFieldOptions],
+  );
   const sourceConsumerState = useMemo(
     () => resolveTableWidgetSourceConsumerState(resolvedInputs),
     [resolvedInputs],
@@ -599,6 +635,35 @@ function TableWidgetSettingsComponent({
     !schemaValidation.isValid;
   const valueLabels = scopedDraft.valueLabels ?? [];
   const conditionalRules = resolvedScopedDraft.conditionalRules;
+  const liveMergeKeyMappingsDraft = Array.isArray(scopedDraft.liveMergeKeyMappings)
+    ? scopedDraft.liveMergeKeyMappings
+    : [];
+  const liveMergeMappingIssues = useMemo(() => {
+    return liveMergeKeyMappingsDraft.flatMap((mapping, index) => {
+      const seedField = typeof mapping.seedField === "string" ? mapping.seedField.trim() : "";
+      const liveField = typeof mapping.liveField === "string" ? mapping.liveField.trim() : "";
+      const issues: string[] = [];
+
+      if ((seedField && !liveField) || (!seedField && liveField)) {
+        issues.push(`Mapping ${index + 1} needs both a seed field and a live field.`);
+      }
+
+      if (seedField && seedFieldOptions.length > 0 && !seedFieldOptionSet.has(seedField)) {
+        issues.push(`Seed field "${seedField}" is not present in the current seed input.`);
+      }
+
+      if (liveField && liveFieldOptions.length > 0 && !liveFieldOptionSet.has(liveField)) {
+        issues.push(`Live field "${liveField}" is not present in the current live input.`);
+      }
+
+      return issues;
+    });
+  }, [liveFieldOptionSet, liveFieldOptions.length, liveMergeKeyMappingsDraft, seedFieldOptionSet, seedFieldOptions.length]);
+  const shouldSuggestLiveMergeMapping =
+    liveMergeKeyMappingsDraft.length === 0 &&
+    seedFieldOptions.length > 0 &&
+    liveFieldOptions.length > 0 &&
+    seedFieldOptions.every((field) => !liveFieldOptionSet.has(field));
   const fallbackTextColor = resolvedTokens.primary;
   const fallbackFillColor = resolvedTokens.primary;
   const [expandedColumnKeys, setExpandedColumnKeys] = useState<Record<string, boolean>>({});
@@ -994,6 +1059,131 @@ function TableWidgetSettingsComponent({
                       } widget still owns execution and dataset publication. This table only formats the incoming rows.`
                     : "The linked source widget owns dataset publication. This table only formats the incoming rows."}
                 </p>
+
+                <div className="space-y-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.liveMergeMapping}>
+                        Live merge mapping
+                      </WidgetSettingFieldLabel>
+                      <p className={descriptionClass}>
+                        Optional identity mapping for composed seed/live tables. Example: seed{" "}
+                        <span className="font-mono text-xs">symbol</span> matches live{" "}
+                        <span className="font-mono text-xs">ticker</span>; live values then patch
+                        the retained seed row without replacing omitted fields.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!editable}
+                      onClick={() => {
+                        commit({
+                          ...scopedDraft,
+                          liveMergeKeyMappings: [
+                            ...(liveMergeKeyMappingsDraft ?? []),
+                            { seedField: "", liveField: "" },
+                          ],
+                        });
+                      }}
+                    >
+                      Add mapping
+                    </Button>
+                  </div>
+
+                  {liveMergeKeyMappingsDraft.length > 0 ? (
+                    <div className="space-y-2">
+                      {liveMergeKeyMappingsDraft.map((mapping, index) => (
+                        <div
+                          key={`merge-mapping-${index}`}
+                          className="grid gap-2 md:grid-cols-[1fr_1fr_auto]"
+                        >
+                          <Input
+                            className={inputClass}
+                            value={mapping.seedField}
+                            placeholder="Seed field"
+                            list={`table-seed-fields-${instanceId ?? "draft"}`}
+                            disabled={!editable}
+                            onChange={(event) => {
+                              const nextMappings = [...liveMergeKeyMappingsDraft];
+                              nextMappings[index] = {
+                                ...mapping,
+                                seedField: event.target.value,
+                              };
+                              commit({
+                                ...scopedDraft,
+                                liveMergeKeyMappings: nextMappings,
+                              });
+                            }}
+                          />
+                          <Input
+                            className={inputClass}
+                            value={mapping.liveField}
+                            placeholder="Live field"
+                            list={`table-live-fields-${instanceId ?? "draft"}`}
+                            disabled={!editable}
+                            onChange={(event) => {
+                              const nextMappings = [...liveMergeKeyMappingsDraft];
+                              nextMappings[index] = {
+                                ...mapping,
+                                liveField: event.target.value,
+                              };
+                              commit({
+                                ...scopedDraft,
+                                liveMergeKeyMappings: nextMappings,
+                              });
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!editable}
+                            onClick={() => {
+                              commit({
+                                ...scopedDraft,
+                                liveMergeKeyMappings: liveMergeKeyMappingsDraft.filter(
+                                  (_entry, mappingIndex) => mappingIndex !== index,
+                                ),
+                              });
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className={descriptionClass}>
+                      Leave empty when the stream source publishes merge-key metadata or when seed
+                      and live rows use the same row identity fields.
+                    </p>
+                  )}
+                  {liveMergeMappingIssues.length > 0 ? (
+                    <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                      {liveMergeMappingIssues.map((issue) => (
+                        <div key={issue}>{issue}</div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {shouldSuggestLiveMergeMapping ? (
+                    <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                      Seed and live inputs do not expose any shared field names. Add a merge mapping
+                      before expecting live rows to patch retained seed rows.
+                    </div>
+                  ) : null}
+                  <datalist id={`table-seed-fields-${instanceId ?? "draft"}`}>
+                    {seedFieldOptions.map((field) => (
+                      <option key={field} value={field} />
+                    ))}
+                  </datalist>
+                  <datalist id={`table-live-fields-${instanceId ?? "draft"}`}>
+                    {liveFieldOptions.map((field) => (
+                      <option key={field} value={field} />
+                    ))}
+                  </datalist>
+                </div>
 
                 {managedConnectionSource ? (
                   <ConnectionQueryRuntimeStatusCard

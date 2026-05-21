@@ -52,6 +52,11 @@ export interface RuntimeRowSelector {
   offset?: number;
 }
 
+export interface RuntimeMergeKeyMapping {
+  seedField: string;
+  liveField: string;
+}
+
 export interface RuntimeDataStore {
   readonly workspaceRuntimeId: string;
   putSnapshot(input: {
@@ -81,6 +86,7 @@ export interface RuntimeDataStore {
     seedFrame?: TabularFrameSourceV1 | null;
     liveFrame?: TabularFrameSourceV1 | null;
     mergeKeyFields: string[];
+    mergeKeyMappings?: RuntimeMergeKeyMapping[];
     retention?: RuntimeRetentionPolicy;
     refKey?: string;
     signature?: string;
@@ -158,6 +164,69 @@ function normalizeMergeKeyValue(value: unknown) {
 
 function buildRowMergeKey(row: Record<string, unknown>, mergeKeyFields: string[]) {
   return mergeKeyFields.map((field) => normalizeMergeKeyValue(row[field])).join("\u001f");
+}
+
+function normalizeMergeKeyMappings(
+  mergeKeyFields: string[],
+  mergeKeyMappings?: RuntimeMergeKeyMapping[],
+) {
+  const mappings = (mergeKeyMappings ?? []).flatMap((mapping) => {
+    const seedField = mapping.seedField.trim();
+    const liveField = mapping.liveField.trim();
+
+    return seedField && liveField ? [{ seedField, liveField }] : [];
+  });
+
+  return mappings.length > 0
+    ? mappings
+    : mergeKeyFields.filter(Boolean).map((field) => ({ seedField: field, liveField: field }));
+}
+
+function buildMappedRowMergeKey(
+  row: Record<string, unknown>,
+  mappings: RuntimeMergeKeyMapping[],
+  side: "seed" | "live",
+) {
+  return mappings
+    .map((mapping) =>
+      normalizeMergeKeyValue(row[side === "seed" ? mapping.seedField : mapping.liveField]),
+    )
+    .join("\u001f");
+}
+
+function normalizeLivePatchRow(
+  liveRow: Record<string, unknown>,
+  mappings: RuntimeMergeKeyMapping[],
+) {
+  const patch = { ...liveRow };
+
+  mappings.forEach((mapping) => {
+    if (mapping.seedField === mapping.liveField || !(mapping.liveField in patch)) {
+      return;
+    }
+
+    if (!(mapping.seedField in patch)) {
+      patch[mapping.seedField] = patch[mapping.liveField];
+    }
+    delete patch[mapping.liveField];
+  });
+
+  return patch;
+}
+
+function patchRetainedRow(
+  retainedRow: Record<string, unknown> | undefined,
+  liveRow: Record<string, unknown>,
+  mappings: RuntimeMergeKeyMapping[],
+) {
+  const patch = normalizeLivePatchRow(liveRow, mappings);
+
+  return retainedRow
+    ? {
+        ...retainedRow,
+        ...patch,
+      }
+    : patch;
 }
 
 function collectColumns(...frames: TabularFrameSourceV1[]) {
@@ -347,6 +416,7 @@ function combineTabularFrames(input: {
   seedFrame: TabularFrameSourceV1 | null;
   liveFrame: TabularFrameSourceV1 | null;
   mergeKeyFields: string[];
+  mergeKeyMappings?: RuntimeMergeKeyMapping[];
   retention?: RuntimeRetentionPolicy;
 }) {
   if (!input.seedFrame && !input.liveFrame) {
@@ -380,16 +450,21 @@ function combineTabularFrames(input: {
 
   const rows: Array<Record<string, unknown>> = [];
   const mergeKeyFields = input.mergeKeyFields.filter(Boolean);
+  const mergeKeyMappings = normalizeMergeKeyMappings(
+    mergeKeyFields,
+    input.mergeKeyMappings,
+  );
 
-  if (mergeKeyFields.length > 0) {
+  if (mergeKeyMappings.length > 0) {
     const rowsByKey = new Map<string, Record<string, unknown>>();
 
     seedFrame.rows.forEach((row) => {
-      rowsByKey.set(buildRowMergeKey(row, mergeKeyFields), row);
+      rowsByKey.set(buildMappedRowMergeKey(row, mergeKeyMappings, "seed"), row);
     });
 
     liveFrame.rows.forEach((row) => {
-      rowsByKey.set(buildRowMergeKey(row, mergeKeyFields), row);
+      const key = buildMappedRowMergeKey(row, mergeKeyMappings, "live");
+      rowsByKey.set(key, patchRetainedRow(rowsByKey.get(key), row, mergeKeyMappings));
     });
 
     rows.push(...rowsByKey.values());
@@ -411,10 +486,10 @@ function combineTabularFrames(input: {
   return {
     ...seedFrame,
     status: resolveRenderableFrameStatus([seedFrame, liveFrame], rows.length),
-    columns: collectColumns(seedFrame, liveFrame),
-    fields: collectFields(seedFrame, liveFrame),
+    columns: seedFrame.columns,
+    fields: seedFrame.fields,
     rows: applyRetention(rows, input.retention),
-    meta: liveFrame.meta ?? seedFrame.meta,
+    meta: seedFrame.meta,
     source: {
       ...seedFrame.source,
       kind: seedFrame.source?.kind ?? "runtime-data-store",
@@ -489,7 +564,7 @@ class InMemoryRuntimeDataStore implements RuntimeDataStore {
       };
     const mergeKeyFields = input.mergeKeyFields.filter(Boolean);
     let appended = 0;
-    let replaced = 0;
+    let patched = 0;
     let mergedRows: Array<Record<string, unknown>>;
 
     if (mergeKeyFields.length > 0) {
@@ -500,12 +575,12 @@ class InMemoryRuntimeDataStore implements RuntimeDataStore {
       });
       input.deltaFrame.rows.forEach((row) => {
         const key = buildRowMergeKey(row, mergeKeyFields);
-        const existing = rowsByKey.has(key);
+        const existing = rowsByKey.get(key);
 
-        rowsByKey.set(key, row);
+        rowsByKey.set(key, existing ? { ...existing, ...row } : row);
 
         if (existing) {
-          replaced += 1;
+          patched += 1;
         } else {
           appended += 1;
         }
@@ -526,10 +601,10 @@ class InMemoryRuntimeDataStore implements RuntimeDataStore {
     const outputFrame: TabularFrameSourceV1 = {
       ...baseFrame,
       status: input.deltaFrame.status === "error" ? "error" : "ready",
-      columns: collectColumns(baseFrame, input.deltaFrame),
-      fields: collectFields(baseFrame, input.deltaFrame),
+      columns: baseFrame.columns,
+      fields: baseFrame.fields,
       rows: mergedRows,
-      meta: input.deltaFrame.meta ?? baseFrame.meta,
+      meta: baseFrame.meta,
       source: {
         ...baseFrame.source,
         kind: baseFrame.source?.kind ?? input.deltaFrame.source?.kind ?? "runtime-data-store",
@@ -554,7 +629,8 @@ class InMemoryRuntimeDataStore implements RuntimeDataStore {
       deltaRef,
       operations: {
         appended,
-        replaced,
+        patched,
+        replaced: patched,
         pruned: Math.max(0, rowsBeforeRetention - mergedRows.length),
         returned: input.deltaFrame.rows.length,
         retained: mergedRows.length,
@@ -570,6 +646,7 @@ class InMemoryRuntimeDataStore implements RuntimeDataStore {
     seedFrame?: TabularFrameSourceV1 | null;
     liveFrame?: TabularFrameSourceV1 | null;
     mergeKeyFields: string[];
+    mergeKeyMappings?: RuntimeMergeKeyMapping[];
     retention?: RuntimeRetentionPolicy;
     refKey?: string;
     signature?: string;
@@ -594,6 +671,7 @@ class InMemoryRuntimeDataStore implements RuntimeDataStore {
       seedFrame,
       liveFrame,
       mergeKeyFields: input.mergeKeyFields,
+      mergeKeyMappings: input.mergeKeyMappings,
       retention: input.retention,
     });
 

@@ -69,6 +69,7 @@ function TableWidgetComponent({
   });
   const incrementalBinding = useIncrementalTabularConsumerBindingState({
     instanceId,
+    liveMergeKeyMappings: normalizedProps.liveMergeKeyMappings,
     onRuntimeStateChange,
     resolvedInputs,
     runtimeState,

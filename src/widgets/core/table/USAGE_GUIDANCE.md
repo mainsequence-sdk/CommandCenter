@@ -27,6 +27,13 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Choose `Bound dataset` when the table should render an upstream `core.tabular_frame@v1` output, `Connection query` when the table should own a hidden `connection-query` source, `Stream connection` when it should own a hidden `connection-stream-query` source, or `Manual table` when rows should be authored directly in this widget.
 - For bound mode, bind `seedData` to a retained `dataset` output or an incremental `updates` seed publication.
 - Bind `liveUpdates` only to explicit `updates` outputs when this table should keep applying incremental publications.
+- Use `Live merge mapping` when the seed and live inputs come from different table shapes and need
+  an explicit row identity join, for example seed `symbol` matches live `ticker`. After identity is
+  known, live rows patch the retained seed rows automatically and omitted seed fields stay
+  unchanged.
+- Put live-field renaming or calculations in a Tabular Transform before the table. For example,
+  transform WebSocket fields `symbol, close` into `symbol, last`, then map seed `symbol` to live
+  `symbol` in the table.
 - For connection mode, open `Bindings`, click `Add connection`, then configure the dedicated `Connection` tab. Managed HTTP sources bind `dataset` to `seedData`; managed WS sources bind `updates` to `liveUpdates`.
 - For manual mode, define columns and rows in the table editor. Manual rows are stored in this table widget's props and are published as the table `dataset` output.
 - Inspect the incoming field schema before editing columns. Prefer upstream `fields` metadata when available; otherwise the table infers labels, types, and numeric eligibility from the current row sample.
@@ -68,6 +75,7 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 
 - `seedData`: optional `core.tabular_frame@v1` input. Initializes or replaces the table frame.
 - `liveUpdates`: optional `core.tabular_frame@v1` updates input. Applies explicit incremental row publications when bound.
+  Live updates may publish only row identity plus changed fields when a merge key is available.
 
 ### outputPorts
 
@@ -91,7 +99,8 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
   in the managed hidden source widget. Stream connection mode also requires a streamable connection
   path.
 - When the upstream source publishes incremental metadata, the table consumes the retained
-  full `upstreamBase` frame and renders it as a snapshot.
+  patched `upstreamBase` frame and renders it as a snapshot. Partial live rows do not need to
+  repeat unchanged seed columns.
 - Manual mode requires at least one manual column before the table can render a schema.
 - The incoming frame must normalize to table rows. Canonical frames provide `columns: string[]` and `rows: Array<Record<string, unknown>>`.
 - Legacy backend time-series frames are coerced to canonical tabular rows before rendering.
@@ -100,6 +109,8 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Numeric visuals require numeric source values and usable bounds.
 - Date/time formatting requires values that can be parsed automatically or by the configured input pattern.
 - Stable selection key fields should point at fields that are present in the canonical dataset. Without them, selection outputs fall back to row indexes.
+- Composed seed/live tables need either source-owned merge key metadata or a `Live merge mapping`.
+  Without row identity, live rows are treated as append-only events rather than patches.
 
 ### commonPitfalls
 

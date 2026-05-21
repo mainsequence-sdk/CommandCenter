@@ -71,14 +71,14 @@ describe("runtime data store", () => {
     expect(materializeRuntimeTabularFrame(shell, store)?.rows).toEqual(sourceFrame.rows);
   });
 
-  it("applies deltas with merge-key replacement and retention", () => {
+  it("applies partial deltas as merge-key patches with retention", () => {
     const store = createRuntimeDataStore("workspace-1");
     const baseRef = store.putSnapshot({
       ownerId: "source-1",
       outputId: "dataset",
       frame: frame([
         { id: "a", value: 1 },
-        { id: "b", value: 2 },
+        { id: "b", value: 2, label: "Beta" },
       ]),
     });
 
@@ -96,12 +96,12 @@ describe("runtime data store", () => {
 
     expect(result.operations).toMatchObject({
       appended: 1,
-      replaced: 1,
+      patched: 1,
       pruned: 1,
       retained: 2,
     });
     expect(store.readFrame(result.outputRef)?.rows).toEqual([
-      { id: "b", value: 20 },
+      { id: "b", value: 20, label: "Beta" },
       { id: "c", value: 3 },
     ]);
     expect(store.readFrame(result.deltaRef)?.rows).toEqual([
@@ -110,14 +110,14 @@ describe("runtime data store", () => {
     ]);
   });
 
-  it("combines seed and live refs with keyed replacement and retention", () => {
+  it("combines seed and live refs with keyed patching and retention", () => {
     const store = createRuntimeDataStore("workspace-1");
     const seedRef = store.putSnapshot({
       ownerId: "seed-source",
       outputId: "dataset",
       frame: frame([
         { id: "a", value: 1 },
-        { id: "b", value: 2 },
+        { id: "b", value: 2, label: "Beta" },
       ]),
     });
     const liveRef = store.putSnapshot({
@@ -144,8 +144,48 @@ describe("runtime data store", () => {
       rowCount: 2,
     });
     expect(outputRef ? store.readFrame(outputRef)?.rows : null).toEqual([
-      { id: "b", value: 20 },
+      { id: "b", value: 20, label: "Beta" },
       { id: "c", value: 3 },
+    ]);
+  });
+
+  it("combines seed and live refs with differently named merge fields", () => {
+    const store = createRuntimeDataStore("workspace-1");
+    const seedRef = store.putSnapshot({
+      ownerId: "seed-source",
+      outputId: "dataset",
+      frame: {
+        ...frame([
+          { symbol: "BTCUSDT", last: 100, name: "Bitcoin" },
+        ]),
+        columns: ["symbol", "last", "name"],
+      },
+    });
+    const liveRef = store.putSnapshot({
+      ownerId: "live-source",
+      outputId: "updates",
+      frame: {
+        ...frame([{ ticker: "BTCUSDT", last: 101 }]),
+        columns: ["ticker", "last"],
+      },
+    });
+
+    const outputRef = store.combine({
+      ownerId: "consumer-1",
+      outputId: "dataset",
+      seedRef,
+      liveRef,
+      mergeKeyFields: [],
+      mergeKeyMappings: [{ seedField: "symbol", liveField: "ticker" }],
+    });
+
+    expect(outputRef ? store.readFrame(outputRef)?.columns : null).toEqual([
+      "symbol",
+      "last",
+      "name",
+    ]);
+    expect(outputRef ? store.readFrame(outputRef)?.rows : null).toEqual([
+      { symbol: "BTCUSDT", last: 101, name: "Bitcoin" },
     ]);
   });
 

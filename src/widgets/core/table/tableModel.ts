@@ -14,6 +14,7 @@ import {
   resolveIncrementalTabularOutputFrame,
   TABULAR_LIVE_UPDATES_INPUT_ID,
   TABULAR_SEED_INPUT_ID,
+  type TabularMergeKeyMapping,
 } from "@/widgets/shared/incremental-tabular-consumer";
 import {
   buildManualTableFieldOptions,
@@ -199,6 +200,7 @@ export interface TableWidgetProps
   valueLabels?: TableWidgetValueLabel[];
   conditionalRules?: TableWidgetConditionalRule[];
   formulasEnabled?: boolean;
+  liveMergeKeyMappings?: TabularMergeKeyMapping[];
   selectionMode?: TableWidgetSelectionMode;
   selectionKeyFields?: string[];
   publishSelectionOutputs?: boolean;
@@ -473,6 +475,7 @@ export interface ResolvedTableWidgetProps {
   valueLabels: TableWidgetValueLabel[];
   conditionalRules: TableWidgetConditionalRule[];
   formulasEnabled: boolean;
+  liveMergeKeyMappings: TabularMergeKeyMapping[];
   selectionMode: TableWidgetSelectionMode;
   selectionKeyFields: string[];
   publishSelectionOutputs: boolean;
@@ -536,6 +539,24 @@ function normalizeTableWidgetFormulaResultFormat(
 
 function normalizeTableWidgetFormulasEnabled(value: unknown) {
   return value === true;
+}
+
+function normalizeTableWidgetLiveMergeKeyMappings(value: unknown): TabularMergeKeyMapping[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return [];
+    }
+
+    const record = entry as Record<string, unknown>;
+    const seedField = typeof record.seedField === "string" ? record.seedField.trim() : "";
+    const liveField = typeof record.liveField === "string" ? record.liveField.trim() : "";
+
+    return seedField && liveField ? [{ seedField, liveField }] : [];
+  });
 }
 
 function tableFormulaComputedColumnType(
@@ -2918,6 +2939,9 @@ export function resolveTableWidgetPropsWithFrame(
           .filter((entry): entry is TableWidgetConditionalRule => Boolean(entry))
         : []),
     ],
+    liveMergeKeyMappings: normalizeTableWidgetLiveMergeKeyMappings(
+      migratedProps.liveMergeKeyMappings,
+    ),
     selectionMode: normalizeTableWidgetSelectionMode(migratedProps.selectionMode),
     selectionKeyFields: normalizeSelectionKeyFields(migratedProps.selectionKeyFields),
     publishSelectionOutputs: migratedProps.publishSelectionOutputs !== false,
@@ -3361,6 +3385,7 @@ export const tableWidgetDefaultProps: TableWidgetProps = {
   valueLabels: [],
   conditionalRules: [],
   formulasEnabled: false,
+  liveMergeKeyMappings: [],
   selectionMode: "none",
   selectionKeyFields: [],
   publishSelectionOutputs: true,

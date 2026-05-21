@@ -57,6 +57,10 @@ for connection query models that advertise a WebSocket stream contract.
   and by resolving draft defaults only against streamable paths.
 - Snapshot and delta messages normalize through the same tabular conversion path as the one-shot
   `connection-query` widget and attach explicit incremental `seed` / `update` runtime metadata.
+- Keyed delta messages may publish subset columns. The retained stream frame patches those values
+  into the existing row instead of replacing the whole row, so unchanged fields remain available
+  for downstream tables, formulas, and chart configuration. Delta columns that are not already in
+  the retained frame are rejected until an explicit schema-expansion policy exists.
 - Delta-origin stream messages publish real incremental update publications. Snapshot-origin stream
   messages republish full retained seed resets so downstream live consumers reset correctly instead
   of treating replacement snapshots as append-only deltas.

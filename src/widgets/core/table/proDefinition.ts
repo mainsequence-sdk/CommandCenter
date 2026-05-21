@@ -3,7 +3,7 @@ import { proTableSharedOptions, withProTableDefaultProps } from "./proTableOptio
 
 export const proTableWidget = buildTableWidgetDefinition({
   widgetId: "pro-table",
-  widgetVersion: "1.0.0",
+  widgetVersion: "1.1.0",
   title: proTableSharedOptions.editionLabel,
   edition: "pro",
   capabilities: proTableSharedOptions.capabilities,

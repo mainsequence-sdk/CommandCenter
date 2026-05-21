@@ -172,6 +172,24 @@ function buildPendingSeedInput(): ResolvedWidgetInput {
   };
 }
 
+function buildFrameInput(input: {
+  inputId: string;
+  sourceWidgetId: string;
+  sourceOutputId: string;
+  frame: TabularFrameSourceV1;
+}): ResolvedWidgetInput {
+  return {
+    inputId: input.inputId,
+    label: input.inputId,
+    status: "valid",
+    sourceWidgetId: input.sourceWidgetId,
+    sourceOutputId: input.sourceOutputId,
+    contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+    value: input.frame,
+    upstreamBase: input.frame,
+  };
+}
+
 interface SnapshotState {
   dataset: TabularFrameSourceV1 | null;
   runtimeState?: Record<string, unknown>;
@@ -977,6 +995,140 @@ describe("incremental tabular consumer", () => {
       { time: "2026-04-29T00:01:00.000Z", value: 2 },
     ]);
     expect(frame?.status).toBe("ready");
+  });
+
+  it("patches live update fields into seed rows without dropping omitted seed fields", () => {
+    const output = resolveIncrementalTabularOutputFrame({
+      resolvedInputs: {
+        [TABULAR_SEED_INPUT_ID]: buildFrameInput({
+          inputId: TABULAR_SEED_INPUT_ID,
+          sourceWidgetId: "seed-source",
+          sourceOutputId: "dataset",
+          frame: {
+            status: "ready",
+            columns: ["symbol", "last", "name"],
+            rows: [{ symbol: "BTCUSDT", last: 100, name: "Bitcoin" }],
+            source: { kind: "seed" },
+          },
+        }),
+        [TABULAR_LIVE_UPDATES_INPUT_ID]: buildFrameInput({
+          inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+          sourceWidgetId: "live-source",
+          sourceOutputId: "updates",
+          frame: {
+            status: "ready",
+            columns: ["symbol", "last"],
+            rows: [{ symbol: "BTCUSDT", last: 101 }],
+            source: { kind: "live" },
+          },
+        }),
+      },
+      liveMergeKeyFields: ["symbol"],
+    });
+
+    expect(output?.columns).toEqual(["symbol", "last", "name"]);
+    expect(output?.rows).toEqual([
+      { symbol: "BTCUSDT", last: 101, name: "Bitcoin" },
+    ]);
+  });
+
+  it("uses configured seed/live merge mappings for differently named identity fields", () => {
+    const output = resolveIncrementalTabularOutputFrame({
+      resolvedInputs: {
+        [TABULAR_SEED_INPUT_ID]: buildFrameInput({
+          inputId: TABULAR_SEED_INPUT_ID,
+          sourceWidgetId: "seed-source",
+          sourceOutputId: "dataset",
+          frame: {
+            status: "ready",
+            columns: ["symbol", "last", "name"],
+            rows: [{ symbol: "BTCUSDT", last: 100, name: "Bitcoin" }],
+            source: { kind: "seed" },
+          },
+        }),
+        [TABULAR_LIVE_UPDATES_INPUT_ID]: buildFrameInput({
+          inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+          sourceWidgetId: "live-source",
+          sourceOutputId: "updates",
+          frame: {
+            status: "ready",
+            columns: ["ticker", "last"],
+            rows: [{ ticker: "BTCUSDT", last: 101 }],
+            source: { kind: "live" },
+          },
+        }),
+      },
+      liveMergeKeyMappings: [{ seedField: "symbol", liveField: "ticker" }],
+    });
+
+    expect(output?.columns).toEqual(["symbol", "last", "name"]);
+    expect(output?.rows).toEqual([
+      { symbol: "BTCUSDT", last: 101, name: "Bitcoin" },
+    ]);
+  });
+
+  it("uses market assetKey metadata as automatic row identity for partial live patches", () => {
+    const output = resolveIncrementalTabularOutputFrame({
+      resolvedInputs: {
+        [TABULAR_SEED_INPUT_ID]: buildFrameInput({
+          inputId: TABULAR_SEED_INPUT_ID,
+          sourceWidgetId: "seed-source",
+          sourceOutputId: "dataset",
+          frame: {
+            status: "ready",
+            columns: ["unique_identifier", "Symbol", "last_price", "previous_close"],
+            rows: [
+              {
+                unique_identifier: "uid:BTCUSDT",
+                Symbol: "BTCUSDT",
+                last_price: 100,
+                previous_close: 90,
+              },
+            ],
+            meta: {
+              marketAsset: {
+                role: "snapshot",
+                fieldRoles: [
+                  { field: "unique_identifier", role: "assetKey" },
+                ],
+              },
+            },
+            source: { kind: "asset-seed" },
+          },
+        }),
+        [TABULAR_LIVE_UPDATES_INPUT_ID]: buildFrameInput({
+          inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+          sourceWidgetId: "live-source",
+          sourceOutputId: "updates",
+          frame: {
+            status: "ready",
+            columns: ["unique_identifier", "last_price"],
+            rows: [
+              {
+                unique_identifier: "uid:BTCUSDT",
+                last_price: 101,
+              },
+            ],
+            source: { kind: "asset-live" },
+          },
+        }),
+      },
+    });
+
+    expect(output?.columns).toEqual([
+      "unique_identifier",
+      "Symbol",
+      "last_price",
+      "previous_close",
+    ]);
+    expect(output?.rows).toEqual([
+      {
+        unique_identifier: "uid:BTCUSDT",
+        Symbol: "BTCUSDT",
+        last_price: 101,
+        previous_close: 90,
+      },
+    ]);
   });
 
   it("keeps dual-source snapshot state anchored to the seed lane", () => {

@@ -14,6 +14,7 @@ export interface WidgetRuntimeUpdateRange {
 
 export interface WidgetRuntimeUpdateOperations {
   appended?: number;
+  patched?: number;
   replaced?: number;
   removed?: number;
   pruned?: number;

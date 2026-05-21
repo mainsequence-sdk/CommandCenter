@@ -443,7 +443,52 @@ describe("connection stream query runtime model", () => {
     });
   });
 
-  it("rejects delta frames with a different schema", () => {
+  it("patches keyed subset-column delta frames without dropping retained fields", () => {
+    const retained = reduceConnectionStreamQueryMessage({
+      message: {
+        type: "snapshot",
+        connectionId: 42,
+        queryKind: "ticker",
+        sequence: 1,
+        emittedAt: "2026-04-28T00:00:00.000Z",
+        response: {
+          frames: [
+            {
+              contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+              fields: [
+                { name: "symbol", type: "string", values: ["BTCUSDT"] },
+                { name: "sector", type: "string", values: ["Layer 1"] },
+                { name: "price", type: "number", values: [70000] },
+              ],
+            },
+          ],
+        },
+      },
+      props,
+      queryModel,
+      nowMs: 1000,
+    });
+    const patched = reduceConnectionStreamQueryMessage({
+      message: streamMessage("delta", [{ symbol: "BTCUSDT", price: 70100 }]),
+      props,
+      queryModel,
+      retainedState: retained,
+      nowMs: 2000,
+    });
+
+    expect(patched.columns).toEqual(["symbol", "sector", "price"]);
+    expect(patched.rows).toEqual([
+      { symbol: "BTCUSDT", sector: "Layer 1", price: 70100 },
+    ]);
+    expect(readWidgetRuntimeUpdateContext(patched)?.operations).toMatchObject({
+      appended: 0,
+      patched: 1,
+      returned: 1,
+      retained: 1,
+    });
+  });
+
+  it("rejects delta frames that introduce unsupported columns", () => {
     const retained = reduceConnectionStreamQueryMessage({
       message: streamMessage("snapshot", [{ symbol: "BTCUSDT", price: 70000 }]),
       props,
@@ -459,7 +504,7 @@ describe("connection stream query runtime model", () => {
         retainedState: retained,
         nowMs: 2000,
       }),
-    ).toThrow("Stream delta schema");
+    ).toThrow("unsupported columns");
   });
 
   it("closes the WebSocket session and suppresses messages after cleanup", async () => {

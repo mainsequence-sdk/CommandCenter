@@ -23,6 +23,8 @@ Large retained frames are stored in the workspace runtime data store and carried
 - Choose a streamable connection path; non-streamable query models are not valid for this widget.
 - Configure the query payload with the same typed editor used by the connection query widget and Data Sources Explore.
 - Configure merge-key fields when the compatibility retained dataset bridge should replace rows instead of appending every row. When left blank, the widget uses the connection path's default stream merge keys if that path publishes them.
+- Keyed delta messages may publish only merge-key fields plus changed fields. The retained dataset
+  patches those values into the existing row and preserves omitted fields from the prior snapshot.
 - Bind downstream widgets to the `updates` output for live incremental behavior, or `dataset` when a retained compatibility bridge is still needed.
 
 ## blockingRequirements
@@ -42,7 +44,9 @@ Large retained frames are stored in the workspace runtime data store and carried
 - Stream diagnostics and test controls are opt-in from settings. Opening settings should show lightweight active runtime status first and must not automatically mount a live diagnostic stream panel.
 - The shared settings panel uses demo-only preview for this source widget so previewing settings does not open a second runtime owner for the real draft request.
 - The visible source card should observe shared stream status at a throttled cadence, not per WebSocket frame. High-frequency streams must not make settings buttons or canvas controls wait behind status-card rerenders.
-- Delta frames must keep the same schema as the retained frame. A schema change is treated as a stream error so consumers do not render mixed columns.
+- Delta frames may publish subset columns when merge keys are available. They must not introduce
+  new columns that are absent from the retained frame; schema expansion needs an explicit upstream
+  contract.
 - Live-capable widgets should bind `liveUpdates` to this widget's `updates` output. `seedData` reacts only to seed publications, while `liveUpdates` continues applying seed/update publications from the stream.
 - Snapshot-origin stream messages republish as seed resets. Delta-origin messages remain incremental updates.
 - Downstream widgets should read their existing `consumerState` from shared source-binding helpers, not `streamStatus`.
