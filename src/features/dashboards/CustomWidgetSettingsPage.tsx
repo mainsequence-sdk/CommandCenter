@@ -58,6 +58,10 @@ import {
   updateDashboardWidgetSettings,
 } from "./custom-dashboard-storage";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
+import {
+  useCustomWorkspaceStudioStore,
+  type WorkspaceDraftUpdateSaveResult,
+} from "./custom-workspace-studio-store";
 import { WidgetSettingsPanel } from "@/widgets/shared/widget-settings";
 import type { DashboardDefinition, DashboardWidgetInstance } from "@/dashboards/types";
 import { WorkspaceSavingStatus } from "./WorkspaceChrome";
@@ -142,20 +146,20 @@ function findExecutableSettingsSourceWidgetIds(
 
 function VariableDrivenWidgetCommitCoordinator({
   currentWidgets,
-  beforeWidgets,
   changedWidgetId,
   children,
-  updateSelectedWorkspace,
+  saveSelectedWorkspaceDraftUpdate,
 }: {
   currentWidgets: DashboardWidgetInstance[];
-  beforeWidgets: DashboardWidgetInstance[];
   changedWidgetId: string;
   children: (
-    commitWidgetSettingsChange: (nextDashboard: DashboardDefinition) => void,
+    commitWidgetSettingsChange: (
+      updater: (dashboard: DashboardDefinition) => DashboardDefinition,
+    ) => Promise<WorkspaceDraftUpdateSaveResult | null>,
   ) => ReactNode;
-  updateSelectedWorkspace: (
+  saveSelectedWorkspaceDraftUpdate: (
     updater: (dashboard: DashboardDefinition) => DashboardDefinition,
-  ) => void;
+  ) => Promise<WorkspaceDraftUpdateSaveResult | null>;
 }) {
   const widgetExecution = useDashboardWidgetExecution();
   const [pendingCommit, setPendingCommit] = useState<{
@@ -203,18 +207,25 @@ function VariableDrivenWidgetCommitCoordinator({
     });
   }, [currentWidgetsSignature, pendingCommit, widgetExecution]);
 
-  return children((nextDashboard) => {
-    updateSelectedWorkspace(() => nextDashboard);
+  return children(async (updater) => {
+    const result = await saveSelectedWorkspaceDraftUpdate(updater);
+
+    if (!result) {
+      return null;
+    }
+
     setPendingCommit({
       changedWidgetId,
       executableSourceWidgetIds: findExecutableSettingsSourceWidgetIds(
-        nextDashboard.widgets,
+        result.savedWorkspace.widgets,
         changedWidgetId,
       ),
-      beforeWidgets,
-      afterWidgets: nextDashboard.widgets,
-      sourceSignature: buildWidgetCommitSourceSignature(nextDashboard.widgets, changedWidgetId),
+      beforeWidgets: result.previousWorkspace.widgets,
+      afterWidgets: result.savedWorkspace.widgets,
+      sourceSignature: buildWidgetCommitSourceSignature(result.savedWorkspace.widgets, changedWidgetId),
     });
+
+    return result;
   });
 }
 
@@ -338,7 +349,7 @@ export function CustomWidgetSettingsPage({
     selectedDashboard,
     selectedWorkspaceDirty,
     resolvedDashboard,
-    saveWorkspaceDraft,
+    saveSelectedWorkspaceDraftUpdate,
     openDashboardView,
     openWidgetSettings,
     updateSelectedWorkspace,
@@ -887,38 +898,64 @@ export function CustomWidgetSettingsPage({
   const pageContent = (
     <VariableDrivenWidgetCommitCoordinator
       currentWidgets={resolvedDashboard.widgets}
-      beforeWidgets={selectedDashboard.widgets}
       changedWidgetId={instance.id}
-      updateSelectedWorkspace={updateSelectedWorkspace}
+      saveSelectedWorkspaceDraftUpdate={saveSelectedWorkspaceDraftUpdate}
     >
       {(commitWidgetSettingsChange) => {
-        const saveWidgetSettings = ({
-          title,
-          props,
-          bindings,
-          presentation,
-        }: {
+        type WidgetSettingsSaveDraft = {
           title?: string;
           props: Record<string, unknown>;
           bindings?: DashboardWidgetInstance["bindings"];
           presentation: DashboardWidgetInstance["presentation"];
-        }) => {
-          const nextDashboard = updateDashboardWidgetBindings(
-            updateDashboardWidgetSettings(selectedDashboard, instance.id, {
-              title,
-              props,
-              presentation,
-            }),
-            instance.id,
-            bindings,
-          );
+        };
 
-          commitWidgetSettingsChange(nextDashboard);
-          toast({
+        const buildWidgetSettingsUpdater =
+          ({ title, props, bindings, presentation }: WidgetSettingsSaveDraft) =>
+          (dashboard: DashboardDefinition) =>
+            updateDashboardWidgetBindings(
+              updateDashboardWidgetSettings(dashboard, instance.id, {
+                title,
+                props,
+                presentation,
+              }),
+              instance.id,
+              bindings,
+            );
+
+        const currentWidgetSettingsDraft = (): WidgetSettingsSaveDraft => ({
+          title: effectiveDraftState.title.trim() ? effectiveDraftState.title.trim() : undefined,
+          props: effectiveDraftState.props,
+          bindings: effectiveDraftState.bindings,
+          presentation: effectiveDraftState.presentation,
+        });
+
+        const saveWidgetSettings = async (
+          draft: WidgetSettingsSaveDraft,
+          successCopy: { title: string; description: string } = {
             title: "Widget settings saved",
-            description: "Workspace draft updated. Save the workspace to persist it.",
+            description: "Workspace saved with the latest widget settings.",
+          },
+        ) => {
+          const result = await commitWidgetSettingsChange(buildWidgetSettingsUpdater(draft));
+
+          if (!result) {
+            const latestError =
+              useCustomWorkspaceStudioStore.getState().error ?? "Unable to save widget settings.";
+
+            toast({
+              title: "Save failed",
+              description: latestError,
+              variant: "error",
+            });
+            return null;
+          }
+
+          toast({
+            title: successCopy.title,
+            description: successCopy.description,
             variant: "success",
           });
+          return result;
         };
 
         const applyManagedConnectionDraftWithCommit = () => {
@@ -926,11 +963,9 @@ export function CustomWidgetSettingsPage({
             return;
           }
 
-          saveWidgetSettings({
-            title: effectiveDraftState.title.trim() ? effectiveDraftState.title.trim() : undefined,
-            props: effectiveDraftState.props,
-            bindings: effectiveDraftState.bindings,
-            presentation: effectiveDraftState.presentation,
+          void saveWidgetSettings(currentWidgetSettingsDraft(), {
+            title: "Connection changes saved",
+            description: "Workspace saved with the latest connection settings.",
           });
         };
 
@@ -956,18 +991,19 @@ export function CustomWidgetSettingsPage({
             isManagedConnectionConsumerMode(managedConnectionAdapter, persistedMode) ||
             managedConnectionSource
           ) {
-            const nextProps = managedConnectionAdapter.setSourceMode(
-              (instance.props ?? {}) as Record<string, unknown>,
-              resolveManagedConnectionConsumerDetachedSourceMode(
-                managedConnectionAdapter,
-                (instance.props ?? {}) as Record<string, unknown>,
-              ),
+            void saveWidgetSettings(
+              {
+                ...currentWidgetSettingsDraft(),
+                props: managedConnectionAdapter.setSourceMode(
+                  (effectiveDraftState.props ?? {}) as Record<string, unknown>,
+                  detachedSourceMode,
+                ),
+              },
+              {
+                title: "Connection removed",
+                description: "Workspace saved without the managed connection.",
+              },
             );
-            const nextDashboard = updateDashboardWidgetSettings(selectedDashboard, instance.id, {
-              props: nextProps,
-            });
-
-            commitWidgetSettingsChange(nextDashboard);
           }
 
           updateManagedConnectionDraft((currentProps) =>
@@ -1044,8 +1080,13 @@ export function CustomWidgetSettingsPage({
                       Widget type details
                     </Link>
                     <Button
-                      onClick={() => void saveWorkspaceDraft()}
-                      disabled={isSaving || !selectedWorkspaceDirty}
+                      onClick={() =>
+                        void saveWidgetSettings(currentWidgetSettingsDraft(), {
+                          title: "Workspace saved",
+                          description: "Workspace saved with the current widget settings.",
+                        })
+                      }
+                      disabled={isSaving}
                     >
                       <Save className="h-4 w-4" />
                       Save workspace
@@ -1154,8 +1195,8 @@ export function CustomWidgetSettingsPage({
                       previewResolvedInputsOverride={managedConnectionPreviewResolvedInputs}
                       persistenceNote={
                         backendMode
-                          ? "Save settings updates the current workspace draft. The workspace is not persisted until you click Save workspace."
-                          : "Save settings updates the current local workspace draft. The workspace is not persisted until you click Save workspace."
+                          ? "Save settings persists this widget into the workspace."
+                          : "Save settings persists this widget into the local workspace."
                       }
                       showPlacementField={!instance.slidePlacement}
                       secondaryActionLabel="Return to dashboard"
@@ -1168,6 +1209,7 @@ export function CustomWidgetSettingsPage({
                         closeSettings();
                       }}
                       onSave={saveWidgetSettings}
+                      editable={!isSaving}
                     />
                   </div>
                 ) : (
@@ -1212,8 +1254,8 @@ export function CustomWidgetSettingsPage({
                     previewResolvedInputsOverride={managedConnectionPreviewResolvedInputs}
                     persistenceNote={
                       backendMode
-                        ? "Save settings updates the current workspace draft. The workspace is not persisted until you click Save workspace."
-                        : "Save settings updates the current local workspace draft. The workspace is not persisted until you click Save workspace."
+                        ? "Save settings persists this widget into the workspace."
+                        : "Save settings persists this widget into the local workspace."
                     }
                     draftBindings={effectiveDraftState.bindings}
                     onDraftBindingsChange={(bindings) => {
@@ -1240,6 +1282,7 @@ export function CustomWidgetSettingsPage({
                       closeSettings();
                     }}
                     onSave={saveWidgetSettings}
+                    editable={!isSaving}
                   />
                 )}
 

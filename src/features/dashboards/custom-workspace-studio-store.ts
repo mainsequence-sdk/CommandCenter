@@ -29,6 +29,12 @@ import {
   extractWorkspaceUserStateFromDashboard,
 } from "./workspace-user-state";
 
+export interface WorkspaceDraftUpdateSaveResult {
+  previousWorkspace: DashboardDefinition;
+  updatedWorkspace: DashboardDefinition;
+  savedWorkspace: DashboardDefinition;
+}
+
 interface CustomWorkspaceStudioState {
   initializedUserId: string | null;
   hydratingUserId: string | null;
@@ -81,6 +87,10 @@ interface CustomWorkspaceStudioState {
   deleteWorkspace: (workspaceId: string) => Promise<boolean>;
   resetWorkspaceDraft: (workspaceId: string) => void;
   saveWorkspace: (workspaceId: string) => Promise<DashboardDefinition | null>;
+  saveWorkspaceDraftUpdate: (
+    workspaceId: string,
+    updater: (workspace: DashboardDefinition) => DashboardDefinition,
+  ) => Promise<WorkspaceDraftUpdateSaveResult | null>;
   saveWorkspaceUserState: (workspaceId: string) => Promise<boolean>;
   loadWorkspaceDetail: (workspaceId: string) => Promise<DashboardDefinition | null>;
   setWorkspaceEditing: (workspaceId: string, editing: boolean) => void;
@@ -862,6 +872,116 @@ export const useCustomWorkspaceStudioStore = create<CustomWorkspaceStudioState>(
       });
 
       return normalizedSavedWorkspace;
+    } catch (error) {
+      set({
+        isSaving: false,
+        error: readWorkspaceStoreError(error),
+      });
+
+      return null;
+    }
+  },
+  async saveWorkspaceDraftUpdate(workspaceId, updater) {
+    const current = get();
+
+    if (!current.initializedUserId || current.isSaving) {
+      return null;
+    }
+
+    const previousWorkspace = current.draftWorkspaceById[workspaceId] ?? null;
+
+    if (!previousWorkspace) {
+      set({
+        error: `Workspace ${workspaceId} is not available in the current draft.`,
+      });
+      return null;
+    }
+
+    const updatedWorkspace = sanitizeDashboardDefinition({
+      ...updater(previousWorkspace),
+      id: workspaceId,
+    });
+    const nextDraftRevision = (current.workspaceDraftRevisionById[workspaceId] ?? 0) + 1;
+    const draftUserState = extractWorkspaceUserStateFromDashboard(updatedWorkspace);
+
+    set((state) => ({
+      draftWorkspaceById: {
+        ...state.draftWorkspaceById,
+        [workspaceId]: updatedWorkspace,
+      },
+      workspaceUserStateHydratedById: markWorkspaceUserStateHydratedAfterLocalUpdate(
+        state.workspaceUserStateHydratedById,
+        workspaceId,
+      ),
+      workspaceListItems: isWorkspaceBackendEnabled()
+        ? state.workspaceListItems
+        : replaceWorkspaceListItem(
+            state.workspaceListItems,
+            summarizeDashboardForWorkspaceList(updatedWorkspace, {
+              updatedAt:
+                state.workspaceListItems.find((entry) => entry.id === workspaceId)?.updatedAt ?? null,
+            }),
+          ),
+      dirtyWorkspaceIds: markWorkspaceIdsDirty(state.dirtyWorkspaceIds, [workspaceId], true),
+      workspaceDraftRevisionById: {
+        ...state.workspaceDraftRevisionById,
+        [workspaceId]: nextDraftRevision,
+      },
+      isSaving: true,
+      error: null,
+    }));
+
+    try {
+      const savedSharedWorkspace = await savePersistedWorkspace(
+        current.initializedUserId,
+        buildPersistedCollection(
+          current.savedWorkspaceById,
+          current.workspaceListItems,
+          current.selectedWorkspaceId ?? workspaceId,
+        ),
+        updatedWorkspace,
+      );
+      const normalizedSavedWorkspace = applyWorkspaceUserStateToDashboard(
+        savedSharedWorkspace,
+        draftUserState,
+      );
+      const savedAt = new Date().toISOString();
+      const workspaceListItem = summarizeDashboardForWorkspaceList(normalizedSavedWorkspace, {
+        updatedAt: savedAt,
+      });
+
+      set((state) => {
+        const draftRevisionMatches =
+          (state.workspaceDraftRevisionById[workspaceId] ?? 0) === nextDraftRevision;
+
+        return {
+          selectedWorkspaceId: workspaceId,
+          savedWorkspaceById: upsertWorkspaceMap(state.savedWorkspaceById, normalizedSavedWorkspace),
+          draftWorkspaceById: draftRevisionMatches
+            ? upsertWorkspaceMap(state.draftWorkspaceById, normalizedSavedWorkspace)
+            : state.draftWorkspaceById,
+          workspaceUserStateHydratedById: {
+            ...state.workspaceUserStateHydratedById,
+            [workspaceId]: true,
+          },
+          workspaceListItems: upsertWorkspaceListItem(state.workspaceListItems, workspaceListItem),
+          workspaceListHydrated: state.workspaceListHydrated,
+          dirtyWorkspaceIds: draftRevisionMatches
+            ? markWorkspaceIdsDirty(state.dirtyWorkspaceIds, [workspaceId], false)
+            : state.dirtyWorkspaceIds,
+          workspaceDraftRevisionById: draftRevisionMatches
+            ? clearWorkspaceDraftRevisions(state.workspaceDraftRevisionById, [workspaceId])
+            : state.workspaceDraftRevisionById,
+          isSaving: false,
+          error: null,
+        };
+      });
+
+      return {
+        previousWorkspace,
+        updatedWorkspace,
+        savedWorkspace: normalizedSavedWorkspace,
+      };
     } catch (error) {
       set({
         isSaving: false,

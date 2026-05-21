@@ -230,6 +230,11 @@ These flows are all part of one app surface, with instance state selected throug
 - Normal `Save workspace` is resource-scoped. When a specific workspace is open, save sends only
   that workspace to the backend detail endpoint (`PUT /workspaces/:id/`) instead of diffing the
   entire workspace collection first.
+- Widget settings saves are workspace-resource saves, not draft-only commits. The settings page
+  applies the active form draft to the latest workspace draft and persists that same snapshot
+  through the normal workspace save path before showing success. The page-level `Save workspace`
+  action on the settings surface uses the same settings-aware path so it cannot persist an older
+  widget copy while local form edits are visible.
 - Background widget runtime publication should not count as an authored unsaved change. Runtime
   state still updates the mounted workspace draft so tiles and downstream bindings stay live, but
   the save indicator is reserved for explicit workspace edits and persisted user-state changes.

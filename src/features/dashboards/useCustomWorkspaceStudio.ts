@@ -106,6 +106,9 @@ export function useCustomWorkspaceStudio() {
     (state) => state.resetWorkspaceDraft,
   );
   const saveWorkspace = useCustomWorkspaceStudioStore((state) => state.saveWorkspace);
+  const saveWorkspaceDraftUpdate = useCustomWorkspaceStudioStore(
+    (state) => state.saveWorkspaceDraftUpdate,
+  );
   const saveWorkspaceUserState = useCustomWorkspaceStudioStore((state) => state.saveWorkspaceUserState);
   const loadWorkspaceDetail = useCustomWorkspaceStudioStore((state) => state.loadWorkspaceDetail);
   const setWorkspaceEditing = useCustomWorkspaceStudioStore((state) => state.setWorkspaceEditing);
@@ -497,6 +500,22 @@ export function useCustomWorkspaceStudio() {
     return savedWorkspace;
   }
 
+  async function saveSelectedWorkspaceDraftUpdate(
+    updater: (dashboard: DashboardDefinition) => DashboardDefinition,
+  ) {
+    if (!selectedDashboard) {
+      toast({
+        title: "Save failed",
+        description: "No workspace is currently selected.",
+        variant: "error",
+      });
+
+      return null;
+    }
+
+    return saveWorkspaceDraftUpdate(selectedDashboard.id, updater);
+  }
+
   return {
     user,
     permissions,
@@ -536,6 +555,7 @@ export function useCustomWorkspaceStudio() {
     loadWorkspaceDetail,
     resetWorkspaceDraft,
     saveWorkspaceDraft,
+    saveSelectedWorkspaceDraftUpdate,
   };
 }
 

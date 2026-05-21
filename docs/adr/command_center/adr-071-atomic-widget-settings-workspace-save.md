@@ -97,39 +97,39 @@ that the frontend expects to preserve, that should be escalated as a backend ser
 
 ### Store Contract
 
-- [ ] Add a store-level operation that applies a workspace draft updater and immediately persists
+- [x] Add a store-level operation that applies a workspace draft updater and immediately persists
   the resulting workspace snapshot.
-- [ ] Ensure the operation reads the latest `draftWorkspaceById[workspaceId]` before applying the
+- [x] Ensure the operation reads the latest `draftWorkspaceById[workspaceId]` before applying the
   updater.
-- [ ] Ensure the operation persists the exact updated workspace snapshot, not a later closure copy
+- [x] Ensure the operation persists the exact updated workspace snapshot, not a later closure copy
   and not the previous `selectedDashboard`.
-- [ ] Reuse the existing save normalization path so saved workspace state, draft workspace state,
+- [x] Reuse the existing save normalization path so saved workspace state, draft workspace state,
   list summary, dirty flags, and revision counters stay consistent.
-- [ ] Keep the operation scoped to one workspace id.
+- [x] Keep the operation scoped to one workspace id.
 
 ### Widget Settings Save
 
-- [ ] Change `Save settings` in the dedicated widget settings page to call the atomic store
+- [x] Change `Save settings` in the dedicated widget settings page to call the atomic store
   operation.
-- [ ] Build the widget update from the active settings draft: title, props, bindings, and
+- [x] Build the widget update from the active settings draft: title, props, bindings, and
   presentation.
-- [ ] Apply widget settings against the latest workspace draft.
-- [ ] Preserve existing variable-driven commit behavior after the workspace draft is updated.
-- [ ] Preserve executable source refresh behavior after settings changes that affect executable
+- [x] Apply widget settings against the latest workspace draft.
+- [x] Preserve existing variable-driven commit behavior after the workspace draft is updated.
+- [x] Preserve executable source refresh behavior after settings changes that affect executable
   sources.
-- [ ] Show the success toast only after backend persistence completes.
-- [ ] Show an error toast when backend persistence fails and keep the workspace dirty.
-- [ ] Update settings-page copy so it no longer says `Save settings` only updates a local draft in
+- [x] Show the success toast only after backend persistence completes.
+- [x] Show an error toast when backend persistence fails and keep the workspace dirty.
+- [x] Update settings-page copy so it no longer says `Save settings` only updates a local draft in
   backend mode.
 
 ### Page-Level Save From Settings
 
-- [ ] Make the settings page `Save workspace` action settings-aware.
-- [ ] If the settings form has unsaved local edits, flush those edits into the workspace draft
+- [x] Make the settings page `Save workspace` action settings-aware.
+- [x] If the settings form has unsaved local edits, flush those edits into the workspace draft
   before saving.
-- [ ] Avoid saving a stale workspace when the form draft differs from the persisted widget
+- [x] Avoid saving a stale workspace when the form draft differs from the persisted widget
   instance.
-- [ ] Consider whether the page needs one primary `Save settings` action instead of two competing
+- [x] Consider whether the page needs one primary `Save settings` action instead of two competing
   save actions.
 
 ### Navigation And Reload Safety
@@ -138,19 +138,19 @@ that the frontend expects to preserve, that should be escalated as a backend ser
   behavior is introduced.
 - [ ] Ensure loading workspace detail from the backend does not replace a newer dirty draft with an
   older backend response.
-- [ ] Ensure successful saves replace both saved and draft workspace state with the backend
+- [x] Ensure successful saves replace both saved and draft workspace state with the backend
   normalized response only when draft revisions still match.
-- [ ] Keep per-user runtime state saves separate from shared widget settings saves.
+- [x] Keep per-user runtime state saves separate from shared widget settings saves.
 
 ### Verification
 
-- [ ] Add a test where chart settings are edited and `Save settings` sends the changed widget props
+- [x] Add a test where chart settings are edited and `Save settings` sends the changed widget props
   in the workspace `PUT` payload.
 - [ ] Add a test where the top-level `Save workspace` button on the widget settings page flushes
   active local form edits before persisting.
-- [ ] Add a test proving widget settings save applies against the latest store draft, not a stale
+- [x] Add a test proving widget settings save applies against the latest store draft, not a stale
   rendered workspace snapshot.
-- [ ] Add a test proving failed backend save leaves the workspace dirty and shows an error state.
+- [x] Add a test proving failed backend save leaves the workspace dirty and shows an error state.
 - [ ] Manually verify: edit chart settings, click `Save settings`, return to workspace, refresh the
   page, and confirm the chart keeps the updated settings.
 - [ ] Manually verify: edit chart settings, click page-level `Save workspace`, return to workspace,
