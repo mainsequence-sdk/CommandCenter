@@ -42,9 +42,11 @@ tabular frame.
 - Bound mode reads the shared incremental consumer's patched retained frame when `seedData` and
   `liveUpdates` are bound. Keyed live rows patch only the fields they publish; omitted seed fields
   remain intact, and the seed frame owns columns, fields, visual metadata, and formula metadata.
-- `liveMergeKeyMappings` lets composed seed/live tables match different identity field names, for
-  example seed `symbol` to live `ticker`. It controls row identity only; live shape normalization
-  and value renaming still belong upstream in Tabular Transform.
+- `liveMergeKeyMappings` is applied by the table model as final row identity, not only by the
+  incremental stream helper. Repeated rows with the same mapped identity collapse into one rendered
+  and published row, regardless of whether the frame came from HTTP, WebSocket, Tabular Transform,
+  retained runtime state, or manual source adaptation. It controls row identity only; live shape
+  normalization and value renaming still belong upstream in Tabular Transform.
 - The widget always publishes one `core.tabular_frame@v1` output on `dataset`.
 - Optional grouped sections can render by one field key through shared `groupBy` table props. The
   grouped headers are synthetic display rows only; they do not change the published dataset or the

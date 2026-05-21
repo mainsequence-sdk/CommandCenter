@@ -12,6 +12,7 @@ import type { WidgetComponentProps } from "@/widgets/types";
 
 import { TableFrameView } from "./TableFrameView";
 import {
+  applyTableWidgetLiveMergeKeyMappingsToPublishedFrame,
   buildTableWidgetFrameFromRemoteData,
   normalizeTableWidgetSelectionState,
   resolveEffectivePublishedSelectionMode,
@@ -94,26 +95,33 @@ function TableWidgetComponent({
         : resolveTableWidgetSourceDataset(resolvedInputs, runtimeState),
     [isManualTableMode, resolvedInputs, runtimeState, sourceConsumerState.dataset],
   );
-  const sourceColumns = resolvedInputDataset?.columns ?? [];
-  const sourceRows = resolvedInputDataset?.rows ?? [];
+  const mergedInputDataset = useMemo(
+    () =>
+      resolvedInputDataset
+        ? applyTableWidgetLiveMergeKeyMappingsToPublishedFrame(normalizedProps, resolvedInputDataset)
+        : null,
+    [normalizedProps, resolvedInputDataset],
+  );
+  const sourceColumns = mergedInputDataset?.columns ?? [];
+  const sourceRows = mergedInputDataset?.rows ?? [];
   const remoteFrame = useMemo(
     () =>
       buildTableWidgetFrameFromRemoteData(
         undefined,
         sourceRows,
         sourceColumns,
-        resolvedInputDataset?.fields ?? [],
-        resolvedInputDataset?.meta,
+        mergedInputDataset?.fields ?? [],
+        mergedInputDataset?.meta,
       ),
-    [resolvedInputDataset?.fields, resolvedInputDataset?.meta, sourceColumns, sourceRows],
+    [mergedInputDataset?.fields, mergedInputDataset?.meta, sourceColumns, sourceRows],
   );
   const resolvedProps = useMemo(
     () => resolveTableWidgetPropsWithFrame(props, remoteFrame),
     [props, remoteFrame],
   );
   const selectionKeyFields = useMemo(
-    () => resolveTableWidgetSelectionKeyFields(resolvedProps, resolvedInputDataset),
-    [resolvedInputDataset, resolvedProps],
+    () => resolveTableWidgetSelectionKeyFields(resolvedProps, mergedInputDataset),
+    [mergedInputDataset, resolvedProps],
   );
   const selectionState = useMemo(
     () => normalizeTableWidgetSelectionState(runtimeState),

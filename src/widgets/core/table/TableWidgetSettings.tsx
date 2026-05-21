@@ -1060,131 +1060,6 @@ function TableWidgetSettingsComponent({
                     : "The linked source widget owns dataset publication. This table only formats the incoming rows."}
                 </p>
 
-                <div className="space-y-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.liveMergeMapping}>
-                        Live merge mapping
-                      </WidgetSettingFieldLabel>
-                      <p className={descriptionClass}>
-                        Optional identity mapping for composed seed/live tables. Example: seed{" "}
-                        <span className="font-mono text-xs">symbol</span> matches live{" "}
-                        <span className="font-mono text-xs">ticker</span>; live values then patch
-                        the retained seed row without replacing omitted fields.
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!editable}
-                      onClick={() => {
-                        commit({
-                          ...scopedDraft,
-                          liveMergeKeyMappings: [
-                            ...(liveMergeKeyMappingsDraft ?? []),
-                            { seedField: "", liveField: "" },
-                          ],
-                        });
-                      }}
-                    >
-                      Add mapping
-                    </Button>
-                  </div>
-
-                  {liveMergeKeyMappingsDraft.length > 0 ? (
-                    <div className="space-y-2">
-                      {liveMergeKeyMappingsDraft.map((mapping, index) => (
-                        <div
-                          key={`merge-mapping-${index}`}
-                          className="grid gap-2 md:grid-cols-[1fr_1fr_auto]"
-                        >
-                          <Input
-                            className={inputClass}
-                            value={mapping.seedField}
-                            placeholder="Seed field"
-                            list={`table-seed-fields-${instanceId ?? "draft"}`}
-                            disabled={!editable}
-                            onChange={(event) => {
-                              const nextMappings = [...liveMergeKeyMappingsDraft];
-                              nextMappings[index] = {
-                                ...mapping,
-                                seedField: event.target.value,
-                              };
-                              commit({
-                                ...scopedDraft,
-                                liveMergeKeyMappings: nextMappings,
-                              });
-                            }}
-                          />
-                          <Input
-                            className={inputClass}
-                            value={mapping.liveField}
-                            placeholder="Live field"
-                            list={`table-live-fields-${instanceId ?? "draft"}`}
-                            disabled={!editable}
-                            onChange={(event) => {
-                              const nextMappings = [...liveMergeKeyMappingsDraft];
-                              nextMappings[index] = {
-                                ...mapping,
-                                liveField: event.target.value,
-                              };
-                              commit({
-                                ...scopedDraft,
-                                liveMergeKeyMappings: nextMappings,
-                              });
-                            }}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={!editable}
-                            onClick={() => {
-                              commit({
-                                ...scopedDraft,
-                                liveMergeKeyMappings: liveMergeKeyMappingsDraft.filter(
-                                  (_entry, mappingIndex) => mappingIndex !== index,
-                                ),
-                              });
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className={descriptionClass}>
-                      Leave empty when the stream source publishes merge-key metadata or when seed
-                      and live rows use the same row identity fields.
-                    </p>
-                  )}
-                  {liveMergeMappingIssues.length > 0 ? (
-                    <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-                      {liveMergeMappingIssues.map((issue) => (
-                        <div key={issue}>{issue}</div>
-                      ))}
-                    </div>
-                  ) : null}
-                  {shouldSuggestLiveMergeMapping ? (
-                    <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-                      Seed and live inputs do not expose any shared field names. Add a merge mapping
-                      before expecting live rows to patch retained seed rows.
-                    </div>
-                  ) : null}
-                  <datalist id={`table-seed-fields-${instanceId ?? "draft"}`}>
-                    {seedFieldOptions.map((field) => (
-                      <option key={field} value={field} />
-                    ))}
-                  </datalist>
-                  <datalist id={`table-live-fields-${instanceId ?? "draft"}`}>
-                    {liveFieldOptions.map((field) => (
-                      <option key={field} value={field} />
-                    ))}
-                  </datalist>
-                </div>
-
                 {managedConnectionSource ? (
                   <ConnectionQueryRuntimeStatusCard
                     title="Embedded connection source"
@@ -1457,6 +1332,162 @@ function TableWidgetSettingsComponent({
           </div>
         </div>
       </section>
+
+      {!presentationOnly ? (
+        <section className={sectionClass}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className={titleClass}>Live merge mapping</div>
+              <p className={descriptionClass}>
+                Tell the table which live rows update which existing rows. If the seed row and the
+                live row have the same values for every mapping below, the live values update that
+                row; otherwise the live row is added as a new row.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!editable}
+              onClick={() => {
+                commit({
+                  ...scopedDraft,
+                  liveMergeKeyMappings: [
+                    ...(liveMergeKeyMappingsDraft ?? []),
+                    { seedField: "", liveField: "" },
+                  ],
+                });
+              }}
+            >
+              Add mapping
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {liveMergeKeyMappingsDraft.length > 0 ? (
+              <div className="space-y-2">
+                {liveMergeKeyMappingsDraft.map((mapping, index) => (
+                  <div
+                    key={`merge-mapping-${index}`}
+                    className="grid gap-2 md:grid-cols-[1fr_1fr_auto]"
+                  >
+                    <div className={fieldClass}>
+                      <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.liveMergeMapping}>
+                        Seed field
+                      </WidgetSettingFieldLabel>
+                      <Input
+                        className={inputClass}
+                        value={mapping.seedField}
+                        placeholder="symbol"
+                        list={`table-seed-fields-${instanceId ?? "draft"}`}
+                        disabled={!editable}
+                        onChange={(event) => {
+                          const nextMappings = [...liveMergeKeyMappingsDraft];
+                          nextMappings[index] = {
+                            ...mapping,
+                            seedField: event.target.value,
+                          };
+                          commit({
+                            ...scopedDraft,
+                            liveMergeKeyMappings: nextMappings,
+                          });
+                        }}
+                      />
+                    </div>
+                    <div className={fieldClass}>
+                      <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.liveMergeMapping}>
+                        Live field
+                      </WidgetSettingFieldLabel>
+                      <Input
+                        className={inputClass}
+                        value={mapping.liveField}
+                        placeholder="symbol"
+                        list={`table-live-fields-${instanceId ?? "draft"}`}
+                        disabled={!editable}
+                        onChange={(event) => {
+                          const nextMappings = [...liveMergeKeyMappingsDraft];
+                          nextMappings[index] = {
+                            ...mapping,
+                            liveField: event.target.value,
+                          };
+                          commit({
+                            ...scopedDraft,
+                            liveMergeKeyMappings: nextMappings,
+                          });
+                        }}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!editable}
+                      onClick={() => {
+                        commit({
+                          ...scopedDraft,
+                          liveMergeKeyMappings: liveMergeKeyMappingsDraft.filter(
+                            (_entry, mappingIndex) => mappingIndex !== index,
+                          ),
+                        });
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className={descriptionClass}>
+                Add one mapping for a single-row identity, for example seed field `symbol` and live
+                field `symbol`. Add multiple mappings when the identity needs more than one field,
+                for example `symbol = symbol` and `exchange = exchange`.
+              </p>
+            )}
+
+            <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-3 py-2 text-xs leading-5 text-muted-foreground">
+              <div>
+                Example: to update rows by symbol, add one mapping with seed field{" "}
+                <span className="font-mono text-foreground">symbol</span> and live field{" "}
+                <span className="font-mono text-foreground">symbol</span>.
+              </div>
+              <div>
+                To update by symbol and exchange, add two mappings:{" "}
+                <span className="font-mono text-foreground">symbol {"->"} symbol</span> and{" "}
+                <span className="font-mono text-foreground">exchange {"->"} exchange</span>.
+              </div>
+              <div>
+                If the live feed uses different names, map the seed field to the live field, for
+                example <span className="font-mono text-foreground">symbol {"->"} ticker</span>.
+              </div>
+            </div>
+
+            {liveMergeMappingIssues.length > 0 ? (
+              <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                {liveMergeMappingIssues.map((issue) => (
+                  <div key={issue}>{issue}</div>
+                ))}
+              </div>
+            ) : null}
+            {shouldSuggestLiveMergeMapping ? (
+              <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                Seed and live inputs do not expose any shared field names. Add a merge mapping
+                before expecting live rows to patch retained seed rows.
+              </div>
+            ) : null}
+
+            <datalist id={`table-seed-fields-${instanceId ?? "draft"}`}>
+              {seedFieldOptions.map((field) => (
+                <option key={field} value={field} />
+              ))}
+            </datalist>
+            <datalist id={`table-live-fields-${instanceId ?? "draft"}`}>
+              {liveFieldOptions.map((field) => (
+                <option key={field} value={field} />
+              ))}
+            </datalist>
+          </div>
+        </section>
+      ) : null}
 
       <section className={sectionClass}>
         <div>

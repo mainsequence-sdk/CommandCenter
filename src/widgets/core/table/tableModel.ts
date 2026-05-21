@@ -559,6 +559,286 @@ function normalizeTableWidgetLiveMergeKeyMappings(value: unknown): TabularMergeK
   });
 }
 
+type TableWidgetLiveMergeProps = Pick<TableWidgetProps, "liveMergeKeyMappings">;
+
+function normalizeTableWidgetMergeKeyValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : null;
+  }
+
+  if (typeof value === "boolean") {
+    return String(value);
+  }
+
+  try {
+    const serialized = JSON.stringify(value);
+    return serialized && serialized !== "null" ? serialized : null;
+  } catch {
+    const stringValue = String(value);
+    return stringValue ? stringValue : null;
+  }
+}
+
+function buildTableWidgetLiveMergeColumnRenameMap(
+  mappings: readonly TabularMergeKeyMapping[],
+) {
+  return new Map(
+    mappings.flatMap((mapping) =>
+      mapping.seedField !== mapping.liveField
+        ? [[mapping.liveField, mapping.seedField] as const]
+        : [],
+    ),
+  );
+}
+
+function buildTableWidgetLiveMergeRowKey(
+  row: Record<string, unknown>,
+  mappings: readonly TabularMergeKeyMapping[],
+) {
+  const values = mappings.map((mapping) =>
+    normalizeTableWidgetMergeKeyValue(row[mapping.seedField]),
+  );
+
+  return values.every((value): value is string => value !== null)
+    ? JSON.stringify(values)
+    : null;
+}
+
+function normalizeTableWidgetLiveMergeRow(
+  row: Record<string, unknown>,
+  mappings: readonly TabularMergeKeyMapping[],
+) {
+  const nextRow = { ...row };
+
+  mappings.forEach((mapping) => {
+    if (mapping.seedField === mapping.liveField || !(mapping.liveField in nextRow)) {
+      return;
+    }
+
+    if (!(mapping.seedField in nextRow)) {
+      nextRow[mapping.seedField] = nextRow[mapping.liveField];
+    }
+
+    delete nextRow[mapping.liveField];
+  });
+
+  return nextRow;
+}
+
+function applyTableWidgetLiveMergeRows(input: {
+  columns: readonly string[];
+  mappings: readonly TabularMergeKeyMapping[];
+  rows: readonly Record<string, unknown>[];
+}) {
+  const renameByColumn = buildTableWidgetLiveMergeColumnRenameMap(input.mappings);
+  const rowIndexByKey = new Map<string, number>();
+  const rows: Array<Record<string, unknown>> = [];
+
+  input.rows.forEach((rawRow) => {
+    const row = normalizeTableWidgetLiveMergeRow(rawRow, input.mappings);
+    const rowKey = buildTableWidgetLiveMergeRowKey(row, input.mappings);
+
+    if (!rowKey) {
+      rows.push(row);
+      return;
+    }
+
+    const existingIndex = rowIndexByKey.get(rowKey);
+
+    if (existingIndex === undefined) {
+      rowIndexByKey.set(rowKey, rows.length);
+      rows.push(row);
+      return;
+    }
+
+    rows[existingIndex] = {
+      ...rows[existingIndex],
+      ...row,
+    };
+  });
+
+  const columns = uniqueStrings([
+    ...input.columns.map((column) => renameByColumn.get(column) ?? column),
+    ...rows.flatMap((row) => Object.keys(row)),
+  ]);
+
+  return {
+    columns,
+    rows,
+  };
+}
+
+function remapTableWidgetLiveMergeColumnKey(
+  key: string,
+  mappings: readonly TabularMergeKeyMapping[],
+) {
+  return buildTableWidgetLiveMergeColumnRenameMap(mappings).get(key) ?? key;
+}
+
+function remapTableWidgetLiveMergeField(
+  field: TabularFrameFieldSchema,
+  mappings: readonly TabularMergeKeyMapping[],
+) {
+  const key = remapTableWidgetLiveMergeColumnKey(field.key, mappings);
+
+  return key === field.key
+    ? { ...field }
+    : {
+        ...field,
+        key,
+        label: field.label && field.label !== field.key ? field.label : key,
+      };
+}
+
+function remapTableWidgetLiveMergeFields(
+  fields: readonly TabularFrameFieldSchema[] | undefined,
+  columns: readonly string[],
+  mappings: readonly TabularMergeKeyMapping[],
+): TabularFrameFieldSchema[] | undefined {
+  if (!fields?.length) {
+    return undefined;
+  }
+
+  const columnSet = new Set(columns);
+  const seen = new Set<string>();
+
+  return fields.flatMap((field) => {
+    const nextField = remapTableWidgetLiveMergeField(field, mappings);
+
+    if (!columnSet.has(nextField.key) || seen.has(nextField.key)) {
+      return [];
+    }
+
+    seen.add(nextField.key);
+    return [nextField];
+  });
+}
+
+function remapTableWidgetLiveMergeSchema(
+  schema: readonly TableWidgetColumnSchema[],
+  columns: readonly string[],
+  mappings: readonly TabularMergeKeyMapping[],
+) {
+  const columnSet = new Set(columns);
+  const seen = new Set<string>();
+
+  return schema.flatMap((column) => {
+    const key = remapTableWidgetLiveMergeColumnKey(column.key, mappings);
+
+    if (!columnSet.has(key) || seen.has(key)) {
+      return [];
+    }
+
+    seen.add(key);
+    return [{
+      ...column,
+      key,
+      label: column.label && column.label !== column.key ? column.label : key,
+    }];
+  });
+}
+
+function remapTableWidgetLiveMergeColumnOverrides(
+  overrides: Record<string, TableWidgetColumnOverride> | undefined,
+  mappings: readonly TabularMergeKeyMapping[],
+) {
+  if (!overrides) {
+    return overrides;
+  }
+
+  const entries = Object.entries(overrides).map(([key, override]) => [
+    remapTableWidgetLiveMergeColumnKey(key, mappings),
+    override,
+  ] as const);
+
+  return Object.keys(overrides).length > 0
+    ? Object.fromEntries(entries)
+    : overrides;
+}
+
+function remapTableWidgetLiveMergeConditionalRules(
+  rules: readonly TableWidgetConditionalRule[] | undefined,
+  mappings: readonly TabularMergeKeyMapping[],
+) {
+  return rules?.map((rule) => ({
+    ...rule,
+    columnKey: remapTableWidgetLiveMergeColumnKey(rule.columnKey, mappings),
+  }));
+}
+
+export function applyTableWidgetLiveMergeKeyMappingsToPublishedFrame(
+  props: TableWidgetLiveMergeProps,
+  frame: TabularFrameSourceV1,
+): TabularFrameSourceV1 {
+  const mappings = normalizeTableWidgetLiveMergeKeyMappings(props.liveMergeKeyMappings);
+
+  if (mappings.length === 0 || frame.rows.length === 0) {
+    return frame;
+  }
+
+  const merged = applyTableWidgetLiveMergeRows({
+    columns: frame.columns,
+    mappings,
+    rows: frame.rows,
+  });
+  const fields = remapTableWidgetLiveMergeFields(frame.fields, merged.columns, mappings);
+
+  return {
+    ...frame,
+    columns: merged.columns,
+    rows: merged.rows,
+    fields,
+  } satisfies TabularFrameSourceV1;
+}
+
+function applyTableWidgetLiveMergeKeyMappingsToResolvedFrameInput(
+  props: TableWidgetLiveMergeProps,
+  frameInput: TableWidgetResolvedFrameInput,
+) {
+  const mappings = normalizeTableWidgetLiveMergeKeyMappings(props.liveMergeKeyMappings);
+
+  if (mappings.length === 0 || frameInput.rows.length === 0) {
+    return frameInput;
+  }
+
+  const merged = applyTableWidgetLiveMergeRows({
+    columns: frameInput.columns,
+    mappings,
+    rows: buildTableWidgetRowObjects(frameInput.columns, frameInput.rows),
+  });
+  const schemaFallback = remapTableWidgetLiveMergeSchema(
+    frameInput.schemaFallback,
+    merged.columns,
+    mappings,
+  );
+
+  return {
+    ...frameInput,
+    columns: merged.columns,
+    rows: merged.rows.map((row) =>
+      merged.columns.map((columnKey) => normalizeCellValue(row[columnKey])),
+    ),
+    schemaFallback,
+    sourceColumnOverrides: remapTableWidgetLiveMergeColumnOverrides(
+      frameInput.sourceColumnOverrides,
+      mappings,
+    ),
+    sourceConditionalRules: remapTableWidgetLiveMergeConditionalRules(
+      frameInput.sourceConditionalRules,
+      mappings,
+    ),
+  } satisfies TableWidgetResolvedFrameInput;
+}
+
 function tableFormulaComputedColumnType(
   format: Exclude<TableWidgetColumnFormat, "auto" | "formula"> | undefined,
 ): TableFrameComputedColumn["type"] {
@@ -2245,24 +2525,28 @@ function appendSchemaColumnsToFrameFallback(
 }
 
 function applyTableWidgetFormulaColumnsToResolvedFrameInput(
-  props: Pick<TableWidgetProps, "formulasEnabled" | "schema">,
+  props: Pick<TableWidgetProps, "formulasEnabled" | "liveMergeKeyMappings" | "schema">,
   frameInput: TableWidgetResolvedFrameInput | null | undefined,
 ) {
   if (!frameInput) {
     return null;
   }
 
+  const mergedFrameInput = applyTableWidgetLiveMergeKeyMappingsToResolvedFrameInput(
+    props,
+    frameInput,
+  );
   const formulasEnabled = normalizeTableWidgetFormulasEnabled(props.formulasEnabled);
-  const schema = resolveTableWidgetSchemaFromFrame(props, frameInput);
+  const schema = resolveTableWidgetSchemaFromFrame(props, mergedFrameInput);
   const formulaColumnKeys = schema
     .filter((column) => column.format === "formula")
     .map((column) => column.key);
-  const schemaFallback = appendSchemaColumnsToFrameFallback(frameInput, schema);
+  const schemaFallback = appendSchemaColumnsToFrameFallback(mergedFrameInput, schema);
   const { computedColumns } = resolveTableWidgetFormulaColumns(formulasEnabled, schema);
   const sourceFrame = {
     status: "ready",
-    columns: frameInput.columns,
-    rows: buildTableWidgetRowObjects(frameInput.columns, frameInput.rows),
+    columns: mergedFrameInput.columns,
+    rows: buildTableWidgetRowObjects(mergedFrameInput.columns, mergedFrameInput.rows),
     fields: schemaFallback.map((column) => buildFrameFieldSchemaFromTableColumn(column)),
   } satisfies TabularFrameSourceV1;
   const computedFrame =
@@ -2272,7 +2556,7 @@ function applyTableWidgetFormulaColumnsToResolvedFrameInput(
   const columns = uniqueStrings([...computedFrame.columns, ...formulaColumnKeys]);
 
   return {
-    ...frameInput,
+    ...mergedFrameInput,
     columns,
     rows: computedFrame.rows.map((row) => columns.map((columnKey) => normalizeCellValue(row[columnKey]))),
     schemaFallback,
@@ -2280,11 +2564,12 @@ function applyTableWidgetFormulaColumnsToResolvedFrameInput(
 }
 
 export function applyTableWidgetFormulaColumnsToPublishedFrame(
-  props: Pick<TableWidgetProps, "formulasEnabled" | "schema">,
+  props: Pick<TableWidgetProps, "formulasEnabled" | "liveMergeKeyMappings" | "schema">,
   frame: TabularFrameSourceV1,
 ) {
+  const mergedFrame = applyTableWidgetLiveMergeKeyMappingsToPublishedFrame(props, frame);
   const formulasEnabled = normalizeTableWidgetFormulasEnabled(props.formulasEnabled);
-  const frameInput = buildResolvedFrameInputFromPublishedFrame(frame);
+  const frameInput = buildResolvedFrameInputFromPublishedFrame(mergedFrame);
   const schema = resolveTableWidgetSchemaFromFrame(props, frameInput);
   const formulaColumnKeys = schema
     .filter((column) => column.format === "formula")
@@ -2292,8 +2577,8 @@ export function applyTableWidgetFormulaColumnsToPublishedFrame(
   const { computedColumns } = resolveTableWidgetFormulaColumns(formulasEnabled, schema);
   const nextFrame =
     computedColumns.length > 0
-      ? applyResolvedTableComputedColumns(frame, computedColumns)
-      : frame;
+      ? applyResolvedTableComputedColumns(mergedFrame, computedColumns)
+      : mergedFrame;
 
   if (formulaColumnKeys.length === 0) {
     return nextFrame;

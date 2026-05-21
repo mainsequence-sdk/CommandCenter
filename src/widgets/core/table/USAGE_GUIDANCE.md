@@ -27,10 +27,11 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Choose `Bound dataset` when the table should render an upstream `core.tabular_frame@v1` output, `Connection query` when the table should own a hidden `connection-query` source, `Stream connection` when it should own a hidden `connection-stream-query` source, or `Manual table` when rows should be authored directly in this widget.
 - For bound mode, bind `seedData` to a retained `dataset` output or an incremental `updates` seed publication.
 - Bind `liveUpdates` only to explicit `updates` outputs when this table should keep applying incremental publications.
-- Use `Live merge mapping` when the seed and live inputs come from different table shapes and need
-  an explicit row identity join, for example seed `symbol` matches live `ticker`. After identity is
-  known, live rows patch the retained seed rows automatically and omitted seed fields stay
-  unchanged.
+- Use `Live merge mapping` when incoming rows should update existing rows instead of adding a new
+  row each time. Add one mapping for a single identity such as seed field `symbol` and live field
+  `symbol`; add multiple mappings for composite identity such as `symbol` plus `exchange`. The
+  table applies this identity to the final rendered and published frame, so repeated WebSocket rows
+  with the same key collapse to the latest row even when the source is already a plain table frame.
 - Put live-field renaming or calculations in a Tabular Transform before the table. For example,
   transform WebSocket fields `symbol, close` into `symbol, last`, then map seed `symbol` to live
   `symbol` in the table.

@@ -6,6 +6,7 @@ import {
   TABULAR_SEED_INPUT_ID,
   resolveIncrementalTabularOutputFrame,
 } from "@/widgets/shared/incremental-tabular-consumer";
+import { TABULAR_SOURCE_INPUT_ID } from "@/widgets/shared/tabular-widget-source";
 import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 import type { ResolvedWidgetInputs } from "@/widgets/types";
 
@@ -717,6 +718,73 @@ describe("table widget table controls", () => {
     expect(rows[0]?.previous_close).toBe(100);
     expect(rows[0]?.last_price).toBe(110);
     expect(rows[0]?.one_day_return).toBe(10);
+  });
+
+  it("collapses repeated live rows using table-level merge mappings before rendering", () => {
+    const frameInput = buildTableWidgetFrameFromRemoteData(
+      null,
+      [
+        { symbol: "ETHUSDT", last: 2143 },
+        { symbol: "ETHUSDT", last: 2144 },
+        { symbol: "ETHUSDT", last: 2145 },
+      ],
+      ["symbol", "last"],
+    );
+    const resolved = resolveTableWidgetPropsWithFrame(
+      {
+        liveMergeKeyMappings: [{ seedField: "symbol", liveField: "symbol" }],
+      },
+      frameInput,
+    );
+    const rows = buildTableWidgetRowObjects(resolved.columns, resolved.rows);
+
+    expect(rows).toEqual([
+      {
+        symbol: "ETHUSDT",
+        last: 2145,
+      },
+    ]);
+  });
+
+  it("applies table-level merge mappings to published bound output", () => {
+    const sourceFrame = {
+      status: "ready",
+      columns: ["ticker", "last"],
+      rows: [
+        { ticker: "BTCUSDT", last: 77650 },
+        { ticker: "BTCUSDT", last: 77655 },
+      ],
+      fields: [
+        { key: "ticker", label: "Ticker", type: "string" },
+        { key: "last", label: "Last", type: "number" },
+      ],
+    } as const;
+    const output = resolveTableWidgetOutput(
+      {
+        liveMergeKeyMappings: [{ seedField: "symbol", liveField: "ticker" }],
+      },
+      {
+        [TABULAR_SOURCE_INPUT_ID]: {
+          inputId: TABULAR_SOURCE_INPUT_ID,
+          label: "Source",
+          status: "valid",
+          sourceWidgetId: "source-table",
+          sourceOutputId: "dataset",
+          contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          value: sourceFrame,
+          upstreamBase: sourceFrame,
+        },
+      } satisfies ResolvedWidgetInputs,
+    );
+
+    expect(output.columns).toEqual(["symbol", "last"]);
+    expect(output.rows).toEqual([
+      {
+        symbol: "BTCUSDT",
+        last: 77655,
+      },
+    ]);
+    expect(output.fields?.map((field) => field.key)).toEqual(["symbol", "last"]);
   });
 });
 
