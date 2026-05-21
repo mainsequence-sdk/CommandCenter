@@ -2632,12 +2632,12 @@ function normalizeColumnSchema(value: unknown): TableWidgetColumnSchema | undefi
 
   const nextValue: TableWidgetColumnSchema = {
     key: record.key.trim(),
-    label: record.label.trim(),
+    label: record.label.trim() ? record.label : record.key.trim(),
     format: record.format,
   };
 
   if (typeof record.description === "string" && record.description.trim()) {
-    nextValue.description = record.description.trim();
+    nextValue.description = record.description;
   }
 
   if (record.format === "formula") {
@@ -2674,11 +2674,11 @@ function normalizeColumnSchema(value: unknown): TableWidgetColumnSchema | undefi
     nextValue.suffix = record.suffix;
   }
 
-  if (typeof record.dateTimeInputFormat === "string" && record.dateTimeInputFormat.trim()) {
+  if (typeof record.dateTimeInputFormat === "string") {
     nextValue.dateTimeInputFormat = record.dateTimeInputFormat.trim();
   }
 
-  if (typeof record.dateTimeOutputFormat === "string" && record.dateTimeOutputFormat.trim()) {
+  if (typeof record.dateTimeOutputFormat === "string") {
     nextValue.dateTimeOutputFormat = record.dateTimeOutputFormat.trim();
   }
 

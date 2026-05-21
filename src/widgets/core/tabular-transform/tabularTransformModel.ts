@@ -26,6 +26,7 @@ import {
   resolveUpstreamConsumerState,
   type ResolvedUpstreamConsumerState,
 } from "@/widgets/shared/upstream-consumer-state";
+import type { TabularMergeKeyMapping } from "@/widgets/shared/incremental-tabular-consumer";
 
 export const TABULAR_TRANSFORM_SOURCE_INPUT_ID = "sourceData";
 export const TABULAR_TRANSFORM_DATASET_OUTPUT_ID = "dataset";
@@ -33,6 +34,7 @@ export const TABULAR_TRANSFORM_DATASET_OUTPUT_ID = "dataset";
 export type TabularTransformMode = "none" | "filter" | "aggregate" | "pivot" | "unpivot";
 export type TabularAggregateMode = "first" | "last" | "sum" | "mean" | "min" | "max";
 export type TabularFilterCombineMode = "all" | "any";
+export type TabularTransformRowMergeMode = "passthrough" | "latest";
 export type TabularTransformComputedColumnType = NonNullable<TableFrameComputedColumn["type"]>;
 export type TabularFilterOperator =
   | "equals"
@@ -108,6 +110,9 @@ export interface TabularTransformWidgetProps extends Record<string, unknown> {
   pivotField?: string;
   pivotValueField?: string;
   projectFields?: string[];
+  rowMergeKeyFields?: string[];
+  rowMergeKeyMappings?: TabularMergeKeyMapping[];
+  rowMergeMode?: TabularTransformRowMergeMode;
   unpivotFieldName?: string;
   unpivotValueFieldName?: string;
   unpivotValueFields?: string[];
@@ -172,6 +177,10 @@ function normalizeAggregateMode(value: unknown): TabularAggregateMode {
     value === "max"
     ? value
     : "last";
+}
+
+function normalizeRowMergeMode(value: unknown): TabularTransformRowMergeMode {
+  return value === "latest" ? "latest" : "passthrough";
 }
 
 function normalizeOutputFieldName(value: unknown, fallback: string) {
@@ -270,6 +279,35 @@ function normalizeFilterRules(value: unknown) {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function normalizeMergeKeyMappings(value: unknown) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = value.flatMap((entry) => {
+    if (!isPlainRecord(entry)) {
+      return [];
+    }
+
+    const seedField = normalizeOptionalField(entry.seedField);
+    const liveField = normalizeOptionalField(entry.liveField);
+
+    return seedField && liveField ? [{ seedField, liveField }] : [];
+  });
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function mergeKeyFieldsToMappings(fields: readonly string[] | undefined) {
+  return fields?.map((field) => ({ seedField: field, liveField: field })) ?? [];
+}
+
+function resolveRowMergeKeyMappings(props: ReturnType<typeof normalizeTabularTransformProps>) {
+  return props.rowMergeKeyMappings?.length
+    ? props.rowMergeKeyMappings
+    : mergeKeyFieldsToMappings(props.rowMergeKeyFields);
+}
+
 function normalizeComputedColumnConfig(
   value: unknown,
 ): TabularTransformComputedColumnConfig | null {
@@ -315,6 +353,7 @@ export function normalizeTabularTransformProps(
     TabularTransformWidgetProps,
     | "aggregateMode"
     | "filterCombineMode"
+    | "rowMergeMode"
     | "transformMode"
     | "unpivotFieldName"
     | "unpivotValueFieldName"
@@ -332,6 +371,9 @@ export function normalizeTabularTransformProps(
     pivotField: normalizeOptionalField(props.pivotField),
     pivotValueField: normalizeOptionalField(props.pivotValueField),
     projectFields: normalizeFieldList(props.projectFields),
+    rowMergeKeyFields: normalizeFieldList(props.rowMergeKeyFields),
+    rowMergeKeyMappings: normalizeMergeKeyMappings(props.rowMergeKeyMappings),
+    rowMergeMode: normalizeRowMergeMode(props.rowMergeMode),
     unpivotFieldName: normalizeOutputFieldName(props.unpivotFieldName, "series"),
     unpivotValueFieldName: normalizeOutputFieldName(props.unpivotValueFieldName, "value"),
     unpivotValueFields: normalizeFieldList(props.unpivotValueFields),
@@ -1100,6 +1142,170 @@ function projectDataset(
   } satisfies TabularTransformDataset;
 }
 
+function stableRowMergeValue(value: unknown): string {
+  if (value === null) {
+    return "null";
+  }
+
+  if (value === undefined) {
+    return "undefined";
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function hasRowMergeKeyValue(value: unknown) {
+  return value !== null && value !== undefined && !(typeof value === "string" && value.trim() === "");
+}
+
+function buildLatestRowMergeKey(
+  row: Record<string, unknown>,
+  mappings: readonly TabularMergeKeyMapping[],
+) {
+  const values: string[] = [];
+
+  for (const mapping of mappings) {
+    const liveValue = row[mapping.liveField];
+    const seedValue = row[mapping.seedField];
+    const value = hasRowMergeKeyValue(liveValue) ? liveValue : seedValue;
+
+    if (!hasRowMergeKeyValue(value)) {
+      return null;
+    }
+
+    values.push(stableRowMergeValue(value));
+  }
+
+  return values.join("\u001f");
+}
+
+function normalizeLatestRowForMerge(
+  row: Record<string, unknown>,
+  mappings: readonly TabularMergeKeyMapping[],
+) {
+  const nextRow = { ...row };
+
+  mappings.forEach((mapping) => {
+    if (mapping.seedField === mapping.liveField || !(mapping.liveField in nextRow)) {
+      return;
+    }
+
+    if (!(mapping.seedField in nextRow)) {
+      nextRow[mapping.seedField] = nextRow[mapping.liveField];
+    }
+
+    delete nextRow[mapping.liveField];
+  });
+
+  return nextRow;
+}
+
+function normalizeLatestRowMergeColumns(
+  columns: readonly string[],
+  mappings: readonly TabularMergeKeyMapping[],
+) {
+  const liveToSeed = new Map(
+    mappings.flatMap((mapping) =>
+      mapping.seedField === mapping.liveField
+        ? []
+        : [[mapping.liveField, mapping.seedField] as const],
+    ),
+  );
+
+  return uniqueStrings([
+    ...columns.map((column) => liveToSeed.get(column) ?? column),
+    ...mappings.map((mapping) => mapping.seedField),
+  ]);
+}
+
+function applyLatestRowMerge(
+  dataset: TabularTransformDataset,
+  props: ReturnType<typeof normalizeTabularTransformProps>,
+) {
+  if (props.rowMergeMode !== "latest") {
+    return dataset;
+  }
+
+  const mappings = resolveRowMergeKeyMappings(props);
+
+  if (mappings.length === 0) {
+    return {
+      ...dataset,
+      rows: [...dataset.rows],
+      derivedColumns: new Set(dataset.derivedColumns),
+      error: "Latest row merge needs at least one merge mapping.",
+    } satisfies TabularTransformErrorResult;
+  }
+
+  const missingKeyMappings = mappings.filter(
+    (mapping) =>
+      !dataset.columns.includes(mapping.seedField) &&
+      !dataset.columns.includes(mapping.liveField),
+  );
+
+  if (missingKeyMappings.length > 0) {
+    const missingMapping = missingKeyMappings[0]!;
+    return {
+      ...dataset,
+      rows: [...dataset.rows],
+      derivedColumns: new Set(dataset.derivedColumns),
+      error: `Latest row merge mapping "${missingMapping.seedField} -> ${missingMapping.liveField}" does not match the transformed dataset.`,
+    } satisfies TabularTransformErrorResult;
+  }
+
+  const rowsByKey = new Map<string, { index: number; row: Record<string, unknown> }>();
+  const rows: Record<string, unknown>[] = [];
+  const columns = normalizeLatestRowMergeColumns(dataset.columns, mappings);
+
+  dataset.rows.forEach((row) => {
+    const key = buildLatestRowMergeKey(row, mappings);
+    const normalizedRow = normalizeLatestRowForMerge(row, mappings);
+
+    if (!key) {
+      rows.push(normalizedRow);
+      return;
+    }
+
+    const existing = rowsByKey.get(key);
+    const nextRow = existing
+      ? {
+          ...existing.row,
+          ...normalizedRow,
+        }
+      : normalizedRow;
+
+    if (existing) {
+      rows[existing.index] = nextRow;
+      rowsByKey.set(key, {
+        index: existing.index,
+        row: nextRow,
+      });
+      return;
+    }
+
+    rowsByKey.set(key, {
+      index: rows.length,
+      row: nextRow,
+    });
+    rows.push(nextRow);
+  });
+
+  return {
+    ...dataset,
+    columns,
+    rows,
+    derivedColumns: new Set(dataset.derivedColumns),
+  } satisfies TabularTransformDataset;
+}
+
 function applyConfiguredComputedColumns(
   source: TabularFrameSourceV1,
   dataset: TabularTransformDataset,
@@ -1196,12 +1402,17 @@ function transformFrame(
     props.projectFields,
     withComputedColumns.derivedColumns,
   );
+  const merged = applyLatestRowMerge(projected, props);
+
+  if ("error" in merged) {
+    return merged;
+  }
 
   return {
-    ...projected,
+    ...merged,
     fields:
-      withComputedColumns.fields?.filter((field) => projected.columns.includes(field.key)) ??
-      inferFields(projected.columns, projected.rows, source.fields, projected.derivedColumns),
+      withComputedColumns.fields?.filter((field) => merged.columns.includes(field.key)) ??
+      inferFields(merged.columns, merged.rows, source.fields, merged.derivedColumns),
     metaComputedColumns: withComputedColumns.metaComputedColumns,
   };
 }
@@ -1387,6 +1598,10 @@ export function resolveTabularTransformOutput(input: {
           aggregateMode: props.aggregateMode,
           filterCombineMode: props.filterCombineMode,
           filterRuleCount: props.filterRules?.length ?? 0,
+          rowMergeKeyFields: props.rowMergeMode === "latest" ? props.rowMergeKeyFields : undefined,
+          rowMergeKeyMappings:
+            props.rowMergeMode === "latest" ? resolveRowMergeKeyMappings(props) : undefined,
+          rowMergeMode: props.rowMergeMode,
           upstreamSource: source.source,
         },
       },
@@ -1396,6 +1611,9 @@ export function resolveTabularTransformOutput(input: {
       return outputFrame;
     }
 
+    const rowMergeKeyMappings = props.rowMergeMode === "latest"
+      ? resolveRowMergeKeyMappings(props)
+      : [];
     const deltaSource =
       materializeRuntimeTabularFrame(
         sourceInput.upstreamDeltaRef ?? sourceInput.upstreamDelta,
@@ -1441,11 +1659,20 @@ export function resolveTabularTransformOutput(input: {
         upstreamBase: outputFrame,
         upstreamDelta: deltaFrame,
         preserveOutputRefs: false,
-        diagnostics: deltaFrame
-          ? undefined
-          : {
-              tabularTransformDeltaFallback: props.transformMode,
-            },
+        diagnostics: {
+          ...(rowMergeKeyMappings.length > 0
+            ? {
+                mergeKeyFields: rowMergeKeyMappings.map((mapping) => mapping.seedField),
+                mergeKeyMappings: rowMergeKeyMappings,
+                tabularTransformRowMergeMode: props.rowMergeMode,
+              }
+            : {}),
+          ...(deltaFrame
+            ? {}
+            : {
+                tabularTransformDeltaFallback: props.transformMode,
+              }),
+        },
       }),
     );
   }
@@ -1476,6 +1703,10 @@ export function normalizeTabularTransformRuntimeState(
 
 export function formatTabularTransformSummary(props: TabularTransformWidgetProps) {
   const normalized = normalizeTabularTransformProps(props);
+  const rowMergeKeyLabels =
+    normalized.rowMergeMode === "latest"
+      ? resolveRowMergeKeyMappings(normalized).map((mapping) => mapping.seedField)
+      : [];
 
   if (normalized.transformMode === "filter") {
     const ruleCount = normalized.filterRules?.length ?? 0;
@@ -1504,11 +1735,19 @@ export function formatTabularTransformSummary(props: TabularTransformWidgetProps
   }
 
   if (normalized.projectFields?.length) {
-    return `Project ${normalized.projectFields.length.toLocaleString()} columns`;
+    return rowMergeKeyLabels.length > 0
+      ? `Project ${normalized.projectFields.length.toLocaleString()} columns, latest by ${rowMergeKeyLabels.join(", ")}`
+      : `Project ${normalized.projectFields.length.toLocaleString()} columns`;
   }
 
   if ((normalized.computedColumns?.length ?? 0) > 0) {
-    return `Compute ${normalized.computedColumns!.length.toLocaleString()} columns`;
+    return rowMergeKeyLabels.length > 0
+      ? `Compute ${normalized.computedColumns!.length.toLocaleString()} columns, latest by ${rowMergeKeyLabels.join(", ")}`
+      : `Compute ${normalized.computedColumns!.length.toLocaleString()} columns`;
+  }
+
+  if (rowMergeKeyLabels.length > 0) {
+    return `Latest by ${rowMergeKeyLabels.join(", ")}`;
   }
 
   return "Pass through";

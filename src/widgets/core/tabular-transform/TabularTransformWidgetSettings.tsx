@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import { normalizeTabularFrameSource } from "@/widgets/shared/tabular-frame-source";
+import { TabularMergeMappingEditor } from "@/widgets/shared/TabularMergeMappingEditor";
 import type { TabularFrameFieldType } from "@/widgets/shared/tabular-frame-source";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
@@ -17,6 +18,7 @@ import {
   type TabularTransformComputedColumnType,
   type TabularFilterOperator,
   type TabularFilterRule,
+  type TabularTransformRowMergeMode,
   type TabularTransformMode,
   type TabularTransformWidgetProps,
 } from "./tabularTransformModel";
@@ -45,6 +47,9 @@ const COMPUTED_COLUMN_TYPE_OPTIONS: Array<{
   { value: "boolean", label: "Boolean" },
   { value: "json", label: "JSON" },
 ];
+
+const rowMergeHelp =
+  "Maps retained transformed rows to incoming transformed rows. Use this when a live stream should patch existing rows by identity instead of passing every event through.";
 
 function getKeyFieldsHelpText(mode: TabularTransformMode) {
   switch (mode) {
@@ -381,6 +386,7 @@ function FieldSelect({
 export function TabularTransformWidgetSettings({
   draftProps,
   editable,
+  instanceId,
   onDraftPropsChange,
   resolvedInputs,
 }: Props) {
@@ -437,6 +443,19 @@ export function TabularTransformWidgetSettings({
       ])),
     [availableColumns, computedColumns],
   );
+  const mergeFieldOptions = props.projectFields?.length ? props.projectFields : projectableColumns;
+  const draftRowMergeKeyMappings = Array.isArray(draftProps.rowMergeKeyMappings)
+    ? draftProps.rowMergeKeyMappings
+    : undefined;
+  const rowMergeKeyMappings =
+    draftRowMergeKeyMappings ??
+    (props.rowMergeKeyMappings?.length
+      ? props.rowMergeKeyMappings
+      : undefined) ??
+    (props.rowMergeKeyFields ?? []).map((field) => ({
+        seedField: field,
+        liveField: field,
+      }));
 
   function updateFilterRules(nextRules: TabularFilterRule[] | undefined) {
     onDraftPropsChange({
@@ -923,6 +942,74 @@ export function TabularTransformWidgetSettings({
             onDraftPropsChange({ ...draftProps, projectFields });
           }}
         />
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Row merge</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Choose whether this transform passes the transformed frame through unchanged or acts as
+            a latest-row gate that collapses repeated rows by identity. Use latest-by-key for live
+            feeds such as one current price per symbol.
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="block space-y-2">
+            <span className="text-xs font-medium text-muted-foreground">Merge mode</span>
+            <select
+              value={props.rowMergeMode}
+              onChange={(event) => {
+                const rowMergeMode = event.target.value as TabularTransformRowMergeMode;
+                onDraftPropsChange({
+                  ...draftProps,
+                  rowMergeMode,
+                  rowMergeKeyMappings:
+                    rowMergeMode === "latest" ? draftRowMergeKeyMappings ?? props.rowMergeKeyMappings : undefined,
+                  rowMergeKeyFields:
+                    rowMergeMode === "latest" ? props.rowMergeKeyFields : undefined,
+                });
+              }}
+              disabled={!editable}
+              className="h-10 w-full rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/45 px-3 text-sm text-foreground outline-none transition-colors focus:border-ring/70 focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <option value="passthrough">Passthrough</option>
+              <option value="latest">Latest row per key</option>
+            </select>
+          </label>
+        </div>
+
+        {props.rowMergeMode === "latest" ? (
+          <TabularMergeMappingEditor
+            title="Latest row mapping"
+            description="Tell the transform which incoming rows update which retained transformed rows. If all mapped values match, the incoming row patches that retained row; otherwise the row passes through as a separate row."
+            emptyDescription="Add one mapping for a single-row identity, for example retained field `symbol` and incoming field `symbol`. Add multiple mappings when identity needs more than one field."
+            editable={editable}
+            help={rowMergeHelp}
+            idBase={`tabular-transform-row-merge-${instanceId ?? "draft"}`}
+            liveFieldLabel="Incoming field"
+            liveFieldOptions={mergeFieldOptions}
+            mappings={rowMergeKeyMappings}
+            onChange={(rowMergeKeyMappings) => {
+              onDraftPropsChange({
+                ...draftProps,
+                rowMergeKeyMappings,
+                rowMergeKeyFields:
+                  rowMergeKeyMappings.length > 0
+                    ? rowMergeKeyMappings.map((mapping) => mapping.seedField).filter(Boolean)
+                    : undefined,
+              });
+            }}
+            seedFieldLabel="Retained field"
+            seedFieldOptions={mergeFieldOptions}
+            showNoSharedFieldSuggestion={false}
+          />
+        ) : (
+          <div className="rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/25 px-3 py-3 text-xs text-muted-foreground">
+            Passthrough mode does not add row-merge semantics. The transform publishes whatever the
+            upstream tabular source currently provides after the selected transform, computed
+            columns, and projection have run.
+          </div>
+        )}
       </section>
     </div>
   );

@@ -22,7 +22,7 @@ import {
 
 export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>({
   id: "tabular-transform",
-  widgetVersion: "1.2.1",
+  widgetVersion: "1.3.0",
   title: "Tabular Transform",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -55,6 +55,7 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
       },
     ],
     projectFields: ["series", "value"],
+    rowMergeMode: "passthrough",
   },
   mockResolvedInputs: {
     [TABULAR_TRANSFORM_SOURCE_INPUT_ID]: {
@@ -243,6 +244,7 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
         "Projection runs after the selected transform.",
         "Computed columns run after the selected transform and before projection.",
         "Computed-column formulas must wrap field names in brackets, for example [last_price] * 10.",
+        "Row merge can collapse transformed stream rows to the latest row per configured key.",
         "Filter mode is intentionally limited to lightweight field predicates.",
         "The updates output preserves stream publications for live consumers.",
         "Analytical transforms are explicit graph nodes, not binding-level transforms.",
@@ -267,10 +269,21 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
       supportedTransformModes: ["none", "filter", "aggregate", "pivot", "unpivot"],
       supportedAggregateModes: ["first", "last", "sum", "mean", "min", "max"],
       supportsComputedColumns: true,
+      supportsLatestRowMerge: true,
       supportsProjection: true,
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),
     examples: [
+      {
+        label: "Latest live row per symbol",
+        summary: "Projects live rows and keeps only the latest transformed row for each symbol.",
+        props: {
+          transformMode: "none",
+          projectFields: ["symbol", "last"],
+          rowMergeMode: "latest",
+          rowMergeKeyMappings: [{ seedField: "symbol", liveField: "symbol" }],
+        },
+      },
       {
         label: "Aggregate connection query rows",
         summary: "Groups source rows by one or more key fields and republishes the reduced frame.",

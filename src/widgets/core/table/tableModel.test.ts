@@ -31,6 +31,7 @@ import {
   resolveTableWidgetOutput,
   resolveTableWidgetSelectedCellValuesOutput,
   resolveTableWidgetProps,
+  resolveTableWidgetColumns,
   resolveTableWidgetSelectedRowsOutput,
   parseTableWidgetDateTimeValue,
   resolveTableWidgetPropsWithFrame,
@@ -639,6 +640,64 @@ describe("table widget table controls", () => {
 
     expect(resolved.formulasEnabled).toBe(true);
     expect(rows[0]?.ytd).toBe(18);
+  });
+
+  it("preserves spaces in editable column labels and descriptions", () => {
+    const resolved = resolveTableWidgetPropsWithFrame({
+      tableSourceMode: "manual",
+      manualColumns: [
+        { key: "last", type: "number" },
+      ],
+      manualRows: [
+        { last: 2143.1234 },
+      ],
+      schema: [
+        {
+          key: "last",
+          label: "Last price ",
+          format: "number",
+          description: "Latest traded price ",
+        },
+      ],
+    });
+
+    expect(resolved.schema[0]).toMatchObject({
+      label: "Last price ",
+      description: "Latest traded price ",
+    });
+  });
+
+  it("preserves explicit empty local display overrides", () => {
+    const resolved = resolveTableWidgetPropsWithFrame({
+      tableSourceMode: "manual",
+      manualColumns: [
+        { key: "last", type: "number" },
+      ],
+      manualRows: [
+        { last: 2143.1234 },
+      ],
+      schema: [
+        {
+          key: "last",
+          label: "Last",
+          format: "number",
+          prefix: "USD ",
+          suffix: " px",
+        },
+      ],
+      columnOverrides: {
+        last: {
+          prefix: "",
+          suffix: "",
+        },
+      },
+    });
+    const columns = resolveTableWidgetColumns(resolved);
+
+    expect(columns[0]).toMatchObject({
+      prefix: "",
+      suffix: "",
+    });
   });
 
   it("recomputes formula columns after partial live row patches", () => {

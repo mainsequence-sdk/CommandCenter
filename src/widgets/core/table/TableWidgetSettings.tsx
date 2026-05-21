@@ -36,6 +36,7 @@ import {
   TABULAR_LIVE_UPDATES_INPUT_ID,
   TABULAR_SEED_INPUT_ID,
 } from "@/widgets/shared/incremental-tabular-consumer";
+import { TabularMergeMappingEditor } from "@/widgets/shared/TabularMergeMappingEditor";
 import { ManualTableEditor } from "./ManualTableEditor";
 import {
   buildTableWidgetFrameFromRemoteData,
@@ -240,20 +241,20 @@ function normalizeColumnOverride(override: TableWidgetColumnOverride) {
     nextValue.decimals = Math.max(0, Math.min(Math.trunc(override.decimals), 6));
   }
 
-  if (typeof override.prefix === "string" && override.prefix.length > 0) {
+  if (typeof override.prefix === "string") {
     nextValue.prefix = override.prefix;
   }
 
-  if (typeof override.suffix === "string" && override.suffix.length > 0) {
+  if (typeof override.suffix === "string") {
     nextValue.suffix = override.suffix;
   }
 
-  if (typeof override.dateTimeInputFormat === "string" && override.dateTimeInputFormat.trim()) {
-    nextValue.dateTimeInputFormat = override.dateTimeInputFormat.trim();
+  if (typeof override.dateTimeInputFormat === "string") {
+    nextValue.dateTimeInputFormat = override.dateTimeInputFormat;
   }
 
-  if (typeof override.dateTimeOutputFormat === "string" && override.dateTimeOutputFormat.trim()) {
-    nextValue.dateTimeOutputFormat = override.dateTimeOutputFormat.trim();
+  if (typeof override.dateTimeOutputFormat === "string") {
+    nextValue.dateTimeOutputFormat = override.dateTimeOutputFormat;
   }
 
   if (typeof override.heatmap === "boolean") {
@@ -500,14 +501,6 @@ function TableWidgetSettingsComponent({
   );
   const seedFieldOptions = useMemo(() => resolveInputColumns(seedInput), [seedInput]);
   const liveFieldOptions = useMemo(() => resolveInputColumns(liveInput), [liveInput]);
-  const seedFieldOptionSet = useMemo(
-    () => new Set(seedFieldOptions),
-    [seedFieldOptions],
-  );
-  const liveFieldOptionSet = useMemo(
-    () => new Set(liveFieldOptions),
-    [liveFieldOptions],
-  );
   const sourceConsumerState = useMemo(
     () => resolveTableWidgetSourceConsumerState(resolvedInputs),
     [resolvedInputs],
@@ -638,32 +631,6 @@ function TableWidgetSettingsComponent({
   const liveMergeKeyMappingsDraft = Array.isArray(scopedDraft.liveMergeKeyMappings)
     ? scopedDraft.liveMergeKeyMappings
     : [];
-  const liveMergeMappingIssues = useMemo(() => {
-    return liveMergeKeyMappingsDraft.flatMap((mapping, index) => {
-      const seedField = typeof mapping.seedField === "string" ? mapping.seedField.trim() : "";
-      const liveField = typeof mapping.liveField === "string" ? mapping.liveField.trim() : "";
-      const issues: string[] = [];
-
-      if ((seedField && !liveField) || (!seedField && liveField)) {
-        issues.push(`Mapping ${index + 1} needs both a seed field and a live field.`);
-      }
-
-      if (seedField && seedFieldOptions.length > 0 && !seedFieldOptionSet.has(seedField)) {
-        issues.push(`Seed field "${seedField}" is not present in the current seed input.`);
-      }
-
-      if (liveField && liveFieldOptions.length > 0 && !liveFieldOptionSet.has(liveField)) {
-        issues.push(`Live field "${liveField}" is not present in the current live input.`);
-      }
-
-      return issues;
-    });
-  }, [liveFieldOptionSet, liveFieldOptions.length, liveMergeKeyMappingsDraft, seedFieldOptionSet, seedFieldOptions.length]);
-  const shouldSuggestLiveMergeMapping =
-    liveMergeKeyMappingsDraft.length === 0 &&
-    seedFieldOptions.length > 0 &&
-    liveFieldOptions.length > 0 &&
-    seedFieldOptions.every((field) => !liveFieldOptionSet.has(field));
   const fallbackTextColor = resolvedTokens.primary;
   const fallbackFillColor = resolvedTokens.primary;
   const [expandedColumnKeys, setExpandedColumnKeys] = useState<Record<string, boolean>>({});
@@ -678,7 +645,7 @@ function TableWidgetSettingsComponent({
     columnKey: string,
     updater: (current: TableWidgetColumnOverride) => TableWidgetColumnOverride,
   ) {
-    const current = resolvedScopedDraft.columnOverrides[columnKey] ?? {};
+    const current = scopedDraft.columnOverrides?.[columnKey] ?? {};
     const nextOverride = normalizeColumnOverride(updater(current));
     const nextOverrides = { ...(scopedDraft.columnOverrides ?? {}) };
 
@@ -762,8 +729,11 @@ function TableWidgetSettingsComponent({
             ...column,
             ...nextColumn,
             key: nextKey,
-            label: nextColumn.label.trim() || column.label,
-            description: nextColumn.description?.trim() || undefined,
+            label: nextColumn.label || column.label,
+            description:
+              typeof nextColumn.description === "string" && nextColumn.description.trim()
+                ? nextColumn.description
+                : undefined,
           }
         : column,
     );
@@ -1334,159 +1304,23 @@ function TableWidgetSettingsComponent({
       </section>
 
       {!presentationOnly ? (
-        <section className={sectionClass}>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className={titleClass}>Live merge mapping</div>
-              <p className={descriptionClass}>
-                Tell the table which live rows update which existing rows. If the seed row and the
-                live row have the same values for every mapping below, the live values update that
-                row; otherwise the live row is added as a new row.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!editable}
-              onClick={() => {
-                commit({
-                  ...scopedDraft,
-                  liveMergeKeyMappings: [
-                    ...(liveMergeKeyMappingsDraft ?? []),
-                    { seedField: "", liveField: "" },
-                  ],
-                });
-              }}
-            >
-              Add mapping
-            </Button>
-          </div>
-
-          <div className="space-y-3">
-            {liveMergeKeyMappingsDraft.length > 0 ? (
-              <div className="space-y-2">
-                {liveMergeKeyMappingsDraft.map((mapping, index) => (
-                  <div
-                    key={`merge-mapping-${index}`}
-                    className="grid gap-2 md:grid-cols-[1fr_1fr_auto]"
-                  >
-                    <div className={fieldClass}>
-                      <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.liveMergeMapping}>
-                        Seed field
-                      </WidgetSettingFieldLabel>
-                      <Input
-                        className={inputClass}
-                        value={mapping.seedField}
-                        placeholder="symbol"
-                        list={`table-seed-fields-${instanceId ?? "draft"}`}
-                        disabled={!editable}
-                        onChange={(event) => {
-                          const nextMappings = [...liveMergeKeyMappingsDraft];
-                          nextMappings[index] = {
-                            ...mapping,
-                            seedField: event.target.value,
-                          };
-                          commit({
-                            ...scopedDraft,
-                            liveMergeKeyMappings: nextMappings,
-                          });
-                        }}
-                      />
-                    </div>
-                    <div className={fieldClass}>
-                      <WidgetSettingFieldLabel className={labelClass} help={tableFieldHelp.liveMergeMapping}>
-                        Live field
-                      </WidgetSettingFieldLabel>
-                      <Input
-                        className={inputClass}
-                        value={mapping.liveField}
-                        placeholder="symbol"
-                        list={`table-live-fields-${instanceId ?? "draft"}`}
-                        disabled={!editable}
-                        onChange={(event) => {
-                          const nextMappings = [...liveMergeKeyMappingsDraft];
-                          nextMappings[index] = {
-                            ...mapping,
-                            liveField: event.target.value,
-                          };
-                          commit({
-                            ...scopedDraft,
-                            liveMergeKeyMappings: nextMappings,
-                          });
-                        }}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={!editable}
-                      onClick={() => {
-                        commit({
-                          ...scopedDraft,
-                          liveMergeKeyMappings: liveMergeKeyMappingsDraft.filter(
-                            (_entry, mappingIndex) => mappingIndex !== index,
-                          ),
-                        });
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className={descriptionClass}>
-                Add one mapping for a single-row identity, for example seed field `symbol` and live
-                field `symbol`. Add multiple mappings when the identity needs more than one field,
-                for example `symbol = symbol` and `exchange = exchange`.
-              </p>
-            )}
-
-            <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/20 px-3 py-2 text-xs leading-5 text-muted-foreground">
-              <div>
-                Example: to update rows by symbol, add one mapping with seed field{" "}
-                <span className="font-mono text-foreground">symbol</span> and live field{" "}
-                <span className="font-mono text-foreground">symbol</span>.
-              </div>
-              <div>
-                To update by symbol and exchange, add two mappings:{" "}
-                <span className="font-mono text-foreground">symbol {"->"} symbol</span> and{" "}
-                <span className="font-mono text-foreground">exchange {"->"} exchange</span>.
-              </div>
-              <div>
-                If the live feed uses different names, map the seed field to the live field, for
-                example <span className="font-mono text-foreground">symbol {"->"} ticker</span>.
-              </div>
-            </div>
-
-            {liveMergeMappingIssues.length > 0 ? (
-              <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-                {liveMergeMappingIssues.map((issue) => (
-                  <div key={issue}>{issue}</div>
-                ))}
-              </div>
-            ) : null}
-            {shouldSuggestLiveMergeMapping ? (
-              <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-                Seed and live inputs do not expose any shared field names. Add a merge mapping
-                before expecting live rows to patch retained seed rows.
-              </div>
-            ) : null}
-
-            <datalist id={`table-seed-fields-${instanceId ?? "draft"}`}>
-              {seedFieldOptions.map((field) => (
-                <option key={field} value={field} />
-              ))}
-            </datalist>
-            <datalist id={`table-live-fields-${instanceId ?? "draft"}`}>
-              {liveFieldOptions.map((field) => (
-                <option key={field} value={field} />
-              ))}
-            </datalist>
-          </div>
-        </section>
+        <TabularMergeMappingEditor
+          title="Live merge mapping"
+          description="Tell the table which live rows update which existing rows. If the seed row and the live row have the same values for every mapping below, the live values update that row; otherwise the live row is added as a new row."
+          emptyDescription="Add one mapping for a single-row identity, for example seed field `symbol` and live field `symbol`. Add multiple mappings when the identity needs more than one field, for example `symbol = symbol` and `exchange = exchange`."
+          editable={editable}
+          help={tableFieldHelp.liveMergeMapping}
+          idBase={`table-live-merge-${instanceId ?? "draft"}`}
+          liveFieldOptions={liveFieldOptions}
+          mappings={liveMergeKeyMappingsDraft}
+          onChange={(liveMergeKeyMappings) => {
+            commit({
+              ...scopedDraft,
+              liveMergeKeyMappings,
+            });
+          }}
+          seedFieldOptions={seedFieldOptions}
+        />
       ) : null}
 
       <section className={sectionClass}>
@@ -1635,6 +1469,7 @@ function TableWidgetSettingsComponent({
             </p>
           ) : displayedColumns.map((column, index) => {
             const override = resolvedScopedDraft.columnOverrides[column.key] ?? {};
+            const localOverride = scopedDraft.columnOverrides?.[column.key] ?? {};
             const advancedExpanded = expandedColumnKeys[column.key] ?? false;
             const columnIsFormula = column.schemaFormat === "formula";
             const columnConditionalRules = conditionalRules.flatMap((rule, ruleIndex) =>
@@ -1900,7 +1735,7 @@ function TableWidgetSettingsComponent({
                         </WidgetSettingFieldLabel>
                         <Select
                           className={selectClass}
-                          value={override.align ?? "auto"}
+                          value={localOverride.align ?? "auto"}
                           disabled={!editable}
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
@@ -1923,7 +1758,7 @@ function TableWidgetSettingsComponent({
                         </WidgetSettingFieldLabel>
                         <Select
                           className={selectClass}
-                          value={override.pinned ?? "none"}
+                          value={localOverride.pinned ?? "none"}
                           disabled={!editable}
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
@@ -1949,7 +1784,7 @@ function TableWidgetSettingsComponent({
                           type="number"
                           min={0}
                           max={6}
-                          value={override.decimals ?? ""}
+                          value={localOverride.decimals ?? ""}
                           placeholder={column.decimals == null ? "auto" : String(column.decimals)}
                           disabled={!editable || !columnUsesNumericFormat}
                           onChange={(event) => {
@@ -1972,13 +1807,13 @@ function TableWidgetSettingsComponent({
                         </WidgetSettingFieldLabel>
                         <Input
                           className={inputClass}
-                          value={override.prefix ?? ""}
+                          value={localOverride.prefix ?? ""}
                           placeholder={column.prefix ?? "none"}
                           disabled={!editable}
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
                               ...current,
-                              prefix: event.target.value || undefined,
+                              prefix: event.target.value,
                             }));
                           }}
                         />
@@ -1990,13 +1825,13 @@ function TableWidgetSettingsComponent({
                         </WidgetSettingFieldLabel>
                         <Input
                           className={inputClass}
-                          value={override.suffix ?? ""}
+                          value={localOverride.suffix ?? ""}
                           placeholder={column.suffix ?? "none"}
                           disabled={!editable}
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
                               ...current,
-                              suffix: event.target.value || undefined,
+                              suffix: event.target.value,
                             }));
                           }}
                         />
@@ -2010,13 +1845,13 @@ function TableWidgetSettingsComponent({
                             </WidgetSettingFieldLabel>
                             <Input
                               className={inputClass}
-                              value={override.dateTimeInputFormat ?? ""}
+                              value={localOverride.dateTimeInputFormat ?? ""}
                               placeholder="auto"
                               disabled={!editable}
                               onChange={(event) => {
                                 updateColumnOverride(column.key, (current) => ({
                                   ...current,
-                                  dateTimeInputFormat: event.target.value || undefined,
+                                  dateTimeInputFormat: event.target.value,
                                 }));
                               }}
                             />
@@ -2028,13 +1863,13 @@ function TableWidgetSettingsComponent({
                             </WidgetSettingFieldLabel>
                             <Input
                               className={inputClass}
-                              value={override.dateTimeOutputFormat ?? ""}
+                              value={localOverride.dateTimeOutputFormat ?? ""}
                               placeholder={column.dateTimeOutputFormat ?? TABLE_WIDGET_DEFAULT_DATETIME_OUTPUT_FORMAT}
                               disabled={!editable}
                               onChange={(event) => {
                                 updateColumnOverride(column.key, (current) => ({
                                   ...current,
-                                  dateTimeOutputFormat: event.target.value || undefined,
+                                  dateTimeOutputFormat: event.target.value,
                                 }));
                               }}
                             />
@@ -2084,7 +1919,7 @@ function TableWidgetSettingsComponent({
                         </WidgetSettingFieldLabel>
                         <Select
                           className={selectClass}
-                          value={override.barMode ?? "none"}
+                          value={localOverride.barMode ?? "none"}
                           disabled={!editable || !columnUsesNumericFormat}
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
@@ -2107,7 +1942,7 @@ function TableWidgetSettingsComponent({
                         </WidgetSettingFieldLabel>
                         <Select
                           className={selectClass}
-                          value={override.gradientMode ?? (override.heatmap ? "fill" : "none")}
+                          value={localOverride.gradientMode ?? (localOverride.heatmap ? "fill" : "none")}
                           disabled={!editable || !columnUsesNumericFormat}
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
@@ -2132,11 +1967,11 @@ function TableWidgetSettingsComponent({
                         </WidgetSettingFieldLabel>
                         <Select
                           className={selectClass}
-                          value={override.heatmapPalette ?? "auto"}
+                          value={localOverride.heatmapPalette ?? "auto"}
                           disabled={
                             !editable ||
                             !columnUsesNumericFormat ||
-                            (override.gradientMode ?? (override.heatmap ? "fill" : "none")) === "none"
+                            (localOverride.gradientMode ?? (localOverride.heatmap ? "fill" : "none")) === "none"
                           }
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
@@ -2159,7 +1994,7 @@ function TableWidgetSettingsComponent({
                         </WidgetSettingFieldLabel>
                         <Select
                           className={selectClass}
-                          value={override.gaugeMode ?? "none"}
+                          value={localOverride.gaugeMode ?? "none"}
                           disabled={!editable || !columnUsesNumericFormat}
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
@@ -2185,13 +2020,13 @@ function TableWidgetSettingsComponent({
                         </WidgetSettingFieldLabel>
                         <Select
                           className={selectClass}
-                          value={override.visualRangeMode ?? "auto"}
+                          value={localOverride.visualRangeMode ?? "auto"}
                           disabled={
                             !editable ||
                             !columnUsesNumericFormat ||
-                            ((override.gradientMode ?? (override.heatmap ? "fill" : "none")) === "none" &&
-                              (override.gaugeMode ?? "none") === "none" &&
-                              (override.barMode ?? "none") === "none")
+                            ((localOverride.gradientMode ?? (localOverride.heatmap ? "fill" : "none")) === "none" &&
+                              (localOverride.gaugeMode ?? "none") === "none" &&
+                              (localOverride.barMode ?? "none") === "none")
                           }
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
@@ -2216,12 +2051,12 @@ function TableWidgetSettingsComponent({
                         <Input
                           className={inputClass}
                           type="number"
-                          value={override.visualMin ?? ""}
+                          value={localOverride.visualMin ?? ""}
                           placeholder="auto"
                           disabled={
                             !editable ||
                             !columnUsesNumericFormat ||
-                            (override.visualRangeMode ?? "auto") !== "fixed"
+                            (localOverride.visualRangeMode ?? "auto") !== "fixed"
                           }
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({
@@ -2242,12 +2077,12 @@ function TableWidgetSettingsComponent({
                         <Input
                           className={inputClass}
                           type="number"
-                          value={override.visualMax ?? ""}
+                          value={localOverride.visualMax ?? ""}
                           placeholder="auto"
                           disabled={
                             !editable ||
                             !columnUsesNumericFormat ||
-                            (override.visualRangeMode ?? "auto") !== "fixed"
+                            (localOverride.visualRangeMode ?? "auto") !== "fixed"
                           }
                           onChange={(event) => {
                             updateColumnOverride(column.key, (current) => ({

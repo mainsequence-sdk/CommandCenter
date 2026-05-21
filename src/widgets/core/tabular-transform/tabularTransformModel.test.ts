@@ -445,6 +445,244 @@ describe("tabular transform filter mode", () => {
     expect(applyTableComputedColumns(output).rows).toEqual(output.rows);
   });
 
+  it("keeps passthrough mode as the default non-merge behavior", () => {
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        computedColumns: [
+          {
+            key: "last",
+            label: "Last",
+            type: "number",
+            formulaExpression: "[close]",
+          },
+        ],
+        projectFields: ["symbol", "last"],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(
+        frame(
+          [
+            { symbol: "ETHUSDT", close: 2136 },
+            { symbol: "ETHUSDT", close: 2137 },
+          ],
+          [
+            { key: "symbol", type: "string", provenance: "manual" },
+            { key: "close", type: "number", provenance: "manual" },
+          ],
+        ),
+      ),
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.rows).toEqual([
+      { symbol: "ETHUSDT", last: 2136 },
+      { symbol: "ETHUSDT", last: 2137 },
+    ]);
+  });
+
+  it("normalizes legacy append row merge mode to passthrough behavior", () => {
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        rowMergeMode: "append",
+      } as unknown as TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(
+        frame(
+          [
+            { symbol: "ETHUSDT", last: 2136 },
+            { symbol: "ETHUSDT", last: 2137 },
+          ],
+          [
+            { key: "symbol", type: "string", provenance: "manual" },
+            { key: "last", type: "number", provenance: "manual" },
+          ],
+        ),
+      ),
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.rows).toEqual([
+      { symbol: "ETHUSDT", last: 2136 },
+      { symbol: "ETHUSDT", last: 2137 },
+    ]);
+  });
+
+  it("collapses transformed rows to the latest row per configured key", () => {
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        computedColumns: [
+          {
+            key: "last",
+            label: "Last",
+            type: "number",
+            formulaExpression: "[close]",
+          },
+        ],
+        projectFields: ["symbol", "last"],
+        rowMergeMode: "latest",
+        rowMergeKeyFields: ["symbol"],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(
+        frame(
+          [
+            { symbol: "ETHUSDT", close: 2136 },
+            { symbol: "BTCUSDT", close: 77650 },
+            { symbol: "ETHUSDT", close: 2138 },
+            { symbol: "BTCUSDT", close: 77655 },
+          ],
+          [
+            { key: "symbol", type: "string", provenance: "manual" },
+            { key: "close", type: "number", provenance: "manual" },
+          ],
+        ),
+      ),
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.columns).toEqual(["symbol", "last"]);
+    expect(output.rows).toEqual([
+      { symbol: "ETHUSDT", last: 2138 },
+      { symbol: "BTCUSDT", last: 77655 },
+    ]);
+  });
+
+  it("supports table-style merge mappings when incoming key names differ", () => {
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        rowMergeMode: "latest",
+        rowMergeKeyMappings: [{ seedField: "symbol", liveField: "ticker" }],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(
+        frame(
+          [
+            { ticker: "ETHUSDT", last: 2136 },
+            { ticker: "ETHUSDT", last: 2139 },
+          ],
+          [
+            { key: "ticker", type: "string", provenance: "manual" },
+            { key: "last", type: "number", provenance: "manual" },
+          ],
+        ),
+      ),
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.columns).toEqual(["symbol", "last"]);
+    expect(output.rows).toEqual([{ symbol: "ETHUSDT", last: 2139 }]);
+  });
+
+  it("preserves previous row fields when latest updates omit them", () => {
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        rowMergeMode: "latest",
+        rowMergeKeyFields: ["symbol"],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(
+        frame(
+          [
+            { symbol: "ETHUSDT", sector: "Layer 1", last: 2136 },
+            { symbol: "ETHUSDT", last: 2139 },
+          ],
+          [
+            { key: "symbol", type: "string", provenance: "manual" },
+            { key: "sector", type: "string", provenance: "manual" },
+            { key: "last", type: "number", provenance: "manual" },
+          ],
+        ),
+      ),
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.rows).toEqual([
+      { symbol: "ETHUSDT", sector: "Layer 1", last: 2139 },
+    ]);
+  });
+
+  it("advertises latest-row merge keys on transformed live updates", () => {
+    const baseFrame = frame(
+      [
+        { symbol: "ETHUSDT", close: 2136 },
+        { symbol: "BTCUSDT", close: 77650 },
+      ],
+      [
+        { key: "symbol", type: "string", provenance: "manual" },
+        { key: "close", type: "number", provenance: "manual" },
+      ],
+    );
+    const deltaFrame = frame(
+      [
+        { symbol: "ETHUSDT", close: 2138 },
+        { symbol: "ETHUSDT", close: 2139 },
+      ],
+      [
+        { key: "symbol", type: "string", provenance: "manual" },
+        { key: "close", type: "number", provenance: "manual" },
+      ],
+    );
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        computedColumns: [
+          {
+            key: "last",
+            label: "Last",
+            type: "number",
+            formulaExpression: "[close]",
+          },
+        ],
+        projectFields: ["symbol", "last"],
+        rowMergeMode: "latest",
+        rowMergeKeyFields: ["symbol"],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(baseFrame, {
+        upstreamBase: baseFrame,
+        upstreamDelta: deltaFrame,
+        upstreamUpdate: {
+          contractVersion: "widget-runtime-update@v1",
+          mode: "delta",
+          sourceWidgetId: "source-widget",
+          sourceOutputId: "updates",
+          outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          retainedOutputLocation: "carrier",
+        },
+      }),
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.rows).toEqual([
+      { symbol: "ETHUSDT", last: 2136 },
+      { symbol: "BTCUSDT", last: 77650 },
+    ]);
+
+    const update = readWidgetRuntimeUpdateContext(output);
+    expect(update?.diagnostics?.mergeKeyFields).toEqual(["symbol"]);
+    const deltaOutput = update?.deltaOutput as TabularFrameSourceV1 | undefined;
+    expect(deltaOutput?.rows).toEqual([{ symbol: "ETHUSDT", last: 2139 }]);
+  });
+
+  it("returns a configuration error when latest-row merge has no mappings", () => {
+    const output = resolveTabularTransformOutput({
+      props: {
+        rowMergeMode: "latest",
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(
+        frame(
+          [{ symbol: "ETHUSDT", close: 2136 }],
+          [
+            { key: "symbol", type: "string", provenance: "manual" },
+            { key: "close", type: "number", provenance: "manual" },
+          ],
+        ),
+      ),
+    });
+
+    expect(output.status).toBe("error");
+    expect(output.error).toContain("at least one merge mapping");
+  });
+
   it("returns a configuration error when a computed-column formula is invalid", () => {
     const output = resolveTabularTransformOutput({
       props: {
