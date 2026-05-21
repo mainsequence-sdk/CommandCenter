@@ -47,7 +47,7 @@ The `seedData` frame carries:
 - inline `referenceValue` fields for baselines such as `previousClose`, `oneMonthAgo`,
   `yearStart`, and `oneYearAgo`
 - inline `sparklineSeries` fields for compact trend visuals
-- optional row-local computed fields produced by `meta.tableTransforms`
+- optional derived fields already materialized by an upstream `tabular-transform`
 
 The `liveUpdates` frame carries partial latest-value updates keyed by the same asset semantics.
 Live updates patch current state only. They do not rewrite seeded references or seeded sparklines.
@@ -107,8 +107,7 @@ Accepted source outputs:
 
 Required logical fields:
 
-- exact `unique_identifier` column for the asset join key
-- exact `Symbol` column for the canonical display symbol
+- a displayable or mapped row field; exact `unique_identifier` and `Symbol` columns are not required
 - at least one latest value field, usually price or last
 
 Optional logical fields:
@@ -118,7 +117,7 @@ Optional logical fields:
 - inline `referenceValue` fields such as `previous_close`, `one_month_ago`, `year_start`, or
   `one_year_ago`
 - inline `sparklineSeries` fields such as a CSV number cell for low-resolution terminal sparklines
-- computed fields produced by `meta.tableTransforms.computedColumns`
+- materialized derived fields produced upstream, when reusable return columns are needed as data
 
 ### `liveUpdates`
 
@@ -360,9 +359,11 @@ overrides in the widget settings UI.
 Ownership clarification:
 
 - `meta.marketAsset` is Markets domain metadata owned by the Asset Screener semantic adapter.
-- `meta.tableTransforms` and `meta.tableVisuals` are shared table/tabular metadata owned by the
-  core table pipeline. The screener inherits them through its table-backed frame instead of
-  defining a private display-metadata contract.
+- `meta.tableVisuals` is shared table/tabular display metadata owned by the core table pipeline.
+  The screener inherits it through its table-backed frame instead of defining a private
+  display-metadata contract.
+- `meta.tableTransforms` is reserved for `tabular-transform` provenance and is not applied by
+  Asset Screener or Table as hidden source computation.
 
 Rules:
 
@@ -370,9 +371,9 @@ Rules:
 - In source mode, the widget derives settings-visible columns from:
   - `meta.tableVisuals.columns`
   - `meta.marketAsset.fieldRoles`, when present
-  - `meta.tableTransforms.computedColumns`
 - `meta.tableVisuals.columns` is the source's explicit column proposal. Its keys must match source
-  field ids or computed column ids such as `last_price`, `one_day_return`, or `sparkline_prices`.
+  field ids or formula display column ids such as `last_price`, `one_day_return`, or
+  `sparkline_prices`.
 - `meta.tableVisuals.columns` is independently sufficient to populate the settings column list.
   `meta.marketAsset` improves semantic mapping, but the presence of market field-role metadata must
   not be required just to show the source's table column configuration.
@@ -489,62 +490,20 @@ Backend-driven source config example:
           "valueKey": "price",
           "encoding": "csv-number",
           "order": "oldest-to-newest"
-        },
-        { "field": "one_day_return", "role": "value", "valueKey": "oneDayReturn" },
-        { "field": "one_month_return", "role": "value", "valueKey": "oneMonthReturn" },
-        { "field": "ytd_return", "role": "value", "valueKey": "ytdReturn" },
-        { "field": "one_year_return", "role": "value", "valueKey": "oneYearReturn" }
-      ]
-    },
-    "tableTransforms": {
-      "computedColumns": [
-        {
-          "id": "one_day_return",
-          "label": "1D",
-          "type": "number",
-          "expression": {
-            "op": "percentChange",
-            "current": { "field": "last_price" },
-            "reference": { "field": "previous_close" }
-          }
-        },
-        {
-          "id": "one_month_return",
-          "label": "1M",
-          "type": "number",
-          "expression": {
-            "op": "percentChange",
-            "current": { "field": "last_price" },
-            "reference": { "field": "one_month_ago" }
-          }
-        },
-        {
-          "id": "ytd_return",
-          "label": "YTD",
-          "type": "number",
-          "expression": {
-            "op": "percentChange",
-            "current": { "field": "last_price" },
-            "reference": { "field": "year_start" }
-          }
-        },
-        {
-          "id": "one_year_return",
-          "label": "1Y",
-          "type": "number",
-          "expression": {
-            "op": "percentChange",
-            "current": { "field": "last_price" },
-            "reference": { "field": "one_year_ago" }
-          }
         }
       ]
     },
     "tableVisuals": {
       "columns": {
         "last_price": { "format": "price" },
+        "previous_close": { "format": "price", "visible": false },
+        "one_month_ago": { "format": "price", "visible": false },
+        "year_start": { "format": "price", "visible": false },
+        "one_year_ago": { "format": "price", "visible": false },
         "one_day_return": {
-          "format": "percent",
+          "format": "formula",
+          "formulaExpression": "PERCENT_CHANGE([last_price], [previous_close])",
+          "formulaResultFormat": "percent",
           "thresholds": [
             { "operator": "lt", "value": 0, "tone": "warning" },
             { "operator": "eq", "value": 0, "tone": "neutral" },
@@ -557,7 +516,9 @@ Backend-driven source config example:
           "visualMax": 10
         },
         "one_month_return": {
-          "format": "percent",
+          "format": "formula",
+          "formulaExpression": "PERCENT_CHANGE([last_price], [one_month_ago])",
+          "formulaResultFormat": "percent",
           "thresholds": [
             { "operator": "lt", "value": 0, "tone": "warning" },
             { "operator": "eq", "value": 0, "tone": "neutral" },
@@ -565,7 +526,9 @@ Backend-driven source config example:
           ]
         },
         "ytd_return": {
-          "format": "percent",
+          "format": "formula",
+          "formulaExpression": "PERCENT_CHANGE([last_price], [year_start])",
+          "formulaResultFormat": "percent",
           "thresholds": [
             { "operator": "lt", "value": 0, "tone": "warning" },
             { "operator": "eq", "value": 0, "tone": "neutral" },
@@ -573,7 +536,9 @@ Backend-driven source config example:
           ]
         },
         "one_year_return": {
-          "format": "percent",
+          "format": "formula",
+          "formulaExpression": "PERCENT_CHANGE([last_price], [one_year_ago])",
+          "formulaResultFormat": "percent",
           "thresholds": [
             { "operator": "lt", "value": 0, "tone": "warning" },
             { "operator": "eq", "value": 0, "tone": "neutral" },
@@ -605,11 +570,11 @@ One row per asset for one latest/current observation.
 
 Required logical fields after widget mapping:
 
-- `assetKey`
 - at least one numeric value field
 
 Optional logical fields after widget mapping:
 
+- `assetKey`
 - `observedAt`
 - `symbol`
 - `displayName`
@@ -661,30 +626,18 @@ Rules:
 - They are not a replacement for a chart-grade historical data source.
 - The order is oldest-to-newest unless `order: "newest-to-oldest"` is provided.
 
-### Row-Local Table Metadata
+### Row-Local Table Visual Metadata
 
-The screener may read two generic table metadata blocks before it applies Markets semantics:
+The screener may read shared table visual metadata before it applies Markets presentation:
 
 ```ts
-interface MarketTableTransformsMetadata {
-  computedColumns?: Array<{
-    id: string;
-    label?: string;
-    type?: "number" | "string" | "boolean" | "json";
-    expression:
-      | { field: string }
-      | { value: number | string | boolean | null }
-      | { op: "percentChange"; current: MarketTableExpression; reference: MarketTableExpression }
-      | { op: "difference" | "subtract"; left: MarketTableExpression; right: MarketTableExpression }
-      | { op: "ratio" | "divide"; numerator: MarketTableExpression; denominator: MarketTableExpression }
-      | { op: "add" | "multiply"; args: MarketTableExpression[] };
-  }>;
-}
-
 interface MarketTableVisualsMetadata {
   columns?: Record<string, {
     label?: string;
-    format?: "number" | "price" | "percent" | "volume" | "currency";
+    format?: "number" | "price" | "percent" | "volume" | "currency" | "formula";
+    formulaExpression?: string;
+    formulaResultFormat?: "text" | "datetime" | "number" | "currency" | "percent" | "bps";
+    visible?: boolean;
     kind?: "sparkline" | "bar" | "heatmap";
     encoding?: "csv-number" | "json-number-array" | "number-array";
     order?: "oldest-to-newest" | "newest-to-oldest";
@@ -722,21 +675,16 @@ Rules:
   precedence over field-name heuristics.
 - `meta.marketAsset.fieldRoles` supports inline `referenceValue` and `sparklineSeries` roles in
   addition to normal identity, observation, and value roles.
-- Computed columns are row-local and deterministic; they do not query backend state or other
-  bindings.
-- Computed columns run before `meta.marketAsset.fieldRoles`, so derived fields can become normal
-  semantic `valueKey`s.
-- Supported transform operations are `percentChange`, `difference`/`subtract`, `ratio`/`divide`,
-  `add`, and `multiply`, plus literal field/value expressions.
-- Missing operands, non-numeric operands in numeric operations, and division by zero resolve to
-  `null`.
 - Visual metadata is shared table/tabular metadata, not a new connection output contract.
+- Formula display columns are presentation metadata. They can render row-local values from fields
+  already present in the same incoming row, but they are not source transforms and do not create
+  reusable semantic `valueKey`s.
 - The Asset Screener is a table-backed market adapter. It derives market rows and semantic column
   meaning, then delegates shared table presentation metadata, schema defaults, conditional rules,
   and rendering to the core table pipeline.
 - Visual `format`, ranges, `kind: "bar"`, and `kind: "heatmap"` are mapped into the table frame's
   formatting, visual-range, data-bar, and heatmap behavior.
-- In `columnConfigMode: "source"`, visual metadata decides which source/computed fields become
+- In `columnConfigMode: "source"`, visual metadata decides which source/formula fields become
   visible columns even when `meta.marketAsset` is absent. Instance `columns` overrides remain
   normal widget props.
 
@@ -762,8 +710,10 @@ connection output contract.
 When a source can produce a richer table, it may put calculation and visual intent in frame `meta`
 instead of changing its connection contract. Example: a normal latest snapshot frame can include
 `last_price`, `previous_close`, `one_month_ago`, `year_start`, `one_year_ago`, and
-`sparkline_prices`; `meta.tableTransforms` derives `oneDayReturn`; `meta.marketAsset` marks the
-baseline fields as inline references and `sparkline_prices` as an inline ordered series.
+`sparkline_prices`; `meta.tableVisuals.columns` can declare formula display columns for returns;
+`meta.marketAsset` marks the baseline fields as inline references and `sparkline_prices` as an
+inline ordered series. If those returns must be reusable downstream data fields, an upstream
+`tabular-transform` should materialize them before the screener consumes the frame.
 
 Representative `seedData` row shape:
 
@@ -968,8 +918,8 @@ Backend contract impact:
   frames
 - no backend connection registry output-contract changes are required or desired for this widget
 - backend sources that want to propose a default screener layout may include
-  `meta.tableVisuals.columns`, `meta.tableTransforms.computedColumns`, and
-  `meta.marketAsset.fieldRoles` in normal `core.tabular_frame@v1` payloads
+  `meta.tableVisuals.columns` and `meta.marketAsset.fieldRoles` in normal
+  `core.tabular_frame@v1` payloads
 - backend adapters must continue to enforce their own permissions and source constraints before
   returning data
 
@@ -1002,7 +952,8 @@ Use this checklist when implementation starts.
 - [x] Add internal field-role metadata for the snapshot role.
 - [x] Add internal inline `referenceValue` semantics for snapshot frames.
 - [x] Add internal inline `sparklineSeries` semantics for snapshot frames.
-- [x] Add row-local `meta.tableTransforms` support for computed screener values.
+- [x] Keep row-local reusable computed screener values owned by upstream `tabular-transform`
+  materialized output.
 - [x] Add source-driven column configuration from `meta.tableVisuals` with instance override
   support.
 

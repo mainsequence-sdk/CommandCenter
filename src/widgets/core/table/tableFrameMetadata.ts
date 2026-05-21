@@ -1,6 +1,5 @@
 import type { TabularFrameFieldSchema, TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";
 
-export const tableTransformsMetaKey = "tableTransforms" as const;
 export const tableVisualsMetaKey = "tableVisuals" as const;
 
 export type TableFrameScalarValue = number | string | boolean | null;
@@ -39,10 +38,6 @@ export interface TableFrameComputedColumn {
   label?: string;
   type?: "number" | "string" | "boolean" | "json";
   expression: TableFrameExpression;
-}
-
-export interface TableFrameTransformsMetadata {
-  computedColumns?: TableFrameComputedColumn[];
 }
 
 export interface TableFrameColorScaleMetadata {
@@ -174,84 +169,6 @@ function normalizeInlineSeriesEncoding(value: unknown): TableFrameInlineSeriesEn
 
 function normalizeSeriesOrder(value: unknown): TableFrameSeriesOrder | undefined {
   return value === "oldest-to-newest" || value === "newest-to-oldest" ? value : undefined;
-}
-
-function normalizeExpression(value: unknown): TableFrameExpression | null {
-  if (!isPlainRecord(value)) {
-    return null;
-  }
-
-  if (typeof value.field === "string" && value.field.trim()) {
-    return { field: value.field.trim() };
-  }
-
-  if ("value" in value) {
-    const normalizedValue = normalizeValue(value.value);
-    return { value: normalizedValue === undefined ? null : normalizedValue };
-  }
-
-  if (value.op === "difference" || value.op === "subtract") {
-    const left = normalizeExpression(value.left);
-    const right = normalizeExpression(value.right);
-
-    return left && right ? { op: value.op, left, right } : null;
-  }
-
-  if (value.op === "percentChange") {
-    const current = normalizeExpression(value.current);
-    const reference = normalizeExpression(value.reference);
-
-    return current && reference ? { op: value.op, current, reference } : null;
-  }
-
-  if (value.op === "ratio" || value.op === "divide") {
-    const numerator = normalizeExpression(value.numerator);
-    const denominator = normalizeExpression(value.denominator);
-
-    return numerator && denominator ? { op: value.op, numerator, denominator } : null;
-  }
-
-  if (value.op === "add" || value.op === "multiply") {
-    const args = Array.isArray(value.args)
-      ? value.args.flatMap((entry) => {
-          const expression = normalizeExpression(entry);
-          return expression ? [expression] : [];
-        })
-      : [];
-
-    return args.length > 0 ? { op: value.op, args } : null;
-  }
-
-  return null;
-}
-
-function normalizeComputedColumnType(value: unknown): TableFrameComputedColumn["type"] | undefined {
-  return value === "number" ||
-    value === "string" ||
-    value === "boolean" ||
-    value === "json"
-    ? value
-    : undefined;
-}
-
-function normalizeComputedColumn(value: unknown): TableFrameComputedColumn | null {
-  if (!isPlainRecord(value)) {
-    return null;
-  }
-
-  const id = normalizeString(value.id ?? value.key ?? value.field);
-  const expression = normalizeExpression(value.expression);
-
-  if (!id || !expression) {
-    return null;
-  }
-
-  return {
-    id,
-    label: normalizeString(value.label),
-    type: normalizeComputedColumnType(value.type),
-    expression,
-  };
 }
 
 function normalizeColorScale(value: unknown): TableFrameColorScaleMetadata | undefined {
@@ -425,39 +342,13 @@ function normalizeVisualColumnMetadata(value: unknown): TableFrameVisualColumnMe
 }
 
 export function buildTableFrameMeta(metadata: {
-  tableTransforms?: TableFrameTransformsMetadata;
   tableVisuals?: TableFrameVisualsMetadata;
 }): {
-  [tableTransformsMetaKey]?: TableFrameTransformsMetadata;
   [tableVisualsMetaKey]?: TableFrameVisualsMetadata;
 } {
   return {
-    ...(metadata.tableTransforms ? { [tableTransformsMetaKey]: metadata.tableTransforms } : {}),
     ...(metadata.tableVisuals ? { [tableVisualsMetaKey]: metadata.tableVisuals } : {}),
   };
-}
-
-export function resolveTableTransformsMetadata(
-  frame: Pick<TabularFrameSourceV1, "meta"> | null | undefined,
-): TableFrameTransformsMetadata | null {
-  if (!frame?.meta || !isPlainRecord(frame.meta)) {
-    return null;
-  }
-
-  const value = frame.meta[tableTransformsMetaKey];
-
-  if (!isPlainRecord(value)) {
-    return null;
-  }
-
-  const computedColumns = Array.isArray(value.computedColumns)
-    ? value.computedColumns.flatMap((entry) => {
-        const normalized = normalizeComputedColumn(entry);
-        return normalized ? [normalized] : [];
-      })
-    : [];
-
-  return computedColumns.length > 0 ? { computedColumns } : null;
 }
 
 export function resolveTableVisualsMetadata(
@@ -660,7 +551,7 @@ export function applyResolvedTableComputedColumns(
         nullable: true,
         nativeType: column.type ?? null,
         provenance: "derived",
-        reason: "Computed from meta.tableTransforms before widget-local presentation.",
+        reason: "Computed by widget-owned formula runtime.",
         derivedFrom: Array.from(new Set(expressionFieldNames(column.expression))),
       } satisfies TabularFrameFieldSchema];
     }),
@@ -672,11 +563,4 @@ export function applyResolvedTableComputedColumns(
     rows,
     fields: fields.length > 0 ? fields : undefined,
   };
-}
-
-export function applyTableComputedColumns(
-  frame: TabularFrameSourceV1,
-): TabularFrameSourceV1 {
-  const transforms = resolveTableTransformsMetadata(frame);
-  return applyResolvedTableComputedColumns(frame, transforms?.computedColumns ?? []);
 }

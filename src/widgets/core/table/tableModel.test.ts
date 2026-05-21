@@ -439,7 +439,7 @@ describe("table widget table controls", () => {
     expect(reordered[1]).not.toBe(original[0]);
   });
 
-  it("applies shared source metadata for computed columns and visuals", () => {
+  it("ignores source tableTransforms metadata and applies only table visuals", () => {
     const frameInput = buildTableWidgetFrameFromRemoteData(
       null,
       [
@@ -479,14 +479,6 @@ describe("table widget table controls", () => {
               decimals: 2,
               width: 120,
             },
-            one_day_return: {
-              label: "1D",
-              format: "percent",
-              thresholds: [
-                { operator: "lt", value: 0, tone: "warning" },
-                { operator: "gt", value: 0, tone: "success" },
-              ],
-            },
             sparkline_prices: {
               label: "Trend",
               kind: "sparkline",
@@ -502,13 +494,11 @@ describe("table widget table controls", () => {
       "last_price",
       "previous_close",
       "sparkline_prices",
-      "one_day_return",
     ]);
 
     const resolved = resolveTableWidgetPropsWithFrame({}, frameInput);
     const identifierColumn = resolved.schema.find((column) => column.key === "unique_identifier");
     const lastColumn = resolved.schema.find((column) => column.key === "last_price");
-    const returnColumn = resolved.schema.find((column) => column.key === "one_day_return");
 
     expect(identifierColumn).toMatchObject({
       label: "Identifier",
@@ -520,20 +510,7 @@ describe("table widget table controls", () => {
       format: "number",
       minWidth: 120,
     });
-    expect(returnColumn).toMatchObject({
-      label: "1D",
-      format: "percent",
-    });
-    expect(resolved.columnOverrides.one_day_return).toMatchObject({
-      compact: false,
-    });
-    expect(resolved.conditionalRules).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ columnKey: "one_day_return", operator: "lt", tone: "warning" }),
-        expect.objectContaining({ columnKey: "one_day_return", operator: "gt", tone: "success" }),
-      ]),
-    );
-    expect(resolved.rows[0]?.[resolved.columns.indexOf("one_day_return")]).toBe(10);
+    expect(resolved.schema.some((column) => column.key === "one_day_return")).toBe(false);
   });
 
   it("accepts source-declared formula columns from table visual metadata", () => {

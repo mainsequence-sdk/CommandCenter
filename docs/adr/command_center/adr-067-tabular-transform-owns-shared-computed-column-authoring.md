@@ -9,7 +9,7 @@
 
 ## Context
 
-The codebase already supports shared source-level computed columns through
+The codebase previously supported shared source-level computed columns through
 `meta.tableTransforms.computedColumns`.
 
 Today that contract is:
@@ -64,17 +64,18 @@ Those widgets may still:
 
 But they should not be the primary owner for shared source-level transform authoring.
 
-### 3. `meta.tableTransforms` Becomes Transform-Widget Output Semantics
+### 3. `meta.tableTransforms` Becomes Transform-Widget-Only Metadata
 
-The shared computed-column contract remains a reusable frame contract, but its explicit client
-authoring owner becomes `tabular-transform`.
+The shared computed-column contract remains transform-owned metadata. Its explicit client
+authoring owner is `tabular-transform`.
 
 The intended direction is:
 
 - `tabular-transform` settings author computed-column definitions
 - the transform widget applies them as part of its execution/runtime output
-- downstream Table, Pro Table, Asset Screener, and other tabular consumers receive the transformed
-  frame
+- downstream Table, Pro Table, Asset Screener, and other tabular consumers receive materialized
+  derived columns as normal frame columns
+- Table, Pro Table, and Asset Screener must not apply incoming source `meta.tableTransforms`
 
 This keeps analytical transforms visible in the graph instead of hiding them inside arbitrary
 source payload metadata.
@@ -96,11 +97,12 @@ derived market metrics should be authored upstream in the visible transform node
 
 ### 5. Backward Compatibility Must Be Preserved During Migration
 
-Existing incoming frames that still contain `meta.tableTransforms` should not break immediately.
+Existing incoming frames that still contain `meta.tableTransforms` should not break rendering, but
+tabular consumers should ignore the metadata rather than compute hidden columns from it.
 
 However, the authoring direction should change:
 
-- backward-compatible runtime consumption may remain temporarily
+- backward compatibility means safe no-op handling, not hidden computation
 - new client authoring should move to `tabular-transform`
 - documentation and examples should stop treating hidden `meta.tableTransforms` payload authoring
   as the normal user path
@@ -122,7 +124,9 @@ However, the authoring direction should change:
   widget itself.
 - [x] Decide whether the transform output should publish materialized rows only, retained
   `meta.tableTransforms`, or both; document the chosen contract clearly.
-  Chosen contract: publish both materialized rows and `meta.tableTransforms.computedColumns`.
+  Chosen contract: `tabular-transform` may retain `meta.tableTransforms.computedColumns` as
+  transform-owned provenance, but downstream table-like consumers use the materialized rows and
+  fields, not the metadata, for rendering.
 - [x] Keep output shape aligned with `core.tabular_frame@v1`.
 - [x] Preserve field provenance for transform-created columns as derived fields.
 
@@ -146,7 +150,8 @@ However, the authoring direction should change:
 
 - [x] Audit existing examples, mocks, and docs that depend on hidden `meta.tableTransforms`
   payloads.
-- [x] Preserve runtime backward compatibility for already-published frames during the migration.
+- [x] Preserve runtime backward compatibility for already-published frames by ignoring
+  `meta.tableTransforms` safely in table-like consumers.
 - [ ] Add regression coverage for transform-authored computed columns flowing into downstream
   `table`, `pro-table`, and Asset Screener consumers.
 

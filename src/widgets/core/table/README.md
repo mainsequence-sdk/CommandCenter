@@ -24,7 +24,7 @@ tabular frame.
 - `ManualTableEditor.tsx`: spreadsheet-style editor for manual display rows.
 - `tableModel.ts`: table configuration normalization, frame adaptation, schema resolution, selection output resolution, formatting helpers, datetime parsing/rendering, and validation.
 - `tableFormulaCompiler.ts`: shared column-formula parser that compiles settings-authored formula
-  strings into the existing `meta.tableTransforms` expression model.
+  strings into the table runtime's computed-column expression model.
 - `tableVariant.ts`: shared Community vs Pro variant typing for the table-definition layer.
 - `USAGE_GUIDANCE.md`: registry-synced authoring guidance.
 
@@ -41,7 +41,7 @@ tabular frame.
   rail.
 - Bound mode reads the shared incremental consumer's patched retained frame when `seedData` and
   `liveUpdates` are bound. Keyed live rows patch only the fields they publish; omitted seed fields
-  remain intact, and the seed frame owns columns, fields, visual metadata, and formula metadata.
+  remain intact, and the seed frame owns columns, fields, and visual metadata.
 - `liveMergeKeyMappings` is applied by the table model as final row identity, not only by the
   incremental stream helper. Repeated rows with the same mapped identity collapse into one rendered
   and published row, regardless of whether the frame came from HTTP, WebSocket, Tabular Transform,
@@ -85,11 +85,10 @@ tabular frame.
   Query and Tabular Transform.
 - Incoming `fields[]` metadata is preserved where possible. When missing, the table infers display
   schema from columns and sampled rows.
-- Incoming `meta.tableTransforms` and `meta.tableVisuals` are shared frame metadata blocks that
-  the table consumes. The normal client authoring surface for shared computed columns is now
-  `tabular-transform`; the table remains a consumer of that frame contract. It applies computed
-  columns before schema resolution, then uses visual metadata as the effective source defaults for
-  labels, formats, decimal precision, widths, conditional rules, and numeric visuals.
+- Table and Pro Table do not execute source-declared transform metadata. Shared row transforms
+  belong to an upstream `tabular-transform` widget, which materializes derived columns before the
+  table consumes the frame. The table consumes `meta.tableVisuals` as the effective source defaults
+  for labels, formats, decimal precision, widths, conditional rules, and numeric visuals.
   `buildTableWidgetSourceVisualContractFromFrame(...)` in `tableModel.ts` is the canonical
   constructor for that source-owned visual contract; table-backed domain widgets should reuse it
   instead of rebuilding threshold or visual metadata privately.
@@ -100,8 +99,7 @@ tabular frame.
   `visible: false`.
 - `pro-table` adds one shared column-formula authoring path on top of that same runtime contract.
   Formula columns are persisted in shared table props, compiled by `tableFormulaCompiler.ts`, and
-  then applied through the same computed-column frame path used by source-owned
-  `meta.tableTransforms`.
+  applied by the table runtime as widget-owned computed columns.
 - Formula authoring is settings-only in the first implementation. The live widget surface stays
   selection-oriented and does not become a spreadsheet editor.
 - Gauge columns render as centered diverging bars in the shared table frame. Positive values fill

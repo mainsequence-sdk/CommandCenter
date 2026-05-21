@@ -35,7 +35,6 @@ import {
   type ResolvedUpstreamConsumerState,
 } from "@/widgets/shared/upstream-consumer-state";
 import {
-  applyTableComputedColumns,
   applyResolvedTableComputedColumns,
   resolveTableVisualsMetadata,
   type TableFrameComputedColumn,
@@ -924,7 +923,7 @@ function normalizeTone(value: unknown): TableWidgetTone | undefined {
 function normalizeTableWidgetSourceFrame(
   frame: TabularFrameSourceV1 | null,
 ) {
-  return frame ? applyTableComputedColumns(frame) : null;
+  return frame;
 }
 
 function tableWidgetFormatFromSourceVisual(

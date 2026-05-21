@@ -475,7 +475,13 @@ export function buildAssetScreenerTableFrame({
   frame: TableWidgetResolvedFrameInput;
   rowObjects: TableWidgetRow[];
 } {
-  const columnIds = columns.map((column) => column.id);
+  const hiddenSourceColumns = (sourceColumns ?? []).filter(
+    (sourceColumn) =>
+      sourceColumn.visual?.visible === false &&
+      !columns.some((column) => column.id === sourceColumn.id),
+  );
+  const frameColumns = [...columns, ...hiddenSourceColumns];
+  const columnIds = frameColumns.map((column) => column.id);
   const sourceVisualContract = buildTableWidgetSourceVisualContractFromFrame(sourceFrame);
   const sourceSchemaByKey = new Map(
     (sourceVisualContract?.schemaFallback ?? []).map((entry) => [entry.key, entry] as const),
@@ -483,9 +489,9 @@ export function buildAssetScreenerTableFrame({
   const sourceColumnOverrides = sourceVisualContract?.sourceColumnOverrides ?? {};
   const sourceConditionalRules = sourceVisualContract?.sourceConditionalRules ?? [];
   const sourceAliasByColumnId = new Map(
-    columns.map((column) => [column.id, resolveSourceColumnAlias(sourceColumns, column)] as const),
+    frameColumns.map((column) => [column.id, resolveSourceColumnAlias(sourceColumns, column)] as const),
   );
-  const schemaFallback = columns.map<TableWidgetColumnSchema>((column) => {
+  const schemaFallback = frameColumns.map<TableWidgetColumnSchema>((column) => {
     const sourceAlias = sourceAliasByColumnId.get(column.id);
     const sourceSchema = sourceAlias ? sourceSchemaByKey.get(sourceAlias) : undefined;
     const format = sourceSchema?.format ?? tableFormatForColumn(column, undefined);
@@ -515,16 +521,16 @@ export function buildAssetScreenerTableFrame({
     };
   });
   const frameRows = rows.map((row) =>
-    columns.map((column) => tableValueForColumn(row, column)),
+    frameColumns.map((column) => tableValueForColumn(row, column)),
   );
   const rowObjects = rows.map<AssetScreenerTableRowObject>((row, rowIndex) => ({
     __assetKey: row.asset.assetKey,
     ...Object.fromEntries(
-      columns.map((column, columnIndex) => [column.id, frameRows[rowIndex]?.[columnIndex] ?? null]),
+      frameColumns.map((column, columnIndex) => [column.id, frameRows[rowIndex]?.[columnIndex] ?? null]),
     ),
   }));
   const aliasedSourceColumnOverrides = Object.fromEntries(
-    columns.flatMap((column) => {
+    frameColumns.flatMap((column) => {
       const sourceAlias = sourceAliasByColumnId.get(column.id);
       const sourceOverride = sourceAlias ? sourceColumnOverrides[sourceAlias] : undefined;
       const alignOverride =
@@ -541,7 +547,7 @@ export function buildAssetScreenerTableFrame({
       return combinedOverride ? [[column.id, combinedOverride] as const] : [];
     }),
   );
-  const aliasedSourceConditionalRules = columns.flatMap((column) => {
+  const aliasedSourceConditionalRules = frameColumns.flatMap((column) => {
     const sourceAlias = sourceAliasByColumnId.get(column.id);
 
     if (!sourceAlias) {

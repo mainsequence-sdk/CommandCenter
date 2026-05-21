@@ -357,50 +357,6 @@ const mockSeedData = {
       ],
     }),
     ...buildMarketTableFrameMeta({
-      tableTransforms: {
-        computedColumns: [
-          {
-            id: "one_day_return",
-            label: "1D",
-            type: "number",
-            expression: {
-              op: "percentChange",
-              current: { field: "last_price" },
-              reference: { field: "previous_close" },
-            },
-          },
-          {
-            id: "one_month_return",
-            label: "1M",
-            type: "number",
-            expression: {
-              op: "percentChange",
-              current: { field: "last_price" },
-              reference: { field: "one_month_ago" },
-            },
-          },
-          {
-            id: "ytd_return",
-            label: "YTD",
-            type: "number",
-            expression: {
-              op: "percentChange",
-              current: { field: "last_price" },
-              reference: { field: "year_start" },
-            },
-          },
-          {
-            id: "one_year_return",
-            label: "1Y",
-            type: "number",
-            expression: {
-              op: "percentChange",
-              current: { field: "last_price" },
-              reference: { field: "one_year_ago" },
-            },
-          },
-        ],
-      },
       tableVisuals: {
         columns: {
           Symbol: {
@@ -416,9 +372,31 @@ const mockSeedData = {
             format: "price",
             width: 108,
           },
+          previous_close: {
+            label: "Previous close",
+            format: "price",
+            visible: false,
+          },
+          one_month_ago: {
+            label: "One month ago",
+            format: "price",
+            visible: false,
+          },
+          year_start: {
+            label: "Year start",
+            format: "price",
+            visible: false,
+          },
+          one_year_ago: {
+            label: "One year ago",
+            format: "price",
+            visible: false,
+          },
           ytd_return: {
             label: "YTD",
-            format: "percent",
+            format: "formula",
+            formulaExpression: "PERCENT_CHANGE([last_price], [year_start])",
+            formulaResultFormat: "percent",
             heatmap: true,
             gradientMode: "fill",
             heatmapPalette: "red-yellow-green",
@@ -428,7 +406,9 @@ const mockSeedData = {
           },
           one_day_return: {
             label: "1D",
-            format: "percent",
+            format: "formula",
+            formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+            formulaResultFormat: "percent",
             gaugeMode: "ring",
             visualRangeMode: "fixed",
             visualMin: -3,
@@ -441,7 +421,9 @@ const mockSeedData = {
           },
           one_year_return: {
             label: "1Y",
-            format: "percent",
+            format: "formula",
+            formulaExpression: "PERCENT_CHANGE([last_price], [one_year_ago])",
+            formulaResultFormat: "percent",
             colorScale: { negative: "danger", positive: "success" },
             visualRangeMode: "fixed",
             visualMin: -12,
@@ -456,7 +438,9 @@ const mockSeedData = {
           },
           one_month_return: {
             label: "1M",
-            format: "percent",
+            format: "formula",
+            formulaExpression: "PERCENT_CHANGE([last_price], [one_month_ago])",
+            formulaResultFormat: "percent",
             colorScale: { negative: "danger", positive: "success" },
             visualRangeMode: "fixed",
             visualMin: -10,
@@ -474,7 +458,7 @@ const mockSeedData = {
 
 export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScreenerWidgetProps>({
   id: "ms-markets-asset-screener",
-  widgetVersion: "1.11.1",
+  widgetVersion: "1.11.2",
   title: "Asset Screener",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
@@ -541,7 +525,7 @@ export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScr
       ],
       configurationNotes: [
         "Generic tabular frames can use explicit field mappings or meta.marketAsset field roles.",
-        "Row-local meta.tableTransforms can compute derived value keys before market semantic adaptation.",
+        "Derived return columns use shared table formula columns declared in meta.tableVisuals.columns.",
         "Columns are dynamic view config over stable value keys such as price, volume, or marketCap.",
         "Managed connection mode still uses generic connection-query or connection-stream-query widgets; it does not create a market-specific connection contract.",
       ],

@@ -422,6 +422,36 @@ describe("assetScreenerModel", () => {
     expect(state.filteredRows[0]?.metrics.pct).toBeCloseTo(4);
   });
 
+  it("applies saved table live merge mappings when resolving live updates", () => {
+    const state = resolveAssetScreenerState({
+      props: propsWithDefaultColumns({
+        table: {
+          liveMergeKeyMappings: [{ seedField: "Symbol", liveField: "symbol" }],
+        },
+      }),
+      fallbackFrames: {
+        seedData: marketSeedFrame([
+          {
+            unique_identifier: "uid:BTCUSDT",
+            Symbol: "BTCUSDT",
+            sector: "Layer 1",
+            time: "2026-05-19T13:00:00.000Z",
+            last_price: 109420,
+          },
+        ]),
+        liveUpdates: frame([
+          {
+            symbol: "BTCUSDT",
+            last: 109500,
+          },
+        ]),
+      },
+    });
+
+    expect(state.filteredRows).toHaveLength(1);
+    expect(state.filteredRows[0]?.metrics.last).toBe(109500);
+  });
+
   it("derives dynamic metric columns from configured value keys", () => {
     const state = resolveAssetScreenerState({
       props: {
@@ -541,76 +571,40 @@ describe("assetScreenerModel", () => {
               encoding: "csv-number",
               order: "oldest-to-newest",
             },
-            { field: "one_day_return", role: "value", valueKey: "oneDayReturn" },
-            { field: "one_month_return", role: "value", valueKey: "oneMonthReturn" },
-            { field: "ytd_return", role: "value", valueKey: "ytdReturn" },
-            { field: "one_year_return", role: "value", valueKey: "oneYearReturn" },
           ],
         }),
         ...buildMarketTableFrameMeta({
-          tableTransforms: {
-            computedColumns: [
-              {
-                id: "one_day_return",
-                label: "1D",
-                type: "number",
-                expression: {
-                  op: "percentChange",
-                  current: { field: "last_price" },
-                  reference: { field: "previous_close" },
-                },
-              },
-              {
-                id: "one_month_return",
-                label: "1M",
-                type: "number",
-                expression: {
-                  op: "percentChange",
-                  current: { field: "last_price" },
-                  reference: { field: "one_month_ago" },
-                },
-              },
-              {
-                id: "ytd_return",
-                label: "YTD",
-                type: "number",
-                expression: {
-                  op: "percentChange",
-                  current: { field: "last_price" },
-                  reference: { field: "year_start" },
-                },
-              },
-              {
-                id: "one_year_return",
-                label: "1Y",
-                type: "number",
-                expression: {
-                  op: "percentChange",
-                  current: { field: "last_price" },
-                  reference: { field: "one_year_ago" },
-                },
-              },
-            ],
-          },
           tableVisuals: {
             columns: {
               Symbol: { label: "Symbol" },
               sector: { label: "Sector" },
               last_price: { format: "price" },
               one_day_return: {
-                format: "percent",
+                label: "1D",
+                format: "formula",
+                formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+                formulaResultFormat: "percent",
                 colorScale: { negative: "warning", neutral: "muted", positive: "success" },
               },
               one_month_return: {
-                format: "percent",
+                label: "1M",
+                format: "formula",
+                formulaExpression: "PERCENT_CHANGE([last_price], [one_month_ago])",
+                formulaResultFormat: "percent",
                 colorScale: { negative: "warning", neutral: "muted", positive: "success" },
               },
               ytd_return: {
-                format: "percent",
+                label: "YTD",
+                format: "formula",
+                formulaExpression: "PERCENT_CHANGE([last_price], [year_start])",
+                formulaResultFormat: "percent",
                 colorScale: { negative: "warning", neutral: "muted", positive: "success" },
               },
               one_year_return: {
-                format: "percent",
+                label: "1Y",
+                format: "formula",
+                formulaExpression: "PERCENT_CHANGE([last_price], [one_year_ago])",
+                formulaResultFormat: "percent",
                 colorScale: { negative: "warning", neutral: "muted", positive: "success" },
               },
               sparkline_prices: {
@@ -645,15 +639,14 @@ describe("assetScreenerModel", () => {
     expect(sourceDriven.columns.find((column) => column.id === "one_day_return")).toMatchObject({
       kind: "latest-value",
       label: "1D",
-      valueField: "oneDayReturn",
-      format: "percent",
+      valueField: "one_day_return",
+      format: "formula",
       visual: {
+        formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+        formulaResultFormat: "percent",
         colorScale: { negative: "warning", neutral: "muted", positive: "success" },
       },
     });
-    expect(sourceDriven.filteredRows[0]?.metrics.one_day_return).toBeCloseTo(
-      (112.25 / 110 - 1) * 100,
-    );
     expect(sourceDriven.filteredRows[0]?.visuals.one_day_return).toMatchObject({
       colorScale: { negative: "warning", neutral: "muted", positive: "success" },
     });
@@ -754,20 +747,6 @@ describe("assetScreenerModel", () => {
         { key: "last_price", label: "Last", type: "number" },
       ],
       meta: buildMarketTableFrameMeta({
-        tableTransforms: {
-          computedColumns: [
-            {
-              id: "one_day_return",
-              label: "1D",
-              type: "number",
-              expression: {
-                op: "percentChange",
-                current: { field: "last_price" },
-                reference: { field: "previous_close" },
-              },
-            },
-          ],
-        },
         tableVisuals: {
           columns: {
             Symbol: { label: "Symbol" },
@@ -775,7 +754,9 @@ describe("assetScreenerModel", () => {
             last_price: { label: "Last", format: "price" },
             one_day_return: {
               label: "1D",
-              format: "percent",
+              format: "formula",
+              formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+              formulaResultFormat: "percent",
               colorScale: { negative: "warning", neutral: "muted", positive: "success" },
             },
             sparkline_prices: {
@@ -820,7 +801,7 @@ describe("assetScreenerModel", () => {
       kind: "latest-value",
       label: "1D",
       valueField: "one_day_return",
-      format: "percent",
+      format: "formula",
       visual: {
         colorScale: { negative: "warning", neutral: "muted", positive: "success" },
       },
@@ -832,9 +813,7 @@ describe("assetScreenerModel", () => {
       width: 128,
     });
     expect(sourceDriven.filteredRows[0]?.metrics.last_price).toBe(112.25);
-    expect(sourceDriven.filteredRows[0]?.metrics.one_day_return).toBeCloseTo(
-      (112.25 / 110 - 1) * 100,
-    );
+    expect(sourceDriven.filteredRows[0]?.metrics.one_day_return).toBeNull();
   });
 
   it("derives settings-visible source columns from runtime data refs", () => {
@@ -1137,29 +1116,16 @@ describe("assetScreenerModel", () => {
               referenceKey: "previousClose",
               valueKey: "price",
             },
-            { field: "one_day_return", role: "value", valueKey: "oneDayReturn" },
           ],
         }),
         ...buildMarketTableFrameMeta({
-          tableTransforms: {
-            computedColumns: [
-              {
-                id: "one_day_return",
-                label: "1D",
-                type: "number",
-                expression: {
-                  op: "percentChange",
-                  current: { field: "last_price" },
-                  reference: { field: "previous_close" },
-                },
-              },
-            ],
-          },
           tableVisuals: {
             columns: {
               one_day_return: {
                 label: "1D",
-                format: "percent",
+                format: "formula",
+                formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+                formulaResultFormat: "percent",
                 thresholds: [
                   { operator: "lt", value: 0, tone: "warning" },
                   { operator: "gt", value: 0, tone: "success" },
@@ -1185,7 +1151,8 @@ describe("assetScreenerModel", () => {
       id: "one_day_return",
       label: "1D",
       kind: "latest-value",
-      valueField: "oneDayReturn",
+      valueField: "one_day_return",
+      format: "formula",
     });
   });
 

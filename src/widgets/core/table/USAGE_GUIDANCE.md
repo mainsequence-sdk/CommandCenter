@@ -38,10 +38,11 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - For connection mode, open `Bindings`, click `Add connection`, then configure the dedicated `Connection` tab. Managed HTTP sources bind `dataset` to `seedData`; managed WS sources bind `updates` to `liveUpdates`.
 - For manual mode, define columns and rows in the table editor. Manual rows are stored in this table widget's props and are published as the table `dataset` output.
 - Inspect the incoming field schema before editing columns. Prefer upstream `fields` metadata when available; otherwise the table infers labels, types, and numeric eligibility from the current row sample.
-- When an upstream source or `tabular-transform` widget publishes `meta.tableTransforms` or
-  `meta.tableVisuals`, the table uses those as the effective source defaults for computed columns,
-  labels, formats, decimal precision, widths, thresholds, and numeric visuals. Editing a setting
-  creates only a local override for the touched field.
+- The table does not execute source-declared transform metadata. If shared derived columns are
+  needed, create them in an upstream `tabular-transform` widget so they arrive as ordinary
+  materialized frame columns. The table uses `meta.tableVisuals` as source defaults for labels,
+  formats, decimal precision, widths, thresholds, and numeric visuals. Editing a setting creates
+  only a local override for the touched field.
 - Source frames can propose formula display columns through `meta.tableVisuals.columns` by setting
   `format: "formula"`, `formulaExpression`, and `formulaResultFormat`. Include any raw input fields
   the expression references in the frame and set `visible: false` on those input columns when they

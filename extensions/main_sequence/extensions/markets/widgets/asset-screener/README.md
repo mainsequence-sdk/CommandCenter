@@ -37,10 +37,11 @@ trend, and live-update meaning is assigned by the widget input role plus explici
 internal `meta.marketAsset` field-role metadata. Connections should not advertise Asset
 Screener-specific market contracts to feed this widget.
 
-`seedData` is deliberately stricter than a generic table: it must include exact columns named
-`unique_identifier` and `Symbol`. `unique_identifier` is the canonical asset key used for merging
-seed rows and live updates. `Symbol` is the canonical display symbol exposed in the table-backed
-settings model.
+`seedData` is a generic tabular frame. It does not need exact `unique_identifier` or `Symbol`
+columns. Asset identity is resolved from explicit field mappings, `meta.marketAsset` roles, common
+field names such as `symbol` or `ticker`, or an internal row id when the frame has no identity-like
+field. Live updates patch retained rows only when the shared table live merge mapping says which
+seed fields and live fields represent the same row.
 
 The widget can either bind visible upstream sources or own one hidden managed source from the
 settings page:
@@ -69,9 +70,9 @@ Asset Screener interactions are row-oriented even when a downstream widget consu
 full asset row first, then records the clicked column as the active cell inside that selected row.
 The screener does not use free-form cell-range selection as its primary interaction model.
 
-Selection identity is always derived from the canonical asset key, not from a user-configured row
-field list. Internally the screener uses `unique_identifier` / `assetKey` so active selection can
-survive sorting, filtering, grouping, and live updates.
+Selection identity uses the resolved internal row id for each rendered row. When the source provides
+an asset key or symbol-like field that value is used; otherwise the screener assigns a row-local id
+so generic tabular data can still render and publish interaction outputs.
 
 When a downstream widget reference actively consumes one of those interaction outputs and saved
 `table.selectionMode` is still `none`, the screener runtime now infers the minimal interaction mode
@@ -101,9 +102,9 @@ connection responses that publish raw checkpoints such as `previous_close`, `one
 `year_start`, and `one_year_ago` should keep those as flat row fields and declare return columns
 with `format: "formula"` plus a `formulaExpression` in `tableVisuals.columns`; they should not
 publish those returns as source-owned market `value` roles.
-`meta.tableTransforms.computedColumns` is still consumed for backward compatibility and for
-upstream `tabular-transform` output, but it is no longer the recommended way to hand-author an
-Asset Screener mock response.
+Asset Screener does not execute source-declared transform metadata. Shared reusable computed
+columns must be materialized by an upstream `tabular-transform`; screener-local display formulas
+belong in shared table formula columns.
 
 Local screener formulas now belong to the shared Pro-table settings path as well. If a user wants
 one screener-only computed display column such as `YTD` or `Spread %`, that column is authored in

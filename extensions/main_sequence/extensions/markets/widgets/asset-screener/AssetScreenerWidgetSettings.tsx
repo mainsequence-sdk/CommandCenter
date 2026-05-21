@@ -267,7 +267,7 @@ export function AssetScreenerWidgetSettings({
         <label className={fieldClass}>
           <WidgetSettingFieldLabel
             className={labelClass}
-            help="Source metadata lets the backend propose the table columns through meta.marketAsset, meta.tableTransforms, and meta.tableVisuals. Instance override saves only the screener column semantics locally; shared table visuals still resolve from live source metadata or shared table settings."
+            help="Source metadata lets the backend propose the table columns through meta.marketAsset and meta.tableVisuals. Instance override saves only the screener column semantics locally; shared table visuals still resolve from live source metadata or shared table settings."
           >
             Column configuration
           </WidgetSettingFieldLabel>

@@ -19,18 +19,18 @@ connections do not depend on market-specific asset, price, and reference-point s
   baselines and compact trends are seeded through inline metadata on the seed frame.
 - Dynamic metric columns are represented as semantic `valueKey`s such as `price`, `volume`,
   `marketCap`, or `peRatio`; widget column config chooses which value keys to render.
-- Row-local computed metrics can be described in `meta.tableTransforms.computedColumns`. The
-  adapter computes those fields before applying Markets semantic roles, which lets generic frames
-  publish `last_price` and `previous_close` while the widget derives `oneDayReturn`.
+- Shared row-local computed metrics must be materialized before the Markets semantic adapter sees
+  the frame. Use an upstream `tabular-transform` when a reusable dataset needs derived fields such
+  as `oneDayReturn`.
 - Compact terminal visuals can be described in `meta.tableVisuals.columns` and inline
   `sparklineSeries` field roles. This is widget-side interpretation metadata over a generic table,
   not a connection-specific output contract.
 - `meta.tableVisuals.columns` can also propose the default widget column configuration. Widget
   settings should show that derived configuration even when market field-role metadata is absent;
-  `meta.marketAsset.fieldRoles` and optional `meta.tableTransforms.computedColumns` refine the
-  mapping when present. Instance-level column overrides remain local widget props and take
-  precedence. Derived columns should carry the source visual metadata on a `visual` property so
-  theme-tone color scales and compact visual hints are not hidden outside settings.
+  `meta.marketAsset.fieldRoles` refine the mapping when present. Instance-level column overrides
+  remain local widget props and take precedence. Derived columns should carry the source visual
+  metadata on a `visual` property so theme-tone color scales and compact visual hints are not
+  hidden outside settings.
 - Metadata precedence is explicit widget field mappings first, Markets metadata second, and
   field-name heuristics last.
 - `meta.tableVisuals` is deliberately descriptive. The shared runtime model preserves all supported

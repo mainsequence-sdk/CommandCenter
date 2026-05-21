@@ -94,11 +94,11 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
 
 ## blockingRequirements
 
-- `seedData` must include exact columns named `unique_identifier` and `Symbol`. `unique_identifier`
-  is the canonical stable row key; `Symbol` is the canonical display symbol used by the settings
-  and runtime table model.
-- `seedData` must expose `unique_identifier` as the stable asset key through
-  `meta.marketAsset.fieldRoles` role `assetKey` or an explicit `assetKeyField` mapping.
+- `seedData` must be a valid `core.tabular_frame@v1` frame with at least one row field that can be
+  displayed or mapped. It does not need exact `unique_identifier` or `Symbol` columns.
+- Live updates patch retained seed rows only when the shared table live merge mapping identifies
+  matching seed and live fields, for example seed field `Symbol` and live field `symbol`. Without a
+  mapping, live rows are treated as separate incoming rows.
 - Every numeric measure used by a latest, return, reference, or sparkline column must be declared as
   role `value`, `referenceValue`, or `sparklineSeries` with a stable `valueKey`.
 - Return columns require inline `referenceValue` fields on `seedData` with stable `referenceKey`s
@@ -163,7 +163,7 @@ The stable relationship is `assetKey + valueKey`, with optional `referenceKey` a
 sparkline values.
 
 - `seedData` initializes asset identity, latest values, inline references, inline sparklines, and
-  row-local computed values.
+  any already-materialized derived values produced upstream.
 - `liveUpdates` patches latest values by `assetKey` and `valueKey`.
 - `referenceValue` fields on `seedData` create named baselines such as `previousClose`,
   `oneMonthAgo`, `yearStart`, and `oneYearAgo`.

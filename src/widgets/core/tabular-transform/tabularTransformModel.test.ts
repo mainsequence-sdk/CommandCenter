@@ -6,7 +6,6 @@ import {
 } from "@/widgets/shared/tabular-frame-source";
 import { readWidgetRuntimeUpdateContext } from "@/widgets/shared/runtime-update";
 import { createRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
-import { applyTableComputedColumns } from "@/widgets/core/table/tableFrameMetadata";
 
 import { resolveTabularTransformOutput, type TabularTransformWidgetProps } from "./tabularTransformModel";
 
@@ -442,7 +441,6 @@ describe("tabular transform filter mode", () => {
       { symbol: "ETHUSDT", last: 2136.36 },
       { symbol: "BTCUSDT", last: 109420.5 },
     ]);
-    expect(applyTableComputedColumns(output).rows).toEqual(output.rows);
   });
 
   it("keeps passthrough mode as the default non-merge behavior", () => {

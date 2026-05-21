@@ -570,10 +570,6 @@ describe("AssetScreenerWidget", () => {
       "Symbol",
       "sector",
       "last_price",
-      "previous_close",
-      "one_month_ago",
-      "year_start",
-      "one_year_ago",
       "price_sparkline",
       "one_day_return",
       "one_month_return",
@@ -1470,20 +1466,6 @@ describe("AssetScreenerWidget", () => {
           ],
         }),
         ...buildMarketTableFrameMeta({
-          tableTransforms: {
-            computedColumns: [
-              {
-                id: "one_day_return",
-                label: "1D",
-                type: "number",
-                expression: {
-                  op: "percentChange",
-                  current: { field: "last_price" },
-                  reference: { field: "previous_close" },
-                },
-              },
-            ],
-          },
           tableVisuals: {
             columns: {
               one_day_return: {

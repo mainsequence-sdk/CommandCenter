@@ -7,7 +7,6 @@ import {
   adaptMarketAssetReferencePointsFrame,
   buildMarketAssetFrameSemanticMeta,
   buildMarketAssetScreenerRuntimeModelFromTabularFrames,
-  buildMarketTableFrameMeta,
   deriveMarketAssetScreenerRows,
   getMarketAssetFrameRoleMetadata,
   MARKET_ASSET_HISTORY_SERIES_FRAME_ROLE,
@@ -40,7 +39,7 @@ describe("marketAssetFrames", () => {
     const references = getMarketAssetFrameRoleMetadata(MARKET_ASSET_REFERENCE_POINTS_FRAME_ROLE);
     const history = getMarketAssetFrameRoleMetadata(MARKET_ASSET_HISTORY_SERIES_FRAME_ROLE);
 
-    expect(snapshot.fieldRoles.some((role) => role.role === "assetKey" && role.required)).toBe(true);
+    expect(snapshot.fieldRoles.some((role) => role.role === "assetKey" && role.required)).toBe(false);
     expect(snapshot.fieldRoles.some((role) => role.role === "value" && role.valueKeyRequired)).toBe(true);
     expect(snapshot.fieldRoles.some((role) => role.role === "referenceValue" && role.valueKeyRequired)).toBe(true);
     expect(snapshot.fieldRoles.some((role) => role.role === "sparklineSeries" && role.valueKeyRequired)).toBe(true);
@@ -131,7 +130,7 @@ describe("marketAssetFrames", () => {
     expect(rows[0]?.metrics.pct).toBeCloseTo(12);
   });
 
-  it("rejects screener seed frames without canonical seed identity columns", () => {
+  it("accepts screener seed frames without canonical unique identifier columns", () => {
     const seed = frame({
       columns: ["legacy_identifier", "symbol", "time", "last_price"],
       rows: [
@@ -157,10 +156,70 @@ describe("marketAssetFrames", () => {
       seedData: seed,
     });
 
-    expect(runtime.latestByKey).toEqual({});
-    expect(runtime.warnings).toContain(
-      "Seed frame is missing required columns: unique_identifier, Symbol.",
-    );
+    expect(runtime.warnings).toEqual([]);
+    expect(runtime.latestByKey["asset:AAPL"]?.values.price).toBe(110);
+    expect(runtime.assetsByKey["asset:AAPL"]?.symbol).toBe("AAPL");
+  });
+
+  it("uses symbol-like fields when no explicit asset key exists", () => {
+    const seed = frame({
+      columns: ["symbol", "last"],
+      rows: [
+        {
+          symbol: "ETHUSDT",
+          last: 2135,
+        },
+      ],
+    });
+
+    const runtime = buildMarketAssetScreenerRuntimeModelFromTabularFrames({
+      seedData: seed,
+    });
+
+    expect(runtime.warnings).toEqual([]);
+    expect(runtime.latestByKey.ETHUSDT?.values.price).toBe(2135);
+    expect(runtime.assetsByKey.ETHUSDT?.symbol).toBe("ETHUSDT");
+  });
+
+  it("uses live merge mappings to patch seed rows when seed and live identity fields differ", () => {
+    const seed = frame({
+      columns: ["unique_identifier", "Symbol", "last_price"],
+      rows: [
+        {
+          unique_identifier: "uid:BTCUSDT",
+          Symbol: "BTCUSDT",
+          time: "2026-05-19T13:00:00.000Z",
+          last_price: 109420,
+        },
+      ],
+      meta: buildMarketAssetFrameSemanticMeta({
+        role: MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
+        fieldRoles: [
+          { field: "unique_identifier", role: "assetKey" },
+          { field: "Symbol", role: "symbol" },
+          { field: "time", role: "observedAt" },
+          { field: "last_price", role: "value", valueKey: "price" },
+        ],
+      }),
+    });
+    const live = frame({
+      columns: ["symbol", "last"],
+      rows: [
+        {
+          symbol: "BTCUSDT",
+          last: 109500,
+        },
+      ],
+    });
+
+    const runtime = buildMarketAssetScreenerRuntimeModelFromTabularFrames({
+      seedData: seed,
+      liveUpdates: live,
+      liveMergeKeyMappings: [{ seedField: "Symbol", liveField: "symbol" }],
+    });
+
+    expect(runtime.latestByKey["uid:BTCUSDT"]?.values.price).toBe(109500);
+    expect(runtime.latestByKey.BTCUSDT).toBeUndefined();
   });
 
   it("uses semantic field-role metadata to adapt reference points", () => {
@@ -197,7 +256,7 @@ describe("marketAssetFrames", () => {
     });
   });
 
-  it("applies table transform metadata before adapting snapshot value semantics", () => {
+  it("ignores table transform metadata before adapting snapshot value semantics", () => {
     const seed = frame({
       columns: ["unique_identifier", "Symbol", "time", "last_price", "previous_close"],
       rows: [
@@ -221,22 +280,20 @@ describe("marketAssetFrames", () => {
             { field: "one_day_return", role: "value", valueKey: "oneDayReturn" },
           ],
         }),
-        ...buildMarketTableFrameMeta({
-          tableTransforms: {
-            computedColumns: [
-              {
-                id: "one_day_return",
-                label: "1D %",
-                type: "number",
-                expression: {
-                  op: "percentChange",
-                  current: { field: "last_price" },
-                  reference: { field: "previous_close" },
-                },
+        tableTransforms: {
+          computedColumns: [
+            {
+              id: "one_day_return",
+              label: "1D %",
+              type: "number",
+              expression: {
+                op: "percentChange",
+                current: { field: "last_price" },
+                reference: { field: "previous_close" },
               },
-            ],
-          },
-        }),
+            },
+          ],
+        },
       },
     });
     const columns: MarketAssetScreenerColumn[] = [
@@ -254,9 +311,9 @@ describe("marketAssetFrames", () => {
     const rows = deriveMarketAssetScreenerRows(runtime, columns);
 
     expect(runtime.latestByKey["asset:AAPL"]?.values.price).toBe(112);
-    expect(runtime.latestByKey["asset:AAPL"]?.values.oneDayReturn).toBeCloseTo(12);
+    expect(runtime.latestByKey["asset:AAPL"]?.values.oneDayReturn).toBeUndefined();
     expect(runtime.referencesByKey["asset:AAPL"]?.previousClose?.values.price).toBe(100);
-    expect(rows[0]?.metrics.oneDayReturn).toBeCloseTo(12);
+    expect(rows[0]?.metrics.oneDayReturn).toBeNull();
   });
 
   it("adapts inline CSV sparkline series from snapshot metadata", () => {

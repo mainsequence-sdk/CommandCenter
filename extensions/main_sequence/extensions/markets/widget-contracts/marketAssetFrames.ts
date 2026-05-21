@@ -5,18 +5,12 @@ import {
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
 import {
-  applyTableComputedColumns,
   buildTableFrameMeta as buildSharedTableFrameMeta,
-  evaluateTableExpression as evaluateSharedTableExpression,
-  resolveTableTransformsMetadata as resolveSharedTableTransformsMetadata,
   resolveTableVisualsMetadata as resolveSharedTableVisualsMetadata,
   type TableFrameColorScaleMetadata as SharedTableFrameColorScaleMetadata,
-  type TableFrameComputedColumn as SharedTableFrameComputedColumn,
-  type TableFrameExpression as SharedTableFrameExpression,
   type TableFrameInlineSeriesEncoding as SharedTableFrameInlineSeriesEncoding,
   type TableFrameRangeMetadata as SharedTableFrameRangeMetadata,
   type TableFrameSeriesOrder as SharedTableFrameSeriesOrder,
-  type TableFrameTransformsMetadata as SharedTableFrameTransformsMetadata,
   type TableFrameVisualBarMode as SharedTableFrameVisualBarMode,
   type TableFrameVisualColumnMetadata as SharedTableFrameVisualColumnMetadata,
   type TableFrameVisualGaugeMode as SharedTableFrameVisualGaugeMode,
@@ -28,11 +22,11 @@ import {
   type TableFrameVisualTone as SharedTableFrameVisualTone,
   type TableFrameThresholdRuleMetadata as SharedTableFrameThresholdRuleMetadata,
 } from "@/widgets/core/table/tableFrameMetadata";
+import type { TabularMergeKeyMapping } from "@/widgets/shared/incremental-tabular-consumer";
 
 export const MARKET_ASSET_SNAPSHOT_FRAME_ROLE = "snapshot" as const;
 export const MARKET_ASSET_REFERENCE_POINTS_FRAME_ROLE = "reference-points" as const;
 export const MARKET_ASSET_HISTORY_SERIES_FRAME_ROLE = "history-series" as const;
-export const MARKET_ASSET_REQUIRED_SEED_COLUMNS = ["unique_identifier", "Symbol"] as const;
 
 export const MARKET_ASSET_FRAME_ROLES = [
   MARKET_ASSET_SNAPSHOT_FRAME_ROLE,
@@ -89,9 +83,6 @@ export type MarketAssetFieldRole =
 
 export type MarketAssetSparklineSeriesEncoding = SharedTableFrameInlineSeriesEncoding;
 export type MarketAssetSparklineSeriesOrder = SharedTableFrameSeriesOrder;
-export type MarketTableExpression = SharedTableFrameExpression;
-export type MarketTableComputedColumn = SharedTableFrameComputedColumn;
-export type MarketTableTransformsMetadata = SharedTableFrameTransformsMetadata;
 export type MarketTableColorScaleMetadata = SharedTableFrameColorScaleMetadata;
 export type MarketTableRangeMetadata = SharedTableFrameRangeMetadata;
 export type MarketTableVisualTone = SharedTableFrameVisualTone;
@@ -322,20 +313,19 @@ export interface BuildMarketAssetScreenerRuntimeModelInput {
   seedMapping?: MarketAssetSnapshotFieldMapping;
   referenceMapping?: MarketAssetReferencePointsFieldMapping;
   liveMapping?: MarketAssetSnapshotFieldMapping;
+  liveMergeKeyMappings?: TabularMergeKeyMapping[];
   historyMapping?: MarketAssetHistorySeriesFieldMapping;
   previousModel?: MarketAssetScreenerRuntimeModel | null;
 }
 
 const semanticMetaKey = "marketAsset";
-const tableTransformsMetaKey = "tableTransforms";
 const tableVisualsMetaKey = "tableVisuals";
 
 const identityRoleMetadata = [
   {
     role: "assetKey",
     label: "Asset key",
-    required: true,
-    description: "Canonical join key used to merge latest, reference, history, and live rows.",
+    description: "Optional row identity used when the source already provides one.",
   },
   {
     role: "symbol",
@@ -438,7 +428,7 @@ export const MARKET_ASSET_FRAME_ROLE_METADATA = {
     ],
     notes: [
       "Used for seedData and liveUpdates lanes.",
-      "Live WebSocket updates may publish partial value rows keyed by assetKey.",
+      "Live WebSocket updates may publish partial value rows. Use live merge mappings when the live row names differ from retained seed rows.",
     ],
   },
   [MARKET_ASSET_REFERENCE_POINTS_FRAME_ROLE]: {
@@ -567,10 +557,8 @@ export function buildMarketAssetFrameSemanticMeta(
 }
 
 export function buildMarketTableFrameMeta(metadata: {
-  tableTransforms?: MarketTableTransformsMetadata;
   tableVisuals?: MarketTableVisualsMetadata;
 }): {
-  [tableTransformsMetaKey]?: MarketTableTransformsMetadata;
   [tableVisualsMetaKey]?: MarketTableVisualsMetadata;
 } {
   return buildSharedTableFrameMeta(metadata);
@@ -760,8 +748,7 @@ function getRowValue(row: Record<string, unknown>, fieldName: string | undefined
 }
 
 function normalizeFrame(frame: TabularFrameSourceV1 | null | undefined) {
-  const normalized = frame ? normalizeTabularFrameSource(frame) : null;
-  return normalized ? applyTableComputedColumns(normalized) : null;
+  return frame ? normalizeTabularFrameSource(frame) : null;
 }
 
 function fieldNamesFromFrame(frame: TabularFrameSourceV1) {
@@ -893,128 +880,6 @@ export function resolveMarketAssetFrameSemanticMetadata(
   }
 
   return normalizeSemanticMetadata(frame.meta[semanticMetaKey]);
-}
-
-function normalizeExpression(value: unknown): MarketTableExpression | null {
-  if (!isPlainRecord(value)) {
-    return null;
-  }
-
-  if (typeof value.field === "string" && value.field.trim()) {
-    return { field: value.field.trim() };
-  }
-
-  if ("value" in value) {
-    const normalizedValue = normalizeValue(value.value);
-    return { value: normalizedValue === undefined ? null : normalizedValue };
-  }
-
-  if (value.op === "difference" || value.op === "subtract") {
-    const left = normalizeExpression(value.left);
-    const right = normalizeExpression(value.right);
-
-    return left && right
-      ? {
-          op: value.op,
-          left,
-          right,
-        }
-      : null;
-  }
-
-  if (value.op === "percentChange") {
-    const current = normalizeExpression(value.current);
-    const reference = normalizeExpression(value.reference);
-
-    return current && reference
-      ? {
-          op: value.op,
-          current,
-          reference,
-        }
-      : null;
-  }
-
-  if (value.op === "ratio" || value.op === "divide") {
-    const numerator = normalizeExpression(value.numerator);
-    const denominator = normalizeExpression(value.denominator);
-
-    return numerator && denominator
-      ? {
-          op: value.op,
-          numerator,
-          denominator,
-        }
-      : null;
-  }
-
-  if (value.op === "add" || value.op === "multiply") {
-    const args = Array.isArray(value.args)
-      ? value.args.flatMap((entry) => {
-          const expression = normalizeExpression(entry);
-          return expression ? [expression] : [];
-        })
-      : [];
-
-    return args.length > 0
-      ? {
-          op: value.op,
-          args,
-        }
-      : null;
-  }
-
-  return null;
-}
-
-function normalizeComputedColumnType(value: unknown): MarketTableComputedColumn["type"] | undefined {
-  return value === "number" ||
-    value === "string" ||
-    value === "boolean" ||
-    value === "json"
-    ? value
-    : undefined;
-}
-
-function normalizeComputedColumn(value: unknown): MarketTableComputedColumn | null {
-  if (!isPlainRecord(value)) {
-    return null;
-  }
-
-  const id = normalizeString(value.id ?? value.key ?? value.field);
-  const expression = normalizeExpression(value.expression);
-
-  if (!id || !expression) {
-    return null;
-  }
-
-  return {
-    id,
-    label: normalizeString(value.label),
-    type: normalizeComputedColumnType(value.type),
-    expression,
-  };
-}
-
-function normalizeTableTransformsMetadata(value: unknown): MarketTableTransformsMetadata | null {
-  if (!isPlainRecord(value)) {
-    return null;
-  }
-
-  const computedColumns = Array.isArray(value.computedColumns)
-    ? value.computedColumns.flatMap((entry) => {
-        const normalized = normalizeComputedColumn(entry);
-        return normalized ? [normalized] : [];
-      })
-    : [];
-
-  return computedColumns.length > 0 ? { computedColumns } : null;
-}
-
-export function resolveMarketTableTransformsMetadata(
-  frame: Pick<TabularFrameSourceV1, "meta"> | null | undefined,
-): MarketTableTransformsMetadata | null {
-  return resolveSharedTableTransformsMetadata(frame);
 }
 
 function normalizeTableVisualFormat(value: unknown): MarketTableVisualColumnMetadata["format"] | undefined {
@@ -1194,43 +1059,6 @@ export function resolveMarketTableVisualsMetadata(
   return resolveSharedTableVisualsMetadata(frame);
 }
 
-function expressionFieldNames(expression: MarketTableExpression): string[] {
-  if ("field" in expression) {
-    return [expression.field];
-  }
-
-  if ("value" in expression) {
-    return [];
-  }
-
-  if (expression.op === "difference" || expression.op === "subtract") {
-    return [
-      ...expressionFieldNames(expression.left),
-      ...expressionFieldNames(expression.right),
-    ];
-  }
-
-  if (expression.op === "percentChange") {
-    return [
-      ...expressionFieldNames(expression.current),
-      ...expressionFieldNames(expression.reference),
-    ];
-  }
-
-  if (expression.op === "ratio" || expression.op === "divide") {
-    return [
-      ...expressionFieldNames(expression.numerator),
-      ...expressionFieldNames(expression.denominator),
-    ];
-  }
-
-  if (expression.op === "add" || expression.op === "multiply") {
-    return expression.args.flatMap((entry) => expressionFieldNames(entry));
-  }
-
-  return [];
-}
-
 function expressionNumber(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
@@ -1242,82 +1070,6 @@ function expressionNumber(value: unknown) {
   }
 
   return null;
-}
-
-export function evaluateMarketTableExpression(
-  expression: MarketTableExpression,
-  row: Record<string, unknown>,
-): MarketAssetScalarValue {
-  return evaluateSharedTableExpression(expression, row);
-}
-
-function coerceComputedValue(value: MarketAssetScalarValue, type: MarketTableComputedColumn["type"]) {
-  if (type === "number") {
-    return expressionNumber(value);
-  }
-
-  if (type === "string") {
-    return value === null || value === undefined ? null : String(value);
-  }
-
-  if (type === "boolean") {
-    return typeof value === "boolean" ? value : null;
-  }
-
-  return value;
-}
-
-function applyMarketTableComputedColumns(frame: TabularFrameSourceV1): TabularFrameSourceV1 {
-  const transforms = resolveMarketTableTransformsMetadata(frame);
-  const computedColumns = transforms?.computedColumns ?? [];
-
-  if (computedColumns.length === 0) {
-    return frame;
-  }
-
-  const rows = frame.rows.map((row) => {
-    const nextRow = { ...row };
-
-    computedColumns.forEach((column) => {
-      nextRow[column.id] = coerceComputedValue(
-        evaluateMarketTableExpression(column.expression, nextRow),
-        column.type,
-      );
-    });
-
-    return nextRow;
-  });
-  const columns = Array.from(new Set([
-    ...frame.columns,
-    ...computedColumns.map((column) => column.id),
-  ]));
-  const existingFieldKeys = new Set((frame.fields ?? []).map((field) => field.key));
-  const fields = [
-    ...(frame.fields ?? []),
-    ...computedColumns.flatMap((column) => {
-      if (existingFieldKeys.has(column.id)) {
-        return [];
-      }
-
-      return [{
-        key: column.id,
-        label: column.label ?? column.id,
-        type: column.type === "number" ? "number" : column.type ?? "unknown",
-        nullable: true,
-        nativeType: column.type ?? null,
-        provenance: "derived",
-        reason: "Computed from meta.tableTransforms before market asset semantic adaptation.",
-        derivedFrom: Array.from(new Set(expressionFieldNames(column.expression))),
-      } satisfies TabularFrameFieldSchema];
-    }),
-  ];
-
-  return {
-    ...frame,
-    columns,
-    rows,
-    fields: fields.length > 0 ? fields : undefined,
-  };
 }
 
 function fieldByRole(
@@ -1644,12 +1396,12 @@ function resolveSourceRunId(frame: TabularFrameSourceV1) {
 function buildIdentity(
   row: Record<string, unknown>,
   mapping: ReturnType<typeof resolveSnapshotMapping>,
+  fallbackAssetKey: MarketAssetKey,
 ): MarketAssetIdentity | null {
-  const assetKey = normalizeKey(getRowValue(row, mapping.assetKeyField));
-
-  if (!assetKey) {
-    return null;
-  }
+  const assetKey =
+    normalizeKey(getRowValue(row, mapping.assetKeyField)) ??
+    normalizeKey(getRowValue(row, mapping.symbolField)) ??
+    fallbackAssetKey;
 
   return {
     assetKey,
@@ -1664,6 +1416,14 @@ function buildIdentity(
     group: normalizeString(getRowValue(row, mapping.groupField)),
     tags: normalizeStringArray(getRowValue(row, mapping.tagsField)),
   };
+}
+
+function fallbackAssetKeyForRow(input: {
+  index: number;
+  lane: "snapshot" | "reference" | "history";
+  sourceRunId?: string;
+}) {
+  return `__${input.lane}:${input.sourceRunId ?? "current"}:${input.index}`;
 }
 
 function compactIdentity(identity: MarketAssetIdentity): MarketAssetIdentity {
@@ -1923,10 +1683,14 @@ function upsertLatestPoint(
   latestByKey: Record<MarketAssetKey, MarketAssetValuePoint>,
   point: MarketAssetValuePoint,
   merge: boolean,
+  options: {
+    allowUntimedPatch?: boolean;
+  } = {},
 ) {
   const current = latestByKey[point.assetKey];
+  const isUntimedPatch = point.observedAtMs === undefined && point.sequence === undefined;
 
-  if (!isNewerPoint(current, point)) {
+  if (!(options.allowUntimedPatch && isUntimedPatch) && !isNewerPoint(current, point)) {
     return;
   }
 
@@ -1940,9 +1704,6 @@ function sourceTimestamp(frame: TabularFrameSourceV1) {
 export function adaptMarketAssetSnapshotFrame(
   frameInput: TabularFrameSourceV1 | null | undefined,
   mapping?: MarketAssetSnapshotFieldMapping,
-  options: {
-    enforceSeedColumns?: boolean;
-  } = {},
 ): MarketAssetSnapshotAdapterResult {
   const frame = normalizeFrame(frameInput);
 
@@ -1980,50 +1741,19 @@ export function adaptMarketAssetSnapshotFrame(
   const historyByKey: Record<MarketAssetKey, MarketAssetValuePoint[]> = {};
   const visualsByKey: Record<MarketAssetKey, Record<string, MarketTableVisualColumnMetadata>> = {};
   const sourceRunId = resolveSourceRunId(frame);
-  const missingSeedColumns = options.enforceSeedColumns
-    ? [
-        ...(!frame.columns.includes("unique_identifier") ? ["unique_identifier"] : []),
-        ...(!frame.columns.includes("Symbol") ? ["Symbol"] : []),
-      ]
-    : [];
-
-  if (missingSeedColumns.length > 0) {
-    return {
-      assetsByKey,
-      latestByKey,
-      referencesByKey,
-      historyByKey,
-      visualsByKey,
-      warnings: [
-        `Seed frame is missing required column${missingSeedColumns.length === 1 ? "" : "s"}: ${missingSeedColumns.join(", ")}.`,
-      ],
-      sourceRunId,
-      updatedAtMs: sourceTimestamp(frame),
-    };
-  }
-
-  if (!resolvedMapping.assetKeyField) {
-    return {
-      assetsByKey,
-      latestByKey,
-      referencesByKey,
-      historyByKey,
-      visualsByKey,
-      warnings: ["Snapshot frame does not expose an asset key field."],
-      sourceRunId,
-      updatedAtMs: sourceTimestamp(frame),
-    };
-  }
 
   if (Object.keys(resolvedMapping.valueFields).length === 0) {
     warnings.push("Snapshot frame does not expose any mapped numeric value fields.");
   }
 
   frame.rows.forEach((row, index) => {
-    const identity = buildIdentity(row, resolvedMapping);
+    const identity = buildIdentity(
+      row,
+      resolvedMapping,
+      fallbackAssetKeyForRow({ index, lane: "snapshot", sourceRunId }),
+    );
 
     if (!identity) {
-      warnings.push(`Snapshot row ${index + 1} is missing an asset key.`);
       return;
     }
 
@@ -2177,16 +1907,6 @@ export function adaptMarketAssetReferencePointsFrame(
   const assetsByKey: Record<MarketAssetKey, MarketAssetIdentity> = {};
   const referencesByKey: Record<MarketAssetKey, Record<string, MarketAssetReferencePoint>> = {};
 
-  if (!resolvedMapping.assetKeyField) {
-    return {
-      assetsByKey,
-      referencesByKey,
-      warnings: ["Reference frame does not expose an asset key field."],
-      sourceRunId: resolveSourceRunId(frame),
-      updatedAtMs: sourceTimestamp(frame),
-    };
-  }
-
   const sourceRunId = resolveSourceRunId(frame);
   const wideReferenceEntries = Object.entries(resolvedMapping.wideReferenceValueFields ?? {});
 
@@ -2201,10 +1921,13 @@ export function adaptMarketAssetReferencePointsFrame(
   }
 
   frame.rows.forEach((row, index) => {
-    const identity = buildIdentity(row, resolvedMapping);
+    const identity = buildIdentity(
+      row,
+      resolvedMapping,
+      fallbackAssetKeyForRow({ index, lane: "reference", sourceRunId }),
+    );
 
     if (!identity) {
-      warnings.push(`Reference row ${index + 1} is missing an asset key.`);
       return;
     }
 
@@ -2288,21 +2011,14 @@ export function adaptMarketAssetHistorySeriesFrame(
   const warnings: string[] = [];
   const sourceRunId = resolveSourceRunId(frame);
 
-  if (!resolvedMapping.assetKeyField) {
-    return {
-      assetsByKey,
-      historyByKey,
-      warnings: ["History frame does not expose an asset key field."],
-      sourceRunId,
-      updatedAtMs: sourceTimestamp(frame),
-    };
-  }
-
   frame.rows.forEach((row, index) => {
-    const identity = buildIdentity(row, resolvedMapping);
+    const identity = buildIdentity(
+      row,
+      resolvedMapping,
+      fallbackAssetKeyForRow({ index, lane: "history", sourceRunId }),
+    );
 
     if (!identity) {
-      warnings.push(`History row ${index + 1} is missing an asset key.`);
       return;
     }
 
@@ -2430,6 +2146,209 @@ function mergeVisualsByKey(
   return nextVisuals;
 }
 
+function normalizeLiveMergeKeyMappings(
+  mappings: readonly TabularMergeKeyMapping[] | undefined,
+): TabularMergeKeyMapping[] {
+  return (Array.isArray(mappings) ? mappings : []).flatMap((mapping) => {
+    const seedField = typeof mapping.seedField === "string" ? mapping.seedField.trim() : "";
+    const liveField = typeof mapping.liveField === "string" ? mapping.liveField.trim() : "";
+
+    return seedField && liveField ? [{ seedField, liveField }] : [];
+  });
+}
+
+function hasMergeValue(value: unknown) {
+  return value !== null && value !== undefined && !(typeof value === "string" && value.trim() === "");
+}
+
+function stringifyMergeValue(value: unknown) {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function resolveMergeField(fieldNames: string[], field: string) {
+  return resolveExplicitFrameField(fieldNames, field) ?? field;
+}
+
+function buildMappedMergeKey(input: {
+  row: Record<string, unknown>;
+  fieldNames: string[];
+  mappings: readonly TabularMergeKeyMapping[];
+  side: "seed" | "live";
+}) {
+  const values: string[] = [];
+
+  for (const mapping of input.mappings) {
+    const field = resolveMergeField(
+      input.fieldNames,
+      input.side === "seed" ? mapping.seedField : mapping.liveField,
+    );
+    const value = input.row[field];
+
+    if (!hasMergeValue(value)) {
+      return null;
+    }
+
+    values.push(stringifyMergeValue(value));
+  }
+
+  return values.join("\u001f");
+}
+
+function buildLiveAssetKeyAliases(input: {
+  seedData?: TabularFrameSourceV1 | null;
+  liveUpdates?: TabularFrameSourceV1 | null;
+  seedMapping?: MarketAssetSnapshotFieldMapping;
+  liveMapping?: MarketAssetSnapshotFieldMapping;
+  liveMergeKeyMappings?: readonly TabularMergeKeyMapping[];
+}) {
+  const mappings = normalizeLiveMergeKeyMappings(input.liveMergeKeyMappings);
+  const seedFrame = normalizeFrame(input.seedData);
+  const liveFrame = normalizeFrame(input.liveUpdates);
+
+  if (mappings.length === 0 || seedFrame?.status !== "ready" || liveFrame?.status !== "ready") {
+    return new Map<MarketAssetKey, MarketAssetKey>();
+  }
+
+  const seedSourceRunId = resolveSourceRunId(seedFrame);
+  const liveSourceRunId = resolveSourceRunId(liveFrame);
+  const seedMapping = resolveSnapshotMapping(seedFrame, input.seedMapping);
+  const liveMapping = resolveSnapshotMapping(liveFrame, input.liveMapping);
+  const seedFieldNames = fieldNamesFromFrame(seedFrame);
+  const liveFieldNames = fieldNamesFromFrame(liveFrame);
+  const seedAssetKeyByMergeKey = new Map<string, MarketAssetKey>();
+
+  seedFrame.rows.forEach((row, index) => {
+    const mergeKey = buildMappedMergeKey({
+      row,
+      fieldNames: seedFieldNames,
+      mappings,
+      side: "seed",
+    });
+
+    if (!mergeKey) {
+      return;
+    }
+
+    const identity = buildIdentity(
+      row,
+      seedMapping,
+      fallbackAssetKeyForRow({ index, lane: "snapshot", sourceRunId: seedSourceRunId }),
+    );
+
+    if (identity) {
+      seedAssetKeyByMergeKey.set(mergeKey, identity.assetKey);
+    }
+  });
+
+  if (seedAssetKeyByMergeKey.size === 0) {
+    return new Map<MarketAssetKey, MarketAssetKey>();
+  }
+
+  const liveAssetKeyAliases = new Map<MarketAssetKey, MarketAssetKey>();
+
+  liveFrame.rows.forEach((row, index) => {
+    const mergeKey = buildMappedMergeKey({
+      row,
+      fieldNames: liveFieldNames,
+      mappings,
+      side: "live",
+    });
+    const seedAssetKey = mergeKey ? seedAssetKeyByMergeKey.get(mergeKey) : undefined;
+
+    if (!seedAssetKey) {
+      return;
+    }
+
+    const identity = buildIdentity(
+      row,
+      liveMapping,
+      fallbackAssetKeyForRow({ index, lane: "snapshot", sourceRunId: liveSourceRunId }),
+    );
+
+    if (identity) {
+      liveAssetKeyAliases.set(identity.assetKey, seedAssetKey);
+    }
+  });
+
+  return liveAssetKeyAliases;
+}
+
+function remapAssetsByAlias(
+  assetsByKey: Record<MarketAssetKey, MarketAssetIdentity>,
+  aliases: ReadonlyMap<MarketAssetKey, MarketAssetKey>,
+) {
+  if (aliases.size === 0) {
+    return assetsByKey;
+  }
+
+  const remapped: Record<MarketAssetKey, MarketAssetIdentity> = {};
+
+  Object.entries(assetsByKey).forEach(([assetKey, asset]) => {
+    const nextAssetKey = aliases.get(assetKey) ?? assetKey;
+    remapped[nextAssetKey] = {
+      ...remapped[nextAssetKey],
+      ...asset,
+      assetKey: nextAssetKey,
+    };
+  });
+
+  return remapped;
+}
+
+function remapHistoryByAlias(
+  historyByKey: Record<MarketAssetKey, MarketAssetValuePoint[]>,
+  aliases: ReadonlyMap<MarketAssetKey, MarketAssetKey>,
+) {
+  if (aliases.size === 0) {
+    return historyByKey;
+  }
+
+  const remapped: Record<MarketAssetKey, MarketAssetValuePoint[]> = {};
+
+  Object.entries(historyByKey).forEach(([assetKey, history]) => {
+    const nextAssetKey = aliases.get(assetKey) ?? assetKey;
+    remapped[nextAssetKey] = [
+      ...(remapped[nextAssetKey] ?? []),
+      ...history.map((point) => ({ ...point, assetKey: nextAssetKey })),
+    ];
+  });
+
+  return remapped;
+}
+
+function remapVisualsByAlias(
+  visualsByKey: Record<MarketAssetKey, Record<string, MarketTableVisualColumnMetadata>>,
+  aliases: ReadonlyMap<MarketAssetKey, MarketAssetKey>,
+) {
+  if (aliases.size === 0) {
+    return visualsByKey;
+  }
+
+  const remapped: Record<MarketAssetKey, Record<string, MarketTableVisualColumnMetadata>> = {};
+
+  Object.entries(visualsByKey).forEach(([assetKey, visuals]) => {
+    const nextAssetKey = aliases.get(assetKey) ?? assetKey;
+    remapped[nextAssetKey] = {
+      ...(remapped[nextAssetKey] ?? {}),
+      ...visuals,
+    };
+  });
+
+  return remapped;
+}
+
 export function buildMarketAssetScreenerRuntimeModelFromTabularFrames(
   input: BuildMarketAssetScreenerRuntimeModelInput,
 ): MarketAssetScreenerRuntimeModel {
@@ -2466,9 +2385,7 @@ export function buildMarketAssetScreenerRuntimeModelFromTabularFrames(
     : emptyRuntimeModel();
 
   if (input.seedData) {
-    const seed = adaptMarketAssetSnapshotFrame(input.seedData, input.seedMapping, {
-      enforceSeedColumns: true,
-    });
+    const seed = adaptMarketAssetSnapshotFrame(input.seedData, input.seedMapping);
     model.assetsByKey = mergeAssets(model.assetsByKey, seed.assetsByKey);
     model.latestByKey = seed.latestByKey;
     model.referencesByKey = mergeReferencesByKey(model.referencesByKey, seed.referencesByKey);
@@ -2502,12 +2419,25 @@ export function buildMarketAssetScreenerRuntimeModelFromTabularFrames(
 
   if (input.liveUpdates) {
     const live = adaptMarketAssetSnapshotFrame(input.liveUpdates, input.liveMapping);
-    model.assetsByKey = mergeAssets(model.assetsByKey, live.assetsByKey);
+    const liveAssetKeyAliases = buildLiveAssetKeyAliases(input);
+    model.assetsByKey = mergeAssets(
+      model.assetsByKey,
+      remapAssetsByAlias(live.assetsByKey, liveAssetKeyAliases),
+    );
     Object.values(live.latestByKey).forEach((point) => {
-      upsertLatestPoint(model.latestByKey, point, true);
+      const assetKey = liveAssetKeyAliases.get(point.assetKey) ?? point.assetKey;
+      upsertLatestPoint(model.latestByKey, { ...point, assetKey }, true, {
+        allowUntimedPatch: true,
+      });
     });
-    model.historyByKey = mergeHistoryByKey(model.historyByKey, live.historyByKey);
-    model.visualsByKey = mergeVisualsByKey(model.visualsByKey, live.visualsByKey);
+    model.historyByKey = mergeHistoryByKey(
+      model.historyByKey,
+      remapHistoryByAlias(live.historyByKey, liveAssetKeyAliases),
+    );
+    model.visualsByKey = mergeVisualsByKey(
+      model.visualsByKey,
+      remapVisualsByAlias(live.visualsByKey, liveAssetKeyAliases),
+    );
     model.sourceState.liveRunId = live.sourceRunId;
     model.sourceState.lastLiveAtMs = live.updatedAtMs;
     model.warnings.push(...live.warnings);

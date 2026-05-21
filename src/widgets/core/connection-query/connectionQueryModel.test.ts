@@ -128,7 +128,6 @@ describe("executeConnectionQueryWidgetRequest", () => {
       "Symbol",
       "sector",
       "last_price",
-      "previous_close",
       "one_day_return",
     ]);
   });
@@ -177,10 +176,6 @@ describe("executeConnectionQueryWidgetRequest", () => {
               encoding: "csv-number",
               valueKey: "price",
             },
-            { role: "value", field: "one_day_return", valueKey: "oneDayReturn" },
-            { role: "value", field: "one_month_return", valueKey: "oneMonthReturn" },
-            { role: "value", field: "ytd_return", valueKey: "ytdReturn" },
-            { role: "value", field: "one_year_return", valueKey: "oneYearReturn" },
           ],
         },
         tableVisuals: {
@@ -188,9 +183,15 @@ describe("executeConnectionQueryWidgetRequest", () => {
             Symbol: { label: "Symbol", width: 112 },
             sector: { label: "Sector", width: 140 },
             last_price: { label: "Last", width: 108, format: "price" },
+            previous_close: { label: "Previous close", format: "price", visible: false },
+            one_month_ago: { label: "One month ago", format: "price", visible: false },
+            year_start: { label: "Year start", format: "price", visible: false },
+            one_year_ago: { label: "One year ago", format: "price", visible: false },
             ytd_return: {
               label: "YTD",
-              format: "percent",
+              format: "formula",
+              formulaExpression: "PERCENT_CHANGE([last_price], [year_start])",
+              formulaResultFormat: "percent",
               heatmap: true,
               visualMax: 20,
               visualMin: -20,
@@ -200,7 +201,9 @@ describe("executeConnectionQueryWidgetRequest", () => {
             },
             one_day_return: {
               label: "1D",
-              format: "percent",
+              format: "formula",
+              formulaExpression: "PERCENT_CHANGE([last_price], [previous_close])",
+              formulaResultFormat: "percent",
               gaugeMode: "ring",
               visualMax: 3,
               visualMin: -3,
@@ -213,7 +216,9 @@ describe("executeConnectionQueryWidgetRequest", () => {
             },
             one_year_return: {
               label: "1Y",
-              format: "percent",
+              format: "formula",
+              formulaExpression: "PERCENT_CHANGE([last_price], [one_year_ago])",
+              formulaResultFormat: "percent",
               visualMax: 30,
               visualMin: -12,
               colorScale: { negative: "danger", positive: "success" },
@@ -228,57 +233,15 @@ describe("executeConnectionQueryWidgetRequest", () => {
             },
             one_month_return: {
               label: "1M",
-              format: "percent",
+              format: "formula",
+              formulaExpression: "PERCENT_CHANGE([last_price], [one_month_ago])",
+              formulaResultFormat: "percent",
               visualMax: 10,
               visualMin: -10,
               colorScale: { negative: "danger", positive: "success" },
               visualRangeMode: "fixed",
             },
           },
-        },
-        tableTransforms: {
-          computedColumns: [
-            {
-              id: "one_day_return",
-              type: "number",
-              label: "1D",
-              expression: {
-                op: "percentChange",
-                current: { field: "last_price" },
-                reference: { field: "previous_close" },
-              },
-            },
-            {
-              id: "one_month_return",
-              type: "number",
-              label: "1M",
-              expression: {
-                op: "percentChange",
-                current: { field: "last_price" },
-                reference: { field: "one_month_ago" },
-              },
-            },
-            {
-              id: "ytd_return",
-              type: "number",
-              label: "YTD",
-              expression: {
-                op: "percentChange",
-                current: { field: "last_price" },
-                reference: { field: "year_start" },
-              },
-            },
-            {
-              id: "one_year_return",
-              type: "number",
-              label: "1Y",
-              expression: {
-                op: "percentChange",
-                current: { field: "last_price" },
-                reference: { field: "one_year_ago" },
-              },
-            },
-          ],
         },
       },
       rows: [

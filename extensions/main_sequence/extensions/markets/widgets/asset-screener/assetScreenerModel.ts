@@ -4,7 +4,6 @@ import {
   MARKET_ASSET_SCREENER_LIVE_UPDATES_INPUT_ID,
   MARKET_ASSET_SCREENER_SEED_INPUT_ID,
   resolveMarketAssetFrameSemanticMetadata,
-  resolveMarketTableTransformsMetadata,
   resolveMarketTableVisualsMetadata,
   type MarketAssetFrameFieldRoleBinding,
   type MarketAssetIdentity,
@@ -730,21 +729,12 @@ function buildSourceColumnsFromFrame(
   }
 
   const visualColumns = resolveMarketTableVisualsMetadata(frame)?.columns ?? {};
-  const computedLabels = new Map(
-    (resolveMarketTableTransformsMetadata(frame)?.computedColumns ?? []).map((column) => [
-      column.id,
-      column.label ?? humanizeFieldLabel(column.id),
-    ]),
-  );
   const fieldLabels = new Map(
     (frame?.fields ?? []).flatMap((field) =>
       field.label ? [[field.key, field.label] as const] : [],
     ),
   );
-  const allowedFields = new Set([
-    ...(frame?.columns ?? []),
-    ...computedLabels.keys(),
-  ]);
+  const allowedFields = new Set(frame?.columns ?? []);
   const fieldRoles = (semanticMetadata?.fieldRoles ?? []).filter((role) => allowedFields.has(role.field));
   const roleByField = new Map(fieldRoles.map((role) => [role.field, role]));
   const columns: MarketAssetScreenerColumn[] = [];
@@ -764,7 +754,7 @@ function buildSourceColumnsFromFrame(
     visual: MarketTableVisualColumnMetadata | undefined,
   ): MarketAssetScreenerColumn | null => {
     const role = roleByField.get(field);
-    const label = visual?.label ?? computedLabels.get(field) ?? fieldLabels.get(field) ?? (
+    const label = visual?.label ?? fieldLabels.get(field) ?? (
       visual?.kind === "sparkline" || role?.role === "sparklineSeries"
         ? "Trend"
         : humanizeFieldLabel(field)
@@ -859,11 +849,26 @@ function buildSourceColumnsFromFrame(
     addColumn(buildColumnForField(role.field, undefined));
   }
 
-  for (const [field, label] of computedLabels) {
-    addColumn(buildColumnForField(field, visualColumns[field] ?? { label }));
+  return columns.length > 0 ? columns : null;
+}
+
+function visibleScreenerColumns(columns: MarketAssetScreenerColumn[]) {
+  return columns.filter((column) => column.visual?.visible !== false);
+}
+
+function columnsForRuntimeMetrics(input: {
+  columns: MarketAssetScreenerColumn[];
+  sourceColumns?: MarketAssetScreenerColumn[];
+}) {
+  const columnsById = new Map(input.columns.map((column) => [column.id, column] as const));
+
+  for (const sourceColumn of input.sourceColumns ?? []) {
+    if (sourceColumn.visual?.visible === false && !columnsById.has(sourceColumn.id)) {
+      columnsById.set(sourceColumn.id, sourceColumn);
+    }
   }
 
-  return columns.length > 0 ? columns : null;
+  return Array.from(columnsById.values());
 }
 
 export function resolveAssetScreenerColumnConfig(input: {
@@ -892,8 +897,18 @@ export function resolveAssetScreenerColumnConfig(input: {
   }
 
   if (sourceColumns && sourceColumns.length > 0) {
+    const visibleSourceColumns = visibleScreenerColumns(sourceColumns);
+
+    if (visibleSourceColumns.length === 0) {
+      return {
+        columns: [],
+        source: "empty",
+        sourceColumns,
+      };
+    }
+
     return {
-      columns: sourceColumns,
+      columns: visibleSourceColumns,
       source: "source",
       sourceColumns,
     };
@@ -1009,6 +1024,7 @@ export function resolveAssetScreenerState(input: {
     liveUpdates,
     seedMapping: props.fieldMappings?.seed,
     liveMapping: props.fieldMappings?.live,
+    liveMergeKeyMappings: props.table?.liveMergeKeyMappings,
   });
   const columnConfig = resolveAssetScreenerColumnConfig({
     canonicalSourceFrame,
@@ -1017,7 +1033,13 @@ export function resolveAssetScreenerState(input: {
     liveUpdates,
   });
 
-  const rows = deriveMarketAssetScreenerRows(runtimeModel, columnConfig.columns);
+  const rows = deriveMarketAssetScreenerRows(
+    runtimeModel,
+    columnsForRuntimeMetrics({
+      columns: columnConfig.columns,
+      sourceColumns: columnConfig.sourceColumns,
+    }),
+  );
   const sortedRows = sortRows(
     filterRows(rows, props.filterText),
     resolveSort(columnConfig.columns, props.sort),
