@@ -83,6 +83,7 @@ function buildTableDraftProps(
     columnOverrides: table.columnOverrides,
     valueLabels: table.valueLabels,
     conditionalRules: table.conditionalRules,
+    liveMergeKeyMappings: table.liveMergeKeyMappings,
     formulasEnabled: table.formulasEnabled,
     selectionMode: table.selectionMode,
     selectionKeyFields: ["assetKey"],
@@ -99,6 +100,7 @@ function pickTableSettings(value: TableWidgetProps): Partial<TableWidgetProps> {
     columnOverrides: value.columnOverrides,
     valueLabels: value.valueLabels,
     conditionalRules: value.conditionalRules,
+    liveMergeKeyMappings: value.liveMergeKeyMappings,
     formulasEnabled: value.formulasEnabled,
     selectionMode: value.selectionMode,
     publishSelectionOutputs: value.publishSelectionOutputs,
@@ -401,6 +403,7 @@ export function AssetScreenerWidgetSettings({
           presentationOnly
           presentationFrameInput={tableFrameInput}
           resetLabel="Reset table settings"
+          showLiveMergeMapping
           onReset={() => {
             onDraftPropsChange({
               ...props,

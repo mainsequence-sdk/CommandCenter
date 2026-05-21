@@ -609,6 +609,7 @@ export function buildAssetScreenerResolvedTableProps({
       valueLabels: Array.isArray(normalizedTableSettings.valueLabels) ? normalizedTableSettings.valueLabels : [],
       conditionalRules: Array.isArray(normalizedTableSettings.conditionalRules) ? normalizedTableSettings.conditionalRules : [],
       formulasEnabled: normalizedTableSettings.formulasEnabled,
+      liveMergeKeyMappings: normalizedTableSettings.liveMergeKeyMappings,
     },
     frame,
   );

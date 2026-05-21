@@ -3392,35 +3392,25 @@ export function CustomDashboardStudioPage({
         style={{ backgroundImage: "var(--workspace-canvas-overlay)" }}
       />
 
-        {editMode && !publicPreview ? (
-          <WorkspaceWidgetRail
-            widgets={railWidgets}
-            activeInstanceId={selectedInstanceId}
-            topOffsetClassName="top-4"
-            scrollSync={canvasScrollSync.canScroll ? {
-              progress: canvasScrollSync.progress,
-              canScroll: canvasScrollSync.canScroll,
-              onProgressChange: handleCanvasScrollProgressChange,
-            } : undefined}
-            onOpenWidget={(instanceId) => {
-              openWidgetSettingsOverlay(instanceId);
-              scheduleWidgetSettingsSelection(instanceId, null);
-            }}
-          />
-        ) : publicPreview ? (
-          <WorkspaceWidgetRail
-            widgets={railWidgets}
-            activeInstanceId={null}
-            topOffsetClassName="top-12"
-            interactive={false}
-            scrollSync={canvasScrollSync.canScroll ? {
-              progress: canvasScrollSync.progress,
-              canScroll: canvasScrollSync.canScroll,
-              onProgressChange: handleCanvasScrollProgressChange,
-            } : undefined}
-            onOpenWidget={() => {}}
-          />
-        ) : null}
+        <WorkspaceWidgetRail
+          widgets={railWidgets}
+          activeInstanceId={!publicPreview && editMode ? selectedInstanceId : null}
+          topOffsetClassName={publicPreview ? "top-12" : "top-4"}
+          interactive={!publicPreview && editMode}
+          scrollSync={canvasScrollSync.canScroll ? {
+            progress: canvasScrollSync.progress,
+            canScroll: canvasScrollSync.canScroll,
+            onProgressChange: handleCanvasScrollProgressChange,
+          } : undefined}
+          onOpenWidget={(instanceId) => {
+            if (publicPreview || !editMode) {
+              return;
+            }
+
+            openWidgetSettingsOverlay(instanceId);
+            scheduleWidgetSettingsSelection(instanceId, null);
+          }}
+        />
 
         <div
           className="relative h-full min-h-full"
@@ -3439,7 +3429,7 @@ export function CustomDashboardStudioPage({
           data-workspace-canvas-scroll-container="true"
           className={cn(
             "absolute inset-0 overflow-auto pb-4 transition-[padding] duration-200",
-            publicPreview ? "pl-12 pr-0" : editMode ? "pl-12 pr-4" : "px-4",
+            publicPreview ? "pl-12 pr-0" : "pl-12 pr-4",
             !publicPreview && dashboardMenuHidden ? "pt-3" : "pt-0",
           )}
           style={{ scrollbarGutter: "stable" }}

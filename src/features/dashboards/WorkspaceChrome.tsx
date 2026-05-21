@@ -437,7 +437,6 @@ export function WorkspaceWidgetRail({
   const listOffset = scrollSync?.canScroll ? clampedScrollProgress * listMaxOffset : 0;
   const trackTravelPx = WORKSPACE_RAIL_SCROLL_TRACK_HEIGHT_PX - WORKSPACE_RAIL_SCROLL_THUMB_HEIGHT_PX;
   const thumbOffsetPx = scrollSync?.canScroll ? clampedScrollProgress * trackTravelPx : 0;
-  const railPointerInteractive = interactive || Boolean(scrollSync);
 
   useLayoutEffect(() => {
     const viewport = listViewportRef.current;
@@ -497,7 +496,7 @@ export function WorkspaceWidgetRail({
   return (
     <aside
       className={cn(
-        railPointerInteractive ? "pointer-events-auto" : "pointer-events-none",
+        "pointer-events-auto",
         viewportPinned ? "fixed" : "absolute",
         "left-2 bottom-4 z-40 flex w-8 flex-col items-center gap-1 overflow-hidden",
         topOffsetClassName,
@@ -561,12 +560,11 @@ export function WorkspaceWidgetRail({
             );
 
             return (
-              <RailHoverCard key={id} content={interactive ? summaryContent : undefined}>
+              <RailHoverCard key={id} content={summaryContent}>
                 <div
                   className={cn(
                     "relative flex h-7 w-7 items-center justify-center text-muted-foreground transition-colors hover:text-foreground",
                     active ? "text-primary" : undefined,
-                    !interactive ? "hover:text-muted-foreground" : undefined,
                   )}
                   aria-label={interactive ? `Open settings for ${displayTitle}` : undefined}
                   title={displayTitle}

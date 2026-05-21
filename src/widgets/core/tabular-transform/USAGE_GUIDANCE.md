@@ -1,6 +1,8 @@
 ## buildPurpose
 
 Transforms one bound `core.tabular_frame@v1` dataset and republishes the result as a new canonical tabular dataset.
+It is a sidebar-only source/transform node, so it participates in bindings and graph execution
+without occupying a workspace canvas card.
 
 ## whenToUse
 
@@ -41,6 +43,8 @@ Transforms one bound `core.tabular_frame@v1` dataset and republishes the result 
   downstream widgets.
 - Bind downstream seed inputs to this widget's `dataset` output.
 - Bind downstream live-update inputs to this widget's `updates` output.
+- The widget stays mounted in the sidebar/widget rail; use settings and graph bindings to inspect
+  and connect it.
 
 ## blockingRequirements
 
@@ -74,3 +78,5 @@ Transforms one bound `core.tabular_frame@v1` dataset and republishes the result 
   Statistic, Asset Screener, Table, or another transform consumes it.
 - Aggregate, pivot, and unpivot preserve source fields only when they survive the transform unchanged; generated fields are marked as derived.
 - This widget intentionally owns analytical reshaping as a visible graph node so execution and debugging stay inspectable.
+- This widget is not a canvas presentation widget. Bind its outputs to Table, Pro Table, Graph,
+  Statistic, Asset Screener, or another transform for visible rendering.

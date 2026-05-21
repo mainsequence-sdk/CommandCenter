@@ -15,6 +15,8 @@ one file or one feature folder.
 
 ## Workspace And Runtime ADRs
 
+- [ADR 071: Atomic Widget Settings Workspace Save](./adr-071-atomic-widget-settings-workspace-save.md)
+- [ADR 070: Workspace Variable Explorer](./adr-070-workspace-variable-explorer.md)
 - [ADR 069: Variable-Driven WebSocket Stream Resubscription](./adr-069-websocket-stream-variable-resubscription.md)
 - [ADR 068: Automatic Partial WebSocket Row Patching For Tabular Consumers](./adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers.md)
 - [ADR 067-B: WebSocket Stream Run Boundary Reset](./adr-067b-websocket-stream-run-boundary-reset.md)
@@ -54,6 +56,8 @@ one file or one feature folder.
 
 ## Widget Contract And Execution ADRs
 
+- [ADR 071: Atomic Widget Settings Workspace Save](./adr-071-atomic-widget-settings-workspace-save.md)
+- [ADR 070: Workspace Variable Explorer](./adr-070-workspace-variable-explorer.md)
 - [ADR 069: Variable-Driven WebSocket Stream Resubscription](./adr-069-websocket-stream-variable-resubscription.md)
 - [ADR 068: Automatic Partial WebSocket Row Patching For Tabular Consumers](./adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers.md)
 - [ADR 067-B: WebSocket Stream Run Boundary Reset](./adr-067b-websocket-stream-run-boundary-reset.md)

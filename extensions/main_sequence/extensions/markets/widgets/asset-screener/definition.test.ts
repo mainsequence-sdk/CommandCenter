@@ -49,7 +49,8 @@ describe("mainSequenceAssetScreenerWidget", () => {
       ]),
       authoringSteps: expect.arrayContaining([
         expect.stringContaining("Bind the full snapshot"),
-        expect.stringContaining("meta.tableTransforms.computedColumns"),
+        expect.stringContaining("meta.tableVisuals.columns"),
+        expect.stringContaining("Live merge mapping"),
       ]),
     });
   });

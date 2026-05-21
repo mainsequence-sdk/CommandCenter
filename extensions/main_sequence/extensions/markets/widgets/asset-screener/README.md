@@ -25,7 +25,7 @@ field roles on `seedData`.
 - `AssetScreenerWidgetSettings.tsx`: settings editor for screener runtime caps, generic tabular
   field mappings, columns, and the shared core Table display settings mounted in presentation
   mode. The embedded table settings now inherit the same Pro-table capability path as
-  `pro-table`, including column-formula authoring.
+  `pro-table`, including column-formula authoring and the shared live merge mapping editor.
 - `assetScreenerModel.ts`: prop normalization, resolved-input materialization, screener runtime
   model derivation, filtering, and sorting.
 - `USAGE_GUIDANCE.md`: backend-synced authoring guidance.
@@ -217,6 +217,9 @@ order.
 - Grouped sections now belong to the shared table settings surface via `table.groupBy`. Asset
   Screener no longer owns a parallel layout/grouping control; it passes market rows into the
   shared table layer and lets that renderer synthesize section headers.
+- `table.liveMergeKeyMappings` is exposed through the embedded shared table settings. It uses the
+  same seed/live row identity model as Table and Pro Table, so a screener can patch retained rows
+  when live update rows use different field names or arrive as repeated latest events.
 - Interaction outputs resolve against real asset rows after grouping is applied. Synthetic section
   headers remain non-semantic presentation rows and are scrubbed from published selection state.
 - Legacy top-level screener `groupBy` props are still normalized into `table.groupBy` so existing

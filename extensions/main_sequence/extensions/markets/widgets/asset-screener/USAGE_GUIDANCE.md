@@ -73,6 +73,10 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
 - Use the embedded `Table Settings` section for density, shared grouped sections, column-label
   overrides, thresholds, and selection outputs. Asset Screener no longer owns a separate layout
   grouping control.
+- Use `Live merge mapping` in the embedded `Table Settings` section when live update rows should
+  patch existing screener rows by identity instead of creating repeated latest rows. For example,
+  map seed field `symbol` to live field `symbol`, or map seed field `symbol` to live field
+  `ticker` when the feed uses different names.
 - Use the embedded shared Pro-table settings when a screener column should be a local formula.
   Mark the column as `Formula`, then author one expression such as
   `PERCENT_CHANGE([last_price], [yearStart])` or `[last_price] * 10`.
@@ -354,8 +358,8 @@ Current table-backed renderer behavior:
   than a separate market-only renderer.
 - The Asset Screener settings mount the shared core Table settings in presentation mode. Source
   ownership stays with `seedData` and `liveUpdates`, while display settings such as density,
-  grouping, schema labels, column overrides, value labels, threshold rules, and pagination use
-  the same table configuration model.
+  grouping, schema labels, column overrides, value labels, threshold rules, live merge mapping,
+  and pagination use the same table configuration model.
 - The workspace renderer disables the generic table's floating per-column filters and uses a
   transparent surface so the screener does not look like a nested table card. It also suppresses
   the generic table toolbar and footer strips, including the quick filter, clear button, internal

@@ -19,6 +19,8 @@ for `core.tabular_frame@v1` datasets.
 - The widget consumes one `core.tabular_frame@v1` input and republishes transformed
   `dataset` and `updates` outputs. Downstream seed inputs bind to `dataset`; downstream live
   inputs bind to `updates`.
+- Instances are fixed to sidebar placement. The transform is an executable graph/source node and
+  settings surface, not a visible workspace canvas card.
 - Source-input validity and mounted waiting/loading/error semantics now go through the shared
   upstream consumer contract before transform execution or UI rendering. A valid binding with no
   published upstream value is treated as `awaiting-upstream`, not as a malformed dataset.
@@ -61,6 +63,8 @@ for `core.tabular_frame@v1` datasets.
 ## Maintenance Constraints
 
 - Keep analytical transforms here instead of expanding binding-level transforms.
+- Keep the widget sidebar-only. If a future workflow needs a visible transform preview on the
+  workspace canvas, add a dedicated visual widget instead of moving this source node onto canvas.
 - Keep output shape aligned with `core.tabular_frame@v1`.
 - Avoid source-specific terms such as Data Node in this generic widget.
 - Keep computed-column authoring aligned with the shared table expression contract. Do not create a

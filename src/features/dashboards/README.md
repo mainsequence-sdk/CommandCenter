@@ -147,8 +147,8 @@ These flows are all part of one app surface, with instance state selected throug
 - Anonymous public workspace boot now stores the backend-provided `publicWorkspaceSpecHash`
   alongside the compiled public workspace payload so later drift-handling work can compare and
   replace the active public spec deterministically.
-- Public preview and anonymous public view both keep a non-interactive left widget rail so the
-  workspace still reads like Workspaces without exposing clickable shell controls.
+- Private view, public preview, and anonymous public view all keep a non-interactive left widget
+  rail so runtime status and error dots stay visible without exposing clickable settings controls.
 - The saved-widget library lives at `/app/workspace-studio/widgets`.
 - Surface-specific studio reusers may override those route targets and filter visible widget
   definitions while still using the same underlying workspace document model.
@@ -367,16 +367,17 @@ These flows are all part of one app surface, with instance state selected throug
   keeps manual resize/free placement disabled. `Custom` remains the only manual authoring mode,
   while Auto grid edit mode now supports order-only drag reordering.
 - Widget instances can also switch their surface to a transparent mode through shared presentation settings, which removes the default card fill/shadow for flatter workspace compositions.
-- In canvas edit mode, the workspace canvas exposes a thin in-canvas widget rail on the left side:
-  one plain icon per mounted widget instance, with direct access to that widget's settings, a
-  small runtime-status dot, and hover summaries. Widgets can opt into richer rail hover content
-  through shared widget-definition metadata. The rail order should reflect live canvas structure,
-  sorted by widget layout position (`y`, then `x`, then stable title/id fallback), not by widget
-  creation time. The canvas editor also now treats the rail as viewport chrome: a bottom rail
-  scroller mirrors the canvas scroll position and can drive the main canvas scroll, so rail
-  visibility and workspace viewport stay in sync.
+- The workspace canvas exposes a thin in-canvas widget rail on the left side in both edit and view
+  mode: one plain icon per mounted widget instance plus a small runtime-status dot. Hover summaries
+  work in all modes. Edit mode additionally makes rail icons open widget settings; view/public modes
+  keep the same status rail visible but non-clickable. Widgets can opt into richer rail hover content through shared
+  widget-definition metadata. The rail order should reflect live canvas structure, sorted by widget
+  layout position (`y`, then `x`, then stable title/id fallback), not by widget creation time. The
+  canvas also treats the rail as viewport chrome: a bottom rail scroller mirrors the canvas scroll
+  position and can drive the main canvas scroll, so rail visibility and workspace viewport stay in
+  sync.
 - Workspace widget presentation now also supports `placementMode`. `canvas` keeps the instance
-  visible in the grid, while `sidebar` keeps it mounted only in the edit-mode rail. This is
+  visible in the grid, while `sidebar` keeps it mounted only in the persistent rail. This is
   intended for composable source widgets such as `Data Node` instances that should keep publishing
   runtime state without consuming canvas area.
 - In the workspace graph, widgets that own hidden managed `connection-query` sources should still

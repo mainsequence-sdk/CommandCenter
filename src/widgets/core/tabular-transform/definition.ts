@@ -22,7 +22,7 @@ import {
 
 export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>({
   id: "tabular-transform",
-  widgetVersion: "1.3.0",
+  widgetVersion: "1.3.1",
   title: "Tabular Transform",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -30,6 +30,10 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
   source: "core",
   requiredPermissions: ["workspaces:view"],
   tags: ["tabular", "transform", "filter", "aggregate", "pivot", "unpivot", "projection", "formula"],
+  defaultPresentation: {
+    placementMode: "sidebar",
+  },
+  fixedPlacementMode: "sidebar",
   exampleProps: {
     transformMode: "none",
     aggregateMode: "last",
@@ -233,7 +237,7 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
     configuration: {
       mode: "custom-settings",
       summary:
-        "Configures a visible graph transform over one tabular dataset, including filter, aggregate, pivot, unpivot, and projection.",
+        "Configures a sidebar-only transform node over one tabular dataset, including filter, aggregate, pivot, unpivot, projection, formulas, and row merge.",
       requiredSetupSteps: [
         "Bind sourceData to an upstream tabular dataset.",
         "Select a transform mode.",

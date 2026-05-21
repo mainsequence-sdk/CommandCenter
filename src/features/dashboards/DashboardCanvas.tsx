@@ -917,21 +917,19 @@ function DashboardCanvasSurface({
           <DashboardWidgetDependenciesProvider widgets={renderedWidgets}>
             <div ref={canvasRef} className="relative">
               {publicView ? <PublicWorkspaceStatusBar /> : <DashboardRefreshProgressLine />}
-              {publicView ? (
-                <WorkspaceWidgetRail
-                  widgets={railWidgets}
-                  activeInstanceId={null}
-                  topOffsetClassName="top-12"
-                  interactive={false}
-                  viewportPinned
-                  scrollSync={canvasScrollSync.canScroll ? {
-                    progress: canvasScrollSync.progress,
-                    canScroll: canvasScrollSync.canScroll,
-                    onProgressChange: handleCanvasScrollProgressChange,
-                  } : undefined}
-                  onOpenWidget={() => {}}
-                />
-              ) : null}
+              <WorkspaceWidgetRail
+                widgets={railWidgets}
+                activeInstanceId={null}
+                topOffsetClassName={publicView ? "top-12" : "top-4"}
+                interactive={false}
+                viewportPinned={publicView}
+                scrollSync={canvasScrollSync.canScroll ? {
+                  progress: canvasScrollSync.progress,
+                  canScroll: canvasScrollSync.canScroll,
+                  onProgressChange: handleCanvasScrollProgressChange,
+                } : undefined}
+                onOpenWidget={() => {}}
+              />
               <div className="pointer-events-none absolute left-0 top-0 h-px w-px overflow-hidden opacity-0">
             {sidebarOnlyWidgetEntries.map(({ instance, widget }) => {
               const required = [
@@ -956,7 +954,7 @@ function DashboardCanvasSurface({
             })}
               </div>
           {settingsInstance && settingsWidget ? (
-            <div className="h-full overflow-y-auto pr-1 pb-6 space-y-4">
+            <div className="h-full overflow-y-auto pr-1 pb-6 pl-12 space-y-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-3">
                   <Button variant="outline" onClick={() => setSettingsInstanceId(null)}>
@@ -1016,7 +1014,7 @@ function DashboardCanvasSurface({
               />
             </div>
           ) : (
-            <div className={publicView ? "space-y-3 pl-12" : "space-y-3"}>
+            <div className="space-y-3 pl-12">
               {!publicView ? <DashboardDataControls controls={dashboard.controls} /> : null}
               {layoutKind === "auto-grid" ? (
                 <div

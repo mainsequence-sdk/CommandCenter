@@ -91,6 +91,7 @@ export interface TableWidgetSettingsOptions {
   presentationFrameInput?: TableWidgetResolvedFrameInput | null;
   presentationOnly?: boolean;
   resetLabel?: string;
+  showLiveMergeMapping?: boolean;
   onReset?: () => void;
 }
 
@@ -190,7 +191,9 @@ function resolveFirstValidInput(
 }
 
 function resolveInputColumns(input: ResolvedWidgetInput | undefined) {
-  return normalizeAnyTabularFrameSource(input?.upstreamBase ?? input?.value)?.columns ?? [];
+  return normalizeAnyTabularFrameSource(
+    input?.upstreamBase ?? input?.value ?? input?.upstreamDelta,
+  )?.columns ?? [];
 }
 
 type TableWidgetSettingsFactoryOptions = Pick<
@@ -468,6 +471,7 @@ function TableWidgetSettingsComponent({
   presentationFrameInput,
   presentationOnly = false,
   resetLabel = "Reset widget defaults",
+  showLiveMergeMapping = false,
   onReset,
 }: WidgetSettingsComponentProps<TableWidgetProps> & TableWidgetSettingsOptions) {
   const { resolvedTokens } = useTheme();
@@ -1303,7 +1307,7 @@ function TableWidgetSettingsComponent({
         </div>
       </section>
 
-      {!presentationOnly ? (
+      {(!presentationOnly || showLiveMergeMapping) ? (
         <TabularMergeMappingEditor
           title="Live merge mapping"
           description="Tell the table which live rows update which existing rows. If the seed row and the live row have the same values for every mapping below, the live values update that row; otherwise the live row is added as a new row."

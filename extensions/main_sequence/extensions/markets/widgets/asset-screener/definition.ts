@@ -474,7 +474,7 @@ const mockSeedData = {
 
 export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScreenerWidgetProps>({
   id: "ms-markets-asset-screener",
-  widgetVersion: "1.11.0",
+  widgetVersion: "1.11.1",
   title: "Asset Screener",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
