@@ -1,17 +1,17 @@
 import { ProjectAgentConfigurator } from "../../../../../main_sequence_ai/features/project-agents/ProjectAgentConfigurator";
 
 export function MainSequenceProjectAgentTab({
-  projectId,
+  projectUid,
   hasAgentCapabilities,
   onOpenImagesTab,
 }: {
-  projectId: number;
+  projectUid: string;
   hasAgentCapabilities: boolean | null;
   onOpenImagesTab: () => void;
 }) {
   return (
     <ProjectAgentConfigurator
-      projectId={projectId}
+      projectUid={projectUid}
       hasAgentCapabilities={hasAgentCapabilities}
       onOpenImagesTab={onOpenImagesTab}
     />

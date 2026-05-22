@@ -9,39 +9,104 @@
     "security_market_sector": "Rates",
     "security_type": "Government Bond",
     "is_custom_by_organization": false,
-    "category_ids": [1],
+    "category_ids": [
+      1
+    ],
     "current_snapshot": {
       "id": 5001,
       "name": "US Treasury 2Y",
-      "ticker": "UST2Y"
+      "ticker": "UST2Y",
+      "uid": "mock-asset-snapshot-5001"
     },
     "details": [
-      { "key": "issuer", "label": "Issuer", "value": "United States", "value_type": "text" },
-      { "key": "currency", "label": "Currency", "value": "USD", "value_type": "text" },
-      { "key": "tenor", "label": "Tenor", "value": "2Y", "value_type": "text" }
+      {
+        "key": "issuer",
+        "label": "Issuer",
+        "value": "United States",
+        "value_type": "text"
+      },
+      {
+        "key": "currency",
+        "label": "Currency",
+        "value": "USD",
+        "value_type": "text"
+      },
+      {
+        "key": "tenor",
+        "label": "Tenor",
+        "value": "2Y",
+        "value_type": "text"
+      }
     ],
     "trading_view": {
       "enabled": true,
       "symbol": "TVC:US02Y",
       "alerts": [
-        { "id": "alert-1", "title": "Carry compression", "message": "2Y carry moved below threshold." }
+        {
+          "id": "alert-1",
+          "title": "Carry compression",
+          "message": "2Y carry moved below threshold."
+        }
       ]
     },
     "order_form": {
-      "order_types": ["market", "limit"],
+      "order_types": [
+        "market",
+        "limit"
+      ],
       "default_order_type": "market"
     },
     "order_form_fields": {
       "market": [
-        { "key": "side", "label": "Side", "editor": "select", "required": true, "choices": ["buy", "sell"] },
-        { "key": "quantity", "label": "Quantity", "editor": "number", "required": true, "value": 1000000 }
+        {
+          "key": "side",
+          "label": "Side",
+          "editor": "select",
+          "required": true,
+          "choices": [
+            "buy",
+            "sell"
+          ]
+        },
+        {
+          "key": "quantity",
+          "label": "Quantity",
+          "editor": "number",
+          "required": true,
+          "value": 1000000
+        }
       ],
       "limit": [
-        { "key": "side", "label": "Side", "editor": "select", "required": true, "choices": ["buy", "sell"] },
-        { "key": "quantity", "label": "Quantity", "editor": "number", "required": true, "value": 1000000 },
-        { "key": "limit_price", "label": "Limit price", "editor": "number", "required": true, "value": 99.85 }
+        {
+          "key": "side",
+          "label": "Side",
+          "editor": "select",
+          "required": true,
+          "choices": [
+            "buy",
+            "sell"
+          ]
+        },
+        {
+          "key": "quantity",
+          "label": "Quantity",
+          "editor": "number",
+          "required": true,
+          "value": 1000000
+        },
+        {
+          "key": "limit_price",
+          "label": "Limit price",
+          "editor": "number",
+          "required": true,
+          "value": 99.85
+        }
       ]
-    }
+    },
+    "uid": "mock-asset-101",
+    "category_uids": [
+      "mock-asset-category-1"
+    ]
   },
   {
     "id": 102,
@@ -53,16 +118,34 @@
     "security_market_sector": "Rates",
     "security_type": "Government Bond",
     "is_custom_by_organization": false,
-    "category_ids": [1],
+    "category_ids": [
+      1
+    ],
     "current_snapshot": {
       "id": 5002,
       "name": "US Treasury 10Y",
-      "ticker": "UST10Y"
+      "ticker": "UST10Y",
+      "uid": "mock-asset-snapshot-5002"
     },
     "details": [
-      { "key": "issuer", "label": "Issuer", "value": "United States", "value_type": "text" },
-      { "key": "currency", "label": "Currency", "value": "USD", "value_type": "text" },
-      { "key": "tenor", "label": "Tenor", "value": "10Y", "value_type": "text" }
+      {
+        "key": "issuer",
+        "label": "Issuer",
+        "value": "United States",
+        "value_type": "text"
+      },
+      {
+        "key": "currency",
+        "label": "Currency",
+        "value": "USD",
+        "value_type": "text"
+      },
+      {
+        "key": "tenor",
+        "label": "Tenor",
+        "value": "10Y",
+        "value_type": "text"
+      }
     ],
     "trading_view": {
       "enabled": true,
@@ -70,15 +153,37 @@
       "alerts": []
     },
     "order_form": {
-      "order_types": ["market", "limit"],
+      "order_types": [
+        "market",
+        "limit"
+      ],
       "default_order_type": "market"
     },
     "order_form_fields": {
       "market": [
-        { "key": "side", "label": "Side", "editor": "select", "required": true, "choices": ["buy", "sell"] },
-        { "key": "quantity", "label": "Quantity", "editor": "number", "required": true, "value": 500000 }
+        {
+          "key": "side",
+          "label": "Side",
+          "editor": "select",
+          "required": true,
+          "choices": [
+            "buy",
+            "sell"
+          ]
+        },
+        {
+          "key": "quantity",
+          "label": "Quantity",
+          "editor": "number",
+          "required": true,
+          "value": 500000
+        }
       ]
-    }
+    },
+    "uid": "mock-asset-102",
+    "category_uids": [
+      "mock-asset-category-1"
+    ]
   },
   {
     "id": 201,
@@ -90,33 +195,71 @@
     "security_market_sector": "Equity",
     "security_type": "Index",
     "is_custom_by_organization": false,
-    "category_ids": [2],
+    "category_ids": [
+      2
+    ],
     "current_snapshot": {
       "id": 5003,
       "name": "S&P 500 Index",
-      "ticker": "SPX"
+      "ticker": "SPX",
+      "uid": "mock-asset-snapshot-5003"
     },
     "details": [
-      { "key": "provider", "label": "Provider", "value": "S&P Dow Jones", "value_type": "text" },
-      { "key": "currency", "label": "Currency", "value": "USD", "value_type": "text" }
+      {
+        "key": "provider",
+        "label": "Provider",
+        "value": "S&P Dow Jones",
+        "value_type": "text"
+      },
+      {
+        "key": "currency",
+        "label": "Currency",
+        "value": "USD",
+        "value_type": "text"
+      }
     ],
     "trading_view": {
       "enabled": true,
       "symbol": "SP:SPX",
       "alerts": [
-        { "id": "alert-2", "title": "Breakout", "message": "Index moved through the 30d range." }
+        {
+          "id": "alert-2",
+          "title": "Breakout",
+          "message": "Index moved through the 30d range."
+        }
       ]
     },
     "order_form": {
-      "order_types": ["market"],
+      "order_types": [
+        "market"
+      ],
       "default_order_type": "market"
     },
     "order_form_fields": {
       "market": [
-        { "key": "side", "label": "Side", "editor": "select", "required": true, "choices": ["buy", "sell"] },
-        { "key": "quantity", "label": "Contracts", "editor": "number", "required": true, "value": 25 }
+        {
+          "key": "side",
+          "label": "Side",
+          "editor": "select",
+          "required": true,
+          "choices": [
+            "buy",
+            "sell"
+          ]
+        },
+        {
+          "key": "quantity",
+          "label": "Contracts",
+          "editor": "number",
+          "required": true,
+          "value": 25
+        }
       ]
-    }
+    },
+    "uid": "mock-asset-201",
+    "category_uids": [
+      "mock-asset-category-2"
+    ]
   },
   {
     "id": 301,
@@ -128,15 +271,28 @@
     "security_market_sector": "Commodities",
     "security_type": "Future",
     "is_custom_by_organization": true,
-    "category_ids": [3],
+    "category_ids": [
+      3
+    ],
     "current_snapshot": {
       "id": 5004,
       "name": "WTI Front Month",
-      "ticker": "CL1"
+      "ticker": "CL1",
+      "uid": "mock-asset-snapshot-5004"
     },
     "details": [
-      { "key": "exchange", "label": "Exchange", "value": "NYMEX", "value_type": "text" },
-      { "key": "currency", "label": "Currency", "value": "USD", "value_type": "text" }
+      {
+        "key": "exchange",
+        "label": "Exchange",
+        "value": "NYMEX",
+        "value_type": "text"
+      },
+      {
+        "key": "currency",
+        "label": "Currency",
+        "value": "USD",
+        "value_type": "text"
+      }
     ],
     "trading_view": {
       "enabled": false,
@@ -144,15 +300,42 @@
       "alerts": []
     },
     "order_form": {
-      "order_types": ["limit"],
+      "order_types": [
+        "limit"
+      ],
       "default_order_type": "limit"
     },
     "order_form_fields": {
       "limit": [
-        { "key": "side", "label": "Side", "editor": "select", "required": true, "choices": ["buy", "sell"] },
-        { "key": "quantity", "label": "Contracts", "editor": "number", "required": true, "value": 10 },
-        { "key": "limit_price", "label": "Limit price", "editor": "number", "required": true, "value": 78.25 }
+        {
+          "key": "side",
+          "label": "Side",
+          "editor": "select",
+          "required": true,
+          "choices": [
+            "buy",
+            "sell"
+          ]
+        },
+        {
+          "key": "quantity",
+          "label": "Contracts",
+          "editor": "number",
+          "required": true,
+          "value": 10
+        },
+        {
+          "key": "limit_price",
+          "label": "Limit price",
+          "editor": "number",
+          "required": true,
+          "value": 78.25
+        }
       ]
-    }
+    },
+    "uid": "mock-asset-301",
+    "category_uids": [
+      "mock-asset-category-3"
+    ]
   }
 ]

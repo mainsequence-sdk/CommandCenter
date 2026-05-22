@@ -19,10 +19,10 @@ This widget module owns the project-scoped infrastructure graph used by the Main
 
 - This module is intentionally scoped to Main Sequence project infrastructure. It is not a generic graph framework and does not reuse the workspace graph runtime providers.
 - The same graph shell now supports both the project detail page and the reusable workspace widget. The workspace widget uses the compact layout variant so it can fit inside dashboard cards without forcing the full page-height inspector treatment.
-- The workspace widget no longer asks the user to type a raw project id. Its settings use the backend `projects/quick-search/` endpoint and store the selected project id from that result set.
+- The workspace widget no longer asks the user to type a raw project identifier. Its settings use the backend `projects/quick-search/` endpoint and store the selected project UID from that result set.
 - The widget props still allow `commitSha`, but that field is intentionally hidden from the structured settings UI for now.
 - The backend contract is link-driven: `summary_url` is for inspection and `graph_url` is for exploration. The widget follows that rule directly.
-- Initial load fetches `/projects/{id}/infra-graph/`; drill-down follows backend-provided `graph_url` values exactly.
+- Initial load fetches `/projects/{uid}/infra-graph/`; drill-down follows backend-provided `graph_url` values exactly.
 - The inspector never prefetches all summaries. It only fetches the selected node's `summary_url`.
 - Nodes without `summary_url` no longer render the raw backend `properties` fallback. The inspector shows only the selected-node header plus the explicit `No summary available` state.
 - The graph now uses a centered radial layout with a lightweight local force/repulsion pass. The root project node stays in the middle, related nodes orbit around it by backend group and depth, and group coloring comes from a frontend theme palette instead of backend-provided node colors.

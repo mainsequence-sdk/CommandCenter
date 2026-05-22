@@ -39,8 +39,8 @@ export function getAssetTranslationTablesListPath() {
   return getAppPath("main_sequence_markets", "asset-translation-tables");
 }
 
-export function getAssetTranslationTableDetailPath(tableId: number) {
-  return `${getAssetTranslationTablesListPath()}/${tableId}`;
+export function getAssetTranslationTableDetailPath(tableUid: string) {
+  return `${getAssetTranslationTablesListPath()}/${encodeURIComponent(tableUid)}`;
 }
 
 export function formatTranslationTableValue(
@@ -109,6 +109,7 @@ export function buildTranslationTableListRowFromDetail(
 ): AssetTranslationTableListRow {
   return {
     id: detail.id,
+    uid: detail.uid,
     unique_identifier:
       readTranslationTableDetailString(detail, "unique_identifier") || detail.selected_table.text,
     rules_number: readTranslationTableDetailNumber(detail, "rules_number"),
@@ -173,10 +174,10 @@ export function buildAssetTranslationTableDeleteSummary(
   return (
     <div className="space-y-2">
       {tables.slice(0, 5).map((table) => (
-        <div key={table.id} className="flex items-start justify-between gap-3">
+        <div key={table.uid} className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate font-medium text-foreground">
-              {formatTranslationTableValue(table.unique_identifier, `Table ${table.id}`)}
+              {formatTranslationTableValue(table.unique_identifier, table.uid)}
             </div>
             <div className="truncate text-xs text-muted-foreground">
               {[
@@ -187,7 +188,7 @@ export function buildAssetTranslationTableDeleteSummary(
                 .join(" · ")}
             </div>
           </div>
-          <div className="shrink-0 text-xs text-muted-foreground">ID {table.id}</div>
+          <div className="shrink-0 text-xs text-muted-foreground">UID {table.uid}</div>
         </div>
       ))}
       {tables.length > 5 ? (

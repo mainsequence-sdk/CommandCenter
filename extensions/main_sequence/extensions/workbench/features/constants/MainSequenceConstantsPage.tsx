@@ -38,7 +38,7 @@ import { MainSequenceSelectionCheckbox } from "../../../../common/components/Mai
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
 import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelection";
 
-const mainSequenceConstantIdParam = "msConstantId";
+const mainSequenceConstantUidParam = "msConstantUid";
 type ConstantDetailTabId = "overview" | "permissions";
 const constantDetailTabs = [
   { id: "overview", label: "Overview" },
@@ -100,8 +100,8 @@ export function MainSequenceConstantsPage() {
   const [selectedDetailTabId, setSelectedDetailTabId] = useState<ConstantDetailTabId>("overview");
   const deferredFilterValue = useDeferredValue(filterValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedConstantId = Number(searchParams.get(mainSequenceConstantIdParam) ?? "");
-  const isConstantDetailOpen = Number.isFinite(selectedConstantId) && selectedConstantId > 0;
+  const selectedConstantUid = searchParams.get(mainSequenceConstantUidParam)?.trim() ?? "";
+  const isConstantDetailOpen = selectedConstantUid.length > 0;
 
   const constantsQuery = useQuery({
     queryKey: ["main_sequence", "constants", "list", constantsPageIndex],
@@ -113,8 +113,8 @@ export function MainSequenceConstantsPage() {
   });
 
   const constantDetailQuery = useQuery({
-    queryKey: ["main_sequence", "constants", "detail", selectedConstantId],
-    queryFn: () => fetchConstant(selectedConstantId),
+    queryKey: ["main_sequence", "constants", "detail", selectedConstantUid],
+    queryFn: () => fetchConstant(selectedConstantUid),
     enabled: isConstantDetailOpen,
   });
 
@@ -142,7 +142,7 @@ export function MainSequenceConstantsPage() {
       }
 
       return [
-        String(constant.id),
+        constant.uid,
         constant.name,
         constant.category ?? "",
         formatConstantValuePreview(constant.value, 160),
@@ -153,19 +153,19 @@ export function MainSequenceConstantsPage() {
     });
   }, [constantsQuery.data?.results, deferredFilterValue]);
 
-  const constantSelection = useRegistrySelection(filteredConstants);
+  const constantSelection = useRegistrySelection(filteredConstants, (constant) => constant.uid);
   const selectedConstantFromList = useMemo(
-    () => filteredConstants.find((constant) => constant.id === selectedConstantId) ?? null,
-    [filteredConstants, selectedConstantId],
+    () => filteredConstants.find((constant) => constant.uid === selectedConstantUid) ?? null,
+    [filteredConstants, selectedConstantUid],
   );
   const selectedConstant = constantDetailQuery.data ?? selectedConstantFromList;
   const constantTitle =
     selectedConstant?.name ??
-    (isConstantDetailOpen ? `Constant ${selectedConstantId}` : "Constant");
+    (isConstantDetailOpen ? `Constant ${selectedConstantUid}` : "Constant");
 
   useEffect(() => {
     setSelectedDetailTabId("overview");
-  }, [selectedConstantId]);
+  }, [selectedConstantUid]);
 
   const createConstantMutation = useMutation({
     mutationFn: createConstant,
@@ -195,7 +195,7 @@ export function MainSequenceConstantsPage() {
 
   const deleteConstantMutation = useMutation({
     mutationFn: async (constants: ConstantRecord[]) =>
-      bulkDeleteConstants(constants.map((constant) => constant.id)),
+      bulkDeleteConstants(constants.map((constant) => constant.uid)),
     onSuccess: async (result, constants) => {
       const deletedCount = result.deleted_count ?? constants.length;
       setConstantsPendingDelete([]);
@@ -258,15 +258,15 @@ export function MainSequenceConstantsPage() {
     );
   }
 
-  function openConstantDetail(constantId: number) {
+  function openConstantDetail(constantUid: string) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceConstantIdParam, String(constantId));
+      nextParams.set(mainSequenceConstantUidParam, constantUid);
     });
   }
 
   function closeConstantDetail() {
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceConstantIdParam);
+      nextParams.delete(mainSequenceConstantUidParam);
     });
   }
 
@@ -359,7 +359,7 @@ export function MainSequenceConstantsPage() {
               ) : (
                 <MainSequencePermissionsTab
                   objectUrl="constant"
-                  objectId={selectedConstant.id}
+                  objectId={selectedConstant.uid}
                   entityLabel="Constant"
                   enabled={selectedDetailTabId === "permissions"}
                 />
@@ -467,27 +467,27 @@ export function MainSequenceConstantsPage() {
                 </thead>
                 <tbody>
                   {filteredConstants.map((constant) => {
-                    const selected = constantSelection.isSelected(constant.id);
+                    const selected = constantSelection.isSelected(constant.uid);
 
                     return (
-                      <tr key={constant.id}>
+                      <tr key={constant.uid}>
                         <td className={getRegistryTableCellClassName(selected, "left")}>
                           <MainSequenceSelectionCheckbox
                             ariaLabel={`Select ${constant.name}`}
                             checked={selected}
-                            onChange={() => constantSelection.toggleSelection(constant.id)}
+                            onChange={() => constantSelection.toggleSelection(constant.uid)}
                           />
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           <button
                             type="button"
                             className="group inline-flex items-center gap-1.5 rounded-sm text-left font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
-                            onClick={() => openConstantDetail(constant.id)}
+                            onClick={() => openConstantDetail(constant.uid)}
                           >
                             <span>{constant.name}</span>
                             <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
                           </button>
-                          <div className="mt-1 text-xs text-muted-foreground">{`Constant ID ${constant.id}`}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">{`Constant UID ${constant.uid}`}</div>
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           <Badge variant={constant.category ? "primary" : "neutral"}>

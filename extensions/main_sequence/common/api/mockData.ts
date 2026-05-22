@@ -228,10 +228,10 @@ function normalizeSingleRecordPayload(payload: unknown) {
   return null;
 }
 
-function hasSingleMatchingMockDataNode(dataNodeId: string) {
+function hasSingleMatchingMockDataNode(dataNodeUid: string) {
   return (
     state.dataNodes.length === 1 &&
-    String(readNumber(state.dataNodes[0]?.id)) === dataNodeId
+    readString(state.dataNodes[0]?.uid) === dataNodeUid
   );
 }
 
@@ -314,11 +314,11 @@ function resolveMockDependencyGraph(input: {
   return null;
 }
 
-function resolveMockDataNodeRemoteRows(dataNodeId: string) {
+function resolveMockDataNodeRemoteRows(dataNodeUid: string) {
   const endpointPayload = state.dataNodeRowsByEndpoint;
 
-  if (isRecord(endpointPayload) && dataNodeId in endpointPayload) {
-    const keyedPayload = endpointPayload[dataNodeId];
+  if (isRecord(endpointPayload) && dataNodeUid in endpointPayload) {
+    const keyedPayload = endpointPayload[dataNodeUid];
     const keyedPayloadRows = normalizeRecordArrayPayload(keyedPayload);
 
     if (keyedPayloadRows.length > 0) {
@@ -326,29 +326,29 @@ function resolveMockDataNodeRemoteRows(dataNodeId: string) {
     }
   }
 
-  if (hasSingleMatchingMockDataNode(dataNodeId)) {
+  if (hasSingleMatchingMockDataNode(dataNodeUid)) {
     return normalizeRecordArrayPayload(endpointPayload);
   }
 
   return [];
 }
 
-function replaceMockDataNodeRemoteRows(dataNodeId: string, rows: Array<Record<string, unknown>>) {
+function replaceMockDataNodeRemoteRows(dataNodeUid: string, rows: Array<Record<string, unknown>>) {
   if (isRecord(state.dataNodeRowsByEndpoint)) {
-    state.dataNodeRowsByEndpoint[dataNodeId] = cloneValue(rows);
+    state.dataNodeRowsByEndpoint[dataNodeUid] = cloneValue(rows);
     return;
   }
 
-  if (hasSingleMatchingMockDataNode(dataNodeId)) {
+  if (hasSingleMatchingMockDataNode(dataNodeUid)) {
     state.dataNodeRowsByEndpoint = cloneValue(rows);
   }
 }
 
-function resolveMockDataNodeLastObservation(dataNodeId: string) {
+function resolveMockDataNodeLastObservation(dataNodeUid: string) {
   const endpointPayload = state.dataNodeLastObservationByEndpoint;
 
-  if (isRecord(endpointPayload) && dataNodeId in endpointPayload) {
-    const keyedPayload = endpointPayload[dataNodeId];
+  if (isRecord(endpointPayload) && dataNodeUid in endpointPayload) {
+    const keyedPayload = endpointPayload[dataNodeUid];
     const keyedObservation = normalizeSingleRecordPayload(keyedPayload);
 
     if (keyedObservation) {
@@ -358,11 +358,11 @@ function resolveMockDataNodeLastObservation(dataNodeId: string) {
 
   const explicitObservation = normalizeSingleRecordPayload(endpointPayload);
 
-  if (explicitObservation && !isRecord(endpointPayload) && hasSingleMatchingMockDataNode(dataNodeId)) {
+  if (explicitObservation && !isRecord(endpointPayload) && hasSingleMatchingMockDataNode(dataNodeUid)) {
     return explicitObservation;
   }
 
-  if (hasSingleMatchingMockDataNode(dataNodeId)) {
+  if (hasSingleMatchingMockDataNode(dataNodeUid)) {
     const endpointRows = normalizeRecordArrayPayload(endpointPayload);
     const latestEndpointRow = getLatestRecordByTimeIndex(endpointRows);
 
@@ -371,24 +371,24 @@ function resolveMockDataNodeLastObservation(dataNodeId: string) {
     }
   }
 
-  const rows = resolveMockDataNodeRemoteRows(dataNodeId);
+  const rows = resolveMockDataNodeRemoteRows(dataNodeUid);
   return getLatestRecordByTimeIndex(rows) ?? rows.at(-1) ?? null;
 }
 
 function replaceMockDataNodeLastObservation(
-  dataNodeId: string,
+  dataNodeUid: string,
   row: Record<string, unknown> | null,
 ) {
   if (isRecord(state.dataNodeLastObservationByEndpoint)) {
     if (row) {
-      state.dataNodeLastObservationByEndpoint[dataNodeId] = cloneValue(row);
+      state.dataNodeLastObservationByEndpoint[dataNodeUid] = cloneValue(row);
     } else {
-      delete state.dataNodeLastObservationByEndpoint[dataNodeId];
+      delete state.dataNodeLastObservationByEndpoint[dataNodeUid];
     }
     return;
   }
 
-  if (hasSingleMatchingMockDataNode(dataNodeId)) {
+  if (hasSingleMatchingMockDataNode(dataNodeUid)) {
     state.dataNodeLastObservationByEndpoint = row ? cloneValue(row) : null;
   }
 }
@@ -513,12 +513,12 @@ function resolveMockSourceTableConfigStats(sourceTableConfigId: string) {
 
   return buildMockSourceTableConfigStatsFromRows(
     node,
-    resolveMockDataNodeRemoteRows(String(readNumber(node.id))),
+    resolveMockDataNodeRemoteRows(readString(node.uid)),
   );
 }
 
-function updateMockDataNodeIndexStats(dataNodeId: string) {
-  const node = state.dataNodes.find((candidate) => String(readNumber(candidate.id)) === dataNodeId);
+function updateMockDataNodeIndexStats(dataNodeUid: string) {
+  const node = state.dataNodes.find((candidate) => readString(candidate.uid) === dataNodeUid);
 
   if (!node || !isRecord(node.sourcetableconfiguration)) {
     return {
@@ -529,7 +529,7 @@ function updateMockDataNodeIndexStats(dataNodeId: string) {
     };
   }
 
-  const rows = resolveMockDataNodeRemoteRows(dataNodeId);
+  const rows = resolveMockDataNodeRemoteRows(dataNodeUid);
   const { timeIndexName } = getDataNodeIndexContext(node);
   const parsedRows = rows
     .map((row) => {
@@ -665,10 +665,6 @@ function detailMessage(message: string) {
   return { detail: message };
 }
 
-function findById(rows: Array<Record<string, unknown>>, id: number) {
-  return rows.find((row) => readNumber(row.id) === id) ?? null;
-}
-
 function findByUid(rows: Array<Record<string, unknown>>, uid: string) {
   const normalized = uid.trim();
 
@@ -685,8 +681,8 @@ function filterAssets(searchParams: URLSearchParams, body: Record<string, unknow
   const name = searchParams.get("name") ?? readOptionalString(body?.name);
   const exchangeCode =
     searchParams.get("exchange_code") ?? readOptionalString(body?.exchange_code);
-  const categoryId =
-    Number(searchParams.get("categories__id") ?? body?.categories__id ?? "") || null;
+  const categoryUid =
+    searchParams.get("categories__uid") ?? readOptionalString(body?.categories__uid) ?? null;
 
   return sortDescendingById(
     state.assets.filter((asset) => {
@@ -710,10 +706,7 @@ function filterAssets(searchParams: URLSearchParams, body: Record<string, unknow
         return false;
       }
 
-      if (
-        categoryId &&
-        !readArray<number>(asset.category_ids).includes(categoryId)
-      ) {
+      if (categoryUid && !readArray<string>(asset.category_uids).includes(categoryUid)) {
         return false;
       }
 
@@ -737,7 +730,7 @@ function filterAssets(searchParams: URLSearchParams, body: Record<string, unknow
 }
 
 function buildEntitySummary(
-  id: number,
+  id: number | string,
   type: string,
   title: string,
   {
@@ -776,7 +769,7 @@ function buildProjectSummary(project: Record<string, unknown>) {
   const baseImage = (project.base_image ?? {}) as Record<string, unknown>;
   const stats = (project.stats ?? {}) as Record<string, unknown>;
 
-  return buildEntitySummary(readNumber(project.id), "project", readString(project.project_name), {
+  return buildEntitySummary(readString(project.uid), "project", readString(project.project_name), {
     badges: [
       {
         key: "init",
@@ -906,7 +899,7 @@ function buildTargetPortfolioSummary(portfolio: Record<string, unknown>) {
 
 function buildResourceReleaseSummary(release: Record<string, unknown>) {
   return buildEntitySummary(
-    readNumber(release.id),
+    readString(release.uid),
     "resource_release",
     readString(release.title) || readString(release.subdomain),
     {
@@ -947,11 +940,11 @@ function buildResourceReleaseSummary(release: Record<string, unknown>) {
       ],
       stats: [
         {
-          key: "image_id",
-          label: "Image ID",
-          display: String(readNumber(release.image_id) || 0),
-          value: readNumber(release.image_id) || 0,
-          kind: "number",
+          key: "image_uid",
+          label: "Image UID",
+          display: readString(release.image_uid),
+          value: readString(release.image_uid),
+          kind: "code",
         },
       ],
       readme: {
@@ -1019,12 +1012,12 @@ function buildSimpleTableSummary(simpleTable: Record<string, unknown>) {
   const foreignKeys = readArray(simpleTable.foreign_keys);
   const updates = state.simpleTableUpdates.filter(
     (update) =>
-      readNumber((update.remote_table as Record<string, unknown> | null)?.id) ===
-      readNumber(simpleTable.id),
+      readString((update.remote_table as Record<string, unknown> | null)?.uid) ===
+      readString(simpleTable.uid),
   );
 
   return buildEntitySummary(
-    readNumber(simpleTable.id),
+    readString(simpleTable.uid),
     "simple_table",
     readString(simpleTable.storage_hash) || `Simple Table ${simpleTable.id}`,
     {
@@ -1119,12 +1112,12 @@ function buildBucketSummary(bucket: Record<string, unknown>) {
   });
 }
 
-function buildProjectRepositoryBrowser(projectId: number, currentPath: string) {
+function buildProjectRepositoryBrowser(projectUid: string, currentPath: string) {
   const normalizedPath = currentPath.replace(/^\/+|\/+$/g, "");
   const prefix = normalizedPath ? `${normalizedPath}/` : "";
   const entries = state.projectRepositories.filter(
     (entry) =>
-      readNumber(entry.project_id) === projectId &&
+      readString(entry.project_uid) === projectUid &&
       readString(entry.path).startsWith(prefix) &&
       readString(entry.path) !== normalizedPath,
   );
@@ -1171,7 +1164,7 @@ function buildProjectRepositoryBrowser(projectId: number, currentPath: string) {
     : [];
 
   return {
-    project_id: projectId,
+    project_uid: projectUid,
     current_path: normalizedPath,
     has_repository: true,
     message: "",
@@ -1188,11 +1181,11 @@ function buildProjectRepositoryBrowser(projectId: number, currentPath: string) {
   };
 }
 
-function buildProjectResourceCode(projectId: number, path: string) {
+function buildProjectResourceCode(projectUid: string, path: string) {
   const normalizedPath = path.replace(/^\/+/, "");
   const entry = state.projectRepositories.find(
     (candidate) =>
-      readNumber(candidate.project_id) === projectId &&
+      readString(candidate.project_uid) === projectUid &&
       readString(candidate.path) === normalizedPath &&
       readString(candidate.type) === "file",
   );
@@ -1200,7 +1193,7 @@ function buildProjectResourceCode(projectId: number, path: string) {
   const fallbackName = normalizedPath.split("/").at(-1) ?? normalizedPath;
 
   return {
-    project_id: projectId,
+    project_uid: projectUid,
     path: normalizedPath,
     name: fallbackName,
     language: fallbackName.endsWith(".py") ? "python" : fallbackName.endsWith(".sql") ? "sql" : "text",
@@ -1208,12 +1201,13 @@ function buildProjectResourceCode(projectId: number, path: string) {
   };
 }
 
-function buildBucketBrowse(bucketId: number, searchParams: URLSearchParams) {
+function buildBucketBrowse(bucketUid: string, searchParams: URLSearchParams) {
   const prefix = readString(searchParams.get("prefix"));
   const search = readString(searchParams.get("search"));
   const page = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
   const pageSize = 25;
-  const bucket = findById(state.buckets, bucketId);
+  const bucket = findByUid(state.buckets, bucketUid);
+  const bucketId = readNumber(bucket?.id);
   const normalizedPrefix = prefix.replace(/^\/+|\/+$/g, "");
   const effectivePrefix = normalizedPrefix ? `${normalizedPrefix}/` : "";
 
@@ -1251,8 +1245,8 @@ function buildBucketBrowse(bucketId: number, searchParams: URLSearchParams) {
   const paginatedFiles = files.slice((page - 1) * pageSize, page * pageSize);
 
   return {
-    bucket_id: bucketId,
-    bucket_name: readString(bucket?.name) || `Bucket ${bucketId}`,
+    bucket_uid: bucketUid,
+    bucket_name: readString(bucket?.name) || `Bucket ${bucketUid}`,
     current_prefix: normalizedPrefix,
     search,
     sort: readString(searchParams.get("sort")) || "name",
@@ -1388,13 +1382,14 @@ function handleProjects(route: string, method: string, searchParams: URLSearchPa
 
     return state.projects
       .filter((project) => {
-        const id = readNumber(project.id);
+        const uid = readString(project.uid);
         const projectName = readString(project.project_name);
-        return projectName.toLowerCase().includes(q) || String(id).includes(q);
+        return projectName.toLowerCase().includes(q) || uid.toLowerCase().includes(q);
       })
       .slice(0, limit)
       .map((project) => ({
         id: readNumber(project.id),
+        uid: readString(project.uid),
         project_name: readString(project.project_name),
         repository_branch: isRecord(project.latest_commit)
           ? readString(project.latest_commit.branch)
@@ -1405,8 +1400,10 @@ function handleProjects(route: string, method: string, searchParams: URLSearchPa
 
   if (route === "/projects/" && method === "POST") {
     const body = parseBody(init);
+    const id = nextId(state.projects);
     const record = {
-      id: nextId(state.projects),
+      id,
+      uid: `mock-project-${id}`,
       project_name: readString(body?.project_name) || "New Mock Project",
       data_source: state.projectDataSources[0] ?? null,
       git_ssh_url: "git@github.com:mainsequence/new-mock-project.git",
@@ -1428,36 +1425,37 @@ function handleProjects(route: string, method: string, searchParams: URLSearchPa
 
   if (route === "/projects/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
     const before = state.projects.length;
-    state.projects = state.projects.filter((project) => !ids.has(readNumber(project.id)));
+    state.projects = state.projects.filter((project) => !uids.has(readString(project.uid)));
     return {
       deleted_count: before - state.projects.length,
       detail: "Projects removed from mock state.",
     };
   }
 
-  const summaryMatch = route.match(/^\/projects\/(\d+)\/summary\/$/);
+  const summaryMatch = route.match(/^\/projects\/([^/]+)\/summary\/$/);
   if (summaryMatch && method === "GET") {
-    const project = findById(state.projects, Number(summaryMatch[1]));
-    return buildProjectSummary(project ?? { id: Number(summaryMatch[1]), project_name: `Project ${summaryMatch[1]}` });
+    const projectUid = summaryMatch[1] ?? "";
+    const project = findByUid(state.projects, projectUid);
+    return buildProjectSummary(project ?? { uid: projectUid, project_name: `Project ${projectUid}` });
   }
 
-  const deleteMatch = route.match(/^\/projects\/(\d+)\/$/);
+  const deleteMatch = route.match(/^\/projects\/([^/]+)\/$/);
   if (deleteMatch && method === "DELETE") {
-    const id = Number(deleteMatch[1]);
-    state.projects = state.projects.filter((project) => readNumber(project.id) !== id);
+    const projectUid = deleteMatch[1] ?? "";
+    state.projects = state.projects.filter((project) => readString(project.uid) !== projectUid);
     return detailMessage("Project deleted from mock state.");
   }
 
-  const browseMatch = route.match(/^\/projects\/(\d+)\/browse-repository\/$/);
+  const browseMatch = route.match(/^\/projects\/([^/]+)\/browse-repository\/$/);
   if (browseMatch && method === "GET") {
-    return buildProjectRepositoryBrowser(Number(browseMatch[1]), searchParams.get("path") ?? "");
+    return buildProjectRepositoryBrowser(browseMatch[1] ?? "", searchParams.get("path") ?? "");
   }
 
-  const codeMatch = route.match(/^\/projects\/(\d+)\/resource-code\/$/);
+  const codeMatch = route.match(/^\/projects\/([^/]+)\/resource-code\/$/);
   if (codeMatch && method === "GET") {
-    return buildProjectResourceCode(Number(codeMatch[1]), searchParams.get("path") ?? "");
+    return buildProjectResourceCode(codeMatch[1] ?? "", searchParams.get("path") ?? "");
   }
 
   return undefined;
@@ -1496,14 +1494,14 @@ function handleAssets(route: string, method: string, searchParams: URLSearchPara
     });
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/assets\/asset\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/orm\/api\/assets\/asset\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
-    return findById(state.assets, Number(detailMatch[1]));
+    return findByUid(state.assets, detailMatch[1] ?? "");
   }
 
-  const orderFieldsMatch = route.match(/^\/orm\/api\/assets\/asset\/(\d+)\/order-form-fields\/$/);
+  const orderFieldsMatch = route.match(/^\/orm\/api\/assets\/asset\/([^/]+)\/order-form-fields\/$/);
   if (orderFieldsMatch && method === "GET") {
-    const asset = findById(state.assets, Number(orderFieldsMatch[1]));
+    const asset = findByUid(state.assets, orderFieldsMatch[1] ?? "");
     const orderFieldsByType = (asset?.order_form_fields ?? {}) as Record<string, unknown>;
     const orderType = searchParams.get("order_type") ?? "";
     return readArray(orderFieldsByType[orderType]) || readArray(asset?.order_form_default_fields);
@@ -1511,9 +1509,9 @@ function handleAssets(route: string, method: string, searchParams: URLSearchPara
 
   if (route === "/orm/api/assets/asset/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
     const before = state.assets.length;
-    state.assets = state.assets.filter((asset) => !ids.has(readNumber(asset.id)));
+    state.assets = state.assets.filter((asset) => !uids.has(readString(asset.uid)));
     return {
       detail: "Assets removed from mock state.",
       deleted_count: before - state.assets.length,
@@ -1534,6 +1532,7 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
     return frontendRowsResponse(
       filtered.map((category) => ({
         id: readNumber(category.id),
+        uid: readString(category.uid),
         unique_identifier: readString(category.unique_identifier),
         display_name: readString(category.display_name),
         description: readString(category.description),
@@ -1547,12 +1546,14 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
 
   if (route === "/orm/api/assets/asset-category/" && method === "POST") {
     const body = parseBody(init);
+    const id = nextId(state.assetCategories);
     const record = {
-      id: nextId(state.assetCategories),
+      id,
+      uid: `mock-asset-category-${id}`,
       unique_identifier: readString(body?.unique_identifier) || `category_${Date.now()}`,
       display_name: readString(body?.display_name) || "New Category",
       description: readString(body?.description),
-      assets: readArray<number>(body?.assets),
+      assets: readArray<string>(body?.assets),
     };
     state.assetCategories.unshift(record);
     return record;
@@ -1560,24 +1561,24 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
 
   if (route === "/orm/api/assets/asset-category/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
     const before = state.assetCategories.length;
-    state.assetCategories = state.assetCategories.filter((category) => !ids.has(readNumber(category.id)));
+    state.assetCategories = state.assetCategories.filter((category) => !uids.has(readString(category.uid)));
     return {
       detail: "Asset categories removed from mock state.",
       deleted_count: before - state.assetCategories.length,
     };
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/assets\/asset-category\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/orm\/api\/assets\/asset-category\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
-    const categoryId = Number(detailMatch[1]);
-    const category = findById(state.assetCategories, categoryId);
+    const categoryUid = detailMatch[1] ?? "";
+    const category = findByUid(state.assetCategories, categoryUid);
     return {
-      id: categoryId,
-      title: readString(category?.display_name) || `Category ${categoryId}`,
+      uid: categoryUid,
+      title: readString(category?.display_name) || `Category ${categoryUid}`,
       selected_category: {
-        id: categoryId,
+        id: categoryUid,
         text: readString(category?.display_name),
         sub_text: readString(category?.unique_identifier),
       },
@@ -1604,23 +1605,22 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
       actions: {
         can_edit: true,
         can_delete: true,
-        update_endpoint: `/orm/api/assets/asset-category/${categoryId}/`,
-        delete_endpoint: `/orm/api/assets/asset-category/${categoryId}/`,
+        update_endpoint: `/orm/api/assets/asset-category/${categoryUid}/`,
+        delete_endpoint: `/orm/api/assets/asset-category/${categoryUid}/`,
       },
       assets_list: {
         list_endpoint: "/orm/api/assets/asset/",
         query_endpoint: "/orm/api/assets/asset/query/",
         response_format: "frontend_list",
         default_filters: {
-          categories__id: categoryId,
+          categories__uid: categoryUid,
         },
       },
     };
   }
 
   if (detailMatch && method === "PATCH") {
-    const categoryId = Number(detailMatch[1]);
-    const category = findById(state.assetCategories, categoryId);
+    const category = findByUid(state.assetCategories, detailMatch[1] ?? "");
     const body = parseBody(init);
 
     if (category) {
@@ -1631,8 +1631,8 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
   }
 
   if (detailMatch && method === "DELETE") {
-    const categoryId = Number(detailMatch[1]);
-    state.assetCategories = state.assetCategories.filter((category) => readNumber(category.id) !== categoryId);
+    const categoryUid = detailMatch[1] ?? "";
+    state.assetCategories = state.assetCategories.filter((category) => readString(category.uid) !== categoryUid);
     return null;
   }
 
@@ -1654,12 +1654,13 @@ function handlePortfolioGroups(route: string, method: string, searchParams: URLS
     const body = parseBody(init);
     const record = {
       id: nextId(state.portfolioGroups),
+      uid: `mock-portfolio-group-${nextId(state.portfolioGroups)}`,
       name: readString(body?.display_name) || readString(body?.unique_identifier) || "Portfolio Group",
       display_name: readString(body?.display_name) || "Portfolio Group",
       portfolio_group_name: readString(body?.display_name) || "Portfolio Group",
       unique_identifier: readString(body?.unique_identifier) || `pg_${Date.now()}`,
       description: readString(body?.description),
-      portfolios: readArray<number>(body?.portfolios),
+      portfolio_uids: readArray<string>(body?.portfolios),
       creation_date: new Date().toISOString(),
     };
     state.portfolioGroups.unshift(record);
@@ -1668,39 +1669,39 @@ function handlePortfolioGroups(route: string, method: string, searchParams: URLS
 
   if (route === "/orm/api/assets/portfolio_group/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
     const before = state.portfolioGroups.length;
-    state.portfolioGroups = state.portfolioGroups.filter((group) => !ids.has(readNumber(group.id)));
+    state.portfolioGroups = state.portfolioGroups.filter((group) => !uids.has(readString(group.uid)));
     return {
       detail: "Portfolio groups removed from mock state.",
       deleted_count: before - state.portfolioGroups.length,
     };
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/assets\/portfolio_group\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/orm\/api\/assets\/portfolio_group\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
-    return findById(state.portfolioGroups, Number(detailMatch[1]));
+    return findByUid(state.portfolioGroups, detailMatch[1] ?? "");
   }
 
-  const appendMatch = route.match(/^\/orm\/api\/assets\/portfolio_group\/(\d+)\/append-portfolios\/$/);
+  const appendMatch = route.match(/^\/orm\/api\/assets\/portfolio_group\/([^/]+)\/append-portfolios\/$/);
   if (appendMatch && method === "POST") {
-    const group = findById(state.portfolioGroups, Number(appendMatch[1]));
+    const group = findByUid(state.portfolioGroups, appendMatch[1] ?? "");
     const body = parseBody(init);
-    const existing = new Set(readArray<number>(group?.portfolios));
-    readArray<number>(body?.portfolios).forEach((portfolioId) => existing.add(portfolioId));
+    const existing = new Set(readArray<string>(group?.portfolio_uids));
+    readArray<string>(body?.portfolios).forEach((portfolioUid) => existing.add(portfolioUid));
     if (group) {
-      group.portfolios = [...existing];
+      group.portfolio_uids = [...existing];
     }
     return group;
   }
 
-  const removeMatch = route.match(/^\/orm\/api\/assets\/portfolio_group\/(\d+)\/remove-portfolios\/$/);
+  const removeMatch = route.match(/^\/orm\/api\/assets\/portfolio_group\/([^/]+)\/remove-portfolios\/$/);
   if (removeMatch && method === "POST") {
-    const group = findById(state.portfolioGroups, Number(removeMatch[1]));
+    const group = findByUid(state.portfolioGroups, removeMatch[1] ?? "");
     const body = parseBody(init);
-    const removing = new Set(readArray<number>(body?.portfolios));
+    const removing = new Set(readArray<string>(body?.portfolios));
     if (group) {
-      group.portfolios = readArray<number>(group.portfolios).filter((portfolioId) => !removing.has(portfolioId));
+      group.portfolio_uids = readArray<string>(group.portfolio_uids).filter((portfolioUid) => !removing.has(portfolioUid));
     }
     return group;
   }
@@ -1730,15 +1731,16 @@ function handleTargetPortfolios(route: string, method: string, searchParams: URL
     };
   }
 
-  const summaryMatch = route.match(/^\/orm\/api\/assets\/target_portfolio\/(\d+)\/summary\/$/);
+  const summaryMatch = route.match(/^\/orm\/api\/assets\/target_portfolio\/([^/]+)\/summary\/$/);
   if (summaryMatch && method === "GET") {
-    const portfolio = findById(state.targetPortfolios, Number(summaryMatch[1]));
-    return buildTargetPortfolioSummary(portfolio ?? { id: Number(summaryMatch[1]), portfolio_name: `Portfolio ${summaryMatch[1]}` });
+    const portfolioUid = summaryMatch[1] ?? "";
+    const portfolio = findByUid(state.targetPortfolios, portfolioUid);
+    return buildTargetPortfolioSummary(portfolio ?? { uid: portfolioUid, portfolio_name: `Portfolio ${portfolioUid}` });
   }
 
-  const weightsMatch = route.match(/^\/orm\/api\/assets\/target_portfolio\/(\d+)\/weights-position-details\/$/);
+  const weightsMatch = route.match(/^\/orm\/api\/assets\/target_portfolio\/([^/]+)\/weights-position-details\/$/);
   if (weightsMatch && method === "GET") {
-    const portfolio = findById(state.targetPortfolios, Number(weightsMatch[1]));
+    const portfolio = findByUid(state.targetPortfolios, weightsMatch[1] ?? "");
     return {
       weights: readArray(portfolio?.weights),
       position_columns: [],
@@ -1773,9 +1775,10 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
     return frontendRowsResponse(
       filtered.map((table) => ({
         id: readNumber(table.id),
+        uid: readString(table.uid),
         unique_identifier: readString(table.unique_identifier),
         rules_number: state.assetTranslationTableRules.filter(
-          (rule) => readNumber(rule.table_id) === readNumber(table.id),
+          (rule) => readString(rule.table_uid) === readString(table.uid),
         ).length,
         creation_date: readString(table.creation_date),
       })),
@@ -1787,8 +1790,10 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
 
   if (route === "/orm/api/assets/asset-translation-tables/" && method === "POST") {
     const body = parseBody(init);
+    const id = nextId(state.assetTranslationTables);
     const record = {
-      id: nextId(state.assetTranslationTables),
+      id,
+      uid: `mock-asset-translation-table-${id}`,
       unique_identifier: readString(body?.unique_identifier) || `translation_${Date.now()}`,
       creation_date: new Date().toISOString(),
     };
@@ -1798,27 +1803,27 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
 
   if (route === "/orm/api/assets/asset-translation-tables/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
     const before = state.assetTranslationTables.length;
-    state.assetTranslationTables = state.assetTranslationTables.filter((table) => !ids.has(readNumber(table.id)));
-    state.assetTranslationTableRules = state.assetTranslationTableRules.filter((rule) => !ids.has(readNumber(rule.table_id)));
+    state.assetTranslationTables = state.assetTranslationTables.filter((table) => !uids.has(readString(table.uid)));
+    state.assetTranslationTableRules = state.assetTranslationTableRules.filter((rule) => !uids.has(readString(rule.table_uid)));
     return {
       detail: "Asset translation tables removed from mock state.",
       deleted_count: before - state.assetTranslationTables.length,
     };
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/assets\/asset-translation-tables\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/orm\/api\/assets\/asset-translation-tables\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
-    const tableId = Number(detailMatch[1]);
-    const table = findById(state.assetTranslationTables, tableId);
+    const tableUid = detailMatch[1] ?? "";
+    const table = findByUid(state.assetTranslationTables, tableUid);
     return {
-      id: tableId,
-      title: readString(table?.unique_identifier) || `Table ${tableId}`,
+      uid: tableUid,
+      title: readString(table?.unique_identifier) || `Table ${tableUid}`,
       selected_table: {
-        id: tableId,
+        id: tableUid,
         text: readString(table?.unique_identifier),
-        sub_text: `Rules: ${state.assetTranslationTableRules.filter((rule) => readNumber(rule.table_id) === tableId).length}`,
+        sub_text: `Rules: ${state.assetTranslationTableRules.filter((rule) => readString(rule.table_uid) === tableUid).length}`,
       },
       details: [
         {
@@ -1837,36 +1842,36 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
       actions: {
         can_edit: true,
         can_delete: true,
-        update_endpoint: `/orm/api/assets/asset-translation-tables/${tableId}/`,
-        delete_endpoint: `/orm/api/assets/asset-translation-tables/${tableId}/`,
+        update_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/`,
+        delete_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/`,
       },
       rules_list: {
-        list_endpoint: `/orm/api/assets/asset-translation-tables/${tableId}/rules/`,
+        list_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/rules/`,
         response_format: "frontend_list",
-        create_endpoint: `/orm/api/assets/asset-translation-tables/${tableId}/rules/`,
+        create_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/rules/`,
       },
     };
   }
 
   if (detailMatch && method === "PATCH") {
-    const table = findById(state.assetTranslationTables, Number(detailMatch[1]));
+    const table = findByUid(state.assetTranslationTables, detailMatch[1] ?? "");
     Object.assign(table ?? {}, parseBody(init) ?? {});
     return table;
   }
 
   if (detailMatch && method === "DELETE") {
-    const tableId = Number(detailMatch[1]);
-    state.assetTranslationTables = state.assetTranslationTables.filter((table) => readNumber(table.id) !== tableId);
-    state.assetTranslationTableRules = state.assetTranslationTableRules.filter((rule) => readNumber(rule.table_id) !== tableId);
+    const tableUid = detailMatch[1] ?? "";
+    state.assetTranslationTables = state.assetTranslationTables.filter((table) => readString(table.uid) !== tableUid);
+    state.assetTranslationTableRules = state.assetTranslationTableRules.filter((rule) => readString(rule.table_uid) !== tableUid);
     return null;
   }
 
-  const rulesMatch = route.match(/^\/orm\/api\/assets\/asset-translation-tables\/(\d+)\/rules\/$/);
+  const rulesMatch = route.match(/^\/orm\/api\/assets\/asset-translation-tables\/([^/]+)\/rules\/$/);
   if (rulesMatch && method === "GET") {
-    const tableId = Number(rulesMatch[1]);
+    const tableUid = rulesMatch[1] ?? "";
     const filtered = state.assetTranslationTableRules.filter(
       (rule) =>
-        readNumber(rule.table_id) === tableId &&
+        readString(rule.table_uid) === tableUid &&
         matchesSearch(
           [
             rule.id,
@@ -1883,29 +1888,31 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
   }
 
   if (rulesMatch && method === "POST") {
-    const tableId = Number(rulesMatch[1]);
+    const tableUid = rulesMatch[1] ?? "";
     const body = parseBody(init);
     const assetFilter = (body?.asset_filter ?? {}) as Record<string, unknown>;
+    const ruleUid = `mock-asset-translation-rule-${Date.now()}`;
     const record = {
       id: nextId(state.assetTranslationTableRules),
-      table_id: tableId,
+      uid: ruleUid,
+      table_uid: tableUid,
       security_type: readOptionalString(assetFilter.security_type),
       security_market_sector: readOptionalString(assetFilter.security_market_sector),
       markets_time_serie_unique_identifier: readString(body?.markets_time_serie_unique_identifier),
       target_exchange_code: readOptionalString(body?.target_exchange_code),
       default_column_name: readOptionalString(body?.default_column_name),
       creation_date: new Date().toISOString(),
-      detail_endpoint: `/orm/api/assets/asset-translation-tables/${tableId}/rules/${Date.now()}/`,
-      update_endpoint: `/orm/api/assets/asset-translation-tables/${tableId}/rules/${Date.now()}/`,
-      delete_endpoint: `/orm/api/assets/asset-translation-tables/${tableId}/rules/${Date.now()}/`,
+      detail_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/rules/${ruleUid}/`,
+      update_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/rules/${ruleUid}/`,
+      delete_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/rules/${ruleUid}/`,
     };
     state.assetTranslationTableRules.unshift(record);
     return record;
   }
 
-  const ruleDetailMatch = route.match(/^\/orm\/api\/assets\/asset-translation-tables\/(\d+)\/rules\/(\d+)\/$/);
+  const ruleDetailMatch = route.match(/^\/orm\/api\/assets\/asset-translation-tables\/([^/]+)\/rules\/([^/]+)\/$/);
   if (ruleDetailMatch && method === "PATCH") {
-    const rule = findById(state.assetTranslationTableRules, Number(ruleDetailMatch[2]));
+    const rule = findByUid(state.assetTranslationTableRules, ruleDetailMatch[2] ?? "");
     const body = parseBody(init);
     const assetFilter = (body?.asset_filter ?? {}) as Record<string, unknown>;
 
@@ -1921,8 +1928,8 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
   }
 
   if (ruleDetailMatch && method === "DELETE") {
-    const ruleId = Number(ruleDetailMatch[2]);
-    state.assetTranslationTableRules = state.assetTranslationTableRules.filter((rule) => readNumber(rule.id) !== ruleId);
+    const ruleUid = ruleDetailMatch[2] ?? "";
+    state.assetTranslationTableRules = state.assetTranslationTableRules.filter((rule) => readString(rule.uid) !== ruleUid);
     return {
       detail: "Translation rule deleted from mock state.",
       deleted_rule: true,
@@ -1966,10 +1973,10 @@ function handleVirtualFunds(
     const record = {
       uid: readOptionalString(body?.uid) || `virtual-fund-${Date.now()}`,
       id: nextId(state.virtualFunds),
-      target_portfolio_id: readNumber(body?.target_portfolio_id ?? body?.target_portfolio) || null,
+      target_portfolio_uid: readOptionalString(body?.target_portfolio_uid ?? body?.target_portfolio) || null,
       target_portfolio_name:
         readString(body?.target_portfolio_name) || "Virtual Fund Portfolio",
-      account_id: readNumber(body?.account_id ?? body?.related_account ?? body?.account) || null,
+      account_uid: readOptionalString(body?.account_uid ?? body?.related_account ?? body?.account) || null,
       account_name: readString(body?.account_name) || "Managed Account",
       ...((body as Record<string, unknown> | null) ?? {}),
     };
@@ -2279,10 +2286,12 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
     }
 
     const options = state.projectDataSources.map((source) => ({
-      id: readNumber(source.id),
+      id: readString(source.uid),
+      uid: readString(source.uid),
       related_resource: source.related_resource
         ? {
-            id: readNumber((source.related_resource as Record<string, unknown>).id),
+            id: readString((source.related_resource as Record<string, unknown>).uid),
+            uid: readString((source.related_resource as Record<string, unknown>).uid),
             display_name: readString((source.related_resource as Record<string, unknown>).label),
             name: readString((source.related_resource as Record<string, unknown>).label),
             organization: 1,
@@ -2338,7 +2347,8 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
 
   if (route === "/orm/api/ts_manager/dynamic_table_data_source/related-resource-options/" && method === "GET") {
     return state.physicalDataSources.map((source) => ({
-      id: readNumber(source.id),
+      id: readString(source.uid),
+      uid: readString(source.uid),
       label: readString(source.display_name),
       class_type: readString(source.class_type),
       status: readString(source.status),
@@ -2347,12 +2357,14 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
 
   if (route === "/orm/api/ts_manager/dynamic_table_data_source/" && method === "POST") {
     const body = parseBody(init);
+    const id = nextId(state.projectDataSources);
     const record = {
-      id: nextId(state.projectDataSources),
+      id,
+      uid: `mock-project-data-source-${id}`,
       display_name: readString(body?.display_name) || "New Project Data Source",
       is_default_data_source: readBoolean(body?.is_default_data_source),
       related_resource: state.physicalDataSources.find(
-        (source) => readNumber(source.id) === readNumber(body?.related_resource),
+        (source) => readString(source.uid) === readString(body?.related_resource),
       ) ?? null,
       creation_date: new Date().toISOString(),
       creation_date_display: "Just now",
@@ -2361,29 +2373,31 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
     return {
       detail: "Project data source created.",
       id: readNumber(record.id),
+      uid: readString(record.uid),
       display_name: readString(record.display_name),
-      redirect_path: `/app/main_sequence_workbench/project-data-sources?msProjectDataSourceId=${record.id}&msProjectDataSourceView=edit`,
+      redirect_path: `/app/main_sequence_workbench/project-data-sources?msProjectDataSourceUid=${record.uid}&msProjectDataSourceView=edit`,
     };
   }
 
   if (route === "/orm/api/ts_manager/dynamic_table_data_source/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
     const before = state.projectDataSources.length;
-    state.projectDataSources = state.projectDataSources.filter((item) => !ids.has(readNumber(item.id)));
+    state.projectDataSources = state.projectDataSources.filter((item) => !uids.has(readString(item.uid)));
     return {
       detail: "Project data sources removed from mock state.",
       deleted_count: before - state.projectDataSources.length,
     };
   }
 
-  const editMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table_data_source\/(\d+)\/$/);
+  const editMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table_data_source\/([^/]+)\/$/);
   if (editMatch && method === "GET" && searchParams.get("response_format") === "editor") {
-    const record = findById(state.projectDataSources, Number(editMatch[1]));
+    const record = findByUid(state.projectDataSources, editMatch[1] ?? "");
     return {
       mode: "edit",
       entity: {
         id: readNumber(record?.id),
+        uid: readString(record?.uid),
         type: "project_data_source",
         title: readString(record?.display_name),
       },
@@ -2400,7 +2414,7 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
           label: "Related resource",
           editor: "remote_select",
           required: true,
-          value: readNumber((record?.related_resource as Record<string, unknown> | null)?.id) || null,
+          value: readString((record?.related_resource as Record<string, unknown> | null)?.uid) || null,
           display_value: readString((record?.related_resource as Record<string, unknown> | null)?.label),
           choices_path: "/orm/api/ts_manager/dynamic_table_data_source/related-resource-options/",
         },
@@ -2428,31 +2442,32 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
   }
 
   if (editMatch && method === "PATCH") {
-    const record = findById(state.projectDataSources, Number(editMatch[1]));
+    const record = findByUid(state.projectDataSources, editMatch[1] ?? "");
     const body = parseBody(init);
     if (record) {
       record.display_name = readString(body?.display_name) || record.display_name;
       record.is_default_data_source = readBoolean(body?.is_default_data_source);
       record.related_resource =
-        state.physicalDataSources.find((source) => readNumber(source.id) === readNumber(body?.related_resource)) ??
+        state.physicalDataSources.find((source) => readString(source.uid) === readString(body?.related_resource)) ??
         record.related_resource;
     }
 
     return {
       detail: "Project data source updated.",
       id: readNumber(record?.id),
+      uid: readString(record?.uid),
       display_name: readString(record?.display_name),
-      redirect_path: `/app/main_sequence_workbench/project-data-sources?msProjectDataSourceId=${editMatch[1]}&msProjectDataSourceView=edit`,
+      redirect_path: `/app/main_sequence_workbench/project-data-sources?msProjectDataSourceUid=${editMatch[1]}&msProjectDataSourceView=edit`,
     };
   }
 
-  const deleteMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table_data_source\/(\d+)\/delete\/$/);
+  const deleteMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table_data_source\/([^/]+)\/delete\/$/);
   if (deleteMatch && method === "POST") {
-    const id = Number(deleteMatch[1]);
-    state.projectDataSources = state.projectDataSources.filter((item) => readNumber(item.id) !== id);
+    const uid = deleteMatch[1] ?? "";
+    state.projectDataSources = state.projectDataSources.filter((item) => readString(item.uid) !== uid);
     return {
       detail: "Project data source deleted.",
-      id,
+      uid,
       redirect_path: "/app/main_sequence_workbench/project-data-sources",
     };
   }
@@ -2514,8 +2529,10 @@ function handlePhysicalDataSources(route: string, method: string, searchParams: 
 
   if (route === "/data_source/" && method === "POST") {
     const body = parseBody(init);
+    const id = nextId(state.physicalDataSources);
     const record = {
-      id: nextId(state.physicalDataSources),
+      id,
+      uid: `mock-physical-data-source-${id}`,
       display_name: readString(body?.display_name) || "New Physical Data Source",
       source_logo: "database",
       class_type: readString(body?.source_type) || "duck_db",
@@ -2530,29 +2547,31 @@ function handlePhysicalDataSources(route: string, method: string, searchParams: 
     return {
       detail: "Physical data source created.",
       id: readNumber(record.id),
+      uid: readString(record.uid),
       display_name: readString(record.display_name),
-      redirect_path: `/app/main_sequence_workbench/physical-data-sources?msPhysicalDataSourceId=${record.id}&msPhysicalDataSourceView=edit`,
+      redirect_path: `/app/main_sequence_workbench/physical-data-sources?msPhysicalDataSourceUid=${record.uid}&msPhysicalDataSourceView=edit`,
     };
   }
 
   if (route === "/data_source/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
     const before = state.physicalDataSources.length;
-    state.physicalDataSources = state.physicalDataSources.filter((source) => !ids.has(readNumber(source.id)));
+    state.physicalDataSources = state.physicalDataSources.filter((source) => !uids.has(readString(source.uid)));
     return {
       detail: "Physical data sources removed from mock state.",
       deleted_count: before - state.physicalDataSources.length,
     };
   }
 
-  const editMatch = route.match(/^\/data_source\/(\d+)\/$/);
+  const editMatch = route.match(/^\/data_source\/([^/]+)\/$/);
   if (editMatch && method === "GET" && searchParams.get("response_format") === "editor") {
-    const record = findById(state.physicalDataSources, Number(editMatch[1]));
+    const record = findByUid(state.physicalDataSources, editMatch[1] ?? "");
     return {
       mode: "edit",
       entity: {
         id: readNumber(record?.id),
+        uid: readString(record?.uid),
         type: "physical_data_source",
         title: readString(record?.display_name),
       },
@@ -2581,23 +2600,24 @@ function handlePhysicalDataSources(route: string, method: string, searchParams: 
   }
 
   if (editMatch && method === "PATCH") {
-    const record = findById(state.physicalDataSources, Number(editMatch[1]));
+    const record = findByUid(state.physicalDataSources, editMatch[1] ?? "");
     Object.assign(record ?? {}, parseBody(init) ?? {});
     return {
       detail: "Physical data source updated.",
       id: readNumber(record?.id),
+      uid: readString(record?.uid),
       display_name: readString(record?.display_name),
-      redirect_path: `/app/main_sequence_workbench/physical-data-sources?msPhysicalDataSourceId=${editMatch[1]}&msPhysicalDataSourceView=edit`,
+      redirect_path: `/app/main_sequence_workbench/physical-data-sources?msPhysicalDataSourceUid=${editMatch[1]}&msPhysicalDataSourceView=edit`,
     };
   }
 
-  const deleteMatch = route.match(/^\/data_source\/(\d+)\/delete\/$/);
+  const deleteMatch = route.match(/^\/data_source\/([^/]+)\/delete\/$/);
   if (deleteMatch && method === "POST") {
-    const id = Number(deleteMatch[1]);
-    state.physicalDataSources = state.physicalDataSources.filter((source) => readNumber(source.id) !== id);
+    const uid = deleteMatch[1] ?? "";
+    state.physicalDataSources = state.physicalDataSources.filter((source) => readString(source.uid) !== uid);
     return {
       detail: "Physical data source deleted.",
-      id,
+      uid,
       redirect_path: "/app/main_sequence_workbench/physical-data-sources",
     };
   }
@@ -2610,13 +2630,14 @@ function handleClusters(route: string, method: string, searchParams: URLSearchPa
     return buildClusterList(searchParams);
   }
 
-  const detailMatch = route.match(/^\/cluster\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/cluster\/([^/]+)\/$/);
   if (detailMatch && method === "GET" && searchParams.get("response_format") === "cluster_detail") {
-    const cluster = findById(state.clusters, Number(detailMatch[1]));
-    return buildClusterDetail(cluster ?? { id: Number(detailMatch[1]), uuid: `cluster-${detailMatch[1]}`, cluster_name: `Cluster ${detailMatch[1]}` });
+    const clusterUid = detailMatch[1] ?? "";
+    const cluster = state.clusters.find((candidate) => readString(candidate.uuid) === clusterUid) ?? null;
+    return buildClusterDetail(cluster ?? { uuid: clusterUid, cluster_name: `Cluster ${clusterUid}` });
   }
 
-  const scaleMatch = route.match(/^\/cluster\/(\d+)\/scale\/$/);
+  const scaleMatch = route.match(/^\/cluster\/([^/]+)\/scale\/$/);
   if (scaleMatch && method === "POST") {
     const body = parseBody(init);
     return {
@@ -2625,10 +2646,10 @@ function handleClusters(route: string, method: string, searchParams: URLSearchPa
     };
   }
 
-  const clusterTabMatch = route.match(/^\/cluster\/(\d+)\/(node-pools|nodes|namespaces|pods|deployments|services|storage|knative)\/$/);
+  const clusterTabMatch = route.match(/^\/cluster\/([^/]+)\/(node-pools|nodes|namespaces|pods|deployments|services|storage|knative)\/$/);
   if (clusterTabMatch && method === "GET") {
-    const cluster = findById(state.clusters, Number(clusterTabMatch[1]));
-    const key = clusterTabMatch[2].replace(/-/g, "_");
+    const cluster = state.clusters.find((candidate) => readString(candidate.uuid) === (clusterTabMatch[1] ?? "")) ?? null;
+    const key = (clusterTabMatch[2] ?? "").replace(/-/g, "_");
     const rows = readArray(cluster?.[key]);
 
     if (key === "nodes" && searchParams.get("node_pool")) {
@@ -2667,8 +2688,10 @@ function handleConstants(route: string, method: string, searchParams: URLSearchP
 
   if (route === "/constant/" && method === "POST") {
     const body = parseBody(init);
+    const id = nextId(state.constants);
     const record = {
-      id: nextId(state.constants),
+      id,
+      uid: `mock-constant-${id}`,
       name: readString(body?.name) || "NEW_CONSTANT",
       value: body?.value ?? "",
       category: null,
@@ -2679,22 +2702,22 @@ function handleConstants(route: string, method: string, searchParams: URLSearchP
 
   if (route === "/constant/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
     const before = state.constants.length;
-    state.constants = state.constants.filter((item) => !ids.has(readNumber(item.id)));
+    state.constants = state.constants.filter((item) => !uids.has(readString(item.uid)));
     return {
       deleted_count: before - state.constants.length,
     };
   }
 
-  const detailMatch = route.match(/^\/constant\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/constant\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
-    return findById(state.constants, Number(detailMatch[1]));
+    return findByUid(state.constants, detailMatch[1] ?? "");
   }
 
   if (detailMatch && method === "DELETE") {
-    const id = Number(detailMatch[1]);
-    state.constants = state.constants.filter((item) => readNumber(item.id) !== id);
+    const uid = detailMatch[1] ?? "";
+    state.constants = state.constants.filter((item) => readString(item.uid) !== uid);
     return null;
   }
 
@@ -2708,8 +2731,10 @@ function handleSecrets(route: string, method: string, searchParams: URLSearchPar
 
   if (route === "/secret/" && method === "POST") {
     const body = parseBody(init);
+    const id = nextId(state.secrets);
     const record = {
-      id: nextId(state.secrets),
+      id,
+      uid: `mock-secret-${id}`,
       name: readString(body?.name) || "NEW_SECRET",
       value: readString(body?.value) || "********",
     };
@@ -2719,9 +2744,9 @@ function handleSecrets(route: string, method: string, searchParams: URLSearchPar
     };
   }
 
-  const detailMatch = route.match(/^\/secret\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/secret\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
-    return findById(state.secrets, Number(detailMatch[1]));
+    return findByUid(state.secrets, detailMatch[1] ?? "");
   }
 
   return undefined;
@@ -2737,8 +2762,10 @@ function handleBuckets(route: string, method: string, searchParams: URLSearchPar
 
   if (route === "/bucket/" && method === "POST") {
     const body = parseBody(init);
+    const id = nextId(state.buckets);
     const record = {
-      id: nextId(state.buckets),
+      id,
+      uid: `mock-bucket-${id}`,
       name: readString(body?.name) || `mock-bucket-${Date.now()}`,
     };
     state.buckets.unshift(record);
@@ -2747,38 +2774,48 @@ function handleBuckets(route: string, method: string, searchParams: URLSearchPar
 
   if (route === "/bucket/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
+    const deletedBucketIds = new Set(
+      state.buckets
+        .filter((bucket) => uids.has(readString(bucket.uid)))
+        .map((bucket) => readNumber(bucket.id)),
+    );
     const before = state.buckets.length;
-    state.buckets = state.buckets.filter((bucket) => !ids.has(readNumber(bucket.id)));
-    state.bucketObjects = state.bucketObjects.filter((entry) => !ids.has(readNumber(entry.bucket_id)));
+    state.buckets = state.buckets.filter((bucket) => !uids.has(readString(bucket.uid)));
+    state.bucketObjects = state.bucketObjects.filter((entry) => !deletedBucketIds.has(readNumber(entry.bucket_id)));
     return {
       detail: "Buckets removed from mock state.",
       deleted_count: before - state.buckets.length,
     };
   }
 
-  const detailMatch = route.match(/^\/bucket\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/bucket\/([^/]+)\/$/);
   if (detailMatch && method === "DELETE") {
-    const id = Number(detailMatch[1]);
-    state.buckets = state.buckets.filter((bucket) => readNumber(bucket.id) !== id);
-    state.bucketObjects = state.bucketObjects.filter((entry) => readNumber(entry.bucket_id) !== id);
+    const uid = detailMatch[1] ?? "";
+    const bucket = findByUid(state.buckets, uid);
+    const bucketId = readNumber(bucket?.id);
+    state.buckets = state.buckets.filter((item) => readString(item.uid) !== uid);
+    state.bucketObjects = state.bucketObjects.filter((entry) => readNumber(entry.bucket_id) !== bucketId);
     return null;
   }
 
-  const summaryMatch = route.match(/^\/bucket\/(\d+)\/summary\/$/);
+  const summaryMatch = route.match(/^\/bucket\/([^/]+)\/summary\/$/);
   if (summaryMatch && method === "GET") {
-    const bucket = findById(state.buckets, Number(summaryMatch[1]));
-    return buildBucketSummary(bucket ?? { id: Number(summaryMatch[1]), name: `Bucket ${summaryMatch[1]}` });
+    const bucketUid = summaryMatch[1] ?? "";
+    const bucket = findByUid(state.buckets, bucketUid);
+    return buildBucketSummary(bucket ?? { uid: bucketUid, name: `Bucket ${bucketUid}` });
   }
 
-  const browseMatch = route.match(/^\/bucket\/(\d+)\/browse\/$/);
+  const browseMatch = route.match(/^\/bucket\/([^/]+)\/browse\/$/);
   if (browseMatch && method === "GET") {
-    return buildBucketBrowse(Number(browseMatch[1]), searchParams);
+    return buildBucketBrowse(browseMatch[1] ?? "", searchParams);
   }
 
-  const createFolderMatch = route.match(/^\/bucket\/(\d+)\/create-folder\/$/);
+  const createFolderMatch = route.match(/^\/bucket\/([^/]+)\/create-folder\/$/);
   if (createFolderMatch && method === "POST") {
-    const bucketId = Number(createFolderMatch[1]);
+    const bucketUid = createFolderMatch[1] ?? "";
+    const bucket = findByUid(state.buckets, bucketUid);
+    const bucketId = readNumber(bucket?.id);
     const body = parseBody(init);
     const prefix = readString(body?.prefix);
     const name = readString(body?.name) || "folder";
@@ -2810,9 +2847,9 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
 
   if (route === "/orm/api/ts_manager/simple_table/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
     const before = state.simpleTables.length;
-    state.simpleTables = state.simpleTables.filter((table) => !ids.has(readNumber(table.id)));
+    state.simpleTables = state.simpleTables.filter((table) => !uids.has(readString(table.uid)));
     return {
       deleted_count: before - state.simpleTables.length,
     };
@@ -2821,8 +2858,8 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
   if (route === "/orm/api/ts_manager/simple_table/bulk-refresh-table-search-index/" && method === "POST") {
     const body = parseBody(init);
     return {
-      results: readArray<number>(body?.ids).map((id) => ({
-        simple_table_id: id,
+      results: readArray<string>(body?.uids).map((uid) => ({
+        simple_table_uid: uid,
         ok: true,
         detail: "Search index refreshed in mock mode.",
       })),
@@ -2861,19 +2898,19 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
   }
 
   if (route === "/orm/api/ts_manager/simple_table/update/" && method === "GET") {
-    const simpleTableId = Number(searchParams.get("remote_table") ?? "");
+    const simpleTableUid = searchParams.get("remote_table__uid") ?? "";
     const query = searchParams.get("q");
     const filtered = sortDescendingById(
       state.simpleTableUpdates.filter(
         (update) =>
-          (Number.isFinite(simpleTableId) && simpleTableId > 0
-            ? readNumber((update.remote_table as Record<string, unknown> | null)?.id) === simpleTableId
+          (simpleTableUid
+            ? readString((update.remote_table as Record<string, unknown> | null)?.uid) === simpleTableUid
             : true) &&
           matchesSearch(
             [
               update.id,
               update.update_hash,
-              (update.remote_table as Record<string, unknown> | null)?.id,
+              (update.remote_table as Record<string, unknown> | null)?.uid,
               (update.remote_table as Record<string, unknown> | null)?.storage_hash,
               (update.remote_table as Record<string, unknown> | null)?.identifier,
             ],
@@ -2979,12 +3016,12 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
 
   const tailObservationsMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/([^/]+)\/get-tail-observations\/$/);
   if (tailObservationsMatch && method === "GET") {
-    const dataNodeId = tailObservationsMatch[1] ?? "";
-    const node = findByUid(state.dataNodes, dataNodeId);
+    const dataNodeUid = tailObservationsMatch[1] ?? "";
+    const node = findByUid(state.dataNodes, dataNodeUid);
     const { timeIndexName } = node ? getDataNodeIndexContext(node) : { timeIndexName: "" };
     const requestedOrder = readString(searchParams.get("order")).toLowerCase() === "asc" ? "asc" : "desc";
     const requestedCount = Math.max(0, Number(searchParams.get("n") ?? "") || 100);
-    const rows = [...resolveMockDataNodeRemoteRows(dataNodeId)].sort((left, right) => {
+    const rows = [...resolveMockDataNodeRemoteRows(dataNodeUid)].sort((left, right) => {
       const leftValue = Date.parse(readString(left[timeIndexName]));
       const rightValue = Date.parse(readString(right[timeIndexName]));
 
@@ -3012,7 +3049,7 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
 
   const deleteAfterDateMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/([^/]+)\/delete_after_date\/$/);
   if (deleteAfterDateMatch && method === "POST") {
-    const dataNodeId = deleteAfterDateMatch[1] ?? "";
+    const dataNodeUid = deleteAfterDateMatch[1] ?? "";
     const body = parseBody(init);
     const afterDate = readString(body?.after_date);
     const parsedAfterDate = Date.parse(afterDate);
@@ -3021,10 +3058,10 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
       throw new Error("Invalid after_date.");
     }
 
-    const node = findByUid(state.dataNodes, dataNodeId);
+    const node = findByUid(state.dataNodes, dataNodeUid);
 
     if (!node) {
-      throw new Error(`Dynamic table ${dataNodeId} was not found.`);
+      throw new Error(`Dynamic table ${dataNodeUid} was not found.`);
     }
 
     const { indexNames, secondaryIndexName, timeIndexName } = getDataNodeIndexContext(node);
@@ -3037,7 +3074,7 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
       throw new Error("unique_identifier filters are only supported for multi-index tables.");
     }
 
-    const previousRows = resolveMockDataNodeRemoteRows(dataNodeId);
+    const previousRows = resolveMockDataNodeRemoteRows(dataNodeUid);
     const nextRows = previousRows.filter((row) => {
       const parsedTimeIndex = Date.parse(readString(row[timeIndexName]));
 
@@ -3058,13 +3095,13 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
       return !uniqueIdentifierList.includes(identifier);
     });
 
-    replaceMockDataNodeRemoteRows(dataNodeId, nextRows);
-    replaceMockDataNodeLastObservation(dataNodeId, getLatestRecordByTimeIndex(nextRows));
-    const stats = updateMockDataNodeIndexStats(dataNodeId);
+    replaceMockDataNodeRemoteRows(dataNodeUid, nextRows);
+    replaceMockDataNodeLastObservation(dataNodeUid, getLatestRecordByTimeIndex(nextRows));
+    const stats = updateMockDataNodeIndexStats(dataNodeUid);
 
     return {
       ok: true,
-      dynamic_table_id: Number(dataNodeId),
+      dynamic_table_uid: dataNodeUid,
       deleted_count: previousRows.length - nextRows.length,
       table_empty: nextRows.length === 0,
       unique_identifier_list: uniqueIdentifierList.length > 0 ? uniqueIdentifierList : undefined,
@@ -3079,19 +3116,19 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
 
   if (route === "/orm/api/ts_manager/dynamic_table/bulk-refresh-table-search-index/" && method === "POST") {
     const body = parseBody(init);
-    const selectedIds = readArray<number>(body?.selected_ids);
+    const selectedUids = readArray<string>(body?.selected_uids);
     return {
       ok: true,
       action: "refresh_search_index",
-      requested_ids: selectedIds,
-      requested_count: selectedIds.length,
+      requested_uids: selectedUids,
+      requested_count: selectedUids.length,
       select_all: false,
-      matched_count: selectedIds.length,
-      success_count: selectedIds.length,
+      matched_count: selectedUids.length,
+      success_count: selectedUids.length,
       failed_count: 0,
-      results: selectedIds.map((id) => ({
-        dynamic_table_metadata_id: id,
-        storage_hash: readString(findById(state.dataNodes, id)?.storage_hash),
+      results: selectedUids.map((uid) => ({
+        dynamic_table_metadata_uid: uid,
+        storage_hash: readString(findByUid(state.dataNodes, uid)?.storage_hash),
         ok: true,
         detail: "Search index refreshed in mock mode.",
       })),
@@ -3100,19 +3137,19 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
 
   if (route === "/orm/api/ts_manager/dynamic_table/bulk-set-next-update-from-last-index-value/" && method === "POST") {
     const body = parseBody(init);
-    const selectedIds = readArray<number>(body?.selected_ids);
+    const selectedUids = readArray<string>(body?.selected_uids);
     return {
       ok: true,
       action: "set_next_update",
-      requested_ids: selectedIds,
-      requested_count: selectedIds.length,
+      requested_uids: selectedUids,
+      requested_count: selectedUids.length,
       select_all: false,
-      matched_count: selectedIds.length,
-      success_count: selectedIds.length,
+      matched_count: selectedUids.length,
+      success_count: selectedUids.length,
       failed_count: 0,
-      results: selectedIds.map((id) => ({
-        dynamic_table_metadata_id: id,
-        storage_hash: readString(findById(state.dataNodes, id)?.storage_hash),
+      results: selectedUids.map((uid) => ({
+        dynamic_table_metadata_uid: uid,
+        storage_hash: readString(findByUid(state.dataNodes, uid)?.storage_hash),
         ok: true,
         detail: "Next update aligned to last index value in mock mode.",
       })),
@@ -3121,19 +3158,19 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
 
   if (route === "/orm/api/ts_manager/dynamic_table/bulk-set-index-stats-from-table/" && method === "POST") {
     const body = parseBody(init);
-    const selectedIds = readArray<number>(body?.selected_ids);
+    const selectedUids = readArray<string>(body?.selected_uids);
     return {
       ok: true,
       action: "set_index_stats",
-      requested_ids: selectedIds,
-      requested_count: selectedIds.length,
+      requested_uids: selectedUids,
+      requested_count: selectedUids.length,
       select_all: false,
-      matched_count: selectedIds.length,
-      success_count: selectedIds.length,
+      matched_count: selectedUids.length,
+      success_count: selectedUids.length,
       failed_count: 0,
-      results: selectedIds.map((id) => ({
-        dynamic_table_metadata_id: id,
-        storage_hash: readString(findById(state.dataNodes, id)?.storage_hash),
+      results: selectedUids.map((uid) => ({
+        dynamic_table_metadata_uid: uid,
+        storage_hash: readString(findByUid(state.dataNodes, uid)?.storage_hash),
         ok: true,
         detail: "Index stats refreshed in mock mode.",
       })),
@@ -3142,15 +3179,15 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
 
   if (route === "/orm/api/ts_manager/dynamic_table/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const selectedIds = new Set(readArray<number>(body?.selected_ids));
+    const selectedUids = new Set(readArray<string>(body?.selected_uids));
     const before = state.dataNodes.length;
-    state.dataNodes = state.dataNodes.filter((node) => !selectedIds.has(readNumber(node.id)));
+    state.dataNodes = state.dataNodes.filter((node) => !selectedUids.has(readString(node.uid)));
     return {
       ok: true,
-      requested_ids: [...selectedIds],
-      requested_count: selectedIds.size,
+      requested_uids: [...selectedUids],
+      requested_count: selectedUids.size,
       select_all: false,
-      matched_count: selectedIds.size,
+      matched_count: selectedUids.size,
       selected_deleted: before - state.dataNodes.length,
       downstream_deleted: 0,
       missing_table_deleted: 0,
@@ -3214,19 +3251,19 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
 
 function handleLocalTimeSeries(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
   if (route === "/orm/api/ts_manager/local_time_serie/" && method === "GET") {
-    const remoteTableId = Number(searchParams.get("remote_table") ?? "");
-    const projectId = Number(searchParams.get("project__id") ?? "");
+    const remoteTableUid = searchParams.get("remote_table__uid") ?? "";
+    const projectUid = searchParams.get("project__uid") ?? "";
     const query = searchParams.get("q");
     const filtered = sortDescendingById(
       state.localTimeSeries.filter((update) => {
-        if (remoteTableId > 0) {
-          if (readNumber((update.data_node_storage as Record<string, unknown> | null)?.id) !== remoteTableId) {
+        if (remoteTableUid) {
+          if (readString((update.data_node_storage as Record<string, unknown> | null)?.uid) !== remoteTableUid) {
             return false;
           }
         }
 
-        if (projectId > 0) {
-          if (readNumber(update.project_id) !== projectId) {
+        if (projectUid) {
+          if (readString(update.project_uid) !== projectUid) {
             return false;
           }
         }
@@ -3235,8 +3272,8 @@ function handleLocalTimeSeries(route: string, method: string, searchParams: URLS
           [
             update.id,
             update.update_hash,
-            update.project_id,
-            (update.data_node_storage as Record<string, unknown> | null)?.id,
+            update.project_uid,
+            (update.data_node_storage as Record<string, unknown> | null)?.uid,
             (update.data_node_storage as Record<string, unknown> | null)?.storage_hash,
             (update.data_node_storage as Record<string, unknown> | null)?.identifier,
           ],
@@ -3251,7 +3288,7 @@ function handleLocalTimeSeries(route: string, method: string, searchParams: URLS
   if (summaryMatch && method === "GET") {
     const update = findByUid(state.localTimeSeries, summaryMatch[1] ?? "");
     return buildEntitySummary(
-      Number(summaryMatch[1]),
+      summaryMatch[1] ?? "",
       "local_time_serie",
       readString(update?.update_hash) || `Local Update ${summaryMatch[1]}`,
       {
@@ -3351,10 +3388,10 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
   }
 
   if (route === "/project-image/" && method === "GET") {
-    const projectId = Number(searchParams.get("related_project__id__in") ?? "");
+    const projectUid = searchParams.get("related_project__uid__in") ?? "";
     const filtered = sortDescendingById(
       state.projectImages.filter((image) =>
-        projectId > 0 ? readNumber(image.related_project) === projectId : true,
+        projectUid ? readString(image.related_project_uid) === projectUid : true,
       ),
     );
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
@@ -3363,10 +3400,12 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
   if (route === "/project-image/" && method === "POST") {
     const body = parseBody(init);
     const baseImage = state.projectBaseImages[0] ?? null;
+    const id = nextId(state.projectImages);
     const record = {
-      id: nextId(state.projectImages),
+      id,
+      uid: `mock-project-image-${id}`,
       project_repo_hash: readString(body?.project_repo_hash) || "newmockhash00000000",
-      related_project: readNumber(body?.related_project_id),
+      related_project_uid: readString(body?.related_project),
       base_image: baseImage,
       is_ready: false,
     };
@@ -3374,28 +3413,28 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
     return record;
   }
 
-  const projectImageDeleteMatch = route.match(/^\/project-image\/(\d+)\/$/);
+  const projectImageDeleteMatch = route.match(/^\/project-image\/([^/]+)\/$/);
   if (projectImageDeleteMatch && method === "DELETE") {
-    const id = Number(projectImageDeleteMatch[1]);
-    state.projectImages = state.projectImages.filter((image) => readNumber(image.id) !== id);
+    const imageUid = projectImageDeleteMatch[1] ?? "";
+    state.projectImages = state.projectImages.filter((image) => readString(image.uid) !== imageUid);
     return detailMessage("Project image deleted from mock state.");
   }
 
   if (route === "/project-image/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
     const before = state.projectImages.length;
-    state.projectImages = state.projectImages.filter((image) => !ids.has(readNumber(image.id)));
+    state.projectImages = state.projectImages.filter((image) => !uids.has(readString(image.uid)));
     return {
       deleted_count: before - state.projectImages.length,
     };
   }
 
   if (route === "/project-image/commit-hashes/" && method === "GET") {
-    const projectId = Number(searchParams.get("project_id") ?? "");
-    const images = state.projectImages.filter((image) => readNumber(image.related_project) === projectId);
+    const projectUid = searchParams.get("project_uid") ?? "";
+    const images = state.projectImages.filter((image) => readString(image.related_project_uid) === projectUid);
     return {
-      project_id: projectId,
+      project_uid: projectUid,
       commits: images.map((image) => {
         const hash = readString(image.project_repo_hash);
         return {
@@ -3414,12 +3453,12 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
   }
 
   if (route === "/project-resource/" && method === "GET") {
-    const projectId = Number(searchParams.get("project__id") ?? "");
+    const projectUid = searchParams.get("project__uid") ?? "";
     const resourceType = searchParams.get("resource_type");
     const repoCommitSha = searchParams.get("repo_commit_sha");
     const filtered = sortDescendingById(
       state.projectResources.filter((resource) => {
-        if (projectId > 0 && readNumber(resource.project) !== projectId) {
+        if (projectUid && readString(resource.project_uid) !== projectUid) {
           return false;
         }
         if (resourceType && readString(resource.resource_type) !== resourceType) {
@@ -3440,28 +3479,33 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
 
   if (route === "/resource-release/" && method === "POST") {
     const body = parseBody(init);
-    const resource = state.projectResources.find((item) => readNumber(item.id) === readNumber(body?.resource));
-    const image = state.projectImages.find((item) => readNumber(item.id) === readNumber(body?.related_image));
-    const job = state.jobs.find((item) => readNumber(item.related_image) === readNumber(image?.id)) ?? state.jobs[0];
-    const project = state.projects.find((item) => readNumber(item.id) === readNumber(resource?.project)) ?? state.projects[0];
+    const resource = state.projectResources.find((item) => readString(item.uid) === readString(body?.resource));
+    const image = state.projectImages.find((item) => readString(item.uid) === readString(body?.related_image));
+    const job =
+      state.jobs.find((item) => readString(item.related_image_uid) === readString(image?.uid)) ??
+      state.jobs[0];
+    const project =
+      state.projects.find((item) => readString(item.uid) === readString(resource?.project_uid)) ??
+      state.projects[0];
     const nextIdValue = nextId(state.resourceReleases);
     const subdomain = `${readString(resource?.name).replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "release"}-${nextIdValue}`;
     const record = {
       id: nextIdValue,
+      uid: `mock-resource-release-${nextIdValue}`,
       subdomain,
-      resource: readNumber(body?.resource),
+      resource: readString(body?.resource),
       readme_resource: null,
       related_job: readNumber(job?.id),
       release_kind: readString(body?.release_kind) || "streamlit_dashboard",
       title: readString(resource?.name),
-      resource_id: readNumber(resource?.id),
+      resource_uid: readString(resource?.uid),
       resource_name: readString(resource?.name),
-      project_id: readNumber(project?.id),
+      project_uid: readString(project?.uid),
       project_name: readString(project?.project_name),
-      image_id: readNumber(image?.id),
+      image_uid: readString(image?.uid),
       project_repo_hash: readString(image?.project_repo_hash),
       public_url: `https://${subdomain}.dash.main-sequence.app`,
-      exchange_launch_url: `/orm/api/pods/resource-release/${nextIdValue}/exchange-launch/`,
+      exchange_launch_url: `/orm/api/pods/resource-release/mock-resource-release-${nextIdValue}/exchange-launch/`,
       readme_html: "Mock release created in local state.",
     };
     state.resourceReleases.unshift(record);
@@ -3471,10 +3515,10 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
 
   if (route === "/resource-release/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
     const before = state.resourceReleases.length;
-    state.resourceReleases = state.resourceReleases.filter((release) => !ids.has(readNumber(release.id)));
-    state.resourceReleaseGallery = state.resourceReleaseGallery.filter((release) => !ids.has(readNumber(release.id)));
+    state.resourceReleases = state.resourceReleases.filter((release) => !uids.has(readString(release.uid)));
+    state.resourceReleaseGallery = state.resourceReleaseGallery.filter((release) => !uids.has(readString(release.uid)));
     return {
       deleted_count: before - state.resourceReleases.length,
     };
@@ -3495,24 +3539,25 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
-  const releaseSummaryMatch = route.match(/^\/resource-release\/(\d+)\/summary\/$/);
+  const releaseSummaryMatch = route.match(/^\/resource-release\/([^/]+)\/summary\/$/);
   if (releaseSummaryMatch && method === "GET") {
-    const release = findById(state.resourceReleaseGallery, Number(releaseSummaryMatch[1])) ??
-      findById(state.resourceReleases, Number(releaseSummaryMatch[1]));
-    return buildResourceReleaseSummary(release ?? { id: Number(releaseSummaryMatch[1]), title: `Release ${releaseSummaryMatch[1]}` });
+    const releaseUid = releaseSummaryMatch[1] ?? "";
+    const release = findByUid(state.resourceReleaseGallery, releaseUid) ??
+      findByUid(state.resourceReleases, releaseUid);
+    return buildResourceReleaseSummary(release ?? { uid: releaseUid, title: `Release ${releaseUid}` });
   }
 
-  const releaseDeleteMatch = route.match(/^\/resource-release\/(\d+)\/$/);
+  const releaseDeleteMatch = route.match(/^\/resource-release\/([^/]+)\/$/);
   if (releaseDeleteMatch && method === "DELETE") {
-    const id = Number(releaseDeleteMatch[1]);
-    state.resourceReleases = state.resourceReleases.filter((release) => readNumber(release.id) !== id);
-    state.resourceReleaseGallery = state.resourceReleaseGallery.filter((release) => readNumber(release.id) !== id);
+    const releaseUid = releaseDeleteMatch[1] ?? "";
+    state.resourceReleases = state.resourceReleases.filter((release) => readString(release.uid) !== releaseUid);
+    state.resourceReleaseGallery = state.resourceReleaseGallery.filter((release) => readString(release.uid) !== releaseUid);
     return null;
   }
 
-  const launchMatch = route.match(/^\/resource-release\/(\d+)\/exchange-launch\/$/);
+  const launchMatch = route.match(/^\/resource-release\/([^/]+)\/exchange-launch\/$/);
   if (launchMatch && method === "GET") {
-    const release = findById(state.resourceReleaseGallery, Number(launchMatch[1]));
+    const release = findByUid(state.resourceReleaseGallery, launchMatch[1] ?? "");
     if (lowerNeedle(readString(release?.release_kind)) === "agent") {
       return {
         release_kind: "agent",
@@ -3533,19 +3578,21 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
 
 function handleJobs(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
   if (route === "/job/" && method === "GET") {
-    const projectId = Number(searchParams.get("project__id") ?? "");
+    const projectUid = searchParams.get("project__uid") ?? "";
     const filtered = sortDescendingById(
-      state.jobs.filter((job) => (projectId > 0 ? readNumber(job.project) === projectId : true)),
+      state.jobs.filter((job) => (projectUid ? readString(job.project_uid) === projectUid : true)),
     );
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
   if (route === "/job/" && method === "POST") {
     const body = parseBody(init);
+    const id = nextId(state.jobs);
     const record = {
-      id: nextId(state.jobs),
+      id,
+      uid: `mock-job-${id}`,
       name: readString(body?.name) || "new-job",
-      project: readNumber(body?.project),
+      project_uid: readString(body?.project),
       execution_path: readString(body?.execution_path),
       app_name: "python",
       task_schedule: null,
@@ -3557,7 +3604,7 @@ function handleJobs(route: string, method: string, searchParams: URLSearchParams
       gpu_type: readOptionalString(body?.gpu_type),
       spot: readBoolean(body?.spot),
       max_runtime_seconds: readNumber(body?.max_runtime_seconds) || 3600,
-      related_image: readNumber(body?.related_image) || null,
+      related_image_uid: readOptionalString(body?.related_image),
     };
     state.jobs.unshift(record);
     return record;
@@ -3565,29 +3612,29 @@ function handleJobs(route: string, method: string, searchParams: URLSearchParams
 
   if (route === "/job/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const ids = new Set(readArray<number>(body?.ids));
+    const uids = new Set(readArray<string>(body?.uids));
     const before = state.jobs.length;
-    state.jobs = state.jobs.filter((job) => !ids.has(readNumber(job.id)));
+    state.jobs = state.jobs.filter((job) => !uids.has(readString(job.uid)));
     return {
       deleted_count: before - state.jobs.length,
     };
   }
 
-  const detailMatch = route.match(/^\/job\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/job\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
-    return findById(state.jobs, Number(detailMatch[1]));
+    return findByUid(state.jobs, detailMatch[1] ?? "");
   }
 
   if (detailMatch && method === "DELETE") {
-    const id = Number(detailMatch[1]);
-    state.jobs = state.jobs.filter((job) => readNumber(job.id) !== id);
+    const jobUid = detailMatch[1] ?? "";
+    state.jobs = state.jobs.filter((job) => readString(job.uid) !== jobUid);
     return null;
   }
 
   if (route === "/job-run/" && method === "GET") {
-    const jobId = Number(searchParams.get("job__id") ?? "");
+    const jobUid = searchParams.get("job__uid") ?? "";
     const filtered = sortDescendingById(
-      state.jobRuns.filter((run) => (jobId > 0 ? readNumber(run.job) === jobId : true)),
+      state.jobRuns.filter((run) => (jobUid ? readString(run.job_uid) === jobUid : true)),
     );
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
@@ -3599,7 +3646,8 @@ function handleJobs(route: string, method: string, searchParams: URLSearchParams
         row_id: `historical-${run.id}`,
         kind: "historical",
         id: readNumber(run.id),
-        job: readNumber(run.job),
+        uid: readString(run.uid),
+        job_uid: readString(run.job_uid),
         job_name: readString(run.job_name),
         name: readString(run.name),
         execution_start: readString(run.execution_start),
@@ -3609,8 +3657,8 @@ function handleJobs(route: string, method: string, searchParams: URLSearchParams
         cluster_name: readString(run.cluster_name) || "gke-analytics-prod",
         cluster_uuid: readString(run.cluster_uuid) || "cluster-prod-1",
         response_status: readOptionalString(run.response_status),
-        job_detail_url: `/app/main_sequence_workbench/jobs?msJobId=${run.job}`,
-        job_run_detail_url: `/app/main_sequence_workbench/jobs?msJobId=${run.job}&msJobRunId=${run.id}`,
+        job_detail_url: `/app/main_sequence_workbench/jobs?msJobUid=${run.job_uid}`,
+        job_run_detail_url: `/app/main_sequence_workbench/jobs?msJobUid=${run.job_uid}&msJobRunUid=${run.uid}`,
       }));
   }
 
@@ -3619,7 +3667,7 @@ function handleJobs(route: string, method: string, searchParams: URLSearchParams
       row_id: `upcoming-${job.id}`,
       kind: "upcoming",
       id: null,
-      job: readNumber(job.id),
+      job_uid: readString(job.uid),
       job_name: readString(job.name),
       name: `${readString(job.name)} next run`,
       execution_start: new Date(Date.now() + (index + 1) * 60 * 60 * 1000).toISOString(),
@@ -3629,18 +3677,19 @@ function handleJobs(route: string, method: string, searchParams: URLSearchParams
       cluster_name: "gke-analytics-prod",
       cluster_uuid: "cluster-prod-1",
       response_status: null,
-      job_detail_url: `/app/main_sequence_workbench/jobs?msJobId=${job.id}`,
+      job_detail_url: `/app/main_sequence_workbench/jobs?msJobUid=${job.uid}`,
       job_run_detail_url: null,
     }));
   }
 
-  const runSummaryMatch = route.match(/^\/job-run\/(\d+)\/summary\/$/);
+  const runSummaryMatch = route.match(/^\/job-run\/([^/]+)\/summary\/$/);
   if (runSummaryMatch && method === "GET") {
-    const run = findById(state.jobRuns, Number(runSummaryMatch[1]));
+    const runUid = runSummaryMatch[1] ?? "";
+    const run = findByUid(state.jobRuns, runUid);
     return buildEntitySummary(
-      Number(runSummaryMatch[1]),
+      runUid,
       "job_run",
-      readString(run?.name) || `Run ${runSummaryMatch[1]}`,
+      readString(run?.name) || `Run ${runUid}`,
       {
         badges: [
           {
@@ -3667,12 +3716,13 @@ function handleJobs(route: string, method: string, searchParams: URLSearchParams
     );
   }
 
-  const logsMatch = route.match(/^\/job-run\/(\d+)\/get_logs\/$/);
+  const logsMatch = route.match(/^\/job-run\/([^/]+)\/get_logs\/$/);
   if (logsMatch && method === "GET") {
+    const runUid = logsMatch[1] ?? "";
     return {
-      job_run_id: Number(logsMatch[1]),
+      job_run_uid: runUid,
       status: "ok",
-      rows: readArray(state.jobRunLogs[logsMatch[1]]),
+      rows: readArray(state.jobRunLogs[runUid]),
     };
   }
 

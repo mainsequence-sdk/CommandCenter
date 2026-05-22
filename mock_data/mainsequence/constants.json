@@ -1,5 +1,23 @@
 [
-  { "id": 1, "name": "DEFAULT_REGION", "value": "us-east-1", "category": "infrastructure" },
-  { "id": 2, "name": "DASHBOARD_CACHE_TTL", "value": 300, "category": "application" },
-  { "id": 3, "name": "ENABLE_AGENT_ROUTING", "value": true, "category": "feature_flags" }
+  {
+    "id": 1,
+    "name": "DEFAULT_REGION",
+    "value": "us-east-1",
+    "category": "infrastructure",
+    "uid": "mock-constant-1"
+  },
+  {
+    "id": 2,
+    "name": "DASHBOARD_CACHE_TTL",
+    "value": 300,
+    "category": "application",
+    "uid": "mock-constant-2"
+  },
+  {
+    "id": 3,
+    "name": "ENABLE_AGENT_ROUTING",
+    "value": true,
+    "category": "feature_flags",
+    "uid": "mock-constant-3"
+  }
 ]

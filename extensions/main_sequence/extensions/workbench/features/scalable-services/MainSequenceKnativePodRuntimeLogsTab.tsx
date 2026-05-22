@@ -73,17 +73,17 @@ function mapPodRuntimeLogRowToEntry(row: JobRunLogEntry, index: number): LogTabl
 }
 
 export function MainSequenceKnativePodRuntimeLogsTab({
-  podRuntimeId,
+  podRuntimeUid,
 }: {
-  podRuntimeId: number;
+  podRuntimeUid: string;
 }) {
   const [filterValue, setFilterValue] = useState("");
   const deferredFilterValue = useDeferredValue(filterValue);
 
   const logsQuery = useQuery({
-    queryKey: ["main_sequence", "pods", "knative_pod_runtimes", "logs", podRuntimeId],
-    queryFn: () => fetchKnativePodRuntimeLogs(podRuntimeId),
-    enabled: podRuntimeId > 0,
+    queryKey: ["main_sequence", "pods", "knative_pod_runtimes", "logs", podRuntimeUid],
+    queryFn: () => fetchKnativePodRuntimeLogs(podRuntimeUid),
+    enabled: Boolean(podRuntimeUid),
   });
 
   const filteredRows = useMemo(() => {

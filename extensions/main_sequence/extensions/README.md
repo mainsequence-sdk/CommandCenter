@@ -13,4 +13,4 @@ This directory contains independently registered Main Sequence extensions.
 
 - Each nested extension must expose its own `index.ts` entrypoint.
 - Shared code belongs in `../common/`, not in another nested extension.
-- Keep ids, routes, and widget `source` values aligned with the owning nested extension.
+- Keep uids, routes, and widget `source` values aligned with the owning nested extension.

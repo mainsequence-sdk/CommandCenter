@@ -26,7 +26,7 @@ import {
 export type ScalableServiceDetailTabId = "pods" | "revisions";
 
 function getScalableServiceTitle(
-  serviceId: number,
+  serviceUid: string,
   {
     initialService,
     summaryTitle,
@@ -46,7 +46,7 @@ function getScalableServiceTitle(
     (typeof initialService?.release_name === "string" && initialService.release_name.trim()
       ? initialService.release_name.trim()
       : null) ||
-    `Scalable Service ${serviceId}`
+    `Scalable Service ${serviceUid}`
   );
 }
 
@@ -158,7 +158,7 @@ function ScalableServicePodsTableWithSelection({
   onOpenPodRuntimeDetail,
 }: {
   rows: ScalableServicePodRow[];
-  onOpenPodRuntimeDetail: (podRuntimeId: number) => void;
+  onOpenPodRuntimeDetail: (podRuntimeUid: string) => void;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -178,9 +178,9 @@ function ScalableServicePodsTableWithSelection({
         <tbody>
           {rows.map((row) => (
             <tr
-              key={row.pod_uid || row.id}
+              key={row.uid}
               className="cursor-pointer rounded-[var(--table-row-radius)] transition hover:bg-muted/35"
-              onClick={() => onOpenPodRuntimeDetail(row.id)}
+              onClick={() => onOpenPodRuntimeDetail(row.uid)}
             >
               <td className={getRegistryTableCellClassName(false, "left")}>
                 <div className="flex items-center gap-2">
@@ -289,7 +289,7 @@ function ScalableServiceRevisionsTable({ rows }: { rows: ScalableServiceRevision
 
 export function MainSequenceScalableServiceDetail({
   activeTabId,
-  activePodRuntimeId,
+  activePodRuntimeUid,
   activePodRuntimeTabId,
   initialService,
   onBack,
@@ -297,43 +297,43 @@ export function MainSequenceScalableServiceDetail({
   onOpenPodRuntimeDetail,
   onSelectPodRuntimeTab,
   onSelectTab,
-  serviceId,
+  serviceUid,
 }: {
   activeTabId: ScalableServiceDetailTabId;
-  activePodRuntimeId: number | null;
+  activePodRuntimeUid: string | null;
   activePodRuntimeTabId: KnativePodRuntimeDetailTabId;
   initialService: ScalableServiceRecord | null;
   onBack: () => void;
   onBackFromPodRuntimeDetail: () => void;
-  onOpenPodRuntimeDetail: (podRuntimeId: number) => void;
+  onOpenPodRuntimeDetail: (podRuntimeUid: string) => void;
   onSelectPodRuntimeTab: (tabId: KnativePodRuntimeDetailTabId) => void;
   onSelectTab: (tabId: ScalableServiceDetailTabId) => void;
-  serviceId: number;
+  serviceUid: string;
 }) {
   const summaryQuery = useQuery({
-    queryKey: ["main_sequence", "scalable_services", "summary", serviceId],
-    queryFn: () => fetchScalableServiceSummary(serviceId),
-    enabled: serviceId > 0,
+    queryKey: ["main_sequence", "scalable_services", "summary", serviceUid],
+    queryFn: () => fetchScalableServiceSummary(serviceUid),
+    enabled: Boolean(serviceUid),
   });
   const podsQuery = useQuery({
-    queryKey: ["main_sequence", "scalable_services", "pods", serviceId],
-    queryFn: () => listScalableServicePods(serviceId),
-    enabled: serviceId > 0 && (activeTabId === "pods" || Boolean(activePodRuntimeId)),
+    queryKey: ["main_sequence", "scalable_services", "pods", serviceUid],
+    queryFn: () => listScalableServicePods(serviceUid),
+    enabled: Boolean(serviceUid) && (activeTabId === "pods" || Boolean(activePodRuntimeUid)),
   });
   const revisionsQuery = useQuery({
-    queryKey: ["main_sequence", "scalable_services", "revisions", serviceId],
-    queryFn: () => listScalableServiceRevisions(serviceId),
-    enabled: serviceId > 0 && activeTabId === "revisions" && !activePodRuntimeId,
+    queryKey: ["main_sequence", "scalable_services", "revisions", serviceUid],
+    queryFn: () => listScalableServiceRevisions(serviceUid),
+    enabled: Boolean(serviceUid) && activeTabId === "revisions" && !activePodRuntimeUid,
   });
 
   const summary = summaryQuery.data ?? null;
   const pods = useMemo(() => podsQuery.data ?? [], [podsQuery.data]);
   const revisions = useMemo(() => revisionsQuery.data ?? [], [revisionsQuery.data]);
   const selectedPodRuntime = useMemo(
-    () => pods.find((row) => row.id === activePodRuntimeId) ?? null,
-    [activePodRuntimeId, pods],
+    () => pods.find((row) => row.uid === activePodRuntimeUid) ?? null,
+    [activePodRuntimeUid, pods],
   );
-  const serviceTitle = getScalableServiceTitle(serviceId, {
+  const serviceTitle = getScalableServiceTitle(serviceUid, {
     initialService,
     summaryTitle: summary?.entity.title ?? null,
   });

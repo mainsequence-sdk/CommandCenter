@@ -291,8 +291,6 @@ export function MainSequenceSimpleTablesPage() {
       null,
     [selectedSimpleTableIdentifier, simpleTablesQuery.data?.results],
   );
-  const selectedSimpleTableNumericId =
-    selectedSimpleTableFromList?.id ?? simpleTableDetailQuery.data?.id ?? null;
   const simpleTableSummary =
     simpleTableSummaryQuery.data ??
     (simpleTableDetailQuery.data
@@ -314,21 +312,23 @@ export function MainSequenceSimpleTablesPage() {
 
   const bulkActionMutation = useMutation({
     mutationFn: async (request: SimpleTableBulkActionRequest) => {
-      const ids = request.tables.map((table) => table.id);
+      const uids = request.tables
+        .map((table) => table.uid?.trim())
+        .filter((uid): uid is string => Boolean(uid));
 
       switch (request.kind) {
         case "delete":
           return bulkDeleteSimpleTables({
-            ids,
+            uids,
             fullDeleteSelected: true,
           });
         case "delete-downstream":
           return bulkDeleteSimpleTables({
-            ids,
+            uids,
             fullDeleteDownstreamTables: true,
           });
         case "refresh-search-index":
-          return bulkRefreshSimpleTableSearchIndex(ids);
+          return bulkRefreshSimpleTableSearchIndex(uids);
         default:
           return null;
       }

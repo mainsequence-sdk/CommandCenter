@@ -34,9 +34,9 @@ function matchesDashboardSearch(dashboard: ResourceReleaseGalleryRecord, needle:
     dashboard.project_name,
     dashboard.subdomain,
     dashboard.public_url ?? "",
-    String(dashboard.id),
-    String(dashboard.project_id),
-    String(dashboard.resource_id),
+    dashboard.uid,
+    dashboard.project_uid,
+    dashboard.resource_uid,
   ]
     .join(" ")
     .toLowerCase()
@@ -81,8 +81,8 @@ export function MainSequenceStreamlitPage() {
   const { toast } = useToast();
   const [searchValue, setSearchValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
-  const [selectedDashboardId, setSelectedDashboardId] = useState<number | null>(null);
-  const [launchingDashboardId, setLaunchingDashboardId] = useState<number | null>(null);
+  const [selectedDashboardUid, setSelectedDashboardUid] = useState<string | null>(null);
+  const [launchingDashboardUid, setLaunchingDashboardUid] = useState<string | null>(null);
   const deferredSearchValue = useDeferredValue(searchValue);
   const normalizedSearchValue = deferredSearchValue.trim().toLowerCase();
 
@@ -104,8 +104,8 @@ export function MainSequenceStreamlitPage() {
   );
   const totalItems = filteredDashboards.length;
   const selectedDashboard = useMemo(
-    () => dashboards.find((dashboard) => dashboard.id === selectedDashboardId) ?? null,
-    [dashboards, selectedDashboardId],
+    () => dashboards.find((dashboard) => dashboard.uid === selectedDashboardUid) ?? null,
+    [dashboards, selectedDashboardUid],
   );
   const pageRows = useMemo(() => {
     const start = pageIndex * mainSequenceRegistryPageSize;
@@ -148,7 +148,7 @@ export function MainSequenceStreamlitPage() {
     }
 
     openedWindow.opener = null;
-    setLaunchingDashboardId(dashboard.id);
+    setLaunchingDashboardUid(dashboard.uid);
 
     try {
       const targetUrl = dashboard.exchange_launch_url
@@ -170,8 +170,8 @@ export function MainSequenceStreamlitPage() {
         description: formatMainSequenceError(error),
       });
     } finally {
-      setLaunchingDashboardId((currentDashboardId) =>
-        currentDashboardId === dashboard.id ? null : currentDashboardId,
+      setLaunchingDashboardUid((currentDashboardUid) =>
+        currentDashboardUid === dashboard.uid ? null : currentDashboardUid,
       );
     }
   }
@@ -237,16 +237,16 @@ export function MainSequenceStreamlitPage() {
           {!dashboardsQuery.isLoading && !dashboardsQuery.isError && totalItems > 0 ? (
             <div className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
               {pageRows.map((dashboard) => {
-                const title = dashboard.title || dashboard.resource_name || `Dashboard ${dashboard.id}`;
+                const title = dashboard.title || dashboard.resource_name || `Dashboard ${dashboard.uid}`;
                 const resourceName =
-                  dashboard.resource_name || `Resource ${dashboard.resource_id}`;
-                const projectName = dashboard.project_name || `Project ${dashboard.project_id}`;
+                  dashboard.resource_name || `Resource ${dashboard.resource_uid}`;
+                const projectName = dashboard.project_name || `Project ${dashboard.project_uid}`;
                 const subtitle = [resourceName, dashboard.subdomain].filter(Boolean).join(" · ");
-                const isLaunching = launchingDashboardId === dashboard.id;
+                const isLaunching = launchingDashboardUid === dashboard.uid;
                 const canLaunch = Boolean(dashboard.exchange_launch_url || dashboard.public_url);
 
                 return (
-                  <Card key={dashboard.id} className="border-border/70 bg-card/80">
+                  <Card key={dashboard.uid} className="border-border/70 bg-card/80">
                     <CardHeader className="space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="primary">Streamlit</Badge>
@@ -254,13 +254,13 @@ export function MainSequenceStreamlitPage() {
                       </div>
                       <div className="space-y-1">
                         <CardTitle className="text-base">{title}</CardTitle>
-                        <CardDescription>{subtitle || `Release #${dashboard.id}`}</CardDescription>
+                        <CardDescription>{subtitle || `Release ${dashboard.uid}`}</CardDescription>
                       </div>
                     </CardHeader>
 
                     <CardContent className="flex items-center justify-between gap-3 pt-0">
                       <div className="text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">{`#${dashboard.id}`}</span>
+                        <span className="font-medium text-foreground">{dashboard.uid}</span>
                         <span>{` · ${formatRepoHash(dashboard.project_repo_hash)}`}</span>
                       </div>
 
@@ -269,7 +269,7 @@ export function MainSequenceStreamlitPage() {
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => setSelectedDashboardId(dashboard.id)}
+                          onClick={() => setSelectedDashboardUid(dashboard.uid)}
                         >
                           Details
                         </Button>
@@ -310,17 +310,17 @@ export function MainSequenceStreamlitPage() {
 
       <Dialog
         open={selectedDashboard !== null}
-        onClose={() => setSelectedDashboardId(null)}
+        onClose={() => setSelectedDashboardUid(null)}
         title={
           selectedDashboard?.title ||
           selectedDashboard?.resource_name ||
-          (selectedDashboard ? `Streamlit release ${selectedDashboard.id}` : "Streamlit details")
+          (selectedDashboard ? `Streamlit release ${selectedDashboard.uid}` : "Streamlit details")
         }
         description={
           selectedDashboard
             ? [
-                selectedDashboard.project_name || `Project ${selectedDashboard.project_id}`,
-                selectedDashboard.resource_name || `Resource ${selectedDashboard.resource_id}`,
+                selectedDashboard.project_name || `Project ${selectedDashboard.project_uid}`,
+                selectedDashboard.resource_name || `Resource ${selectedDashboard.resource_uid}`,
               ].join(" · ")
             : undefined
         }
@@ -331,21 +331,21 @@ export function MainSequenceStreamlitPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="primary">Streamlit</Badge>
               <Badge variant="neutral">
-                {selectedDashboard.project_name || `Project ${selectedDashboard.project_id}`}
+                {selectedDashboard.project_name || `Project ${selectedDashboard.project_uid}`}
               </Badge>
-              <Badge variant="neutral">{`Release #${selectedDashboard.id}`}</Badge>
+              <Badge variant="neutral">{selectedDashboard.uid}</Badge>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <DashboardMetaItem
                 label="Project"
-                value={selectedDashboard.project_name || `Project ${selectedDashboard.project_id}`}
+                value={selectedDashboard.project_name || `Project ${selectedDashboard.project_uid}`}
               />
               <DashboardMetaItem
                 label="Resource"
                 value={
                   selectedDashboard.resource_name ||
-                  `Resource ${selectedDashboard.resource_id}`
+                  `Resource ${selectedDashboard.resource_uid}`
                 }
               />
               <DashboardMetaItem
@@ -355,8 +355,8 @@ export function MainSequenceStreamlitPage() {
               <DashboardMetaItem
                 label="Image"
                 value={
-                  selectedDashboard.image_id
-                    ? String(selectedDashboard.image_id)
+                  selectedDashboard.image_uid
+                    ? selectedDashboard.image_uid
                     : "Not available"
                 }
               />
@@ -387,7 +387,7 @@ export function MainSequenceStreamlitPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setSelectedDashboardId(null)}
+                onClick={() => setSelectedDashboardUid(null)}
               >
                 Close
               </Button>
@@ -395,14 +395,14 @@ export function MainSequenceStreamlitPage() {
                 <Button
                   type="button"
                   onClick={() => void openStreamlitRelease(selectedDashboard)}
-                  disabled={launchingDashboardId === selectedDashboard.id}
+                  disabled={launchingDashboardUid === selectedDashboard.uid}
                 >
-                  {launchingDashboardId === selectedDashboard.id ? (
+                  {launchingDashboardUid === selectedDashboard.uid ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <ArrowUpRight className="h-4 w-4" />
                   )}
-                  {launchingDashboardId === selectedDashboard.id
+                  {launchingDashboardUid === selectedDashboard.uid
                     ? "Opening Streamlit"
                     : "Open Streamlit"}
                 </Button>

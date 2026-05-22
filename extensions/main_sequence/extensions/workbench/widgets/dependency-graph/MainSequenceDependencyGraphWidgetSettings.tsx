@@ -75,8 +75,7 @@ export function MainSequenceDependencyGraphWidgetSettings({
       "latest_local_time_serie",
     ],
     queryFn: async () => {
-      const dataNodeDetail = await fetchDataNodeDetail(dataNodeUid!);
-      const page = await listLocalTimeSeries(dataNodeDetail.id, { limit: 1, offset: 0 });
+      const page = await listLocalTimeSeries(dataNodeUid!, { limit: 1, offset: 0 });
       return page.results[0] ?? null;
     },
     enabled: sourceKind === "data_node" && Boolean(dataNodeUid),

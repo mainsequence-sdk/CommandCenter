@@ -32,8 +32,8 @@ export function getAssetCategoriesListPath() {
   return getAppPath("main_sequence_markets", "asset-categories");
 }
 
-export function getAssetCategoryDetailPath(categoryId: number) {
-  return `${getAssetCategoriesListPath()}/${categoryId}`;
+export function getAssetCategoryDetailPath(categoryUid: string) {
+  return `${getAssetCategoriesListPath()}/${encodeURIComponent(categoryUid)}`;
 }
 
 export function formatCategoryValue(
@@ -86,6 +86,7 @@ export function buildCategoryListRowFromDetail(
 ): AssetCategoryListRow {
   return {
     id: detail.id,
+    uid: detail.uid,
     unique_identifier: detail.selected_category.sub_text,
     display_name: detail.selected_category.text || detail.title,
     description: readCategoryDetailString(detail, "description"),
@@ -186,7 +187,7 @@ export function buildFallbackCategoryDetails(row: AssetCategoryListRow | null): 
   ];
 }
 
-function parseAssetIdsInput(rawValue: string) {
+function parseAssetUidsInput(rawValue: string) {
   const trimmed = rawValue.trim();
 
   if (!trimmed) {
@@ -198,17 +199,7 @@ function parseAssetIdsInput(rawValue: string) {
     .map((token) => token.trim())
     .filter(Boolean);
 
-  const parsedIds = tokens.map((token) => {
-    const parsed = Number(token);
-
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      throw new Error("Asset ids must be positive integers separated by commas or spaces.");
-    }
-
-    return parsed;
-  });
-
-  return Array.from(new Set(parsedIds));
+  return Array.from(new Set(tokens));
 }
 
 export function buildCreatePayload(values: AssetCategoryEditorValues): CreateAssetCategoryInput {
@@ -227,7 +218,7 @@ export function buildCreatePayload(values: AssetCategoryEditorValues): CreateAss
   }
 
   if (values.assetIdsText.trim()) {
-    payload.assets = parseAssetIdsInput(values.assetIdsText);
+    payload.assets = parseAssetUidsInput(values.assetIdsText);
   }
 
   return payload;
@@ -240,7 +231,7 @@ export function buildUpdatePayload(values: AssetCategoryEditorValues): UpdateAss
   };
 
   if (values.assetIdsText.trim()) {
-    payload.assets = parseAssetIdsInput(values.assetIdsText);
+    payload.assets = parseAssetUidsInput(values.assetIdsText);
   }
 
   return payload;
@@ -267,10 +258,10 @@ export function buildCategoryDeleteSummary(categories: AssetCategoryListRow[]) {
   return (
     <div className="space-y-2">
       {categories.slice(0, 5).map((category) => (
-        <div key={category.id} className="flex items-start justify-between gap-3">
+        <div key={category.uid} className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate font-medium text-foreground">
-              {formatCategoryValue(category.display_name, `Category ${category.id}`)}
+              {formatCategoryValue(category.display_name, category.uid)}
             </div>
             <div className="truncate text-xs text-muted-foreground">
               {[
@@ -282,7 +273,7 @@ export function buildCategoryDeleteSummary(categories: AssetCategoryListRow[]) {
                 .join(" · ")}
             </div>
           </div>
-          <div className="shrink-0 text-xs text-muted-foreground">ID {category.id}</div>
+          <div className="shrink-0 text-xs text-muted-foreground">UID {category.uid}</div>
         </div>
       ))}
       {categories.length > 5 ? (
@@ -386,7 +377,7 @@ export function AssetCategoryEditorDialog({
       title={title}
       description={
         isEditMode
-          ? "Update the category metadata. Leave the asset ids field blank to keep membership unchanged."
+          ? "Update the category metadata. Leave the asset UID field blank to keep membership unchanged."
           : "Create a new asset category backed by the migrated DRF serializer."
       }
       open={open}
@@ -461,7 +452,7 @@ export function AssetCategoryEditorDialog({
 
         <div className="space-y-2">
           <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            Asset ids
+            Asset UIDs
           </label>
           <Textarea
             value={values.assetIdsText}
@@ -472,13 +463,13 @@ export function AssetCategoryEditorDialog({
                 assetIdsText: event.target.value,
               }));
             }}
-            placeholder="101, 102, 103"
+            placeholder="mock-asset-101, mock-asset-102"
             className="min-h-24 font-mono text-xs"
           />
           <div className="text-xs text-muted-foreground">
             {isEditMode
               ? "Optional replacement membership. Leave blank to keep the current assets unchanged."
-              : "Optional comma- or whitespace-separated asset ids to assign during creation."}
+              : "Optional comma- or whitespace-separated asset UIDs to assign during creation."}
           </div>
         </div>
 

@@ -97,7 +97,7 @@ function buildPodRuntimeSummary(row: ScalableServicePodRow): EntitySummaryHeader
 
   return {
     entity: {
-      id: row.id,
+      id: row.uid,
       type: "knative_pod_runtime",
       title: row.gke_pod_name,
     },
@@ -165,9 +165,9 @@ export function MainSequenceKnativePodRuntimeDetail({
 }) {
   const summary = useMemo(() => buildPodRuntimeSummary(podRuntime), [podRuntime]);
   const resourceUsageQuery = useQuery({
-    queryKey: ["main_sequence", "pods", "knative_pod_runtimes", "resource_usage", podRuntime.id],
-    queryFn: () => fetchKnativePodRuntimeResourceUsage(podRuntime.id),
-    enabled: podRuntime.id > 0 && activeTabId === "resource_usage",
+    queryKey: ["main_sequence", "pods", "knative_pod_runtimes", "resource_usage", podRuntime.uid],
+    queryFn: () => fetchKnativePodRuntimeResourceUsage(podRuntime.uid),
+    enabled: Boolean(podRuntime.uid) && activeTabId === "resource_usage",
   });
 
   return (
@@ -209,7 +209,7 @@ export function MainSequenceKnativePodRuntimeDetail({
         </CardHeader>
         <CardContent className="pt-5">
           {activeTabId === "logs" ? (
-            <MainSequenceKnativePodRuntimeLogsTab podRuntimeId={podRuntime.id} />
+            <MainSequenceKnativePodRuntimeLogsTab podRuntimeUid={podRuntime.uid} />
           ) : null}
 
           {activeTabId === "resource_usage" ? (

@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
 import {
-  fetchDataNodeDetail,
   formatMainSequenceError,
   getTsManagerRecordIdentifier,
   listLocalTimeSeries,
@@ -129,21 +128,14 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
   const [pageIndex, setPageIndex] = useState(0);
   const deferredFilterValue = useDeferredValue(filterValue);
 
-  const dataNodeDetailQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "detail", dataNodeIdentifier],
-    queryFn: () => fetchDataNodeDetail(dataNodeIdentifier),
-    enabled: Boolean(dataNodeIdentifier.trim()),
-  });
-  const resolvedDataNodeId = dataNodeDetailQuery.data?.id ?? null;
-
   const localTimeSeriesQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "local_time_series", dataNodeIdentifier, pageIndex],
     queryFn: () =>
-      listLocalTimeSeries(resolvedDataNodeId!, {
+      listLocalTimeSeries(dataNodeIdentifier, {
         limit: mainSequenceRegistryPageSize,
         offset: pageIndex * mainSequenceRegistryPageSize,
       }),
-    enabled: typeof resolvedDataNodeId === "number" && resolvedDataNodeId > 0,
+    enabled: Boolean(dataNodeIdentifier.trim()),
   });
 
   useEffect(() => {
@@ -196,8 +188,7 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
       ) ?? null,
     [localTimeSeriesQuery.data?.results, selectedLocalUpdateId],
   );
-  const isLoading = dataNodeDetailQuery.isLoading || localTimeSeriesQuery.isLoading;
-  const hasDetailError = dataNodeDetailQuery.isError;
+  const isLoading = localTimeSeriesQuery.isLoading;
   const hasLocalUpdatesError = localTimeSeriesQuery.isError;
 
   if (selectedLocalUpdateId) {
@@ -239,12 +230,6 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
         </div>
       ) : null}
 
-      {hasDetailError ? (
-        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {formatMainSequenceError(dataNodeDetailQuery.error)}
-        </div>
-      ) : null}
-
       {hasLocalUpdatesError ? (
         <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
           {formatMainSequenceError(localTimeSeriesQuery.error)}
@@ -252,7 +237,6 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
       ) : null}
 
       {!isLoading &&
-      !hasDetailError &&
       !hasLocalUpdatesError &&
       filteredLocalTimeSeries.length === 0 ? (
         <div className="px-5 py-14 text-center">
@@ -269,7 +253,6 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
       ) : null}
 
       {!isLoading &&
-      !hasDetailError &&
       !hasLocalUpdatesError &&
       filteredLocalTimeSeries.length > 0 ? (
         <Card variant="nested">
@@ -389,7 +372,6 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
       ) : null}
 
       {!isLoading &&
-      !hasDetailError &&
       !hasLocalUpdatesError &&
       (localTimeSeriesQuery.data?.count ?? 0) > 0 ? (
         <MainSequenceRegistryPagination

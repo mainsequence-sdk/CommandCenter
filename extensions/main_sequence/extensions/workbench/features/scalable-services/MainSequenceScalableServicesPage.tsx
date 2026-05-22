@@ -8,9 +8,9 @@ import {
 } from "./MainSequenceScalableServiceDetail";
 import type { KnativePodRuntimeDetailTabId } from "./MainSequenceKnativePodRuntimeDetail";
 
-const mainSequenceScalableServiceIdParam = "msScalableServiceId";
+const mainSequenceScalableServiceUidParam = "msScalableServiceUid";
 const mainSequenceScalableServiceTabParam = "msScalableServiceTab";
-const mainSequenceScalableServicePodRuntimeIdParam = "msScalableServicePodRuntimeId";
+const mainSequenceScalableServicePodRuntimeUidParam = "msScalableServicePodRuntimeUid";
 const mainSequenceScalableServicePodRuntimeTabParam = "msScalableServicePodRuntimeTab";
 
 function isScalableServiceDetailTabId(value: string | null): value is ScalableServiceDetailTabId {
@@ -25,13 +25,12 @@ export function MainSequenceScalableServicesPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
-  const activeServiceId = Number(searchParams.get(mainSequenceScalableServiceIdParam) ?? "");
+  const activeServiceUid = searchParams.get(mainSequenceScalableServiceUidParam)?.trim() ?? "";
   const requestedTabId = searchParams.get(mainSequenceScalableServiceTabParam);
-  const activePodRuntimeId = Number(
-    searchParams.get(mainSequenceScalableServicePodRuntimeIdParam) ?? "",
-  );
+  const activePodRuntimeUid =
+    searchParams.get(mainSequenceScalableServicePodRuntimeUidParam)?.trim() ?? "";
   const requestedPodRuntimeTabId = searchParams.get(mainSequenceScalableServicePodRuntimeTabParam);
-  const isDetailOpen = Number.isFinite(activeServiceId) && activeServiceId > 0;
+  const isDetailOpen = activeServiceUid.length > 0;
   const activeTabId: ScalableServiceDetailTabId = isScalableServiceDetailTabId(requestedTabId)
     ? requestedTabId
     : "pods";
@@ -56,9 +55,9 @@ export function MainSequenceScalableServicesPage() {
 
   function closeServiceDetail() {
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceScalableServiceIdParam);
+      nextParams.delete(mainSequenceScalableServiceUidParam);
       nextParams.delete(mainSequenceScalableServiceTabParam);
-      nextParams.delete(mainSequenceScalableServicePodRuntimeIdParam);
+      nextParams.delete(mainSequenceScalableServicePodRuntimeUidParam);
       nextParams.delete(mainSequenceScalableServicePodRuntimeTabParam);
     });
   }
@@ -66,21 +65,21 @@ export function MainSequenceScalableServicesPage() {
   function selectDetailTab(tabId: ScalableServiceDetailTabId) {
     updateSearchParams((nextParams) => {
       nextParams.set(mainSequenceScalableServiceTabParam, tabId);
-      nextParams.delete(mainSequenceScalableServicePodRuntimeIdParam);
+      nextParams.delete(mainSequenceScalableServicePodRuntimeUidParam);
       nextParams.delete(mainSequenceScalableServicePodRuntimeTabParam);
     });
   }
 
-  function openPodRuntimeDetail(podRuntimeId: number) {
+  function openPodRuntimeDetail(podRuntimeUid: string) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceScalableServicePodRuntimeIdParam, String(podRuntimeId));
+      nextParams.set(mainSequenceScalableServicePodRuntimeUidParam, podRuntimeUid);
       nextParams.set(mainSequenceScalableServicePodRuntimeTabParam, "logs");
     });
   }
 
   function closePodRuntimeDetail() {
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceScalableServicePodRuntimeIdParam);
+      nextParams.delete(mainSequenceScalableServicePodRuntimeUidParam);
       nextParams.delete(mainSequenceScalableServicePodRuntimeTabParam);
     });
   }
@@ -98,7 +97,7 @@ export function MainSequenceScalableServicesPage() {
   return (
     <MainSequenceScalableServiceDetail
       activeTabId={activeTabId}
-      activePodRuntimeId={Number.isFinite(activePodRuntimeId) && activePodRuntimeId > 0 ? activePodRuntimeId : null}
+      activePodRuntimeUid={activePodRuntimeUid || null}
       activePodRuntimeTabId={activePodRuntimeTabId}
       initialService={null}
       onBack={closeServiceDetail}
@@ -106,7 +105,7 @@ export function MainSequenceScalableServicesPage() {
       onOpenPodRuntimeDetail={openPodRuntimeDetail}
       onSelectPodRuntimeTab={selectPodRuntimeDetailTab}
       onSelectTab={selectDetailTab}
-      serviceId={activeServiceId}
+      serviceUid={activeServiceUid}
     />
   );
 }

@@ -474,6 +474,7 @@ export function AppComponentWidgetSettings({
 
   function handleSelectMainSequenceRelease(release: {
     id: number;
+    uid: string;
     title: string;
     project_name: string;
     release_kind: string;
@@ -485,7 +486,7 @@ export function AppComponentWidgetSettings({
       buildNextDraftProps({
         apiTargetMode: "main-sequence-resource-release",
         mainSequenceResourceRelease: {
-          releaseId: release.id,
+          releaseUid: release.uid,
           label: release.title,
           projectName: release.project_name,
           releaseKind: release.release_kind,
@@ -672,7 +673,7 @@ export function AppComponentWidgetSettings({
                 Main Sequence resource release
               </div>
               <div className="text-sm text-foreground">
-                {selectedMainSequenceRelease.label ?? `Release ${selectedMainSequenceRelease.releaseId}`}
+                {selectedMainSequenceRelease.label ?? `Release ${selectedMainSequenceRelease.releaseUid}`}
               </div>
               <div className="text-sm text-muted-foreground">
                 {[selectedMainSequenceRelease.projectName, selectedMainSequenceRelease.releaseKind]
@@ -732,7 +733,7 @@ export function AppComponentWidgetSettings({
             editable={editable}
             enabled={showMainSequenceReleasePicker}
             selectedRelease={selectedMainSequenceRelease}
-            value={selectedMainSequenceRelease?.releaseId}
+            value={selectedMainSequenceRelease?.releaseUid}
             onSelect={handleSelectMainSequenceRelease}
           />
         ) : null}

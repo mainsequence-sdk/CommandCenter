@@ -168,7 +168,7 @@ function AsyncSelectSearchFieldEditor({
       "app-component",
       "async-select-search",
       requestContext?.props.apiTargetMode ?? "manual",
-      requestContext?.props.mainSequenceResourceRelease?.releaseId ?? "none",
+      requestContext?.props.mainSequenceResourceRelease?.releaseUid ?? "none",
       requestContext?.props.apiBaseUrl ?? "invalid",
       requestContext?.props.method ?? "unknown",
       requestContext?.props.path ?? "unknown",

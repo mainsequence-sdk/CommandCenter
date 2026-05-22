@@ -13,8 +13,8 @@ import {
 
 const projectOptionLimit = 50;
 
-function formatProjectLabel(project: Pick<ProjectQuickSearchRecord, "id" | "project_name">) {
-  return project.project_name?.trim() || `Project ${project.id}`;
+function formatProjectLabel(project: Pick<ProjectQuickSearchRecord, "uid" | "project_name">) {
+  return project.project_name?.trim() || `Project ${project.uid}`;
 }
 
 export function ProjectQuickSearchPicker({
@@ -29,11 +29,11 @@ export function ProjectQuickSearchPicker({
   showStatus = true,
   detailError,
 }: {
-  value?: number;
-  onChange: (nextId?: number) => void;
+  value?: string;
+  onChange: (nextUid?: string) => void;
   editable: boolean;
   queryScope: string;
-  selectedProject?: Pick<ProjectQuickSearchRecord, "id" | "project_name" | "repository_branch"> | null;
+  selectedProject?: Pick<ProjectQuickSearchRecord, "uid" | "project_name" | "repository_branch"> | null;
   placeholder?: string;
   searchPlaceholder?: string;
   selectionHelpText?: string;
@@ -61,7 +61,7 @@ export function ProjectQuickSearchPicker({
 
     if (
       selectedProject &&
-      !baseOptions.some((project) => project.id === selectedProject.id)
+      !baseOptions.some((project) => project.uid === selectedProject.uid)
     ) {
       return [selectedProject, ...baseOptions];
     }
@@ -72,12 +72,12 @@ export function ProjectQuickSearchPicker({
   const pickerOptions = useMemo<PickerOption[]>(
     () =>
       projectOptions.map((project) => ({
-        value: String(project.id),
+        value: project.uid,
         label: formatProjectLabel(project),
         description: project.repository_branch?.trim()
           ? `Branch: ${project.repository_branch.trim()}`
           : undefined,
-        keywords: [String(project.id), project.project_name ?? "", project.repository_branch ?? ""],
+        keywords: [project.uid, project.project_name ?? "", project.repository_branch ?? ""],
       })),
     [projectOptions],
   );
@@ -85,10 +85,10 @@ export function ProjectQuickSearchPicker({
   return (
     <div className="space-y-2">
       <PickerField
-        value={value && value > 0 ? String(value) : ""}
+        value={value ?? ""}
         onChange={(nextValue) => {
-          const nextId = Number(nextValue);
-          onChange(Number.isFinite(nextId) && nextId > 0 ? nextId : undefined);
+          const nextUid = nextValue.trim();
+          onChange(nextUid || undefined);
         }}
         options={pickerOptions}
         placeholder={placeholder}

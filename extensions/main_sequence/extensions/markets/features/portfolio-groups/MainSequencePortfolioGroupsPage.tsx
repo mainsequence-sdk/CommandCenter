@@ -139,7 +139,7 @@ export function MainSequencePortfolioGroupsPage() {
   const pageRows = portfolioGroupsQuery.data?.results ?? [];
   const totalCount = portfolioGroupsQuery.data?.count ?? pageRows.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const portfolioGroupSelection = useRegistrySelection(pageRows);
+  const portfolioGroupSelection = useRegistrySelection(pageRows, (portfolioGroup) => portfolioGroup.uid);
 
   useEffect(() => {
     const nextParams = new URLSearchParams(location.search);
@@ -233,10 +233,10 @@ export function MainSequencePortfolioGroupsPage() {
   const deletePortfolioGroupsMutation = useMutation({
     mutationFn: bulkDeletePortfolioGroups,
     onSuccess: async () => {
-      const deletedIds = deleteIntent?.portfolioGroups.map((portfolioGroup) => portfolioGroup.id) ?? [];
+      const deletedUids = deleteIntent?.portfolioGroups.map((portfolioGroup) => portfolioGroup.uid) ?? [];
 
       portfolioGroupSelection.setSelection(
-        portfolioGroupSelection.selectedIds.filter((id) => !deletedIds.includes(id)),
+        portfolioGroupSelection.selectedIds.filter((uid) => !deletedUids.includes(uid)),
       );
       setDeleteIntent(null);
 
@@ -266,7 +266,7 @@ export function MainSequencePortfolioGroupsPage() {
       });
 
       setCreateDialogOpen(false);
-      navigate(getPortfolioGroupDetailPath(portfolioGroup.id), {
+      navigate(getPortfolioGroupDetailPath(portfolioGroup.uid), {
         state: {
           from: `${location.pathname}${location.search}`,
         },
@@ -306,7 +306,7 @@ export function MainSequencePortfolioGroupsPage() {
     }
 
     return deletePortfolioGroupsMutation.mutateAsync({
-      ids: deleteIntent.portfolioGroups.map((portfolioGroup) => portfolioGroup.id),
+      uids: deleteIntent.portfolioGroups.map((portfolioGroup) => portfolioGroup.uid),
     });
   }
 
@@ -405,15 +405,15 @@ export function MainSequencePortfolioGroupsPage() {
                 </thead>
                 <tbody>
                   {pageRows.map((portfolioGroup) => {
-                    const selected = portfolioGroupSelection.isSelected(portfolioGroup.id);
+                    const selected = portfolioGroupSelection.isSelected(portfolioGroup.uid);
 
                     return (
-                      <tr key={portfolioGroup.id}>
+                      <tr key={portfolioGroup.uid}>
                         <td className={getRegistryTableCellClassName(selected, "left")}>
                           <MainSequenceSelectionCheckbox
-                            ariaLabel={`Select portfolio group ${portfolioGroup.id}`}
+                            ariaLabel={`Select portfolio group ${portfolioGroup.uid}`}
                             checked={selected}
-                            onChange={() => portfolioGroupSelection.toggleSelection(portfolioGroup.id)}
+                            onChange={() => portfolioGroupSelection.toggleSelection(portfolioGroup.uid)}
                           />
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
@@ -421,7 +421,7 @@ export function MainSequencePortfolioGroupsPage() {
                             type="button"
                             className="group min-w-0 text-left"
                             onClick={() =>
-                              navigate(getPortfolioGroupDetailPath(portfolioGroup.id), {
+                              navigate(getPortfolioGroupDetailPath(portfolioGroup.uid), {
                                 state: {
                                   from: `${location.pathname}${location.search}`,
                                 },

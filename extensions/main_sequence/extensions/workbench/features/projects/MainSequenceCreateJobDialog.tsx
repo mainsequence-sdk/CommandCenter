@@ -35,7 +35,7 @@ function getDefaultJobName(filePath: string) {
 function createDefaultFormState(filePath: string) {
   return {
     name: getDefaultJobName(filePath),
-    relatedImageId: "",
+    relatedImageUid: "",
     cpuRequest: "0.25",
     memoryRequest: "0.5",
     gpuRequest: "",
@@ -86,13 +86,13 @@ export function MainSequenceCreateJobDialog({
   onCreated,
   onClose,
   open,
-  projectId,
+  projectUid,
 }: {
   filePath: string;
   onCreated?: () => void;
   onClose: () => void;
   open: boolean;
-  projectId: number;
+  projectUid: string;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -107,9 +107,9 @@ export function MainSequenceCreateJobDialog({
   }, [filePath, open]);
 
   const projectImagesQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "job-images", projectId],
-    queryFn: () => fetchProjectImages(projectId),
-    enabled: open && projectId > 0,
+    queryKey: ["main_sequence", "projects", "job-images", projectUid],
+    queryFn: () => fetchProjectImages(projectUid),
+    enabled: open && Boolean(projectUid),
     staleTime: 300_000,
   });
 
@@ -117,10 +117,10 @@ export function MainSequenceCreateJobDialog({
     mutationFn: createJob,
     onSuccess: async (_, input) => {
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "summary", projectId],
+        queryKey: ["main_sequence", "projects", "summary", projectUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "jobs", projectId],
+        queryKey: ["main_sequence", "projects", "jobs", projectUid],
       });
       toast({
         variant: "success",
@@ -206,9 +206,9 @@ export function MainSequenceCreateJobDialog({
 
     await createJobMutation.mutateAsync({
       name: formState.name.trim(),
-      project: projectId,
+      project: projectUid,
       execution_path: filePath,
-      related_image: formState.relatedImageId ? Number(formState.relatedImageId) : undefined,
+      related_image: formState.relatedImageUid || undefined,
       cpu_request: formState.cpuRequest,
       memory_request: formState.memoryRequest,
       gpu_request: parsedGpuRequest,
@@ -237,7 +237,7 @@ export function MainSequenceCreateJobDialog({
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="space-y-5">
           <div className="rounded-[24px] border border-border/70 bg-background/18 p-5">
-            <input type="hidden" name="project" value={String(projectId)} />
+            <input type="hidden" name="project" value={projectUid} />
 
             <div className="grid gap-4">
               <div className="space-y-2">
@@ -278,12 +278,12 @@ export function MainSequenceCreateJobDialog({
                   Execution image
                 </label>
                 <PickerField
-                  value={formState.relatedImageId}
+                  value={formState.relatedImageUid}
                   onChange={(value) => {
                     createJobMutation.reset();
                     setFormState((current) => ({
                       ...current,
-                      relatedImageId: value,
+                      relatedImageUid: value,
                     }));
                   }}
                   options={projectImageOptions}
@@ -292,7 +292,7 @@ export function MainSequenceCreateJobDialog({
                   emptyMessage="No ready images available."
                   loading={projectImagesQuery.isLoading}
                 />
-                {formState.relatedImageId ? (
+                {formState.relatedImageUid ? (
                   <div className="flex items-center gap-2">
                     <Badge variant="neutral">Pinned image</Badge>
                   </div>

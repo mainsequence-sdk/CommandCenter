@@ -356,13 +356,13 @@ function buildScaleConfirmationMessage(result: { detail?: string; message?: stri
 }
 
 export function MainSequenceClusterDetailPage() {
-  const { clusterId: rawClusterId } = useParams();
+  const { clusterUid: rawClusterUid } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   const user = useAuthStore((state) => state.session?.user ?? null);
-  const clusterId = Number(rawClusterId ?? "");
-  const isClusterIdValid = Number.isFinite(clusterId) && clusterId > 0;
+  const clusterUid = rawClusterUid?.trim() ?? "";
+  const isClusterUidValid = clusterUid.length > 0;
   const [desiredNodeCountValue, setDesiredNodeCountValue] = useState("");
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const rawTab = searchParams.get("tab");
@@ -386,9 +386,9 @@ export function MainSequenceClusterDetailPage() {
   }, [desiredNodeCountInput]);
 
   const summaryQuery = useQuery({
-    queryKey: ["main_sequence", "clusters", "detail", clusterId],
-    queryFn: () => fetchClusterDetail(clusterId),
-    enabled: isClusterIdValid,
+    queryKey: ["main_sequence", "clusters", "detail", clusterUid],
+    queryFn: () => fetchClusterDetail(clusterUid),
+    enabled: isClusterUidValid,
     staleTime: 30_000,
   });
 
@@ -397,7 +397,7 @@ export function MainSequenceClusterDetailPage() {
       "main_sequence",
       "clusters",
       "tab",
-      clusterId,
+      clusterUid,
       activeTab,
       namespaceFilter ?? "",
       nodePoolFilter ?? "",
@@ -405,44 +405,44 @@ export function MainSequenceClusterDetailPage() {
     queryFn: async () => {
       switch (activeTab) {
         case "node_pools":
-          return listClusterNodePools(clusterId);
+          return listClusterNodePools(clusterUid);
         case "nodes":
-          return listClusterNodes(clusterId, {
+          return listClusterNodes(clusterUid, {
             nodePool: nodePoolFilter ?? undefined,
           });
         case "namespaces":
-          return listClusterNamespaces(clusterId);
+          return listClusterNamespaces(clusterUid);
         case "pods":
-          return listClusterPods(clusterId, {
+          return listClusterPods(clusterUid, {
             namespace: namespaceFilter ?? undefined,
             nodePool: nodePoolFilter ?? undefined,
           });
         case "deployments":
-          return listClusterDeployments(clusterId, {
+          return listClusterDeployments(clusterUid, {
             namespace: namespaceFilter ?? undefined,
           });
         case "services":
-          return listClusterServices(clusterId, {
+          return listClusterServices(clusterUid, {
             namespace: namespaceFilter ?? undefined,
           });
         case "storage":
-          return listClusterStorage(clusterId, {
+          return listClusterStorage(clusterUid, {
             namespace: namespaceFilter ?? undefined,
           });
         case "knative":
-          return listClusterKnative(clusterId, {
+          return listClusterKnative(clusterUid, {
             namespace: namespaceFilter ?? undefined,
           });
         default:
-          return listClusterNodePools(clusterId);
+          return listClusterNodePools(clusterUid);
       }
     },
-    enabled: isClusterIdValid && summaryQuery.isSuccess,
+    enabled: isClusterUidValid && summaryQuery.isSuccess,
   });
 
   const scaleMutation = useMutation({
     mutationFn: (desiredNodeCount: number) =>
-      scaleCluster(clusterId, {
+      scaleCluster(clusterUid, {
         desiredNodeCount,
       }),
     onSuccess: async (result) => {
@@ -464,7 +464,7 @@ export function MainSequenceClusterDetailPage() {
   });
 
   useEffect(() => {
-    if (!isClusterIdValid) {
+    if (!isClusterUidValid) {
       return;
     }
 
@@ -482,11 +482,11 @@ export function MainSequenceClusterDetailPage() {
       },
       { replace: true },
     );
-  }, [activeTab, isClusterIdValid, location.pathname, location.search, navigate, rawTab]);
+  }, [activeTab, isClusterUidValid, location.pathname, location.search, navigate, rawTab]);
 
   const summary = summaryQuery.data ?? null;
   const renderedTabs = useMemo(() => resolveRenderedTabs(summary), [summary]);
-  const clusterName = summary?.cluster.cluster_name?.trim() || `Cluster ${clusterId}`;
+  const clusterName = summary?.cluster.cluster_name?.trim() || `Cluster ${clusterUid}`;
   const clusterDescription = summary?.cluster.cluster_description?.trim() || "";
   const clusterUuid = summary?.cluster.uuid?.trim() || "";
   const metadataItems = summary
@@ -890,7 +890,7 @@ export function MainSequenceClusterDetailPage() {
     }
   }
 
-  if (!isClusterIdValid) {
+  if (!isClusterUidValid) {
     return (
       <div className="space-y-4">
         <Button variant="outline" size="sm" onClick={() => navigate(getAppPath("main_sequence_workbench", "clusters"))}>
@@ -900,7 +900,7 @@ export function MainSequenceClusterDetailPage() {
         <Card>
           <CardContent className="p-5">
             <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-              Cluster id must be a positive integer.
+              Cluster uid is required.
             </div>
           </CardContent>
         </Card>

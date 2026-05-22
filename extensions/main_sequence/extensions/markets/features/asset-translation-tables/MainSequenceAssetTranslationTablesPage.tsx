@@ -92,7 +92,7 @@ export function MainSequenceAssetTranslationTablesPage() {
   const totalCount = pagination?.total_items ?? pageRows.length;
   const pageSize = pagination?.page_size ?? translationTablePageSize;
   const totalPages = pagination?.total_pages ?? Math.max(1, Math.ceil(totalCount / pageSize));
-  const tableSelection = useRegistrySelection(pageRows);
+  const tableSelection = useRegistrySelection(pageRows, (table) => table.uid);
 
   useEffect(() => {
     const nextParams = new URLSearchParams(location.search);
@@ -181,7 +181,7 @@ export function MainSequenceAssetTranslationTablesPage() {
       });
 
       setCreateDialogOpen(false);
-      navigate(getAssetTranslationTableDetailPath(table.id), {
+      navigate(getAssetTranslationTableDetailPath(table.uid), {
         state: {
           from: `${location.pathname}${location.search}`,
         },
@@ -245,7 +245,7 @@ export function MainSequenceAssetTranslationTablesPage() {
 
   async function handleDeleteSuccess(result: unknown) {
     if (deleteIntent?.mode === "selection") {
-      const deletedIds = deleteIntent.tables.map((table) => table.id);
+      const deletedIds = deleteIntent.tables.map((table) => table.uid);
 
       tableSelection.setSelection(
         tableSelection.selectedIds.filter((id) => !deletedIds.includes(id)),
@@ -273,7 +273,7 @@ export function MainSequenceAssetTranslationTablesPage() {
     }
 
     return bulkDeleteAssetTranslationTables({
-      ids: deleteIntent.tables.map((table) => table.id),
+      uids: deleteIntent.tables.map((table) => table.uid),
     });
   }
 
@@ -398,14 +398,14 @@ export function MainSequenceAssetTranslationTablesPage() {
                 </thead>
                 <tbody>
                   {pageRows.map((table) => {
-                    const selected = tableSelection.isSelected(table.id);
+                    const selected = tableSelection.isSelected(table.uid);
 
                     return (
                       <tr
-                        key={table.id}
+                        key={table.uid}
                         className="cursor-pointer"
                         onClick={() =>
-                          navigate(getAssetTranslationTableDetailPath(table.id), {
+                          navigate(getAssetTranslationTableDetailPath(table.uid), {
                             state: {
                               from: `${location.pathname}${location.search}`,
                             },
@@ -417,19 +417,19 @@ export function MainSequenceAssetTranslationTablesPage() {
                           onClick={(event) => event.stopPropagation()}
                         >
                           <MainSequenceSelectionCheckbox
-                            ariaLabel={`Select translation table ${table.id}`}
+                            ariaLabel={`Select translation table ${table.uid}`}
                             checked={selected}
-                            onChange={() => tableSelection.toggleSelection(table.id)}
+                            onChange={() => tableSelection.toggleSelection(table.uid)}
                           />
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           <div className="font-medium text-foreground">
                             {formatTranslationTableValue(
                               table.unique_identifier,
-                              `Table ${table.id}`,
+                              table.uid,
                             )}
                           </div>
-                          <div className="mt-1 text-xs text-muted-foreground">{`ID ${table.id}`}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">{`UID ${table.uid}`}</div>
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           <Badge variant="neutral">{`${table.rules_number} rules`}</Badge>

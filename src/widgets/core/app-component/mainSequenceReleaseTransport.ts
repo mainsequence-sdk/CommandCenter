@@ -17,15 +17,15 @@ const defaultLaunchLifetimeMs = 100_000;
 const launchRefreshLeewayMs = 15_000;
 
 interface CachedMainSequenceReleaseLaunch {
-  releaseId: number;
+  releaseUid: string;
   token: string;
   rpcUrl: string;
   fastApiId: string;
   expiresAtMs: number;
 }
 
-const cachedLaunches = new Map<number, CachedMainSequenceReleaseLaunch>();
-const inFlightLaunches = new Map<number, Promise<CachedMainSequenceReleaseLaunch>>();
+const cachedLaunches = new Map<string, CachedMainSequenceReleaseLaunch>();
+const inFlightLaunches = new Map<string, Promise<CachedMainSequenceReleaseLaunch>>();
 
 function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
@@ -45,7 +45,7 @@ function describeTransportStrategy(requestUrl: string) {
 }
 
 function buildMainSequenceReleaseTransportErrorMessage(
-  releaseId: number,
+  releaseUid: string,
   requestUrl: string,
   error: unknown,
 ) {
@@ -61,7 +61,7 @@ function buildMainSequenceReleaseTransportErrorMessage(
     : "The public API request was sent directly from the browser to the release RPC URL.";
 
   return [
-    `Could not reach ${resolvedUrl.toString()} for Main Sequence resource release ${releaseId}.`,
+    `Could not reach ${resolvedUrl.toString()} for Main Sequence resource release ${releaseUid}.`,
     "The request used the temporary exchange-launch token plus X-FastAPI-ID, not the session JWT.",
     transportMessage,
     `Browser error: ${originalMessage}`,
@@ -130,7 +130,7 @@ function resolveExchangeLaunchUrl(
     return configuredUrl;
   }
 
-  return `/orm/api/pods/resource-release/${release.releaseId}/exchange-launch/`;
+  return `/orm/api/pods/resource-release/${release.releaseUid}/exchange-launch/`;
 }
 
 function normalizeLaunchPayload(
@@ -139,13 +139,13 @@ function normalizeLaunchPayload(
 ) {
   if (payload.release_kind?.trim().toLowerCase() !== "fastapi") {
     throw new Error(
-      `Resource release ${release.releaseId} is not a FastAPI launch target.`,
+      `Resource release ${release.releaseUid} is not a FastAPI launch target.`,
     );
   }
 
   if (payload.mode !== "token") {
     throw new Error(
-      `Unexpected exchange-launch mode for resource release ${release.releaseId}: ${payload.mode}.`,
+      `Unexpected exchange-launch mode for resource release ${release.releaseUid}: ${payload.mode}.`,
     );
   }
 
@@ -154,12 +154,12 @@ function normalizeLaunchPayload(
 
   if (!fastApiId) {
     throw new Error(
-      `Could not derive X-FastAPI-ID for resource release ${release.releaseId}.`,
+      `Could not derive X-FastAPI-ID for resource release ${release.releaseUid}.`,
     );
   }
 
   return {
-    releaseId: release.releaseId,
+    releaseUid: release.releaseUid,
     token: payload.token,
     rpcUrl,
     fastApiId,
@@ -183,8 +183,8 @@ async function fetchMainSequenceReleaseLaunch(
   } catch (error) {
     throw new Error(
       error instanceof Error
-        ? `Failed to get FastAPI launch token for resource release ${release.releaseId}. ${error.message}`
-        : `Failed to get FastAPI launch token for resource release ${release.releaseId}.`,
+        ? `Failed to get FastAPI launch token for resource release ${release.releaseUid}. ${error.message}`
+        : `Failed to get FastAPI launch token for resource release ${release.releaseUid}.`,
     );
   }
 }
@@ -195,13 +195,13 @@ async function resolveMainSequenceReleaseLaunch(
     forceRefresh?: boolean;
   },
 ) {
-  const cachedLaunch = cachedLaunches.get(release.releaseId);
+  const cachedLaunch = cachedLaunches.get(release.releaseUid);
 
   if (!options?.forceRefresh && isCachedLaunchUsable(cachedLaunch)) {
     return cachedLaunch!;
   }
 
-  const inFlightLaunch = inFlightLaunches.get(release.releaseId);
+  const inFlightLaunch = inFlightLaunches.get(release.releaseUid);
 
   if (!options?.forceRefresh && inFlightLaunch) {
     return inFlightLaunch;
@@ -209,16 +209,16 @@ async function resolveMainSequenceReleaseLaunch(
 
   const requestPromise = (async () => {
     const nextLaunch = await fetchMainSequenceReleaseLaunch(release);
-    cachedLaunches.set(release.releaseId, nextLaunch);
+    cachedLaunches.set(release.releaseUid, nextLaunch);
     return nextLaunch;
   })();
 
-  inFlightLaunches.set(release.releaseId, requestPromise);
+  inFlightLaunches.set(release.releaseUid, requestPromise);
 
   try {
     return await requestPromise;
   } finally {
-    inFlightLaunches.delete(release.releaseId);
+    inFlightLaunches.delete(release.releaseUid);
   }
 }
 
@@ -270,7 +270,7 @@ async function executeReleaseRequest(
       return response;
     } catch (error) {
       const message = buildMainSequenceReleaseTransportErrorMessage(
-        release.releaseId,
+        release.releaseUid,
         finalUrl,
         error,
       );
@@ -303,7 +303,7 @@ function resolveReleaseRef(
 ) {
   const release = props.mainSequenceResourceRelease;
 
-  if (!release?.releaseId) {
+  if (!release?.releaseUid) {
     throw new Error("Select a Main Sequence FastAPI resource release before sending requests.");
   }
 
@@ -313,8 +313,8 @@ function resolveReleaseRef(
 export function buildMainSequenceReleaseTransportIdentityKey(
   props: Pick<AppComponentWidgetProps, "mainSequenceResourceRelease">,
 ) {
-  return props.mainSequenceResourceRelease?.releaseId
-    ? `main-sequence-resource-release:${props.mainSequenceResourceRelease.releaseId}`
+  return props.mainSequenceResourceRelease?.releaseUid
+    ? `main-sequence-resource-release:${props.mainSequenceResourceRelease.releaseUid}`
     : "main-sequence-resource-release:invalid";
 }
 

@@ -27,11 +27,11 @@ This folder contains the reusable `Position Detail` widget and the shared table 
 - The page-level portfolio detail flow reuses the same table component so widget and surface rendering stay aligned.
 - The reusable widget accepts:
   - `sourceType`
-  - `portfolioId` for portfolio hydration
+  - `portfolioUid` for portfolio hydration
   - `accountUid` for account holdings hydration or account target-position saves
   - `holdingsDate` for account-mode snapshot saves
   - `targetPositionsDate` for account target-position assignment saves
-  - `targetPortfolioId` as a compatibility fallback for the same hydration path
+  - `targetPortfolioUid` for target-portfolio hydration
   - `editableInPlace`
   - `positionRows`
 - `positionRows` persists locally authored or post-hydration-edited rows. Each row persists:
@@ -82,6 +82,6 @@ This folder contains the reusable `Position Detail` widget and the shared table 
   - target_position is a local-authored contract
   - target_positions_account may hydrate from backend until local rows are persisted, and can write an account-scoped target-position assignment
   - `positionRows` is still the local draft contract during edit mode; successful account holdings saves intentionally clear those draft rows so hydration resumes from the canonical backend snapshot, and successful target positions account saves now do the same so the widget returns to the canonical target-position assignment payload
-- Storage impact: `holdingsDate` and `targetPositionsDate` are persisted widget props and store timezone-aware ISO timestamps. This changes the frontend workspace storage shape for account-mode widgets but does not require a backend registry payload change because both fields remain strings.
+- Storage impact: `portfolioUid`, `targetPortfolioUid`, `holdingsDate`, and `targetPositionsDate` are persisted widget props. Portfolio references are UID-only; legacy `portfolioId` and `targetPortfolioId` props are not supported because backend numeric-ID lookups are deprecated. The date fields store timezone-aware ISO timestamps. This changes the frontend workspace storage shape for account-mode and portfolio-mode widgets but does not require a backend registry payload change because the added fields remain strings.
 - Bump `widgetVersion` when the configuration surface, runtime behavior, or agent-facing authoring
   guidance changes materially.

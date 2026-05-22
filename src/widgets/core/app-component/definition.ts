@@ -16,7 +16,7 @@ import {
 
 export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
   id: "app-component",
-  widgetVersion: "1.1.0",
+  widgetVersion: "1.2.0",
   title: "AppComponent",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",

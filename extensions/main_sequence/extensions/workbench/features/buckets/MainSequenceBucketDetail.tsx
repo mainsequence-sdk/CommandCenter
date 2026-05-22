@@ -61,13 +61,13 @@ function buildFallbackBucketSummary(bucket: BucketRecord): BucketSummaryHeader {
 
 export function MainSequenceBucketDetail({
   browserState,
-  bucketId,
+  bucketUid,
   initialBucket,
   onBack,
   onUpdateBrowserState,
 }: {
   browserState: BucketBrowserState;
-  bucketId: number;
+  bucketUid: string;
   initialBucket: BucketRecord | null;
   onBack: () => void;
   onUpdateBrowserState: (nextState: BucketBrowserState) => void;
@@ -81,9 +81,9 @@ export function MainSequenceBucketDetail({
   const [uploadFilename, setUploadFilename] = useState("");
 
   const bucketSummaryQuery = useQuery({
-    queryKey: ["main_sequence", "buckets", "summary", bucketId],
-    queryFn: () => fetchBucketSummary(bucketId),
-    enabled: bucketId > 0,
+    queryKey: ["main_sequence", "buckets", "summary", bucketUid],
+    queryFn: () => fetchBucketSummary(bucketUid),
+    enabled: Boolean(bucketUid),
   });
 
   const bucketBrowseQuery = useQuery({
@@ -91,15 +91,15 @@ export function MainSequenceBucketDetail({
       "main_sequence",
       "buckets",
       "browse",
-      bucketId,
+      bucketUid,
       browserState.prefix,
       browserState.search,
       browserState.sort,
       browserState.dir,
       browserState.page,
     ],
-    queryFn: () => fetchBucketBrowse(bucketId, browserState),
-    enabled: bucketId > 0,
+    queryFn: () => fetchBucketBrowse(bucketUid, browserState),
+    enabled: Boolean(bucketUid),
   });
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export function MainSequenceBucketDetail({
 
   const createFolderMutation = useMutation({
     mutationFn: (name: string) =>
-      createBucketFolder(bucketId, {
+      createBucketFolder(bucketUid, {
         prefix: browserState.prefix,
         name,
       }),
@@ -133,10 +133,10 @@ export function MainSequenceBucketDetail({
 
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "buckets", "browse", bucketId],
+          queryKey: ["main_sequence", "buckets", "browse", bucketUid],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "buckets", "summary", bucketId],
+          queryKey: ["main_sequence", "buckets", "summary", bucketUid],
         }),
       ]);
     },
@@ -155,7 +155,7 @@ export function MainSequenceBucketDetail({
         throw new Error("A file is required.");
       }
 
-      return uploadBucketArtifact(bucketId, {
+      return uploadBucketArtifact(bucketUid, {
         file: uploadFile,
         prefix: browserState.prefix,
         filename: uploadFilename.trim() || uploadFile.name,
@@ -174,10 +174,10 @@ export function MainSequenceBucketDetail({
 
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "buckets", "browse", bucketId],
+          queryKey: ["main_sequence", "buckets", "browse", bucketUid],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "buckets", "summary", bucketId],
+          queryKey: ["main_sequence", "buckets", "summary", bucketUid],
         }),
       ]);
     },
@@ -196,7 +196,7 @@ export function MainSequenceBucketDetail({
     summary?.entity.title ??
     bucketBrowseQuery.data?.bucket_name ??
     initialBucket?.name ??
-    `Bucket ${bucketId}`;
+    `Bucket ${bucketUid}`;
   const browsePayload = bucketBrowseQuery.data;
 
   const browserActions = useMemo(

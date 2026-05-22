@@ -32,36 +32,36 @@ function getEditorField(
   return payload?.fields.find((field) => field.key === key);
 }
 
-function extractProjectDataSourceIdFromRedirectPath(redirectPath: string | undefined) {
+function extractProjectDataSourceUidFromRedirectPath(redirectPath: string | undefined) {
   if (!redirectPath) {
     return null;
   }
 
-  const matches = redirectPath.match(/(\d+)/g);
+  const segments = redirectPath.split("/").map((segment) => segment.trim()).filter(Boolean);
+  const uid = segments.at(-1);
 
-  if (!matches || matches.length === 0) {
+  if (!uid) {
     return null;
   }
 
-  const id = Number(matches[matches.length - 1]);
-  return Number.isFinite(id) && id > 0 ? id : null;
+  return decodeURIComponent(uid);
 }
 
 export function MainSequenceProjectDataSourceEditor({
   mode,
-  projectDataSourceId,
+  projectDataSourceUid,
   onBack,
   onOpenProjectDataSourceDetail,
 }: {
   mode: "create" | "edit";
-  projectDataSourceId?: number;
+  projectDataSourceUid?: string;
   onBack: () => void;
-  onOpenProjectDataSourceDetail: (projectDataSourceId: number) => void;
+  onOpenProjectDataSourceDetail: (projectDataSourceUid: string) => void;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [displayName, setDisplayName] = useState("");
-  const [relatedResourceId, setRelatedResourceId] = useState("");
+  const [relatedResourceUid, setRelatedResourceUid] = useState("");
   const [relatedResourceDisplayValue, setRelatedResourceDisplayValue] = useState("");
   const [isDefaultDataSource, setIsDefaultDataSource] = useState(false);
   const [relatedResourceSearchValue, setRelatedResourceSearchValue] = useState("");
@@ -70,12 +70,12 @@ export function MainSequenceProjectDataSourceEditor({
   const isEditMode = mode === "edit";
 
   const editorQuery = useQuery({
-    queryKey: ["main_sequence", "project_data_sources", "editor", mode, projectDataSourceId ?? null],
+    queryKey: ["main_sequence", "project_data_sources", "editor", mode, projectDataSourceUid ?? null],
     queryFn: () =>
-      isEditMode && projectDataSourceId
-        ? fetchProjectDataSourceEditor(projectDataSourceId)
+      isEditMode && projectDataSourceUid
+        ? fetchProjectDataSourceEditor(projectDataSourceUid)
         : fetchProjectDataSourceEditorConfig(),
-    enabled: !isEditMode || (Number.isFinite(projectDataSourceId) && (projectDataSourceId ?? 0) > 0),
+    enabled: !isEditMode || Boolean(projectDataSourceUid),
   });
 
   const relatedResourceOptionsQuery = useQuery({
@@ -102,7 +102,7 @@ export function MainSequenceProjectDataSourceEditor({
     const defaultField = getEditorField(payload, "is_default_data_source");
 
     setDisplayName(typeof displayNameField?.value === "string" ? displayNameField.value : "");
-    setRelatedResourceId(
+    setRelatedResourceUid(
       relatedResourceField?.value !== null &&
         relatedResourceField?.value !== undefined &&
         `${relatedResourceField.value}` !== "0"
@@ -116,36 +116,36 @@ export function MainSequenceProjectDataSourceEditor({
 
   const relatedResourceOptions = useMemo<PickerOption[]>(() => {
     const options: PickerOption[] = (relatedResourceOptionsQuery.data ?? []).map((option) => ({
-      value: String(option.id),
+      value: option.uid ?? "",
       label: option.label,
       description: [option.class_type, option.status].filter(Boolean).join(" · "),
       keywords: [option.class_type, option.status],
     }));
 
     if (
-      relatedResourceId &&
+      relatedResourceUid &&
       relatedResourceDisplayValue &&
-      !options.some((option) => option.value === relatedResourceId)
+      !options.some((option) => option.value === relatedResourceUid)
     ) {
       options.unshift({
-        value: relatedResourceId,
+        value: relatedResourceUid,
         label: relatedResourceDisplayValue,
       });
     }
 
     return options;
-  }, [relatedResourceDisplayValue, relatedResourceId, relatedResourceOptionsQuery.data]);
+  }, [relatedResourceDisplayValue, relatedResourceUid, relatedResourceOptionsQuery.data]);
 
   const submitMutation = useMutation({
     mutationFn: async () => {
       const payload = {
         display_name: displayName.trim(),
-        related_resource: Number(relatedResourceId),
+        related_resource: relatedResourceUid,
         is_default_data_source: isDefaultDataSource,
       };
 
-      if (isEditMode && projectDataSourceId) {
-        return updateProjectDataSourceEditor(projectDataSourceId, payload);
+      if (isEditMode && projectDataSourceUid) {
+        return updateProjectDataSourceEditor(projectDataSourceUid, payload);
       }
 
       return createProjectDataSourceEditor(payload);
@@ -161,8 +161,8 @@ export function MainSequenceProjectDataSourceEditor({
         description: result.detail,
       });
 
-      const redirectId = extractProjectDataSourceIdFromRedirectPath(result.redirect_path) ?? result.id;
-      onOpenProjectDataSourceDetail(redirectId);
+      const redirectUid = extractProjectDataSourceUidFromRedirectPath(result.redirect_path) ?? result.uid;
+      onOpenProjectDataSourceDetail(redirectUid);
     },
     onError: (error) => {
       toast({
@@ -177,11 +177,11 @@ export function MainSequenceProjectDataSourceEditor({
 
   const deleteMutation = useMutation({
     mutationFn: () => {
-      if (!projectDataSourceId) {
-        throw new Error("Project data source id is required.");
+      if (!projectDataSourceUid) {
+        throw new Error("Project data source uid is required.");
       }
 
-      return deleteProjectDataSourceEditor(projectDataSourceId);
+      return deleteProjectDataSourceEditor(projectDataSourceUid);
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({
@@ -212,8 +212,8 @@ export function MainSequenceProjectDataSourceEditor({
   const isDefaultField = getEditorField(payload, "is_default_data_source");
   const editorTitle =
     payload?.entity?.title ??
-    (isEditMode ? `Project data source ${projectDataSourceId}` : "Create project data source");
-  const canSubmit = displayName.trim().length > 0 && relatedResourceId.trim().length > 0;
+    (isEditMode ? `Project data source ${projectDataSourceUid}` : "Create project data source");
+  const canSubmit = displayName.trim().length > 0 && relatedResourceUid.trim().length > 0;
 
   return (
     <div className="space-y-6">
@@ -279,8 +279,8 @@ export function MainSequenceProjectDataSourceEditor({
                     {relatedResourceField?.label ?? "Related resource"}
                   </label>
                   <PickerField
-                    value={relatedResourceId}
-                    onChange={setRelatedResourceId}
+                    value={relatedResourceUid}
+                    onChange={setRelatedResourceUid}
                     options={relatedResourceOptions}
                     placeholder="Select a physical data source"
                     searchValue={relatedResourceSearchValue}
@@ -371,7 +371,7 @@ export function MainSequenceProjectDataSourceEditor({
           <>
             <div className="font-medium">{editorTitle}</div>
             <div className="mt-1 text-muted-foreground">
-              {projectDataSourceId ? `Project data source ID ${projectDataSourceId}` : null}
+              {projectDataSourceUid ? `Project data source UID ${projectDataSourceUid}` : null}
             </div>
           </>
         }

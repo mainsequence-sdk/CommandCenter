@@ -28,7 +28,7 @@
 - Link-driven graph surfaces may also fetch backend-provided `summary_url` and `graph_url` values through shared helpers here instead of teaching feature components to build those endpoints by hand.
 - Shared quick-search helpers also live here for picker-style settings UIs. Main Sequence widgets
   should resolve selectable backend objects such as projects or data nodes through these helpers
-  instead of asking users to type raw ids.
+  instead of asking users to type raw identifiers.
 - `listDataNodes(...)` defaults to the backend light serializer (`light=true`) for picker/list
   surfaces that only need lightweight identity fields. Full registry/detail-style tables that rely
   on richer `dynamic_table` fields must opt out explicitly with `light: false`.
@@ -50,7 +50,7 @@
   `target_positions_date` filter is provided, preserves `include_asset_detail=true`, and normalizes
   empty collection responses to an empty positions payload.
 - Shareable-object permission helpers also live here. They all use the same suffix-based contract:
-  the caller provides an object root plus object id, and the API layer appends the configured
+  the caller provides an object root plus object uid, and the API layer appends the configured
   `candidate-users`, `can-view`, `can-edit`, and add/remove permission suffixes from
   `main_sequence.permissions`.
 - `dynamic_table/{uid}/get-tail-observations/`, `dynamic_table/{uid}/get_data_between_dates_from_remote/`, and `dynamic_table/{uid}/get_last_observation/` only use mock payloads that are explicitly keyed to the requested data-node identifier. Unkeyed endpoint dumps are not treated as valid per-node responses because they can mix multiple series and break widget assumptions.

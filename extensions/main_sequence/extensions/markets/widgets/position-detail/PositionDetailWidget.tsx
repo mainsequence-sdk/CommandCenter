@@ -31,7 +31,7 @@ import {
   normalizePositionDetailPersistedRows,
   normalizePositionDetailRuntimeState,
   normalizePositionDetailSourceType,
-  normalizePositionDetailTargetId,
+  normalizePositionDetailTargetUid,
   normalizePositionDetailTargetPositionsDate,
   normalizePositionDetailVariant,
   type PositionDetailWidgetProps,
@@ -189,7 +189,7 @@ export function PositionDetailWidget({
   const { toast } = useToast();
   const widgetPreviewMode = isWidgetPreviewMode();
   const sourceType = normalizePositionDetailSourceType(props);
-  const targetPortfolioId = normalizePositionDetailTargetId(props);
+  const targetPortfolioUid = normalizePositionDetailTargetUid(props);
   const accountUid = normalizePositionDetailAccountUid(props);
   const variant: PositionDetailTableVariant =
     props.editableInPlace === true || sourceType !== "portfolio"
@@ -236,7 +236,7 @@ export function PositionDetailWidget({
   const [accountEditDate, setAccountEditDate] = useState(getCurrentIsoTimestamp());
   const [targetPositionsEditDate, setTargetPositionsEditDate] = useState(getCurrentIsoTimestamp());
   const canHydrateFromBackend =
-    (sourceType === "portfolio" && targetPortfolioId > 0) ||
+    (sourceType === "portfolio" && Boolean(targetPortfolioUid)) ||
     ((sourceType === "account" || sourceType === "target_positions_account") &&
       Boolean(accountUid));
   const hasLocalRows = usingPersistedRows || usingLocalDraftRows;
@@ -414,11 +414,11 @@ export function PositionDetailWidget({
     },
   });
 
-  if (sourceType === "portfolio" && (!Number.isFinite(targetPortfolioId) || targetPortfolioId <= 0) && !hasLocalRows) {
+  if (sourceType === "portfolio" && !targetPortfolioUid && !hasLocalRows) {
     return (
       <Card>
         <CardContent className="flex min-h-32 items-center justify-center text-sm text-muted-foreground">
-          Set a valid target portfolio id to render this widget.
+          Set a valid target portfolio UID to render this widget.
         </CardContent>
       </Card>
     );

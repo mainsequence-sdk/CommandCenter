@@ -176,7 +176,7 @@ export const router = createBrowserRouter([
         element: <LegacyDemoRedirect />,
       },
       {
-        path: "main_sequence_markets/asset-categories/:categoryId",
+        path: "main_sequence_markets/asset-categories/:categoryUid",
         element: (
           <PermissionRoute anyOf={["main_sequence_markets:view"]}>
             <MainSequenceAssetCategoryDetailPage />
@@ -184,7 +184,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "main_sequence_markets/asset-translation-tables/:tableId",
+        path: "main_sequence_markets/asset-translation-tables/:tableUid",
         element: (
           <PermissionRoute anyOf={["main_sequence_markets:view"]}>
             <MainSequenceAssetTranslationTableDetailPage />
@@ -200,7 +200,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "main_sequence_markets/portfolio-groups/:groupId",
+        path: "main_sequence_markets/portfolio-groups/:groupUid",
         element: (
           <PermissionRoute anyOf={["main_sequence_markets:view"]}>
             <MainSequencePortfolioGroupDetailPage />
@@ -222,7 +222,7 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: "/clusters/:clusterId",
+    path: "/clusters/:clusterUid",
     element: (
       <ProtectedRoute>
         <AppShell />

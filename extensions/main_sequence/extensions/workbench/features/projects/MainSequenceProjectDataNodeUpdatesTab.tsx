@@ -112,7 +112,7 @@ export function MainSequenceProjectDataNodeUpdatesTab({
   onOpenDataNodeDetail,
   onOpenLocalUpdateDetail,
   onSelectLocalUpdateTab,
-  projectId,
+  projectUid,
   selectedLocalUpdateId,
   selectedLocalUpdateTabId,
 }: {
@@ -120,7 +120,7 @@ export function MainSequenceProjectDataNodeUpdatesTab({
   onOpenDataNodeDetail: (dataNodeId: string) => void;
   onOpenLocalUpdateDetail: (localUpdateId: string) => void;
   onSelectLocalUpdateTab: (tabId: LocalUpdateDetailTabId) => void;
-  projectId: number;
+  projectUid: string;
   selectedLocalUpdateId: string | null;
   selectedLocalUpdateTabId: string | null;
 }) {
@@ -129,18 +129,18 @@ export function MainSequenceProjectDataNodeUpdatesTab({
   const deferredFilterValue = useDeferredValue(filterValue);
 
   const localTimeSeriesQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "local_time_series", "project", projectId, pageIndex],
+    queryKey: ["main_sequence", "data_nodes", "local_time_series", "project", projectUid, pageIndex],
     queryFn: () =>
-      listProjectLocalTimeSeries(projectId, {
+      listProjectLocalTimeSeries(projectUid, {
         limit: mainSequenceRegistryPageSize,
         offset: pageIndex * mainSequenceRegistryPageSize,
       }),
-    enabled: projectId > 0,
+    enabled: Boolean(projectUid),
   });
 
   useEffect(() => {
     setPageIndex(0);
-  }, [deferredFilterValue, projectId]);
+  }, [deferredFilterValue, projectUid]);
 
   useEffect(() => {
     const totalPages = Math.max(
@@ -215,7 +215,7 @@ export function MainSequenceProjectDataNodeUpdatesTab({
           }
           value={filterValue}
           onChange={(event) => setFilterValue(event.target.value)}
-          placeholder="Filter by id, update hash, status, scheduler, or compute"
+          placeholder="Filter by uid, update hash, status, scheduler, or compute"
           searchClassName="max-w-lg"
         />
       </div>

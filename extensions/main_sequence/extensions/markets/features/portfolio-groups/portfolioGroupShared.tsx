@@ -61,13 +61,13 @@ export function getPortfolioGroupsListPath() {
   return getAppPath("main_sequence_markets", "portfolio-groups");
 }
 
-export function getPortfolioGroupDetailPath(portfolioGroupId: number) {
-  return `${getPortfolioGroupsListPath()}/${portfolioGroupId}`;
+export function getPortfolioGroupDetailPath(portfolioGroupUid: string) {
+  return `${getPortfolioGroupsListPath()}/${encodeURIComponent(portfolioGroupUid)}`;
 }
 
-export function getTargetPortfolioDetailPath(portfolioId: number) {
+export function getTargetPortfolioDetailPath(portfolioUid: string) {
   const searchParams = new URLSearchParams({
-    msTargetPortfolioId: String(portfolioId),
+    msTargetPortfolioUid: portfolioUid,
     msTargetPortfolioTab: "detail",
   });
 
@@ -189,7 +189,7 @@ export function buildPortfolioGroupDeleteSummary(portfolioGroups: PortfolioGroup
   return (
     <div className="space-y-2">
       {preview.map((portfolioGroup) => (
-        <div key={portfolioGroup.id} className="flex items-start justify-between gap-3">
+            <div key={portfolioGroup.uid} className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate font-medium text-foreground">
               {getPortfolioGroupTitle(portfolioGroup)}
@@ -200,7 +200,7 @@ export function buildPortfolioGroupDeleteSummary(portfolioGroups: PortfolioGroup
                 "No additional identifier"}
             </div>
           </div>
-          <Badge variant="neutral">{`ID ${portfolioGroup.id}`}</Badge>
+          <Badge variant="neutral">{`UID ${portfolioGroup.uid}`}</Badge>
         </div>
       ))}
       {portfolioGroups.length > preview.length ? (
@@ -247,7 +247,7 @@ export function buildCreatePortfolioGroupPayload(
 
 export function getPortfolioSearchOptionLabel(option: TargetPortfolioSearchOption) {
   const portfolioName = readTrimmedString(option.portfolio_name);
-  return portfolioName || `Portfolio ${option.id}`;
+  return portfolioName || `Portfolio ${option.uid}`;
 }
 
 export function PortfolioGroupEditorDialog({

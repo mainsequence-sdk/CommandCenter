@@ -50,12 +50,12 @@ import { MainSequenceJobRunsTab } from "../projects/MainSequenceJobRunsTab";
 
 const mainSequenceJobsViewParam = "msJobsView";
 const mainSequenceJobRunExplorerView = "job-run-explorer";
-const mainSequenceJobIdParam = "msJobId";
-const mainSequenceJobRunIdParam = "msJobRunId";
-const mainSequenceProjectIdParam = "msProjectId";
+const mainSequenceJobUidParam = "msJobUid";
+const mainSequenceJobRunUidParam = "msJobRunUid";
+const mainSequenceProjectUidParam = "msProjectUid";
 const mainSequenceTabParam = "msTab";
 
-function getEntityIdFromSummaryHref(href: string | undefined, queryKeys: string[]) {
+function getEntityUidFromSummaryHref(href: string | undefined, queryKeys: string[]) {
   if (!href) {
     return null;
   }
@@ -65,10 +65,9 @@ function getEntityIdFromSummaryHref(href: string | undefined, queryKeys: string[
 
     for (const queryKey of queryKeys) {
       const rawValue = url.searchParams.get(queryKey);
-      const parsedValue = Number(rawValue ?? "");
 
-      if (Number.isFinite(parsedValue) && parsedValue > 0) {
-        return parsedValue;
+      if (rawValue?.trim()) {
+        return rawValue.trim();
       }
     }
   } catch {
@@ -78,8 +77,8 @@ function getEntityIdFromSummaryHref(href: string | undefined, queryKeys: string[
   return null;
 }
 
-function getProjectIdFromSummaryHref(href?: string) {
-  return getEntityIdFromSummaryHref(href, ["project_id", "projectId", mainSequenceProjectIdParam]);
+function getProjectUidFromSummaryHref(href?: string) {
+  return getEntityUidFromSummaryHref(href, ["project_uid", "projectUid", mainSequenceProjectUidParam]);
 }
 
 export function MainSequenceJobsPage() {
@@ -93,10 +92,10 @@ export function MainSequenceJobsPage() {
   const deferredFilterValue = useDeferredValue(filterValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const selectedJobsView = searchParams.get(mainSequenceJobsViewParam);
-  const selectedJobId = Number(searchParams.get(mainSequenceJobIdParam) ?? "");
-  const selectedJobRunId = Number(searchParams.get(mainSequenceJobRunIdParam) ?? "");
+  const selectedJobUid = searchParams.get(mainSequenceJobUidParam)?.trim() ?? "";
+  const selectedJobRunUid = searchParams.get(mainSequenceJobRunUidParam)?.trim() ?? "";
   const isJobRunExplorerOpen = selectedJobsView === mainSequenceJobRunExplorerView;
-  const isJobDetailOpen = Number.isFinite(selectedJobId) && selectedJobId > 0;
+  const isJobDetailOpen = selectedJobUid.length > 0;
 
   const jobsQuery = useQuery({
     queryKey: ["main_sequence", "jobs", "list", jobsPageIndex],
@@ -108,13 +107,13 @@ export function MainSequenceJobsPage() {
   });
 
   const selectedJobFromList = useMemo(
-    () => (jobsQuery.data?.results ?? []).find((job) => job.id === selectedJobId) ?? null,
-    [jobsQuery.data?.results, selectedJobId],
+    () => (jobsQuery.data?.results ?? []).find((job) => job.uid === selectedJobUid) ?? null,
+    [jobsQuery.data?.results, selectedJobUid],
   );
 
   const jobDetailQuery = useQuery({
-    queryKey: ["main_sequence", "jobs", "detail", selectedJobId],
-    queryFn: () => fetchJob(selectedJobId),
+    queryKey: ["main_sequence", "jobs", "detail", selectedJobUid],
+    queryFn: () => fetchJob(selectedJobUid),
     enabled: isJobDetailOpen,
   });
 
@@ -143,7 +142,7 @@ export function MainSequenceJobsPage() {
 
       return [
         job.name,
-        String(job.id),
+        job.uid,
         String(job.project),
         job.execution_path ?? "",
         job.app_name ?? "",
@@ -159,7 +158,7 @@ export function MainSequenceJobsPage() {
     });
   }, [deferredFilterValue, jobsQuery.data?.results]);
 
-  const jobSelection = useRegistrySelection(filteredJobs);
+  const jobSelection = useRegistrySelection(filteredJobs, (job) => job.uid);
   const jobBulkActions =
     jobSelection.selectedCount > 0
       ? [
@@ -178,7 +177,7 @@ export function MainSequenceJobsPage() {
       : [];
 
   const deleteJobMutation = useMutation({
-    mutationFn: async (jobs: JobRecord[]) => bulkDeleteJobs(jobs.map((job) => job.id)),
+    mutationFn: async (jobs: JobRecord[]) => bulkDeleteJobs(jobs.map((job) => job.uid)),
     onSuccess: async (result, jobs) => {
       const deletedCount = result.deleted_count ?? jobs.length;
       setJobsPendingDelete([]);
@@ -222,67 +221,67 @@ export function MainSequenceJobsPage() {
     );
   }
 
-  function openJobDetail(jobId: number) {
+  function openJobDetail(jobUid: string) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceJobIdParam, String(jobId));
-      nextParams.delete(mainSequenceJobRunIdParam);
+      nextParams.set(mainSequenceJobUidParam, jobUid);
+      nextParams.delete(mainSequenceJobRunUidParam);
     });
   }
 
   function closeJobDetail() {
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceJobIdParam);
-      nextParams.delete(mainSequenceJobRunIdParam);
+      nextParams.delete(mainSequenceJobUidParam);
+      nextParams.delete(mainSequenceJobRunUidParam);
     });
   }
 
-  function openJobRunDetail(jobRunId: number) {
+  function openJobRunDetail(jobRunUid: string) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceJobRunIdParam, String(jobRunId));
+      nextParams.set(mainSequenceJobRunUidParam, jobRunUid);
     });
   }
 
-  function openJobRunDetailForJob(jobId: number, jobRunId: number) {
+  function openJobRunDetailForJob(jobUid: string, jobRunUid: string) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceJobIdParam, String(jobId));
-      nextParams.set(mainSequenceJobRunIdParam, String(jobRunId));
+      nextParams.set(mainSequenceJobUidParam, jobUid);
+      nextParams.set(mainSequenceJobRunUidParam, jobRunUid);
     });
   }
 
   function closeJobRunDetail() {
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceJobRunIdParam);
+      nextParams.delete(mainSequenceJobRunUidParam);
     });
   }
 
   function openJobRunExplorer() {
     updateSearchParams((nextParams) => {
       nextParams.set(mainSequenceJobsViewParam, mainSequenceJobRunExplorerView);
-      nextParams.delete(mainSequenceJobIdParam);
-      nextParams.delete(mainSequenceJobRunIdParam);
+      nextParams.delete(mainSequenceJobUidParam);
+      nextParams.delete(mainSequenceJobRunUidParam);
     });
   }
 
   function closeJobRunExplorer() {
     updateSearchParams((nextParams) => {
       nextParams.delete(mainSequenceJobsViewParam);
-      nextParams.delete(mainSequenceJobIdParam);
-      nextParams.delete(mainSequenceJobRunIdParam);
+      nextParams.delete(mainSequenceJobUidParam);
+      nextParams.delete(mainSequenceJobRunUidParam);
     });
   }
 
-  function openProjectDetail(projectId: number) {
+  function openProjectDetail(projectUid: string) {
     const nextParams = new URLSearchParams();
-    nextParams.set(mainSequenceProjectIdParam, String(projectId));
+    nextParams.set(mainSequenceProjectUidParam, projectUid);
     nextParams.set(mainSequenceTabParam, "jobs");
     navigate(`/app/main_sequence_workbench/projects?${nextParams.toString()}`);
   }
 
   function handleSummaryFieldLink(field: SummaryField) {
-    const projectId = getProjectIdFromSummaryHref(field.href);
+    const projectUid = getProjectUidFromSummaryHref(field.href);
 
-    if (projectId) {
-      openProjectDetail(projectId);
+    if (projectUid) {
+      openProjectDetail(projectUid);
     }
   }
 
@@ -290,13 +289,15 @@ export function MainSequenceJobsPage() {
   const jobSummary = selectedJob
     ? buildJobSummary(selectedJob, {
         projectTitle: `Project ${selectedJob.project}`,
-        projectHref: `/app/main_sequence_workbench/projects?${mainSequenceProjectIdParam}=${selectedJob.project}&${mainSequenceTabParam}=jobs`,
+        projectHref: selectedJob.project_uid
+          ? `/app/main_sequence_workbench/projects?${mainSequenceProjectUidParam}=${selectedJob.project_uid}&${mainSequenceTabParam}=jobs`
+          : undefined,
       })
     : null;
   const jobTitle =
     selectedJob?.name ??
     selectedJobFromList?.name ??
-    (selectedJobId ? `Job ${selectedJobId}` : "Job");
+    (selectedJobUid ? `Job ${selectedJobUid}` : "Job");
 
   if (isJobDetailOpen) {
     return (
@@ -347,7 +348,7 @@ export function MainSequenceJobsPage() {
               onFieldLinkClick={handleSummaryFieldLink}
               onSummaryUpdated={async () => {
                 await queryClient.invalidateQueries({
-                  queryKey: ["main_sequence", "jobs", "detail", selectedJobId],
+                  queryKey: ["main_sequence", "jobs", "detail", selectedJobUid],
                 });
                 await queryClient.invalidateQueries({
                   queryKey: ["main_sequence", "jobs"],
@@ -357,13 +358,13 @@ export function MainSequenceJobsPage() {
 
             <Card>
               <CardContent className="pt-5">
-                <MainSequenceJobRunsTab
-                  jobId={selectedJobId}
+                  <MainSequenceJobRunsTab
+                  jobUid={selectedJobUid}
                   onCloseJobRunDetail={closeJobRunDetail}
                   onOpenProjectDetail={openProjectDetail}
                   onOpenJobDetail={openJobDetail}
                   onOpenJobRunDetail={openJobRunDetail}
-                  selectedJobRunId={Number.isFinite(selectedJobRunId) && selectedJobRunId > 0 ? selectedJobRunId : null}
+                  selectedJobRunUid={selectedJobRunUid || null}
                 />
               </CardContent>
             </Card>
@@ -474,15 +475,15 @@ export function MainSequenceJobsPage() {
                 </thead>
                 <tbody>
                   {filteredJobs.map((job) => {
-                    const selected = jobSelection.isSelected(job.id);
+                    const selected = jobSelection.isSelected(job.uid);
 
                     return (
-                      <tr key={job.id}>
+                      <tr key={job.uid}>
                         <td className={getRegistryTableCellClassName(selected, "left")}>
                           <MainSequenceSelectionCheckbox
                             ariaLabel={`Select ${job.name}`}
                             checked={selected}
-                            onChange={() => jobSelection.toggleSelection(job.id)}
+                            onChange={() => jobSelection.toggleSelection(job.uid)}
                           />
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
@@ -490,7 +491,7 @@ export function MainSequenceJobsPage() {
                             <button
                               type="button"
                               className="group inline-flex cursor-pointer items-center gap-1.5 rounded-sm text-left outline-none transition-colors hover:text-primary focus-visible:text-primary"
-                              onClick={() => openJobDetail(job.id)}
+                              onClick={() => openJobDetail(job.uid)}
                               title={`Open ${job.name}`}
                             >
                               <span className="font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors group-hover:decoration-primary group-focus-visible:decoration-primary">
@@ -498,14 +499,18 @@ export function MainSequenceJobsPage() {
                               </span>
                               <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary" />
                             </button>
-                            <div className="mt-1 text-xs text-muted-foreground">ID {job.id}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">UID {job.uid}</div>
                           </div>
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           <button
                             type="button"
                             className="group inline-flex items-center gap-1.5 text-left transition-colors hover:text-primary"
-                            onClick={() => openProjectDetail(job.project)}
+                            onClick={() => {
+                              if (job.project_uid) {
+                                openProjectDetail(job.project_uid);
+                              }
+                            }}
                             title={`Open project ${job.project}`}
                           >
                             <FolderKanban className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
@@ -608,7 +613,7 @@ export function MainSequenceJobsPage() {
             <>
               <div className="font-medium">{jobsPendingDelete[0]?.name}</div>
               <div className="mt-1 text-muted-foreground">
-                {jobsPendingDelete[0] ? `Job ID ${jobsPendingDelete[0].id}` : null}
+                {jobsPendingDelete[0] ? `Job UID ${jobsPendingDelete[0].uid}` : null}
               </div>
             </>
           ) : (

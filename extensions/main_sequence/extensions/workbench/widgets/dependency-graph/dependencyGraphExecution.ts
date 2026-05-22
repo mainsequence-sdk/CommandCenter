@@ -6,7 +6,6 @@ import type {
 } from "@/widgets/types";
 
 import {
-  fetchDataNodeDetail,
   fetchLocalTimeSerieDependencyGraph,
   fetchSimpleTableUpdateDependencyGraph,
   listLocalTimeSeries,
@@ -97,8 +96,7 @@ export async function executeDependencyGraphWidget(
 
   if (sourceKind === "data_node") {
     try {
-      const dataNodeDetail = await fetchDataNodeDetail(selectedDataNodeUid, requestTraceMeta);
-      const page = await listLocalTimeSeries(dataNodeDetail.id, {
+      const page = await listLocalTimeSeries(selectedDataNodeUid, {
         limit: 1,
         offset: 0,
         traceMeta: requestTraceMeta,

@@ -25,7 +25,7 @@ import { getRegistryTableCellClassName } from "../../../../common/components/reg
 import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelection";
 import { MainSequencePhysicalDataSourceEditor } from "./MainSequencePhysicalDataSourceEditor";
 
-const mainSequencePhysicalDataSourceIdParam = "msPhysicalDataSourceId";
+const mainSequencePhysicalDataSourceUidParam = "msPhysicalDataSourceUid";
 const mainSequencePhysicalDataSourceViewParam = "msPhysicalDataSourceView";
 
 const createViewToSourceType = {
@@ -65,17 +65,14 @@ export function MainSequencePhysicalDataSourcesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const deferredSearchValue = useDeferredValue(searchValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const activePhysicalDataSourceId = Number(
-    searchParams.get(mainSequencePhysicalDataSourceIdParam) ?? "",
-  );
+  const activePhysicalDataSourceUid = searchParams.get(mainSequencePhysicalDataSourceUidParam)?.trim() ?? "";
   const activeView = searchParams.get(mainSequencePhysicalDataSourceViewParam) ?? "";
   const activeCreateSourceType =
     activeView in createViewToSourceType
       ? createViewToSourceType[activeView as keyof typeof createViewToSourceType]
       : null;
   const isCreateFlowOpen = activeCreateSourceType !== null;
-  const isEditFlowOpen =
-    Number.isFinite(activePhysicalDataSourceId) && activePhysicalDataSourceId > 0;
+  const isEditFlowOpen = activePhysicalDataSourceUid.length > 0;
 
   const physicalDataSourcesQuery = useQuery({
     queryKey: [
@@ -96,7 +93,7 @@ export function MainSequencePhysicalDataSourcesPage() {
   });
 
   const pageRows = physicalDataSourcesQuery.data?.rows ?? [];
-  const selection = useRegistrySelection(pageRows);
+  const selection = useRegistrySelection(pageRows, (row) => row.uid);
   const totalItems = physicalDataSourcesQuery.data?.pagination.total_items ?? 0;
   const allPageSelected = pageRows.length > 0 && (selectAllMatching || selection.allSelected);
   const somePageSelected = !allPageSelected && selection.someSelected;
@@ -132,19 +129,19 @@ export function MainSequencePhysicalDataSourcesPage() {
     selection.toggleAll();
   }
 
-  function toggleRowSelection(physicalDataSourceId: number) {
+  function toggleRowSelection(physicalDataSourceUid: string) {
     if (selectAllMatching) {
       setSelectAllMatching(false);
-      selection.setSelection(pageRows.map((row) => row.id).filter((id) => id !== physicalDataSourceId));
+      selection.setSelection(pageRows.map((row) => row.uid).filter((uid) => uid !== physicalDataSourceUid));
       return;
     }
 
-    selection.toggleSelection(physicalDataSourceId);
+    selection.toggleSelection(physicalDataSourceUid);
   }
 
   function selectAllMatchingResults() {
     setSelectAllMatching(true);
-    selection.setSelection(pageRows.map((row) => row.id));
+    selection.setSelection(pageRows.map((row) => row.uid));
   }
 
   function updateSearchParams(update: (nextParams: URLSearchParams) => void) {
@@ -161,16 +158,16 @@ export function MainSequencePhysicalDataSourcesPage() {
     );
   }
 
-  function openPhysicalDataSourceDetail(physicalDataSourceId: number) {
+  function openPhysicalDataSourceDetail(physicalDataSourceUid: string) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequencePhysicalDataSourceIdParam, String(physicalDataSourceId));
+      nextParams.set(mainSequencePhysicalDataSourceUidParam, physicalDataSourceUid);
       nextParams.delete(mainSequencePhysicalDataSourceViewParam);
     });
   }
 
   function closeEditor() {
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequencePhysicalDataSourceIdParam);
+      nextParams.delete(mainSequencePhysicalDataSourceUidParam);
       nextParams.delete(mainSequencePhysicalDataSourceViewParam);
     });
   }
@@ -184,7 +181,7 @@ export function MainSequencePhysicalDataSourcesPage() {
             classType: classTypeFilterValue || undefined,
           }
         : {
-            ids: selection.selectedIds,
+            uids: selection.selectedIds,
           },
     );
   }
@@ -194,7 +191,7 @@ export function MainSequencePhysicalDataSourcesPage() {
     setDeleteDialogOpen(false);
 
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequencePhysicalDataSourceIdParam);
+      nextParams.delete(mainSequencePhysicalDataSourceUidParam);
     });
 
     await queryClient.invalidateQueries({
@@ -224,7 +221,7 @@ export function MainSequencePhysicalDataSourcesPage() {
       <MainSequencePhysicalDataSourceEditor
         mode={isEditFlowOpen ? "edit" : "create"}
         createSourceType={isCreateFlowOpen ? activeCreateSourceType : undefined}
-        physicalDataSourceId={isEditFlowOpen ? activePhysicalDataSourceId : undefined}
+        physicalDataSourceUid={isEditFlowOpen ? activePhysicalDataSourceUid : undefined}
         onBack={closeEditor}
         onOpenPhysicalDataSourceDetail={openPhysicalDataSourceDetail}
       />
@@ -363,8 +360,8 @@ export function MainSequencePhysicalDataSourcesPage() {
                 </thead>
                 <tbody>
                   {pageRows.map((row) => {
-                    const selected = selectAllMatching || selection.isSelected(row.id);
-                    const rowRouted = activePhysicalDataSourceId === row.id;
+                    const selected = selectAllMatching || selection.isSelected(row.uid);
+                    const rowRouted = activePhysicalDataSourceUid === row.uid;
                     const iconSource = resolvePhysicalDataSourceIcon({
                       classType: row.class_type,
                       sourceLogo: row.source_logo,
@@ -372,9 +369,9 @@ export function MainSequencePhysicalDataSourcesPage() {
 
                     return (
                       <tr
-                        key={row.id}
+                        key={row.uid}
                         className="cursor-pointer"
-                        onClick={() => openPhysicalDataSourceDetail(row.id)}
+                        onClick={() => openPhysicalDataSourceDetail(row.uid)}
                       >
                         <td
                           className={cn(
@@ -386,7 +383,7 @@ export function MainSequencePhysicalDataSourcesPage() {
                           <MainSequenceSelectionCheckbox
                             ariaLabel={`Select ${row.display_name}`}
                             checked={selected}
-                            onChange={() => toggleRowSelection(row.id)}
+                            onChange={() => toggleRowSelection(row.uid)}
                           />
                         </td>
                         <td
@@ -399,14 +396,14 @@ export function MainSequencePhysicalDataSourcesPage() {
                             <Database className="mt-0.5 h-4 w-4 text-muted-foreground" />
                             <div className="min-w-0">
                               <div className="inline-flex items-center gap-1 text-foreground">
-                                <span className="font-medium">{row.display_name || `Data source ${row.id}`}</span>
+                                <span className="font-medium">{row.display_name || `Data source ${row.uid}`}</span>
                                 <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
                               </div>
                               <div
                                 className="mt-0.5 text-muted-foreground"
                                 style={{ fontSize: "var(--table-meta-font-size)" }}
                               >
-                                {`Physical data source ID ${row.id}`}
+                                {`Physical data source UID ${row.uid}`}
                               </div>
                             </div>
                           </div>
@@ -518,7 +515,7 @@ export function MainSequencePhysicalDataSourcesPage() {
               <div className="mt-1 text-muted-foreground">
                 {selection.selectedItems
                   .slice(0, 3)
-                  .map((item) => item.display_name || `Data source ${item.id}`)
+                  .map((item) => item.display_name || `Data source ${item.uid}`)
                   .join(", ")}
                 {selection.selectedItems.length > 3 ? ", ..." : ""}
               </div>

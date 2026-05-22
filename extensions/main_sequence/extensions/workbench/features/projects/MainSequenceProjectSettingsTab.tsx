@@ -49,44 +49,44 @@ function resolveBaseImageValueFromSummary(
   );
 
   if (exactMatch) {
-    return String(exactMatch.id);
+    return exactMatch.uid;
   }
 
   const fuzzyMatch = projectBaseImages.find((option) =>
     normalizeMatchValue(`${option.title} ${option.description}`).includes(summaryValue),
   );
 
-  return fuzzyMatch ? String(fuzzyMatch.id) : "";
+  return fuzzyMatch ? fuzzyMatch.uid : "";
 }
 
 export function MainSequenceProjectSettingsTab({
-  projectId,
+  projectUid,
   projectSummary,
 }: {
-  projectId: number;
+  projectUid: string;
   projectSummary?: SummaryResponse | null;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [formState, setFormState] = useState({
-    dataSourceId: "",
-    defaultBaseImageId: "",
+    dataSourceUid: "",
+    defaultBaseImageUid: "",
   });
   const [hasUserEditedSettings, setHasUserEditedSettings] = useState(false);
   const [secretSearchValue, setSecretSearchValue] = useState("");
-  const [selectedSecretId, setSelectedSecretId] = useState("");
+  const [selectedSecretUid, setSelectedSecretUid] = useState("");
   const deferredSecretSearchValue = useDeferredValue(secretSearchValue);
 
   const projectDetailQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "detail", projectId],
-    queryFn: () => fetchProjectDetail(projectId),
-    enabled: projectId > 0,
+    queryKey: ["main_sequence", "projects", "detail", projectUid],
+    queryFn: () => fetchProjectDetail(projectUid),
+    enabled: Boolean(projectUid),
   });
 
   const formOptionsQuery = useQuery({
     queryKey: ["main_sequence", "projects", "form-options"],
     queryFn: fetchProjectFormOptions,
-    enabled: projectId > 0,
+    enabled: Boolean(projectUid),
     staleTime: 300_000,
   });
 
@@ -97,21 +97,21 @@ export function MainSequenceProjectSettingsTab({
         limit: 50,
         search: deferredSecretSearchValue,
       }),
-    enabled: projectId > 0,
+    enabled: Boolean(projectUid),
     staleTime: 60_000,
   });
 
   const projectSecretsQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "project-secrets", projectId],
-    queryFn: () => listProjectSecrets(projectId),
-    enabled: projectId > 0,
+    queryKey: ["main_sequence", "projects", "project-secrets", projectUid],
+    queryFn: () => listProjectSecrets(projectUid),
+    enabled: Boolean(projectUid),
   });
 
   const projectDataSourceOptions: PickerOption[] = useMemo(
     () =>
       (formOptionsQuery.data?.dataSources ?? []).map((option) => ({
-        value: String(option.id),
-        label: option.related_resource?.display_name ?? `Data source ${option.id}`,
+        value: option.uid,
+        label: option.related_resource?.display_name ?? `Data source ${option.uid}`,
         description: option.related_resource
           ? `${option.related_resource_class_type} · ${option.related_resource.status}`
           : option.related_resource_class_type,
@@ -132,7 +132,7 @@ export function MainSequenceProjectSettingsTab({
         description: "Use the standard image.",
       },
       ...(formOptionsQuery.data?.projectBaseImages ?? []).map((option) => ({
-        value: String(option.id),
+        value: option.uid,
         label: option.title,
         description: option.description || option.latest_digest,
         keywords: [option.title, option.description, option.latest_digest],
@@ -149,10 +149,10 @@ export function MainSequenceProjectSettingsTab({
         description: "Find a secret to assign to this project.",
       },
       ...(availableSecretsQuery.data?.results ?? []).map((secret) => ({
-        value: String(secret.id),
+        value: secret.uid,
         label: secret.name,
-        description: `Secret ${secret.id}`,
-        keywords: [secret.name, String(secret.id)],
+        description: `Secret ${secret.uid}`,
+        keywords: [secret.name, secret.uid],
       })),
     ],
     [availableSecretsQuery.data?.results],
@@ -160,11 +160,11 @@ export function MainSequenceProjectSettingsTab({
 
   const initialFormState = useMemo(
     () => ({
-      dataSourceId: projectDetailQuery.data?.data_source?.id
-        ? String(projectDetailQuery.data.data_source.id)
+      dataSourceUid: projectDetailQuery.data?.data_source?.uid
+        ? projectDetailQuery.data.data_source.uid
         : "",
-      defaultBaseImageId: projectDetailQuery.data?.default_base_image?.id
-        ? String(projectDetailQuery.data.default_base_image.id)
+      defaultBaseImageUid: projectDetailQuery.data?.default_base_image?.uid
+        ? projectDetailQuery.data.default_base_image.uid
         : resolveBaseImageValueFromSummary(
             formOptionsQuery.data?.projectBaseImages ?? [],
             projectSummary,
@@ -172,15 +172,15 @@ export function MainSequenceProjectSettingsTab({
     }),
     [
       formOptionsQuery.data?.projectBaseImages,
-      projectDetailQuery.data?.data_source?.id,
-      projectDetailQuery.data?.default_base_image?.id,
+      projectDetailQuery.data?.data_source?.uid,
+      projectDetailQuery.data?.default_base_image?.uid,
       projectSummary,
     ],
   );
 
   const isDirty =
-    formState.dataSourceId !== initialFormState.dataSourceId ||
-    formState.defaultBaseImageId !== initialFormState.defaultBaseImageId;
+    formState.dataSourceUid !== initialFormState.dataSourceUid ||
+    formState.defaultBaseImageUid !== initialFormState.defaultBaseImageUid;
 
   useEffect(() => {
     if (hasUserEditedSettings) {
@@ -193,10 +193,10 @@ export function MainSequenceProjectSettingsTab({
   useEffect(() => {
     setHasUserEditedSettings(false);
     setFormState({
-      dataSourceId: "",
-      defaultBaseImageId: "",
+      dataSourceUid: "",
+      defaultBaseImageUid: "",
     });
-  }, [projectId]);
+  }, [projectUid]);
 
   const updateProjectSettingsMutation = useMutation({
     mutationFn: updateProjectSettings,
@@ -205,10 +205,10 @@ export function MainSequenceProjectSettingsTab({
 
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "projects", "detail", projectId],
+          queryKey: ["main_sequence", "projects", "detail", projectUid],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "projects", "summary", projectId],
+          queryKey: ["main_sequence", "projects", "summary", projectUid],
         }),
         queryClient.invalidateQueries({
           queryKey: ["main_sequence", "projects", "list"],
@@ -234,10 +234,10 @@ export function MainSequenceProjectSettingsTab({
     mutationFn: createProjectSecret,
     onSuccess: async (projectSecret) => {
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "project-secrets", projectId],
+        queryKey: ["main_sequence", "projects", "project-secrets", projectUid],
       });
 
-      setSelectedSecretId("");
+      setSelectedSecretUid("");
       setSecretSearchValue("");
 
       toast({
@@ -257,12 +257,12 @@ export function MainSequenceProjectSettingsTab({
 
   const removeProjectSecretMutation = useMutation({
     mutationFn: async (projectSecret: ProjectSecretRecord) => {
-      await deleteProjectSecret(projectSecret.id);
+      await deleteProjectSecret(projectSecret.uid);
       return projectSecret;
     },
     onSuccess: async (projectSecret) => {
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "project-secrets", projectId],
+        queryKey: ["main_sequence", "projects", "project-secrets", projectUid],
       });
 
       toast({
@@ -285,10 +285,10 @@ export function MainSequenceProjectSettingsTab({
     updateProjectSettingsMutation.reset();
 
     await updateProjectSettingsMutation.mutateAsync({
-      projectId,
-      defaultDataSourceId: formState.dataSourceId ? Number(formState.dataSourceId) : undefined,
-      defaultBaseImageId: formState.defaultBaseImageId
-        ? Number(formState.defaultBaseImageId)
+      projectUid,
+      defaultDataSourceUid: formState.dataSourceUid || undefined,
+      defaultBaseImageUid: formState.defaultBaseImageUid
+        ? formState.defaultBaseImageUid
         : null,
     });
   }
@@ -297,8 +297,8 @@ export function MainSequenceProjectSettingsTab({
     createProjectSecretMutation.reset();
 
     await createProjectSecretMutation.mutateAsync({
-      project: projectId,
-      secret: Number(selectedSecretId),
+      project: projectUid,
+      secret: selectedSecretUid,
     });
   }
 
@@ -326,13 +326,13 @@ export function MainSequenceProjectSettingsTab({
                 Data source
               </label>
               <PickerField
-                value={formState.dataSourceId}
+                value={formState.dataSourceUid}
                 onChange={(value) => {
                   updateProjectSettingsMutation.reset();
                   setHasUserEditedSettings(true);
                   setFormState((current) => ({
                     ...current,
-                    dataSourceId: value,
+                    dataSourceUid: value,
                   }));
                 }}
                 options={projectDataSourceOptions}
@@ -348,13 +348,13 @@ export function MainSequenceProjectSettingsTab({
                 Base image
               </label>
               <PickerField
-                value={formState.defaultBaseImageId}
+                value={formState.defaultBaseImageUid}
                 onChange={(value) => {
                   updateProjectSettingsMutation.reset();
                   setHasUserEditedSettings(true);
                   setFormState((current) => ({
                     ...current,
-                    defaultBaseImageId: value,
+                    defaultBaseImageUid: value,
                   }));
                 }}
                 options={projectBaseImageOptions}
@@ -411,7 +411,7 @@ export function MainSequenceProjectSettingsTab({
               disabled={
                 updateProjectSettingsMutation.isPending ||
                 !isDirty ||
-                !formState.dataSourceId ||
+                !formState.dataSourceUid ||
                 projectDetailQuery.isLoading ||
                 formOptionsQuery.isLoading
               }
@@ -439,10 +439,10 @@ export function MainSequenceProjectSettingsTab({
 
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
             <PickerField
-              value={selectedSecretId}
+              value={selectedSecretUid}
               onChange={(value) => {
                 createProjectSecretMutation.reset();
-                setSelectedSecretId(value);
+                setSelectedSecretUid(value);
               }}
               options={projectSecretOptions}
               placeholder="Search a secret"
@@ -462,7 +462,7 @@ export function MainSequenceProjectSettingsTab({
               onClick={() => void handleAddProjectSecret()}
               disabled={
                 createProjectSecretMutation.isPending ||
-                !selectedSecretId ||
+                !selectedSecretUid ||
                 availableSecretsQuery.isLoading
               }
             >
@@ -520,7 +520,7 @@ export function MainSequenceProjectSettingsTab({
             <div className="space-y-2">
               {(projectSecretsQuery.data ?? []).map((projectSecret) => (
                 <div
-                  key={projectSecret.id}
+                  key={projectSecret.uid}
                   className="flex flex-wrap items-center justify-between gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-3"
                 >
                   <div className="min-w-0">

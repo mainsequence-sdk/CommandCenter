@@ -15,7 +15,7 @@ It is the AI-owned implementation of the project-agent workflow:
 ## Entry Points
 
 - `ProjectAgentConfigurator.tsx`
-  The shared form component. It accepts explicit `projectId` and `hasAgentCapabilities` inputs and
+  The shared form component. It accepts explicit `projectUid` and `hasAgentCapabilities` inputs and
   renders nothing when the selected project is not agent-capable.
 
 ## Ownership Notes
@@ -26,7 +26,7 @@ It is the AI-owned implementation of the project-agent workflow:
   during the refactor, but new project-agent workflow changes should be authored here first.
 - The form depends on the shared Main Sequence project APIs.
 - The build-source image picker is intentionally scoped to the Main Sequence `base_pod_images`
-  slice by requesting `fetchProjectImages(projectId, { catalogImagePrefixStartswith:
+  slice by requesting `fetchProjectImages(projectUid, { catalogImagePrefixStartswith:
   "base_pod_images" })`.
 - Project-agent image pickers now reuse the shared Main Sequence project-image picker metadata
   builder from `main_sequence/common/components/projectImagePickerOptions.ts`. They keep the image
@@ -44,7 +44,7 @@ It is the AI-owned implementation of the project-agent workflow:
 - When the current project agent already exists, the form also hydrates `llm_provider` and
   `llm_model` from that agent's exposed `agent_id` so existing deployment values remain visible
   even if the runtime catalog is temporarily unavailable.
-- When `GET /orm/api/agents/v1/project-executor-agent-services/by-project/<project_id>/` reports
+- When `GET /orm/api/agents/v1/project-executor-agent-services/by-project/<project_uid>/` reports
   `executor_bundle_image_has_drift=true`, the deployment section shows a warning that the deployed
   runtime image has drifted from the latest Astro update, plus any backend-authored drift detail
   and auto-heal guidance.

@@ -15,7 +15,7 @@ import {
   normalizePositionDetailPersistedRows,
   normalizePositionDetailRuntimeState,
   normalizePositionDetailSourceType,
-  normalizePositionDetailTargetId,
+  normalizePositionDetailTargetUid,
   normalizePositionDetailTargetPositionsDate,
   normalizePositionDetailVariant,
   type PositionDetailWidgetProps,
@@ -38,7 +38,7 @@ export async function executePositionDetailWidget(
 ): Promise<WidgetExecutionResult> {
   const props = (context.targetOverrides?.props ?? context.props) as PositionDetailWidgetProps;
   const sourceType = normalizePositionDetailSourceType(props);
-  const targetPortfolioId = normalizePositionDetailTargetId(props);
+  const targetPortfolioUid = normalizePositionDetailTargetUid(props);
   const accountUid = normalizePositionDetailAccountUid(props);
   const targetPositionsDate =
     sourceType === "target_positions_account" &&
@@ -55,7 +55,7 @@ export async function executePositionDetailWidget(
       runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {
         status: "idle",
         error: undefined,
-        targetPortfolioId: undefined,
+        targetPortfolioUid: undefined,
         accountUid: undefined,
         variant: "positions",
         payload: undefined,
@@ -63,13 +63,13 @@ export async function executePositionDetailWidget(
     };
   }
 
-  if (sourceType === "portfolio" && targetPortfolioId <= 0) {
+  if (sourceType === "portfolio" && !targetPortfolioUid) {
     return {
       status: "skipped",
       runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {
         status: "idle",
         error: undefined,
-        targetPortfolioId: undefined,
+        targetPortfolioUid: undefined,
         accountUid: undefined,
         variant,
         payload: undefined,
@@ -83,7 +83,7 @@ export async function executePositionDetailWidget(
       runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {
         status: "idle",
         error: undefined,
-        targetPortfolioId: undefined,
+        targetPortfolioUid: undefined,
         accountUid: undefined,
         variant,
         payload: undefined,
@@ -97,7 +97,7 @@ export async function executePositionDetailWidget(
       runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {
         status: "idle",
         error: undefined,
-        targetPortfolioId: undefined,
+        targetPortfolioUid: undefined,
         accountUid: undefined,
         variant: "positions",
         payload: undefined,
@@ -118,7 +118,7 @@ export async function executePositionDetailWidget(
               traceMeta: requestTraceMeta,
             })
         : await fetchTargetPositionDetailPositionDetails(
-            targetPortfolioId,
+            targetPortfolioUid,
             requestTraceMeta,
           );
 
@@ -127,7 +127,7 @@ export async function executePositionDetailWidget(
       runtimeStatePatch: buildPositionDetailRuntimeState(context.runtimeState, {
         status: "success",
         error: undefined,
-        targetPortfolioId: sourceType === "portfolio" ? targetPortfolioId : undefined,
+        targetPortfolioUid: sourceType === "portfolio" ? targetPortfolioUid : undefined,
         accountUid:
           sourceType === "account" || sourceType === "target_positions_account"
             ? accountUid
@@ -151,7 +151,7 @@ export async function executePositionDetailWidget(
               : sourceType === "target_positions_account"
                 ? "Unable to load account target positions."
               : "Unable to load position details.",
-        targetPortfolioId: sourceType === "portfolio" ? targetPortfolioId : undefined,
+        targetPortfolioUid: sourceType === "portfolio" ? targetPortfolioUid : undefined,
         accountUid:
           sourceType === "account" || sourceType === "target_positions_account"
             ? accountUid
@@ -172,7 +172,7 @@ export const positionDetailExecutionDefinition = {
         return false;
       }
       if (sourceType === "portfolio") {
-        return normalizePositionDetailTargetId(props) > 0;
+        return Boolean(normalizePositionDetailTargetUid(props));
       }
       if (sourceType === "account") {
         return Boolean(normalizePositionDetailAccountUid(props));

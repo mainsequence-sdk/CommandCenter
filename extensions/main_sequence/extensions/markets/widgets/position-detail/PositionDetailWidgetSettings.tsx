@@ -10,14 +10,6 @@ import {
   type PositionDetailWidgetProps,
 } from "./positionDetailRuntime";
 
-function normalizePositiveInt(value: string) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return undefined;
-  }
-  return Math.trunc(parsed);
-}
-
 function normalizeAccountUid(value: string) {
   const normalized = value.trim();
   return normalized ? normalized : undefined;
@@ -40,11 +32,12 @@ export function PositionDetailWidgetSettings({
   onDraftPropsChange,
 }: WidgetSettingsComponentProps<PositionDetailWidgetProps>) {
   const sourceType = normalizePositionDetailSourceType(draftProps);
-  const portfolioId =
-    Number.isFinite(Number(draftProps.portfolioId ?? draftProps.targetPortfolioId)) &&
-    Number(draftProps.portfolioId ?? draftProps.targetPortfolioId) > 0
-      ? String(Math.trunc(Number(draftProps.portfolioId ?? draftProps.targetPortfolioId)))
-      : "";
+  const portfolioUid =
+    typeof draftProps.portfolioUid === "string"
+      ? draftProps.portfolioUid
+      : typeof draftProps.targetPortfolioUid === "string"
+        ? draftProps.targetPortfolioUid
+        : "";
   const accountUid = typeof draftProps.accountUid === "string" ? draftProps.accountUid : "";
   const variant =
     draftProps.editableInPlace === true || sourceType !== "portfolio"
@@ -126,20 +119,17 @@ export function PositionDetailWidgetSettings({
             help="Used only when the source type is Portfolio and no local rows have been authored yet."
             textClassName="text-sm font-medium text-topbar-foreground"
           >
-            Portfolio id
+            Portfolio UID
           </WidgetSettingFieldLabel>
           <Input
-            type="number"
-            min="1"
-            step="1"
-            inputMode="numeric"
-            placeholder="1"
-            value={portfolioId}
+            type="text"
+            placeholder="target-portfolio-uid"
+            value={portfolioUid}
             readOnly={!editable || sourceType !== "portfolio"}
             onChange={(event) => {
               onDraftPropsChange({
                 ...draftProps,
-                portfolioId: normalizePositiveInt(event.target.value),
+                portfolioUid: normalizeAccountUid(event.target.value),
               });
             }}
           />

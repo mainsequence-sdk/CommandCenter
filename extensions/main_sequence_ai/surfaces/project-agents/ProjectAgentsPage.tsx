@@ -18,16 +18,16 @@ import {
 import { PickerField, type PickerOption } from "../../../main_sequence/common/components/PickerField";
 import { ProjectAgentConfigurator } from "../../features/project-agents/ProjectAgentConfigurator";
 
-const mainSequenceProjectIdParam = "msProjectId";
+const mainSequenceProjectUidParam = "msProjectUid";
 const projectAgentSearchLimit = 50;
 
-function normalizeSelectedProjectId(rawValue: string | null) {
-  const parsed = Number(rawValue ?? "");
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+function normalizeSelectedProjectUid(rawValue: string | null) {
+  const trimmed = rawValue?.trim();
+  return trimmed ? trimmed : null;
 }
 
-function formatProjectLabel(project: Pick<ProjectQuickSearchRecord, "id" | "project_name">) {
-  return project.project_name?.trim() || `Project ${project.id}`;
+function formatProjectLabel(project: Pick<ProjectQuickSearchRecord, "uid" | "project_name">) {
+  return project.project_name?.trim() || `Project ${project.uid}`;
 }
 
 function projectHasAgentCapabilities(summary: ProjectSummaryHeader | null | undefined) {
@@ -44,14 +44,14 @@ function projectHasAgentCapabilities(summary: ProjectSummaryHeader | null | unde
   return null;
 }
 
-function toProjectPickerOption(project: Pick<ProjectQuickSearchRecord, "id" | "project_name" | "repository_branch">): PickerOption {
+function toProjectPickerOption(project: Pick<ProjectQuickSearchRecord, "uid" | "project_name" | "repository_branch">): PickerOption {
   return {
-    value: String(project.id),
+    value: project.uid,
     label: formatProjectLabel(project),
     description: project.repository_branch?.trim()
       ? `Branch: ${project.repository_branch.trim()}`
       : undefined,
-    keywords: [String(project.id), project.project_name ?? "", project.repository_branch ?? ""],
+    keywords: [project.uid, project.project_name ?? "", project.repository_branch ?? ""],
   };
 }
 
@@ -59,15 +59,15 @@ export function ProjectAgentsPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedProjectId = normalizeSelectedProjectId(searchParams.get(mainSequenceProjectIdParam));
+  const selectedProjectUid = normalizeSelectedProjectUid(searchParams.get(mainSequenceProjectUidParam));
   const [projectSearchValue, setProjectSearchValue] = useState("");
   const deferredProjectSearchValue = useDeferredValue(projectSearchValue);
   const normalizedProjectSearchValue = deferredProjectSearchValue.trim();
 
   const selectedProjectSummaryQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "summary", selectedProjectId],
-    queryFn: () => fetchProjectSummary(selectedProjectId!),
-    enabled: selectedProjectId !== null,
+    queryKey: ["main_sequence", "projects", "summary", selectedProjectUid],
+    queryFn: () => fetchProjectSummary(selectedProjectUid!),
+    enabled: selectedProjectUid !== null,
   });
   const projectQuickSearchQuery = useQuery({
     queryKey: ["main_sequence_ai", "project-agents", "project-search", normalizedProjectSearchValue],
@@ -82,23 +82,23 @@ export function ProjectAgentsPage() {
 
   const selectedProjectSummary = selectedProjectSummaryQuery.data ?? null;
   const hasAgentCapabilities = projectHasAgentCapabilities(selectedProjectSummary);
-  const selectedProjectRecord = useMemo<Pick<ProjectQuickSearchRecord, "id" | "project_name" | "repository_branch"> | null>(
+  const selectedProjectRecord = useMemo<Pick<ProjectQuickSearchRecord, "uid" | "project_name" | "repository_branch"> | null>(
     () =>
-      selectedProjectId !== null && selectedProjectSummary
+      selectedProjectUid !== null && selectedProjectSummary
         ? {
-            id: selectedProjectId,
-            project_name: selectedProjectSummary.entity.title?.trim() || `Project ${selectedProjectId}`,
+            uid: selectedProjectUid,
+            project_name: selectedProjectSummary.entity.title?.trim() || `Project ${selectedProjectUid}`,
             repository_branch: "",
           }
         : null,
-    [selectedProjectId, selectedProjectSummary],
+    [selectedProjectUid, selectedProjectSummary],
   );
   const projectPickerOptions = useMemo(() => {
     const searchResults = normalizedProjectSearchValue.length >= 3 ? (projectQuickSearchQuery.data ?? []) : [];
 
     if (
       selectedProjectRecord &&
-      !searchResults.some((project) => project.id === selectedProjectRecord.id)
+      !searchResults.some((project) => project.uid === selectedProjectRecord.uid)
     ) {
       return [selectedProjectRecord, ...searchResults];
     }
@@ -110,13 +110,13 @@ export function ProjectAgentsPage() {
     [projectPickerOptions],
   );
 
-  function updateProjectSelection(nextProjectId?: number) {
+  function updateProjectSelection(nextProjectUid?: string) {
     const nextSearchParams = new URLSearchParams(location.search);
 
-    if (nextProjectId && nextProjectId > 0) {
-      nextSearchParams.set(mainSequenceProjectIdParam, String(nextProjectId));
+    if (nextProjectUid?.trim()) {
+      nextSearchParams.set(mainSequenceProjectUidParam, nextProjectUid.trim());
     } else {
-      nextSearchParams.delete(mainSequenceProjectIdParam);
+      nextSearchParams.delete(mainSequenceProjectUidParam);
     }
 
     navigate({
@@ -132,7 +132,7 @@ export function ProjectAgentsPage() {
         title="Project Agents"
         description="Build and deploy project execution agents from one AI-owned workflow."
         actions={
-          selectedProjectId !== null && hasAgentCapabilities === true ? (
+          selectedProjectUid !== null && hasAgentCapabilities === true ? (
             <Badge variant="success">Agent capable</Badge>
           ) : null
         }
@@ -152,10 +152,9 @@ export function ProjectAgentsPage() {
               Project
             </div>
             <PickerField
-              value={selectedProjectId ? String(selectedProjectId) : ""}
+              value={selectedProjectUid ?? ""}
               onChange={(nextValue) => {
-                const nextProjectId = Number(nextValue);
-                updateProjectSelection(Number.isFinite(nextProjectId) && nextProjectId > 0 ? nextProjectId : undefined);
+                updateProjectSelection(nextValue);
               }}
               options={pickerOptions}
               placeholder="Select a project"
@@ -188,26 +187,26 @@ export function ProjectAgentsPage() {
             </div>
           ) : null}
 
-          {selectedProjectId === null ? (
+          {selectedProjectUid === null ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/18 px-5 py-10 text-sm text-muted-foreground">
               Select a project to continue.
             </div>
           ) : null}
 
-          {selectedProjectId !== null && selectedProjectSummaryQuery.isLoading ? (
+          {selectedProjectUid !== null && selectedProjectSummaryQuery.isLoading ? (
             <div className="flex items-center gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/18 px-5 py-10 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading project capability summary
             </div>
           ) : null}
 
-          {selectedProjectId !== null && selectedProjectSummaryQuery.isError ? (
+          {selectedProjectUid !== null && selectedProjectSummaryQuery.isError ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
               {formatMainSequenceError(selectedProjectSummaryQuery.error)}
             </div>
           ) : null}
 
-          {selectedProjectId !== null &&
+          {selectedProjectUid !== null &&
           !selectedProjectSummaryQuery.isLoading &&
           !selectedProjectSummaryQuery.isError &&
           hasAgentCapabilities !== true ? (
@@ -220,13 +219,13 @@ export function ProjectAgentsPage() {
             </div>
           ) : null}
 
-          {selectedProjectId !== null && hasAgentCapabilities === true ? (
+          {selectedProjectUid !== null && hasAgentCapabilities === true ? (
             <ProjectAgentConfigurator
-              projectId={selectedProjectId}
+              projectUid={selectedProjectUid}
               hasAgentCapabilities={true}
               onOpenImagesTab={() => {
                 navigate(
-                  `/app/main_sequence_workbench/projects?msProjectId=${selectedProjectId}&msTab=images`,
+                  `/app/main_sequence_workbench/projects?msProjectUid=${selectedProjectUid}&msTab=images`,
                 );
               }}
             />

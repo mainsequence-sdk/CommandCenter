@@ -32,7 +32,7 @@ import { MainSequenceSelectionCheckbox } from "../../../../common/components/Mai
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
 import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelection";
 
-const mainSequenceBucketIdParam = "msBucketId";
+const mainSequenceBucketUidParam = "msBucketUid";
 const mainSequenceBucketPrefixParam = "msBucketPrefix";
 const mainSequenceBucketSearchParam = "msBucketSearch";
 const mainSequenceBucketSortParam = "msBucketSort";
@@ -84,11 +84,11 @@ export function MainSequenceBucketsPage() {
   const deferredExactNameValue = useDeferredValue(exactNameValue);
   const deferredNameInValue = useDeferredValue(nameInValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedBucketId = Number(searchParams.get(mainSequenceBucketIdParam) ?? "");
+  const selectedBucketUid = searchParams.get(mainSequenceBucketUidParam)?.trim() ?? "";
   const [bucketBrowserState, setBucketBrowserState] = useState<BucketBrowserState>(() =>
     readBucketBrowserState(searchParams),
   );
-  const isBucketDetailOpen = Number.isFinite(selectedBucketId) && selectedBucketId > 0;
+  const isBucketDetailOpen = selectedBucketUid.length > 0;
 
   useEffect(() => {
     setBucketBrowserState(readBucketBrowserState(searchParams));
@@ -129,10 +129,10 @@ export function MainSequenceBucketsPage() {
     }
   }, [bucketsPageIndex, bucketsQuery.data?.count]);
 
-  const bucketSelection = useRegistrySelection(bucketsQuery.data?.results ?? []);
+  const bucketSelection = useRegistrySelection(bucketsQuery.data?.results ?? [], (bucket) => bucket.uid);
   const selectedBucketFromList = useMemo(
-    () => (bucketsQuery.data?.results ?? []).find((bucket) => bucket.id === selectedBucketId) ?? null,
-    [bucketsQuery.data?.results, selectedBucketId],
+    () => (bucketsQuery.data?.results ?? []).find((bucket) => bucket.uid === selectedBucketUid) ?? null,
+    [bucketsQuery.data?.results, selectedBucketUid],
   );
   const createBucketMutation = useMutation({
     mutationFn: createBucket,
@@ -191,9 +191,9 @@ export function MainSequenceBucketsPage() {
     );
   }
 
-  function openBucketDetail(bucketId: number) {
+  function openBucketDetail(bucketUid: string) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceBucketIdParam, String(bucketId));
+      nextParams.set(mainSequenceBucketUidParam, bucketUid);
       nextParams.set(mainSequenceBucketPrefixParam, "");
       nextParams.set(mainSequenceBucketSearchParam, "");
       nextParams.set(mainSequenceBucketSortParam, "name");
@@ -205,7 +205,7 @@ export function MainSequenceBucketsPage() {
 
   function closeBucketDetail() {
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceBucketIdParam);
+      nextParams.delete(mainSequenceBucketUidParam);
       nextParams.delete(mainSequenceBucketPrefixParam);
       nextParams.delete(mainSequenceBucketSearchParam);
       nextParams.delete(mainSequenceBucketSortParam);
@@ -218,7 +218,7 @@ export function MainSequenceBucketsPage() {
   function updateBucketBrowserState(nextState: BucketBrowserState) {
     setBucketBrowserState(nextState);
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceBucketIdParam, String(selectedBucketId));
+      nextParams.set(mainSequenceBucketUidParam, selectedBucketUid);
       nextParams.set(mainSequenceBucketPrefixParam, nextState.prefix);
       nextParams.set(mainSequenceBucketSearchParam, nextState.search);
       nextParams.set(mainSequenceBucketSortParam, nextState.sort);
@@ -233,19 +233,19 @@ export function MainSequenceBucketsPage() {
     }
 
     return bulkDeleteBuckets({
-      ids: pendingDeleteBuckets.map((bucket) => bucket.id),
+      uids: pendingDeleteBuckets.map((bucket) => bucket.uid),
     });
   }
 
   async function handleDeleteBucketsSuccess(result: unknown) {
-    const deletedBucketIds = pendingDeleteBuckets.map((bucket) => bucket.id);
+    const deletedBucketUids = pendingDeleteBuckets.map((bucket) => bucket.uid);
     const deletedCount =
       result && typeof result === "object" && "deleted_count" in result
         ? Number((result as { deleted_count?: number }).deleted_count ?? pendingDeleteBuckets.length)
         : pendingDeleteBuckets.length;
 
     bucketSelection.setSelection(
-      bucketSelection.selectedIds.filter((id) => !deletedBucketIds.includes(id)),
+      bucketSelection.selectedIds.filter((uid) => !deletedBucketUids.includes(uid)),
     );
     setPendingDeleteBuckets([]);
 
@@ -267,7 +267,7 @@ export function MainSequenceBucketsPage() {
     return (
       <MainSequenceBucketDetail
         browserState={bucketBrowserState}
-        bucketId={selectedBucketId}
+        bucketUid={selectedBucketUid}
         initialBucket={selectedBucketFromList}
         onBack={closeBucketDetail}
         onUpdateBrowserState={updateBucketBrowserState}
@@ -405,13 +405,13 @@ export function MainSequenceBucketsPage() {
                 </thead>
                 <tbody>
                   {(bucketsQuery.data?.results ?? []).map((bucket) => {
-                    const selected = bucketSelection.isSelected(bucket.id);
+                    const selected = bucketSelection.isSelected(bucket.uid);
 
                     return (
                       <tr
-                        key={bucket.id}
+                        key={bucket.uid}
                         className="cursor-pointer"
-                        onClick={() => openBucketDetail(bucket.id)}
+                        onClick={() => openBucketDetail(bucket.uid)}
                       >
                         <td
                           className={getRegistryTableCellClassName(selected, "left")}
@@ -420,7 +420,7 @@ export function MainSequenceBucketsPage() {
                           <MainSequenceSelectionCheckbox
                             ariaLabel={`Select ${bucket.name}`}
                             checked={selected}
-                            onChange={() => bucketSelection.toggleSelection(bucket.id)}
+                            onChange={() => bucketSelection.toggleSelection(bucket.uid)}
                           />
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
@@ -435,7 +435,7 @@ export function MainSequenceBucketsPage() {
                                 className="mt-0.5 text-muted-foreground"
                                 style={{ fontSize: "var(--table-meta-font-size)" }}
                               >
-                                Bucket ID {bucket.id}
+                                Bucket UID {bucket.uid}
                               </div>
                             </div>
                           </div>

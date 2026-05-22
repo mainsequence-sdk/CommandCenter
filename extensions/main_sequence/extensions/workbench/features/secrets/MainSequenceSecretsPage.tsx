@@ -25,7 +25,7 @@ import { MainSequencePermissionsTab } from "../../../../common/components/MainSe
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 
-const mainSequenceSecretIdParam = "msSecretId";
+const mainSequenceSecretUidParam = "msSecretUid";
 type SecretDetailTabId = "overview" | "permissions";
 const secretDetailTabs = [
   { id: "overview", label: "Overview" },
@@ -45,8 +45,8 @@ export function MainSequenceSecretsPage() {
   const [selectedDetailTabId, setSelectedDetailTabId] = useState<SecretDetailTabId>("overview");
   const deferredFilterValue = useDeferredValue(filterValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedSecretId = Number(searchParams.get(mainSequenceSecretIdParam) ?? "");
-  const isSecretDetailOpen = Number.isFinite(selectedSecretId) && selectedSecretId > 0;
+  const selectedSecretUid = searchParams.get(mainSequenceSecretUidParam)?.trim() ?? "";
+  const isSecretDetailOpen = selectedSecretUid.length > 0;
 
   const secretsQuery = useQuery({
     queryKey: ["main_sequence", "secrets", "list", secretsPageIndex],
@@ -58,8 +58,8 @@ export function MainSequenceSecretsPage() {
   });
 
   const secretDetailQuery = useQuery({
-    queryKey: ["main_sequence", "secrets", "detail", selectedSecretId],
-    queryFn: () => fetchSecret(selectedSecretId),
+    queryKey: ["main_sequence", "secrets", "detail", selectedSecretUid],
+    queryFn: () => fetchSecret(selectedSecretUid),
     enabled: isSecretDetailOpen,
   });
 
@@ -86,21 +86,21 @@ export function MainSequenceSecretsPage() {
         return true;
       }
 
-      return [String(secret.id), secret.name].join(" ").toLowerCase().includes(needle);
+      return [secret.uid, secret.name].join(" ").toLowerCase().includes(needle);
     });
   }, [deferredFilterValue, secretsQuery.data?.results]);
 
   const selectedSecretFromList = useMemo(
-    () => filteredSecrets.find((secret) => secret.id === selectedSecretId) ?? null,
-    [filteredSecrets, selectedSecretId],
+    () => filteredSecrets.find((secret) => secret.uid === selectedSecretUid) ?? null,
+    [filteredSecrets, selectedSecretUid],
   );
   const selectedSecret = secretDetailQuery.data ?? selectedSecretFromList;
   const secretTitle =
-    selectedSecret?.name ?? (isSecretDetailOpen ? `Secret ${selectedSecretId}` : "Secret");
+    selectedSecret?.name ?? (isSecretDetailOpen ? `Secret ${selectedSecretUid}` : "Secret");
 
   useEffect(() => {
     setSelectedDetailTabId("overview");
-  }, [selectedSecretId]);
+  }, [selectedSecretUid]);
 
   const createSecretMutation = useMutation({
     mutationFn: createSecret,
@@ -142,15 +142,15 @@ export function MainSequenceSecretsPage() {
     );
   }
 
-  function openSecretDetail(secretId: number) {
+  function openSecretDetail(secretUid: string) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceSecretIdParam, String(secretId));
+      nextParams.set(mainSequenceSecretUidParam, secretUid);
     });
   }
 
   function closeSecretDetail() {
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceSecretIdParam);
+      nextParams.delete(mainSequenceSecretUidParam);
     });
   }
 
@@ -231,7 +231,7 @@ export function MainSequenceSecretsPage() {
               ) : (
                 <MainSequencePermissionsTab
                   objectUrl="secret"
-                  objectId={selectedSecret.id}
+                  objectId={selectedSecret.uid}
                   entityLabel="Secret"
                   enabled={selectedDetailTabId === "permissions"}
                 />
@@ -323,8 +323,8 @@ export function MainSequenceSecretsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredSecrets.map((secret) => (
-                    <tr key={secret.id}>
+	                  {filteredSecrets.map((secret) => (
+	                    <tr key={secret.uid}>
                       <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/24 px-4 py-4">
                         <div className="font-medium text-foreground">{secret.name}</div>
                       </td>
@@ -333,7 +333,7 @@ export function MainSequenceSecretsPage() {
                           type="button"
                           size="sm"
                           variant="outline"
-                          onClick={() => openSecretDetail(secret.id)}
+	                          onClick={() => openSecretDetail(secret.uid)}
                         >
                           View Secret
                         </Button>

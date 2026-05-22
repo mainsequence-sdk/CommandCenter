@@ -36,7 +36,7 @@ import {
 type PortfolioGroupDetailTabId = "settings" | "overview";
 
 type RemovePortfolioIntent = {
-  id: number;
+  uid: string;
   title: string;
 };
 
@@ -45,14 +45,20 @@ const portfolioGroupDetailTabs: Array<{ id: PortfolioGroupDetailTabId; label: st
   { id: "settings", label: "Settings" },
 ];
 
-function readPositiveInt(value: unknown) {
-  const parsed = Number(value ?? "");
-
-  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : null;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readUid(value: unknown) {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  if (isRecord(value) && typeof value.uid === "string" && value.uid.trim()) {
+    return value.uid.trim();
+  }
+
+  return null;
 }
 
 function isBlankValue(value: unknown) {
@@ -66,18 +72,21 @@ function isBlankValue(value: unknown) {
 
 function isPortfolioField(fieldKey?: string) {
   const normalized = (fieldKey ?? "").trim().toLowerCase();
-  return normalized === "portfolios" || normalized === "portfolio_ids";
+  return normalized === "portfolios" || normalized === "portfolio_uids";
 }
 
-function extractPortfolioIds(portfolioGroup: PortfolioGroupRecord | null | undefined) {
+function extractPortfolioUids(portfolioGroup: PortfolioGroupRecord | null | undefined) {
   if (!portfolioGroup) {
     return [];
   }
 
-  const rawValues = [portfolioGroup.portfolios, portfolioGroup.portfolio_ids].filter(Array.isArray);
-  const ids = rawValues.flatMap((value) => value.map((entry) => readPositiveInt(entry)));
+  const rawValues = [
+    portfolioGroup.portfolio_uids,
+    portfolioGroup.portfolios,
+  ].filter(Array.isArray);
+  const uids = rawValues.flatMap((value) => value.map((entry) => readUid(entry)));
 
-  return Array.from(new Set(ids.filter((id): id is number => id !== null))).sort((left, right) => left - right);
+  return Array.from(new Set(uids.filter((uid): uid is string => uid !== null))).sort((left, right) => left.localeCompare(right));
 }
 
 function getPortfolioSummaryTitle(
@@ -91,14 +100,14 @@ function PortfolioGroupNestedValue({
   value,
   fieldKey,
   depth = 0,
-  portfolioTitlesById,
-  loadingPortfolioIds,
+  portfolioTitlesByUid,
+  loadingPortfolioUids,
 }: {
   value: unknown;
   fieldKey?: string;
   depth?: number;
-  portfolioTitlesById?: Map<number, string>;
-  loadingPortfolioIds?: Set<number>;
+  portfolioTitlesByUid?: Map<string, string>;
+  loadingPortfolioUids?: Set<string>;
 }) {
   if (isBlankValue(value)) {
     return <div className="text-sm text-muted-foreground">Not available</div>;
@@ -109,31 +118,31 @@ function PortfolioGroupNestedValue({
   }
 
   if (Array.isArray(value)) {
-    if (isPortfolioField(fieldKey) && value.every((entry) => readPositiveInt(entry) !== null)) {
+    if (isPortfolioField(fieldKey) && value.every((entry) => readUid(entry) !== null)) {
       return (
         <div className="space-y-2">
           {value.map((entry, index) => {
-            const portfolioId = readPositiveInt(entry);
+            const portfolioUid = readUid(entry);
 
-            if (portfolioId === null) {
+            if (portfolioUid === null) {
               return null;
             }
 
-            const portfolioTitle = portfolioTitlesById?.get(portfolioId) ?? null;
-            const isLoading = loadingPortfolioIds?.has(portfolioId) ?? false;
+            const portfolioTitle = portfolioTitlesByUid?.get(portfolioUid) ?? null;
+            const isLoading = loadingPortfolioUids?.has(portfolioUid) ?? false;
 
             return (
               <div
-                key={`${fieldKey ?? "portfolio"}-${portfolioId}-${index}`}
+                key={`${fieldKey ?? "portfolio"}-${portfolioUid}-${index}`}
                 className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-card/65 px-3 py-3"
               >
                 <Link
-                  to={getTargetPortfolioDetailPath(portfolioId)}
+                  to={getTargetPortfolioDetailPath(portfolioUid)}
                   className="text-sm font-medium text-primary transition-colors hover:text-primary/80 hover:underline"
                 >
-                  {portfolioTitle || (isLoading ? `Loading portfolio ${portfolioId}` : `Portfolio ${portfolioId}`)}
+                  {portfolioTitle || (isLoading ? `Loading portfolio ${portfolioUid}` : `Portfolio ${portfolioUid}`)}
                 </Link>
-                <div className="mt-1 text-xs text-muted-foreground">{`ID ${portfolioId}`}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{`UID ${portfolioUid}`}</div>
               </div>
             );
           })}
@@ -171,8 +180,8 @@ function PortfolioGroupNestedValue({
                 value={entry}
                 fieldKey={fieldKey}
                 depth={depth + 1}
-                portfolioTitlesById={portfolioTitlesById}
-                loadingPortfolioIds={loadingPortfolioIds}
+                portfolioTitlesByUid={portfolioTitlesByUid}
+                loadingPortfolioUids={loadingPortfolioUids}
               />
             </div>
           </div>
@@ -203,8 +212,8 @@ function PortfolioGroupNestedValue({
                 value={entryValue}
                 fieldKey={key}
                 depth={depth + 1}
-                portfolioTitlesById={portfolioTitlesById}
-                loadingPortfolioIds={loadingPortfolioIds}
+                portfolioTitlesByUid={portfolioTitlesByUid}
+                loadingPortfolioUids={loadingPortfolioUids}
               />
             </div>
           </div>
@@ -249,7 +258,7 @@ function renderRemoveSummary(target: RemovePortfolioIntent | null) {
   return (
     <div className="space-y-2">
       <div className="font-medium text-foreground">{target.title}</div>
-      <div className="text-xs text-muted-foreground">{`ID ${target.id}`}</div>
+      <div className="text-xs text-muted-foreground">{`UID ${target.uid}`}</div>
     </div>
   );
 }
@@ -265,56 +274,56 @@ export function MainSequencePortfolioGroupDetailPage() {
   const [selectedPortfolioOption, setSelectedPortfolioOption] = useState<TargetPortfolioSearchOption | null>(null);
   const [removePortfolioIntent, setRemovePortfolioIntent] = useState<RemovePortfolioIntent | null>(null);
 
-  const portfolioGroupId = readPositiveInt(params.groupId);
+  const portfolioGroupUid = params.groupUid?.trim() ?? "";
   const deferredPortfolioSearchValue = useDeferredValue(portfolioSearchValue);
   const backPath =
     ((location.state as { from?: string } | null)?.from || "").trim() ||
     getPortfolioGroupsListPath();
 
   const portfolioGroupDetailQuery = useQuery({
-    queryKey: ["main_sequence", "portfolio_groups", "detail", portfolioGroupId],
-    queryFn: () => fetchPortfolioGroupDetail(portfolioGroupId as number),
-    enabled: portfolioGroupId !== null,
+    queryKey: ["main_sequence", "portfolio_groups", "detail", portfolioGroupUid],
+    queryFn: () => fetchPortfolioGroupDetail(portfolioGroupUid),
+    enabled: Boolean(portfolioGroupUid),
   });
 
-  const linkedPortfolioIds = useMemo(
-    () => extractPortfolioIds(portfolioGroupDetailQuery.data),
+  const linkedPortfolioUids = useMemo(
+    () => extractPortfolioUids(portfolioGroupDetailQuery.data),
     [portfolioGroupDetailQuery.data],
   );
 
   const linkedPortfolioQueries = useQueries({
-    queries: linkedPortfolioIds.map((linkedPortfolioId) => ({
-      queryKey: ["main_sequence", "target_portfolios", "summary", linkedPortfolioId],
-      queryFn: () => fetchTargetPortfolioSummary(linkedPortfolioId),
-      enabled: linkedPortfolioIds.length > 0,
+    queries: linkedPortfolioUids.map((linkedPortfolioUid) => ({
+      queryKey: ["main_sequence", "target_portfolios", "summary", linkedPortfolioUid],
+      queryFn: () => fetchTargetPortfolioSummary(linkedPortfolioUid),
+      enabled: linkedPortfolioUids.length > 0,
     })),
   });
 
-  const portfolioTitlesById = useMemo(() => {
-    const nextMap = new Map<number, string>();
+  const portfolioTitlesByUid = useMemo(() => {
+    const nextMap = new Map<string, string>();
 
-    linkedPortfolioIds.forEach((linkedPortfolioId, index) => {
+    linkedPortfolioUids.forEach((linkedPortfolioUid, index) => {
       const title = getPortfolioSummaryTitle(linkedPortfolioQueries[index]?.data);
 
       if (title) {
-        nextMap.set(linkedPortfolioId, title);
+        nextMap.set(linkedPortfolioUid, title);
       }
     });
 
     return nextMap;
-  }, [linkedPortfolioIds, linkedPortfolioQueries]);
+  }, [linkedPortfolioUids, linkedPortfolioQueries]);
 
-  const loadingPortfolioIds = useMemo(() => {
-    const nextSet = new Set<number>();
+  const loadingPortfolioUids = useMemo(() => {
+    const nextSet = new Set<string>();
 
-    linkedPortfolioIds.forEach((linkedPortfolioId, index) => {
+    linkedPortfolioUids.forEach((linkedPortfolioUid, index) => {
       if (linkedPortfolioQueries[index]?.isLoading) {
-        nextSet.add(linkedPortfolioId);
+        nextSet.add(linkedPortfolioUid);
       }
     });
 
     return nextSet;
-  }, [linkedPortfolioIds, linkedPortfolioQueries]);
+  }, [linkedPortfolioUids, linkedPortfolioQueries]);
 
   const detailEntries = useMemo(
     () =>
@@ -331,7 +340,7 @@ export function MainSequencePortfolioGroupDetailPage() {
         offset: 0,
       }),
     enabled:
-      portfolioGroupId !== null &&
+      Boolean(portfolioGroupUid) &&
       activeTabId === "settings" &&
       deferredPortfolioSearchValue.trim().length > 0,
   });
@@ -339,9 +348,9 @@ export function MainSequencePortfolioGroupDetailPage() {
   const availablePortfolioOptions = useMemo(
     () =>
       (portfolioSearchQuery.data?.results ?? []).filter(
-        (option) => !linkedPortfolioIds.includes(option.id),
+        (option) => !linkedPortfolioUids.includes(option.uid),
       ),
-    [linkedPortfolioIds, portfolioSearchQuery.data?.results],
+    [linkedPortfolioUids, portfolioSearchQuery.data?.results],
   );
 
   useEffect(() => {
@@ -349,7 +358,7 @@ export function MainSequencePortfolioGroupDetailPage() {
       return;
     }
 
-    const stillAvailable = availablePortfolioOptions.some((option) => option.id === selectedPortfolioOption.id);
+    const stillAvailable = availablePortfolioOptions.some((option) => option.uid === selectedPortfolioOption.uid);
 
     if (!stillAvailable) {
       setSelectedPortfolioOption(null);
@@ -357,13 +366,13 @@ export function MainSequencePortfolioGroupDetailPage() {
   }, [availablePortfolioOptions, selectedPortfolioOption]);
 
   const appendPortfolioMutation = useMutation({
-    mutationFn: (portfolioId: number) =>
-      appendPortfolioGroupPortfolios(portfolioGroupId as number, {
-        portfolios: [portfolioId],
+    mutationFn: (portfolioUid: string) =>
+      appendPortfolioGroupPortfolios(portfolioGroupUid, {
+        portfolios: [portfolioUid],
       }),
-    onSuccess: async (updatedPortfolioGroup, portfolioId) => {
+    onSuccess: async (updatedPortfolioGroup, portfolioUid) => {
       queryClient.setQueryData(
-        ["main_sequence", "portfolio_groups", "detail", portfolioGroupId],
+        ["main_sequence", "portfolio_groups", "detail", portfolioGroupUid],
         updatedPortfolioGroup,
       );
       await queryClient.invalidateQueries({
@@ -372,7 +381,7 @@ export function MainSequencePortfolioGroupDetailPage() {
 
       toast({
         title: "Portfolio added",
-        description: `${portfolioTitlesById.get(portfolioId) || getPortfolioSearchOptionLabel(selectedPortfolioOption ?? { id: portfolioId, portfolio_name: "" })} was added to ${getPortfolioGroupTitle(updatedPortfolioGroup)}.`,
+        description: `${portfolioTitlesByUid.get(portfolioUid) || getPortfolioSearchOptionLabel(selectedPortfolioOption ?? { id: 0, uid: portfolioUid, portfolio_name: "" })} was added to ${getPortfolioGroupTitle(updatedPortfolioGroup)}.`,
       });
 
       setPortfolioSearchValue("");
@@ -388,13 +397,13 @@ export function MainSequencePortfolioGroupDetailPage() {
   });
 
   const removePortfolioMutation = useMutation({
-    mutationFn: (portfolioId: number) =>
-      removePortfolioGroupPortfolios(portfolioGroupId as number, {
-        portfolios: [portfolioId],
+    mutationFn: (portfolioUid: string) =>
+      removePortfolioGroupPortfolios(portfolioGroupUid, {
+        portfolios: [portfolioUid],
       }),
     onSuccess: async (updatedPortfolioGroup) => {
       queryClient.setQueryData(
-        ["main_sequence", "portfolio_groups", "detail", portfolioGroupId],
+        ["main_sequence", "portfolio_groups", "detail", portfolioGroupUid],
         updatedPortfolioGroup,
       );
       await queryClient.invalidateQueries({
@@ -403,13 +412,13 @@ export function MainSequencePortfolioGroupDetailPage() {
     },
   });
 
-  if (portfolioGroupId === null) {
+  if (!portfolioGroupUid) {
     return (
       <div className="space-y-6">
         <PageHeader
           eyebrow="Main Sequence Markets"
           title="Portfolio Group"
-          description="The requested portfolio group id is invalid."
+          description="The requested portfolio group uid is invalid."
           actions={
             <Button type="button" variant="outline" onClick={() => navigate(backPath)}>
               <ArrowLeft className="h-4 w-4" />
@@ -422,7 +431,7 @@ export function MainSequencePortfolioGroupDetailPage() {
   }
 
   const title =
-    getPortfolioGroupTitle(portfolioGroupDetailQuery.data) || `Portfolio Group ${portfolioGroupId}`;
+    getPortfolioGroupTitle(portfolioGroupDetailQuery.data) || `Portfolio Group ${portfolioGroupUid}`;
   const uniqueIdentifier = getPortfolioGroupUniqueIdentifier(portfolioGroupDetailQuery.data);
   const description = getPortfolioGroupDescription(portfolioGroupDetailQuery.data);
   const creationDate = getPortfolioGroupCreationDate(portfolioGroupDetailQuery.data);
@@ -437,7 +446,7 @@ export function MainSequencePortfolioGroupDetailPage() {
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="neutral">{`ID ${portfolioGroupId}`}</Badge>
+            <Badge variant="neutral">{`UID ${portfolioGroupUid}`}</Badge>
             {creationDate ? (
               <Badge variant="neutral">
                 {formatPortfolioGroupValue(creationDate, "creation_date")}
@@ -556,11 +565,11 @@ export function MainSequencePortfolioGroupDetailPage() {
                   {availablePortfolioOptions.length > 0 ? (
                     <div className="space-y-2">
                       {availablePortfolioOptions.map((option) => {
-                        const selected = selectedPortfolioOption?.id === option.id;
+                        const selected = selectedPortfolioOption?.uid === option.uid;
 
                         return (
                           <button
-                            key={option.id}
+                            key={option.uid}
                             type="button"
                             className={
                               selected
@@ -573,7 +582,7 @@ export function MainSequencePortfolioGroupDetailPage() {
                               <div className="font-medium text-foreground">
                                 {getPortfolioSearchOptionLabel(option)}
                               </div>
-                              <div className="mt-1 text-xs text-muted-foreground">{`ID ${option.id}`}</div>
+                              <div className="mt-1 text-xs text-muted-foreground">{`UID ${option.uid}`}</div>
                             </div>
                             {selected ? <Badge variant="primary">Selected</Badge> : null}
                           </button>
@@ -590,7 +599,7 @@ export function MainSequencePortfolioGroupDetailPage() {
                           return;
                         }
 
-                        appendPortfolioMutation.mutate(selectedPortfolioOption.id);
+                        appendPortfolioMutation.mutate(selectedPortfolioOption.uid);
                       }}
                       disabled={!selectedPortfolioOption || appendPortfolioMutation.isPending}
                     >
@@ -616,31 +625,31 @@ export function MainSequencePortfolioGroupDetailPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3 pt-6">
-                  {linkedPortfolioIds.length === 0 ? (
+	                  {linkedPortfolioUids.length === 0 ? (
                     <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-10 text-center text-sm text-muted-foreground">
                       This group does not have any linked portfolios yet.
                     </div>
                   ) : (
-                    linkedPortfolioIds.map((linkedPortfolioId) => {
-                      const linkedPortfolioTitle =
-                        portfolioTitlesById.get(linkedPortfolioId) ||
-                        (loadingPortfolioIds.has(linkedPortfolioId)
-                          ? `Loading portfolio ${linkedPortfolioId}`
-                          : `Portfolio ${linkedPortfolioId}`);
+	                    linkedPortfolioUids.map((linkedPortfolioUid) => {
+	                      const linkedPortfolioTitle =
+	                        portfolioTitlesByUid.get(linkedPortfolioUid) ||
+	                        (loadingPortfolioUids.has(linkedPortfolioUid)
+	                          ? `Loading portfolio ${linkedPortfolioUid}`
+	                          : `Portfolio ${linkedPortfolioUid}`);
 
                       return (
                         <div
-                          key={linkedPortfolioId}
+	                          key={linkedPortfolioUid}
                           className="flex items-start justify-between gap-3 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-4"
                         >
                           <div className="min-w-0">
                             <Link
-                              to={getTargetPortfolioDetailPath(linkedPortfolioId)}
+	                              to={getTargetPortfolioDetailPath(linkedPortfolioUid)}
                               className="text-sm font-medium text-primary transition-colors hover:text-primary/80 hover:underline"
                             >
                               {linkedPortfolioTitle}
                             </Link>
-                            <div className="mt-1 text-xs text-muted-foreground">{`ID ${linkedPortfolioId}`}</div>
+	                            <div className="mt-1 text-xs text-muted-foreground">{`UID ${linkedPortfolioUid}`}</div>
                           </div>
 
                           <Button
@@ -650,7 +659,7 @@ export function MainSequencePortfolioGroupDetailPage() {
                             className="text-danger hover:bg-danger/10 hover:text-danger"
                             onClick={() =>
                               setRemovePortfolioIntent({
-                                id: linkedPortfolioId,
+	                                uid: linkedPortfolioUid,
                                 title: linkedPortfolioTitle,
                               })
                             }
@@ -672,7 +681,7 @@ export function MainSequencePortfolioGroupDetailPage() {
                 <div>
                   <CardTitle>Portfolio group details</CardTitle>
                   <CardDescription>
-                    These fields come directly from `GET /orm/api/assets/portfolio_group/{portfolioGroupId}/`.
+	                    These fields come directly from `GET /orm/api/assets/portfolio_group/{portfolioGroupUid}/`.
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -690,8 +699,8 @@ export function MainSequencePortfolioGroupDetailPage() {
                         <PortfolioGroupNestedValue
                           value={value}
                           fieldKey={key}
-                          portfolioTitlesById={portfolioTitlesById}
-                          loadingPortfolioIds={loadingPortfolioIds}
+	                          portfolioTitlesByUid={portfolioTitlesByUid}
+	                          loadingPortfolioUids={loadingPortfolioUids}
                         />
                       </div>
                     </div>
@@ -715,7 +724,7 @@ export function MainSequencePortfolioGroupDetailPage() {
           }
         }}
         onConfirm={() =>
-          removePortfolioIntent ? removePortfolioMutation.mutateAsync(removePortfolioIntent.id) : null
+          removePortfolioIntent ? removePortfolioMutation.mutateAsync(removePortfolioIntent.uid) : null
         }
         onSuccess={() => {
           setRemovePortfolioIntent(null);

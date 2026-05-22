@@ -5,31 +5,31 @@ This feature owns the scalable-service detail shell in Main Sequence Foundry.
 ## Entry Points
 
 - `MainSequenceScalableServicesPage.tsx`: internal deep-link entry that requires
-  `msScalableServiceId` and routes into the detail shell. It is not a browsable registry page.
+  `msScalableServiceUid` and routes into the detail shell. It is not a browsable registry page.
 - `MainSequenceScalableServiceDetail.tsx`: summary-backed detail shell with the `Pods` and `Revisions` tabs for the selected scalable service.
 - `MainSequenceKnativePodRuntimeDetail.tsx`: nested pod-runtime detail shell, similar to job-run detail, with `Logs` and `Resource Usage` tabs.
-- `MainSequenceKnativePodRuntimeLogsTab.tsx`: log-table presentation for `knative-pod-runtimes/{id}/logs/`.
+- `MainSequenceKnativePodRuntimeLogsTab.tsx`: log-table presentation for `knative-pod-runtimes/{uid}/logs/`.
 
 ## API Dependencies
 
-- `GET /orm/api/pods/scalable-service/{id}/summary/` for the standardized summary header.
-- `GET /orm/api/pods/scalable-service/{id}/pods/` for the `Pods` tab. This endpoint returns a
+- `GET /orm/api/pods/scalable-service/{uid}/summary/` for the standardized summary header.
+- `GET /orm/api/pods/scalable-service/{uid}/pods/` for the `Pods` tab. This endpoint returns a
   plain array of scalable-service pod runtime rows, not the generic cluster-pod serializer and not
   a paginated payload.
-- `GET /orm/api/pods/scalable-service/{id}/revisions/` for the `Revisions` tab.
-- `GET /orm/api/pods/knative-pod-runtimes/{id}/logs/` for pod-runtime logs.
-- `GET /orm/api/pods/knative-pod-runtimes/{id}/resource-usage/` for pod-runtime resource usage.
+- `GET /orm/api/pods/scalable-service/{uid}/revisions/` for the `Revisions` tab.
+- `GET /orm/api/pods/knative-pod-runtimes/{uid}/logs/` for pod-runtime logs.
+- `GET /orm/api/pods/knative-pod-runtimes/{uid}/resource-usage/` for pod-runtime resource usage.
 
 ## Notes
 
 - This feature is intentionally read-only until Foundry gets explicit scalable-service mutation flows.
 - Detail routing is URL-backed with:
-  - `msScalableServiceId`
+  - `msScalableServiceUid`
   - `msScalableServiceTab`
-  - `msScalableServicePodRuntimeId`
+  - `msScalableServicePodRuntimeUid`
   - `msScalableServicePodRuntimeTab`
   so selected services, pod runtimes, and tabs are linkable and refresh-safe.
-- The surface does not expose a scalable-service list view. If opened without `msScalableServiceId`,
+- The surface does not expose a scalable-service list view. If opened without `msScalableServiceUid`,
   it redirects to the Foundry projects surface.
 - Keep the header summary sourced from the scalable-service `/summary/` endpoint instead of synthesizing local card data.
 - The `Pods` tab should render the actual scalable-service pod runtime contract directly:

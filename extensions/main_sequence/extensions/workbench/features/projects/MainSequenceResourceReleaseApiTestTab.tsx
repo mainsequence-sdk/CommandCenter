@@ -66,18 +66,18 @@ function resolveReleaseSubdomain(summary: EntitySummaryHeader) {
 }
 
 function buildInitialTesterProps(
-  resourceReleaseId: number,
+  resourceReleaseUid: string,
   apiBaseUrl: string,
   subdomain: string,
 ) {
   return normalizeAppComponentProps({
     apiTargetMode: "main-sequence-resource-release",
     mainSequenceResourceRelease: {
-      releaseId: resourceReleaseId,
-      label: releasePublicTitle(apiBaseUrl, subdomain, resourceReleaseId),
+      releaseUid: resourceReleaseUid,
+      label: releasePublicTitle(apiBaseUrl, subdomain, resourceReleaseUid),
       releaseKind: "fastapi",
       publicUrl: apiBaseUrl || undefined,
-      exchangeLaunchUrl: `/orm/api/pods/resource-release/${resourceReleaseId}/exchange-launch/`,
+      exchangeLaunchUrl: `/orm/api/pods/resource-release/${resourceReleaseUid}/exchange-launch/`,
       subdomain: subdomain || undefined,
     },
     apiBaseUrl,
@@ -91,7 +91,7 @@ function buildInitialTesterProps(
   });
 }
 
-function releasePublicTitle(apiBaseUrl: string, subdomain: string, resourceReleaseId: number) {
+function releasePublicTitle(apiBaseUrl: string, subdomain: string, resourceReleaseUid: string) {
   if (subdomain.trim()) {
     return subdomain.trim();
   }
@@ -100,15 +100,15 @@ function releasePublicTitle(apiBaseUrl: string, subdomain: string, resourceRelea
     return apiBaseUrl.trim();
   }
 
-  return `Release ${resourceReleaseId}`;
+  return `Release ${resourceReleaseUid}`;
 }
 
 export function MainSequenceResourceReleaseApiTestTab({
   releaseSummary,
-  resourceReleaseId,
+  resourceReleaseUid,
 }: {
   releaseSummary: EntitySummaryHeader;
-  resourceReleaseId: number;
+  resourceReleaseUid: string;
 }) {
   const releasePublicUrl = useMemo(
     () => resolveReleasePublicUrl(releaseSummary),
@@ -120,7 +120,7 @@ export function MainSequenceResourceReleaseApiTestTab({
   );
   const [searchValue, setSearchValue] = useState("");
   const [testerProps, setTesterProps] = useState<AppComponentWidgetProps>(() =>
-    buildInitialTesterProps(resourceReleaseId, releasePublicUrl, releaseSubdomain),
+    buildInitialTesterProps(resourceReleaseUid, releasePublicUrl, releaseSubdomain),
   );
   const normalizedTesterProps = useMemo(
     () => normalizeAppComponentProps(testerProps),
@@ -188,13 +188,13 @@ export function MainSequenceResourceReleaseApiTestTab({
 
   useEffect(() => {
     setTesterProps(
-      buildInitialTesterProps(resourceReleaseId, releasePublicUrl, releaseSubdomain),
+      buildInitialTesterProps(resourceReleaseUid, releasePublicUrl, releaseSubdomain),
     );
     setSearchValue("");
     setTestState({
       status: "idle",
     });
-  }, [releasePublicUrl, releaseSubdomain, resourceReleaseId]);
+  }, [releasePublicUrl, releaseSubdomain, resourceReleaseUid]);
 
   useEffect(() => {
     setTestDraftValues(initialDraftValues);

@@ -31,19 +31,19 @@ type PhysicalDataSourceCreateSourceType =
   | "timescale_db"
   | "timescale_db_remote";
 
-function extractPhysicalDataSourceIdFromRedirectPath(redirectPath: string | undefined) {
+function extractPhysicalDataSourceUidFromRedirectPath(redirectPath: string | undefined) {
   if (!redirectPath) {
     return null;
   }
 
-  const matches = redirectPath.match(/(\d+)/g);
+  const segments = redirectPath.split("/").map((segment) => segment.trim()).filter(Boolean);
+  const uid = segments.at(-1);
 
-  if (!matches || matches.length === 0) {
+  if (!uid) {
     return null;
   }
 
-  const id = Number(matches[matches.length - 1]);
-  return Number.isFinite(id) && id > 0 ? id : null;
+  return decodeURIComponent(uid);
 }
 
 function normalizeFieldValue(value: unknown) {
@@ -78,13 +78,13 @@ export function MainSequencePhysicalDataSourceEditor({
   mode,
   onBack,
   onOpenPhysicalDataSourceDetail,
-  physicalDataSourceId,
+  physicalDataSourceUid,
 }: {
   createSourceType?: PhysicalDataSourceCreateSourceType;
   mode: "create" | "edit";
   onBack: () => void;
-  onOpenPhysicalDataSourceDetail: (physicalDataSourceId: number) => void;
-  physicalDataSourceId?: number;
+  onOpenPhysicalDataSourceDetail: (physicalDataSourceUid: string) => void;
+  physicalDataSourceUid?: string;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -97,32 +97,30 @@ export function MainSequencePhysicalDataSourceEditor({
       "physical_data_sources",
       "editor",
       mode,
-      isEditMode ? physicalDataSourceId ?? null : createSourceType ?? null,
+      isEditMode ? physicalDataSourceUid ?? null : createSourceType ?? null,
     ],
-    [createSourceType, isEditMode, mode, physicalDataSourceId],
+    [createSourceType, isEditMode, mode, physicalDataSourceUid],
   );
 
   const editorQuery = useQuery({
     queryKey: editorQueryKey,
     queryFn: () => {
       if (isEditMode) {
-        return fetchPhysicalDataSourceEditor(physicalDataSourceId!);
+        return fetchPhysicalDataSourceEditor(physicalDataSourceUid!);
       }
 
       return fetchPhysicalDataSourceEditorConfig(createSourceType!);
     },
-    enabled: isEditMode
-      ? Number.isFinite(physicalDataSourceId) && (physicalDataSourceId ?? 0) > 0
-      : !!createSourceType,
+    enabled: isEditMode ? Boolean(physicalDataSourceUid) : !!createSourceType,
   });
   const summaryQueryKey = useMemo(
-    () => ["main_sequence", "physical_data_sources", "summary", physicalDataSourceId ?? null],
-    [physicalDataSourceId],
+    () => ["main_sequence", "physical_data_sources", "summary", physicalDataSourceUid ?? null],
+    [physicalDataSourceUid],
   );
   const summaryQuery = useQuery({
     queryKey: summaryQueryKey,
-    queryFn: () => fetchPhysicalDataSourceSummary(physicalDataSourceId!),
-    enabled: isEditMode && Number.isFinite(physicalDataSourceId) && (physicalDataSourceId ?? 0) > 0,
+    queryFn: () => fetchPhysicalDataSourceSummary(physicalDataSourceUid!),
+    enabled: isEditMode && Boolean(physicalDataSourceUid),
   });
 
   useEffect(() => {
@@ -155,7 +153,7 @@ export function MainSequencePhysicalDataSourceEditor({
       }
 
       if (isEditMode) {
-        return updatePhysicalDataSourceEditor(physicalDataSourceId!, {
+        return updatePhysicalDataSourceEditor(physicalDataSourceUid!, {
           display_name: formState.display_name ?? "",
           description: formState.description ?? "",
           internal_code: formState.internal_code ?? "",
@@ -221,8 +219,8 @@ export function MainSequencePhysicalDataSourceEditor({
         description: result.detail,
       });
 
-      const redirectId = extractPhysicalDataSourceIdFromRedirectPath(result.redirect_path) ?? result.id;
-      onOpenPhysicalDataSourceDetail(redirectId);
+      const redirectUid = extractPhysicalDataSourceUidFromRedirectPath(result.redirect_path) ?? result.uid;
+      onOpenPhysicalDataSourceDetail(redirectUid);
     },
     onError: (error) => {
       toast({
@@ -237,11 +235,11 @@ export function MainSequencePhysicalDataSourceEditor({
 
   const deleteMutation = useMutation({
     mutationFn: () => {
-      if (!physicalDataSourceId) {
-        throw new Error("Physical data source id is required.");
+      if (!physicalDataSourceUid) {
+        throw new Error("Physical data source uid is required.");
       }
 
-      return deletePhysicalDataSourceEditor(physicalDataSourceId);
+      return deletePhysicalDataSourceEditor(physicalDataSourceUid);
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({
@@ -272,7 +270,7 @@ export function MainSequencePhysicalDataSourceEditor({
   const editorTitle =
     payload?.title ??
     payload?.entity?.title ??
-    (isEditMode ? `Physical data source ${physicalDataSourceId}` : "Create physical data source");
+    (isEditMode ? `Physical data source ${physicalDataSourceUid}` : "Create physical data source");
   const canSubmit =
     editableFields.length > 0 &&
     editableFields.every((field) =>
@@ -473,7 +471,7 @@ export function MainSequencePhysicalDataSourceEditor({
           <>
             <div className="font-medium">{editorTitle}</div>
             <div className="mt-1 text-muted-foreground">
-              {physicalDataSourceId ? `Physical data source ID ${physicalDataSourceId}` : null}
+              {physicalDataSourceUid ? `Physical data source UID ${physicalDataSourceUid}` : null}
             </div>
           </>
         }

@@ -1,9 +1,9 @@
 import { MainSequenceProjectInfraGraph } from "../../widgets/project-infra-graph/MainSequenceProjectInfraGraph";
 
 export function MainSequenceProjectInfraGraphTab({
-  projectId,
+  projectUid,
 }: {
-  projectId: number;
+  projectUid: string;
 }) {
-  return <MainSequenceProjectInfraGraph projectId={projectId} />;
+  return <MainSequenceProjectInfraGraph projectUid={projectUid} />;
 }

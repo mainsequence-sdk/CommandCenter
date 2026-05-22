@@ -11,14 +11,14 @@ This feature owns the Main Sequence Markets asset registry screen.
 
 - `GET /orm/api/assets/asset/` with `response_format=frontend_list` for the default list flow.
 - `GET /orm/api/assets/asset/summary/` for the list-scope summary card shown above the asset registry.
-- `GET /orm/api/assets/asset/{id}/` with `response_format=frontend_detail` for the asset detail screen.
-- `GET /orm/api/assets/asset/{id}/order-form-fields/?order_type=...` for the order drawer field helper.
+- `GET /orm/api/assets/asset/{uid}/` with `response_format=frontend_detail` for the asset detail screen.
+- `GET /orm/api/assets/asset/{uid}/order-form-fields/?order_type=...` for the order drawer field helper.
 
 ## Rules
 
 - Keep screen params URL-backed so filtered asset views are refresh-safe and linkable.
 - Keep transport logic in `extensions/main_sequence/common/api/index.ts`.
-- Use namespaced query params such as `msAssetId` and `msAssetTab` for detail state.
+- Use namespaced query params such as `msAssetUid` and `msAssetTab` for detail state.
 - Strip unsupported asset-specific filter params from the URL on load so this screen stays aligned with the rest of Main Sequence.
 - Treat `asset/summary/` as a collection-level endpoint that follows the shared summary contract; do not use it as a replacement for the asset detail serializer.
 - Treat order submission as out of scope here; this feature only migrates detail data and the dynamic order-form helper.

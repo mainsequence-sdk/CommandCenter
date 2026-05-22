@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
 import {
-  fetchSimpleTableDetail,
   formatMainSequenceError,
   getTsManagerRecordIdentifier,
   listSimpleTableUpdates,
@@ -114,13 +113,6 @@ export function MainSequenceSimpleTableUpdatesTab({
   const [pageIndex, setPageIndex] = useState(0);
   const deferredFilterValue = useDeferredValue(filterValue);
 
-  const simpleTableDetailQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "detail", simpleTableUid],
-    queryFn: () => fetchSimpleTableDetail(simpleTableUid),
-    enabled: Boolean(simpleTableUid.trim()),
-  });
-  const resolvedSimpleTableId = simpleTableDetailQuery.data?.id ?? null;
-
   const simpleTableUpdatesQuery = useQuery({
     queryKey: [
       "main_sequence",
@@ -131,11 +123,11 @@ export function MainSequenceSimpleTableUpdatesTab({
       pageIndex,
     ],
     queryFn: () =>
-      listSimpleTableUpdates(resolvedSimpleTableId!, {
+      listSimpleTableUpdates(simpleTableUid, {
         limit: mainSequenceRegistryPageSize,
         offset: pageIndex * mainSequenceRegistryPageSize,
       }),
-    enabled: typeof resolvedSimpleTableId === "number" && resolvedSimpleTableId > 0,
+    enabled: Boolean(simpleTableUid.trim()),
   });
 
   useEffect(() => {
@@ -189,8 +181,7 @@ export function MainSequenceSimpleTableUpdatesTab({
       ) ?? null,
     [selectedSimpleTableUpdateUid, simpleTableUpdatesQuery.data?.results],
   );
-  const isLoading = simpleTableDetailQuery.isLoading || simpleTableUpdatesQuery.isLoading;
-  const hasDetailError = simpleTableDetailQuery.isError;
+  const isLoading = simpleTableUpdatesQuery.isLoading;
   const hasSimpleTableUpdatesError = simpleTableUpdatesQuery.isError;
 
   if (selectedSimpleTableUpdateUid) {
@@ -232,20 +223,13 @@ export function MainSequenceSimpleTableUpdatesTab({
         </div>
       ) : null}
 
-      {hasDetailError ? (
-        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {formatMainSequenceError(simpleTableDetailQuery.error)}
-        </div>
-      ) : null}
-
-      {!hasDetailError && hasSimpleTableUpdatesError ? (
+      {hasSimpleTableUpdatesError ? (
         <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
           {formatMainSequenceError(simpleTableUpdatesQuery.error)}
         </div>
       ) : null}
 
       {!isLoading &&
-      !hasDetailError &&
       !hasSimpleTableUpdatesError &&
       filteredSimpleTableUpdates.length === 0 ? (
         <div className="px-5 py-14 text-center">
@@ -260,7 +244,6 @@ export function MainSequenceSimpleTableUpdatesTab({
       ) : null}
 
       {!isLoading &&
-      !hasDetailError &&
       !hasSimpleTableUpdatesError &&
       filteredSimpleTableUpdates.length > 0 ? (
         <Card variant="nested">

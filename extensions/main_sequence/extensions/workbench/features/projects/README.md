@@ -23,7 +23,7 @@ This feature owns the Main Sequence project registry and project detail experien
 - Project-only tabs and dialogs should remain here even when they are large.
 - The active project detail tabs are `Code`, `Infra Graph`, `Jobs`, `Images`, `Resource Releases`, `Data Nodes Updates`, `Settings`, and `Permissions`.
 - Shared registry controls should stay in `../../components`.
-- The selected-job detail view in the `Jobs` tab exposes a direct `Run Job` action that posts to `job/{id}/run_job/` and refreshes the run list after success. Users may optionally enter command-style arguments beside the action; the UI tokenizes that input and sends it as the backend `command_args: string[]` payload.
+- The selected-job detail view in the `Jobs` tab exposes a direct `Run Job` action that posts to `job/{uid}/run_job/` and refreshes the run list after success. Users may optionally enter command-style arguments beside the action; the UI tokenizes that input and sends it as the backend `command_args: string[]` payload.
 - Job run list and detail surfaces display `command_args` returned by the job-run serializer so manual run parameters remain visible after launch.
 - The selected run `Logs` tab normalizes structured backend rows into the shared `LogTable`
   contract so expanded log details can show fields like `filename`, `lineno`, `func_name`, and
@@ -35,7 +35,7 @@ This feature owns the Main Sequence project registry and project detail experien
 - The project detail summary header now owns the project-agent entrypoint again through a
   `Configure project agent` button. That button only appears when the selected project advertises
   agent capabilities.
-- When `by-project/<projectId>/` reports a ready project-agent service, the project header shows a
+- When `by-project/<projectUid>/` reports a ready project-agent service, the project header shows a
   small robot action in the top-right corner with the hover text `Talk to project agent`. Clicking
   it opens the dedicated project-agent rail and first tries to reuse the latest AgentSession for
   that service and current user through the filtered sessions endpoint. If no prior session exists,
@@ -45,7 +45,7 @@ This feature owns the Main Sequence project registry and project detail experien
   every theme instead of carrying a project-specific accent color.
 - The full project-agent build/deploy/delete form is in the `Main Sequence AI` `Project Agents`
   surface, not in the project-detail tabs anymore.
-- The workbench project page now deep-links to `/app/main_sequence_ai/project-agents?msProjectId=<id>`
+- The workbench project page now deep-links to `/app/main_sequence_ai/project-agents?msProjectUid=<uid>`
   for that form workflow.
 - Agent release creation now warns that project execution agents are unique per project and that
   republishing the agent with a different image overrides that project-agent functionality.
@@ -56,7 +56,7 @@ This feature owns the Main Sequence project registry and project detail experien
   resource id.
 - The `Create Project Agent` submit path does not call the generic `resource-release/` create
   endpoint. It posts
-  `{ project_id, project_related_image_id, cpu_request?, memory_request?, gpu_request?, gpu_type?, spot? }`
+  `{ project, project_related_image, cpu_request?, memory_request?, gpu_request?, gpu_type?, spot? }`
   to `/orm/api/agents/v1/project-executor-agent-services/get_or_create/`.
 - That legacy `get_or_create/` endpoint still exists for compatibility, but the dedicated
   `Project Agent` tab now uses the explicit `build-image/` plus `deploy/` flow instead.

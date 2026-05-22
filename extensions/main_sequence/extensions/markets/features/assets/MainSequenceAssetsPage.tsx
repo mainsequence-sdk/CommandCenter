@@ -26,7 +26,7 @@ import {
   type AssetDetailTabId,
 } from "./MainSequenceAssetDetailView";
 
-const mainSequenceAssetIdParam = "msAssetId";
+const mainSequenceAssetUidParam = "msAssetUid";
 const mainSequenceAssetTabParam = "msAssetTab";
 const defaultAssetDetailTabId: AssetDetailTabId = "metadata";
 
@@ -64,7 +64,7 @@ export function MainSequenceAssetsPage() {
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
   const searchValue = searchParams.get("search") ?? "";
-  const selectedAssetId = Number(searchParams.get(mainSequenceAssetIdParam) ?? "");
+  const selectedAssetUid = searchParams.get(mainSequenceAssetUidParam)?.trim() ?? "";
   const requestedAssetTabId = searchParams.get(mainSequenceAssetTabParam);
   const pageSize = mainSequenceRegistryPageSize;
   const offsetParam = readPositiveInt(searchParams.get("offset"));
@@ -73,7 +73,7 @@ export function MainSequenceAssetsPage() {
   const pageIndex = Math.max(0, page - 1);
   const limit = readPositiveInt(searchParams.get("limit")) ?? pageSize;
   const offset = offsetParam ?? pageIndex * pageSize;
-  const isAssetDetailOpen = Number.isFinite(selectedAssetId) && selectedAssetId > 0;
+  const isAssetDetailOpen = selectedAssetUid.length > 0;
   const selectedAssetTabId: AssetDetailTabId = isAssetDetailTabId(requestedAssetTabId)
     ? requestedAssetTabId
     : defaultAssetDetailTabId;
@@ -110,8 +110,8 @@ export function MainSequenceAssetsPage() {
 
   const pageRows = assetsQuery.data?.results ?? [];
   const selectedAssetFromList = useMemo(
-    () => pageRows.find((asset) => asset.id === selectedAssetId) ?? null,
-    [pageRows, selectedAssetId],
+    () => pageRows.find((asset) => asset.uid === selectedAssetUid) ?? null,
+    [pageRows, selectedAssetUid],
   );
   const totalCount = assetsQuery.data?.count ?? 0;
 
@@ -184,7 +184,7 @@ export function MainSequenceAssetsPage() {
 
   function closeAssetDetail() {
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceAssetIdParam);
+      nextParams.delete(mainSequenceAssetUidParam);
       nextParams.delete(mainSequenceAssetTabParam);
     });
   }
@@ -212,7 +212,7 @@ export function MainSequenceAssetsPage() {
     return (
       <MainSequenceAssetDetailView
         activeTabId={selectedAssetTabId}
-        assetId={selectedAssetId}
+        assetUid={selectedAssetUid}
         initialAsset={selectedAssetFromList}
         onBack={closeAssetDetail}
         onSelectTab={selectAssetDetailTab}

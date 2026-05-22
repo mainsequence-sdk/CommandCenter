@@ -115,7 +115,7 @@ function formatCommandArgs(commandArgs: string[] | null | undefined) {
   return commandArgs.join(" ");
 }
 
-function getEntityIdFromSummaryHref(
+function getEntityUidFromSummaryHref(
   href: string | undefined,
   queryKeys: string[],
 ) {
@@ -128,20 +128,17 @@ function getEntityIdFromSummaryHref(
 
     for (const queryKey of queryKeys) {
       const rawValue = url.searchParams.get(queryKey);
-      const parsedValue = Number(rawValue ?? "");
 
-      if (Number.isFinite(parsedValue) && parsedValue > 0) {
-        return parsedValue;
+      if (rawValue?.trim()) {
+        return rawValue.trim();
       }
     }
 
     const pathnameSegments = url.pathname.split("/").filter(Boolean).reverse();
 
     for (const segment of pathnameSegments) {
-      const parsedValue = Number(segment);
-
-      if (Number.isFinite(parsedValue) && parsedValue > 0) {
-        return parsedValue;
+      if (segment.trim()) {
+        return decodeURIComponent(segment.trim());
       }
     }
   } catch {
@@ -151,12 +148,12 @@ function getEntityIdFromSummaryHref(
   return null;
 }
 
-function getJobIdFromSummaryHref(href?: string) {
-  return getEntityIdFromSummaryHref(href, ["job_id", "jobId"]);
+function getJobUidFromSummaryHref(href?: string) {
+  return getEntityUidFromSummaryHref(href, ["job_uid", "jobUid", "msJobUid"]);
 }
 
-function getProjectIdFromSummaryHref(href?: string) {
-  return getEntityIdFromSummaryHref(href, ["project_id", "projectId"]);
+function getProjectUidFromSummaryHref(href?: string) {
+  return getEntityUidFromSummaryHref(href, ["project_uid", "projectUid", "msProjectUid"]);
 }
 
 function buildCommandArgsSummaryField(jobRun: JobRunRecord): SummaryField {
@@ -267,48 +264,48 @@ function buildFallbackJobRunSummary(jobRun: JobRunRecord): EntitySummaryHeader {
 }
 
 export function MainSequenceJobRunsTab({
-  jobId,
+  jobUid,
   onCloseJobRunDetail,
   onOpenJobDetail,
   onOpenJobRunDetail,
   onOpenProjectDetail,
-  selectedJobRunId,
+  selectedJobRunUid,
 }: {
-  jobId: number;
+  jobUid: string;
   onCloseJobRunDetail: () => void;
-  onOpenJobDetail: (jobId: number) => void;
-  onOpenJobRunDetail: (jobRunId: number) => void;
-  onOpenProjectDetail: (projectId: number) => void;
-  selectedJobRunId: number | null;
+  onOpenJobDetail: (jobUid: string) => void;
+  onOpenJobRunDetail: (jobRunUid: string) => void;
+  onOpenProjectDetail: (projectUid: string) => void;
+  selectedJobRunUid: string | null;
 }) {
   const [filterValue, setFilterValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const deferredFilterValue = useDeferredValue(filterValue);
 
   const runsQuery = useQuery({
-    queryKey: ["main_sequence", "jobs", "runs", jobId, pageIndex],
+    queryKey: ["main_sequence", "jobs", "runs", jobUid, pageIndex],
     queryFn: () =>
-      listJobRuns(jobId, {
+      listJobRuns(jobUid, {
         limit: mainSequenceRegistryPageSize,
         offset: pageIndex * mainSequenceRegistryPageSize,
       }),
-    enabled: jobId > 0,
+    enabled: Boolean(jobUid),
   });
 
   const selectedJobRunFromList = useMemo(
-    () => (runsQuery.data?.results ?? []).find((jobRun) => jobRun.id === selectedJobRunId) ?? null,
-    [runsQuery.data?.results, selectedJobRunId],
+    () => (runsQuery.data?.results ?? []).find((jobRun) => jobRun.uid === selectedJobRunUid) ?? null,
+    [runsQuery.data?.results, selectedJobRunUid],
   );
 
   const jobRunSummaryQuery = useQuery({
-    queryKey: ["main_sequence", "jobs", "runs", "summary", selectedJobRunId],
-    queryFn: () => fetchJobRunSummary(selectedJobRunId ?? 0),
-    enabled: Boolean(selectedJobRunId),
+    queryKey: ["main_sequence", "jobs", "runs", "summary", selectedJobRunUid],
+    queryFn: () => fetchJobRunSummary(selectedJobRunUid ?? ""),
+    enabled: Boolean(selectedJobRunUid),
   });
 
   useEffect(() => {
     setPageIndex(0);
-  }, [deferredFilterValue, jobId]);
+  }, [deferredFilterValue, jobUid]);
 
   useEffect(() => {
     const totalPages = Math.max(
@@ -332,7 +329,7 @@ export function MainSequenceJobRunsTab({
       return [
         jobRun.name,
         jobRun.unique_identifier,
-        String(jobRun.id),
+        jobRun.uid,
         jobRun.status,
         jobRun.response_status ?? "",
         jobRun.triggered_by ?? "",
@@ -354,22 +351,22 @@ export function MainSequenceJobRunsTab({
   const jobRunTitle =
     jobRunSummary?.entity.title ??
     selectedJobRunFromList?.name ??
-    (selectedJobRunId ? `Run ${selectedJobRunId}` : "Run");
+    (selectedJobRunUid ? `Run ${selectedJobRunUid}` : "Run");
 
   function handleSummaryFieldLink(field: SummaryField) {
-    const projectLinkId = getProjectIdFromSummaryHref(field.href);
-    if (projectLinkId) {
-      onOpenProjectDetail(projectLinkId);
+    const projectLinkUid = getProjectUidFromSummaryHref(field.href);
+    if (projectLinkUid) {
+      onOpenProjectDetail(projectLinkUid);
       return;
     }
 
-    const jobLinkId = getJobIdFromSummaryHref(field.href);
-    if (jobLinkId) {
-      onOpenJobDetail(jobLinkId);
+    const jobLinkUid = getJobUidFromSummaryHref(field.href);
+    if (jobLinkUid) {
+      onOpenJobDetail(jobLinkUid);
     }
   }
 
-  if (selectedJobRunId) {
+  if (selectedJobRunUid) {
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
@@ -434,7 +431,7 @@ export function MainSequenceJobRunsTab({
                 </div>
               </CardHeader>
               <CardContent className="pt-5">
-                <MainSequenceJobRunLogsTab jobRunId={selectedJobRunId} />
+                <MainSequenceJobRunLogsTab jobRunUid={selectedJobRunUid} />
               </CardContent>
             </Card>
           </>
@@ -504,12 +501,12 @@ export function MainSequenceJobRunsTab({
             </thead>
             <tbody>
               {filteredRuns.map((jobRun) => (
-                <tr key={jobRun.id}>
+                <tr key={jobRun.uid}>
                   <td className="rounded-l-[18px] border border-border/70 bg-background/24 px-4 py-3">
                     <button
                       type="button"
                       className="group inline-flex cursor-pointer items-center gap-1.5 rounded-sm text-left outline-none transition-colors hover:text-primary focus-visible:text-primary"
-                      onClick={() => onOpenJobRunDetail(jobRun.id)}
+                      onClick={() => onOpenJobRunDetail(jobRun.uid)}
                       title={`Open ${jobRun.name}`}
                     >
                       <span className="font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors group-hover:decoration-primary group-focus-visible:decoration-primary">
@@ -518,7 +515,7 @@ export function MainSequenceJobRunsTab({
                       <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary" />
                     </button>
                     <div className="mt-1 font-mono text-xs text-muted-foreground">
-                      Run ID {jobRun.id} · {jobRun.unique_identifier}
+                      Run UID {jobRun.uid} · {jobRun.unique_identifier}
                     </div>
                   </td>
                   <td className="border-y border-border/70 bg-background/24 px-4 py-3">

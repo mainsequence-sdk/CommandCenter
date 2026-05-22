@@ -119,7 +119,7 @@ export function MainSequenceAssetCategoriesPage() {
   const pageRows = categoriesQuery.data?.rows ?? [];
   const totalCount = categoriesQuery.data?.pagination?.total_items ?? pageRows.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const categorySelection = useRegistrySelection(pageRows);
+  const categorySelection = useRegistrySelection(pageRows, (category) => category.uid);
 
   useEffect(() => {
     const nextParams = new URLSearchParams(location.search);
@@ -198,7 +198,7 @@ export function MainSequenceAssetCategoriesPage() {
       });
 
       setCreateDialogOpen(false);
-      navigate(getAssetCategoryDetailPath(category.id), {
+      navigate(getAssetCategoryDetailPath(category.uid), {
         state: {
           from: `${location.pathname}${location.search}`,
         },
@@ -285,7 +285,7 @@ export function MainSequenceAssetCategoriesPage() {
       return;
     }
 
-    const deletedIds = deleteIntent.categories.map((category) => category.id);
+    const deletedIds = deleteIntent.categories.map((category) => category.uid);
 
     categorySelection.setSelection(
       categorySelection.selectedIds.filter((id) => !deletedIds.includes(id)),
@@ -303,11 +303,11 @@ export function MainSequenceAssetCategoriesPage() {
     }
 
     if (deleteIntent.categories.length === 1) {
-      return deleteAssetCategory(deleteIntent.categories[0].id);
+      return deleteAssetCategory(deleteIntent.categories[0].uid);
     }
 
     return bulkDeleteAssetCategories({
-      ids: deleteIntent.categories.map((category) => category.id),
+      uids: deleteIntent.categories.map((category) => category.uid),
     });
   }
 
@@ -417,15 +417,15 @@ export function MainSequenceAssetCategoriesPage() {
                 </thead>
                 <tbody>
                   {pageRows.map((category) => {
-                    const selected = categorySelection.isSelected(category.id);
+                    const selected = categorySelection.isSelected(category.uid);
 
                     return (
-                      <tr key={category.id}>
+                      <tr key={category.uid}>
                         <td className={getRegistryTableCellClassName(selected, "left")}>
                           <MainSequenceSelectionCheckbox
-                            ariaLabel={`Select category ${category.id}`}
+                            ariaLabel={`Select category ${category.uid}`}
                             checked={selected}
-                            onChange={() => categorySelection.toggleSelection(category.id)}
+                            onChange={() => categorySelection.toggleSelection(category.uid)}
                           />
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
@@ -433,7 +433,7 @@ export function MainSequenceAssetCategoriesPage() {
                             type="button"
                             className="group min-w-0 text-left"
                             onClick={() =>
-                              navigate(getAssetCategoryDetailPath(category.id), {
+                              navigate(getAssetCategoryDetailPath(category.uid), {
                                 state: {
                                   from: `${location.pathname}${location.search}`,
                                 },
@@ -447,7 +447,7 @@ export function MainSequenceAssetCategoriesPage() {
                               <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
                             </div>
                             <div className="mt-1 truncate text-xs text-muted-foreground">
-                              {`ID ${category.id}`}
+                              {`UID ${category.uid}`}
                             </div>
                           </button>
                         </td>
@@ -471,7 +471,7 @@ export function MainSequenceAssetCategoriesPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() =>
-                                navigate(getAssetCategoryDetailPath(category.id), {
+                                navigate(getAssetCategoryDetailPath(category.uid), {
                                   state: {
                                     from: `${location.pathname}${location.search}`,
                                   },

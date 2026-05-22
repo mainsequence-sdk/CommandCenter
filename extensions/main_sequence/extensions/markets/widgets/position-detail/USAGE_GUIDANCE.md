@@ -15,7 +15,7 @@ Render portfolio, account, target-position, or account target-position rows with
 ## authoringSteps
 
 - Choose the source type first: `portfolio`, `account`, `target_position`, or `target_positions_account`.
-- If the source type is `portfolio`, optionally set a portfolio id so the widget can hydrate from the target portfolio weights endpoint.
+- If the source type is `portfolio`, optionally set a portfolio uid so the widget can hydrate from the target portfolio weights endpoint.
 - If the source type is `account`, optionally set an account uid so the widget can hydrate from the canonical account holdings endpoint.
 - If the source type is `target_positions_account`, set an account uid so the widget can hydrate and save account-scoped target-position assignments.
 - Enable `Editable in place` when authors should add assets directly on the widget and maintain rows there.
@@ -57,6 +57,7 @@ Render portfolio, account, target-position, or account target-position rows with
 - `editableInPlace`: switches the widget into inline authoring mode.
 - For `portfolio` and `account`, the widget enters that inline mode only after the user clicks the in-widget edit action.
 - `sourceType`: `portfolio`, `account`, `target_position`, or `target_positions_account`.
+- `portfolioUid`: used for portfolio hydration. Do not use numeric portfolio ids.
 - `accountUid`: used for account holdings hydration and account target-position saves.
 - `holdingsDate`: persisted account-only holdings snapshot timestamp. It is stored as a timezone-aware ISO string.
 - `targetPositionsDate`: persisted account target-position assignment timestamp. It is stored as a timezone-aware ISO string.

@@ -10,7 +10,9 @@
     "creation_date": "2026-01-16T08:00:00Z",
     "detail_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7001/",
     "update_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7001/",
-    "delete_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7001/"
+    "delete_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7001/",
+    "uid": "mock-asset-translation-rule-7001",
+    "table_uid": "mock-asset-translation-table-71"
   },
   {
     "id": 7002,
@@ -23,7 +25,9 @@
     "creation_date": "2026-01-16T08:10:00Z",
     "detail_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7002/",
     "update_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7002/",
-    "delete_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7002/"
+    "delete_endpoint": "/orm/api/assets/asset-translation-tables/71/rules/7002/",
+    "uid": "mock-asset-translation-rule-7002",
+    "table_uid": "mock-asset-translation-table-71"
   },
   {
     "id": 7201,
@@ -36,6 +40,8 @@
     "creation_date": "2026-02-12T09:00:00Z",
     "detail_endpoint": "/orm/api/assets/asset-translation-tables/72/rules/7201/",
     "update_endpoint": "/orm/api/assets/asset-translation-tables/72/rules/7201/",
-    "delete_endpoint": "/orm/api/assets/asset-translation-tables/72/rules/7201/"
+    "delete_endpoint": "/orm/api/assets/asset-translation-tables/72/rules/7201/",
+    "uid": "mock-asset-translation-rule-7201",
+    "table_uid": "mock-asset-translation-table-72"
   }
 ]

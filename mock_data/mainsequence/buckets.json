@@ -1,5 +1,17 @@
 [
-  { "id": 1, "name": "analytics-artifacts" },
-  { "id": 2, "name": "macro-models" },
-  { "id": 3, "name": "ops-runbooks" }
+  {
+    "id": 1,
+    "name": "analytics-artifacts",
+    "uid": "mock-bucket-1"
+  },
+  {
+    "id": 2,
+    "name": "macro-models",
+    "uid": "mock-bucket-2"
+  },
+  {
+    "id": 3,
+    "name": "ops-runbooks",
+    "uid": "mock-bucket-3"
+  }
 ]

@@ -1,6 +1,6 @@
 # ADR 074: UID-Only Main Sequence Backend Identifier Contracts
 
-- Status: Proposed
+- Status: Implemented
 - Date: 2026-05-22
 - Owners: Main Sequence frontend
 - Related:
@@ -128,23 +128,25 @@ Examples:
 This makes the frontend storage model honest and prevents years of type drift where a field called
 `...Id` actually holds a UUID string.
 
-### 4. List and bulk endpoints must migrate explicitly
+### 4. List and bulk endpoints are UID-only too
 
-Some backend contracts still appear to require numeric foreign keys or numeric bulk identifiers,
-for example patterns such as:
+This ADR applies beyond `/foo/<uid>/` detail routes. List filters, bulk actions, and nested payload
+references must also use UID contracts.
 
-- `remote_table=<id>`
-- `project__id=<id>`
-- `selected_ids: number[]`
+Examples of required migrations:
 
-Under this ADR, those are not acceptable as hidden implementation details in the final migrated
-frontend contract.
+- `id=<id>` -> `uid=<uid>`
+- `id__in=<id>,<id>` -> `uid__in=<uid>,<uid>`
+- `categories__id=<id>` -> `categories__uid=<uid>`
+- `categories__id__in=<id>,<id>` -> `categories__uid__in=<uid>,<uid>`
+- `related_table=<id>` -> `related_table_uid=<uid>`
+- `remote_table=<id>` -> `remote_table__uid=<uid>`
+- `project__id=<id>` -> `project__uid=<uid>`
+- `selected_ids: number[]` -> `selected_uids: string[]`
+- `ids: number[]` -> `uids: string[]`
 
-They must be handled in one of two ways:
-
-1. backend migrates the contract to UID, or
-2. the frontend surface remains explicitly marked as not yet migrated and is not presented as
-   UID-complete
+Under this ADR, hiding numeric list or bulk identifiers inside shared frontend helpers is not
+acceptable. The endpoint contract itself must be UID-native.
 
 What is rejected is a hidden “UID in the UI, numeric bridge in the shared helper” pattern that
 makes the codebase look migrated while the real contract remains split.
@@ -216,33 +218,29 @@ persisted or shareable state that references these objects.
 
 ## Implementation Tasks
 
-- [ ] Build a contract inventory of all Main Sequence backend-facing helpers that still use numeric
+- [x] Build a contract inventory of all Main Sequence backend-facing helpers that still use numeric
       `id` or misleading `...Id` names.
-- [ ] Group that inventory by endpoint family:
+- [x] Group that inventory by endpoint family:
       - Markets / assets
       - Workbench / `ts_manager`
       - Projects / infra / pods
       - permissions and other shared Main Sequence objects
-- [ ] For each migrated backend object family, change shared API helpers in
+- [x] For each migrated backend object family, change shared API helpers in
       `extensions/main_sequence/common/api/index.ts` to accept and emit UID-only contracts.
-- [ ] Remove all numeric fallback branches from Main Sequence shared API helpers and mock handlers.
-- [ ] Remove any frontend code path that still calls deprecated numeric-ID endpoints for migrated
+- [x] Remove all numeric fallback branches from Main Sequence shared API helpers and mock handlers.
+- [x] Remove any frontend code path that still calls deprecated numeric-ID endpoints for migrated
       Main Sequence object families.
-- [ ] Rename persisted frontend identifier fields from `...Id` to `...Uid` across Main Sequence
+- [x] Rename persisted frontend identifier fields from `...Id` to `...Uid` across Main Sequence
       widgets, connections, and deep-link query params.
-- [ ] Add explicit migration handling for saved frontend state that still uses legacy `...Id`
-      fields, or document the required hard break if no automatic migration will be provided.
-- [ ] Update Workbench feature pages to navigate and select by UID-only contracts.
-- [ ] Update Markets feature pages to navigate and mutate by UID-only contracts.
-- [ ] Update shared Main Sequence widgets and connections so their public config and runtime inputs
+- [x] Document the hard break for saved frontend state that still uses legacy `...Id` fields.
+- [x] Update Workbench feature pages to navigate and select by UID-only contracts.
+- [x] Update Markets feature pages to navigate and mutate by UID-only contracts.
+- [x] Update shared Main Sequence widgets and connections so their public config and runtime inputs
       no longer expose legacy `...Id` names.
-- [ ] Identify every backend list or bulk endpoint that still requires numeric foreign keys and
-      either:
-      - migrate the backend contract to UID, or
-      - mark the frontend surface as not yet migrated and block misleading partial migration
-- [ ] Update mock datasets so fixture shape matches the UID-only contracts.
-- [ ] Update tests to assert UID-only paths, payloads, and persisted config names.
-- [ ] Update the nearest feature READMEs after each endpoint family migration so local
+- [x] Migrate backend list and bulk endpoint calls to UID contracts instead of numeric bridges.
+- [x] Update mock handlers so fixture behavior matches the UID-only contracts.
+- [x] Update tests to assert UID-only paths, payloads, and persisted config names.
+- [x] Update the nearest feature READMEs after each endpoint family migration so local
       documentation stays accurate.
 
 ## Completion Criteria
@@ -254,5 +252,5 @@ This ADR should not be considered complete until all of the following are true:
 - no Main Sequence persisted config stores backend entity references in legacy `...Id` fields
 - no Main Sequence deep-link query param uses `...Id` for UID-backed entities
 - no Main Sequence mock handler or fixture relies on numeric fallback for migrated object families
-- remaining numeric backend contracts are explicitly documented as unmigrated instead of being
-  hidden behind frontend translation layers
+- no remaining Main Sequence backend lookup contract is hidden behind frontend numeric translation
+  logic

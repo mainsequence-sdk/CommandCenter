@@ -90,7 +90,7 @@ export function formatProjectImagePickerDescription(image: ProjectImageOption) {
 
 function buildProjectImagePickerKeywords(image: ProjectImageOption, extraKeywords: string[] = []) {
   return [
-    String(image.id),
+    image.uid,
     image.title ?? "",
     image.project_repo_hash ?? "",
     image.base_image?.title ?? "",
@@ -104,7 +104,7 @@ function buildProjectImagePickerKeywords(image: ProjectImageOption, extraKeyword
 
 export function toProjectImagePickerOption(image: ProjectImageOption): PickerOption {
   return {
-    value: String(image.id),
+    value: image.uid,
     label: formatProjectImagePickerLabel(image),
     description: formatProjectImagePickerDescription(image),
     keywords: buildProjectImagePickerKeywords(image),
@@ -122,7 +122,7 @@ export function toProjectImageTitlePickerOption(
   } = {},
 ): PickerOption {
   return {
-    value: String(image.id),
+    value: image.uid,
     label: image.title?.trim() || fallbackLabel || `Image ${image.id}`,
     description: [
       formatProjectImagePickerDescription(image),

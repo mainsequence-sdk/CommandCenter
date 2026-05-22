@@ -43,10 +43,10 @@ function toFileExplorerItems(
 
 export function MainSequenceProjectCodeTab({
   onJobCreated,
-  projectId,
+  projectUid,
 }: {
   onJobCreated?: () => void;
-  projectId: number;
+  projectUid: string;
 }) {
   const [currentPath, setCurrentPath] = useState("");
   const [jobFilePath, setJobFilePath] = useState<string | null>(null);
@@ -54,12 +54,12 @@ export function MainSequenceProjectCodeTab({
   useEffect(() => {
     setCurrentPath("");
     setJobFilePath(null);
-  }, [projectId]);
+  }, [projectUid]);
 
   const repositoryBrowserQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "repository-browser", projectId, currentPath],
-    queryFn: () => fetchProjectRepositoryBrowser(projectId, currentPath),
-    enabled: projectId > 0,
+    queryKey: ["main_sequence", "projects", "repository-browser", projectUid, currentPath],
+    queryFn: () => fetchProjectRepositoryBrowser(projectUid, currentPath),
+    enabled: Boolean(projectUid),
   });
 
   const items = useMemo(
@@ -156,7 +156,7 @@ export function MainSequenceProjectCodeTab({
         noResultsState="No files match the current search."
         previewEmptyState="Select a file to preview its contents."
         onRequestFileContent={(item) =>
-          fetchProjectResourceCode(projectId, item.path ?? item.name)
+          fetchProjectResourceCode(projectUid, item.path ?? item.name)
         }
         onSelect={(item) => {
           if (item.type === "folder") {
@@ -166,7 +166,7 @@ export function MainSequenceProjectCodeTab({
       />
 
       <MainSequenceCreateJobDialog
-        projectId={projectId}
+        projectUid={projectUid}
         filePath={jobFilePath ?? ""}
         open={Boolean(jobFilePath)}
         onCreated={onJobCreated}

@@ -54,7 +54,7 @@ The frontend connection type should define this public config shape:
 
 ```ts
 export interface MainSequenceSimpleTableConnectionPublicConfig {
-  simpleTableId?: number;
+  simpleTableUid?: string;
   simpleTableLabel?: string;
   simpleTableStorageHash?: string;
   simpleTableIdentifier?: string;
@@ -68,7 +68,7 @@ export interface MainSequenceSimpleTableConnectionPublicConfig {
 
 Rules:
 
-- `simpleTableId` is the authoritative selected resource.
+- `simpleTableUid` is the authoritative selected resource.
 - `simpleTableLabel`, `simpleTableStorageHash`, and `simpleTableIdentifier` are display/cache-key
   metadata only.
 - `defaultLimit` defaults to `1000`.
@@ -120,14 +120,14 @@ The config editor should reuse existing Main Sequence Simple Table APIs from
 `extensions/main_sequence/common/api/index.ts`:
 
 - `listSimpleTables(...)`
-- `fetchSimpleTableDetail(simpleTableId)`
+- `fetchSimpleTableDetail(simpleTableUid)`
 
 Selection behavior:
 
 - render a Simple Table picker similar to the existing Data Node connection editor
 - once the user selects a Simple Table, fetch detail
-- derive display label from `storage_hash`, `identifier`, or fallback `Simple Table <id>`
-- store `simpleTableId`, `simpleTableLabel`, `simpleTableStorageHash`, and
+- derive display label from `storage_hash`, `identifier`, or fallback `Simple Table <uid>`
+- store `simpleTableUid`, `simpleTableLabel`, `simpleTableStorageHash`, and
   `simpleTableIdentifier` in public config
 - show detail-derived column names/types in the editor so the user can verify the selection
 
@@ -168,11 +168,11 @@ Table SQL execution.
 
 Every adapter operation must first resolve the configured Simple Table:
 
-1. Read `configured_simple_table_id` from `connection.public_config.simpleTableId`.
-2. Read optional `requested_simple_table_id` from payload only for compatibility/debugging.
-3. If both ids exist and differ, reject the request with `400 invalid_simple_table_target`.
-4. If no configured id exists, reject with `400 simple_table_not_configured`.
-5. Validate the resolved id is a positive integer.
+1. Read `configured_simple_table_uid` from `connection.public_config.simpleTableUid`.
+2. Read optional `requested_simple_table_uid` from payload only for compatibility/debugging.
+3. If both UIDs exist and differ, reject the request with `400 invalid_simple_table_target`.
+4. If no configured UID exists, reject with `400 simple_table_not_configured`.
+5. Validate the resolved UID is a non-empty string.
 6. Fetch the Simple Table detail from the backend ORM/service layer.
 7. Validate that the current user/org context can view the Simple Table before execution.
 
@@ -276,7 +276,7 @@ Preferred response:
         }
       ],
       "meta": {
-        "simpleTableId": 123,
+        "simpleTableUid": "11111111-1111-1111-1111-111111111111",
         "simpleTableStorageHash": "example_table",
         "rowCount": 100
       }
@@ -296,7 +296,7 @@ incrementally, but the target contract is a normalized connection frame.
 
 `testConnection(id)` should:
 
-1. Require `public_config.simpleTableId`.
+1. Require `public_config.simpleTableUid`.
 2. Fetch Simple Table detail.
 3. Validate the current backend context can view it.
 4. Return `ok` only if the table is visible and column metadata can be resolved.
@@ -350,7 +350,7 @@ In-flight dedupe should share one active execution for identical normalized cach
 - [x] Reuse `listSimpleTables(...)` and `fetchSimpleTableDetail(...)`
 - [x] Let the user select one Simple Table
 - [x] Fetch detail after selection and show columns
-- [x] Store `simpleTableId`, label, storage hash, and identifier in public config
+- [x] Store `simpleTableUid`, label, storage hash, and identifier in public config
 - [x] Add query policy controls for limit, timeout, cache, TTL, and in-flight dedupe
 
 ### Phase 3: Explore UI

@@ -10,7 +10,7 @@ import type { MainSequenceProjectInfraGraphWidgetProps } from "./projectInfraGra
 
 export const mainSequenceProjectInfraGraphWidget = defineWidget<MainSequenceProjectInfraGraphWidgetProps>({
   id: "main-sequence-project-infra-graph",
-  widgetVersion: "1.0.0",
+  widgetVersion: "1.1.0",
   title: "Project Infrastructure Graph",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Infrastructure",
@@ -23,10 +23,10 @@ export const mainSequenceProjectInfraGraphWidget = defineWidget<MainSequenceProj
   requiredPermissions: ["main_sequence_foundry:view"],
   tags: ["main-sequence", "project", "infra", "graph", "resources", "releases"],
   exampleProps: {
-    projectId: 81,
+    projectUid: "11111111-1111-1111-1111-111111111111",
   },
   mockProps: {
-    projectId: 81,
+    projectUid: "11111111-1111-1111-1111-111111111111",
   },
   buildAgentSnapshot: ({ props, domTextContent }) => ({
     displayKind: "graph",
@@ -37,7 +37,7 @@ export const mainSequenceProjectInfraGraphWidget = defineWidget<MainSequenceProj
     data: {
       widgetRole: "presentation",
       contentType: "graph",
-      projectId: props.projectId ?? null,
+      projectUid: props.projectUid ?? null,
     },
   }),
   settingsComponent: MainSequenceProjectInfraGraphWidgetSettings,
@@ -48,17 +48,17 @@ export const mainSequenceProjectInfraGraphWidget = defineWidget<MainSequenceProj
     configuration: {
       mode: "custom-settings",
       summary:
-        "Configures one project-scoped infrastructure relationship graph around a selected project id.",
+        "Configures one project-scoped infrastructure relationship graph around a selected project UID.",
       fields: [
         {
-          id: "projectId",
-          label: "Project id",
-          type: "integer",
+          id: "projectUid",
+          label: "Project UID",
+          type: "string",
           required: true,
           source: "custom-settings",
         },
       ],
-      requiredSetupSteps: ["Select the target project id to explore."],
+      requiredSetupSteps: ["Select the target project UID to explore."],
     },
     io: {
       mode: "none",

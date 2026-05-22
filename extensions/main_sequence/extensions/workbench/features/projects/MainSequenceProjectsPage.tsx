@@ -55,18 +55,17 @@ import { useProjectAgentRailStore } from "../../../../../main_sequence_ai/assist
 const defaultFormState = {
   projectName: "",
   repositoryBranch: "main",
-  dataSourceId: "",
-  defaultBaseImageId: "",
+  dataSourceUid: "",
+  defaultBaseImageUid: "",
   githubOrgId: "",
 };
 
-const mainSequenceProjectIdParam = "msProjectId";
-const legacyProjectIdParam = "projectId";
+const mainSequenceProjectUidParam = "msProjectUid";
 const mainSequenceTabParam = "msTab";
 const legacyTabParam = "tab";
-const mainSequenceJobIdParam = "msJobId";
-const mainSequenceJobRunIdParam = "msJobRunId";
-const mainSequenceResourceReleaseIdParam = "msResourceReleaseId";
+const mainSequenceJobUidParam = "msJobUid";
+const mainSequenceJobRunUidParam = "msJobRunUid";
+const mainSequenceResourceReleaseUidParam = "msResourceReleaseUid";
 const mainSequenceLocalUpdateIdParam = "msLocalUpdateUid";
 const mainSequenceLocalUpdateTabParam = "msLocalUpdateTab";
 const mainSequenceCreateReleaseIntentParam = "msCreateReleaseIntent";
@@ -129,17 +128,6 @@ const projectDetailTabs = [
 
 const defaultProjectDetailTabId = "code";
 
-function toOptionalNumber(value: string) {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return undefined;
-  }
-
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
 function projectDataSourceLabel(project: ProjectSummary) {
   if (!project.data_source?.related_resource) {
     return "No data source";
@@ -170,17 +158,16 @@ function truncateMiddle(value: string, maxLength = 56) {
   return `${head}...${tail}`;
 }
 
-function getProjectIdFromSummaryHref(href?: string) {
+function getProjectUidFromSummaryHref(href?: string) {
   if (!href) {
     return null;
   }
 
   try {
     const url = new URL(href, "https://mainsequence.local");
-    const rawProjectId = url.searchParams.get("project_id") ?? url.searchParams.get("projectId");
-    const projectId = Number(rawProjectId ?? "");
+    const projectUid = url.searchParams.get("project_uid") ?? url.searchParams.get("msProjectUid");
 
-    return Number.isFinite(projectId) && projectId > 0 ? projectId : null;
+    return projectUid?.trim() || null;
   } catch {
     return null;
   }
@@ -272,25 +259,21 @@ export function MainSequenceProjectsPage() {
   const [projectDeleteRequest, setProjectDeleteRequest] = useState<ProjectDeleteRequest | null>(null);
   const deferredFilterValue = useDeferredValue(filterValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedProjectId = Number(
-    searchParams.get(mainSequenceProjectIdParam) ?? searchParams.get(legacyProjectIdParam) ?? "",
-  );
-  const selectedJobId = Number(searchParams.get(mainSequenceJobIdParam) ?? "");
-  const selectedJobRunId = Number(searchParams.get(mainSequenceJobRunIdParam) ?? "");
-  const selectedResourceReleaseId = Number(
-    searchParams.get(mainSequenceResourceReleaseIdParam) ?? "",
-  );
+  const selectedProjectUid = searchParams.get(mainSequenceProjectUidParam)?.trim() || null;
+  const selectedJobUid = searchParams.get(mainSequenceJobUidParam)?.trim() || null;
+  const selectedJobRunUid = searchParams.get(mainSequenceJobRunUidParam)?.trim() || null;
+  const selectedResourceReleaseUid =
+    searchParams.get(mainSequenceResourceReleaseUidParam)?.trim() || null;
   const selectedLocalUpdateId = searchParams.get(mainSequenceLocalUpdateIdParam)?.trim() || null;
   const selectedLocalUpdateTabId = searchParams.get(mainSequenceLocalUpdateTabParam);
   const activeTabId =
     searchParams.get(mainSequenceTabParam) ??
     searchParams.get(legacyTabParam) ??
     defaultProjectDetailTabId;
-  const isProjectDetailOpen = Number.isFinite(selectedProjectId) && selectedProjectId > 0;
-  const isJobDetailOpen = Number.isFinite(selectedJobId) && selectedJobId > 0;
-  const isJobRunDetailOpen = Number.isFinite(selectedJobRunId) && selectedJobRunId > 0;
-  const isResourceReleaseDetailOpen =
-    Number.isFinite(selectedResourceReleaseId) && selectedResourceReleaseId > 0;
+  const isProjectDetailOpen = Boolean(selectedProjectUid);
+  const isJobDetailOpen = Boolean(selectedJobUid);
+  const isJobRunDetailOpen = Boolean(selectedJobRunUid);
+  const isResourceReleaseDetailOpen = Boolean(selectedResourceReleaseUid);
   const isLocalUpdateDetailOpen = Boolean(selectedLocalUpdateId);
   const activeTab =
     projectDetailTabs.find((tab) => tab.id === (isLocalUpdateDetailOpen ? "data-node-updates" : activeTabId)) ??
@@ -310,8 +293,8 @@ export function MainSequenceProjectsPage() {
   });
 
   const projectSummaryQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "summary", selectedProjectId],
-    queryFn: () => fetchProjectSummary(selectedProjectId),
+    queryKey: ["main_sequence", "projects", "summary", selectedProjectUid],
+    queryFn: () => fetchProjectSummary(selectedProjectUid ?? ""),
     enabled: isProjectDetailOpen,
   });
 
@@ -336,10 +319,11 @@ export function MainSequenceProjectsPage() {
         .join(" · ");
 
       return {
-        value: String(option.id),
+        value: option.uid,
         label,
         description,
         keywords: [
+          option.uid,
           label,
           option.related_resource?.display_name ?? "",
           option.related_resource?.name ?? "",
@@ -353,10 +337,10 @@ export function MainSequenceProjectsPage() {
   const projectBaseImageOptions: PickerOption[] = (
     formOptionsQuery.data?.projectBaseImages ?? []
   ).map((option) => ({
-    value: String(option.id),
+    value: option.uid,
     label: option.title,
     description: option.description || option.latest_digest,
-    keywords: [option.title, option.description, option.latest_digest],
+    keywords: [option.uid, option.title, option.description, option.latest_digest],
   })) satisfies PickerOption[];
 
   useEffect(() => {
@@ -368,36 +352,36 @@ export function MainSequenceProjectsPage() {
       return;
     }
 
-    const firstDataSourceId = dataSourceOptions[0]?.value;
-    const firstBaseImageId = projectBaseImageOptions[0]?.value;
+    const firstDataSourceUid = dataSourceOptions[0]?.value;
+    const firstBaseImageUid = projectBaseImageOptions[0]?.value;
 
-    if (!firstDataSourceId && !firstBaseImageId) {
+    if (!firstDataSourceUid && !firstBaseImageUid) {
       return;
     }
 
     setFormState((current) => {
       const hasSelectedDataSource = dataSourceOptions.some(
-        (option) => option.value === current.dataSourceId,
+        (option) => option.value === current.dataSourceUid,
       );
       const hasSelectedBaseImage = projectBaseImageOptions.some(
-        (option) => option.value === current.defaultBaseImageId,
+        (option) => option.value === current.defaultBaseImageUid,
       );
-      const nextDataSourceId = hasSelectedDataSource ? current.dataSourceId : firstDataSourceId;
-      const nextDefaultBaseImageId = hasSelectedBaseImage
-        ? current.defaultBaseImageId
-        : (firstBaseImageId ?? "");
+      const nextDataSourceUid = hasSelectedDataSource ? current.dataSourceUid : firstDataSourceUid;
+      const nextDefaultBaseImageUid = hasSelectedBaseImage
+        ? current.defaultBaseImageUid
+        : (firstBaseImageUid ?? "");
 
       if (
-        nextDataSourceId === current.dataSourceId &&
-        nextDefaultBaseImageId === current.defaultBaseImageId
+        nextDataSourceUid === current.dataSourceUid &&
+        nextDefaultBaseImageUid === current.defaultBaseImageUid
       ) {
         return current;
       }
 
       return {
         ...current,
-        dataSourceId: nextDataSourceId,
-        defaultBaseImageId: nextDefaultBaseImageId,
+        dataSourceUid: nextDataSourceUid,
+        defaultBaseImageUid: nextDefaultBaseImageUid,
       };
     });
   }, [
@@ -441,7 +425,7 @@ export function MainSequenceProjectsPage() {
 
       return [
         project.project_name,
-        String(project.id),
+        project.uid,
         project.git_ssh_url ?? "",
         projectDataSourceLabel(project),
       ]
@@ -450,11 +434,11 @@ export function MainSequenceProjectsPage() {
         .includes(needle);
     });
   }, [deferredFilterValue, projectsQuery.data?.results]);
-  const projectSelection = useRegistrySelection(filteredProjects);
+  const projectSelection = useRegistrySelection(filteredProjects, (project) => project.uid);
   const deleteProjectMutation = useMutation({
     mutationFn: async ({ deleteRepositories, projects }: ProjectDeleteRequest) =>
       bulkDeleteProjects(
-        projects.map((project) => project.id),
+        projects.map((project) => project.uid),
         { deleteRepositories },
       ),
     onSuccess: async (result, request) => {
@@ -518,7 +502,7 @@ export function MainSequenceProjectsPage() {
         ]
       : [];
   const selectedProjectSummary = (projectsQuery.data?.results ?? []).find(
-    (project) => project.id === selectedProjectId,
+    (project) => project.uid === selectedProjectUid,
   );
   const projectHeaderBase = projectSummaryQuery.data ?? (selectedProjectSummary
     ? buildFallbackProjectSummary(selectedProjectSummary)
@@ -528,8 +512,8 @@ export function MainSequenceProjectsPage() {
     selectedProjectSummary,
   );
   const projectAgentServiceQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "project-agent", "service", selectedProjectId],
-    queryFn: () => fetchProjectExecutorAgentServiceByProject(selectedProjectId),
+    queryKey: ["main_sequence", "projects", "project-agent", "service", selectedProjectUid],
+    queryFn: () => fetchProjectExecutorAgentServiceByProject(selectedProjectUid ?? ""),
     enabled: isProjectDetailOpen,
     staleTime: 60_000,
   });
@@ -537,7 +521,7 @@ export function MainSequenceProjectsPage() {
   const projectTitle =
     projectHeader?.entity.title ??
     selectedProjectSummary?.project_name ??
-    (selectedProjectId > 0 ? `Project ${selectedProjectId}` : "Project");
+    (selectedProjectUid ? `Project ${selectedProjectUid}` : "Project");
   const rawProjectAgentId = projectAgentServiceQuery.data?.agent_id;
   const showProjectAgentLauncher = Boolean(projectAgentServiceQuery.data?.id);
   const readyProjectAgentId =
@@ -566,7 +550,7 @@ export function MainSequenceProjectsPage() {
     event.preventDefault();
     createProjectMutation.reset();
 
-    if (!formState.dataSourceId.trim()) {
+    if (!formState.dataSourceUid.trim()) {
       toast({
         variant: "error",
         title: "Data source required",
@@ -575,7 +559,7 @@ export function MainSequenceProjectsPage() {
       return;
     }
 
-    if (!formState.defaultBaseImageId.trim()) {
+    if (!formState.defaultBaseImageUid.trim()) {
       toast({
         variant: "error",
         title: "Base image required",
@@ -587,9 +571,9 @@ export function MainSequenceProjectsPage() {
     await createProjectMutation.mutateAsync({
       project_name: formState.projectName.trim(),
       repository_branch: formState.repositoryBranch.trim() || "main",
-      data_source_id: toOptionalNumber(formState.dataSourceId),
-      default_base_image_id: toOptionalNumber(formState.defaultBaseImageId),
-      github_org_id: toOptionalNumber(formState.githubOrgId),
+      data_source: formState.dataSourceUid.trim(),
+      default_base_image: formState.defaultBaseImageUid.trim(),
+      github_org_id: formState.githubOrgId.trim() ? Number(formState.githubOrgId) : undefined,
     });
   };
 
@@ -610,48 +594,47 @@ export function MainSequenceProjectsPage() {
     );
   }
 
-  function openProjectDetail(projectId: number) {
+  function openProjectDetail(projectUid: string) {
     navigateWithProjectSearch((nextParams) => {
-      nextParams.delete(legacyProjectIdParam);
       nextParams.delete(legacyTabParam);
-      nextParams.delete(mainSequenceJobIdParam);
-      nextParams.delete(mainSequenceJobRunIdParam);
-      nextParams.delete(mainSequenceResourceReleaseIdParam);
+      nextParams.delete(mainSequenceJobUidParam);
+      nextParams.delete(mainSequenceJobRunUidParam);
+      nextParams.delete(mainSequenceResourceReleaseUidParam);
       nextParams.delete(mainSequenceLocalUpdateIdParam);
       nextParams.delete(mainSequenceLocalUpdateTabParam);
-      nextParams.set(mainSequenceProjectIdParam, String(projectId));
+      nextParams.set(mainSequenceProjectUidParam, projectUid);
       nextParams.set(mainSequenceTabParam, defaultProjectDetailTabId);
     });
   }
 
   function closeProjectDetail() {
     navigateWithProjectSearch((nextParams) => {
-      nextParams.delete(mainSequenceProjectIdParam);
+      nextParams.delete(mainSequenceProjectUidParam);
       nextParams.delete(mainSequenceTabParam);
-      nextParams.delete(mainSequenceJobIdParam);
-      nextParams.delete(mainSequenceJobRunIdParam);
-      nextParams.delete(mainSequenceResourceReleaseIdParam);
+      nextParams.delete(mainSequenceJobUidParam);
+      nextParams.delete(mainSequenceJobRunUidParam);
+      nextParams.delete(mainSequenceResourceReleaseUidParam);
       nextParams.delete(mainSequenceLocalUpdateIdParam);
       nextParams.delete(mainSequenceLocalUpdateTabParam);
-      nextParams.delete(legacyProjectIdParam);
       nextParams.delete(legacyTabParam);
     });
   }
 
   function selectProjectDetailTab(tabId: (typeof projectDetailTabs)[number]["id"]) {
     navigateWithProjectSearch((nextParams) => {
-      nextParams.delete(legacyProjectIdParam);
       nextParams.delete(legacyTabParam);
-      nextParams.set(mainSequenceProjectIdParam, String(selectedProjectId));
+      if (selectedProjectUid) {
+        nextParams.set(mainSequenceProjectUidParam, selectedProjectUid);
+      }
       nextParams.set(mainSequenceTabParam, tabId);
 
       if (tabId !== "jobs") {
-        nextParams.delete(mainSequenceJobIdParam);
-        nextParams.delete(mainSequenceJobRunIdParam);
+        nextParams.delete(mainSequenceJobUidParam);
+        nextParams.delete(mainSequenceJobRunUidParam);
       }
 
       if (tabId !== "resource-releases") {
-        nextParams.delete(mainSequenceResourceReleaseIdParam);
+        nextParams.delete(mainSequenceResourceReleaseUidParam);
         nextParams.delete(mainSequenceCreateReleaseIntentParam);
       }
 
@@ -662,15 +645,16 @@ export function MainSequenceProjectsPage() {
     });
   }
 
-  function openJobDetail(jobId: number) {
+  function openJobDetail(jobUid: string) {
     navigateWithProjectSearch((nextParams) => {
-      nextParams.delete(legacyProjectIdParam);
       nextParams.delete(legacyTabParam);
-      nextParams.set(mainSequenceProjectIdParam, String(selectedProjectId));
+      if (selectedProjectUid) {
+        nextParams.set(mainSequenceProjectUidParam, selectedProjectUid);
+      }
       nextParams.set(mainSequenceTabParam, "jobs");
-      nextParams.set(mainSequenceJobIdParam, String(jobId));
-      nextParams.delete(mainSequenceJobRunIdParam);
-      nextParams.delete(mainSequenceResourceReleaseIdParam);
+      nextParams.set(mainSequenceJobUidParam, jobUid);
+      nextParams.delete(mainSequenceJobRunUidParam);
+      nextParams.delete(mainSequenceResourceReleaseUidParam);
       nextParams.delete(mainSequenceLocalUpdateIdParam);
       nextParams.delete(mainSequenceLocalUpdateTabParam);
     });
@@ -678,20 +662,23 @@ export function MainSequenceProjectsPage() {
 
   function closeJobDetail() {
     navigateWithProjectSearch((nextParams) => {
-      nextParams.delete(mainSequenceJobIdParam);
-      nextParams.delete(mainSequenceJobRunIdParam);
+      nextParams.delete(mainSequenceJobUidParam);
+      nextParams.delete(mainSequenceJobRunUidParam);
     });
   }
 
-  function openJobRunDetail(jobRunId: number) {
+  function openJobRunDetail(jobRunUid: string) {
     navigateWithProjectSearch((nextParams) => {
-      nextParams.delete(legacyProjectIdParam);
       nextParams.delete(legacyTabParam);
-      nextParams.set(mainSequenceProjectIdParam, String(selectedProjectId));
+      if (selectedProjectUid) {
+        nextParams.set(mainSequenceProjectUidParam, selectedProjectUid);
+      }
       nextParams.set(mainSequenceTabParam, "jobs");
-      nextParams.set(mainSequenceJobIdParam, String(selectedJobId));
-      nextParams.set(mainSequenceJobRunIdParam, String(jobRunId));
-      nextParams.delete(mainSequenceResourceReleaseIdParam);
+      if (selectedJobUid) {
+        nextParams.set(mainSequenceJobUidParam, selectedJobUid);
+      }
+      nextParams.set(mainSequenceJobRunUidParam, jobRunUid);
+      nextParams.delete(mainSequenceResourceReleaseUidParam);
       nextParams.delete(mainSequenceLocalUpdateIdParam);
       nextParams.delete(mainSequenceLocalUpdateTabParam);
     });
@@ -699,19 +686,20 @@ export function MainSequenceProjectsPage() {
 
   function closeJobRunDetail() {
     navigateWithProjectSearch((nextParams) => {
-      nextParams.delete(mainSequenceJobRunIdParam);
+      nextParams.delete(mainSequenceJobRunUidParam);
     });
   }
 
-  function openResourceReleaseDetail(resourceReleaseId: number) {
+  function openResourceReleaseDetail(resourceReleaseUid: string) {
     navigateWithProjectSearch((nextParams) => {
-      nextParams.delete(legacyProjectIdParam);
       nextParams.delete(legacyTabParam);
-      nextParams.set(mainSequenceProjectIdParam, String(selectedProjectId));
+      if (selectedProjectUid) {
+        nextParams.set(mainSequenceProjectUidParam, selectedProjectUid);
+      }
       nextParams.set(mainSequenceTabParam, "resource-releases");
-      nextParams.delete(mainSequenceJobIdParam);
-      nextParams.delete(mainSequenceJobRunIdParam);
-      nextParams.set(mainSequenceResourceReleaseIdParam, String(resourceReleaseId));
+      nextParams.delete(mainSequenceJobUidParam);
+      nextParams.delete(mainSequenceJobRunUidParam);
+      nextParams.set(mainSequenceResourceReleaseUidParam, resourceReleaseUid);
       nextParams.delete(mainSequenceCreateReleaseIntentParam);
       nextParams.delete(mainSequenceLocalUpdateIdParam);
       nextParams.delete(mainSequenceLocalUpdateTabParam);
@@ -720,7 +708,7 @@ export function MainSequenceProjectsPage() {
 
   function closeResourceReleaseDetail() {
     navigateWithProjectSearch((nextParams) => {
-      nextParams.delete(mainSequenceResourceReleaseIdParam);
+      nextParams.delete(mainSequenceResourceReleaseUidParam);
     });
   }
 
@@ -732,13 +720,14 @@ export function MainSequenceProjectsPage() {
 
   function openProjectLocalUpdateDetail(localUpdateId: string) {
     navigateWithProjectSearch((nextParams) => {
-      nextParams.delete(legacyProjectIdParam);
       nextParams.delete(legacyTabParam);
-      nextParams.set(mainSequenceProjectIdParam, String(selectedProjectId));
+      if (selectedProjectUid) {
+        nextParams.set(mainSequenceProjectUidParam, selectedProjectUid);
+      }
       nextParams.set(mainSequenceTabParam, "data-node-updates");
-      nextParams.delete(mainSequenceJobIdParam);
-      nextParams.delete(mainSequenceJobRunIdParam);
-      nextParams.delete(mainSequenceResourceReleaseIdParam);
+      nextParams.delete(mainSequenceJobUidParam);
+      nextParams.delete(mainSequenceJobRunUidParam);
+      nextParams.delete(mainSequenceResourceReleaseUidParam);
       nextParams.set(mainSequenceLocalUpdateIdParam, String(localUpdateId));
       nextParams.delete(mainSequenceLocalUpdateTabParam);
     });
@@ -844,7 +833,7 @@ export function MainSequenceProjectsPage() {
                     <Button
                       size="sm"
                       onClick={() => {
-                        navigate(`/app/main_sequence_ai/project-agents?msProjectId=${selectedProjectId}`);
+                        navigate(`/app/main_sequence_ai/project-agents?msProjectUid=${selectedProjectUid}`);
                       }}
                     >
                       Configure project agent
@@ -852,15 +841,15 @@ export function MainSequenceProjectsPage() {
                   ) : null
                 }
                 onFieldLinkClick={(field) => {
-                  const linkedProjectId = getProjectIdFromSummaryHref(field.href);
+                  const linkedProjectUid = getProjectUidFromSummaryHref(field.href);
 
-                  if (linkedProjectId) {
-                    openProjectDetail(linkedProjectId);
+                  if (linkedProjectUid) {
+                    openProjectDetail(linkedProjectUid);
                   }
                 }}
                 onSummaryUpdated={async () => {
                   await queryClient.invalidateQueries({
-                    queryKey: ["main_sequence", "projects", "summary", selectedProjectId],
+                    queryKey: ["main_sequence", "projects", "summary", selectedProjectUid],
                   });
                   await queryClient.invalidateQueries({
                     queryKey: ["main_sequence", "projects", "list"],
@@ -888,64 +877,64 @@ export function MainSequenceProjectsPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-5">
-                  {activeTab.id === "code" && selectedProjectId > 0 ? (
+                  {activeTab.id === "code" && selectedProjectUid ? (
                     <MainSequenceProjectCodeTab
-                      projectId={selectedProjectId}
+                      projectUid={selectedProjectUid}
                       onJobCreated={() => selectProjectDetailTab("jobs")}
                     />
-                  ) : activeTab.id === "infra-graph" && selectedProjectId > 0 ? (
-                    <MainSequenceProjectInfraGraphTab projectId={selectedProjectId} />
-                  ) : activeTab.id === "jobs" && selectedProjectId > 0 ? (
+                  ) : activeTab.id === "infra-graph" && selectedProjectUid ? (
+                    <MainSequenceProjectInfraGraphTab projectUid={selectedProjectUid} />
+                  ) : activeTab.id === "jobs" && selectedProjectUid ? (
                     <MainSequenceProjectJobsTab
                       onCloseJobDetail={closeJobDetail}
                       onCloseJobRunDetail={closeJobRunDetail}
                       onOpenProjectDetail={openProjectDetail}
                       onOpenJobDetail={openJobDetail}
                       onOpenJobRunDetail={openJobRunDetail}
-                      projectId={selectedProjectId}
+                      projectUid={selectedProjectUid}
                       projectTitle={projectTitle}
-                      selectedJobId={isJobDetailOpen ? selectedJobId : null}
-                      selectedJobRunId={isJobRunDetailOpen ? selectedJobRunId : null}
+                      selectedJobUid={isJobDetailOpen ? selectedJobUid : null}
+                      selectedJobRunUid={isJobRunDetailOpen ? selectedJobRunUid : null}
                     />
-                  ) : activeTab.id === "images" && selectedProjectId > 0 ? (
-                    <MainSequenceProjectImagesTab projectId={selectedProjectId} />
-                  ) : activeTab.id === "resource-releases" && selectedProjectId > 0 ? (
+                  ) : activeTab.id === "images" && selectedProjectUid ? (
+                    <MainSequenceProjectImagesTab projectUid={selectedProjectUid} />
+                  ) : activeTab.id === "resource-releases" && selectedProjectUid ? (
                     <MainSequenceProjectResourceReleasesTab
                       onConsumeCreateReleaseIntent={clearPendingCreateReleaseKind}
                       onCloseResourceReleaseDetail={closeResourceReleaseDetail}
                       onOpenJobDetail={openJobDetail}
                       onOpenProjectDetail={openProjectDetail}
                       onOpenResourceReleaseDetail={openResourceReleaseDetail}
-                      projectId={selectedProjectId}
+                      projectUid={selectedProjectUid}
                       requestedCreateReleaseIntent={
                         searchParams.get(mainSequenceCreateReleaseIntentParam) === "project-agent"
                           ? "project-agent"
                           : null
                       }
-                      selectedResourceReleaseId={
-                        isResourceReleaseDetailOpen ? selectedResourceReleaseId : null
+                      selectedResourceReleaseUid={
+                        isResourceReleaseDetailOpen ? selectedResourceReleaseUid : null
                       }
                     />
-                  ) : activeTab.id === "data-node-updates" && selectedProjectId > 0 ? (
+                  ) : activeTab.id === "data-node-updates" && selectedProjectUid ? (
                     <MainSequenceProjectDataNodeUpdatesTab
                       onCloseLocalUpdateDetail={closeProjectLocalUpdateDetail}
                       onOpenDataNodeDetail={openDataNodeDetailFromProject}
                       onOpenLocalUpdateDetail={openProjectLocalUpdateDetail}
                       onSelectLocalUpdateTab={selectProjectLocalUpdateTab}
-                      projectId={selectedProjectId}
+                      projectUid={selectedProjectUid}
                       selectedLocalUpdateId={isLocalUpdateDetailOpen ? selectedLocalUpdateId : null}
                       selectedLocalUpdateTabId={selectedLocalUpdateTabId}
                     />
-                  ) : activeTab.id === "settings" && selectedProjectId > 0 ? (
+                  ) : activeTab.id === "settings" && selectedProjectUid ? (
                     <MainSequenceProjectSettingsTab
-                      key={selectedProjectId}
-                      projectId={selectedProjectId}
+                      key={selectedProjectUid}
+                      projectUid={selectedProjectUid}
                       projectSummary={projectHeader}
                     />
-                  ) : activeTab.id === "permissions" && selectedProjectId > 0 ? (
+                  ) : activeTab.id === "permissions" && selectedProjectUid ? (
                     <MainSequencePermissionsTab
                       objectUrl="projects"
-                      objectId={selectedProjectId}
+                      objectId={selectedProjectUid}
                       entityLabel="Project"
                       enabled={activeTab.id === "permissions"}
                     />
@@ -1000,7 +989,7 @@ export function MainSequenceProjectsPage() {
                       renderSelectionSummary={(selectionCount) => `${selectionCount} projects selected`}
                       value={filterValue}
                       onChange={(event) => setFilterValue(event.target.value)}
-                      placeholder="Filter by name, id, git url, or data source"
+                      placeholder="Filter by name, uid, git url, or data source"
                       selectionCount={projectSelection.selectedCount}
                     />
                   </div>
@@ -1057,7 +1046,7 @@ export function MainSequenceProjectsPage() {
                         </thead>
                         <tbody>
                           {filteredProjects.map((project) => {
-                            const selected = projectSelection.isSelected(project.id);
+                            const selected = projectSelection.isSelected(project.uid);
 
                             return (
                               <tr key={project.id}>
@@ -1065,14 +1054,14 @@ export function MainSequenceProjectsPage() {
                                   <MainSequenceSelectionCheckbox
                                     ariaLabel={`Select ${project.project_name}`}
                                     checked={selected}
-                                    onChange={() => projectSelection.toggleSelection(project.id)}
+                                    onChange={() => projectSelection.toggleSelection(project.uid)}
                                   />
                                 </td>
                                 <td className={getRegistryTableCellClassName(selected)}>
                                   <button
                                     type="button"
                                     className="group inline-flex cursor-pointer items-center gap-1.5 rounded-sm text-left outline-none transition-colors hover:text-primary focus-visible:text-primary"
-                                    onClick={() => openProjectDetail(project.id)}
+                                    onClick={() => openProjectDetail(project.uid)}
                                     title={`Open ${project.project_name}`}
                                   >
                                     <span className="font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors group-hover:decoration-primary group-focus-visible:decoration-primary">
@@ -1203,12 +1192,12 @@ export function MainSequenceProjectsPage() {
                     Data source
                   </label>
                   <PickerField
-                    value={formState.dataSourceId}
+                    value={formState.dataSourceUid}
                     onChange={(value) => {
                       createProjectMutation.reset();
                       setFormState((current) => ({
                         ...current,
-                        dataSourceId: value,
+                        dataSourceUid: value,
                       }));
                     }}
                     options={dataSourceOptions}
@@ -1230,12 +1219,12 @@ export function MainSequenceProjectsPage() {
                     Default base image
                   </label>
                   <PickerField
-                    value={formState.defaultBaseImageId}
+                    value={formState.defaultBaseImageUid}
                     onChange={(value) => {
                       createProjectMutation.reset();
                       setFormState((current) => ({
                         ...current,
-                        defaultBaseImageId: value,
+                        defaultBaseImageUid: value,
                       }));
                     }}
                     options={projectBaseImageOptions}
@@ -1308,8 +1297,8 @@ export function MainSequenceProjectsPage() {
                   createProjectMutation.isPending ||
                   formOptionsQuery.isLoading ||
                   !formState.projectName.trim() ||
-                  !formState.dataSourceId.trim() ||
-                  !formState.defaultBaseImageId.trim()
+                  !formState.dataSourceUid.trim() ||
+                  !formState.defaultBaseImageUid.trim()
                 }
                 type="submit"
               >

@@ -16,8 +16,10 @@ describe("data node summary engine decoration", () => {
       resolveDataNodeEngineClassType({
         data_source: {
           id: 1,
+          uid: "data-source-1",
           related_resource: {
-            id: 2,
+            id: "physical-source-2",
+            uid: "physical-source-2",
             organization: 1,
             class_type: "postgresql",
             status: "AVAILABLE",
@@ -33,8 +35,10 @@ describe("data node summary engine decoration", () => {
       resolveDataNodeEngineClassType({
         data_source: {
           id: 1,
+          uid: "data-source-1",
           related_resource: {
-            id: 2,
+            id: "physical-source-2",
+            uid: "physical-source-2",
             organization: 1,
             class_type: "postgresql",
             status: "AVAILABLE",
@@ -73,8 +77,10 @@ describe("data node summary engine decoration", () => {
     const dataNodeDetail = {
       data_source: {
         id: 1,
+        uid: "data-source-1",
         related_resource: {
-          id: 2,
+          id: "physical-source-2",
+          uid: "physical-source-2",
           organization: 1,
           class_type: "timescale_db_remote",
           status: "AVAILABLE",
@@ -115,8 +121,10 @@ describe("data node summary engine decoration", () => {
     const decorated = decorateDataNodeSummaryWithEngineIcon(summary, {
       data_source: {
         id: 1,
+        uid: "data-source-1",
         related_resource: {
-          id: 2,
+          id: "physical-source-2",
+          uid: "physical-source-2",
           organization: 1,
           class_type: "duck_db",
           status: "AVAILABLE",
@@ -137,8 +145,10 @@ describe("data node summary engine decoration", () => {
         {
           data_source: {
             id: 1,
+            uid: "data-source-1",
             related_resource: {
-              id: 2,
+              id: "physical-source-2",
+              uid: "physical-source-2",
               organization: 1,
               class_type: "duck_db",
               status: "AVAILABLE",

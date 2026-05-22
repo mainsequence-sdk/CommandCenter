@@ -9,7 +9,8 @@
     "status_label": "Healthy",
     "status_tone": "success",
     "creation_date": "2026-01-05T09:00:00Z",
-    "creation_date_display": "Jan 5, 2026"
+    "creation_date_display": "Jan 5, 2026",
+    "uid": "mock-physical-data-source-701"
   },
   {
     "id": 702,
@@ -21,7 +22,8 @@
     "status_label": "Healthy",
     "status_tone": "success",
     "creation_date": "2026-01-11T10:00:00Z",
-    "creation_date_display": "Jan 11, 2026"
+    "creation_date_display": "Jan 11, 2026",
+    "uid": "mock-physical-data-source-702"
   },
   {
     "id": 703,
@@ -33,6 +35,7 @@
     "status_label": "Healthy",
     "status_tone": "success",
     "creation_date": "2026-01-18T11:00:00Z",
-    "creation_date_display": "Jan 18, 2026"
+    "creation_date_display": "Jan 18, 2026",
+    "uid": "mock-physical-data-source-703"
   }
 ]

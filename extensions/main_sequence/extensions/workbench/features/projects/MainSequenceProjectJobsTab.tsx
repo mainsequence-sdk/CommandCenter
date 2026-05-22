@@ -101,20 +101,20 @@ export function MainSequenceProjectJobsTab({
   onOpenProjectDetail,
   onOpenJobDetail,
   onOpenJobRunDetail,
-  projectId,
+  projectUid,
   projectTitle,
-  selectedJobId,
-  selectedJobRunId,
+  selectedJobUid,
+  selectedJobRunUid,
 }: {
   onCloseJobDetail: () => void;
   onCloseJobRunDetail: () => void;
-  onOpenProjectDetail: (projectId: number) => void;
-  onOpenJobDetail: (jobId: number) => void;
-  onOpenJobRunDetail: (jobRunId: number) => void;
-  projectId: number;
+  onOpenProjectDetail: (projectUid: string) => void;
+  onOpenJobDetail: (jobUid: string) => void;
+  onOpenJobRunDetail: (jobRunUid: string) => void;
+  projectUid: string;
   projectTitle: string;
-  selectedJobId: number | null;
-  selectedJobRunId: number | null;
+  selectedJobUid: string | null;
+  selectedJobRunUid: string | null;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -125,24 +125,24 @@ export function MainSequenceProjectJobsTab({
   const deferredFilterValue = useDeferredValue(filterValue);
 
   const jobsQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "jobs", projectId, jobsPageIndex],
+    queryKey: ["main_sequence", "projects", "jobs", projectUid, jobsPageIndex],
     queryFn: () =>
-      listProjectJobs(projectId, {
+      listProjectJobs(projectUid, {
         limit: mainSequenceRegistryPageSize,
         offset: jobsPageIndex * mainSequenceRegistryPageSize,
       }),
-    enabled: projectId > 0,
+    enabled: Boolean(projectUid),
   });
 
   const selectedJobFromList = useMemo(
-    () => (jobsQuery.data?.results ?? []).find((job) => job.id === selectedJobId) ?? null,
-    [jobsQuery.data?.results, selectedJobId],
+    () => (jobsQuery.data?.results ?? []).find((job) => job.uid === selectedJobUid) ?? null,
+    [jobsQuery.data?.results, selectedJobUid],
   );
 
   const jobDetailQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "jobs", "detail", projectId, selectedJobId],
-    queryFn: () => fetchJob(selectedJobId ?? 0),
-    enabled: projectId > 0 && Boolean(selectedJobId),
+    queryKey: ["main_sequence", "projects", "jobs", "detail", projectUid, selectedJobUid],
+    queryFn: () => fetchJob(selectedJobUid ?? ""),
+    enabled: Boolean(projectUid && selectedJobUid),
   });
 
   useEffect(() => {
@@ -151,7 +151,7 @@ export function MainSequenceProjectJobsTab({
 
   useEffect(() => {
     setRunCommandValue("");
-  }, [selectedJobId]);
+  }, [selectedJobUid]);
 
   useEffect(() => {
     const totalPages = Math.max(
@@ -174,7 +174,7 @@ export function MainSequenceProjectJobsTab({
 
       return [
         job.name,
-        String(job.id),
+        job.uid,
         job.execution_path ?? "",
         job.app_name ?? "",
         job.cpu_request ?? "",
@@ -188,7 +188,7 @@ export function MainSequenceProjectJobsTab({
         .includes(needle);
     });
   }, [deferredFilterValue, jobsQuery.data?.results]);
-  const jobSelection = useRegistrySelection(filteredJobs);
+  const jobSelection = useRegistrySelection(filteredJobs, (job) => job.uid);
   const jobBulkActions =
     jobSelection.selectedCount > 0
       ? [
@@ -207,15 +207,15 @@ export function MainSequenceProjectJobsTab({
       : [];
 
   const deleteJobMutation = useMutation({
-    mutationFn: async (jobs: JobRecord[]) => bulkDeleteJobs(jobs.map((job) => job.id)),
+    mutationFn: async (jobs: JobRecord[]) => bulkDeleteJobs(jobs.map((job) => job.uid)),
     onSuccess: async (result, jobs) => {
       const deletedCount = result.deleted_count ?? jobs.length;
       setJobsPendingDelete([]);
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "jobs", projectId],
+        queryKey: ["main_sequence", "projects", "jobs", projectUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "summary", projectId],
+        queryKey: ["main_sequence", "projects", "summary", projectUid],
       });
 
       if (deletedCount > 0) {
@@ -242,28 +242,28 @@ export function MainSequenceProjectJobsTab({
   const runJobMutation = useMutation({
     mutationFn: async ({
       commandArgs,
-      jobId,
+      jobUid,
     }: {
       commandArgs: string[];
-      jobId: number;
-    }) => runJob(jobId, { commandArgs }),
-    onSuccess: async (_, { commandArgs, jobId }) => {
+      jobUid: string;
+    }) => runJob(jobUid, { commandArgs }),
+    onSuccess: async (_, { commandArgs, jobUid }) => {
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "jobs", "detail", projectId, jobId],
+        queryKey: ["main_sequence", "projects", "jobs", "detail", projectUid, jobUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "jobs", projectId],
+        queryKey: ["main_sequence", "projects", "jobs", projectUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "jobs", "runs", jobId],
+        queryKey: ["main_sequence", "jobs", "runs", jobUid],
       });
 
       toast({
         title: "Job started",
         description:
-          commandArgs.length > 0
-            ? `Triggered ${selectedJob?.name ?? `Job ${jobId}`} with ${commandArgs.length} command args.`
-            : `Triggered ${selectedJob?.name ?? `Job ${jobId}`}.`,
+            commandArgs.length > 0
+            ? `Triggered ${selectedJob?.name ?? `Job ${jobUid}`} with ${commandArgs.length} command args.`
+            : `Triggered ${selectedJob?.name ?? `Job ${jobUid}`}.`,
       });
     },
     onError: (error) => {
@@ -281,9 +281,9 @@ export function MainSequenceProjectJobsTab({
   const jobTitle =
     selectedJob?.name ??
     selectedJobFromList?.name ??
-    (selectedJobId ? `Job ${selectedJobId}` : "Job");
+    (selectedJobUid ? `Job ${selectedJobUid}` : "Job");
 
-  if (selectedJobId) {
+  if (selectedJobUid) {
     return (
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
@@ -303,13 +303,13 @@ export function MainSequenceProjectJobsTab({
             onSubmit={(event) => {
               event.preventDefault();
 
-              if (!selectedJobId || runJobMutation.isPending) {
+              if (!selectedJobUid || runJobMutation.isPending) {
                 return;
               }
 
               void runJobMutation.mutateAsync({
                 commandArgs: parseCommandArgs(runCommandValue),
-                jobId: selectedJobId,
+                jobUid: selectedJobUid,
               });
             }}
           >
@@ -363,27 +363,27 @@ export function MainSequenceProjectJobsTab({
               summary={jobSummary}
               onSummaryUpdated={async () => {
                 await queryClient.invalidateQueries({
-                  queryKey: ["main_sequence", "projects", "jobs", "detail", projectId, selectedJobId],
+                  queryKey: ["main_sequence", "projects", "jobs", "detail", projectUid, selectedJobUid],
                 });
                 await queryClient.invalidateQueries({
-                  queryKey: ["main_sequence", "projects", "jobs", projectId],
+                  queryKey: ["main_sequence", "projects", "jobs", projectUid],
                 });
                 await queryClient.invalidateQueries({
-                  queryKey: ["main_sequence", "projects", "summary", projectId],
+                  queryKey: ["main_sequence", "projects", "summary", projectUid],
                 });
               }}
             />
 
             <Card>
               <CardContent className="pt-5">
-                {selectedJobId ? (
+                {selectedJobUid ? (
                   <MainSequenceJobRunsTab
-                    jobId={selectedJobId}
+                    jobUid={selectedJobUid}
                     onCloseJobRunDetail={onCloseJobRunDetail}
                     onOpenProjectDetail={onOpenProjectDetail}
                     onOpenJobDetail={onOpenJobDetail}
                     onOpenJobRunDetail={onOpenJobRunDetail}
-                    selectedJobRunId={selectedJobRunId}
+                    selectedJobRunUid={selectedJobRunUid}
                   />
                 ) : null}
               </CardContent>
@@ -468,15 +468,15 @@ export function MainSequenceProjectJobsTab({
             </thead>
             <tbody>
               {filteredJobs.map((job) => {
-                const selected = jobSelection.isSelected(job.id);
+                const selected = jobSelection.isSelected(job.uid);
 
                 return (
-                  <tr key={job.id}>
+                  <tr key={job.uid}>
                     <td className={getRegistryTableCellClassName(selected, "left")}>
                       <MainSequenceSelectionCheckbox
                         ariaLabel={`Select ${job.name}`}
                         checked={selected}
-                        onChange={() => jobSelection.toggleSelection(job.id)}
+                        onChange={() => jobSelection.toggleSelection(job.uid)}
                       />
                     </td>
                     <td className={getRegistryTableCellClassName(selected)}>
@@ -484,7 +484,7 @@ export function MainSequenceProjectJobsTab({
                         <button
                           type="button"
                           className="group inline-flex cursor-pointer items-center gap-1.5 rounded-sm text-left outline-none transition-colors hover:text-primary focus-visible:text-primary"
-                          onClick={() => onOpenJobDetail(job.id)}
+                          onClick={() => onOpenJobDetail(job.uid)}
                           title={`Open ${job.name}`}
                         >
                           <span className="font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors group-hover:decoration-primary group-focus-visible:decoration-primary">
@@ -492,7 +492,7 @@ export function MainSequenceProjectJobsTab({
                           </span>
                           <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary" />
                         </button>
-                        <div className="mt-1 text-xs text-muted-foreground">ID {job.id}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">UID {job.uid}</div>
                       </div>
                     </td>
                     <td className={getRegistryTableCellClassName(selected)}>
@@ -587,7 +587,7 @@ export function MainSequenceProjectJobsTab({
             <>
               <div className="font-medium">{jobsPendingDelete[0]?.name}</div>
               <div className="mt-1 text-muted-foreground">
-                {jobsPendingDelete[0] ? `Job ID ${jobsPendingDelete[0].id}` : null}
+                {jobsPendingDelete[0] ? `Job UID ${jobsPendingDelete[0].uid}` : null}
               </div>
             </>
           ) : (

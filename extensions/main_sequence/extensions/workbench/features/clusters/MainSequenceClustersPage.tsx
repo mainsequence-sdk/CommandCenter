@@ -48,8 +48,8 @@ export function MainSequenceClustersPage() {
     }
   }, [clustersQuery.data?.pagination.total_pages, pageIndex]);
 
-  function openClusterDetail(clusterId: number) {
-    navigate(`/clusters/${clusterId}`);
+  function openClusterDetail(clusterUid: string) {
+    navigate(`/clusters/${encodeURIComponent(clusterUid)}`);
   }
 
   return (
@@ -67,7 +67,7 @@ export function MainSequenceClustersPage() {
             <div>
               <CardTitle>Cluster registry</CardTitle>
               <CardDescription>
-                Load cluster rows from the pods cluster registry and route to the numeric-id cluster detail page.
+                Load cluster rows from the pods cluster registry and route to the UID cluster detail page.
               </CardDescription>
             </div>
             <MainSequenceRegistrySearch
@@ -127,12 +127,12 @@ export function MainSequenceClustersPage() {
                 </thead>
                 <tbody>
                   {pageRows.map((row) => (
-                    <tr key={row.id}>
+                    <tr key={row.uuid}>
                       <td className={getRegistryTableCellClassName(false, "left")}>
                         <button
                           type="button"
                           className="group inline-flex items-center gap-1.5 rounded-sm text-left font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
-                          onClick={() => openClusterDetail(row.id)}
+                          onClick={() => openClusterDetail(row.uuid)}
                         >
                           <span>{row.cluster_name || `Cluster ${row.id}`}</span>
                           <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
@@ -142,7 +142,7 @@ export function MainSequenceClustersPage() {
                         <button
                           type="button"
                           className="block text-left font-mono text-xs text-muted-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
-                          onClick={() => openClusterDetail(row.id)}
+	                          onClick={() => openClusterDetail(row.uuid)}
                         >
                           {row.uuid}
                         </button>

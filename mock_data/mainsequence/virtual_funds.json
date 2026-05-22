@@ -5,7 +5,9 @@
     "target_portfolio_id": 901,
     "target_portfolio_name": "Rates Carry Sleeve",
     "account_id": 5001,
-    "account_name": "Alpha Rates Book"
+    "account_name": "Alpha Rates Book",
+    "target_portfolio_uid": "mock-target-portfolio-901",
+    "account_uid": "mock-managed-account-5001"
   },
   {
     "uid": "virtual-fund-macro-rotation-sleeve",
@@ -13,7 +15,9 @@
     "target_portfolio_id": 902,
     "target_portfolio_name": "Macro Rotation Sleeve",
     "account_id": 5002,
-    "account_name": "Macro Overlay Book"
+    "account_name": "Macro Overlay Book",
+    "target_portfolio_uid": "mock-target-portfolio-902",
+    "account_uid": "mock-managed-account-5002"
   },
   {
     "uid": "virtual-fund-energy-tactical-sleeve",
@@ -21,6 +25,8 @@
     "target_portfolio_id": 903,
     "target_portfolio_name": "Energy Tactical Sleeve",
     "account_id": 5003,
-    "account_name": "Commodities Overlay"
+    "account_name": "Commodities Overlay",
+    "target_portfolio_uid": "mock-target-portfolio-903",
+    "account_uid": "mock-managed-account-5003"
   }
 ]

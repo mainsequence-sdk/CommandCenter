@@ -39,12 +39,6 @@ import {
   type AssetCategoryEditorValues,
 } from "./assetCategoryShared";
 
-function readPositiveInt(value: string | null | undefined) {
-  const parsed = Number(value ?? "");
-
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
 export function MainSequenceAssetCategoryDetailPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -56,7 +50,7 @@ export function MainSequenceAssetCategoryDetailPage() {
   const [nestedAssetSearchValue, setNestedAssetSearchValue] = useState("");
   const [nestedAssetsPageIndex, setNestedAssetsPageIndex] = useState(0);
 
-  const categoryId = readPositiveInt(params.categoryId);
+  const categoryUid = params.categoryUid?.trim() ?? "";
   const deferredNestedAssetSearchValue = useDeferredValue(nestedAssetSearchValue);
   const backPath =
     ((location.state as { from?: string } | null)?.from || "").trim() ||
@@ -64,13 +58,13 @@ export function MainSequenceAssetCategoryDetailPage() {
   const nestedAssetsPageSize = mainSequenceRegistryPageSize;
 
   const categoryDetailQuery = useQuery({
-    queryKey: ["main_sequence", "asset_categories", "detail", categoryId],
-    queryFn: () => fetchAssetCategoryDetail(categoryId as number),
-    enabled: categoryId !== null,
+    queryKey: ["main_sequence", "asset_categories", "detail", categoryUid],
+    queryFn: () => fetchAssetCategoryDetail(categoryUid),
+    enabled: Boolean(categoryUid),
   });
 
   const nestedAssetFilters = useMemo(() => {
-    if (categoryId === null) {
+    if (!categoryUid) {
       return null;
     }
 
@@ -78,10 +72,10 @@ export function MainSequenceAssetCategoryDetailPage() {
       search: deferredNestedAssetSearchValue,
       limit: nestedAssetsPageSize,
       offset: nestedAssetsPageIndex * nestedAssetsPageSize,
-      categoryId,
+      categoryUid,
     };
   }, [
-    categoryId,
+    categoryUid,
     deferredNestedAssetSearchValue,
     nestedAssetsPageIndex,
     nestedAssetsPageSize,
@@ -98,7 +92,7 @@ export function MainSequenceAssetCategoryDetailPage() {
   useEffect(() => {
     setNestedAssetSearchValue("");
     setNestedAssetsPageIndex(0);
-  }, [categoryId]);
+  }, [categoryUid]);
 
   useEffect(() => {
     setNestedAssetsPageIndex(0);
@@ -114,7 +108,7 @@ export function MainSequenceAssetCategoryDetailPage() {
 
   const updateCategoryMutation = useMutation({
     mutationFn: (values: AssetCategoryEditorValues) =>
-      updateAssetCategory(categoryId as number, buildUpdatePayload(values)),
+      updateAssetCategory(categoryUid, buildUpdatePayload(values)),
     onSuccess: async (category) => {
       await Promise.all([
         queryClient.invalidateQueries({
@@ -167,7 +161,7 @@ export function MainSequenceAssetCategoryDetailPage() {
   }
 
   function submitUpdate(values: AssetCategoryEditorValues) {
-    if (categoryId === null) {
+    if (!categoryUid) {
       return;
     }
 
@@ -182,13 +176,13 @@ export function MainSequenceAssetCategoryDetailPage() {
     }
   }
 
-  if (categoryId === null) {
+  if (!categoryUid) {
     return (
       <div className="space-y-6">
         <PageHeader
           eyebrow="Main Sequence Markets"
           title="Asset Category"
-          description="The requested category id is invalid."
+          description="The requested category uid is invalid."
           actions={
             <Button type="button" variant="outline" onClick={() => navigate(backPath)}>
               <ArrowLeft className="h-4 w-4" />
@@ -203,7 +197,7 @@ export function MainSequenceAssetCategoryDetailPage() {
   const categoryTitle =
     categoryDetailQuery.data?.title?.trim() ||
     categoryDetailQuery.data?.selected_category.text?.trim() ||
-    `Asset Category ${categoryId}`;
+    `Asset Category ${categoryUid}`;
   const categorySubtitle = categoryDetailQuery.data?.selected_category.sub_text || "";
 
   return (
@@ -295,7 +289,7 @@ export function MainSequenceAssetCategoryDetailPage() {
                 <div>
                   <CardTitle>Assets in category</CardTitle>
                   <CardDescription>
-                    This uses the asset list endpoint with `categories__id` from the current
+                    This uses the asset list endpoint with `categories__uid` from the current
                     category route.
                   </CardDescription>
                 </div>
@@ -434,7 +428,7 @@ export function MainSequenceAssetCategoryDetailPage() {
             objectLabel="category"
             objectSummary={selectedCategoryRow ? buildCategoryDeleteSummary([selectedCategoryRow]) : null}
             onClose={() => setDeleteDialogOpen(false)}
-            onConfirm={() => deleteAssetCategory(categoryId)}
+            onConfirm={() => deleteAssetCategory(categoryUid)}
             onSuccess={handleDeleteSuccess}
             open={deleteDialogOpen}
             title="Delete category"

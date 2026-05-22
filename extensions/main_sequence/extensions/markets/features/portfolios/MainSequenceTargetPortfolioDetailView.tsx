@@ -196,26 +196,26 @@ function buildFallbackPortfolioSummary(
 export function MainSequenceTargetPortfolioDetailView({
   initialPortfolio,
   onBack,
-  portfolioId,
+  portfolioUid,
   onSelectTab,
   selectedTabId,
 }: {
   initialPortfolio: TargetPortfolioListRow | null;
   onBack: () => void;
   onSelectTab: (tabId: TargetPortfolioDetailTabId) => void;
-  portfolioId: number;
+  portfolioUid: string;
   selectedTabId: TargetPortfolioDetailTabId;
 }) {
   const navigate = useNavigate();
   const fallbackSummary = useMemo(
-    () => buildFallbackPortfolioSummary(portfolioId, initialPortfolio),
-    [initialPortfolio, portfolioId],
+    () => buildFallbackPortfolioSummary(initialPortfolio?.id ?? 0, initialPortfolio),
+    [initialPortfolio],
   );
 
   const portfolioSummaryQuery = useQuery({
-    queryKey: ["main_sequence", "target_portfolios", "summary", portfolioId],
-    queryFn: () => fetchTargetPortfolioSummary(portfolioId),
-    enabled: portfolioId > 0,
+    queryKey: ["main_sequence", "target_portfolios", "summary", portfolioUid],
+    queryFn: () => fetchTargetPortfolioSummary(portfolioUid),
+    enabled: Boolean(portfolioUid),
   });
 
   const summary = useMemo(() => {
@@ -227,9 +227,9 @@ export function MainSequenceTargetPortfolioDetailView({
     [portfolioSummaryQuery.data],
   );
   const weightsDetailsQuery = useQuery({
-    queryKey: ["main_sequence", "target_portfolios", "weights_position_details", portfolioId],
-    queryFn: () => fetchTargetPositionDetailPositionDetails(portfolioId),
-    enabled: portfolioId > 0 && selectedTabId === "weights",
+    queryKey: ["main_sequence", "target_portfolios", "weights_position_details", portfolioUid],
+    queryFn: () => fetchTargetPositionDetailPositionDetails(portfolioUid),
+    enabled: Boolean(portfolioUid) && selectedTabId === "weights",
   });
   const weightRows = weightsDetailsQuery.data?.rows ?? [];
   const weightSummaryRows = useMemo(
@@ -246,7 +246,7 @@ export function MainSequenceTargetPortfolioDetailView({
   const portfolioTitle =
     summary?.entity.title?.trim() ||
     getPortfolioName(initialPortfolio) ||
-    `Portfolio ${portfolioId}`;
+    `Portfolio ${portfolioUid}`;
 
   return (
     <div className="space-y-6">

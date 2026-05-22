@@ -28,11 +28,11 @@ export interface PositionDetailInlineRow extends Record<string, unknown> {
 }
 
 export interface PositionDetailWidgetProps extends Record<string, unknown> {
-  portfolioId?: number;
+  portfolioUid?: string;
   accountUid?: string;
   holdingsDate?: string;
   targetPositionsDate?: string;
-  targetPortfolioId?: number;
+  targetPortfolioUid?: string;
   variant?: "summary" | "positions";
   tableMinWidth?: number;
   editableInPlace?: boolean;
@@ -45,7 +45,7 @@ export interface PositionDetailWidgetProps extends Record<string, unknown> {
 export interface PositionDetailWidgetRuntimeState extends Record<string, unknown> {
   status?: "idle" | "loading" | "success" | "error";
   error?: string;
-  targetPortfolioId?: number;
+  targetPortfolioUid?: string;
   accountUid?: string;
   variant?: "summary" | "positions";
   payload?: TargetPositionDetailPositionDetailsResponse;
@@ -387,14 +387,10 @@ export function normalizePositionDetailDataMode(
   return normalizePositionDetailSourceType(props) === "portfolio" ? "portfolio" : "inline";
 }
 
-export function normalizePositionDetailTargetId(
-  props: Pick<PositionDetailWidgetProps, "portfolioId" | "targetPortfolioId">,
+export function normalizePositionDetailTargetUid(
+  props: Pick<PositionDetailWidgetProps, "portfolioUid" | "targetPortfolioUid">,
 ) {
-  const parsed = Number(props.portfolioId ?? props.targetPortfolioId ?? "");
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return 0;
-  }
-  return Math.trunc(parsed);
+  return readString(props.portfolioUid ?? props.targetPortfolioUid) ?? "";
 }
 
 export function normalizePositionDetailAccountUid(
@@ -427,10 +423,7 @@ export function normalizePositionDetailRuntimeState(
         ? value.status
         : "idle",
     error: typeof value.error === "string" && value.error.trim() ? value.error : undefined,
-    targetPortfolioId:
-      typeof value.targetPortfolioId === "number" && Number.isFinite(value.targetPortfolioId)
-        ? Math.trunc(value.targetPortfolioId)
-        : undefined,
+    targetPortfolioUid: readString(value.targetPortfolioUid),
     accountUid: readString(value.accountUid),
     variant: normalizePositionDetailVariant(value.variant),
     payload: normalizePositionDetailPayload(value.payload),

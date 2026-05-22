@@ -53,12 +53,6 @@ type RuleEditorState = {
   rule: AssetTranslationTableRuleListRow | null;
 };
 
-function readPositiveInt(value: string | null | undefined) {
-  const parsed = Number(value ?? "");
-
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
 function readDeleteDetail(result: unknown, fallback: string) {
   if (result && typeof result === "object" && "detail" in result) {
     const detail = (result as { detail?: unknown }).detail;
@@ -86,16 +80,16 @@ export function MainSequenceAssetTranslationTableDetailPage() {
   const [rulesSearchValue, setRulesSearchValue] = useState("");
   const [rulesPageIndex, setRulesPageIndex] = useState(0);
 
-  const tableId = readPositiveInt(params.tableId);
+  const tableUid = params.tableUid?.trim() ?? "";
   const deferredRulesSearchValue = useDeferredValue(rulesSearchValue);
   const backPath =
     ((location.state as { from?: string } | null)?.from || "").trim() ||
     getAssetTranslationTablesListPath();
 
   const tableDetailQuery = useQuery({
-    queryKey: ["main_sequence", "asset_translation_tables", "detail", tableId],
-    queryFn: () => fetchAssetTranslationTableDetail(tableId as number),
-    enabled: tableId !== null,
+    queryKey: ["main_sequence", "asset_translation_tables", "detail", tableUid],
+    queryFn: () => fetchAssetTranslationTableDetail(tableUid),
+    enabled: Boolean(tableUid),
   });
 
   const rulesFilters = useMemo(
@@ -109,9 +103,9 @@ export function MainSequenceAssetTranslationTableDetailPage() {
   );
 
   const rulesQuery = useQuery({
-    queryKey: ["main_sequence", "asset_translation_tables", "rules", tableId, rulesFilters],
-    queryFn: () => listAssetTranslationTableRules(tableId as number, rulesFilters),
-    enabled: tableId !== null,
+    queryKey: ["main_sequence", "asset_translation_tables", "rules", tableUid, rulesFilters],
+    queryFn: () => listAssetTranslationTableRules(tableUid, rulesFilters),
+    enabled: Boolean(tableUid),
   });
 
   const rulesRows = rulesQuery.data?.rows ?? [];
@@ -124,7 +118,7 @@ export function MainSequenceAssetTranslationTableDetailPage() {
   useEffect(() => {
     setRulesSearchValue("");
     setRulesPageIndex(0);
-  }, [tableId]);
+  }, [tableUid]);
 
   useEffect(() => {
     setRulesPageIndex(0);
@@ -138,7 +132,7 @@ export function MainSequenceAssetTranslationTableDetailPage() {
 
   const renameTableMutation = useMutation({
     mutationFn: (values: AssetTranslationTableEditorValues) =>
-      updateAssetTranslationTable(tableId as number, buildAssetTranslationTableUpdatePayload(values)),
+      updateAssetTranslationTable(tableUid, buildAssetTranslationTableUpdatePayload(values)),
     onSuccess: async (table) => {
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "asset_translation_tables"],
@@ -164,7 +158,7 @@ export function MainSequenceAssetTranslationTableDetailPage() {
   const createRuleMutation = useMutation({
     mutationFn: (values: AssetTranslationTableRuleEditorValues) =>
       createAssetTranslationTableRule(
-        tableId as number,
+        tableUid,
         buildAssetTranslationTableRulePayload(values),
       ),
     onSuccess: async (rule) => {
@@ -191,15 +185,15 @@ export function MainSequenceAssetTranslationTableDetailPage() {
 
   const updateRuleMutation = useMutation({
     mutationFn: ({
-      ruleId,
+      ruleUid,
       values,
     }: {
-      ruleId: number;
+      ruleUid: string;
       values: AssetTranslationTableRuleEditorValues;
     }) =>
       updateAssetTranslationTableRule(
-        tableId as number,
-        ruleId,
+        tableUid,
+        ruleUid,
         buildAssetTranslationTableRulePayload(values),
       ),
     onSuccess: async (rule) => {
@@ -229,7 +223,7 @@ export function MainSequenceAssetTranslationTableDetailPage() {
     : null;
 
   function submitRename(values: AssetTranslationTableEditorValues) {
-    if (tableId === null) {
+    if (!tableUid) {
       return;
     }
 
@@ -245,7 +239,7 @@ export function MainSequenceAssetTranslationTableDetailPage() {
   }
 
   function submitRule(values: AssetTranslationTableRuleEditorValues) {
-    if (tableId === null || !ruleEditorState) {
+    if (!tableUid || !ruleEditorState) {
       return;
     }
 
@@ -256,11 +250,11 @@ export function MainSequenceAssetTranslationTableDetailPage() {
       }
 
       if (!ruleEditorState.rule) {
-        throw new Error("Rule id is missing.");
+        throw new Error("Rule uid is missing.");
       }
 
       updateRuleMutation.mutate({
-        ruleId: ruleEditorState.rule.id,
+        ruleUid: ruleEditorState.rule.uid,
         values,
       });
     } catch (error) {
@@ -288,13 +282,13 @@ export function MainSequenceAssetTranslationTableDetailPage() {
     setRuleDeleteTarget(null);
   }
 
-  if (tableId === null) {
+  if (!tableUid) {
     return (
       <div className="space-y-6">
         <PageHeader
           eyebrow="Main Sequence Markets"
           title="Asset Translation Table"
-          description="The requested translation table id is invalid."
+          description="The requested translation table uid is invalid."
           actions={
             <Button type="button" variant="outline" onClick={() => navigate(backPath)}>
               <ArrowLeft className="h-4 w-4" />
@@ -309,7 +303,7 @@ export function MainSequenceAssetTranslationTableDetailPage() {
   const tableTitle =
     tableDetailQuery.data?.selected_table.text?.trim() ||
     tableDetailQuery.data?.title?.trim() ||
-    `Translation Table ${tableId}`;
+    `Translation Table ${tableUid}`;
   const tableSubtitle =
     tableDetailQuery.data?.selected_table.sub_text?.trim() ||
     `${readTranslationTableDetailString(tableDetailQuery.data ?? null, "rules_number") || "0"} rules`;
@@ -593,7 +587,7 @@ export function MainSequenceAssetTranslationTableDetailPage() {
               selectedTableRow ? buildAssetTranslationTableDeleteSummary([selectedTableRow]) : null
             }
             onClose={() => setDeleteDialogOpen(false)}
-            onConfirm={() => deleteAssetTranslationTable(tableId)}
+            onConfirm={() => deleteAssetTranslationTable(tableUid)}
             onSuccess={handleDeleteTableSuccess}
             open={deleteDialogOpen}
             successToast={{
@@ -619,7 +613,7 @@ export function MainSequenceAssetTranslationTableDetailPage() {
             objectSummary={buildAssetTranslationTableRuleDeleteSummary(ruleDeleteTarget)}
             onClose={() => setRuleDeleteTarget(null)}
             onConfirm={() =>
-              deleteAssetTranslationTableRule(tableId, ruleDeleteTarget?.id as number)
+              deleteAssetTranslationTableRule(tableUid, ruleDeleteTarget?.uid ?? "")
             }
             onSuccess={handleDeleteRuleSuccess}
             open={ruleDeleteTarget !== null}

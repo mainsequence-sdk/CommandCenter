@@ -7,10 +7,12 @@
       "id": 701,
       "label": "Warehouse Lakehouse",
       "class_type": "timescale_db",
-      "status": "healthy"
+      "status": "healthy",
+      "uid": "mock-physical-data-source-701"
     },
     "creation_date": "2026-01-05T09:00:00Z",
-    "creation_date_display": "Jan 5, 2026"
+    "creation_date_display": "Jan 5, 2026",
+    "uid": "mock-project-data-source-301"
   },
   {
     "id": 302,
@@ -20,10 +22,12 @@
       "id": 702,
       "label": "Macro Research Store",
       "class_type": "duck_db",
-      "status": "healthy"
+      "status": "healthy",
+      "uid": "mock-physical-data-source-702"
     },
     "creation_date": "2026-01-11T10:00:00Z",
-    "creation_date_display": "Jan 11, 2026"
+    "creation_date_display": "Jan 11, 2026",
+    "uid": "mock-project-data-source-302"
   },
   {
     "id": 303,
@@ -33,9 +37,11 @@
       "id": 703,
       "label": "Operations Event Store",
       "class_type": "timescale_db_remote",
-      "status": "healthy"
+      "status": "healthy",
+      "uid": "mock-physical-data-source-703"
     },
     "creation_date": "2026-01-18T11:00:00Z",
-    "creation_date_display": "Jan 18, 2026"
+    "creation_date_display": "Jan 18, 2026",
+    "uid": "mock-project-data-source-303"
   }
 ]

@@ -34,7 +34,7 @@ type DetailFieldDefinition = {
 };
 
 const detailFieldDefinitions: DetailFieldDefinition[] = [
-  { key: "id", label: "Service ID", monospace: true },
+  { key: "uid", label: "Service UID", monospace: true },
   { key: "release_name", label: "Release Name", monospace: true },
   { key: "namespace", label: "Namespace", monospace: true },
   { key: "load_balancer_ip", label: "Load Balancer IP" },
@@ -119,7 +119,7 @@ function renderDetailValue(value: unknown, { monospace = false }: { monospace?: 
 }
 
 function getServiceTitle(
-  serviceId: number,
+  serviceUid: string,
   {
     initialService,
     detail,
@@ -134,7 +134,7 @@ function getServiceTitle(
     summaryTitle?.trim() ||
     detail?.release_name?.trim() ||
     initialService?.release_name?.trim() ||
-    `TimeScaleDB Service ${serviceId}`
+    `TimeScaleDB Service ${serviceUid}`
   );
 }
 
@@ -198,7 +198,7 @@ function getDatabaseColumnKeys(rows: PhysicalDataSourceListRow[]) {
 function renderDatabaseCellValue(
   row: PhysicalDataSourceListRow,
   key: string,
-  onOpenPhysicalDataSourceDetail: (physicalDataSourceId: number) => void,
+  onOpenPhysicalDataSourceDetail: (physicalDataSourceUid: string) => void,
 ) {
   const value = row[key];
 
@@ -207,7 +207,7 @@ function renderDatabaseCellValue(
       <button
         type="button"
         className="group inline-flex items-center gap-1.5 rounded-sm text-left font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
-        onClick={() => onOpenPhysicalDataSourceDetail(row.id)}
+        onClick={() => onOpenPhysicalDataSourceDetail(row.uid)}
       >
         <span>{typeof value === "string" && value.trim() ? value.trim() : `Physical Data Source ${row.id}`}</span>
         <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
@@ -283,44 +283,44 @@ export function MainSequenceTimeScaleDbServiceDetail({
   initialService,
   onBack,
   onSelectTab,
-  serviceId,
+  serviceUid,
 }: {
   activeTabId: TimeScaleDbServiceDetailTabId;
   initialService: TimeScaleDBServiceRecord | null;
   onBack: () => void;
   onSelectTab: (tabId: TimeScaleDbServiceDetailTabId) => void;
-  serviceId: number;
+  serviceUid: string;
 }) {
   const navigate = useNavigate();
   const [databaseSearchValue, setDatabaseSearchValue] = useState("");
   const [databasesPageIndex, setDatabasesPageIndex] = useState(0);
   const deferredDatabaseSearchValue = useDeferredValue(databaseSearchValue);
   const summaryQuery = useQuery({
-    queryKey: ["main_sequence", "timescaledb_services", "summary", serviceId],
-    queryFn: () => fetchTimeScaleDBServiceSummary(serviceId),
-    enabled: serviceId > 0,
+    queryKey: ["main_sequence", "timescaledb_services", "summary", serviceUid],
+    queryFn: () => fetchTimeScaleDBServiceSummary(serviceUid),
+    enabled: Boolean(serviceUid),
   });
   const detailQuery = useQuery({
-    queryKey: ["main_sequence", "timescaledb_services", "detail", serviceId],
-    queryFn: () => fetchTimeScaleDBServiceDetail(serviceId),
-    enabled: serviceId > 0,
+    queryKey: ["main_sequence", "timescaledb_services", "detail", serviceUid],
+    queryFn: () => fetchTimeScaleDBServiceDetail(serviceUid),
+    enabled: Boolean(serviceUid),
   });
   const databasesQuery = useQuery({
     queryKey: [
       "main_sequence",
       "timescaledb_services",
       "data_sources",
-      serviceId,
+      serviceUid,
       databasesPageIndex,
       deferredDatabaseSearchValue.trim(),
     ],
     queryFn: () =>
-      listTimeScaleDBServiceDataSources(serviceId, {
+      listTimeScaleDBServiceDataSources(serviceUid, {
         page: databasesPageIndex + 1,
         pageSize: mainSequenceRegistryPageSize,
         search: deferredDatabaseSearchValue,
       }),
-    enabled: serviceId > 0 && activeTabId === "databases",
+    enabled: Boolean(serviceUid) && activeTabId === "databases",
   });
 
   const summary = summaryQuery.data ?? null;
@@ -331,7 +331,7 @@ export function MainSequenceTimeScaleDbServiceDetail({
     () => getDatabaseColumnKeys(databaseRows),
     [databaseRows],
   );
-  const serviceTitle = getServiceTitle(serviceId, {
+  const serviceTitle = getServiceTitle(serviceUid, {
     initialService,
     detail,
     summaryTitle: summary?.entity.title ?? null,
@@ -345,14 +345,14 @@ export function MainSequenceTimeScaleDbServiceDetail({
       databasesQuery.data?.service.release_name?.trim() ||
       detail?.release_name?.trim() ||
       initialService?.release_name?.trim() ||
-      `Service ${serviceId}`,
-    [databasesQuery.data?.service.release_name, detail?.release_name, initialService?.release_name, serviceId],
+      `Service ${serviceUid}`,
+    [databasesQuery.data?.service.release_name, detail?.release_name, initialService?.release_name, serviceUid],
   );
 
   useEffect(() => {
     setDatabaseSearchValue("");
     setDatabasesPageIndex(0);
-  }, [serviceId]);
+  }, [serviceUid]);
 
   useEffect(() => {
     setDatabasesPageIndex(0);
@@ -370,9 +370,9 @@ export function MainSequenceTimeScaleDbServiceDetail({
     }
   }, [databasesPageIndex, databasesQuery.data?.pagination.total_pages, databasesTotalItems]);
 
-  function openPhysicalDataSourceDetail(physicalDataSourceId: number) {
+  function openPhysicalDataSourceDetail(physicalDataSourceUid: string) {
     const searchParams = new URLSearchParams();
-    searchParams.set("msPhysicalDataSourceId", String(physicalDataSourceId));
+    searchParams.set("msPhysicalDataSourceUid", physicalDataSourceUid);
     navigate(`${getAppPath("main_sequence_workbench", "physical-data-sources")}?${searchParams.toString()}`);
   }
 
@@ -581,10 +581,10 @@ export function MainSequenceTimeScaleDbServiceDetail({
                   </thead>
                   <tbody>
                     {databaseRows.map((row: PhysicalDataSourceListRow) => (
-                      <tr key={row.id}>
+                      <tr key={row.uid}>
                         {databaseColumnKeys.map((key, index) => (
                           <td
-                            key={`${row.id}-${key}`}
+                            key={`${row.uid}-${key}`}
                             className={getRegistryTableCellClassName(
                               false,
                               index === 0

@@ -56,7 +56,7 @@ export interface AppComponentServiceHeader {
 }
 
 export interface AppComponentMainSequenceResourceReleaseRef {
-  releaseId: number;
+  releaseUid: string;
   label?: string;
   projectName?: string;
   releaseKind?: string;
@@ -2481,12 +2481,9 @@ export function normalizeAppComponentMainSequenceResourceRelease(
     return undefined;
   }
 
-  const rawReleaseId =
-    typeof value.releaseId === "number" ? value.releaseId : Number(value.releaseId);
-  const releaseId =
-    Number.isFinite(rawReleaseId) && rawReleaseId > 0 ? Math.trunc(rawReleaseId) : null;
+  const releaseUid = typeof value.releaseUid === "string" ? value.releaseUid.trim() : "";
 
-  if (!releaseId) {
+  if (!releaseUid) {
     return undefined;
   }
 
@@ -2495,7 +2492,7 @@ export function normalizeAppComponentMainSequenceResourceRelease(
   }
 
   return {
-    releaseId,
+    releaseUid,
     label: readOptionalString(value.label),
     projectName: readOptionalString(value.projectName),
     releaseKind: readOptionalString(value.releaseKind)?.toLowerCase(),
@@ -2991,7 +2988,7 @@ export function isAppComponentMainSequenceResourceReleaseMode(
   return (
     normalizeAppComponentApiTargetMode(props.apiTargetMode) ===
       "main-sequence-resource-release" &&
-    Boolean(props.mainSequenceResourceRelease?.releaseId)
+    Boolean(props.mainSequenceResourceRelease?.releaseUid)
   );
 }
 
@@ -3001,8 +2998,8 @@ export function isAppComponentMockJsonMode(
   return normalizeAppComponentApiTargetMode(props.apiTargetMode) === "mock-json";
 }
 
-function buildAppComponentSyntheticReleaseBaseUrl(releaseId: number) {
-  return `https://resource-release-${releaseId}.invalid`;
+function buildAppComponentSyntheticReleaseBaseUrl(releaseUid: string) {
+  return `https://resource-release-${releaseUid}.invalid`;
 }
 
 export const APP_COMPONENT_MOCK_JSON_BASE_URL = "https://mock-json.invalid";
@@ -3043,7 +3040,7 @@ export function resolveAppComponentRequestBaseUrl(
 
   if (isAppComponentMainSequenceResourceReleaseMode(props)) {
     return buildAppComponentSyntheticReleaseBaseUrl(
-      props.mainSequenceResourceRelease!.releaseId,
+      props.mainSequenceResourceRelease!.releaseUid,
     );
   }
 

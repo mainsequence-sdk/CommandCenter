@@ -52,8 +52,9 @@ function formatFundUid(value: string | null | undefined) {
   return trimmedValue ? trimmedValue : "UID unavailable";
 }
 
-function formatLinkedId(value: number | null | undefined, label: string) {
-  return Number.isFinite(value) && Number(value) > 0 ? `${label} ${value}` : `${label} not linked`;
+function formatLinkedUid(value: string | null | undefined, label: string) {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? `${label} ${trimmedValue}` : `${label} not linked`;
 }
 
 export function MainSequenceFundsPage() {
@@ -264,19 +265,19 @@ export function MainSequenceFundsPage() {
                         <div className="font-medium text-foreground">
                           {formatFundName(
                             fund.target_portfolio_name,
-                            `Portfolio ${fund.target_portfolio_id ?? "—"}`,
+                            `Portfolio ${fund.target_portfolio_uid ?? "-"}`,
                           )}
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
-                          {formatLinkedId(fund.target_portfolio_id, "Portfolio ID")}
+                          {formatLinkedUid(fund.target_portfolio_uid, "Portfolio UID")}
                         </div>
                       </td>
                       <td className={getRegistryTableCellClassName(false)}>
                         <div className="font-medium text-foreground">
-                          {formatFundName(fund.account_name, `Account ${fund.account_id ?? "—"}`)}
+                          {formatFundName(fund.account_name, `Account ${fund.account_uid ?? "-"}`)}
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
-                          {formatLinkedId(fund.account_id, "Account ID")}
+                          {formatLinkedUid(fund.account_uid, "Account UID")}
                         </div>
                       </td>
                       <td className={getRegistryTableCellClassName(false, "right")}>

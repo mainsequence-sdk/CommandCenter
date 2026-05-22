@@ -41,7 +41,7 @@ function formatProjectImageLabel(image: ProjectImageOption) {
 }
 
 function formatProjectImageTitle(image: ProjectImageOption) {
-  return image.title?.trim() || `Image ${image.id}`;
+  return image.title?.trim() || `Image ${image.uid}`;
 }
 
 function projectImageHasBuildError(image: ProjectImageOption) {
@@ -88,9 +88,9 @@ function toCommitHashPickerOption(commit: ProjectImageCommitHashOption) {
 }
 
 export function MainSequenceProjectImagesTab({
-  projectId,
+  projectUid,
 }: {
-  projectId: number;
+  projectUid: string;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -102,13 +102,13 @@ export function MainSequenceProjectImagesTab({
   const deferredFilterValue = useDeferredValue(filterValue);
 
   const imagesQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "images", projectId, imagesPageIndex],
+    queryKey: ["main_sequence", "projects", "images", projectUid, imagesPageIndex],
     queryFn: () =>
-      listProjectImages(projectId, {
+      listProjectImages(projectUid, {
         limit: mainSequenceRegistryPageSize,
         offset: imagesPageIndex * mainSequenceRegistryPageSize,
       }),
-    enabled: projectId > 0,
+    enabled: Boolean(projectUid),
     refetchInterval: (query) =>
       hasBuildingImages(query.state.data?.results) ? 60_000 : false,
     refetchIntervalInBackground: true,
@@ -138,7 +138,7 @@ export function MainSequenceProjectImagesTab({
       }
 
       return [
-        String(image.id),
+        image.uid,
         image.title ?? "",
         image.project_repo_hash ?? "",
         image.base_image?.title ?? "",
@@ -153,11 +153,11 @@ export function MainSequenceProjectImagesTab({
     });
   }, [deferredFilterValue, imagesQuery.data?.results]);
 
-  const imageSelection = useRegistrySelection(filteredImages);
+  const imageSelection = useRegistrySelection(filteredImages, (image) => image.uid);
   const commitHashesQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "images", "commit-hashes", projectId],
-    queryFn: () => fetchProjectImageCommitHashes(projectId),
-    enabled: createDialogOpen && projectId > 0,
+    queryKey: ["main_sequence", "projects", "images", "commit-hashes", projectUid],
+    queryFn: () => fetchProjectImageCommitHashes(projectUid),
+    enabled: createDialogOpen && Boolean(projectUid),
     staleTime: 300_000,
   });
 
@@ -191,13 +191,13 @@ export function MainSequenceProjectImagesTab({
     mutationFn: createProjectImage,
     onSuccess: async (image) => {
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "images", projectId],
+        queryKey: ["main_sequence", "projects", "images", projectUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "job-images", projectId],
+        queryKey: ["main_sequence", "projects", "job-images", projectUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "summary", projectId],
+        queryKey: ["main_sequence", "projects", "summary", projectUid],
       });
 
       toast({
@@ -220,18 +220,18 @@ export function MainSequenceProjectImagesTab({
 
   const deleteImageMutation = useMutation({
     mutationFn: async (images: ProjectImageOption[]) =>
-      bulkDeleteProjectImages(images.map((image) => image.id)),
+      bulkDeleteProjectImages(images.map((image) => image.uid)),
     onSuccess: async (result, images) => {
       const deletedCount = result.deleted_count ?? images.length;
       setImagesPendingDelete([]);
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "images", projectId],
+        queryKey: ["main_sequence", "projects", "images", projectUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "job-images", projectId],
+        queryKey: ["main_sequence", "projects", "job-images", projectUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "summary", projectId],
+        queryKey: ["main_sequence", "projects", "summary", projectUid],
       });
 
       if (deletedCount > 0) {
@@ -361,16 +361,16 @@ export function MainSequenceProjectImagesTab({
             </thead>
             <tbody>
               {filteredImages.map((image) => {
-                const selected = imageSelection.isSelected(image.id);
+                const selected = imageSelection.isSelected(image.uid);
                 const tags = getProjectImageTags(image);
 
                 return (
-                  <tr key={image.id}>
+                  <tr key={image.uid}>
                     <td className={getRegistryTableCellClassName(selected, "left")}>
                       <MainSequenceSelectionCheckbox
-                        ariaLabel={`Select image ${image.id}`}
+                        ariaLabel={`Select image ${image.uid}`}
                         checked={selected}
-                        onChange={() => imageSelection.toggleSelection(image.id)}
+                        onChange={() => imageSelection.toggleSelection(image.uid)}
                       />
                     </td>
                     <td className={getRegistryTableCellClassName(selected)}>
@@ -381,7 +381,7 @@ export function MainSequenceProjectImagesTab({
                             {formatProjectImageTitle(image)}
                           </div>
                           <div className="mt-1 text-xs text-muted-foreground">
-                            Image ID {image.id} · Project ID {image.related_project}
+                            Image UID {image.uid}
                           </div>
                         </div>
                       </div>
@@ -419,7 +419,7 @@ export function MainSequenceProjectImagesTab({
                         <div className="flex max-w-xs flex-wrap gap-1.5">
                           {tags.map((tag) => (
                             <Badge
-                              key={`${image.id}-${tag}`}
+                              key={`${image.uid}-${tag}`}
                               variant="neutral"
                               className="max-w-full normal-case tracking-normal"
                               title={tag}
@@ -512,7 +512,7 @@ export function MainSequenceProjectImagesTab({
             <Button
               onClick={() =>
                 createImageMutation.mutate({
-                  related_project_id: projectId,
+                  related_project: projectUid,
                   project_repo_hash: selectedCommitHash,
                 })
               }
@@ -549,7 +549,7 @@ export function MainSequenceProjectImagesTab({
         objectSummary={
           imagesPendingDelete.length === 1 ? (
             <>
-              <div className="font-medium">{`Image ${imagesPendingDelete[0]?.id}`}</div>
+              <div className="font-medium">{`Image ${imagesPendingDelete[0]?.uid}`}</div>
               <div className="mt-1 text-muted-foreground">
                 {imagesPendingDelete[0] ? formatProjectImageLabel(imagesPendingDelete[0]) : null}
               </div>
@@ -560,7 +560,7 @@ export function MainSequenceProjectImagesTab({
               <div className="mt-1 text-muted-foreground">
                 {imagesPendingDelete
                   .slice(0, 3)
-                  .map((image) => `Image ${image.id}`)
+                  .map((image) => `Image ${image.uid}`)
                   .join(", ")}
                 {imagesPendingDelete.length > 3 ? ", ..." : ""}
               </div>

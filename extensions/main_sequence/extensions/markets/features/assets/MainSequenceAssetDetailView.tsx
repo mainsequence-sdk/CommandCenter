@@ -547,13 +547,13 @@ function renderOrderFieldControl(
 }
 
 function AssetOrderDialog({
-  assetId,
+  assetUid,
   assetTitle,
   onClose,
   open,
   orderForm,
 }: {
-  assetId: number;
+  assetUid: string;
   assetTitle: string;
   onClose: () => void;
   open: boolean;
@@ -578,9 +578,9 @@ function AssetOrderDialog({
   }, [defaultOrderType, open, orderTypes]);
 
   const orderFieldsQuery = useQuery({
-    queryKey: ["main_sequence", "assets", "order_fields", assetId, selectedOrderType],
-    queryFn: () => fetchAssetOrderFormFields(assetId, selectedOrderType),
-    enabled: open && assetId > 0 && Boolean(selectedOrderType),
+    queryKey: ["main_sequence", "assets", "order_fields", assetUid, selectedOrderType],
+    queryFn: () => fetchAssetOrderFormFields(assetUid, selectedOrderType),
+    enabled: open && Boolean(assetUid) && Boolean(selectedOrderType),
   });
 
   useEffect(() => {
@@ -706,13 +706,13 @@ function AssetOrderDialog({
 
 export function MainSequenceAssetDetailView({
   activeTabId,
-  assetId,
+  assetUid,
   initialAsset,
   onBack,
   onSelectTab,
 }: {
   activeTabId: AssetDetailTabId;
-  assetId: number;
+  assetUid: string;
   initialAsset: AssetListRow | null;
   onBack: () => void;
   onSelectTab: (tabId: AssetDetailTabId) => void;
@@ -720,14 +720,14 @@ export function MainSequenceAssetDetailView({
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
 
   const assetDetailQuery = useQuery({
-    queryKey: ["main_sequence", "assets", "detail", assetId],
-    queryFn: () => fetchAssetDetail(assetId),
-    enabled: assetId > 0,
+    queryKey: ["main_sequence", "assets", "detail", assetUid],
+    queryFn: () => fetchAssetDetail(assetUid),
+    enabled: Boolean(assetUid),
   });
 
   useEffect(() => {
     setOrderDialogOpen(false);
-  }, [assetId]);
+  }, [assetUid]);
 
   const assetDetail = assetDetailQuery.data ?? null;
   const metadataRows = useMemo(() => getAssetMetadataRows(assetDetail), [assetDetail]);
@@ -804,7 +804,7 @@ export function MainSequenceAssetDetailView({
                   </CardDescription>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="neutral">{`ID ${assetId}`}</Badge>
+                  <Badge variant="neutral">{`UID ${assetUid}`}</Badge>
                   {(assetDetail.unique_identifier ?? initialAsset?.unique_identifier)?.trim() ? (
                     <Badge variant="neutral">
                       {formatAssetValue(
@@ -853,7 +853,7 @@ export function MainSequenceAssetDetailView({
           </Card>
 
           <AssetOrderDialog
-            assetId={assetId}
+            assetUid={assetUid}
             assetTitle={assetTitle}
             onClose={() => setOrderDialogOpen(false)}
             open={orderDialogOpen}

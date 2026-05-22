@@ -13,11 +13,11 @@ import { ProjectInfraGraphCanvas } from "./ProjectInfraGraphCanvas";
 import { ProjectInfraGraphInspector } from "./ProjectInfraGraphInspector";
 import type { ProjectInfraGraphRecordNode, ProjectInfraGraphScope } from "./projectInfraGraphTypes";
 
-function buildRootScope(projectId: number, commitSha?: string | null): ProjectInfraGraphScope {
+function buildRootScope(projectUid: string, commitSha?: string | null): ProjectInfraGraphScope {
   return {
     commitSha: commitSha ?? null,
     graphUrl: null,
-    key: `project:${projectId}:infra:${commitSha ?? "root"}`,
+    key: `project:${projectUid}:infra:${commitSha ?? "root"}`,
     label: "Project Infrastructure",
   };
 }
@@ -33,32 +33,32 @@ function buildDrilldownScope(node: ProjectInfraGraphRecordNode): ProjectInfraGra
 
 export function MainSequenceProjectInfraGraph({
   initialCommitSha,
-  projectId,
+  projectUid,
   variant = "page",
 }: {
   initialCommitSha?: string | null;
-  projectId: number;
+  projectUid: string;
   variant?: "page" | "widget";
 }) {
   const compact = variant === "widget";
   const [history, setHistory] = useState<ProjectInfraGraphScope[]>(() => [
-    buildRootScope(projectId, initialCommitSha),
+    buildRootScope(projectUid, initialCommitSha),
   ]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   useEffect(() => {
-    setHistory([buildRootScope(projectId, initialCommitSha)]);
+    setHistory([buildRootScope(projectUid, initialCommitSha)]);
     setSelectedNodeId(null);
-  }, [initialCommitSha, projectId]);
+  }, [initialCommitSha, projectUid]);
 
-  const currentScope = history[history.length - 1] ?? buildRootScope(projectId, initialCommitSha);
+  const currentScope = history[history.length - 1] ?? buildRootScope(projectUid, initialCommitSha);
   const graphQuery = useQuery({
     queryKey: ["main_sequence", "projects", "infra-graph", currentScope.key],
     queryFn: () =>
       currentScope.graphUrl
         ? fetchProjectInfraGraphByUrl(currentScope.graphUrl)
-        : fetchProjectInfraGraph(projectId, { commitSha: currentScope.commitSha ?? undefined }),
-    enabled: projectId > 0,
+        : fetchProjectInfraGraph(projectUid, { commitSha: currentScope.commitSha ?? undefined }),
+    enabled: Boolean(projectUid),
   });
   const selectedNode = useMemo(
     () => graphQuery.data?.nodes.find((node) => node.id === selectedNodeId) ?? null,

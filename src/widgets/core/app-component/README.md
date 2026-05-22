@@ -34,7 +34,7 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
 - `appComponentApi.ts`: target-aware OpenAPI fetch and request submission helpers, including the
   local mock transport used by explorer and mock mode.
 - `mainSequenceReleaseTransport.ts`: Main Sequence resource-release transport that exchanges the
-  selected release id for a short-lived FastAPI RPC token, then calls the public API with
+  selected release UID for a short-lived FastAPI RPC token, then calls the public API with
   `Authorization: Bearer <launch token>` plus `X-FastAPI-ID`.
 - `appComponentExecution.ts`: pure executable-widget adapter for `AppComponent`. It resolves bound
   inputs, builds the request, submits it, and returns a runtime-state patch for the shared
@@ -153,7 +153,7 @@ This widget turns an OpenAPI operation into a reusable request form that can liv
   The Main Sequence workbench uses the same AppComponent discovery/request surfaces to expose a
   developer-focused `Test API` tab for FastAPI resource releases.
 - In Main Sequence resource-release mode, AppComponent first calls
-  `/orm/api/pods/resource-release/<id>/exchange-launch/`, expects a FastAPI token launch payload,
+  `/orm/api/pods/resource-release/<uid>/exchange-launch/`, expects a FastAPI token launch payload,
   then sends the real OpenAPI and operation requests with the returned launch token plus
   `X-FastAPI-ID`. The normal session JWT is not sent to the public FastAPI in this mode.
 - In mock-json mode, AppComponent never makes a network request. It still uses the normal request

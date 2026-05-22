@@ -19,7 +19,7 @@ import { MainSequenceRegistrySearch } from "../../../../common/components/MainSe
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
 import { MainSequenceTimeScaleDbServiceDetail } from "./MainSequenceTimeScaleDbServiceDetail";
 
-const mainSequenceTimeScaleDbServiceIdParam = "msTimeScaleDbServiceId";
+const mainSequenceTimeScaleDbServiceUidParam = "msTimeScaleDbServiceUid";
 const mainSequenceTimeScaleDbServiceTabParam = "msTimeScaleDbServiceTab";
 
 const timeScaleDbServiceDetailTabs = [
@@ -59,9 +59,9 @@ export function MainSequenceTimeScaleDbServicesPage() {
   const [pageIndex, setPageIndex] = useState(0);
   const deferredSearchValue = useDeferredValue(searchValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const activeServiceId = Number(searchParams.get(mainSequenceTimeScaleDbServiceIdParam) ?? "");
+  const activeServiceUid = searchParams.get(mainSequenceTimeScaleDbServiceUidParam)?.trim() ?? "";
   const requestedTabId = searchParams.get(mainSequenceTimeScaleDbServiceTabParam);
-  const isDetailOpen = Number.isFinite(activeServiceId) && activeServiceId > 0;
+  const isDetailOpen = activeServiceUid.length > 0;
   const activeTabId: TimeScaleDbServiceDetailTabId = isTimeScaleDbServiceDetailTabId(requestedTabId)
     ? requestedTabId
     : "details";
@@ -78,8 +78,8 @@ export function MainSequenceTimeScaleDbServicesPage() {
 
   const pageRows = servicesQuery.data?.results ?? [];
   const selectedServiceFromList = useMemo(
-    () => pageRows.find((service) => service.id === activeServiceId) ?? null,
-    [activeServiceId, pageRows],
+    () => pageRows.find((service) => service.uid === activeServiceUid) ?? null,
+    [activeServiceUid, pageRows],
   );
   const totalItems = servicesQuery.data?.count ?? 0;
 
@@ -109,16 +109,16 @@ export function MainSequenceTimeScaleDbServicesPage() {
     );
   }
 
-  function openServiceDetail(serviceId: number) {
+  function openServiceDetail(serviceUid: string) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceTimeScaleDbServiceIdParam, String(serviceId));
+      nextParams.set(mainSequenceTimeScaleDbServiceUidParam, serviceUid);
       nextParams.set(mainSequenceTimeScaleDbServiceTabParam, "details");
     });
   }
 
   function closeServiceDetail() {
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceTimeScaleDbServiceIdParam);
+      nextParams.delete(mainSequenceTimeScaleDbServiceUidParam);
       nextParams.delete(mainSequenceTimeScaleDbServiceTabParam);
     });
   }
@@ -136,7 +136,7 @@ export function MainSequenceTimeScaleDbServicesPage() {
         initialService={selectedServiceFromList}
         onBack={closeServiceDetail}
         onSelectTab={selectDetailTab}
-        serviceId={activeServiceId}
+        serviceUid={activeServiceUid}
       />
     );
   }
@@ -146,7 +146,7 @@ export function MainSequenceTimeScaleDbServicesPage() {
       <PageHeader
         eyebrow="Main Sequence"
         title="TimeScaleDB Services"
-        description="Browse deployment services by release name, namespace, or numeric id."
+        description="Browse deployment services by release name, namespace, or UID."
         actions={<Badge variant="neutral">{`${totalItems} services`}</Badge>}
       />
 
@@ -163,7 +163,7 @@ export function MainSequenceTimeScaleDbServicesPage() {
               accessory={<Badge variant="neutral">{`${totalItems} rows`}</Badge>}
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
-              placeholder="Search by release name, namespace, or id"
+              placeholder="Search by release name, namespace, or uid"
               searchClassName="max-w-lg"
             />
           </div>
@@ -220,12 +220,12 @@ export function MainSequenceTimeScaleDbServicesPage() {
                 </thead>
                 <tbody>
                   {pageRows.map((service) => (
-                    <tr key={service.id}>
+                    <tr key={service.uid}>
                       <td className={getRegistryTableCellClassName(false, "left")}>
                         <button
                           type="button"
                           className="group inline-flex items-center gap-1.5 rounded-sm text-left font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
-                          onClick={() => openServiceDetail(service.id)}
+                          onClick={() => openServiceDetail(service.uid)}
                         >
                           <span>{service.release_name?.trim() || `Service ${service.id}`}</span>
                           <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />

@@ -35,7 +35,7 @@ type PortfolioDeleteIntent =
   | { mode: "selection"; portfolios: TargetPortfolioListRow[] }
   | { mode: "filtered" };
 
-const mainSequenceTargetPortfolioIdParam = "msTargetPortfolioId";
+const mainSequenceTargetPortfolioUidParam = "msTargetPortfolioUid";
 const mainSequenceTargetPortfolioTabParam = "msTargetPortfolioTab";
 
 function readPositiveInt(value: string | null) {
@@ -146,23 +146,23 @@ function formatCreationDate(value: unknown) {
   return formatPortfolioValue(value, "creation_date");
 }
 
-function getPortfolioIndexAssetId(row: TargetPortfolioListRow) {
+function getPortfolioIndexAssetUid(row: TargetPortfolioListRow) {
   const nestedAsset = getPortfolioIndexAsset(row);
-  const directId = nestedAsset?.id;
+  const directUid = nestedAsset?.uid;
 
-  if (typeof directId === "number" && Number.isFinite(directId) && directId > 0) {
-    return directId;
+  if (typeof directUid === "string" && directUid.trim()) {
+    return directUid.trim();
   }
 
-  const snapshotId = nestedAsset?.current_snapshot?.id;
-  return typeof snapshotId === "number" && Number.isFinite(snapshotId) && snapshotId > 0
-    ? snapshotId
+  const snapshotUid = nestedAsset?.current_snapshot?.uid;
+  return typeof snapshotUid === "string" && snapshotUid.trim()
+    ? snapshotUid.trim()
     : null;
 }
 
-function getAssetDetailPath(assetId: number) {
+function getAssetDetailPath(assetUid: string) {
   const searchParams = new URLSearchParams({
-    msAssetId: String(assetId),
+    msAssetUid: assetUid,
   });
 
   return `${getAppPath("main_sequence_markets", "assets")}?${searchParams.toString()}`;
@@ -205,12 +205,12 @@ function buildPortfolioDeleteSummary(portfolios: TargetPortfolioListRow[]) {
   return (
     <div className="space-y-2">
       {preview.map((portfolio) => (
-        <div key={portfolio.id} className="flex items-start justify-between gap-3">
+        <div key={portfolio.uid} className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate font-medium text-foreground">{getPortfolioName(portfolio)}</div>
             <div className="truncate text-xs text-muted-foreground">{`Index ticker ${getPortfolioIndexTicker(portfolio)}`}</div>
           </div>
-          <Badge variant="neutral">{`ID ${portfolio.id}`}</Badge>
+          <Badge variant="neutral">{`UID ${portfolio.uid}`}</Badge>
         </div>
       ))}
       {portfolios.length > preview.length ? (
@@ -251,7 +251,7 @@ export function MainSequenceTargetPortfoliosPage() {
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
   const searchValue = searchParams.get("search") ?? "";
-  const selectedPortfolioId = Number(searchParams.get(mainSequenceTargetPortfolioIdParam) ?? "");
+  const selectedPortfolioUid = searchParams.get(mainSequenceTargetPortfolioUidParam)?.trim() ?? "";
   const requestedPortfolioTabId = searchParams.get(mainSequenceTargetPortfolioTabParam);
   const pageSize = mainSequenceRegistryPageSize;
   const offsetParam = readPositiveInt(searchParams.get("offset"));
@@ -260,7 +260,7 @@ export function MainSequenceTargetPortfoliosPage() {
   const pageIndex = Math.max(0, page - 1);
   const limit = pageSize;
   const offset = offsetParam ?? Math.max(0, pageIndex * pageSize);
-  const isPortfolioDetailOpen = Number.isFinite(selectedPortfolioId) && selectedPortfolioId > 0;
+  const isPortfolioDetailOpen = selectedPortfolioUid.length > 0;
   const selectedPortfolioTabId = isTargetPortfolioDetailTabId(requestedPortfolioTabId)
     ? requestedPortfolioTabId
     : defaultTargetPortfolioDetailTabId;
@@ -293,12 +293,12 @@ export function MainSequenceTargetPortfoliosPage() {
 
   const pageRows = portfoliosQuery.data?.results ?? [];
   const selectedPortfolioFromList = useMemo(
-    () => pageRows.find((portfolio) => portfolio.id === selectedPortfolioId) ?? null,
-    [pageRows, selectedPortfolioId],
+    () => pageRows.find((portfolio) => portfolio.uid === selectedPortfolioUid) ?? null,
+    [pageRows, selectedPortfolioUid],
   );
   const totalCount = portfoliosQuery.data?.count ?? pageRows.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const portfolioSelection = useRegistrySelection(pageRows);
+  const portfolioSelection = useRegistrySelection(pageRows, (portfolio) => portfolio.uid);
 
   useEffect(() => {
     const nextParams = new URLSearchParams(location.search);
@@ -391,14 +391,14 @@ export function MainSequenceTargetPortfoliosPage() {
 
   function closePortfolioDetail() {
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceTargetPortfolioIdParam);
+      nextParams.delete(mainSequenceTargetPortfolioUidParam);
       nextParams.delete(mainSequenceTargetPortfolioTabParam);
     });
   }
 
   function selectPortfolioDetailTab(tabId: string) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceTargetPortfolioIdParam, String(selectedPortfolioId));
+      nextParams.set(mainSequenceTargetPortfolioUidParam, selectedPortfolioUid);
       nextParams.set(mainSequenceTargetPortfolioTabParam, tabId);
     });
   }
@@ -407,10 +407,10 @@ export function MainSequenceTargetPortfoliosPage() {
     mutationFn: bulkDeleteTargetPortfolios,
     onSuccess: async () => {
       if (deleteIntent?.mode === "selection") {
-        const deletedIds = deleteIntent.portfolios.map((portfolio) => portfolio.id);
+        const deletedUids = deleteIntent.portfolios.map((portfolio) => portfolio.uid);
 
         portfolioSelection.setSelection(
-          portfolioSelection.selectedIds.filter((id) => !deletedIds.includes(id)),
+          portfolioSelection.selectedIds.filter((uid) => !deletedUids.includes(uid)),
         );
       } else {
         portfolioSelection.clearSelection();
@@ -493,8 +493,7 @@ export function MainSequenceTargetPortfoliosPage() {
     }
 
     return deletePortfoliosMutation.mutateAsync({
-      ids: deleteIntent.portfolios.map((portfolio) => portfolio.id),
-      selectedItemsIds: deleteIntent.portfolios.map((portfolio) => portfolio.id).join(","),
+      uids: deleteIntent.portfolios.map((portfolio) => portfolio.uid),
     });
   }
 
@@ -504,7 +503,7 @@ export function MainSequenceTargetPortfoliosPage() {
         initialPortfolio={selectedPortfolioFromList}
         onBack={closePortfolioDetail}
         onSelectTab={selectPortfolioDetailTab}
-        portfolioId={selectedPortfolioId}
+        portfolioUid={selectedPortfolioUid}
         selectedTabId={selectedPortfolioTabId}
       />
     );
@@ -610,15 +609,15 @@ export function MainSequenceTargetPortfoliosPage() {
                 </thead>
                 <tbody>
                   {pageRows.map((portfolio) => {
-                    const selected = portfolioSelection.isSelected(portfolio.id);
+                    const selected = portfolioSelection.isSelected(portfolio.uid);
 
                     return (
-                      <tr key={portfolio.id}>
+                      <tr key={portfolio.uid}>
                         <td className={getRegistryTableCellClassName(selected, "left")}>
                           <MainSequenceSelectionCheckbox
-                            ariaLabel={`Select portfolio ${portfolio.id}`}
-                            checked={selected}
-                            onChange={() => portfolioSelection.toggleSelection(portfolio.id)}
+	                            ariaLabel={`Select portfolio ${portfolio.uid}`}
+	                            checked={selected}
+	                            onChange={() => portfolioSelection.toggleSelection(portfolio.uid)}
                           />
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
@@ -628,8 +627,8 @@ export function MainSequenceTargetPortfoliosPage() {
                             onClick={() =>
                               updateSearchParams((nextParams) => {
                                 nextParams.set(
-                                  mainSequenceTargetPortfolioIdParam,
-                                  String(portfolio.id),
+	                                  mainSequenceTargetPortfolioUidParam,
+	                                  portfolio.uid,
                                 );
                                 nextParams.set(
                                   mainSequenceTargetPortfolioTabParam,
@@ -651,16 +650,16 @@ export function MainSequenceTargetPortfoliosPage() {
                         </td>
                         <td className={getRegistryTableCellClassName(selected, "right")}>
                           {(() => {
-                            const assetId = getPortfolioIndexAssetId(portfolio);
+                            const assetUid = getPortfolioIndexAssetUid(portfolio);
                             const ticker = getPortfolioIndexTicker(portfolio);
 
-                            if (assetId === null) {
+                            if (assetUid === null) {
                               return <div className="font-mono text-xs text-foreground">{ticker}</div>;
                             }
 
                             return (
                               <Link
-                                to={getAssetDetailPath(assetId)}
+                                to={getAssetDetailPath(assetUid)}
                                 className="font-mono text-xs text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary/80"
                               >
                                 {ticker}

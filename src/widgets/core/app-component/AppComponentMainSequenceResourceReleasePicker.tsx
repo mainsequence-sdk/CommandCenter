@@ -20,11 +20,11 @@ function buildReleaseOption(
   release:
     | Pick<
         ResourceReleaseGalleryRecord,
-        "id" | "title" | "resource_name" | "project_name" | "subdomain" | "public_url"
+        "uid" | "title" | "resource_name" | "project_name" | "subdomain" | "public_url"
       >
     | AppComponentMainSequenceResourceReleaseRef,
 ): PickerOption {
-  const releaseId = "releaseId" in release ? release.releaseId : release.id;
+  const releaseUid = "releaseUid" in release ? release.releaseUid : release.uid;
   const title =
     "title" in release && typeof release.title === "string" && release.title.trim()
       ? release.title.trim()
@@ -34,7 +34,7 @@ function buildReleaseOption(
             typeof release.resource_name === "string" &&
             release.resource_name.trim()
           ? release.resource_name.trim()
-          : `Release ${releaseId}`;
+          : `Release ${releaseUid}`;
   const projectName =
     "project_name" in release && typeof release.project_name === "string"
       ? release.project_name
@@ -53,10 +53,10 @@ function buildReleaseOption(
         : "";
 
   return {
-    value: String(releaseId),
+    value: releaseUid ?? "",
     label: title,
     description: [projectName, subdomain || publicUrl].filter(Boolean).join(" · "),
-    keywords: [String(releaseId), projectName, subdomain, publicUrl],
+    keywords: [releaseUid ?? "", projectName, subdomain, publicUrl],
   };
 }
 
@@ -70,7 +70,7 @@ export function AppComponentMainSequenceResourceReleasePicker({
   editable: boolean;
   enabled?: boolean;
   selectedRelease?: AppComponentMainSequenceResourceReleaseRef | null;
-  value?: number;
+  value?: string;
   onSelect: (release: ResourceReleaseGalleryRecord) => void;
 }) {
   const releasesQuery = useQuery({
@@ -88,8 +88,8 @@ export function AppComponentMainSequenceResourceReleasePicker({
     const options = fastApiReleases.map((release) => buildReleaseOption(release));
 
     if (
-      selectedRelease?.releaseId &&
-      !options.some((option) => option.value === String(selectedRelease.releaseId))
+      selectedRelease?.releaseUid &&
+      !options.some((option) => option.value === selectedRelease.releaseUid)
     ) {
       return [buildReleaseOption(selectedRelease), ...options];
     }
@@ -110,10 +110,10 @@ export function AppComponentMainSequenceResourceReleasePicker({
       </div>
 
       <PickerField
-        value={value && value > 0 ? String(value) : ""}
+        value={value ?? ""}
         onChange={(nextValue) => {
           const nextRelease = fastApiReleases.find(
-            (release) => String(release.id) === nextValue,
+            (release) => release.uid === nextValue,
           );
 
           if (nextRelease) {

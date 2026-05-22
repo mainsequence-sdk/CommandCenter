@@ -94,7 +94,7 @@ describe("positionDetailExecution", () => {
       positionDetailExecutionDefinition.canExecute({
         props: {
           sourceType: "portfolio",
-          portfolioId: 123,
+          portfolioUid: "target-portfolio-123",
           positionRows: [
             {
               rowId: "local-1",
@@ -114,7 +114,7 @@ describe("positionDetailExecution", () => {
       positionDetailExecutionDefinition.canExecute({
         props: {
           sourceType: "portfolio",
-          portfolioId: 123,
+          portfolioUid: "target-portfolio-123",
           positionRows: [],
         },
       } as never),

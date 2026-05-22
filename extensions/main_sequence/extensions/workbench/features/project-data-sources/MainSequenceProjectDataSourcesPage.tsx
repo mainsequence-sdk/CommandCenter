@@ -24,8 +24,8 @@ import { getRegistryTableCellClassName } from "../../../../common/components/reg
 import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelection";
 import { MainSequenceProjectDataSourceEditor } from "./MainSequenceProjectDataSourceEditor";
 
-const mainSequenceProjectDataSourceIdParam = "msProjectDataSourceId";
-const mainSequencePhysicalDataSourceIdParam = "msPhysicalDataSourceId";
+const mainSequenceProjectDataSourceUidParam = "msProjectDataSourceUid";
+const mainSequencePhysicalDataSourceUidParam = "msPhysicalDataSourceUid";
 const mainSequenceProjectDataSourceViewParam = "msProjectDataSourceView";
 const createProjectDataSourceView = "create";
 
@@ -39,16 +39,11 @@ export function MainSequenceProjectDataSourcesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const deferredSearchValue = useDeferredValue(searchValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const activeProjectDataSourceId = Number(
-    searchParams.get(mainSequenceProjectDataSourceIdParam) ?? "",
-  );
-  const activePhysicalDataSourceId = Number(
-    searchParams.get(mainSequencePhysicalDataSourceIdParam) ?? "",
-  );
+  const activeProjectDataSourceUid = searchParams.get(mainSequenceProjectDataSourceUidParam)?.trim() ?? "";
+  const activePhysicalDataSourceUid = searchParams.get(mainSequencePhysicalDataSourceUidParam)?.trim() ?? "";
   const activeView = searchParams.get(mainSequenceProjectDataSourceViewParam) ?? "";
   const isCreateFlowOpen = activeView === createProjectDataSourceView;
-  const isEditFlowOpen =
-    Number.isFinite(activeProjectDataSourceId) && activeProjectDataSourceId > 0;
+  const isEditFlowOpen = activeProjectDataSourceUid.length > 0;
 
   const projectDataSourcesQuery = useQuery({
     queryKey: [
@@ -67,7 +62,7 @@ export function MainSequenceProjectDataSourcesPage() {
   });
 
   const pageRows = projectDataSourcesQuery.data?.rows ?? [];
-  const selection = useRegistrySelection(pageRows);
+  const selection = useRegistrySelection(pageRows, (row) => row.uid);
   const totalItems = projectDataSourcesQuery.data?.pagination.total_items ?? 0;
   const allPageSelected = pageRows.length > 0 && (selectAllMatching || selection.allSelected);
   const somePageSelected = !allPageSelected && selection.someSelected;
@@ -103,19 +98,19 @@ export function MainSequenceProjectDataSourcesPage() {
     selection.toggleAll();
   }
 
-  function toggleRowSelection(projectDataSourceId: number) {
+  function toggleRowSelection(projectDataSourceUid: string) {
     if (selectAllMatching) {
       setSelectAllMatching(false);
-      selection.setSelection(pageRows.map((row) => row.id).filter((id) => id !== projectDataSourceId));
+      selection.setSelection(pageRows.map((row) => row.uid).filter((uid) => uid !== projectDataSourceUid));
       return;
     }
 
-    selection.toggleSelection(projectDataSourceId);
+    selection.toggleSelection(projectDataSourceUid);
   }
 
   function selectAllMatchingResults() {
     setSelectAllMatching(true);
-    selection.setSelection(pageRows.map((row) => row.id));
+    selection.setSelection(pageRows.map((row) => row.uid));
   }
 
   function updateSearchParams(update: (nextParams: URLSearchParams) => void) {
@@ -135,28 +130,28 @@ export function MainSequenceProjectDataSourcesPage() {
   function openCreateFlow() {
     updateSearchParams((nextParams) => {
       nextParams.set(mainSequenceProjectDataSourceViewParam, createProjectDataSourceView);
-      nextParams.delete(mainSequenceProjectDataSourceIdParam);
-      nextParams.delete(mainSequencePhysicalDataSourceIdParam);
+      nextParams.delete(mainSequenceProjectDataSourceUidParam);
+      nextParams.delete(mainSequencePhysicalDataSourceUidParam);
     });
   }
 
-  function openProjectDataSourceDetail(projectDataSourceId: number) {
+  function openProjectDataSourceDetail(projectDataSourceUid: string) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceProjectDataSourceIdParam, String(projectDataSourceId));
+      nextParams.set(mainSequenceProjectDataSourceUidParam, projectDataSourceUid);
       nextParams.delete(mainSequenceProjectDataSourceViewParam);
-      nextParams.delete(mainSequencePhysicalDataSourceIdParam);
+      nextParams.delete(mainSequencePhysicalDataSourceUidParam);
     });
   }
 
-  function openPhysicalDataSourceDetail(physicalDataSourceId: number) {
-    navigate(`/app/main_sequence_workbench/physical-data-sources?msPhysicalDataSourceId=${physicalDataSourceId}`);
+  function openPhysicalDataSourceDetail(physicalDataSourceUid: string) {
+    navigate(`/app/main_sequence_workbench/physical-data-sources?msPhysicalDataSourceUid=${encodeURIComponent(physicalDataSourceUid)}`);
   }
 
   function closeEditor() {
     updateSearchParams((nextParams) => {
       nextParams.delete(mainSequenceProjectDataSourceViewParam);
-      nextParams.delete(mainSequenceProjectDataSourceIdParam);
-      nextParams.delete(mainSequencePhysicalDataSourceIdParam);
+      nextParams.delete(mainSequenceProjectDataSourceUidParam);
+      nextParams.delete(mainSequencePhysicalDataSourceUidParam);
     });
   }
 
@@ -168,7 +163,7 @@ export function MainSequenceProjectDataSourcesPage() {
             search: deferredSearchValue.trim() || undefined,
           }
         : {
-            ids: selection.selectedIds,
+            uids: selection.selectedIds,
           },
     );
   }
@@ -178,8 +173,8 @@ export function MainSequenceProjectDataSourcesPage() {
     setDeleteDialogOpen(false);
 
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceProjectDataSourceIdParam);
-      nextParams.delete(mainSequencePhysicalDataSourceIdParam);
+      nextParams.delete(mainSequenceProjectDataSourceUidParam);
+      nextParams.delete(mainSequencePhysicalDataSourceUidParam);
     });
 
     await queryClient.invalidateQueries({
@@ -208,7 +203,7 @@ export function MainSequenceProjectDataSourcesPage() {
     return (
       <MainSequenceProjectDataSourceEditor
         mode={isEditFlowOpen ? "edit" : "create"}
-        projectDataSourceId={isEditFlowOpen ? activeProjectDataSourceId : undefined}
+        projectDataSourceUid={isEditFlowOpen ? activeProjectDataSourceUid : undefined}
         onBack={closeEditor}
         onOpenProjectDataSourceDetail={openProjectDataSourceDetail}
       />
@@ -352,18 +347,18 @@ export function MainSequenceProjectDataSourcesPage() {
                 </thead>
                 <tbody>
                   {pageRows.map((row) => {
-                    const selected = selectAllMatching || selection.isSelected(row.id);
-                    const rowRouted = activeProjectDataSourceId === row.id;
+                    const selected = selectAllMatching || selection.isSelected(row.uid);
+                    const rowRouted = activeProjectDataSourceUid === row.uid;
                     const relatedResourceRouted =
-                      row.related_resource?.id !== null &&
-                      row.related_resource?.id !== undefined &&
-                      activePhysicalDataSourceId === row.related_resource.id;
+                      row.related_resource?.uid !== null &&
+                      row.related_resource?.uid !== undefined &&
+                      activePhysicalDataSourceUid === row.related_resource.uid;
 
                     return (
                       <tr
-                        key={row.id}
+                        key={row.uid}
                         className="cursor-pointer"
-                        onClick={() => openProjectDataSourceDetail(row.id)}
+                        onClick={() => openProjectDataSourceDetail(row.uid)}
                       >
                         <td
                           className={cn(
@@ -375,7 +370,7 @@ export function MainSequenceProjectDataSourcesPage() {
                           <MainSequenceSelectionCheckbox
                             ariaLabel={`Select ${row.display_name}`}
                             checked={selected}
-                            onChange={() => toggleRowSelection(row.id)}
+                            onChange={() => toggleRowSelection(row.uid)}
                           />
                         </td>
                         <td
@@ -388,14 +383,14 @@ export function MainSequenceProjectDataSourcesPage() {
                             <Database className="mt-0.5 h-4 w-4 text-muted-foreground" />
                             <div className="min-w-0">
                               <div className="inline-flex items-center gap-1 text-foreground">
-                                <span className="font-medium">{row.display_name || `Data source ${row.id}`}</span>
+                                <span className="font-medium">{row.display_name || `Data source ${row.uid}`}</span>
                                 <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
                               </div>
                               <div
                                 className="mt-0.5 text-muted-foreground"
                                 style={{ fontSize: "var(--table-meta-font-size)" }}
                               >
-                                {`Project data source ID ${row.id}`}
+                                {`Project data source UID ${row.uid}`}
                               </div>
                             </div>
                           </div>
@@ -417,11 +412,11 @@ export function MainSequenceProjectDataSourcesPage() {
                           )}
                           onClick={(event) => event.stopPropagation()}
                         >
-                          {row.related_resource?.id ? (
+	                          {row.related_resource?.uid ? (
                             <button
                               type="button"
                               className="group min-w-0 text-left"
-                              onClick={() => openPhysicalDataSourceDetail(row.related_resource!.id!)}
+	                              onClick={() => openPhysicalDataSourceDetail(row.related_resource!.uid!)}
                             >
                               <div
                                 className={cn(
@@ -518,7 +513,7 @@ export function MainSequenceProjectDataSourcesPage() {
               <div className="mt-1 text-muted-foreground">
                 {selection.selectedItems
                   .slice(0, 3)
-                  .map((item) => item.display_name || `Data source ${item.id}`)
+                  .map((item) => item.display_name || `Data source ${item.uid}`)
                   .join(", ")}
                 {selection.selectedItems.length > 3 ? ", ..." : ""}
               </div>

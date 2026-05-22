@@ -12,11 +12,11 @@ Infrastructure relationship graph for one Main Sequence project.
 
 ## authoringSteps
 
-- Set the target project id.
+- Set the target project UID.
 
 ## blockingRequirements
 
-- A valid project id is required.
+- A valid project UID is required.
 
 ## commonPitfalls
 

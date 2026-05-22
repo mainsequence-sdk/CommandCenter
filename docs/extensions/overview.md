@@ -280,7 +280,7 @@ Do not use generic query params such as `tab`, `id`, `projectId`, or `page` for 
 
 Prefer extension-scoped names such as:
 
-- `msProjectId`
+- `msProjectUid`
 - `msTab`
 - `researchScenarioId`
 

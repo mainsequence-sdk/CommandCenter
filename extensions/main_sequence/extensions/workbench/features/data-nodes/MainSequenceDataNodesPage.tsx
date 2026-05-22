@@ -282,30 +282,10 @@ function getTableIndexNames(dataNode: DataNodeSummary) {
   return [];
 }
 
-function getSourceTableConfigurationId(dataNodeDetail?: DataNodeDetail | null) {
-  const explicitId = dataNodeDetail?.sourcetableconfiguration?.id;
+function getSourceTableConfigurationUid(dataNodeDetail?: DataNodeDetail | null) {
+  const explicitUid = dataNodeDetail?.sourcetableconfiguration?.uid;
 
-  if (typeof explicitId === "number" && Number.isFinite(explicitId) && explicitId > 0) {
-    return explicitId;
-  }
-
-  const sourceConfigIds = new Set(
-    (dataNodeDetail?.sourcetableconfiguration?.columns_metadata ?? [])
-      .map((column) => column.source_config_id)
-      .filter((value): value is number => typeof value === "number" && Number.isFinite(value) && value > 0),
-  );
-
-  if (sourceConfigIds.size === 1) {
-    return [...sourceConfigIds][0] ?? null;
-  }
-
-  const relatedTable = dataNodeDetail?.sourcetableconfiguration?.related_table;
-
-  if (typeof relatedTable === "number" && Number.isFinite(relatedTable) && relatedTable > 0) {
-    return relatedTable;
-  }
-
-  return null;
+  return typeof explicitUid === "string" && explicitUid.trim() ? explicitUid.trim() : null;
 }
 
 function getDataNodeIdentifierIndexName(dataNodeDetail?: DataNodeDetail | null) {
@@ -544,8 +524,6 @@ export function MainSequenceDataNodesPage() {
       ) ?? null,
     [dataNodesQuery.data?.results, selectedDataNodeIdentifier],
   );
-  const selectedDataNodeNumericId =
-    selectedDataNodeFromList?.id ?? dataNodeDetailQuery.data?.id ?? null;
   const dataNodeEngineClassType = useMemo(
     () => resolveDataNodeEngineClassType(dataNodeDetailQuery.data ?? selectedDataNodeFromList),
     [dataNodeDetailQuery.data, selectedDataNodeFromList],
@@ -579,8 +557,8 @@ export function MainSequenceDataNodesPage() {
     (isDataNodeDetailOpen ? `Data node ${selectedDataNodeIdentifier}` : "Data node");
   const dataNodeColumnDetails = dataNodeDetailQuery.data?.sourcetableconfiguration?.columns_metadata ?? [];
   const selectedSourceTableConfiguration = dataNodeDetailQuery.data?.sourcetableconfiguration ?? null;
-  const sourceTableConfigurationId = useMemo(
-    () => getSourceTableConfigurationId(dataNodeDetailQuery.data),
+  const sourceTableConfigurationUid = useMemo(
+    () => getSourceTableConfigurationUid(dataNodeDetailQuery.data),
     [dataNodeDetailQuery.data],
   );
   const identifierIndexName = useMemo(
@@ -590,15 +568,13 @@ export function MainSequenceDataNodesPage() {
   const isMultiIndexDataNode = (selectedSourceTableConfiguration?.index_names?.length ?? 0) > 1;
   const generatedSearchDocument = getGeneratedSearchDocument(dataNodeSummaryQuery.data ?? dataNodeSummary);
   const sourceTableConfigStatsQuery = useQuery({
-    queryKey: ["main_sequence", "source_table_config", "stats", sourceTableConfigurationId],
-    queryFn: () => fetchSourceTableConfigurationStats(sourceTableConfigurationId!),
+    queryKey: ["main_sequence", "source_table_config", "stats", sourceTableConfigurationUid],
+    queryFn: () => fetchSourceTableConfigurationStats(sourceTableConfigurationUid!),
     enabled:
       deleteTailDialogOpen &&
       isDataNodeDetailOpen &&
       isMultiIndexDataNode &&
-      typeof sourceTableConfigurationId === "number" &&
-      Number.isFinite(sourceTableConfigurationId) &&
-      sourceTableConfigurationId > 0,
+      Boolean(sourceTableConfigurationUid),
   });
   const deleteTailIdentifierOptions = useMemo(() => {
     const maxPerAssetSymbol =
@@ -624,7 +600,7 @@ export function MainSequenceDataNodesPage() {
   }, [deleteTailIdentifierOptions, deleteTailIdentifierSearch]);
 
   const refreshSearchIndexMutation = useMutation({
-    mutationFn: () => bulkRefreshDataNodeTableSearchIndex([selectedDataNodeNumericId ?? 0]),
+    mutationFn: () => bulkRefreshDataNodeTableSearchIndex(selectedDataNodeIdentifier ? [selectedDataNodeIdentifier] : []),
     onSuccess: async (result) => {
       const payload =
         result && typeof result === "object" && "success_count" in result && "failed_count" in result
@@ -688,7 +664,7 @@ export function MainSequenceDataNodesPage() {
           queryKey: ["main_sequence", "data_nodes"],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "source_table_config", "stats", sourceTableConfigurationId],
+          queryKey: ["main_sequence", "source_table_config", "stats", sourceTableConfigurationUid],
         }),
       ]);
     },
@@ -1031,18 +1007,20 @@ export function MainSequenceDataNodesPage() {
       return null;
     }
 
-    const selectedIds = bulkActionRequest.dataNodes.map((dataNode) => dataNode.id);
+    const selectedUids = bulkActionRequest.dataNodes
+      .map((dataNode) => dataNode.uid?.trim())
+      .filter((uid): uid is string => Boolean(uid));
 
     switch (bulkActionRequest.kind) {
       case "set-next-update-from-last-index":
-        return bulkSetDataNodeNextUpdateFromLastIndexValue(selectedIds);
+        return bulkSetDataNodeNextUpdateFromLastIndexValue(selectedUids);
       case "set-index-stats-from-table":
-        return bulkSetDataNodeIndexStatsFromTable(selectedIds);
+        return bulkSetDataNodeIndexStatsFromTable(selectedUids);
       case "refresh-table-search-index":
-        return bulkRefreshDataNodeTableSearchIndex(selectedIds);
+        return bulkRefreshDataNodeTableSearchIndex(selectedUids);
       case "delete":
         return bulkDeleteDataNodes({
-          selectedIds,
+          selectedUids,
           fullDeleteSelected: true,
           fullDeleteDownstreamTables: deleteOptions.fullDeleteDownstreamTables,
           deleteWithNoTable: deleteOptions.deleteWithNoTable,
@@ -1713,9 +1691,9 @@ export function MainSequenceDataNodesPage() {
                 </Badge>
               </div>
 
-              {typeof sourceTableConfigurationId !== "number" || sourceTableConfigurationId <= 0 ? (
+              {!sourceTableConfigurationUid ? (
                 <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-                  Identifier options are unavailable because the SourceTableConfiguration id could not
+                  Identifier options are unavailable because the SourceTableConfiguration uid could not
                   be resolved from the current payload.
                 </div>
               ) : sourceTableConfigStatsQuery.isLoading ? (

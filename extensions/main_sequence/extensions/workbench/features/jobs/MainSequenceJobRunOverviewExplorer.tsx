@@ -177,8 +177,8 @@ function JobRunOverviewTable({
   isLoading: boolean;
   rows: JobRunOverviewRow[];
   title: string;
-  onOpenJobDetail: (jobId: number) => void;
-  onOpenJobRunDetail: (jobId: number, jobRunId: number) => void;
+  onOpenJobDetail: (jobUid: string) => void;
+  onOpenJobRunDetail: (jobUid: string, jobRunUid: string) => void;
 }) {
   return (
     <Card className="min-h-[32rem]">
@@ -237,11 +237,11 @@ function JobRunOverviewTable({
                   <tr key={getOverviewRowKey(row)}>
                     <td className="rounded-l-[18px] border border-border/70 bg-background/24 px-4 py-3">
                       <div className="min-w-0">
-                        {row.id ? (
+                        {row.uid && row.job_uid ? (
                           <button
                             type="button"
                             className="group inline-flex cursor-pointer items-center gap-1.5 rounded-sm text-left outline-none transition-colors hover:text-primary focus-visible:text-primary"
-                            onClick={() => onOpenJobRunDetail(row.job, row.id!)}
+                            onClick={() => onOpenJobRunDetail(row.job_uid!, row.uid!)}
                             title={`Open ${row.name}`}
                           >
                             <span className="font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors group-hover:decoration-primary group-focus-visible:decoration-primary">
@@ -253,17 +253,19 @@ function JobRunOverviewTable({
                           <div className="font-medium text-foreground">{row.name}</div>
                         )}
                         <div className="mt-1 text-xs text-muted-foreground">
-                          {row.id ? `Run ID ${row.id}` : "Scheduled row"} · Job {row.job}
+                          {row.uid ? `Run UID ${row.uid}` : "Scheduled row"} · Job {row.job_uid ?? "missing uid"}
                         </div>
-                        <button
-                          type="button"
-                          className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
-                          onClick={() => onOpenJobDetail(row.job)}
-                          title={`Open job ${row.job}`}
-                        >
-                          Related job
-                          <ArrowUpRight className="h-3 w-3" />
-                        </button>
+                        {row.job_uid ? (
+                          <button
+                            type="button"
+                            className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+                            onClick={() => onOpenJobDetail(row.job_uid!)}
+                            title={`Open job ${row.job_uid}`}
+                          >
+                            Related job
+                            <ArrowUpRight className="h-3 w-3" />
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                     <td className="border-y border-border/70 bg-background/24 px-4 py-3">
@@ -318,8 +320,8 @@ function MainSequenceJobRunOverviewExplorerContent({
   onOpenJobRunDetail,
 }: {
   onClose: () => void;
-  onOpenJobDetail: (jobId: number) => void;
-  onOpenJobRunDetail: (jobId: number, jobRunId: number) => void;
+  onOpenJobDetail: (jobUid: string) => void;
+  onOpenJobRunDetail: (jobUid: string, jobRunUid: string) => void;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -602,8 +604,8 @@ export function MainSequenceJobRunOverviewExplorer({
   onOpenJobRunDetail,
 }: {
   onClose: () => void;
-  onOpenJobDetail: (jobId: number) => void;
-  onOpenJobRunDetail: (jobId: number, jobRunId: number) => void;
+  onOpenJobDetail: (jobUid: string) => void;
+  onOpenJobRunDetail: (jobUid: string, jobRunUid: string) => void;
 }) {
   return (
     <DashboardControlsProvider controls={jobRunExplorerControls}>

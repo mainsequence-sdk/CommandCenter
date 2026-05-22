@@ -76,8 +76,10 @@ export interface MainSequenceBulkDeleteResponse {
 
 export interface DynamicTableDataSourceOption {
   id: number;
+  uid: string;
   related_resource: {
-    id: number;
+    id: string;
+    uid?: string | null;
     display_name?: string | null;
     name?: string | null;
     organization: number;
@@ -88,7 +90,8 @@ export interface DynamicTableDataSourceOption {
 }
 
 export interface ProjectDataSourceListRelatedResource {
-  id: number | null;
+  id: string | null;
+  uid?: string | null;
   label: string;
   class_type: string;
   status: string;
@@ -96,6 +99,7 @@ export interface ProjectDataSourceListRelatedResource {
 
 export interface ProjectDataSourceListRow {
   id: number;
+  uid: string;
   display_name: string;
   is_default_data_source: boolean;
   related_resource: ProjectDataSourceListRelatedResource | null;
@@ -121,7 +125,7 @@ export interface ProjectDataSourceListResponse {
 }
 
 export interface ProjectDataSourceBulkDeleteInput {
-  ids?: number[];
+  uids?: string[];
   selectAll?: boolean;
   search?: string;
 }
@@ -133,6 +137,7 @@ export interface ProjectDataSourceBulkDeleteResponse {
 
 export interface ProjectDataSourceEditorEntity {
   id: number;
+  uid?: string | null;
   type: string;
   title: string;
 }
@@ -168,7 +173,8 @@ export interface ProjectDataSourceEditorPayload {
 }
 
 export interface ProjectDataSourceRelatedResourceOption {
-  id: number;
+  id: string;
+  uid?: string | null;
   label: string;
   class_type: string;
   status: string;
@@ -176,25 +182,27 @@ export interface ProjectDataSourceRelatedResourceOption {
 
 export interface ProjectDataSourceEditorInput {
   display_name: string;
-  related_resource: number;
+  related_resource: string;
   is_default_data_source: boolean;
 }
 
 export interface ProjectDataSourceEditorWriteResponse {
   detail: string;
   id: number;
+  uid: string;
   display_name: string;
   redirect_path: string;
 }
 
 export interface ProjectDataSourceDeleteResponse {
   detail: string;
-  id: number;
+  uid: string;
   redirect_path: string;
 }
 
 export interface PhysicalDataSourceListRow {
   id: number;
+  uid: string;
   display_name: string;
   source_logo: string;
   class_type: string;
@@ -227,7 +235,7 @@ export interface PhysicalDataSourceListResponse {
 }
 
 export interface PhysicalDataSourceBulkDeleteInput {
-  ids?: number[];
+  uids?: string[];
   selectAll?: boolean;
   search?: string;
   classType?: string;
@@ -278,6 +286,7 @@ export interface PhysicalDataSourceEditorPayload {
   mode: "create" | "edit";
   entity?: {
     id: number;
+    uid?: string | null;
     type: string;
     title: string;
   } | null;
@@ -310,6 +319,7 @@ export interface PhysicalDataSourceEditorUpdateInput {
 export interface PhysicalDataSourceEditorWriteResponse {
   detail: string;
   id: number;
+  uid: string;
   display_name: string;
   redirect_path: string;
 }
@@ -317,11 +327,13 @@ export interface PhysicalDataSourceEditorWriteResponse {
 export interface PhysicalDataSourceDeleteResponse {
   detail: string;
   id: number;
+  uid?: string | null;
   redirect_path: string;
 }
 
 export interface TimeScaleDBServiceRecord {
   id: number;
+  uid: string;
   namespace: string | null;
   release_name: string | null;
   helm_release_info: unknown;
@@ -341,6 +353,7 @@ export interface TimeScaleDBServiceRecord {
 export interface TimeScaleDBServiceDataSourceListResponse {
   service: {
     id: number;
+    uid: string;
     release_name: string;
     namespace: string;
   };
@@ -352,6 +365,7 @@ export interface TimeScaleDBServiceDataSourceListResponse {
 
 export interface ScalableServiceRecord extends Record<string, unknown> {
   id: number;
+  uid: string;
   name?: string | null;
   display_name?: string | null;
   release_name?: string | null;
@@ -388,6 +402,7 @@ export interface ScalableServiceRevisionRecord extends Record<string, unknown> {
 
 export interface AssetListRow {
   id: number;
+  uid: string;
   unique_identifier: string | null;
   figi: string | null;
   name: string | null;
@@ -399,7 +414,7 @@ export interface AssetListRow {
 }
 
 export interface AssetBulkDeleteInput {
-  ids: number[];
+  uids: string[];
 }
 
 export interface AssetBulkDeleteResponse {
@@ -409,6 +424,7 @@ export interface AssetBulkDeleteResponse {
 
 export interface AssetCategoryListRow {
   id: number;
+  uid: string;
   unique_identifier: string;
   display_name: string;
   description: string;
@@ -446,6 +462,7 @@ export interface AssetCategoryDetailAssetsListConfig {
 
 export interface AssetCategoryDetailResponse {
   id: number;
+  uid: string;
   title: string;
   selected_category: AssetCategoryDetailSelectedCategory;
   details: AssetCategoryDetailField[];
@@ -455,27 +472,28 @@ export interface AssetCategoryDetailResponse {
 
 export interface AssetCategoryRecord {
   id: number;
+  uid: string;
   unique_identifier: string;
   display_name: string;
   description: string;
-  assets: number[];
+  assets: string[];
 }
 
 export interface CreateAssetCategoryInput {
   display_name: string;
   description?: string;
   unique_identifier?: string;
-  assets?: number[];
+  assets?: string[];
 }
 
 export interface UpdateAssetCategoryInput {
   display_name?: string;
   description?: string;
-  assets?: number[];
+  assets?: string[];
 }
 
 export interface AssetCategoryBulkDeleteInput {
-  ids?: number[];
+  uids?: string[];
   selectAll?: boolean;
   currentUrl?: string;
   search?: string;
@@ -496,9 +514,9 @@ export interface AssetCategoryBulkDeleteResponse {
 export interface VirtualFundListRow extends Record<string, unknown> {
   uid: string;
   id?: number | null;
-  target_portfolio_id?: number | null;
+  target_portfolio_uid?: string | null;
   target_portfolio_name?: string | null;
-  account_id?: number | null;
+  account_uid?: string | null;
   account_name?: string | null;
 }
 
@@ -545,13 +563,14 @@ export interface InstrumentsConfigurationCurrentResponse {
 
 export interface PortfolioGroupListRow extends Record<string, unknown> {
   id: number;
+  uid: string;
   name?: string | null;
   display_name?: string | null;
   portfolio_group_name?: string | null;
   unique_identifier?: string | null;
   description?: string | null;
-  portfolios?: number[] | null;
-  portfolio_ids?: number[] | null;
+  portfolios?: string[] | null;
+  portfolio_uids?: string[] | null;
   creation_date?: string | null;
   creation_date_display?: string | null;
   created_at?: string | null;
@@ -566,11 +585,11 @@ export interface CreatePortfolioGroupInput {
   display_name?: string;
   source?: string;
   description?: string;
-  portfolios?: number[];
+  portfolios?: string[];
 }
 
 export interface PortfolioGroupBulkDeleteInput {
-  ids?: number[];
+  uids?: string[];
 }
 
 export interface PortfolioGroupBulkDeleteResponse {
@@ -579,17 +598,20 @@ export interface PortfolioGroupBulkDeleteResponse {
 }
 
 export interface PortfolioGroupPortfolioMutationInput {
-  portfolios: number[];
+  portfolios: string[];
 }
 
 export interface TargetPortfolioListRow extends Record<string, unknown> {
   id: number;
+  uid: string;
   portfolio_name?: string | null;
   creation_date?: string | null;
   index_asset?: {
     id?: number | null;
+    uid?: string | null;
     current_snapshot?: {
       id?: number | null;
+      uid?: string | null;
       name?: string | null;
       ticker?: string | null;
       [key: string]: unknown;
@@ -598,8 +620,10 @@ export interface TargetPortfolioListRow extends Record<string, unknown> {
   } | null;
   portfolio_index_asset?: {
     id?: number | null;
+    uid?: string | null;
     current_snapshot?: {
       id?: number | null;
+      uid?: string | null;
       name?: string | null;
       ticker?: string | null;
       [key: string]: unknown;
@@ -609,8 +633,7 @@ export interface TargetPortfolioListRow extends Record<string, unknown> {
 }
 
 export interface TargetPortfolioBulkDeleteInput {
-  ids?: number[];
-  selectedItemsIds?: string;
+  uids?: string[];
   selectAll?: boolean;
   currentUrl?: string;
 }
@@ -622,6 +645,7 @@ export interface TargetPortfolioBulkDeleteResponse {
 
 export interface TargetPortfolioSearchOption {
   id: number;
+  uid: string;
   portfolio_name: string;
   creation_date?: string | null;
 }
@@ -762,6 +786,16 @@ function encodePathSegment(value: string) {
   return encodeURIComponent(value);
 }
 
+function resolveMainSequenceUidPath(uid: string, label: string) {
+  const resolved = uid.trim();
+
+  if (!resolved) {
+    throw new Error(`Missing ${label} uid.`);
+  }
+
+  return encodePathSegment(resolved);
+}
+
 export type TsManagerPathIdentifier = string;
 
 type TsManagerIdentifiableRecord = {
@@ -805,6 +839,7 @@ function resolveTsManagerPath(identifier: TsManagerPathIdentifier | TsManagerIde
 
 export interface AssetTranslationTableListRow {
   id: number;
+  uid: string;
   unique_identifier: string;
   rules_number: number;
   creation_date: string | null;
@@ -815,6 +850,7 @@ export interface AssetTranslationTableListResponse
 
 export interface AssetTranslationTableRecord {
   id: number;
+  uid: string;
   unique_identifier: string;
 }
 
@@ -827,7 +863,7 @@ export interface UpdateAssetTranslationTableInput {
 }
 
 export interface AssetTranslationTableBulkDeleteInput {
-  ids?: number[];
+  uids?: string[];
   selectAll?: boolean;
   search?: string;
 }
@@ -865,6 +901,7 @@ export interface AssetTranslationTableRulesListConfig {
 
 export interface AssetTranslationTableDetailResponse {
   id: number;
+  uid: string;
   title: string;
   selected_table: AssetTranslationTableDetailSelectedTable;
   details: AssetTranslationTableDetailField[];
@@ -874,6 +911,7 @@ export interface AssetTranslationTableDetailResponse {
 
 export interface AssetTranslationTableRuleListRow {
   id: number;
+  uid: string;
   security_type: string | null;
   security_market_sector: string | null;
   markets_time_serie_unique_identifier: string;
@@ -1125,6 +1163,7 @@ export interface ClusterPodRow {
 
 export interface ScalableServicePodRow {
   id: number;
+  uid: string;
   service_runtime: number | null;
   revision_runtime: number | null;
   pod_uid: string;
@@ -1139,7 +1178,7 @@ export interface ScalableServicePodRow {
 }
 
 export interface KnativePodRuntimeLogsResponse {
-  pod_runtime_id: number;
+  pod_runtime_uid: string;
   status: string;
   rows: JobRunLogEntry[];
 }
@@ -1194,6 +1233,7 @@ export interface ClusterScaleResponse {
 
 export interface ProjectSummary {
   id: number;
+  uid: string;
   project_name: string;
   data_source: DynamicTableDataSourceOption | null;
   git_ssh_url: string | null;
@@ -1210,6 +1250,7 @@ export interface ProjectDetail extends ProjectSummary {
 
 export interface ConstantRecord {
   id: number;
+  uid: string;
   name: string;
   value: unknown;
   category: string | null;
@@ -1222,23 +1263,25 @@ export interface CreateConstantInput {
 
 export interface SecretRecord {
   id: number;
+  uid: string;
   name: string;
   value: string;
 }
 
 export interface ProjectSecretRecord {
   id: number;
-  project: number;
+  uid: string;
+  project: string;
   project_name: string;
-  secret: number;
+  secret: string;
   secret_name: string;
   alias: string;
   created_at: string;
 }
 
 export interface CreateProjectSecretInput {
-  project: number;
-  secret: number;
+  project: string;
+  secret: string;
   alias?: string;
 }
 
@@ -1253,6 +1296,7 @@ export interface CreatedSecretRecord {
 
 export interface BucketRecord {
   id: number;
+  uid: string;
   name: string;
 }
 
@@ -1261,7 +1305,7 @@ export interface CreateBucketInput {
 }
 
 export interface BucketBulkDeleteInput {
-  ids?: number[];
+  uids?: string[];
   selectAll?: boolean;
   currentUrl?: string;
   search?: string;
@@ -1460,14 +1504,14 @@ export interface SimpleTableDetail extends SimpleTableRecord {
 }
 
 export interface SimpleTableBulkDeleteInput {
-  ids: number[];
+  uids: string[];
   fullDeleteSelected?: boolean;
   fullDeleteDownstreamTables?: boolean;
 }
 
 export interface SimpleTableBulkRefreshResult {
   ok: boolean;
-  simple_table_id: number;
+  simple_table_uid: string;
   search_index_updated: boolean;
   embedding_model?: string | null;
 }
@@ -1511,6 +1555,7 @@ export interface DataNodeQuickSearchRecord {
 
 export interface ProjectQuickSearchRecord {
   id: number;
+  uid: string;
   project_name: string;
   repository_branch: string;
   cluster_id?: number | null;
@@ -1520,7 +1565,7 @@ export interface LocalTimeSerieQuickSearchRecord {
   id: number;
   uid?: string | null;
   update_hash: string;
-  project_id?: number | null;
+  project_uid?: string | null;
   data_node_storage: {
     id: number;
     uid?: string | null;
@@ -1543,6 +1588,7 @@ export interface SimpleTableUpdateQuickSearchRecord {
 
 export interface DataNodeColumnMetadata {
   source_config_id: number | null;
+  source_config_uid?: string | null;
   column_name: string;
   dtype: string | null;
   label: string | null;
@@ -1551,6 +1597,7 @@ export interface DataNodeColumnMetadata {
 
 export interface DataNodeSourceTableConfiguration {
   id?: number | null;
+  uid?: string | null;
   related_table: number;
   time_index_name: string | null;
   column_dtypes_map: Record<string, string> | null;
@@ -1614,7 +1661,7 @@ export type DataNodeRemoteDataRow = Record<string, unknown>;
 export type DataNodeLastObservation = DataNodeRemoteDataRow | null;
 
 export interface DynamicTableBulkActionItemResult {
-  dynamic_table_metadata_id: number;
+  dynamic_table_metadata_uid: string;
   storage_hash: string;
   ok: boolean;
   detail?: string;
@@ -1623,7 +1670,7 @@ export interface DynamicTableBulkActionItemResult {
 export interface DynamicTableBulkActionResponse {
   ok: boolean;
   action: string;
-  requested_ids: number[];
+  requested_uids: string[];
   requested_count: number;
   select_all: boolean;
   matched_count: number;
@@ -1633,7 +1680,7 @@ export interface DynamicTableBulkActionResponse {
 }
 
 export interface DynamicTableBulkDeleteInput {
-  selectedIds: number[];
+  selectedUids: string[];
   fullDeleteSelected?: boolean;
   fullDeleteDownstreamTables?: boolean;
   deleteWithNoTable?: boolean;
@@ -1642,7 +1689,7 @@ export interface DynamicTableBulkDeleteInput {
 
 export interface DynamicTableBulkDeleteResponse {
   ok: boolean;
-  requested_ids: number[];
+  requested_uids: string[];
   requested_count: number;
   select_all: boolean;
   matched_count: number;
@@ -2330,10 +2377,11 @@ function adaptManagedAccountHoldingsWriteResponseToPositionDetails(
   };
 }
 
-function buildWidgetPreviewDataNodeDetail(dataNodeId: number): DataNodeDetail {
+function buildWidgetPreviewDataNodeDetail(): DataNodeDetail {
+  const previewRecordId = 0;
   return {
-    id: dataNodeId,
-    storage_hash: `preview-data-node-${dataNodeId}`,
+    id: previewRecordId,
+    storage_hash: "preview-data-node",
     creation_date: buildWidgetPreviewIsoTimestamp(-14 * 24 * 60 * 60 * 1000),
     source_class_name: "widget.preview",
     protect_from_deletion: false,
@@ -2348,7 +2396,7 @@ function buildWidgetPreviewDataNodeDetail(dataNodeId: number): DataNodeDetail {
     build_configuration: null,
     build_meta_data: null,
     sourcetableconfiguration: {
-      related_table: dataNodeId,
+      related_table: previewRecordId,
       time_index_name: "time_index",
       column_dtypes_map: {
         time_index: "timestamp",
@@ -2364,35 +2412,35 @@ function buildWidgetPreviewDataNodeDetail(dataNodeId: number): DataNodeDetail {
       open_for_everyone: false,
       columns_metadata: [
         {
-          source_config_id: dataNodeId,
+          source_config_id: previewRecordId,
           column_name: "time_index",
           dtype: "timestamp",
           label: "Time Index",
           description: "Synthetic observation timestamp.",
         },
         {
-          source_config_id: dataNodeId,
+          source_config_id: previewRecordId,
           column_name: "unique_identifier",
           dtype: "text",
           label: "Series",
           description: "Curve point identifier.",
         },
         {
-          source_config_id: dataNodeId,
+          source_config_id: previewRecordId,
           column_name: "mid_yield",
           dtype: "float",
           label: "Mid Yield",
           description: "Mock mid yield used by the chart preview.",
         },
         {
-          source_config_id: dataNodeId,
+          source_config_id: previewRecordId,
           column_name: "carry_bp",
           dtype: "float",
           label: "Carry",
           description: "Carry estimate in basis points.",
         },
         {
-          source_config_id: dataNodeId,
+          source_config_id: previewRecordId,
           column_name: "dv01",
           dtype: "float",
           label: "DV01",
@@ -2696,7 +2744,7 @@ export interface ProjectRepositoryFile {
 }
 
 export interface SummaryEntity {
-  id: number;
+  id: number | string;
   type: string;
   title: string;
 }
@@ -2857,7 +2905,7 @@ export type ResourceReleaseSummaryResponse = SummaryResponse<ResourceReleaseSumm
 export type TargetPortfolioSummaryResponse = SummaryResponse<TargetPortfolioSummaryExtensions>;
 
 export interface ProjectRepositoryBrowserResponse {
-  project_id: number;
+  project_uid: string;
   current_path: string;
   has_repository: boolean;
   message: string;
@@ -2867,7 +2915,7 @@ export interface ProjectRepositoryBrowserResponse {
 }
 
 export interface ProjectResourceCodeResponse {
-  project_id: number;
+  project_uid: string;
   path: string;
   name: string;
   language: string | null;
@@ -2910,7 +2958,7 @@ function readLooseObjectStringField(raw: string, key: string) {
 
 function tryParseLooseProjectResourceCodeResponse(
   payload: string,
-  projectId: number,
+  projectUid: string,
   path: string,
 ): ProjectResourceCodeResponse | null {
   const trimmed = payload.trim();
@@ -2927,7 +2975,7 @@ function tryParseLooseProjectResourceCodeResponse(
   const fallbackName = path.split("/").filter(Boolean).at(-1) ?? path;
 
   return {
-    project_id: projectId,
+    project_uid: projectUid,
     path: readLooseObjectStringField(trimmed, "path") ?? path,
     name: readLooseObjectStringField(trimmed, "name") ?? fallbackName,
     language: readLooseObjectStringField(trimmed, "language") ?? null,
@@ -2937,9 +2985,11 @@ function tryParseLooseProjectResourceCodeResponse(
 
 export interface ProjectImageOption {
   id: number;
+  uid: string;
   title?: string | null;
   project_repo_hash: string | null;
-  related_project: number;
+  related_project: string;
+  related_project_uid?: string | null;
   base_image: ProjectBaseImageOption | null;
   is_ready: boolean;
   build_error?: boolean | null;
@@ -2949,7 +2999,7 @@ export interface ProjectImageOption {
 }
 
 export interface CreateProjectImageInput {
-  related_project_id: number;
+  related_project: string;
   project_repo_hash?: string;
 }
 
@@ -2966,7 +3016,7 @@ export interface ProjectImageCommitHashOption {
 }
 
 export interface ProjectImageCommitHashListResponse {
-  project_id: number;
+  project_uid: string;
   commits: ProjectImageCommitHashOption[];
 }
 
@@ -2982,6 +3032,7 @@ export interface ResourceReleaseReadmeSummary {
 
 export interface ResourceReleaseRecord {
   id: number;
+  uid: string;
   subdomain: string;
   resource: number;
   readme_resource: number | null;
@@ -2991,14 +3042,15 @@ export interface ResourceReleaseRecord {
 
 export interface ResourceReleaseGalleryRecord {
   id: number;
+  uid: string;
   subdomain: string;
   release_kind: string;
   title: string;
-  resource_id: number;
+  resource_uid: string;
   resource_name: string;
-  project_id: number;
+  project_uid: string;
   project_name: string;
-  image_id: number | null;
+  image_uid: string | null;
   project_repo_hash: string | null;
   public_url: string | null;
   exchange_launch_url?: string | null;
@@ -3054,6 +3106,7 @@ export interface PermissionCandidateUserRecord {
 
 export interface ProjectResourceRecord {
   id: number;
+  uid: string;
   project: number;
   name: string;
   resource_type: string;
@@ -3065,8 +3118,8 @@ export interface ProjectResourceRecord {
 }
 
 export interface CreateResourceReleaseInput {
-  resource: number;
-  related_image: number;
+  resource: string;
+  related_image: string;
   release_kind?: string;
   cpu_request?: string;
   memory_request?: string;
@@ -3076,8 +3129,8 @@ export interface CreateResourceReleaseInput {
 }
 
 export interface CreateProjectExecutorAgentServiceInput {
-  project_id: number;
-  project_related_image_id: number;
+  project: string;
+  project_related_image: string;
   cpu_request?: string;
   memory_request?: string;
   gpu_request?: string;
@@ -3116,16 +3169,21 @@ export interface BillingEstimateResponse {
 
 export interface ProjectExecutorAgentServiceRecord {
   id?: number;
-  project_id?: number;
-  project_related_image_id?: number;
-  runtime_image_id?: number;
+  uid?: string;
+  project?: string;
+  project_uid?: string;
+  project_related_image?: string;
+  project_related_image_uid?: string;
+  runtime_image?: string;
+  runtime_image_uid?: string;
   image_ready?: boolean;
   created_service?: boolean;
   created_backing_job?: boolean;
   runtime_access?: ProjectExecutorRuntimeAccess | null;
   image_building?: boolean;
   detail?: string;
-  image_id?: number;
+  image?: string;
+  image_uid?: string;
   image_status?: string | null;
   build_status?: string | null;
   log_url?: string | null;
@@ -3142,6 +3200,7 @@ export interface ProjectExecutorRuntimeAccess {
 
 export interface ProjectExecutorAgentServiceSummary {
   id: number;
+  uid: string;
   agent_id: number | string | null;
   is_ready: boolean;
   executor_bundle_image_has_drift?: boolean;
@@ -3152,13 +3211,13 @@ export interface ProjectExecutorAgentServiceSummary {
 }
 
 export interface ProjectExecutorAgentServiceMaintenanceResult {
-  service_id: number;
-  project_id: number;
+  service_uid: string;
+  project_uid: string;
   task_performed: boolean;
   maintenance_state: string;
-  runtime_image_id: number | null;
-  previous_runtime_image_id: number | null;
-  replacement_runtime_image_id: number | null;
+  runtime_image_uid: string | null;
+  previous_runtime_image_uid: string | null;
+  replacement_runtime_image_uid: string | null;
   image_building: boolean;
   image_status: string | null;
   build_status: string | null;
@@ -3173,8 +3232,10 @@ export interface AvailableGpuTypeOption {
 
 export interface JobRecord {
   id: number;
+  uid: string;
   name: string;
   project: number;
+  project_uid?: string | null;
   execution_path: string | null;
   app_name: string | null;
   task_schedule: Record<string, unknown> | null;
@@ -3191,6 +3252,7 @@ export interface JobRecord {
 
 export interface JobRunRecord {
   id: number;
+  uid: string;
   name: string;
   unique_identifier: string;
   job: number;
@@ -3213,7 +3275,9 @@ export interface JobRunOverviewRow {
   row_id: string;
   kind: string;
   id: number | null;
+  uid?: string | null;
   job: number;
+  job_uid?: string | null;
   job_name: string;
   name: string;
   execution_start: string;
@@ -3254,6 +3318,7 @@ export interface JobRunLogEntry {
 
 export interface ProjectBaseImageOption {
   id: number;
+  uid: string;
   latest_digest: string;
   description: string;
   title: string;
@@ -3268,25 +3333,25 @@ export interface GithubOrganizationOption {
 export interface CreateProjectInput {
   project_name: string;
   repository_branch?: string;
-  data_source_id?: number;
-  default_base_image_id?: number;
+  data_source?: string;
+  default_base_image?: string;
   github_org_id?: number;
 }
 
 export interface UpdateProjectSettingsInput {
-  projectId: number;
-  defaultDataSourceId?: number | null;
-  defaultBaseImageId?: number | null;
+  projectUid: string;
+  defaultDataSourceUid?: string | null;
+  defaultBaseImageUid?: string | null;
 }
 
 export interface CreateJobInput {
   name: string;
-  project: number;
+  project: string;
   execution_path: string;
   cpu_request: string | number;
   memory_request: string | number;
   max_runtime_seconds: number;
-  related_image?: number;
+  related_image?: string;
   gpu_request?: number;
   gpu_type?: string;
   is_long_running?: boolean;
@@ -3307,7 +3372,7 @@ export interface AssetListFilters {
   pageSize?: number;
   limit?: number;
   offset?: number;
-  categoryId?: number;
+  categoryUid?: string;
   ticker?: string;
   name?: string;
   exchangeCode?: string;
@@ -3752,16 +3817,14 @@ async function requestJson<T>(
   return payload as T;
 }
 
-function buildAssetCategorySearchFilterValue(categoryId?: number) {
-  return typeof categoryId === "number" && Number.isFinite(categoryId) && categoryId > 0
-    ? categoryId
-    : undefined;
+function buildAssetCategorySearchFilterValue(categoryUid?: string) {
+  const normalized = categoryUid?.trim();
+  return normalized || undefined;
 }
 
-function buildAssetCategoryBodyFilterValue(categoryId?: number) {
-  return typeof categoryId === "number" && Number.isFinite(categoryId) && categoryId > 0
-    ? categoryId
-    : undefined;
+function buildAssetCategoryBodyFilterValue(categoryUid?: string) {
+  const normalized = categoryUid?.trim();
+  return normalized || undefined;
 }
 
 function buildAssetListSearch(filters: AssetListFilters, includeResponseFormat = true) {
@@ -3770,7 +3833,7 @@ function buildAssetListSearch(filters: AssetListFilters, includeResponseFormat =
     search: filters.search?.trim() || undefined,
     limit: filters.limit,
     offset: filters.offset,
-    categories__id: buildAssetCategorySearchFilterValue(filters.categoryId),
+    categories__uid: buildAssetCategorySearchFilterValue(filters.categoryUid),
     ticker: filters.ticker?.trim() || undefined,
     name: filters.name?.trim() || undefined,
     exchange_code: filters.exchangeCode?.trim() || undefined,
@@ -3793,7 +3856,7 @@ function buildAssetQueryBody(filters: AssetListFilters) {
     search: filters.search?.trim() || undefined,
     limit: filters.limit,
     offset: filters.offset,
-    categories__id: buildAssetCategoryBodyFilterValue(filters.categoryId),
+    categories__uid: buildAssetCategoryBodyFilterValue(filters.categoryUid),
     ticker: filters.ticker?.trim() || undefined,
     name: filters.name?.trim() || undefined,
     exchange_code: filters.exchangeCode?.trim() || undefined,
@@ -3912,7 +3975,7 @@ export async function listAssets({
   pageSize = mainSequenceRegistryPageSize,
   limit = pageSize,
   offset = (page - 1) * pageSize,
-  categoryId,
+  categoryUid,
   ticker,
   name,
   exchangeCode,
@@ -3925,7 +3988,7 @@ export async function listAssets({
     pageSize,
     limit,
     offset,
-    categoryId,
+    categoryUid,
     ticker,
     name,
     exchangeCode,
@@ -3959,7 +4022,7 @@ export async function listAssets({
 
 export function fetchAssetSummary({
   search,
-  categoryId,
+  categoryUid,
   ticker,
   name,
   exchangeCode,
@@ -3972,7 +4035,7 @@ export function fetchAssetSummary({
     undefined,
     {
       search: search?.trim() || undefined,
-      categories__id: buildAssetCategorySearchFilterValue(categoryId),
+      categories__uid: buildAssetCategorySearchFilterValue(categoryUid),
       ticker: ticker?.trim() || undefined,
       name: name?.trim() || undefined,
       exchange_code: exchangeCode?.trim() || undefined,
@@ -3989,7 +4052,7 @@ export function bulkDeleteAssets(input: AssetBulkDeleteInput) {
     {
       method: "POST",
       body: JSON.stringify({
-        ids: input.ids,
+        uids: input.uids,
       }),
     },
   );
@@ -4022,10 +4085,10 @@ export async function listAssetCategories({
   });
 }
 
-export function fetchAssetCategoryDetail(assetCategoryId: number) {
+export function fetchAssetCategoryDetail(assetCategoryUid: string) {
   return requestJson<AssetCategoryDetailResponse>(
     assetCategoryEndpoint,
-    `${assetCategoryId}/`,
+    `${resolveMainSequenceUidPath(assetCategoryUid, "asset category")}/`,
     undefined,
     { response_format: "frontend_detail" },
   );
@@ -4038,10 +4101,10 @@ export function createAssetCategory(input: CreateAssetCategoryInput) {
   });
 }
 
-export function updateAssetCategory(assetCategoryId: number, input: UpdateAssetCategoryInput) {
+export function updateAssetCategory(assetCategoryUid: string, input: UpdateAssetCategoryInput) {
   return requestJson<AssetCategoryRecord>(
     assetCategoryEndpoint,
-    `${assetCategoryId}/`,
+    `${resolveMainSequenceUidPath(assetCategoryUid, "asset category")}/`,
     {
       method: "PATCH",
       body: JSON.stringify(input),
@@ -4049,10 +4112,10 @@ export function updateAssetCategory(assetCategoryId: number, input: UpdateAssetC
   );
 }
 
-export function deleteAssetCategory(assetCategoryId: number) {
+export function deleteAssetCategory(assetCategoryUid: string) {
   return requestJson<Record<string, unknown> | null>(
     assetCategoryEndpoint,
-    `${assetCategoryId}/`,
+    `${resolveMainSequenceUidPath(assetCategoryUid, "asset category")}/`,
     {
       method: "DELETE",
     },
@@ -4066,7 +4129,7 @@ export function bulkDeleteAssetCategories(input: AssetCategoryBulkDeleteInput) {
     {
       method: "POST",
       body: JSON.stringify({
-        ids: input.ids,
+        uids: input.uids,
         select_all: input.selectAll,
         current_url: input.currentUrl,
         search: input.search,
@@ -4228,7 +4291,7 @@ export function bulkDeletePortfolioGroups(input: PortfolioGroupBulkDeleteInput) 
     {
       method: "POST",
       body: JSON.stringify({
-        ids: input.ids,
+        uids: input.uids,
       }),
     },
   );
@@ -4241,17 +4304,20 @@ export function createPortfolioGroup(input: CreatePortfolioGroupInput) {
   });
 }
 
-export function fetchPortfolioGroupDetail(portfolioGroupId: number) {
-  return requestJson<PortfolioGroupRecord>(portfolioGroupEndpoint, `${portfolioGroupId}/`);
+export function fetchPortfolioGroupDetail(portfolioGroupUid: string) {
+  return requestJson<PortfolioGroupRecord>(
+    portfolioGroupEndpoint,
+    `${resolveMainSequenceUidPath(portfolioGroupUid, "portfolio group")}/`,
+  );
 }
 
 export function appendPortfolioGroupPortfolios(
-  portfolioGroupId: number,
+  portfolioGroupUid: string,
   input: PortfolioGroupPortfolioMutationInput,
 ) {
   return requestJson<PortfolioGroupRecord>(
     portfolioGroupEndpoint,
-    `${portfolioGroupId}/append-portfolios/`,
+    `${resolveMainSequenceUidPath(portfolioGroupUid, "portfolio group")}/append-portfolios/`,
     {
       method: "POST",
       body: JSON.stringify(input),
@@ -4260,12 +4326,12 @@ export function appendPortfolioGroupPortfolios(
 }
 
 export function removePortfolioGroupPortfolios(
-  portfolioGroupId: number,
+  portfolioGroupUid: string,
   input: PortfolioGroupPortfolioMutationInput,
 ) {
   return requestJson<PortfolioGroupRecord>(
     portfolioGroupEndpoint,
-    `${portfolioGroupId}/remove-portfolios/`,
+    `${resolveMainSequenceUidPath(portfolioGroupUid, "portfolio group")}/remove-portfolios/`,
     {
       method: "POST",
       body: JSON.stringify(input),
@@ -4327,10 +4393,7 @@ export function bulkDeleteTargetPortfolios(input: TargetPortfolioBulkDeleteInput
     {
       method: "POST",
       body: JSON.stringify({
-        ids: input.ids,
-        selected_items_ids:
-          input.selectedItemsIds ??
-          (input.ids && input.ids.length > 0 ? input.ids.join(",") : undefined),
+        uids: input.uids,
         select_all: input.selectAll,
         current_url: input.currentUrl,
       }),
@@ -4338,24 +4401,24 @@ export function bulkDeleteTargetPortfolios(input: TargetPortfolioBulkDeleteInput
   );
 }
 
-export function fetchTargetPortfolioSummary(targetPortfolioId: number) {
+export function fetchTargetPortfolioSummary(targetPortfolioUid: string) {
   return requestJson<TargetPortfolioSummaryResponse>(
     targetPortfolioEndpoint,
-    `${targetPortfolioId}/summary/`,
+    `${resolveMainSequenceUidPath(targetPortfolioUid, "target portfolio")}/summary/`,
   );
 }
 
 export function fetchTargetPositionDetailPositionDetails(
-  targetPortfolioId: number,
+  targetPortfolioUid: string,
   traceMeta?: DashboardRequestTraceMeta,
 ) {
   if (isWidgetPreviewMode()) {
-    return Promise.resolve(buildWidgetPreviewPositionDetailResponse(targetPortfolioId));
+    return Promise.resolve(buildWidgetPreviewPositionDetailResponse(0));
   }
 
   return requestJson<PositionDetailResponse>(
     targetPortfolioEndpoint,
-    `${targetPortfolioId}/weights-position-details/`,
+    `${resolveMainSequenceUidPath(targetPortfolioUid, "target portfolio")}/weights-position-details/`,
     undefined,
     undefined,
     traceMeta,
@@ -4363,10 +4426,10 @@ export function fetchTargetPositionDetailPositionDetails(
 }
 
 export function fetchTargetPortfolioWeightsPositionDetails(
-  targetPortfolioId: number,
+  targetPortfolioUid: string,
   traceMeta?: DashboardRequestTraceMeta,
 ) {
-  return fetchTargetPositionDetailPositionDetails(targetPortfolioId, traceMeta);
+  return fetchTargetPositionDetailPositionDetails(targetPortfolioUid, traceMeta);
 }
 
 export async function fetchManagedAccountHoldingsPositionDetails(
@@ -4602,7 +4665,7 @@ export function bulkDeleteAssetTranslationTables(input: AssetTranslationTableBul
     {
       method: "POST",
       body: JSON.stringify({
-        ids: input.ids,
+        uids: input.uids,
         select_all: input.selectAll,
         search: input.search?.trim() || undefined,
       }),
@@ -4610,22 +4673,22 @@ export function bulkDeleteAssetTranslationTables(input: AssetTranslationTableBul
   );
 }
 
-export function fetchAssetTranslationTableDetail(assetTranslationTableId: number) {
+export function fetchAssetTranslationTableDetail(assetTranslationTableUid: string) {
   return requestJson<AssetTranslationTableDetailResponse>(
     assetTranslationTableEndpoint,
-    `${assetTranslationTableId}/`,
+    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/`,
     undefined,
     { response_format: "frontend_detail" },
   );
 }
 
 export function updateAssetTranslationTable(
-  assetTranslationTableId: number,
+  assetTranslationTableUid: string,
   input: UpdateAssetTranslationTableInput,
 ) {
   return requestJson<AssetTranslationTableRecord>(
     assetTranslationTableEndpoint,
-    `${assetTranslationTableId}/`,
+    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/`,
     {
       method: "PATCH",
       body: JSON.stringify(input),
@@ -4633,10 +4696,10 @@ export function updateAssetTranslationTable(
   );
 }
 
-export function deleteAssetTranslationTable(assetTranslationTableId: number) {
+export function deleteAssetTranslationTable(assetTranslationTableUid: string) {
   return requestJson<Record<string, unknown> | null>(
     assetTranslationTableEndpoint,
-    `${assetTranslationTableId}/`,
+    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/`,
     {
       method: "DELETE",
     },
@@ -4644,7 +4707,7 @@ export function deleteAssetTranslationTable(assetTranslationTableId: number) {
 }
 
 export async function listAssetTranslationTableRules(
-  assetTranslationTableId: number,
+  assetTranslationTableUid: string,
   {
     search,
     page = 1,
@@ -4663,7 +4726,7 @@ export async function listAssetTranslationTableRules(
     | AssetTranslationTableRuleListRow[]
   >(
     assetTranslationTableEndpoint,
-    `${assetTranslationTableId}/rules/`,
+    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/rules/`,
     undefined,
     buildAssetTranslationTableRulesListSearch(filters),
   );
@@ -4676,12 +4739,12 @@ export async function listAssetTranslationTableRules(
 }
 
 export function createAssetTranslationTableRule(
-  assetTranslationTableId: number,
+  assetTranslationTableUid: string,
   input: AssetTranslationTableRuleInput,
 ) {
   return requestJson<AssetTranslationTableRuleListRow>(
     assetTranslationTableEndpoint,
-    `${assetTranslationTableId}/rules/`,
+    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/rules/`,
     {
       method: "POST",
       body: JSON.stringify(input),
@@ -4690,13 +4753,13 @@ export function createAssetTranslationTableRule(
 }
 
 export function updateAssetTranslationTableRule(
-  assetTranslationTableId: number,
-  ruleId: number,
+  assetTranslationTableUid: string,
+  ruleUid: string,
   input: AssetTranslationTableRuleInput,
 ) {
   return requestJson<AssetTranslationTableRuleListRow>(
     assetTranslationTableEndpoint,
-    `${assetTranslationTableId}/rules/${ruleId}/`,
+    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/rules/${resolveMainSequenceUidPath(ruleUid, "asset translation table rule")}/`,
     {
       method: "PATCH",
       body: JSON.stringify(input),
@@ -4704,20 +4767,20 @@ export function updateAssetTranslationTableRule(
   );
 }
 
-export function deleteAssetTranslationTableRule(assetTranslationTableId: number, ruleId: number) {
+export function deleteAssetTranslationTableRule(assetTranslationTableUid: string, ruleUid: string) {
   return requestJson<AssetTranslationTableRuleDeleteResponse>(
     assetTranslationTableEndpoint,
-    `${assetTranslationTableId}/rules/${ruleId}/`,
+    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/rules/${resolveMainSequenceUidPath(ruleUid, "asset translation table rule")}/`,
     {
       method: "DELETE",
     },
   );
 }
 
-export function fetchAssetDetail(assetId: number) {
+export function fetchAssetDetail(assetUid: string) {
   return requestJson<AssetDetailResponse>(
     assetEndpoint,
-    `${assetId}/`,
+    `${resolveMainSequenceUidPath(assetUid, "asset")}/`,
     undefined,
     { response_format: "frontend_detail" },
   );
@@ -4737,10 +4800,10 @@ function normalizeAssetOrderFormFields(
   return [];
 }
 
-export async function fetchAssetOrderFormFields(assetId: number, orderType: string) {
+export async function fetchAssetOrderFormFields(assetUid: string, orderType: string) {
   const payload = await requestJson<AssetOrderFormFieldsResponse | AssetOrderFormField[]>(
     assetEndpoint,
-    `${assetId}/order-form-fields/`,
+    `${resolveMainSequenceUidPath(assetUid, "asset")}/order-form-fields/`,
     undefined,
     { order_type: orderType },
   );
@@ -4777,7 +4840,7 @@ export function bulkDeleteProjectDataSources(input: ProjectDataSourceBulkDeleteI
     {
       method: "POST",
       body: JSON.stringify({
-        ids: input.ids,
+        uids: input.uids,
         select_all: input.selectAll ?? false,
         search: input.search?.trim() || undefined,
       }),
@@ -4792,10 +4855,10 @@ export function fetchProjectDataSourceEditorConfig() {
   );
 }
 
-export function fetchProjectDataSourceEditor(projectDataSourceId: number) {
+export function fetchProjectDataSourceEditor(projectDataSourceUid: string) {
   return requestJson<ProjectDataSourceEditorPayload>(
     dynamicTableDataSourceEndpoint,
-    `${projectDataSourceId}/`,
+    `${resolveMainSequenceUidPath(projectDataSourceUid, "project data source")}/`,
     undefined,
     { response_format: "editor" },
   );
@@ -4823,12 +4886,12 @@ export function createProjectDataSourceEditor(input: ProjectDataSourceEditorInpu
 }
 
 export function updateProjectDataSourceEditor(
-  projectDataSourceId: number,
+  projectDataSourceUid: string,
   input: Partial<ProjectDataSourceEditorInput>,
 ) {
   return requestJson<ProjectDataSourceEditorWriteResponse>(
     dynamicTableDataSourceEndpoint,
-    `${projectDataSourceId}/`,
+    `${resolveMainSequenceUidPath(projectDataSourceUid, "project data source")}/`,
     {
       method: "PATCH",
       body: JSON.stringify(input),
@@ -4837,10 +4900,10 @@ export function updateProjectDataSourceEditor(
   );
 }
 
-export function deleteProjectDataSourceEditor(projectDataSourceId: number) {
+export function deleteProjectDataSourceEditor(projectDataSourceUid: string) {
   return requestJson<ProjectDataSourceDeleteResponse>(
     dynamicTableDataSourceEndpoint,
-    `${projectDataSourceId}/delete/`,
+    `${resolveMainSequenceUidPath(projectDataSourceUid, "project data source")}/delete/`,
     {
       method: "POST",
       body: JSON.stringify({}),
@@ -4880,7 +4943,7 @@ export function bulkDeletePhysicalDataSources(input: PhysicalDataSourceBulkDelet
     {
       method: "POST",
       body: JSON.stringify({
-        ids: input.ids,
+        uids: input.uids,
         select_all: input.selectAll ?? false,
         search: input.search?.trim() || undefined,
         class_type: input.classType?.trim() || undefined,
@@ -4900,19 +4963,19 @@ export function fetchPhysicalDataSourceEditorConfig(
   );
 }
 
-export function fetchPhysicalDataSourceEditor(physicalDataSourceId: number) {
+export function fetchPhysicalDataSourceEditor(physicalDataSourceUid: string) {
   return requestJson<PhysicalDataSourceEditorPayload>(
     mainSequenceConnectionsEndpoint,
-    `data_source/${physicalDataSourceId}/`,
+    `data_source/${resolveMainSequenceUidPath(physicalDataSourceUid, "physical data source")}/`,
     undefined,
     { response_format: "editor" },
   );
 }
 
-export function fetchPhysicalDataSourceSummary(physicalDataSourceId: number) {
+export function fetchPhysicalDataSourceSummary(physicalDataSourceUid: string) {
   return requestJson<SummaryResponse>(
     mainSequenceConnectionsEndpoint,
-    `data_source/${physicalDataSourceId}/summary/`,
+    `data_source/${resolveMainSequenceUidPath(physicalDataSourceUid, "physical data source")}/summary/`,
   );
 }
 
@@ -4929,12 +4992,12 @@ export function createPhysicalDataSourceEditor(input: PhysicalDataSourceEditorCr
 }
 
 export function updatePhysicalDataSourceEditor(
-  physicalDataSourceId: number,
+  physicalDataSourceUid: string,
   input: PhysicalDataSourceEditorUpdateInput,
 ) {
   return requestJson<PhysicalDataSourceEditorWriteResponse>(
     mainSequenceConnectionsEndpoint,
-    `data_source/${physicalDataSourceId}/`,
+    `data_source/${resolveMainSequenceUidPath(physicalDataSourceUid, "physical data source")}/`,
     {
       method: "PATCH",
       body: JSON.stringify(input),
@@ -4943,10 +5006,10 @@ export function updatePhysicalDataSourceEditor(
   );
 }
 
-export function deletePhysicalDataSourceEditor(physicalDataSourceId: number) {
+export function deletePhysicalDataSourceEditor(physicalDataSourceUid: string) {
   return requestJson<PhysicalDataSourceDeleteResponse>(
     mainSequenceConnectionsEndpoint,
-    `data_source/${physicalDataSourceId}/delete/`,
+    `data_source/${resolveMainSequenceUidPath(physicalDataSourceUid, "physical data source")}/delete/`,
     {
       method: "POST",
       body: JSON.stringify({}),
@@ -5004,69 +5067,69 @@ export async function listScalableServices({
   return normalizeOffsetPaginatedResponse(payload, pageSize, (page - 1) * pageSize);
 }
 
-export function fetchScalableServiceDetail(scalableServiceId: number) {
+export function fetchScalableServiceDetail(scalableServiceUid: string) {
   return requestJson<ScalableServiceRecord>(
     commandCenterConfig.mainSequence.endpoint,
-    `scalable-service/${scalableServiceId}/`,
+    `scalable-service/${resolveMainSequenceUidPath(scalableServiceUid, "scalable service")}/`,
   );
 }
 
-export function fetchScalableServiceSummary(scalableServiceId: number) {
+export function fetchScalableServiceSummary(scalableServiceUid: string) {
   return requestJson<SummaryResponse>(
     commandCenterConfig.mainSequence.endpoint,
-    `scalable-service/${scalableServiceId}/summary/`,
+    `scalable-service/${resolveMainSequenceUidPath(scalableServiceUid, "scalable service")}/summary/`,
   );
 }
 
-export async function listScalableServicePods(scalableServiceId: number) {
+export async function listScalableServicePods(scalableServiceUid: string) {
   const payload = await requestJson<
     PaginatedResponse<ScalableServicePodRow> | ScalableServicePodRow[]
   >(
     commandCenterConfig.mainSequence.endpoint,
-    `scalable-service/${scalableServiceId}/pods/`,
+    `scalable-service/${resolveMainSequenceUidPath(scalableServiceUid, "scalable service")}/pods/`,
   );
 
   return normalizeListResponse(payload);
 }
 
-export async function listScalableServiceRevisions(scalableServiceId: number) {
+export async function listScalableServiceRevisions(scalableServiceUid: string) {
   const payload = await requestJson<
     PaginatedResponse<ScalableServiceRevisionRecord> | ScalableServiceRevisionRecord[]
   >(
     commandCenterConfig.mainSequence.endpoint,
-    `scalable-service/${scalableServiceId}/revisions/`,
+    `scalable-service/${resolveMainSequenceUidPath(scalableServiceUid, "scalable service")}/revisions/`,
   );
 
   return normalizeListResponse(payload);
 }
 
-export function fetchKnativePodRuntimeLogs(knativePodRuntimeId: number) {
+export function fetchKnativePodRuntimeLogs(knativePodRuntimeUid: string) {
   return requestJson<
     KnativePodRuntimeLogsResponse | JobRunLogEntry[] | { rows?: JobRunLogEntry[]; status?: string }
   >(
     commandCenterConfig.mainSequence.endpoint,
-    `knative-pod-runtimes/${knativePodRuntimeId}/logs/`,
+    `knative-pod-runtimes/${resolveMainSequenceUidPath(knativePodRuntimeUid, "knative pod runtime")}/logs/`,
   ).then((payload) => {
     if (Array.isArray(payload)) {
       return {
-        pod_runtime_id: knativePodRuntimeId,
+        pod_runtime_uid: knativePodRuntimeUid,
         status: "",
         rows: payload,
       } satisfies KnativePodRuntimeLogsResponse;
     }
 
     return {
-      pod_runtime_id: knativePodRuntimeId,
+      pod_runtime_uid: knativePodRuntimeUid,
       status: typeof payload?.status === "string" ? payload.status : "",
       rows: Array.isArray(payload?.rows) ? payload.rows : [],
     } satisfies KnativePodRuntimeLogsResponse;
   });
 }
 
-export async function fetchKnativePodRuntimeResourceUsage(knativePodRuntimeId: number) {
+export async function fetchKnativePodRuntimeResourceUsage(knativePodRuntimeUid: string) {
   const payload = await requestJson<unknown>(
     commandCenterConfig.mainSequence.endpoint,
-    `knative-pod-runtimes/${knativePodRuntimeId}/resource-usage/`,
+    `knative-pod-runtimes/${resolveMainSequenceUidPath(knativePodRuntimeUid, "knative pod runtime")}/resource-usage/`,
   );
 
   if (Array.isArray(payload)) {
@@ -5090,22 +5153,22 @@ export async function fetchKnativePodRuntimeResourceUsage(knativePodRuntimeId: n
   return [];
 }
 
-export function fetchTimeScaleDBServiceDetail(timeScaleDBServiceId: number) {
+export function fetchTimeScaleDBServiceDetail(timeScaleDBServiceUid: string) {
   return requestJson<TimeScaleDBServiceRecord>(
     mainSequenceConnectionsEndpoint,
-    `timescaledb-service/${timeScaleDBServiceId}/`,
+    `timescaledb-service/${resolveMainSequenceUidPath(timeScaleDBServiceUid, "timescaledb service")}/`,
   );
 }
 
-export function fetchTimeScaleDBServiceSummary(timeScaleDBServiceId: number) {
+export function fetchTimeScaleDBServiceSummary(timeScaleDBServiceUid: string) {
   return requestJson<SummaryResponse>(
     mainSequenceConnectionsEndpoint,
-    `timescaledb-service/${timeScaleDBServiceId}/summary/`,
+    `timescaledb-service/${resolveMainSequenceUidPath(timeScaleDBServiceUid, "timescaledb service")}/summary/`,
   );
 }
 
 export function listTimeScaleDBServiceDataSources(
-  timeScaleDBServiceId: number,
+  timeScaleDBServiceUid: string,
   {
     page = 1,
     pageSize = mainSequenceRegistryPageSize,
@@ -5120,7 +5183,7 @@ export function listTimeScaleDBServiceDataSources(
 ) {
   return requestJson<TimeScaleDBServiceDataSourceListResponse>(
     mainSequenceConnectionsEndpoint,
-    `timescaledb-service/${timeScaleDBServiceId}/data-sources/`,
+    `timescaledb-service/${resolveMainSequenceUidPath(timeScaleDBServiceUid, "timescaledb service")}/data-sources/`,
     undefined,
     {
       search: search?.trim() || undefined,
@@ -5153,25 +5216,25 @@ export function listClusters({
   );
 }
 
-export function fetchClusterDetail(clusterId: number) {
+export function fetchClusterDetail(clusterUid: string) {
   return requestJson<ClusterDetailSummary>(
     commandCenterConfig.mainSequence.endpoint,
-    `cluster/${clusterId}/`,
+    `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/`,
     undefined,
     { response_format: "cluster_detail" },
   );
 }
 
-export async function listClusterNodePools(clusterId: number) {
+export async function listClusterNodePools(clusterUid: string) {
   const payload = await requestJson<
     PaginatedResponse<ClusterNodePoolRow> | ClusterNodePoolRow[]
-  >(commandCenterConfig.mainSequence.endpoint, `cluster/${clusterId}/node-pools/`);
+  >(commandCenterConfig.mainSequence.endpoint, `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/node-pools/`);
 
   return normalizeListResponse(payload);
 }
 
 export async function listClusterNodes(
-  clusterId: number,
+  clusterUid: string,
   {
     nodePool,
   }: {
@@ -5180,7 +5243,7 @@ export async function listClusterNodes(
 ) {
   const payload = await requestJson<PaginatedResponse<ClusterNodeRow> | ClusterNodeRow[]>(
     commandCenterConfig.mainSequence.endpoint,
-    `cluster/${clusterId}/nodes/`,
+    `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/nodes/`,
     undefined,
     {
       node_pool: nodePool?.trim() || undefined,
@@ -5190,16 +5253,16 @@ export async function listClusterNodes(
   return normalizeListResponse(payload);
 }
 
-export async function listClusterNamespaces(clusterId: number) {
+export async function listClusterNamespaces(clusterUid: string) {
   const payload = await requestJson<
     PaginatedResponse<ClusterNamespaceRow> | ClusterNamespaceRow[]
-  >(commandCenterConfig.mainSequence.endpoint, `cluster/${clusterId}/namespaces/`);
+  >(commandCenterConfig.mainSequence.endpoint, `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/namespaces/`);
 
   return normalizeListResponse(payload);
 }
 
 export async function listClusterPods(
-  clusterId: number,
+  clusterUid: string,
   {
     namespace,
     nodePool,
@@ -5210,7 +5273,7 @@ export async function listClusterPods(
 ) {
   const payload = await requestJson<PaginatedResponse<ClusterPodRow> | ClusterPodRow[]>(
     commandCenterConfig.mainSequence.endpoint,
-    `cluster/${clusterId}/pods/`,
+    `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/pods/`,
     undefined,
     {
       namespace: namespace?.trim() || undefined,
@@ -5222,7 +5285,7 @@ export async function listClusterPods(
 }
 
 export async function listClusterDeployments(
-  clusterId: number,
+  clusterUid: string,
   {
     namespace,
   }: {
@@ -5233,7 +5296,7 @@ export async function listClusterDeployments(
     PaginatedResponse<ClusterDeploymentRow> | ClusterDeploymentRow[]
   >(
     commandCenterConfig.mainSequence.endpoint,
-    `cluster/${clusterId}/deployments/`,
+    `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/deployments/`,
     undefined,
     {
       namespace: namespace?.trim() || undefined,
@@ -5244,7 +5307,7 @@ export async function listClusterDeployments(
 }
 
 export async function listClusterServices(
-  clusterId: number,
+  clusterUid: string,
   {
     namespace,
   }: {
@@ -5253,7 +5316,7 @@ export async function listClusterServices(
 ) {
   const payload = await requestJson<PaginatedResponse<ClusterServiceRow> | ClusterServiceRow[]>(
     commandCenterConfig.mainSequence.endpoint,
-    `cluster/${clusterId}/services/`,
+    `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/services/`,
     undefined,
     {
       namespace: namespace?.trim() || undefined,
@@ -5264,7 +5327,7 @@ export async function listClusterServices(
 }
 
 export async function listClusterStorage(
-  clusterId: number,
+  clusterUid: string,
   {
     namespace,
   }: {
@@ -5273,7 +5336,7 @@ export async function listClusterStorage(
 ) {
   const payload = await requestJson<PaginatedResponse<ClusterStorageRow> | ClusterStorageRow[]>(
     commandCenterConfig.mainSequence.endpoint,
-    `cluster/${clusterId}/storage/`,
+    `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/storage/`,
     undefined,
     {
       namespace: namespace?.trim() || undefined,
@@ -5284,7 +5347,7 @@ export async function listClusterStorage(
 }
 
 export async function listClusterKnative(
-  clusterId: number,
+  clusterUid: string,
   {
     namespace,
   }: {
@@ -5293,7 +5356,7 @@ export async function listClusterKnative(
 ) {
   const payload = await requestJson<PaginatedResponse<ClusterKnativeRow> | ClusterKnativeRow[]>(
     commandCenterConfig.mainSequence.endpoint,
-    `cluster/${clusterId}/knative/`,
+    `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/knative/`,
     undefined,
     {
       namespace: namespace?.trim() || undefined,
@@ -5304,7 +5367,7 @@ export async function listClusterKnative(
 }
 
 export function scaleCluster(
-  clusterId: number,
+  clusterUid: string,
   {
     desiredNodeCount,
   }: {
@@ -5313,7 +5376,7 @@ export function scaleCluster(
 ) {
   return requestJson<ClusterScaleResponse>(
     commandCenterConfig.mainSequence.endpoint,
-    `cluster/${clusterId}/scale/`,
+    `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/scale/`,
     {
       method: "POST",
       body: JSON.stringify({
@@ -5345,10 +5408,10 @@ export async function listConstants({
   };
 }
 
-export function fetchConstant(constantId: number) {
+export function fetchConstant(constantUid: string) {
   return requestJson<ConstantRecord>(
     commandCenterConfig.mainSequence.endpoint,
-    `constant/${constantId}/`,
+    `constant/${resolveMainSequenceUidPath(constantUid, "constant")}/`,
   );
 }
 
@@ -5359,14 +5422,14 @@ export function createConstant(input: CreateConstantInput) {
   });
 }
 
-export function deleteConstant(constantId: number) {
-  return requestJson<null>(commandCenterConfig.mainSequence.endpoint, `constant/${constantId}/`, {
+export function deleteConstant(constantUid: string) {
+  return requestJson<null>(commandCenterConfig.mainSequence.endpoint, `constant/${resolveMainSequenceUidPath(constantUid, "constant")}/`, {
     method: "DELETE",
   });
 }
 
-export function bulkDeleteConstants(ids: number[]) {
-  return postMainSequenceBulkDelete("constant/bulk-delete/", ids);
+export function bulkDeleteConstants(uids: string[]) {
+  return postMainSequenceBulkDelete("constant/bulk-delete/", uids);
 }
 
 export async function listSecrets({
@@ -5393,12 +5456,12 @@ export async function listSecrets({
   };
 }
 
-export async function listProjectSecrets(projectId: number) {
+export async function listProjectSecrets(projectUid: string) {
   const payload = await requestJson<
     PaginatedResponse<ProjectSecretRecord> | ProjectSecretRecord[]
   >(commandCenterConfig.mainSequence.endpoint, "project-secret/", undefined, {
     limit: 200,
-    project: projectId,
+    project__uid: projectUid,
   });
 
   return normalizeListResponse(payload).sort((left, right) => right.id - left.id);
@@ -5411,20 +5474,20 @@ export function createProjectSecret(input: CreateProjectSecretInput) {
   });
 }
 
-export function deleteProjectSecret(projectSecretId: number) {
+export function deleteProjectSecret(projectSecretUid: string) {
   return requestJson<null>(
     commandCenterConfig.mainSequence.endpoint,
-    `project-secret/${projectSecretId}/`,
+    `project-secret/${resolveMainSequenceUidPath(projectSecretUid, "project secret")}/`,
     {
       method: "DELETE",
     },
   );
 }
 
-export function fetchSecret(secretId: number) {
+export function fetchSecret(secretUid: string) {
   return requestJson<SecretRecord>(
     commandCenterConfig.mainSequence.endpoint,
-    `secret/${secretId}/`,
+    `secret/${resolveMainSequenceUidPath(secretUid, "secret")}/`,
   );
 }
 
@@ -5471,15 +5534,15 @@ export function createBucket(input: CreateBucketInput) {
   });
 }
 
-export function fetchBucketSummary(bucketId: number) {
+export function fetchBucketSummary(bucketUid: string) {
   return requestJson<BucketSummaryHeader>(
     commandCenterConfig.mainSequence.endpoint,
-    `bucket/${bucketId}/summary/`,
+    `bucket/${resolveMainSequenceUidPath(bucketUid, "bucket")}/summary/`,
   );
 }
 
 export function fetchBucketBrowse(
-  bucketId: number,
+  bucketUid: string,
   {
     prefix,
     search,
@@ -5496,7 +5559,7 @@ export function fetchBucketBrowse(
 ) {
   return requestJson<BucketBrowseResponse>(
     commandCenterConfig.mainSequence.endpoint,
-    `bucket/${bucketId}/browse/`,
+    `bucket/${resolveMainSequenceUidPath(bucketUid, "bucket")}/browse/`,
     undefined,
     {
       prefix: prefix || undefined,
@@ -5508,10 +5571,10 @@ export function fetchBucketBrowse(
   );
 }
 
-export function createBucketFolder(bucketId: number, input: CreateBucketFolderInput) {
+export function createBucketFolder(bucketUid: string, input: CreateBucketFolderInput) {
   return requestJson<CreateBucketFolderResponse>(
     commandCenterConfig.mainSequence.endpoint,
-    `bucket/${bucketId}/create-folder/`,
+    `bucket/${resolveMainSequenceUidPath(bucketUid, "bucket")}/create-folder/`,
     {
       method: "POST",
       body: JSON.stringify(input),
@@ -5519,7 +5582,7 @@ export function createBucketFolder(bucketId: number, input: CreateBucketFolderIn
   );
 }
 
-export function uploadBucketArtifact(bucketId: number, input: UploadBucketArtifactInput) {
+export function uploadBucketArtifact(bucketUid: string, input: UploadBucketArtifactInput) {
   const formData = new FormData();
   formData.append("file", input.file);
   formData.append("prefix", input.prefix);
@@ -5527,7 +5590,7 @@ export function uploadBucketArtifact(bucketId: number, input: UploadBucketArtifa
 
   return requestJson<UploadBucketArtifactResponse>(
     commandCenterConfig.mainSequence.endpoint,
-    `bucket/${bucketId}/upload-artifact/`,
+    `bucket/${resolveMainSequenceUidPath(bucketUid, "bucket")}/upload-artifact/`,
     {
       method: "POST",
       body: formData,
@@ -5535,8 +5598,8 @@ export function uploadBucketArtifact(bucketId: number, input: UploadBucketArtifa
   );
 }
 
-export function deleteBucket(bucketId: number) {
-  return requestJson<null>(commandCenterConfig.mainSequence.endpoint, `bucket/${bucketId}/`, {
+export function deleteBucket(bucketUid: string) {
+  return requestJson<null>(commandCenterConfig.mainSequence.endpoint, `bucket/${resolveMainSequenceUidPath(bucketUid, "bucket")}/`, {
     method: "DELETE",
   });
 }
@@ -5548,7 +5611,7 @@ export function bulkDeleteBuckets(input: BucketBulkDeleteInput) {
     {
       method: "POST",
       body: JSON.stringify({
-        ids: input.ids,
+        uids: input.uids,
         select_all: input.selectAll ?? false,
         current_url: input.currentUrl,
         search: input.search,
@@ -5580,7 +5643,7 @@ export async function listSimpleTables({
 }
 
 export function bulkDeleteSimpleTables({
-  ids,
+  uids,
   fullDeleteSelected = false,
   fullDeleteDownstreamTables = false,
 }: SimpleTableBulkDeleteInput) {
@@ -5589,7 +5652,7 @@ export function bulkDeleteSimpleTables({
     "bulk-delete/",
     {
       method: "POST",
-      body: JSON.stringify({ ids }),
+      body: JSON.stringify({ uids }),
     },
     {
       full_delete_selected: fullDeleteSelected || undefined,
@@ -5598,13 +5661,13 @@ export function bulkDeleteSimpleTables({
   );
 }
 
-export function bulkRefreshSimpleTableSearchIndex(ids: number[]) {
+export function bulkRefreshSimpleTableSearchIndex(uids: string[]) {
   return requestJson<SimpleTableBulkRefreshResponse>(
     simpleTableEndpoint,
     "bulk-refresh-table-search-index/",
     {
       method: "POST",
-      body: JSON.stringify({ ids }),
+      body: JSON.stringify({ uids }),
     },
   );
 }
@@ -5726,7 +5789,7 @@ export function fetchSimpleTableSchemaGraph(
 }
 
 export async function listSimpleTableUpdates(
-  simpleTableId: number,
+  simpleTableUid: string,
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
@@ -5740,7 +5803,7 @@ export async function listSimpleTableUpdates(
   >(simpleTableEndpoint, "update/", undefined, {
     limit,
     offset,
-    remote_table: simpleTableId,
+    remote_table__uid: simpleTableUid,
   });
 
   const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
@@ -5860,9 +5923,9 @@ export async function quickSearchLocalTimeSeries({
     id: row.id,
     uid: typeof row.uid === "string" ? row.uid : null,
     update_hash: row.update_hash,
-    project_id:
-      "project_id" in row && typeof row.project_id === "number" && Number.isFinite(row.project_id)
-        ? row.project_id
+    project_uid:
+      "project_uid" in row && typeof row.project_uid === "string" && row.project_uid.trim()
+        ? row.project_uid
         : null,
     data_node_storage: row.data_node_storage
         ? {
@@ -5910,7 +5973,7 @@ export async function quickSearchSimpleTableUpdates({
 }
 
 export async function listLocalTimeSeries(
-  remoteTableId: number,
+  remoteTableUid: string,
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
@@ -5926,7 +5989,7 @@ export async function listLocalTimeSeries(
   >(localTimeSerieEndpoint, "", undefined, {
     limit,
     offset,
-    remote_table: remoteTableId,
+    remote_table__uid: remoteTableUid,
   }, traceMeta);
 
   const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
@@ -5938,7 +6001,7 @@ export async function listLocalTimeSeries(
 }
 
 export async function listProjectLocalTimeSeries(
-  projectId: number,
+  projectUid: string,
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
@@ -5952,7 +6015,7 @@ export async function listProjectLocalTimeSeries(
   >(localTimeSerieEndpoint, "", undefined, {
     limit,
     offset,
-    "project__id": projectId,
+    "project__uid": projectUid,
   });
 
   const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
@@ -5975,7 +6038,7 @@ async function postDynamicTableBulkAction<T>(
 
 function postMainSequenceBulkDelete(
   path: string,
-  ids: number[],
+  uids: string[],
   search?: Record<string, QueryValue>,
 ) {
   return requestJson<MainSequenceBulkDeleteResponse>(
@@ -5983,36 +6046,36 @@ function postMainSequenceBulkDelete(
     path,
     {
       method: "POST",
-      body: JSON.stringify({ ids }),
+      body: JSON.stringify({ uids }),
     },
     search,
   );
 }
 
-export function bulkSetDataNodeNextUpdateFromLastIndexValue(selectedIds: number[]) {
+export function bulkSetDataNodeNextUpdateFromLastIndexValue(selectedUids: string[]) {
   return postDynamicTableBulkAction<DynamicTableBulkActionResponse>(
     "bulk-set-next-update-from-last-index-value/",
-    { selected_ids: selectedIds },
+    { selected_uids: selectedUids },
   );
 }
 
-export function bulkSetDataNodeIndexStatsFromTable(selectedIds: number[]) {
+export function bulkSetDataNodeIndexStatsFromTable(selectedUids: string[]) {
   return postDynamicTableBulkAction<DynamicTableBulkActionResponse>(
     "bulk-set-index-stats-from-table/",
-    { selected_ids: selectedIds },
+    { selected_uids: selectedUids },
   );
 }
 
-export function bulkRefreshDataNodeTableSearchIndex(selectedIds: number[]) {
+export function bulkRefreshDataNodeTableSearchIndex(selectedUids: string[]) {
   return postDynamicTableBulkAction<DynamicTableBulkActionResponse>(
     "bulk-refresh-table-search-index/",
-    { selected_ids: selectedIds },
+    { selected_uids: selectedUids },
   );
 }
 
 export function bulkDeleteDataNodes(input: DynamicTableBulkDeleteInput) {
   return postDynamicTableBulkAction<DynamicTableBulkDeleteResponse>("bulk-delete/", {
-    selected_ids: input.selectedIds,
+    selected_uids: input.selectedUids,
     full_delete_selected: input.fullDeleteSelected ?? false,
     full_delete_downstream_tables: input.fullDeleteDownstreamTables ?? false,
     delete_with_no_table: input.deleteWithNoTable ?? false,
@@ -6040,23 +6103,23 @@ export async function fetchProjectFormOptions(): Promise<ProjectFormOptions> {
   ]);
 
   const dataSources = normalizeListResponse(dataSourcePayload)
-    .filter((option) => Number.isFinite(option.id) && option.id > 0)
+    .filter((option) => option.uid.trim().length > 0)
     .filter((option) => option.related_resource_class_type !== "duck_db")
     .filter(
       (option) =>
         option.related_resource !== null &&
-        Number.isFinite(option.related_resource.id) &&
-        (option.related_resource.id ?? 0) > 0,
+        typeof option.related_resource.uid === "string" &&
+        option.related_resource.uid.trim().length > 0,
     )
     .sort((left, right) => {
       const leftName =
         left.related_resource?.display_name?.trim() ||
         left.related_resource?.name?.trim() ||
-        `Data source ${left.id}`;
+        `Data source ${left.uid}`;
       const rightName =
         right.related_resource?.display_name?.trim() ||
         right.related_resource?.name?.trim() ||
-        `Data source ${right.id}`;
+        `Data source ${right.uid}`;
       return leftName.localeCompare(rightName);
     });
   const projectBaseImages = normalizeListResponse(projectBaseImagePayload).sort((left, right) =>
@@ -6080,15 +6143,15 @@ export function createProject(input: CreateProjectInput) {
   });
 }
 
-export function fetchProjectDetail(projectId: number) {
+export function fetchProjectDetail(projectUid: string) {
   return requestJson<ProjectDetail>(
     commandCenterConfig.mainSequence.endpoint,
-    `projects/${projectId}/`,
+    `projects/${resolveMainSequenceUidPath(projectUid, "project")}/`,
   );
 }
 
 export function fetchProjectInfraGraph(
-  projectId: number,
+  projectUid: string,
   {
     commitSha,
   }: {
@@ -6097,7 +6160,7 @@ export function fetchProjectInfraGraph(
 ) {
   return requestJson<ProjectInfraGraphResponse>(
     commandCenterConfig.mainSequence.endpoint,
-    `projects/${projectId}/infra-graph/`,
+    `projects/${resolveMainSequenceUidPath(projectUid, "project")}/infra-graph/`,
     undefined,
     { commit_sha: commitSha },
   );
@@ -6112,21 +6175,21 @@ export function fetchMainSequenceSummaryByUrl(summaryUrl: string) {
 }
 
 export function updateProjectSettings({
-  projectId,
-  defaultDataSourceId,
-  defaultBaseImageId,
+  projectUid,
+  defaultDataSourceUid,
+  defaultBaseImageUid,
 }: UpdateProjectSettingsInput) {
   return requestJson<ProjectDetail>(
     commandCenterConfig.mainSequence.endpoint,
-    `projects/${projectId}/`,
+    `projects/${resolveMainSequenceUidPath(projectUid, "project")}/`,
     {
       method: "PATCH",
       body: JSON.stringify({
-        ...(defaultDataSourceId !== undefined
-          ? { default_data_source_id: defaultDataSourceId }
+        ...(defaultDataSourceUid !== undefined
+          ? { default_data_source: defaultDataSourceUid }
           : {}),
-        ...(defaultBaseImageId !== undefined
-          ? { default_base_image_id: defaultBaseImageId }
+        ...(defaultBaseImageUid !== undefined
+          ? { default_base_image: defaultBaseImageUid }
           : {}),
       }),
     },
@@ -6134,7 +6197,7 @@ export function updateProjectSettings({
 }
 
 export async function fetchProjectImages(
-  projectId: number,
+  projectUid: string,
   {
     catalogImagePrefix,
     catalogImagePrefixStartswith,
@@ -6149,7 +6212,7 @@ export async function fetchProjectImages(
     undefined,
     {
       limit: 200,
-      "related_project__id__in": projectId,
+      "related_project__uid__in": projectUid,
       ...(catalogImagePrefix ? { catalog_image_prefix: catalogImagePrefix } : {}),
       ...(catalogImagePrefixStartswith
         ? { "catalog_image_prefix__startswith": catalogImagePrefixStartswith }
@@ -6161,7 +6224,7 @@ export async function fetchProjectImages(
 }
 
 export async function listProjectImages(
-  projectId: number,
+  projectUid: string,
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
@@ -6177,7 +6240,7 @@ export async function listProjectImages(
     {
       limit,
       offset,
-      "related_project__id__in": projectId,
+      "related_project__uid__in": projectUid,
     },
   );
 
@@ -6241,7 +6304,7 @@ export async function fetchResourceReleaseExchangeLaunch(exchangeLaunchUrl: stri
 }
 
 export async function listProjectResources(
-  projectId: number,
+  projectUid: string,
   {
     limit = 200,
     offset = 0,
@@ -6259,7 +6322,7 @@ export async function listProjectResources(
   >(commandCenterConfig.mainSequence.endpoint, "project-resource/", undefined, {
     limit,
     offset,
-    "project__id": projectId,
+    "project__uid": projectUid,
     repo_commit_sha: repoCommitSha,
     resource_type: resourceType,
   });
@@ -6307,8 +6370,8 @@ export function getOrCreateProjectExecutorAgentService(
 }
 
 export function buildProjectExecutorAgentServiceImage(input: {
-  project_id: number;
-  project_related_image_id: number;
+  project: string;
+  project_related_image: string;
 }) {
   return requestJson<ProjectExecutorAgentServiceRecord>(
     "/orm/api/agents/v1/project-executor-agent-services/build-image/",
@@ -6321,8 +6384,8 @@ export function buildProjectExecutorAgentServiceImage(input: {
 }
 
 export function deployProjectExecutorAgentService(input: {
-  project_id: number;
-  runtime_image_id: number;
+  project: string;
+  runtime_image: string;
   llm_provider: string;
   llm_model: string;
   cpu_request?: string;
@@ -6343,10 +6406,10 @@ export function deployProjectExecutorAgentService(input: {
   );
 }
 
-export async function fetchProjectExecutorAgentServiceByProject(projectId: number) {
+export async function fetchProjectExecutorAgentServiceByProject(projectUid: string) {
   try {
     return await requestJson<ProjectExecutorAgentServiceSummary>(
-      `/orm/api/agents/v1/project-executor-agent-services/by-project/${projectId}/`,
+      `/orm/api/agents/v1/project-executor-agent-services/by-project/${resolveMainSequenceUidPath(projectUid, "project")}/`,
       "",
     );
   } catch (error) {
@@ -6358,9 +6421,9 @@ export async function fetchProjectExecutorAgentServiceByProject(projectId: numbe
   }
 }
 
-export function maintainProjectExecutorAgentService(serviceId: number) {
+export function maintainProjectExecutorAgentService(serviceUid: string) {
   return requestJson<ProjectExecutorAgentServiceMaintenanceResult>(
-    `/orm/api/agents/v1/project-executor-agent-services/${serviceId}/maintain-runtime/`,
+    `/orm/api/agents/v1/project-executor-agent-services/${resolveMainSequenceUidPath(serviceUid, "project executor agent service")}/maintain-runtime/`,
     "",
     {
       method: "POST",
@@ -6368,22 +6431,22 @@ export function maintainProjectExecutorAgentService(serviceId: number) {
   );
 }
 
-export async function fetchAvailableProjectExecutorAgentImages(projectId: number) {
+export async function fetchAvailableProjectExecutorAgentImages(projectUid: string) {
   const payload = await requestJson<PaginatedResponse<ProjectImageOption> | ProjectImageOption[]>(
     "/orm/api/agents/v1/project-executor-agent-services/available-images/",
     "",
     undefined,
     {
-      project_id: projectId,
+      project_uid: projectUid,
     },
   );
 
   return normalizeListResponse(payload).sort((left, right) => right.id - left.id);
 }
 
-export function deleteProjectExecutorAgentServiceByProject(projectId: number) {
+export function deleteProjectExecutorAgentServiceByProject(projectUid: string) {
   return requestJson<null>(
-    `/orm/api/agents/v1/project-executor-agent-services/by-project/${projectId}/`,
+    `/orm/api/agents/v1/project-executor-agent-services/by-project/${resolveMainSequenceUidPath(projectUid, "project")}/`,
     "",
     {
       method: "DELETE",
@@ -6391,48 +6454,48 @@ export function deleteProjectExecutorAgentServiceByProject(projectId: number) {
   );
 }
 
-export function deleteResourceRelease(resourceReleaseId: number) {
+export function deleteResourceRelease(resourceReleaseUid: string) {
   return requestJson<null>(
     commandCenterConfig.mainSequence.endpoint,
-    `resource-release/${resourceReleaseId}/`,
+    `resource-release/${resolveMainSequenceUidPath(resourceReleaseUid, "resource release")}/`,
     {
       method: "DELETE",
     },
   );
 }
 
-export function bulkDeleteResourceReleases(ids: number[]) {
-  return postMainSequenceBulkDelete("resource-release/bulk-delete/", ids);
+export function bulkDeleteResourceReleases(uids: string[]) {
+  return postMainSequenceBulkDelete("resource-release/bulk-delete/", uids);
 }
 
-export function deleteProjectImage(imageId: number) {
+export function deleteProjectImage(imageUid: string) {
   return requestJson<{ detail?: string } | null>(
     commandCenterConfig.mainSequence.endpoint,
-    `project-image/${imageId}/`,
+    `project-image/${resolveMainSequenceUidPath(imageUid, "project image")}/`,
     {
       method: "DELETE",
     },
   );
 }
 
-export function bulkDeleteProjectImages(ids: number[]) {
-  return postMainSequenceBulkDelete("project-image/bulk-delete/", ids);
+export function bulkDeleteProjectImages(uids: string[]) {
+  return postMainSequenceBulkDelete("project-image/bulk-delete/", uids);
 }
 
-export function fetchProjectImageCommitHashes(projectId: number, limit = 100) {
+export function fetchProjectImageCommitHashes(projectUid: string, limit = 100) {
   return requestJson<ProjectImageCommitHashListResponse>(
     commandCenterConfig.mainSequence.endpoint,
     "project-image/commit-hashes/",
     undefined,
     {
-      project_id: projectId,
+      project_uid: projectUid,
       limit,
     },
   );
 }
 
 export async function listProjectJobs(
-  projectId: number,
+  projectUid: string,
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
@@ -6448,7 +6511,7 @@ export async function listProjectJobs(
     {
       limit,
       offset,
-      "project__id": projectId,
+      "project__uid": projectUid,
     },
   );
 
@@ -6488,7 +6551,7 @@ export async function listJobs(
 }
 
 export async function listJobRuns(
-  jobId: number,
+  jobUid: string,
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
@@ -6504,7 +6567,7 @@ export async function listJobRuns(
     {
       limit,
       offset,
-      "job__id": jobId,
+      "job__uid": jobUid,
     },
   );
 
@@ -6572,8 +6635,11 @@ export function createJob(input: CreateJobInput) {
   });
 }
 
-export function fetchJob(jobId: number) {
-  return requestJson<JobRecord>(commandCenterConfig.mainSequence.endpoint, `job/${jobId}/`);
+export function fetchJob(jobUid: string) {
+  return requestJson<JobRecord>(
+    commandCenterConfig.mainSequence.endpoint,
+    `job/${resolveMainSequenceUidPath(jobUid, "job")}/`,
+  );
 }
 
 export interface RunJobInput {
@@ -6585,11 +6651,11 @@ export interface RunJobResponse {
   command_args?: string[];
 }
 
-export function runJob(jobId: number, input: RunJobInput = {}) {
+export function runJob(jobUid: string, input: RunJobInput = {}) {
   const commandArgs = input.commandArgs ?? [];
   const body = commandArgs.length > 0 ? { command_args: commandArgs } : {};
 
-  return requestJson<RunJobResponse>(commandCenterConfig.mainSequence.endpoint, `job/${jobId}/run_job/`, {
+  return requestJson<RunJobResponse>(commandCenterConfig.mainSequence.endpoint, `job/${resolveMainSequenceUidPath(jobUid, "job")}/run_job/`, {
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -6706,18 +6772,18 @@ export function removeSummaryLabel(
   });
 }
 
-export function deleteJob(jobId: number) {
-  return requestJson<null>(commandCenterConfig.mainSequence.endpoint, `job/${jobId}/`, {
+export function deleteJob(jobUid: string) {
+  return requestJson<null>(commandCenterConfig.mainSequence.endpoint, `job/${resolveMainSequenceUidPath(jobUid, "job")}/`, {
     method: "DELETE",
   });
 }
 
-export function bulkDeleteJobs(ids: number[]) {
-  return postMainSequenceBulkDelete("job/bulk-delete/", ids);
+export function bulkDeleteJobs(uids: string[]) {
+  return postMainSequenceBulkDelete("job/bulk-delete/", uids);
 }
 
 export function deleteProject(
-  projectId: number,
+  projectUid: string,
   {
     deleteRepositories = false,
   }: {
@@ -6726,7 +6792,7 @@ export function deleteProject(
 ) {
   return requestJson<{ message: string }>(
     commandCenterConfig.mainSequence.endpoint,
-    `projects/${projectId}/`,
+    `projects/${resolveMainSequenceUidPath(projectUid, "project")}/`,
     {
       method: "DELETE",
     },
@@ -6735,7 +6801,7 @@ export function deleteProject(
 }
 
 export function bulkDeleteProjects(
-  ids: number[],
+  uids: string[],
   {
     deleteRepositories = false,
   }: {
@@ -6744,7 +6810,7 @@ export function bulkDeleteProjects(
 ) {
   return postMainSequenceBulkDelete(
     "projects/bulk-delete/",
-    ids,
+    uids,
     deleteRepositories ? { delete_repositories: "true" } : undefined,
   );
 }
@@ -6839,10 +6905,10 @@ export function updateShareableObjectPermission({
   );
 }
 
-export function fetchProjectSummary(projectId: number) {
+export function fetchProjectSummary(projectUid: string) {
   return requestJson<ProjectSummaryHeader>(
     commandCenterConfig.mainSequence.endpoint,
-    `projects/${projectId}/summary/`,
+    `projects/${resolveMainSequenceUidPath(projectUid, "project")}/summary/`,
   );
 }
 
@@ -6869,8 +6935,7 @@ export function fetchDataNodeDetail(
   const resolvedIdentifier = resolveTsManagerPath(dataNodeIdentifier);
 
   if (isWidgetPreviewMode()) {
-    const previewId = typeof dataNodeIdentifier === "number" ? dataNodeIdentifier : Number(dataNodeIdentifier);
-    return Promise.resolve(buildWidgetPreviewDataNodeDetail(Number.isFinite(previewId) ? previewId : 0));
+    return Promise.resolve(buildWidgetPreviewDataNodeDetail());
   }
 
   const cacheKey = buildDataNodeDetailCacheKey(dataNodeIdentifier);
@@ -6927,10 +6992,10 @@ export function fetchDataNodeDetail(
   return requestPromise;
 }
 
-export function fetchSourceTableConfigurationStats(sourceTableConfigurationId: number) {
+export function fetchSourceTableConfigurationStats(sourceTableConfigurationUid: string) {
   return requestJson<SourceTableConfigurationStatsResponse>(
     sourceTableConfigurationEndpoint,
-    `${sourceTableConfigurationId}/get_stats/`,
+    `${resolveMainSequenceUidPath(sourceTableConfigurationUid, "source table configuration")}/get_stats/`,
   );
 }
 
@@ -7200,30 +7265,30 @@ export function saveDataNodeRetentionPolicy(
   );
 }
 
-export function fetchResourceReleaseSummary(resourceReleaseId: number) {
+export function fetchResourceReleaseSummary(resourceReleaseUid: string) {
   return requestJson<ResourceReleaseSummaryResponse>(
     commandCenterConfig.mainSequence.endpoint,
-    `resource-release/${resourceReleaseId}/summary/`,
+    `resource-release/${resolveMainSequenceUidPath(resourceReleaseUid, "resource release")}/summary/`,
   );
 }
 
-export function fetchJobRunSummary(jobRunId: number) {
+export function fetchJobRunSummary(jobRunUid: string) {
   return requestJson<SummaryResponse>(
     commandCenterConfig.mainSequence.endpoint,
-    `job-run/${jobRunId}/summary/`,
+    `job-run/${resolveMainSequenceUidPath(jobRunUid, "job run")}/summary/`,
   );
 }
 
-export function fetchJobRunLogs(jobRunId: number) {
+export function fetchJobRunLogs(jobRunUid: string) {
   return requestJson<JobRunLogsResponse | JobRunLogEntry[]>(
     commandCenterConfig.mainSequence.endpoint,
-    `job-run/${jobRunId}/get_logs/`,
+    `job-run/${resolveMainSequenceUidPath(jobRunUid, "job run")}/get_logs/`,
     undefined,
     { response_format: "tanstack" },
   ).then((payload) => {
     if (Array.isArray(payload)) {
       return {
-        job_run_id: jobRunId,
+        job_run_id: 0,
         status: "",
         rows: payload,
       } satisfies JobRunLogsResponse;
@@ -7233,19 +7298,19 @@ export function fetchJobRunLogs(jobRunId: number) {
   });
 }
 
-export function fetchProjectRepositoryBrowser(projectId: number, path = "") {
+export function fetchProjectRepositoryBrowser(projectUid: string, path = "") {
   return requestJson<ProjectRepositoryBrowserResponse>(
     commandCenterConfig.mainSequence.endpoint,
-    `projects/${projectId}/browse-repository/`,
+    `projects/${resolveMainSequenceUidPath(projectUid, "project")}/browse-repository/`,
     undefined,
     { path },
   );
 }
 
-export async function fetchProjectResourceCode(projectId: number, path = "") {
+export async function fetchProjectResourceCode(projectUid: string, path = "") {
   const payload = await requestJson<ProjectResourceCodeResponse | string | null>(
     commandCenterConfig.mainSequence.endpoint,
-    `projects/${projectId}/resource-code/`,
+    `projects/${resolveMainSequenceUidPath(projectUid, "project")}/resource-code/`,
     {
       headers: {
         Accept: "text/plain, application/json",
@@ -7257,7 +7322,7 @@ export async function fetchProjectResourceCode(projectId: number, path = "") {
   if (typeof payload === "string") {
     const recoveredPayload = tryParseLooseProjectResourceCodeResponse(
       payload,
-      projectId,
+      projectUid,
       path,
     );
 
@@ -7268,7 +7333,7 @@ export async function fetchProjectResourceCode(projectId: number, path = "") {
     const fallbackName = path.split("/").filter(Boolean).at(-1) ?? path;
 
     return {
-      project_id: projectId,
+      project_uid: projectUid,
       path,
       name: fallbackName,
       language: null,
@@ -7280,7 +7345,7 @@ export async function fetchProjectResourceCode(projectId: number, path = "") {
     const fallbackName = path.split("/").filter(Boolean).at(-1) ?? path;
 
     return {
-      project_id: projectId,
+      project_uid: projectUid,
       path,
       name: fallbackName,
       language: null,

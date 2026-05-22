@@ -194,14 +194,14 @@ function formatReadmeFilesize(filesize?: number | null) {
 
 function toProjectResourceOption(resource: ProjectResourceRecord) {
   return {
-    value: String(resource.id),
+    value: resource.uid,
     label: resource.name,
     description: resource.path,
     keywords: [resource.path, resource.repo_commit_sha ?? "", resource.resource_type],
   };
 }
 
-function getEntityIdFromSummaryHref(href: string | undefined, queryKeys: string[]) {
+function getEntityUidFromSummaryHref(href: string | undefined, queryKeys: string[]) {
   if (!href) {
     return null;
   }
@@ -210,21 +210,18 @@ function getEntityIdFromSummaryHref(href: string | undefined, queryKeys: string[
     const url = new URL(href, "https://mainsequence.local");
 
     for (const queryKey of queryKeys) {
-      const rawValue = url.searchParams.get(queryKey);
-      const parsedValue = Number(rawValue ?? "");
+      const rawValue = url.searchParams.get(queryKey)?.trim();
 
-      if (Number.isFinite(parsedValue) && parsedValue > 0) {
-        return parsedValue;
+      if (rawValue) {
+        return rawValue;
       }
     }
 
     const pathnameSegments = url.pathname.split("/").filter(Boolean).reverse();
 
     for (const segment of pathnameSegments) {
-      const parsedValue = Number(segment);
-
-      if (Number.isFinite(parsedValue) && parsedValue > 0) {
-        return parsedValue;
+      if (segment.trim()) {
+        return segment.trim();
       }
     }
   } catch {
@@ -234,18 +231,18 @@ function getEntityIdFromSummaryHref(href: string | undefined, queryKeys: string[
   return null;
 }
 
-function getProjectIdFromSummaryHref(href?: string) {
-  return getEntityIdFromSummaryHref(href, ["project_id", "projectId"]);
+function getProjectUidFromSummaryHref(href?: string) {
+  return getEntityUidFromSummaryHref(href, ["project_uid", "msProjectUid"]);
 }
 
-function getJobIdFromSummaryHref(href?: string) {
-  return getEntityIdFromSummaryHref(href, ["job_id", "jobId"]);
+function getJobUidFromSummaryHref(href?: string) {
+  return getEntityUidFromSummaryHref(href, ["job_uid", "msJobUid"]);
 }
 
 function buildFallbackResourceReleaseSummary(release: ResourceReleaseRecord): EntitySummaryHeader {
   return {
     entity: {
-      id: release.id,
+      id: release.uid,
       type: "resource_release",
       title: release.subdomain,
     },
@@ -291,8 +288,8 @@ function buildFallbackResourceReleaseSummary(release: ResourceReleaseRecord): En
       },
       {
         key: "release_id",
-        label: "Release ID",
-        value: String(release.id),
+        label: "Release UID",
+        value: release.uid,
         kind: "text",
       },
     ],
@@ -505,18 +502,18 @@ export function MainSequenceProjectResourceReleasesTab({
   onOpenJobDetail,
   onOpenProjectDetail,
   onOpenResourceReleaseDetail,
-  projectId,
+  projectUid,
   requestedCreateReleaseIntent,
-  selectedResourceReleaseId,
+  selectedResourceReleaseUid,
 }: {
   onConsumeCreateReleaseIntent?: () => void;
   onCloseResourceReleaseDetail: () => void;
-  onOpenJobDetail: (jobId: number) => void;
-  onOpenProjectDetail: (projectId: number) => void;
-  onOpenResourceReleaseDetail: (resourceReleaseId: number) => void;
-  projectId: number;
+  onOpenJobDetail: (jobUid: string) => void;
+  onOpenProjectDetail: (projectUid: string) => void;
+  onOpenResourceReleaseDetail: (resourceReleaseUid: string) => void;
+  projectUid: string;
   requestedCreateReleaseIntent: CreateReleaseIntent | null;
-  selectedResourceReleaseId: number | null;
+  selectedResourceReleaseUid: string | null;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -528,8 +525,8 @@ export function MainSequenceProjectResourceReleasesTab({
   const [createReleaseMode, setCreateReleaseMode] = useState<CreateReleaseMode>("default");
   const [createReleaseResourceTypeOverride, setCreateReleaseResourceTypeOverride] =
     useState<string | null>(null);
-  const [selectedResourceId, setSelectedResourceId] = useState("");
-  const [selectedImageId, setSelectedImageId] = useState("");
+  const [selectedResourceUid, setSelectedResourceUid] = useState("");
+  const [selectedImageUid, setSelectedImageUid] = useState("");
   const [selectedDetailTabId, setSelectedDetailTabId] = useState<ResourceReleaseDetailTabId>("readme");
   const [computeState, setComputeState] = useState(() => createDefaultReleaseComputeState());
   const [releasesPendingDelete, setReleasesPendingDelete] = useState<ResourceReleaseRecord[]>([]);
@@ -539,13 +536,13 @@ export function MainSequenceProjectResourceReleasesTab({
   const handledCreateReleaseIntentRef = useRef<CreateReleaseIntent | null>(null);
 
   const projectJobsQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "resource-releases", "jobs", projectId],
+    queryKey: ["main_sequence", "projects", "resource-releases", "jobs", projectUid],
     queryFn: () =>
-      listProjectJobs(projectId, {
+      listProjectJobs(projectUid, {
         limit: projectResourceReleaseFetchLimit,
         offset: 0,
       }),
-    enabled: projectId > 0,
+    enabled: Boolean(projectUid),
     staleTime: 300_000,
   });
 
@@ -556,14 +553,14 @@ export function MainSequenceProjectResourceReleasesTab({
         limit: projectResourceReleaseFetchLimit,
         offset: 0,
       }),
-    enabled: projectId > 0,
+    enabled: Boolean(projectUid),
     staleTime: 300_000,
   });
 
   const resourceReleaseSummaryQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "resource-releases", "summary", selectedResourceReleaseId],
-    queryFn: () => fetchResourceReleaseSummary(selectedResourceReleaseId ?? 0),
-    enabled: Boolean(selectedResourceReleaseId),
+    queryKey: ["main_sequence", "projects", "resource-releases", "summary", selectedResourceReleaseUid],
+    queryFn: () => fetchResourceReleaseSummary(selectedResourceReleaseUid ?? ""),
+    enabled: Boolean(selectedResourceReleaseUid),
   });
 
   const resourceReleaseCanViewQuery = useQuery({
@@ -571,15 +568,15 @@ export function MainSequenceProjectResourceReleasesTab({
       "main_sequence",
       "permissions",
       resourceReleasePermissionsObjectUrl,
-      selectedResourceReleaseId,
+      selectedResourceReleaseUid,
       "view",
     ],
     queryFn: () =>
       fetchObjectCanView(
         resourceReleasePermissionsObjectUrl,
-        selectedResourceReleaseId ?? 0,
+        selectedResourceReleaseUid ?? "",
       ),
-    enabled: Boolean(selectedResourceReleaseId) && selectedDetailTabId === "permissions",
+    enabled: Boolean(selectedResourceReleaseUid) && selectedDetailTabId === "permissions",
     staleTime: 60_000,
   });
 
@@ -588,15 +585,15 @@ export function MainSequenceProjectResourceReleasesTab({
       "main_sequence",
       "permissions",
       resourceReleasePermissionsObjectUrl,
-      selectedResourceReleaseId,
+      selectedResourceReleaseUid,
       "edit",
     ],
     queryFn: () =>
       fetchObjectCanEdit(
         resourceReleasePermissionsObjectUrl,
-        selectedResourceReleaseId ?? 0,
+        selectedResourceReleaseUid ?? "",
       ),
-    enabled: Boolean(selectedResourceReleaseId) && selectedDetailTabId === "permissions",
+    enabled: Boolean(selectedResourceReleaseUid) && selectedDetailTabId === "permissions",
     staleTime: 60_000,
   });
 
@@ -605,28 +602,28 @@ export function MainSequenceProjectResourceReleasesTab({
       "main_sequence",
       "permissions",
       resourceReleasePermissionsObjectUrl,
-      selectedResourceReleaseId,
+      selectedResourceReleaseUid,
       "candidate-users",
     ],
     queryFn: () =>
       listPermissionCandidateUsers(
         resourceReleasePermissionsObjectUrl,
-        selectedResourceReleaseId ?? 0,
+        selectedResourceReleaseUid ?? "",
       ),
-    enabled: Boolean(selectedResourceReleaseId) && selectedDetailTabId === "permissions",
+    enabled: Boolean(selectedResourceReleaseUid) && selectedDetailTabId === "permissions",
     staleTime: 300_000,
   });
   const permissionTeamsQuery = useQuery({
     queryKey: ["main_sequence", "permissions", "teams"],
     queryFn: () => listTeams(),
-    enabled: Boolean(selectedResourceReleaseId) && selectedDetailTabId === "permissions",
+    enabled: Boolean(selectedResourceReleaseUid) && selectedDetailTabId === "permissions",
     staleTime: 300_000,
   });
 
   const projectImagesQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "job-images", projectId],
-    queryFn: () => fetchProjectImages(projectId),
-    enabled: createDialogOpen && projectId > 0,
+    queryKey: ["main_sequence", "projects", "job-images", projectUid],
+    queryFn: () => fetchProjectImages(projectUid),
+    enabled: createDialogOpen && Boolean(projectUid),
     staleTime: 300_000,
   });
 
@@ -645,7 +642,7 @@ export function MainSequenceProjectResourceReleasesTab({
     [projectImagesQuery.data],
   );
   const selectedProjectImage =
-    readyProjectImages.find((image) => String(image.id) === selectedImageId) ?? null;
+    readyProjectImages.find((image) => image.uid === selectedImageUid) ?? null;
 
   const releaseResourcesQuery = useQuery({
     queryKey: [
@@ -653,12 +650,12 @@ export function MainSequenceProjectResourceReleasesTab({
       "projects",
       "resource-releases",
       "resources",
-      projectId,
+      projectUid,
       createReleaseKind,
       selectedProjectImage?.project_repo_hash ?? "",
     ],
     queryFn: () =>
-      listProjectResources(projectId, {
+      listProjectResources(projectUid, {
         limit: 200,
         repoCommitSha: selectedProjectImage?.project_repo_hash ?? undefined,
         resourceType:
@@ -667,7 +664,7 @@ export function MainSequenceProjectResourceReleasesTab({
       }),
     enabled:
       createDialogOpen &&
-      projectId > 0 &&
+      Boolean(projectUid) &&
       createReleaseMode !== "project-agent" &&
       Boolean(createReleaseKind) &&
       Boolean(selectedProjectImage?.project_repo_hash),
@@ -686,8 +683,8 @@ export function MainSequenceProjectResourceReleasesTab({
     [projectJobsById, resourceReleasesQuery.data?.results],
   );
   const selectedReleaseFromList = useMemo(
-    () => projectReleases.find((release) => release.id === selectedResourceReleaseId) ?? null,
-    [projectReleases, selectedResourceReleaseId],
+    () => projectReleases.find((release) => release.uid === selectedResourceReleaseUid) ?? null,
+    [projectReleases, selectedResourceReleaseUid],
   );
   const filteredReleases = useMemo(() => {
     const needle = deferredFilterValue.trim().toLowerCase();
@@ -700,7 +697,7 @@ export function MainSequenceProjectResourceReleasesTab({
       const relatedJob = projectJobsById.get(release.related_job);
 
       return [
-        String(release.id),
+        release.uid,
         release.subdomain,
         release.release_kind,
         String(release.resource),
@@ -718,7 +715,7 @@ export function MainSequenceProjectResourceReleasesTab({
     const start = pageIndex * mainSequenceRegistryPageSize;
     return filteredReleases.slice(start, start + mainSequenceRegistryPageSize);
   }, [filteredReleases, pageIndex]);
-  const releaseSelection = useRegistrySelection(pagedReleases);
+  const releaseSelection = useRegistrySelection(pagedReleases, (release) => release.uid);
   const projectResourceOptions = useMemo(
     () => (releaseResourcesQuery.data?.results ?? []).map(toProjectResourceOption),
     [releaseResourcesQuery.data?.results],
@@ -756,7 +753,7 @@ export function MainSequenceProjectResourceReleasesTab({
   const resourceReleaseTitle =
     resourceReleaseSummary?.entity.title ??
     selectedReleaseFromList?.subdomain ??
-    (selectedResourceReleaseId ? `Release ${selectedResourceReleaseId}` : "Release");
+    (selectedResourceReleaseUid ? `Release ${selectedResourceReleaseUid}` : "Release");
   const persistedPermissionsValue = useMemo(
     () =>
       buildPermissionValue(
@@ -879,8 +876,8 @@ export function MainSequenceProjectResourceReleasesTab({
     mutationFn: async (input) =>
       isProjectAgentCreateInput(input)
         ? getOrCreateProjectExecutorAgentService({
-            project_id: input.project_id,
-            project_related_image_id: input.project_related_image_id,
+            project: input.project,
+            project_related_image: input.project_related_image,
             cpu_request: input.cpu_request,
             memory_request: input.memory_request,
             gpu_request: input.gpu_request,
@@ -893,16 +890,16 @@ export function MainSequenceProjectResourceReleasesTab({
         queryKey: ["main_sequence", "projects", "resource-releases"],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "resource-releases", "resources", projectId],
+        queryKey: ["main_sequence", "projects", "resource-releases", "resources", projectUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "job-images", projectId],
+        queryKey: ["main_sequence", "projects", "job-images", projectUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "jobs", projectId],
+        queryKey: ["main_sequence", "projects", "jobs", projectUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "summary", projectId],
+        queryKey: ["main_sequence", "projects", "summary", projectUid],
       });
 
       const isProjectAgentMode = isProjectAgentCreateInput(input);
@@ -940,8 +937,8 @@ export function MainSequenceProjectResourceReleasesTab({
 
       setCreateDialogOpen(false);
       setCreateReleaseKind(null);
-      setSelectedResourceId("");
-      setSelectedImageId("");
+      setSelectedResourceUid("");
+      setSelectedImageUid("");
       setComputeState(createDefaultReleaseComputeState());
     },
     onError: (error) => {
@@ -955,7 +952,7 @@ export function MainSequenceProjectResourceReleasesTab({
 
   const deleteResourceReleaseMutation = useMutation({
     mutationFn: async (releases: ResourceReleaseRecord[]) =>
-      bulkDeleteResourceReleases(releases.map((release) => release.id)),
+      bulkDeleteResourceReleases(releases.map((release) => release.uid)),
     onSuccess: async (result, releases) => {
       const deletedCount = result.deleted_count ?? releases.length;
       setReleasesPendingDelete([]);
@@ -963,7 +960,7 @@ export function MainSequenceProjectResourceReleasesTab({
         queryKey: ["main_sequence", "projects", "resource-releases"],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "summary", projectId],
+        queryKey: ["main_sequence", "projects", "summary", projectUid],
       });
 
       if (deletedCount > 0) {
@@ -990,7 +987,7 @@ export function MainSequenceProjectResourceReleasesTab({
 
   const updatePermissionsMutation = useMutation({
     mutationFn: async (nextValue: RbacAssignmentValue) => {
-      if (!selectedResourceReleaseId) {
+      if (!selectedResourceReleaseUid) {
         return {
           changed: false,
           value: normalizePermissionValue(nextValue),
@@ -1007,7 +1004,7 @@ export function MainSequenceProjectResourceReleasesTab({
       for (const operation of operations) {
         await updateShareableObjectPermission({
           objectUrl: resourceReleasePermissionsObjectUrl,
-          objectId: selectedResourceReleaseId,
+          objectId: selectedResourceReleaseUid,
           principalType: operation.principalType,
           accessLevel: operation.accessLevel,
           operation: operation.operation,
@@ -1023,7 +1020,7 @@ export function MainSequenceProjectResourceReleasesTab({
     onSuccess: async ({ changed, value }) => {
       setPermissionsValue(value);
 
-      if (!changed || !selectedResourceReleaseId) {
+      if (!changed || !selectedResourceReleaseUid) {
         return;
       }
 
@@ -1033,7 +1030,7 @@ export function MainSequenceProjectResourceReleasesTab({
             "main_sequence",
             "permissions",
             resourceReleasePermissionsObjectUrl,
-            selectedResourceReleaseId,
+            selectedResourceReleaseUid,
             "view",
           ],
         }),
@@ -1042,7 +1039,7 @@ export function MainSequenceProjectResourceReleasesTab({
             "main_sequence",
             "permissions",
             resourceReleasePermissionsObjectUrl,
-            selectedResourceReleaseId,
+            selectedResourceReleaseUid,
             "edit",
           ],
         }),
@@ -1072,8 +1069,8 @@ export function MainSequenceProjectResourceReleasesTab({
       setCreateReleaseKind(null);
       setCreateReleaseMode("default");
       setCreateReleaseResourceTypeOverride(null);
-      setSelectedResourceId("");
-      setSelectedImageId("");
+      setSelectedResourceUid("");
+      setSelectedImageUid("");
       setComputeState(createDefaultReleaseComputeState());
     }
   }, [createDialogOpen]);
@@ -1132,30 +1129,30 @@ export function MainSequenceProjectResourceReleasesTab({
       return;
     }
 
-    if (!readyProjectImages.some((image) => String(image.id) === selectedImageId)) {
-      setSelectedImageId(readyProjectImages[0] ? String(readyProjectImages[0].id) : "");
+    if (!readyProjectImages.some((image) => image.uid === selectedImageUid)) {
+      setSelectedImageUid(readyProjectImages[0]?.uid ?? "");
     }
-  }, [createDialogOpen, readyProjectImages, selectedImageId]);
+  }, [createDialogOpen, readyProjectImages, selectedImageUid]);
 
   useEffect(() => {
     if (!createDialogOpen) {
       return;
     }
 
-    if (!projectResourceOptions.some((option) => option.value === selectedResourceId)) {
-      setSelectedResourceId(projectResourceOptions[0]?.value ?? "");
+    if (!projectResourceOptions.some((option) => option.value === selectedResourceUid)) {
+      setSelectedResourceUid(projectResourceOptions[0]?.value ?? "");
     }
-  }, [createDialogOpen, projectResourceOptions, selectedResourceId]);
+  }, [createDialogOpen, projectResourceOptions, selectedResourceUid]);
 
   useEffect(() => {
     if (!createDialogOpen) {
       return;
     }
 
-    if (!projectImageOptions.some((option) => option.value === selectedImageId)) {
-      setSelectedImageId(projectImageOptions[0]?.value ?? "");
+    if (!projectImageOptions.some((option) => option.value === selectedImageUid)) {
+      setSelectedImageUid(projectImageOptions[0]?.value ?? "");
     }
-  }, [createDialogOpen, projectImageOptions, selectedImageId]);
+  }, [createDialogOpen, projectImageOptions, selectedImageUid]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(filteredReleases.length / mainSequenceRegistryPageSize));
@@ -1166,15 +1163,15 @@ export function MainSequenceProjectResourceReleasesTab({
   }, [filteredReleases.length, pageIndex]);
 
   function handleSummaryFieldLink(field: SummaryField) {
-    const projectLinkId = getProjectIdFromSummaryHref(field.href);
-    if (projectLinkId) {
-      onOpenProjectDetail(projectLinkId);
+    const projectLinkUid = getProjectUidFromSummaryHref(field.href);
+    if (projectLinkUid) {
+      onOpenProjectDetail(projectLinkUid);
       return;
     }
 
-    const jobLinkId = getJobIdFromSummaryHref(field.href);
-    if (jobLinkId) {
-      onOpenJobDetail(jobLinkId);
+    const jobLinkUid = getJobUidFromSummaryHref(field.href);
+    if (jobLinkUid) {
+      onOpenJobDetail(jobLinkUid);
       return;
     }
 
@@ -1219,7 +1216,7 @@ export function MainSequenceProjectResourceReleasesTab({
 
   useEffect(() => {
     setSelectedDetailTabId("readme");
-  }, [selectedResourceReleaseId]);
+  }, [selectedResourceReleaseUid]);
 
   useEffect(() => {
     if (resourceReleaseDetailTabs.some((tab) => tab.id === selectedDetailTabId)) {
@@ -1231,12 +1228,12 @@ export function MainSequenceProjectResourceReleasesTab({
 
   useEffect(() => {
     setPermissionsValue(emptyPermissionAssignments);
-  }, [selectedResourceReleaseId]);
+  }, [selectedResourceReleaseUid]);
 
   useEffect(() => {
     if (
       selectedDetailTabId !== "permissions" ||
-      !selectedResourceReleaseId ||
+      !selectedResourceReleaseUid ||
       !resourceReleaseCanViewQuery.data ||
       !resourceReleaseCanEditQuery.data
     ) {
@@ -1249,12 +1246,12 @@ export function MainSequenceProjectResourceReleasesTab({
     resourceReleaseCanEditQuery.data,
     resourceReleaseCanViewQuery.data,
     selectedDetailTabId,
-    selectedResourceReleaseId,
+    selectedResourceReleaseUid,
   ]);
 
   return (
     <div className="space-y-4">
-      {selectedResourceReleaseId ? (
+      {selectedResourceReleaseUid ? (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1362,10 +1359,10 @@ export function MainSequenceProjectResourceReleasesTab({
                       )}
                     </div>
                   ) : selectedDetailTabId === "test-api" ? (
-                    resourceReleaseSummary && selectedResourceReleaseId ? (
+                    resourceReleaseSummary && selectedResourceReleaseUid ? (
                       <MainSequenceResourceReleaseApiTestTab
                         releaseSummary={resourceReleaseSummary}
-                        resourceReleaseId={selectedResourceReleaseId}
+                        resourceReleaseUid={selectedResourceReleaseUid}
                       />
                     ) : null
                   ) : (
@@ -1566,15 +1563,15 @@ export function MainSequenceProjectResourceReleasesTab({
                 <tbody>
                   {pagedReleases.map((release) => {
                     const relatedJob = projectJobsById.get(release.related_job);
-                    const selected = releaseSelection.isSelected(release.id);
+                    const selected = releaseSelection.isSelected(release.uid);
 
                     return (
-                      <tr key={release.id}>
+                      <tr key={release.uid}>
                         <td className={getRegistryTableCellClassName(selected, "left")}>
                           <MainSequenceSelectionCheckbox
                             ariaLabel={`Select ${release.subdomain}`}
                             checked={selected}
-                            onChange={() => releaseSelection.toggleSelection(release.id)}
+                            onChange={() => releaseSelection.toggleSelection(release.uid)}
                           />
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
@@ -1584,13 +1581,13 @@ export function MainSequenceProjectResourceReleasesTab({
                               <button
                                 type="button"
                                 className="group inline-flex items-center gap-1.5 rounded-sm text-left font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
-                                onClick={() => onOpenResourceReleaseDetail(release.id)}
+                                onClick={() => onOpenResourceReleaseDetail(release.uid)}
                                 title={`Open ${release.subdomain}`}
                               >
                                 <span>{release.subdomain}</span>
                                 <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
                               </button>
-                              <div className="mt-1 text-xs text-muted-foreground">{`Release ID ${release.id}`}</div>
+                              <div className="mt-1 text-xs text-muted-foreground">{`Release UID ${release.uid}`}</div>
                             </div>
                           </div>
                         </td>
@@ -1670,8 +1667,8 @@ export function MainSequenceProjectResourceReleasesTab({
               Image
             </div>
             <PickerField
-              value={selectedImageId}
-              onChange={setSelectedImageId}
+              value={selectedImageUid}
+              onChange={setSelectedImageUid}
               options={projectImageOptions}
               placeholder="Select an image"
               searchPlaceholder="Search images"
@@ -1686,8 +1683,8 @@ export function MainSequenceProjectResourceReleasesTab({
                 Resource
               </div>
               <PickerField
-                value={selectedResourceId}
-                onChange={setSelectedResourceId}
+                value={selectedResourceUid}
+                onChange={setSelectedResourceUid}
                 options={projectResourceOptions}
                 placeholder="Select a resource"
                 searchPlaceholder="Search resources"
@@ -1827,15 +1824,15 @@ export function MainSequenceProjectResourceReleasesTab({
             </Button>
             <Button
               onClick={() => {
-                if (!selectedImageId || !createReleaseKind) {
+                if (!selectedImageUid || !createReleaseKind) {
                   return;
                 }
 
                 if (createReleaseMode === "project-agent") {
                   createResourceReleaseMutation.mutate({
                     mode: "project-agent",
-                    project_id: projectId,
-                    project_related_image_id: Number(selectedImageId),
+                    project: projectUid,
+                    project_related_image: selectedImageUid,
                     cpu_request: computeState.cpuRequest.trim() || "100m",
                     memory_request: computeState.memoryRequest.trim() || "512Mi",
                     gpu_request: parsedGpuRequest ? String(parsedGpuRequest) : undefined,
@@ -1845,13 +1842,13 @@ export function MainSequenceProjectResourceReleasesTab({
                   return;
                 }
 
-                if (!selectedResourceId) {
+                if (!selectedResourceUid) {
                   return;
                 }
 
                 createResourceReleaseMutation.mutate({
-                  resource: Number(selectedResourceId),
-                  related_image: Number(selectedImageId),
+                  resource: selectedResourceUid,
+                  related_image: selectedImageUid,
                   cpu_request: computeState.cpuRequest.trim() || "100m",
                   memory_request: computeState.memoryRequest.trim() || "512Mi",
                   gpu_request: parsedGpuRequest ? String(parsedGpuRequest) : undefined,
@@ -1865,9 +1862,9 @@ export function MainSequenceProjectResourceReleasesTab({
                 (createReleaseMode !== "project-agent" && releaseResourcesQuery.isLoading) ||
                 projectImagesQuery.isLoading ||
                 (Boolean(computeState.gpuRequest) && availableGpuTypesQuery.isLoading) ||
-                !selectedImageId ||
+                !selectedImageUid ||
                 !gpuSelectionIsValid ||
-                (createReleaseMode !== "project-agent" && !selectedResourceId)
+                (createReleaseMode !== "project-agent" && !selectedResourceUid)
               }
             >
               {createResourceReleaseMutation.isPending ? (
@@ -1920,7 +1917,7 @@ export function MainSequenceProjectResourceReleasesTab({
               <div className="font-medium">{releasesPendingDelete[0]?.subdomain}</div>
               <div className="mt-1 text-muted-foreground">
                 {releasesPendingDelete[0]
-                  ? `Release ID ${releasesPendingDelete[0].id}`
+                  ? `Release UID ${releasesPendingDelete[0].uid}`
                   : null}
               </div>
             </>

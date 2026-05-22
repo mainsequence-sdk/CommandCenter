@@ -6,8 +6,16 @@
     "portfolio_group_name": "Rates Signal Stack",
     "unique_identifier": "rates_signal_stack",
     "description": "Rates strategies grouped for allocation review.",
-    "portfolios": [901, 904],
-    "creation_date": "2026-02-14T09:00:00Z"
+    "portfolios": [
+      901,
+      904
+    ],
+    "creation_date": "2026-02-14T09:00:00Z",
+    "uid": "mock-portfolio-group-41",
+    "portfolio_uids": [
+      "mock-target-portfolio-901",
+      "mock-target-portfolio-904"
+    ]
   },
   {
     "id": 42,
@@ -16,8 +24,14 @@
     "portfolio_group_name": "Macro Overlay",
     "unique_identifier": "macro_overlay",
     "description": "Macro sleeves across asset classes.",
-    "portfolios": [902],
-    "creation_date": "2026-02-18T11:30:00Z"
+    "portfolios": [
+      902
+    ],
+    "creation_date": "2026-02-18T11:30:00Z",
+    "uid": "mock-portfolio-group-42",
+    "portfolio_uids": [
+      "mock-target-portfolio-902"
+    ]
   },
   {
     "id": 43,
@@ -26,7 +40,13 @@
     "portfolio_group_name": "Commodity Discretionary",
     "unique_identifier": "commodity_discretionary",
     "description": "Discretionary commodity overlay strategies.",
-    "portfolios": [903],
-    "creation_date": "2026-03-01T08:20:00Z"
+    "portfolios": [
+      903
+    ],
+    "creation_date": "2026-03-01T08:20:00Z",
+    "uid": "mock-portfolio-group-43",
+    "portfolio_uids": [
+      "mock-target-portfolio-903"
+    ]
   }
 ]

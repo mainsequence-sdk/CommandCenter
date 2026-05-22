@@ -80,9 +80,9 @@ export function LocalTimeSerieQuickSearchPicker({
       id: current.id,
       uid: current.uid ?? null,
       update_hash: current.update_hash,
-      project_id:
-        "project_id" in current && typeof current.project_id === "number" && Number.isFinite(current.project_id)
-          ? current.project_id
+      project_uid:
+        "project_uid" in current && typeof current.project_uid === "string" && current.project_uid.trim()
+          ? current.project_uid
           : null,
       data_node_storage: current.data_node_storage
         ? {
@@ -119,7 +119,7 @@ export function LocalTimeSerieQuickSearchPicker({
           localTimeSerie.uid ?? "",
           String(localTimeSerie.id),
           localTimeSerie.update_hash,
-          String(localTimeSerie.project_id ?? ""),
+          localTimeSerie.project_uid ?? "",
           localTimeSerie.data_node_storage?.storage_hash ?? "",
           localTimeSerie.data_node_storage?.identifier ?? "",
         ],

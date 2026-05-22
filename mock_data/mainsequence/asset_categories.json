@@ -4,20 +4,30 @@
     "unique_identifier": "rates",
     "display_name": "Rates",
     "description": "Government bonds, swaps, and curve instruments.",
-    "assets": [101, 102]
+    "assets": [
+      "mock-asset-101",
+      "mock-asset-102"
+    ],
+    "uid": "mock-asset-category-1"
   },
   {
     "id": 2,
     "unique_identifier": "equities",
     "display_name": "Equities",
     "description": "Index and equity benchmark instruments.",
-    "assets": [201]
+    "assets": [
+      "mock-asset-201"
+    ],
+    "uid": "mock-asset-category-2"
   },
   {
     "id": 3,
     "unique_identifier": "commodities",
     "display_name": "Commodities",
     "description": "Energy and commodity futures instruments.",
-    "assets": [301]
+    "assets": [
+      "mock-asset-301"
+    ],
+    "uid": "mock-asset-category-3"
   }
 ]

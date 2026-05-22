@@ -122,12 +122,30 @@ function readServiceImageDrift(value: unknown) {
   return normalizeAgentImageDriftRecord(candidate.image_drift);
 }
 
+function getResultRuntimeImageUid(result: ProjectExecutorAgentServiceRecord | null) {
+  return (
+    result?.runtime_image_uid?.trim() ||
+    result?.runtime_image?.trim() ||
+    result?.image_uid?.trim() ||
+    result?.image?.trim() ||
+    ""
+  );
+}
+
+function getResultProjectRelatedImageUid(result: ProjectExecutorAgentServiceRecord | null) {
+  return (
+    result?.project_related_image_uid?.trim() ||
+    result?.project_related_image?.trim() ||
+    ""
+  );
+}
+
 export function ProjectAgentConfigurator({
-  projectId,
+  projectUid,
   hasAgentCapabilities,
   onOpenImagesTab,
 }: {
-  projectId: number;
+  projectUid: string;
   hasAgentCapabilities: boolean | null;
   onOpenImagesTab: () => void;
 }) {
@@ -136,8 +154,8 @@ export function ProjectAgentConfigurator({
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
   const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
-  const [selectedBuildSourceImageId, setSelectedBuildSourceImageId] = useState("");
-  const [selectedDeploymentImageId, setSelectedDeploymentImageId] = useState("");
+  const [selectedBuildSourceImageUid, setSelectedBuildSourceImageUid] = useState("");
+  const [selectedDeploymentImageUid, setSelectedDeploymentImageUid] = useState("");
   const [selectedLlmProvider, setSelectedLlmProvider] = useState("");
   const [selectedLlmModelId, setSelectedLlmModelId] = useState("");
   const hydratedProjectAgentModelKeyRef = useRef<string | null>(null);
@@ -179,24 +197,24 @@ export function ProjectAgentConfigurator({
   });
 
   const projectAgentImagesQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "project-agent", "build-source-images", projectId],
+    queryKey: ["main_sequence", "projects", "project-agent", "build-source-images", projectUid],
     queryFn: () =>
-      fetchProjectImages(projectId, {
+      fetchProjectImages(projectUid, {
         catalogImagePrefixStartswith: "base_pod_images",
       }),
-    enabled: projectId > 0 && hasAgentCapabilities === true,
+    enabled: Boolean(projectUid) && hasAgentCapabilities === true,
     staleTime: 300_000,
   });
   const deploymentImagesQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "project-agent", "deployment-images", projectId],
-    queryFn: () => fetchAvailableProjectExecutorAgentImages(projectId),
-    enabled: projectId > 0 && hasAgentCapabilities === true,
+    queryKey: ["main_sequence", "projects", "project-agent", "deployment-images", projectUid],
+    queryFn: () => fetchAvailableProjectExecutorAgentImages(projectUid),
+    enabled: Boolean(projectUid) && hasAgentCapabilities === true,
     staleTime: 300_000,
   });
   const currentProjectAgentServiceQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "project-agent", "service", projectId],
-    queryFn: () => fetchProjectExecutorAgentServiceByProject(projectId),
-    enabled: projectId > 0 && hasAgentCapabilities === true,
+    queryKey: ["main_sequence", "projects", "project-agent", "service", projectUid],
+    queryFn: () => fetchProjectExecutorAgentServiceByProject(projectUid),
+    enabled: Boolean(projectUid) && hasAgentCapabilities === true,
     staleTime: 60_000,
   });
   const currentProjectAgentId =
@@ -263,11 +281,11 @@ export function ProjectAgentConfigurator({
   }, [availableModels, selectedLlmProvider]);
   const selectedBuildSourceImage =
     (projectAgentImagesQuery.data ?? []).find(
-      (image) => String(image.id) === selectedBuildSourceImageId,
+      (image) => image.uid === selectedBuildSourceImageUid,
     ) ?? null;
   const selectedDeploymentImage =
     (deploymentImagesQuery.data ?? []).find(
-      (image) => String(image.id) === selectedDeploymentImageId,
+      (image) => image.uid === selectedDeploymentImageUid,
     ) ?? null;
   const selectedDeploymentModel =
     availableModels.find((entry) => entry.id === selectedLlmModelId) ?? null;
@@ -293,13 +311,13 @@ export function ProjectAgentConfigurator({
   );
 
   const buildAgentImageMutation = useMutation({
-    mutationFn: (input: { project_id: number; project_related_image_id: number }) =>
+    mutationFn: (input: { project: string; project_related_image: string }) =>
       buildProjectExecutorAgentServiceImage(input),
     onSuccess: async (result) => {
       setBuildImageResult(result);
       setDeployResult(null);
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "summary", projectId],
+        queryKey: ["main_sequence", "projects", "summary", projectUid],
       });
 
       toast({
@@ -323,8 +341,8 @@ export function ProjectAgentConfigurator({
 
   const deployAgentMutation = useMutation({
     mutationFn: async (input: {
-      project_id: number;
-      runtime_image_id: number;
+      project: string;
+      runtime_image: string;
       llm_provider: string;
       llm_model: string;
       cpu_request?: string;
@@ -344,10 +362,10 @@ export function ProjectAgentConfigurator({
     onSuccess: async (result) => {
       setDeployResult(result);
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "summary", projectId],
+        queryKey: ["main_sequence", "projects", "summary", projectUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "project-agent", "service", projectId],
+        queryKey: ["main_sequence", "projects", "project-agent", "service", projectUid],
       });
 
       toast({
@@ -366,14 +384,14 @@ export function ProjectAgentConfigurator({
   });
 
   const deleteProjectAgentMutation = useMutation({
-    mutationFn: () => deleteProjectExecutorAgentServiceByProject(projectId),
+    mutationFn: () => deleteProjectExecutorAgentServiceByProject(projectUid),
     onSuccess: async () => {
       setDeployResult(null);
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "summary", projectId],
+        queryKey: ["main_sequence", "projects", "summary", projectUid],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "project-agent", "service", projectId],
+        queryKey: ["main_sequence", "projects", "project-agent", "service", projectUid],
       });
 
       toast({
@@ -393,8 +411,8 @@ export function ProjectAgentConfigurator({
 
   useEffect(() => {
     if (!hasAgentCapabilities) {
-      setSelectedBuildSourceImageId("");
-      setSelectedDeploymentImageId("");
+      setSelectedBuildSourceImageUid("");
+      setSelectedDeploymentImageUid("");
       setSelectedLlmProvider("");
       setSelectedLlmModelId("");
       setBuildImageResult(null);
@@ -403,46 +421,47 @@ export function ProjectAgentConfigurator({
       return;
     }
 
-    if (!projectAgentImageOptions.some((option) => option.value === selectedBuildSourceImageId)) {
-      setSelectedBuildSourceImageId(projectAgentImageOptions[0]?.value ?? "");
+    if (!projectAgentImageOptions.some((option) => option.value === selectedBuildSourceImageUid)) {
+      setSelectedBuildSourceImageUid(projectAgentImageOptions[0]?.value ?? "");
     }
-  }, [hasAgentCapabilities, projectAgentImageOptions, selectedBuildSourceImageId]);
+  }, [hasAgentCapabilities, projectAgentImageOptions, selectedBuildSourceImageUid]);
 
   useEffect(() => {
     if (!hasAgentCapabilities) {
       return;
     }
 
-    const runtimeImageId = String(buildImageResult?.runtime_image_id ?? "");
+    const runtimeImageUid = getResultRuntimeImageUid(buildImageResult);
     if (
-      runtimeImageId &&
-      deploymentImageOptions.some((option) => option.value === runtimeImageId) &&
-      selectedDeploymentImageId !== runtimeImageId
+      runtimeImageUid &&
+      deploymentImageOptions.some((option) => option.value === runtimeImageUid) &&
+      selectedDeploymentImageUid !== runtimeImageUid
     ) {
-      setSelectedDeploymentImageId(runtimeImageId);
+      setSelectedDeploymentImageUid(runtimeImageUid);
       return;
     }
 
-    if (!deploymentImageOptions.some((option) => option.value === selectedDeploymentImageId)) {
-      setSelectedDeploymentImageId(deploymentImageOptions[0]?.value ?? "");
+    if (!deploymentImageOptions.some((option) => option.value === selectedDeploymentImageUid)) {
+      setSelectedDeploymentImageUid(deploymentImageOptions[0]?.value ?? "");
     }
   }, [
-    buildImageResult?.runtime_image_id,
+    buildImageResult,
     deploymentImageOptions,
     hasAgentCapabilities,
-    selectedDeploymentImageId,
+    selectedDeploymentImageUid,
   ]);
 
   useEffect(() => {
     if (
       buildImageResult &&
-      selectedBuildSourceImageId &&
-      String(buildImageResult.project_related_image_id ?? "") !== selectedBuildSourceImageId
+      selectedBuildSourceImageUid &&
+      getResultProjectRelatedImageUid(buildImageResult) &&
+      getResultProjectRelatedImageUid(buildImageResult) !== selectedBuildSourceImageUid
     ) {
       setBuildImageResult(null);
       setDeployResult(null);
     }
-  }, [buildImageResult, selectedBuildSourceImageId]);
+  }, [buildImageResult, selectedBuildSourceImageUid]);
 
   useEffect(() => {
     if (!currentProjectAgentId) {
@@ -604,8 +623,8 @@ export function ProjectAgentConfigurator({
           Image
         </div>
         <PickerField
-          value={selectedBuildSourceImageId}
-          onChange={setSelectedBuildSourceImageId}
+          value={selectedBuildSourceImageUid}
+          onChange={setSelectedBuildSourceImageUid}
           options={projectAgentImageOptions}
           placeholder="Select an image"
           searchPlaceholder="Search images"
@@ -618,12 +637,12 @@ export function ProjectAgentConfigurator({
         <Button
           onClick={() => {
             void buildAgentImageMutation.mutateAsync({
-              project_id: projectId,
-              project_related_image_id: Number(selectedBuildSourceImageId),
+              project: projectUid,
+              project_related_image: selectedBuildSourceImageUid,
             });
           }}
           disabled={
-            !selectedBuildSourceImageId ||
+            !selectedBuildSourceImageUid ||
             projectAgentImagesQuery.isLoading ||
             buildAgentImageMutation.isPending
           }
@@ -692,8 +711,8 @@ export function ProjectAgentConfigurator({
               Runtime image
             </div>
             <PickerField
-              value={selectedDeploymentImageId}
-              onChange={setSelectedDeploymentImageId}
+              value={selectedDeploymentImageUid}
+              onChange={setSelectedDeploymentImageUid}
               options={deploymentImageOptions}
               placeholder="Select a deployment image"
               searchPlaceholder="Search runtime images"
@@ -877,7 +896,7 @@ export function ProjectAgentConfigurator({
             variant="outline"
             onClick={() => setDeployDialogOpen(true)}
             disabled={
-              !selectedDeploymentImageId ||
+              !selectedDeploymentImageUid ||
               selectedDeploymentImage?.is_ready !== true ||
               !llmSelectionIsValid ||
               deployAgentMutation.isPending ||
@@ -982,8 +1001,8 @@ export function ProjectAgentConfigurator({
         isPending={deployAgentMutation.isPending}
         onConfirm={() =>
           deployAgentMutation.mutateAsync({
-            project_id: projectId,
-            runtime_image_id: Number(selectedDeploymentImageId),
+            project: projectUid,
+            runtime_image: selectedDeploymentImageUid,
             llm_provider: resolvedLlmProvider,
             llm_model: resolvedLlmModelId,
             cpu_request: computeState.cpuRequest.trim() || "250m",

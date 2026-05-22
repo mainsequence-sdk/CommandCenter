@@ -73,17 +73,17 @@ function mapJobRunLogRowToEntry(row: JobRunLogEntry, index: number): LogTableEnt
 }
 
 export function MainSequenceJobRunLogsTab({
-  jobRunId,
+  jobRunUid,
 }: {
-  jobRunId: number;
+  jobRunUid: string;
 }) {
   const [filterValue, setFilterValue] = useState("");
   const deferredFilterValue = useDeferredValue(filterValue);
 
   const logsQuery = useQuery({
-    queryKey: ["main_sequence", "jobs", "runs", "logs", jobRunId],
-    queryFn: () => fetchJobRunLogs(jobRunId),
-    enabled: jobRunId > 0,
+    queryKey: ["main_sequence", "jobs", "runs", "logs", jobRunUid],
+    queryFn: () => fetchJobRunLogs(jobRunUid),
+    enabled: Boolean(jobRunUid),
   });
 
   const filteredRows = useMemo(() => {

@@ -11,7 +11,7 @@ import type { PositionDetailWidgetProps } from "./positionDetailRuntime";
 
 export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
   id: "position-detail",
-  widgetVersion: "4.0.0",
+  widgetVersion: "4.1.0",
   title: "Position Detail",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
@@ -68,11 +68,11 @@ export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
       widgetRole: "presentation",
       contentType: "table",
       sourceType: props.sourceType ?? null,
-      portfolioId: props.portfolioId ?? null,
+      portfolioUid: props.portfolioUid ?? null,
       accountUid: props.accountUid ?? null,
       holdingsDate: props.holdingsDate ?? null,
       targetPositionsDate: props.targetPositionsDate ?? null,
-      targetPortfolioId: props.targetPortfolioId ?? null,
+      targetPortfolioUid: props.targetPortfolioUid ?? null,
       variant: props.variant ?? null,
       editableInPlace: props.editableInPlace === true,
     },
@@ -94,16 +94,16 @@ export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
           source: "custom-settings",
         },
         {
-          id: "portfolioId",
-          label: "Portfolio id",
-          type: "integer",
+          id: "portfolioUid",
+          label: "Portfolio UID",
+          type: "string",
           required: false,
           source: "custom-settings",
         },
         {
-          id: "targetPortfolioId",
-          label: "Target portfolio id",
-          type: "integer",
+          id: "targetPortfolioUid",
+          label: "Target portfolio UID",
+          type: "string",
           source: "custom-settings",
         },
         {
@@ -144,7 +144,7 @@ export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
         },
       ],
       requiredSetupSteps: [
-        "Choose the source type first. Portfolio can hydrate from a portfolio id. Account can hydrate holdings and save them back. Target position is authoring-first. Target Positions Account can hydrate the latest or exact account target-position assignment and write it back through the managed-account endpoint.",
+        "Choose the source type first. Portfolio can hydrate from a portfolio uid. Account can hydrate holdings and save them back. Target position is authoring-first. Target Positions Account can hydrate the latest or exact account target-position assignment and write it back through the managed-account endpoint.",
       ],
     },
     runtime: {
