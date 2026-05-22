@@ -1664,7 +1664,7 @@ export function MainSequenceDataNodesPage() {
                   Dynamic table UID {selectedDataNodeIdentifier}
                 </div>
                 <div>
-                  Related table {selectedSourceTableConfiguration?.related_table ?? "Not available"}
+                  Related table {selectedSourceTableConfiguration?.related_table_uid ?? "Not available"}
                 </div>
                 <div>
                   Indexes:{" "}

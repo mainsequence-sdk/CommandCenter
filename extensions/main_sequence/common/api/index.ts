@@ -1598,7 +1598,7 @@ export interface DataNodeColumnMetadata {
 export interface DataNodeSourceTableConfiguration {
   id?: number | null;
   uid?: string | null;
-  related_table: number;
+  related_table_uid: string | null;
   time_index_name: string | null;
   column_dtypes_map: Record<string, string> | null;
   index_names: string[] | null;
@@ -1718,7 +1718,7 @@ export interface LocalTimeSerieRunConfigurationInput {
 }
 
 export interface LocalTimeSerieUpdateDetails {
-  related_table: number;
+  related_table_uid: string | null;
   active_update: boolean;
   update_pid: number | null;
   error_on_last_update: boolean;
@@ -1746,7 +1746,7 @@ export interface LocalTimeSerieRecord {
 
 export interface LocalTimeSerieHistoricalUpdateRecord {
   id: number;
-  related_table: number;
+  related_table_uid: string | null;
   update_time_start: string | null;
   update_time_end: string | null;
   error_on_update: boolean;
@@ -1847,7 +1847,7 @@ export interface SimpleTableUpdateRunConfigurationInput {
 }
 
 export interface SimpleTableUpdateDetails {
-  related_table: number;
+  related_table_uid: string | null;
   active_update: boolean;
   update_pid: number | null;
   error_on_last_update: boolean;
@@ -1874,7 +1874,7 @@ export interface SimpleTableUpdateRecord {
 
 export interface SimpleTableHistoricalUpdateRecord {
   id: number;
-  related_table: number;
+  related_table_uid: string | null;
   update_time_start: string | null;
   update_time_end: string | null;
   error_on_update: boolean;
@@ -2396,7 +2396,7 @@ function buildWidgetPreviewDataNodeDetail(): DataNodeDetail {
     build_configuration: null,
     build_meta_data: null,
     sourcetableconfiguration: {
-      related_table: previewRecordId,
+      related_table_uid: "preview-data-node",
       time_index_name: "time_index",
       column_dtypes_map: {
         time_index: "timestamp",

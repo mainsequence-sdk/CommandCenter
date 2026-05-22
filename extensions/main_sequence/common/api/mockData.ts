@@ -393,32 +393,32 @@ function replaceMockDataNodeLastObservation(
   }
 }
 
-function getDataNodeSourceConfigIds(node: Record<string, unknown>) {
-  const sourceConfigIds = new Set<number>();
+function getDataNodeSourceConfigUids(node: Record<string, unknown>) {
+  const sourceConfigUids = new Set<string>();
   const sourceTableConfiguration = isRecord(node.sourcetableconfiguration)
     ? node.sourcetableconfiguration
     : null;
-  const explicitId = readNumber(sourceTableConfiguration?.id);
+  const explicitUid = readString(sourceTableConfiguration?.uid);
 
-  if (explicitId > 0) {
-    sourceConfigIds.add(explicitId);
+  if (explicitUid) {
+    sourceConfigUids.add(explicitUid);
   }
 
   for (const column of readArray<Record<string, unknown>>(sourceTableConfiguration?.columns_metadata)) {
-    const sourceConfigId = readNumber(column.source_config_id);
+    const sourceConfigUid = readString(column.source_config_uid);
 
-    if (sourceConfigId > 0) {
-      sourceConfigIds.add(sourceConfigId);
+    if (sourceConfigUid) {
+      sourceConfigUids.add(sourceConfigUid);
     }
   }
 
-  const relatedTable = readNumber(sourceTableConfiguration?.related_table);
+  const relatedTableUid = readString(sourceTableConfiguration?.related_table_uid);
 
-  if (relatedTable > 0) {
-    sourceConfigIds.add(relatedTable);
+  if (relatedTableUid) {
+    sourceConfigUids.add(relatedTableUid);
   }
 
-  return [...sourceConfigIds];
+  return [...sourceConfigUids];
 }
 
 function getDataNodeIndexContext(node: Record<string, unknown>) {
@@ -496,9 +496,8 @@ function resolveMockSourceTableConfigStats(sourceTableConfigId: string) {
     return cloneValue(endpointPayload[sourceTableConfigId]);
   }
 
-  const numericId = Number(sourceTableConfigId);
   const node = state.dataNodes.find((candidate) =>
-    getDataNodeSourceConfigIds(candidate).includes(numericId),
+    getDataNodeSourceConfigUids(candidate).includes(sourceTableConfigId),
   );
 
   if (!node) {
