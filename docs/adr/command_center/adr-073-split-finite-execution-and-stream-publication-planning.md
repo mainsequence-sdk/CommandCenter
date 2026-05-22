@@ -316,10 +316,12 @@ in the finite planner and only stream publication owners participate in the stre
   publications.
 - [x] Gate stream propagation by effective output and variable signatures so high-frequency runtime
   writes only fan out when consumer-visible values change.
-- [ ] Make role-aware input readiness generic so seed/live and future multi-input widgets can
+- [x] Make role-aware input readiness generic so seed/live and future multi-input widgets can
   distinguish unbound optional inputs, waiting bound inputs, ready retained outputs, and upstream
-  stream errors.
-- [ ] Replace ad hoc status console logging with structured diagnostics that explain current
+  stream errors. The current implementation uses the shared incremental tabular consumer resolver
+  as the role-aware boundary for all seed/live tabular consumers; future non-tabular multi-input
+  roles should use the same state shape.
+- [x] Replace ad hoc status console logging with structured diagnostics that explain current
   display status, source, upstream blocker, retained-output availability, and last publication or
   execution time.
 - [x] Add regression tests for finite success, finite error propagation, stream live propagation,

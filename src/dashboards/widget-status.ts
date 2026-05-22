@@ -21,6 +21,21 @@ export interface WidgetStatusSummary {
   tone: WidgetStatusTone;
 }
 
+export interface WidgetStatusDiagnostics {
+  blockedByOutputId?: string;
+  blockedByWidgetId?: string;
+  detail?: string;
+  indicator: WidgetStatusIndicator;
+  label: string;
+  lastExecutionAtMs?: number;
+  lastPublicationAtMs?: number;
+  retainedOutputAvailable: boolean;
+  runtimeStatus?: string;
+  sources: WidgetStatusSource[];
+  streamStatus?: string;
+  tone: WidgetStatusTone;
+}
+
 export function resolveRuntimeStatus(runtimeState?: Record<string, unknown>) {
   return typeof runtimeState?.status === "string" ? runtimeState.status : null;
 }
@@ -154,6 +169,40 @@ function isLiveStreamStatus(streamStatus: string | null) {
     streamStatus === "reconnecting" ||
     streamStatus === "connecting"
   );
+}
+
+function readNumberField(value: Record<string, unknown> | undefined, keys: string[]) {
+  if (!value) {
+    return undefined;
+  }
+
+  for (const key of keys) {
+    const candidate = value[key];
+
+    if (typeof candidate === "number" && Number.isFinite(candidate)) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
+function resolveRuntimePublicationTime(runtimeState?: Record<string, unknown>) {
+  const direct = readNumberField(runtimeState, [
+    "lastMessageAtMs",
+    "lastHeartbeatAtMs",
+    "updatedAtMs",
+  ]);
+
+  if (direct !== undefined) {
+    return direct;
+  }
+
+  const source = runtimeState?.source;
+
+  return source && typeof source === "object" && !Array.isArray(source)
+    ? readNumberField(source as Record<string, unknown>, ["updatedAtMs"])
+    : undefined;
 }
 
 export function resolveWidgetStatusSummary(input: {
@@ -347,4 +396,32 @@ export function resolveWidgetStatusSummary(input: {
     streamStatus,
     tone: runtimeStatus ? "neutral" : "success",
   });
+}
+
+export function resolveWidgetStatusDiagnostics(input: {
+  dashboardSurfaceHydrationActive?: boolean;
+  executionState?: WidgetExecutionState;
+  hasUnresolvedReferenceInputs?: boolean;
+  runtimeState?: Record<string, unknown>;
+  widget?: {
+    workspaceRuntimeMode?: string;
+  };
+}): WidgetStatusDiagnostics {
+  const summary = resolveWidgetStatusSummary(input);
+  const runtimeStatus = resolveRuntimeStatus(input.runtimeState);
+
+  return {
+    blockedByOutputId: input.executionState?.blockedByOutputId,
+    blockedByWidgetId: input.executionState?.blockedByWidgetId,
+    detail: summary.detail,
+    indicator: summary.indicator,
+    label: summary.label,
+    lastExecutionAtMs: input.executionState?.finishedAtMs ?? input.executionState?.startedAtMs,
+    lastPublicationAtMs: resolveRuntimePublicationTime(input.runtimeState),
+    retainedOutputAvailable: hasUsableRetainedRuntimeOutput(input.runtimeState, runtimeStatus),
+    runtimeStatus: summary.runtimeStatus,
+    sources: summary.sources,
+    streamStatus: summary.streamStatus,
+    tone: summary.tone,
+  };
 }

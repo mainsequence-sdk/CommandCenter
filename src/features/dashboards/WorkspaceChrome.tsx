@@ -22,6 +22,7 @@ import {
 import { useDashboardWidgetDependencies } from "@/dashboards/DashboardWidgetDependencies";
 import { listUnresolvedReferenceBackedPropInputs } from "@/dashboards/widget-dependencies";
 import {
+  resolveWidgetStatusDiagnostics,
   resolveWidgetStatusSummary,
   type WidgetStatusIndicator,
   type WidgetStatusTone,
@@ -256,6 +257,13 @@ function DefaultWidgetRailSummary({
     runtimeState,
     hasUnresolvedReferenceInputs,
   });
+  const statusDiagnostics = resolveWidgetStatusDiagnostics({
+    widget,
+    executionState,
+    dashboardSurfaceHydrationActive,
+    runtimeState,
+    hasUnresolvedReferenceInputs,
+  });
 
   return (
     <div className="pointer-events-none z-20 w-[280px] rounded-[calc(var(--radius)-4px)] border border-border/80 bg-popover/95 p-3 text-left shadow-xl backdrop-blur-sm">
@@ -266,6 +274,25 @@ function DefaultWidgetRailSummary({
           <span className="text-muted-foreground">Status</span>
           <span className="font-medium text-foreground">{statusSummary.label}</span>
         </div>
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-muted-foreground">Status source</span>
+          <span className="max-w-[140px] text-right font-medium text-foreground">
+            {statusDiagnostics.sources.length > 0
+              ? statusDiagnostics.sources.join(", ")
+              : "local"}
+          </span>
+        </div>
+        {statusDiagnostics.blockedByWidgetId ? (
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Blocked by</span>
+            <span className="max-w-[140px] text-right font-medium text-foreground">
+              {statusDiagnostics.blockedByWidgetId}
+              {statusDiagnostics.blockedByOutputId
+                ? ` / ${statusDiagnostics.blockedByOutputId}`
+                : ""}
+            </span>
+          </div>
+        ) : null}
         {statusSummary.detail ? (
           <div
             className={cn(

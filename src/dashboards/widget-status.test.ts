@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveWidgetStatusSummary } from "./widget-status";
+import { resolveWidgetStatusDiagnostics, resolveWidgetStatusSummary } from "./widget-status";
 
 describe("resolveWidgetStatusSummary", () => {
   it("uses a red dot for finite execution errors", () => {
@@ -120,6 +120,40 @@ describe("resolveWidgetStatusSummary", () => {
       label: "Connecting",
       sources: ["stream-publication"],
       tone: "warning",
+    });
+  });
+
+  it("builds structured diagnostics for status surfaces without console logs", () => {
+    const diagnostics = resolveWidgetStatusDiagnostics({
+      executionState: {
+        status: "upstream-error",
+        error: "Blocked by Source.",
+        blockedByWidgetId: "source-1",
+        blockedByOutputId: "dataset",
+        finishedAtMs: 123,
+      },
+      runtimeState: {
+        status: "ready",
+        streamStatus: "live",
+        columns: ["symbol"],
+        rows: [{ symbol: "BTCUSDT" }],
+        lastMessageAtMs: 456,
+      },
+    });
+
+    expect(diagnostics).toMatchObject({
+      blockedByOutputId: "dataset",
+      blockedByWidgetId: "source-1",
+      detail: "Blocked by Source.",
+      indicator: "dot",
+      label: "Upstream error",
+      lastExecutionAtMs: 123,
+      lastPublicationAtMs: 456,
+      retainedOutputAvailable: true,
+      runtimeStatus: "ready",
+      sources: ["upstream"],
+      streamStatus: "live",
+      tone: "danger",
     });
   });
 });
