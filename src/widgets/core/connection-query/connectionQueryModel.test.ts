@@ -6,13 +6,17 @@ import {
   MOCK_API_LOCAL_INSTANCE_ID,
   MOCK_API_QUERY_KIND,
 } from "@/connections/mock-api-contract";
+import type { ConnectionQueryModel } from "@/connections/types";
 import { createRuntimeDataStore, materializeRuntimeTabularFrame } from "@/widgets/shared/runtime-data-store";
+import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
+import type { WidgetExecutionDashboardState } from "@/widgets/types";
 
 import {
   assetScreenerDefaultProps,
   resolveAssetScreenerState,
 } from "../../../../extensions/main_sequence/extensions/markets/widgets/asset-screener/assetScreenerModel";
 import {
+  buildConnectionQueryRequest,
   executeConnectionQueryWidgetRequest,
   normalizeConnectionQueryProps,
 } from "./connectionQueryModel";
@@ -35,6 +39,76 @@ describe("normalizeConnectionQueryProps", () => {
       typeId: "finance.binance-market-data",
     });
     expect(normalized.queryModelId).toBe("binance-spot-prices");
+  });
+});
+
+describe("buildConnectionQueryRequest", () => {
+  const dashboardState: WidgetExecutionDashboardState = {
+    timeRangeKey: "15m",
+    rangeStartMs: Date.parse("2026-05-21T21:44:48.559Z"),
+    rangeEndMs: Date.parse("2026-05-21T21:59:48.559Z"),
+    refreshIntervalMs: null,
+  };
+  const queryModel: ConnectionQueryModel = {
+    id: "binance-usdm-futures-ohlc",
+    label: "Futures OHLC",
+    outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
+    defaultQuery: {
+      kind: "binance-usdm-futures-ohlc",
+      interval: "1m",
+    },
+    timeRangeAware: true,
+    supportsMaxRows: true,
+  };
+
+  it("merges query model defaults without dropping resolved query fields", () => {
+    const request = buildConnectionQueryRequest(
+      {
+        connectionRef: {
+          id: 5,
+          typeId: "finance.binance-market-data",
+        },
+        query: {
+          symbols: ["BTCUSDT"],
+        },
+        timeRangeMode: "dashboard",
+        maxRows: 1000,
+      },
+      dashboardState,
+      queryModel,
+    );
+
+    expect(request?.query).toEqual({
+      kind: "binance-usdm-futures-ohlc",
+      interval: "1m",
+      symbols: ["BTCUSDT"],
+    });
+  });
+
+  it("lets resolved query fields override query model defaults", () => {
+    const request = buildConnectionQueryRequest(
+      {
+        connectionRef: {
+          id: 5,
+          typeId: "finance.binance-market-data",
+        },
+        queryModelId: "binance-usdm-futures-ohlc",
+        query: {
+          kind: "binance-usdm-futures-ohlc",
+          interval: "5m",
+          symbols: ["ETHUSDT"],
+        },
+        timeRangeMode: "dashboard",
+      },
+      dashboardState,
+      queryModel,
+    );
+
+    expect(request?.query).toEqual({
+      kind: "binance-usdm-futures-ohlc",
+      interval: "5m",
+      symbols: ["ETHUSDT"],
+    });
   });
 });
 

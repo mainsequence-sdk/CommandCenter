@@ -14,6 +14,7 @@ import {
   fetchSimpleTableUpdateDetail,
   fetchSimpleTableUpdateRunConfiguration,
   formatMainSequenceError,
+  getTsManagerRecordIdentifier,
   listSimpleTableUpdateHistoricalUpdates,
   type EntitySummaryHeader,
   type SimpleTableHistoricalUpdateRecord,
@@ -274,9 +275,9 @@ export function MainSequenceSimpleTableUpdateDetail({
   selectedTabId,
 }: {
   initialSimpleTableUpdate?: SimpleTableUpdateRecord | null;
-  simpleTableUpdateId: number;
+  simpleTableUpdateId: string;
   onClose: () => void;
-  onOpenSimpleTableDetail: (simpleTableId: number) => void;
+  onOpenSimpleTableDetail: (simpleTableId: string) => void;
   onSelectTab: (tabId: SimpleTableUpdateDetailTabId) => void;
   selectedTabId: string | null;
 }) {
@@ -290,21 +291,22 @@ export function MainSequenceSimpleTableUpdateDetail({
   )
     ? (selectedTabId as SimpleTableUpdateDetailTabId)
     : "details";
+  const hasSimpleTableUpdateIdentifier = Boolean(String(simpleTableUpdateId).trim());
 
   const detailQuery = useQuery({
     queryKey: ["main_sequence", "simple_tables", "updates", "detail", simpleTableUpdateId],
     queryFn: () => fetchSimpleTableUpdateDetail(simpleTableUpdateId),
-    enabled: simpleTableUpdateId > 0,
+    enabled: hasSimpleTableUpdateIdentifier,
   });
   const runConfigurationQuery = useQuery({
     queryKey: ["main_sequence", "simple_tables", "updates", "run_configuration", simpleTableUpdateId],
     queryFn: () => fetchSimpleTableUpdateRunConfiguration(simpleTableUpdateId),
-    enabled: simpleTableUpdateId > 0,
+    enabled: hasSimpleTableUpdateIdentifier,
   });
   const historicalUpdatesQuery = useQuery({
     queryKey: ["main_sequence", "simple_tables", "updates", "historical_updates", simpleTableUpdateId],
     queryFn: () => listSimpleTableUpdateHistoricalUpdates(simpleTableUpdateId, 100),
-    enabled: simpleTableUpdateId > 0 && activeTabId === "historical-updates",
+    enabled: hasSimpleTableUpdateIdentifier && activeTabId === "historical-updates",
   });
 
   useEffect(() => {
@@ -348,10 +350,9 @@ export function MainSequenceSimpleTableUpdateDetail({
     : null;
   const detailTitle =
     summary?.entity.title ?? simpleTableUpdate?.update_hash ?? `Simple table update ${simpleTableUpdateId}`;
-  const linkedSimpleTableId =
-    simpleTableUpdate?.remote_table?.id && Number.isFinite(simpleTableUpdate.remote_table.id)
-      ? simpleTableUpdate.remote_table.id
-      : null;
+  const linkedSimpleTableId = simpleTableUpdate?.remote_table
+    ? getTsManagerRecordIdentifier(simpleTableUpdate.remote_table)
+    : null;
 
   const historicalUpdateMetrics = useMemo(() => {
     const updates = historicalUpdatesQuery.data ?? [];

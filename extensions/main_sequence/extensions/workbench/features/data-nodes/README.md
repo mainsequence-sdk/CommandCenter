@@ -14,12 +14,13 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
 ## Notes
 
 - Keep reusable graph and inspector subcomponents here if they are specific to data nodes. Shared dependency-graph rendering now lives under `../../widgets/dependency-graph/`.
-- The data-snapshot tab intentionally uses the lightweight tail-observations preview endpoint (`dynamic_table/{id}/get-tail-observations/?n=100&order=desc`) instead of the older latest-observation plus point-range query chain, because the registry detail surface does not have a canonical upstream `Data Node` widget runtime to bind against.
+- The data-snapshot tab intentionally uses the lightweight tail-observations preview endpoint (`dynamic_table/{uid}/get-tail-observations/?n=100&order=desc`) instead of the older latest-observation plus point-range query chain, because the registry detail surface does not have a canonical upstream `Data Node` widget runtime to bind against.
 - Data-node permissions use the shared `MainSequencePermissionsTab`, but they target the absolute `ts_manager/dynamic_table` object root instead of the default pods-scoped permission paths used by projects, constants, and secrets.
 - If a piece becomes useful outside this feature, move it to `../../components` and update this README.
 - Data-node detail navigation is URL-backed: `msDataNodeTab` selects the top-level detail tab, while `msLocalUpdateId` and `msLocalUpdateTab` drive the nested local-update detail view.
 - The surface also accepts standalone local-update deep links with `msLocalUpdateId` even when `msDataNodeId` is absent; this is used by cross-app links from Markets portfolio summaries.
-- The detail header exposes a `Delete Tail Data` action. It loads SourceTableConfiguration stats for multi-index tables, lets the user scope the delete to selected identifiers, and sends the suffix delete through `dynamic_table/<id>/delete_after_date/`.
+- The detail header exposes a `Delete Tail Data` action. It loads SourceTableConfiguration stats for multi-index tables, lets the user scope the delete to selected identifiers, and sends the suffix delete through `dynamic_table/<uid>/delete_after_date/`.
+- URL-backed detail navigation now stores the ts_manager resource identifier from the backend (`uid` when available, legacy `id` otherwise) so deep links keep working during the migration window.
 - Local-update run configuration uses the shared Main Sequence resource-requirements block for
   CPU/GPU requirements, keeping resource controls separate from retry, timeout, and schedule
   controls. The same block exposes the shared billing estimate action with zero memory and standard

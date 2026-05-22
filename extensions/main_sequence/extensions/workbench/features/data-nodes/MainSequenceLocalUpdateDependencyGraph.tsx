@@ -19,7 +19,7 @@ export function MainSequenceLocalUpdateDependencyGraph({
 }: {
   direction: MainSequenceDependencyGraphDirection;
   enabled?: boolean;
-  localTimeSerieId: number;
+  localTimeSerieId: string;
   runtimeState?: MainSequenceDependencyGraphRuntimeState;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   variant?: "card" | "widget";
@@ -27,7 +27,7 @@ export function MainSequenceLocalUpdateDependencyGraph({
   return (
     <MainSequenceUpdateDependencyGraph
       direction={direction}
-      enabled={enabled && localTimeSerieId > 0}
+      enabled={enabled && Boolean(String(localTimeSerieId).trim())}
       queryKey={["main_sequence", "data_nodes", "local_updates", "graph", localTimeSerieId]}
       queryFn={() => fetchLocalTimeSerieDependencyGraph(localTimeSerieId, direction)}
       runtimeState={runtimeState}

@@ -5,6 +5,7 @@
     "results": [
         {
             "id": 56,
+            "uid": "00000000-0000-0000-0000-000000000056",
             "schema": {
                 "model": "__main__.CustomerBalanceRecord",
                 "fields": [
@@ -304,6 +305,7 @@
         },
         {
             "id": 57,
+            "uid": "00000000-0000-0000-0000-000000000057",
             "schema": {
                 "model": "__main__.CustomerDebtRecord",
                 "fields": [
@@ -595,6 +597,7 @@
         },
         {
             "id": 55,
+            "uid": "00000000-0000-0000-0000-000000000055",
             "schema": {
                 "model": "__main__.CustomerRecord",
                 "fields": [

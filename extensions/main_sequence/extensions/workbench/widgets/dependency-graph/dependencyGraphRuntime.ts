@@ -2,10 +2,10 @@ import type { LocalTimeSerieDependencyGraphResponse } from "../../../../common/a
 import type { MainSequenceDependencyGraphRuntimeState } from "./MainSequenceDependencyGraphExplorer";
 
 export interface MainSequenceDependencyGraphWidgetProps extends Record<string, unknown> {
-  dataNodeId?: number;
+  dataNodeId?: string;
   direction?: "downstream" | "upstream";
   sourceKind?: "data_node" | "simple_table";
-  simpleTableUpdateId?: number;
+  simpleTableUpdateId?: string;
 }
 
 export interface MainSequenceDependencyGraphWidgetRuntimeState
@@ -15,9 +15,9 @@ export interface MainSequenceDependencyGraphWidgetRuntimeState
   error?: string;
   sourceKind?: "data_node" | "simple_table";
   direction?: "downstream" | "upstream";
-  selectedDataNodeId?: number;
-  selectedSimpleTableUpdateId?: number;
-  resolvedLocalTimeSerieId?: number;
+  selectedDataNodeId?: string;
+  selectedSimpleTableUpdateId?: string;
+  resolvedLocalTimeSerieId?: string;
   payload?: LocalTimeSerieDependencyGraphResponse;
   emptyReason?: "no-linked-updates";
   lastLoadedAtMs?: number;
@@ -40,13 +40,7 @@ export function normalizeDependencyGraphDirection(
 }
 
 export function normalizeDependencyGraphSelectedId(value: unknown) {
-  const parsed = Number(value ?? 0);
-
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return 0;
-  }
-
-  return Math.trunc(parsed);
+  return typeof value === "string" && value.trim() ? value.trim() : "";
 }
 
 function normalizeDependencyGraphPayload(

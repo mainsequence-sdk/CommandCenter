@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { Braces, ChevronDown, Copy, Search, X } from "lucide-react";
+import { Braces, ChevronDown, Search, X } from "lucide-react";
 
 import { useDashboardWidgetDependencies } from "@/dashboards/DashboardWidgetDependencies";
 import type { DashboardWidgetInstance } from "@/dashboards/types";
@@ -12,14 +12,6 @@ import {
   type WorkspaceVariableExplorerEntry,
   type WorkspaceVariableExplorerModel,
 } from "./workspace-variable-explorer-model";
-
-function copyText(value: string) {
-  if (!navigator.clipboard) {
-    return;
-  }
-
-  void navigator.clipboard.writeText(value);
-}
 
 function statusClassName(status: WorkspaceVariableExplorerEntry["status"]) {
   switch (status) {
@@ -140,25 +132,6 @@ function VariableEntryCard({
                 <span className="font-mono">{entry.sourceContract}</span>
               </div>
             ) : null}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="inline-flex h-8 items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-              onClick={() => copyText(entry.referenceToken)}
-            >
-              <Copy className="h-3.5 w-3.5" />
-              <span>Copy token</span>
-            </button>
-            <button
-              type="button"
-              className="inline-flex h-8 items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-              onClick={() => copyText(entry.normalizedId)}
-            >
-              <Copy className="h-3.5 w-3.5" />
-              <span>Copy id</span>
-            </button>
           </div>
 
           {entry.valuePreview.detailText ? (

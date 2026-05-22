@@ -6,6 +6,7 @@ import type {
 } from "@/widgets/types";
 
 import {
+  fetchDataNodeDetail,
   fetchLocalTimeSerieDependencyGraph,
   fetchSimpleTableUpdateDependencyGraph,
   listLocalTimeSeries,
@@ -58,7 +59,7 @@ export async function executeDependencyGraphWidget(
   const selectedDataNodeId = normalizeDependencyGraphSelectedId(props.dataNodeId);
   const selectedSimpleTableUpdateId = normalizeDependencyGraphSelectedId(props.simpleTableUpdateId);
 
-  if (sourceKind === "data_node" && selectedDataNodeId <= 0) {
+  if (sourceKind === "data_node" && !selectedDataNodeId) {
     return {
       status: "skipped",
       runtimeStatePatch: buildDependencyGraphRuntimeState(context.runtimeState, {
@@ -75,7 +76,7 @@ export async function executeDependencyGraphWidget(
     };
   }
 
-  if (sourceKind === "simple_table" && selectedSimpleTableUpdateId <= 0) {
+  if (sourceKind === "simple_table" && !selectedSimpleTableUpdateId) {
     return {
       status: "skipped",
       runtimeStatePatch: buildDependencyGraphRuntimeState(context.runtimeState, {
@@ -92,17 +93,18 @@ export async function executeDependencyGraphWidget(
     };
   }
 
-  let resolvedLocalTimeSerieId: number | undefined;
+  let resolvedLocalTimeSerieId: string | undefined;
 
   if (sourceKind === "data_node") {
     try {
-      const page = await listLocalTimeSeries(selectedDataNodeId, {
+      const dataNodeDetail = await fetchDataNodeDetail(selectedDataNodeId, requestTraceMeta);
+      const page = await listLocalTimeSeries(dataNodeDetail.id, {
         limit: 1,
         offset: 0,
         traceMeta: requestTraceMeta,
       });
       const latestUpdate = page.results[0] ?? null;
-      resolvedLocalTimeSerieId = normalizeDependencyGraphSelectedId(latestUpdate?.id);
+      resolvedLocalTimeSerieId = normalizeDependencyGraphSelectedId(latestUpdate?.uid);
     } catch (error) {
       return buildDependencyGraphExecutionErrorResult(
         context,
@@ -140,18 +142,18 @@ export async function executeDependencyGraphWidget(
   }
 
   const selectedSourceId =
-    sourceKind === "simple_table" ? selectedSimpleTableUpdateId : resolvedLocalTimeSerieId ?? 0;
+    sourceKind === "simple_table" ? selectedSimpleTableUpdateId : resolvedLocalTimeSerieId;
 
   try {
     const payload =
       sourceKind === "simple_table"
         ? await fetchSimpleTableUpdateDependencyGraph(
-            selectedSourceId,
+            selectedSimpleTableUpdateId!,
             direction,
             requestTraceMeta,
           )
         : await fetchLocalTimeSerieDependencyGraph(
-            selectedSourceId,
+            resolvedLocalTimeSerieId!,
             direction,
             requestTraceMeta,
           );
@@ -196,8 +198,8 @@ export const dependencyGraphExecutionDefinition = {
     const props = (context.targetOverrides?.props ?? context.props) as MainSequenceDependencyGraphWidgetProps;
     const sourceKind = normalizeDependencyGraphSourceKind(props.sourceKind);
     return sourceKind === "simple_table"
-      ? normalizeDependencyGraphSelectedId(props.simpleTableUpdateId) > 0
-      : normalizeDependencyGraphSelectedId(props.dataNodeId) > 0;
+      ? Boolean(normalizeDependencyGraphSelectedId(props.simpleTableUpdateId))
+      : Boolean(normalizeDependencyGraphSelectedId(props.dataNodeId));
   },
   execute: executeDependencyGraphWidget,
   getRefreshPolicy: () => "allow-refresh",

@@ -139,13 +139,26 @@ export function GraphWidget({
       ? incrementalBinding.requiresUpstreamResolution
       : sourceBinding.requiresUpstreamResolution,
   });
-  const linkedDataset = useMemo(
+  const rawLinkedDataset = useMemo(
     () =>
       resolveGraphDatasetFrame(
         incrementalBinding.active ? incrementalBinding.dataset : sourceConsumerState.dataset,
       ),
     [incrementalBinding.active, incrementalBinding.dataset, sourceConsumerState.dataset],
   );
+  const retainedLinkedDatasetRef = useRef<ReturnType<typeof resolveGraphDatasetFrame>>(null);
+  useEffect(() => {
+    if (
+      rawLinkedDataset?.status === "ready" &&
+      (rawLinkedDataset.rows?.length ?? 0) > 0
+    ) {
+      retainedLinkedDatasetRef.current = rawLinkedDataset;
+    }
+  }, [rawLinkedDataset]);
+  const linkedDataset =
+    shouldBlockGraphRenderingWhileLoading(rawLinkedDataset)
+      ? retainedLinkedDatasetRef.current ?? rawLinkedDataset
+      : rawLinkedDataset;
   const runtimeFieldOptions = useMemo(
     () =>
       resolveTabularFieldOptionsFromDataset({
@@ -463,10 +476,25 @@ export function GraphWidget({
     chartSeriesResult.collapsedPointCount,
   ]);
   const isDataLoading = shouldBlockGraphRenderingWhileLoading(linkedDataset);
-  const showRefreshOverlay =
-    linkedDataset?.status === "loading" &&
+  const refreshOverlayEligible =
+    rawLinkedDataset?.status === "loading" &&
     !isDataLoading &&
     sourceRows.length > 0;
+  const [showRefreshOverlay, setShowRefreshOverlay] = useState(false);
+  useEffect(() => {
+    if (!refreshOverlayEligible) {
+      setShowRefreshOverlay((current) => current ? false : current);
+      return undefined;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setShowRefreshOverlay(true);
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [refreshOverlayEligible]);
   const dataErrorMessage =
     linkedDataset?.status === "error"
       ? linkedDataset.error ?? "The bound source failed to load rows."

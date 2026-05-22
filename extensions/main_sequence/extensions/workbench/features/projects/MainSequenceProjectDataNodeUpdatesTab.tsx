@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 import {
   formatMainSequenceError,
+  getTsManagerRecordIdentifier,
   listProjectLocalTimeSeries,
   mainSequenceRegistryPageSize,
   type LocalTimeSerieRecord,
@@ -116,11 +117,11 @@ export function MainSequenceProjectDataNodeUpdatesTab({
   selectedLocalUpdateTabId,
 }: {
   onCloseLocalUpdateDetail: () => void;
-  onOpenDataNodeDetail: (dataNodeId: number) => void;
-  onOpenLocalUpdateDetail: (localUpdateId: number) => void;
+  onOpenDataNodeDetail: (dataNodeId: string | number) => void;
+  onOpenLocalUpdateDetail: (localUpdateId: string | number) => void;
   onSelectLocalUpdateTab: (tabId: LocalUpdateDetailTabId) => void;
   projectId: number;
-  selectedLocalUpdateId: number | null;
+  selectedLocalUpdateId: string | null;
   selectedLocalUpdateTabId: string | null;
 }) {
   const [filterValue, setFilterValue] = useState("");
@@ -165,6 +166,7 @@ export function MainSequenceProjectDataNodeUpdatesTab({
 
       return [
         String(localTimeSerie.id),
+        localTimeSerie.uid ?? "",
         localTimeSerie.update_hash,
         formatStatus(
           localTimeSerie.update_details?.active_update_status,
@@ -183,7 +185,7 @@ export function MainSequenceProjectDataNodeUpdatesTab({
   const selectedLocalTimeSerieFromList = useMemo(
     () =>
       (localTimeSeriesQuery.data?.results ?? []).find(
-        (localTimeSerie) => localTimeSerie.id === selectedLocalUpdateId,
+        (localTimeSerie) => getTsManagerRecordIdentifier(localTimeSerie) === selectedLocalUpdateId,
       ) ?? null,
     [localTimeSeriesQuery.data?.results, selectedLocalUpdateId],
   );
@@ -284,7 +286,13 @@ export function MainSequenceProjectDataNodeUpdatesTab({
                             <button
                               type="button"
                               className="group inline-flex cursor-pointer items-center gap-1.5 rounded-sm text-left outline-none transition-colors hover:text-primary focus-visible:text-primary"
-                              onClick={() => onOpenLocalUpdateDetail(localTimeSerie.id)}
+                              onClick={() => {
+                                const localUpdateIdentifier = getTsManagerRecordIdentifier(localTimeSerie);
+                                if (!localUpdateIdentifier) {
+                                  return;
+                                }
+                                onOpenLocalUpdateDetail(localUpdateIdentifier);
+                              }}
                               title={`Open ${localTimeSerie.update_hash}`}
                             >
                               <span className="font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors group-hover:decoration-primary group-focus-visible:decoration-primary">
@@ -293,7 +301,9 @@ export function MainSequenceProjectDataNodeUpdatesTab({
                               <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary" />
                             </button>
                             <div className="mt-1 text-xs text-muted-foreground">
-                              Data node update ID {localTimeSerie.id}
+                              {localTimeSerie.uid?.trim()
+                                ? `Data node update UID ${localTimeSerie.uid.trim()}`
+                                : ""}
                             </div>
                           </div>
                         </td>

@@ -11,6 +11,7 @@ import {
 } from "@/widgets/shared/runtime-data-store";
 
 import {
+  buildConnectionStreamQueryLifecycleFrame,
   buildConnectionStreamQueryRuntimeKey,
   createConnectionStreamQueryWidgetRuntimeSession,
   normalizeConnectionStreamQueryProps,
@@ -299,6 +300,27 @@ describe("connection stream query runtime model", () => {
       mode: "snapshot",
       publicationRole: "seed",
     });
+  });
+
+  it("keeps retained stream data publishable when a later lifecycle update is idle", () => {
+    const retained = reduceConnectionStreamQueryMessage({
+      message: streamMessage("snapshot", [{ symbol: "BTCUSDT", price: 70000 }]),
+      props,
+      queryModel,
+      sourceWidgetId: "stream-1",
+      sourceRunId: "stream-key:run-1",
+      nowMs: 1000,
+    });
+    const idleLifecycle = buildConnectionStreamQueryLifecycleFrame({
+      props,
+      status: "idle",
+      retainedState: retained,
+      sourceRunId: "stream-key:run-1",
+    });
+
+    expect(idleLifecycle.status).toBe("ready");
+    expect(idleLifecycle.streamStatus).toBe("idle");
+    expect(idleLifecycle.rows).toEqual([{ symbol: "BTCUSDT", price: 70000 }]);
   });
 
   it("merges delta messages into the retained frame and exposes runtime update metadata", () => {

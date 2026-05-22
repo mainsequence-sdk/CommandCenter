@@ -30,10 +30,15 @@ import {
   listDashboardDownstreamExecutionTargets,
   listDashboardWidgetExecutionOrder,
   listDashboardRefreshableExecutionTargets,
+  planDashboardFiniteExecution,
   planDashboardVariableDrivenCommit,
+  resolveWidgetExecutionReadiness,
   type DashboardWidgetGraphExecutionResult,
+  type DashboardWidgetGraphNodeStatus,
 } from "@/dashboards/widget-graph-execution";
 import type {
+  ResolvedWidgetInput,
+  ResolvedWidgetInputs,
   WidgetDefinition,
   WidgetExecutionContext,
   WidgetExecutionDashboardState,
@@ -43,6 +48,7 @@ import type {
 import {
   createRuntimeDataStore,
   RuntimeDataStoreProvider,
+  type RuntimeDataStore,
 } from "@/widgets/shared/runtime-data-store";
 import {
   DashboardWidgetExecutionContext,
@@ -57,6 +63,11 @@ import {
 interface PassiveUpstreamResolutionOptions extends ResolveWidgetUpstreamOptions {
   settledKey: string;
 }
+
+const MIN_VISIBLE_EXECUTION_RUNNING_MS = 400;
+const VARIABLE_COMMIT_DEBUG_LOGS_ENABLED = false;
+const LAUNCH_PLAN_DEBUG_LOGS_ENABLED = false;
+const CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED = false;
 
 function serializeExecutionOverrides(value: WidgetExecutionTargetOverrides | undefined) {
   if (!value) {
@@ -112,6 +123,199 @@ function widgetConfigWithoutRuntime(widget: DashboardWidgetInstance): Record<str
 
 function serializeWidgetConfiguration(value: DashboardWidgetInstance[]) {
   return stableJsonStringify(value.map(widgetConfigWithoutRuntime));
+}
+
+function summarizeDebugValue(value: unknown): unknown {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return {
+      kind: "array",
+      length: value.length,
+      sample: value.slice(0, 5).map(summarizeDebugValue),
+    };
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record);
+
+    return {
+      kind: "object",
+      keys,
+      sample: Object.fromEntries(
+        keys.slice(0, 8).map((key) => [key, summarizeDebugValue(record[key])]),
+      ),
+    };
+  }
+
+  return String(value);
+}
+
+function summarizeResolvedInputForDebug(input: ResolvedWidgetInput | undefined) {
+  if (!input) {
+    return null;
+  }
+
+  return {
+    status: input.status,
+    sourceWidgetId: input.sourceWidgetId,
+    sourceOutputId: input.sourceOutputId,
+    contractId: input.contractId,
+    value: summarizeDebugValue(input.value),
+    upstreamBase: summarizeDebugValue(input.upstreamBase),
+    upstreamDelta: summarizeDebugValue(input.upstreamDelta),
+  };
+}
+
+function summarizeResolvedReferenceInputsForDebug(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+) {
+  return Object.fromEntries(
+    Object.entries(resolvedInputs ?? {})
+      .filter(([inputId]) => inputId.startsWith("__widget-reference.target."))
+      .map(([inputId, value]) => [
+        inputId,
+        Array.isArray(value)
+          ? value.map((entry) => summarizeResolvedInputForDebug(entry))
+          : summarizeResolvedInputForDebug(value),
+      ]),
+  );
+}
+
+function shouldLogVariableCommitDebug(refreshCycleId: string | undefined) {
+  return VARIABLE_COMMIT_DEBUG_LOGS_ENABLED &&
+    import.meta.env.DEV &&
+    Boolean(refreshCycleId?.startsWith("variable-commit:"));
+}
+
+function shouldLogConnectionQueryExecutionDebug(widgetId: string | undefined) {
+  return CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED &&
+    import.meta.env.DEV &&
+    widgetId === "connection-query";
+}
+
+function summarizeRefreshTargetForDebug(
+  targetInstanceId: string,
+  widgets: DashboardWidgetInstance[],
+  resolveWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined,
+  runtimeDataStore: RuntimeDataStore,
+) {
+  const snapshot = buildDashboardExecutionSnapshot({
+    widgets,
+    resolveWidgetDefinition,
+    targetInstanceId,
+    runtimeDataStore,
+  });
+  const instance = snapshot.getInstance(targetInstanceId);
+  const definition = snapshot.getDefinition(targetInstanceId);
+
+  return {
+    targetInstanceId,
+    widgetId: instance?.widgetId,
+    widgetTitle: instance?.title,
+    hasExecution: Boolean(definition?.execution),
+  };
+}
+
+function logRefreshLaunchPlan(input: {
+  phase: string;
+  refreshCycleId: string;
+  refreshTargets: string[];
+  widgets: DashboardWidgetInstance[];
+  resolveWidgetDefinition: (widgetId: string) => WidgetDefinition | undefined;
+  runtimeDataStore: RuntimeDataStore;
+}) {
+  if (!LAUNCH_PLAN_DEBUG_LOGS_ENABLED || !import.meta.env.DEV) {
+    return;
+  }
+
+  const baseSnapshot = buildDashboardExecutionSnapshot({
+    widgets: input.widgets,
+    resolveWidgetDefinition: input.resolveWidgetDefinition,
+    runtimeDataStore: input.runtimeDataStore,
+  });
+
+  console.log(
+    `[launch-plan] phase=${input.phase} refreshCycleId=${input.refreshCycleId} targetCount=${input.refreshTargets.length} targets=${input.refreshTargets.join(",")}`,
+  );
+
+  input.refreshTargets.forEach((targetInstanceId) => {
+    const targetSnapshot = buildDashboardExecutionSnapshot({
+      widgets: input.widgets,
+      resolveWidgetDefinition: input.resolveWidgetDefinition,
+      targetInstanceId,
+      runtimeDataStore: input.runtimeDataStore,
+    });
+    const targetInstance = baseSnapshot.getInstance(targetInstanceId);
+    let executionOrder: string[] = [];
+    let orderError: string | undefined;
+
+    try {
+      executionOrder = listDashboardWidgetExecutionOrder(targetInstanceId, targetSnapshot, {
+        excludeRefreshNotApplicable: true,
+      });
+    } catch (error) {
+      orderError = error instanceof Error ? error.message : String(error);
+    }
+
+    const executionOrderSummary = executionOrder
+      .map((nodeInstanceId, executionOrderIndex) => {
+        const nodeInstance = targetSnapshot.getInstance(nodeInstanceId);
+
+        return `${executionOrderIndex}:${nodeInstance?.widgetId ?? "missing"}:${nodeInstance?.title ?? "untitled"}:${nodeInstanceId}`;
+      })
+      .join(" | ");
+
+    console.log(
+      `[launch-plan-inline] phase=${input.phase} target=${targetInstance?.widgetId ?? "missing"} title="${targetInstance?.title ?? ""}" targetId=${targetInstanceId} order=${executionOrderSummary || "(empty)"} error=${orderError ?? ""}`,
+    );
+  });
+}
+
+function findWidgetInstanceInTree(
+  widgets: DashboardWidgetInstance[],
+  instanceId: string,
+): DashboardWidgetInstance | undefined {
+  for (const widget of widgets) {
+    if (widget.id === instanceId) {
+      return widget;
+    }
+
+    const child = widget.row?.children?.length
+      ? findWidgetInstanceInTree(widget.row.children, instanceId)
+      : undefined;
+
+    if (child) {
+      return child;
+    }
+  }
+
+  return undefined;
+}
+
+function formatLaunchTraceWidget(
+  widgets: DashboardWidgetInstance[],
+  instanceId: string,
+) {
+  const widget = findWidgetInstanceInTree(widgets, instanceId);
+  return `${widget?.widgetId ?? "missing"}:${widget?.title ?? "untitled"}:${instanceId}`;
+}
+
+function logLaunchTrace(message: string) {
+  if (!LAUNCH_PLAN_DEBUG_LOGS_ENABLED || !import.meta.env.DEV) {
+    return;
+  }
+
+  console.log(message);
 }
 
 export function DashboardWidgetExecutionProvider({
@@ -181,6 +385,7 @@ export function DashboardWidgetExecutionProvider({
   const inFlightFlowRef = useRef(
     new Map<string, Promise<DashboardWidgetFlowExecutionResult>>(),
   );
+  const variableEffectiveSignatureCacheRef = useRef(new Map<string, string>());
   const refreshCycleRef = useRef<string | null>(null);
   const initialRefreshCompletedRef = useRef(false);
   const initialRefreshRunIdRef = useRef(0);
@@ -193,6 +398,8 @@ export function DashboardWidgetExecutionProvider({
     string | null
   >(null);
   const [executionStates, setExecutionStates] = useState<Record<string, WidgetExecutionState>>({});
+  const executionStatesRef = useRef<Record<string, WidgetExecutionState>>({});
+  const executionCompletionTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const initialRefreshCycleId = `initial:${scopeId}`;
   const initialRefreshTargets = useMemo(
     () =>
@@ -242,6 +449,10 @@ export function DashboardWidgetExecutionProvider({
 
     return () => {
       mountedRef.current = false;
+      for (const timer of executionCompletionTimersRef.current.values()) {
+        clearTimeout(timer);
+      }
+      executionCompletionTimersRef.current.clear();
     };
   }, []);
 
@@ -255,6 +466,7 @@ export function DashboardWidgetExecutionProvider({
 
   useEffect(() => {
     passiveUpstreamResolutionAttemptsRef.current.clear();
+    variableEffectiveSignatureCacheRef.current.clear();
   }, [lastRefreshedAt, widgetConfigurationKey]);
 
   useEffect(() => {
@@ -276,18 +488,246 @@ export function DashboardWidgetExecutionProvider({
     setSurfaceReturnHydrationCycleId(`surface-return:${scopeId}:${runId.toString(36)}`);
   }, [activeSurface, enableAutomaticHydration, scopeId, surfaceReturnHydrationPending]);
 
+  function commitExecutionStates(nextStates: Record<string, WidgetExecutionState>) {
+    executionStatesRef.current = nextStates;
+    setExecutionStates(nextStates);
+  }
+
+  function clearPendingExecutionCompletion(instanceId: string) {
+    const pendingTimer = executionCompletionTimersRef.current.get(instanceId);
+    if (!pendingTimer) {
+      return;
+    }
+
+    clearTimeout(pendingTimer);
+    executionCompletionTimersRef.current.delete(instanceId);
+  }
+
   function setExecutionState(instanceId: string, nextState: WidgetExecutionState) {
-    setExecutionStates((current) => ({
-      ...current,
+    clearPendingExecutionCompletion(instanceId);
+    commitExecutionStates({
+      ...executionStatesRef.current,
       [instanceId]: nextState,
-    }));
+    });
+  }
+
+  function isSameExecutionState(
+    left: WidgetExecutionState | undefined,
+    right: WidgetExecutionState,
+  ) {
+    return (
+      left?.status === right.status &&
+      left.reason === right.reason &&
+      left.targetInstanceId === right.targetInstanceId &&
+      left.error === right.error &&
+      left.blockedByWidgetId === right.blockedByWidgetId &&
+      left.blockedByOutputId === right.blockedByOutputId
+    );
+  }
+
+  function markFiniteExecutionPlanWaiting(input: {
+    reason: ExecuteWidgetGraphOptions["reason"];
+    sourceBoundaryInstanceId?: string;
+    targetInstanceIds: string[];
+    targetOverrides?: WidgetExecutionTargetOverrides;
+    widgets: DashboardWidgetInstance[];
+  }) {
+    if (input.targetInstanceIds.length === 0) {
+      return;
+    }
+
+    const snapshot = buildDashboardExecutionSnapshot({
+      widgets: input.widgets,
+      resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+      targetOverrides: input.targetOverrides,
+      runtimeDataStore,
+    });
+    const plan = planDashboardFiniteExecution({
+      reason: input.reason,
+      snapshot,
+      sourceBoundaryInstanceId: input.sourceBoundaryInstanceId,
+      targetInstanceIds: input.targetInstanceIds,
+    });
+
+    if (plan.nodes.length === 0) {
+      return;
+    }
+
+    const now = Date.now();
+    const nextStates = { ...executionStatesRef.current };
+    let changed = false;
+
+    plan.nodes.forEach((node) => {
+      if (!snapshot.getDefinition(node.instanceId)?.execution) {
+        return;
+      }
+
+      const current = nextStates[node.instanceId];
+
+      if (current?.status === "running") {
+        return;
+      }
+
+      const targetInstanceId = node.targetInstanceIds[0] ?? node.instanceId;
+      const nextState = {
+        status: "waiting",
+        reason: node.reason,
+        targetInstanceId,
+        startedAtMs: now,
+        error:
+          node.instanceId === targetInstanceId
+            ? "Queued for execution."
+            : `Waiting for ${formatLaunchTraceWidget(input.widgets, targetInstanceId)}.`,
+      } satisfies WidgetExecutionState;
+
+      if (isSameExecutionState(current, nextState)) {
+        return;
+      }
+
+      clearPendingExecutionCompletion(node.instanceId);
+      nextStates[node.instanceId] = nextState;
+      changed = true;
+    });
+
+    if (changed) {
+      commitExecutionStates(nextStates);
+    }
   }
 
   function clearRunningExecutionState(instanceId: string, nextState: WidgetExecutionState) {
-    setExecutionStates((current) => ({
-      ...current,
+    const currentStates = executionStatesRef.current;
+    const currentState = currentStates[instanceId];
+    const startedAtMs = currentState?.status === "running" ? currentState.startedAtMs : undefined;
+    const elapsedMs = startedAtMs ? Date.now() - startedAtMs : MIN_VISIBLE_EXECUTION_RUNNING_MS;
+    const remainingMs = Math.max(0, MIN_VISIBLE_EXECUTION_RUNNING_MS - elapsedMs);
+
+    if (currentState?.status === "running" && startedAtMs && remainingMs > 0) {
+      clearPendingExecutionCompletion(instanceId);
+      const timer = setTimeout(() => {
+        executionCompletionTimersRef.current.delete(instanceId);
+        if (!mountedRef.current) {
+          return;
+        }
+
+        const latestStates = executionStatesRef.current;
+        const latestState = latestStates[instanceId];
+
+        if (latestState?.status !== "running" || latestState.startedAtMs !== startedAtMs) {
+          return;
+        }
+
+        commitExecutionStates({
+          ...latestStates,
+          [instanceId]: nextState,
+        });
+      }, remainingMs);
+      executionCompletionTimersRef.current.set(instanceId, timer);
+      return;
+    }
+
+    clearPendingExecutionCompletion(instanceId);
+    commitExecutionStates({
+      ...currentStates,
       [instanceId]: nextState,
-    }));
+    });
+  }
+
+  function markSkippedExecutionState(
+    instanceId: string,
+    input: {
+      reason: ExecuteWidgetGraphOptions["reason"];
+      status: Extract<DashboardWidgetGraphNodeStatus, "waiting" | "error">;
+      error: string;
+    },
+  ) {
+    setExecutionState(instanceId, {
+      status: "running",
+      reason: input.reason,
+      targetInstanceId: instanceId,
+      startedAtMs: Date.now(),
+    });
+    clearRunningExecutionState(instanceId, {
+      status: input.status,
+      reason: input.reason,
+      targetInstanceId: instanceId,
+      finishedAtMs: Date.now(),
+      error: input.error,
+    });
+  }
+
+  function resolveCurrentExecutionState(instanceId?: string) {
+    if (!instanceId) {
+      return undefined;
+    }
+
+    const currentState = executionStates[instanceId];
+
+    if (currentState?.status !== "waiting" && currentState?.status !== "error") {
+      return currentState;
+    }
+
+    const snapshot = buildDashboardExecutionSnapshot({
+      widgets: widgetsRef.current,
+      resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+      targetInstanceId: instanceId,
+      runtimeDataStore,
+    });
+    const instance = snapshot.getInstance(instanceId);
+    const definition = snapshot.getDefinition(instanceId);
+
+    if (!instance || !definition?.execution) {
+      return currentState;
+    }
+
+    const resolvedInputs = snapshot.dependencies.resolveInputs(instanceId);
+    const effectiveState = resolveReferenceBackedWidgetState({
+      instanceTitle: instance.title,
+      props: (instance.props ?? {}) as Record<string, unknown>,
+      resolvedInputs,
+    });
+    const readinessContext = {
+      executionSurface,
+      publicWorkspaceToken,
+      scopeId,
+      widgetId: instance.widgetId,
+      instanceId,
+      reason: currentState.reason ?? "manual-recalculate",
+      props: effectiveState.props,
+      runtimeState: instance.runtimeState,
+      publicExecution: instance.publicExecution,
+      resolvedInputs,
+      dashboardState,
+      runtimeDataStore,
+    } satisfies WidgetExecutionContext;
+    const explicitReadiness = definition.execution.getExecutionReadiness?.(readinessContext);
+    const readiness = explicitReadiness ?? resolveWidgetExecutionReadiness(
+      definition,
+      readinessContext,
+    );
+
+    if (explicitReadiness?.status === "ready") {
+      return {
+        status: "success",
+        reason: currentState.reason,
+        targetInstanceId: currentState.targetInstanceId,
+        finishedAtMs: currentState.finishedAtMs,
+      } satisfies WidgetExecutionState;
+    }
+
+    if (readiness.status !== "ready") {
+      if (
+        readiness.status !== currentState.status ||
+        (readiness.reason && readiness.reason !== currentState.error)
+      ) {
+        return {
+          ...currentState,
+          status: readiness.status,
+          error: readiness.reason ?? currentState.error,
+        } satisfies WidgetExecutionState;
+      }
+    }
+
+    return currentState;
   }
 
   function buildExecutionKey(
@@ -309,6 +749,7 @@ export function DashboardWidgetExecutionProvider({
 
     try {
       executionOrder = listDashboardWidgetExecutionOrder(targetInstanceId, snapshot, {
+        excludeRefreshNotApplicable: options.reason === "dashboard-refresh",
         sourceBoundaryInstanceId: options.sourceBoundaryInstanceId,
       });
     } catch {
@@ -351,15 +792,21 @@ export function DashboardWidgetExecutionProvider({
     const definition = snapshot.getDefinition(targetInstanceId);
 
     if (!instance || !definition?.execution) {
+      if (shouldLogVariableCommitDebug(options.refreshCycleId)) {
+        console.log("[widget-variable-commit:target-gate]", {
+          targetInstanceId,
+          reason: options.reason,
+          result: "skip",
+          skipReason: !instance ? "missing-instance" : "missing-execution-definition",
+          hasTargetOverrides: Boolean(options.targetOverrides),
+          sourceBoundaryInstanceId: options.sourceBoundaryInstanceId,
+        });
+      }
+
       return false;
     }
 
     const resolvedInputs = snapshot.dependencies.resolveInputs(targetInstanceId);
-
-    if (listUnresolvedReferenceBackedPropInputs(resolvedInputs).length > 0) {
-      return false;
-    }
-
     const effectiveState = resolveReferenceBackedWidgetState({
       instanceTitle: instance.title,
       props: (instance.props ?? {}) as Record<string, unknown>,
@@ -383,19 +830,73 @@ export function DashboardWidgetExecutionProvider({
       signal: options.signal,
     } satisfies WidgetExecutionContext;
 
-    const executable = definition.execution.canExecute?.(context) !== false;
+    const readiness = resolveWidgetExecutionReadiness(definition, context);
+    const executable = readiness.status === "ready";
+    const effectiveProps = effectiveState.props as Record<string, unknown>;
+    const effectiveQuery = effectiveProps.query;
 
-    if (!executable && import.meta.env.DEV && instance.widgetId === "connection-query") {
-      /*
+    if (readiness.status !== "ready") {
+      markSkippedExecutionState(targetInstanceId, {
+        reason: options.reason,
+        status: readiness.status,
+        error: readiness.reason ?? "Required inputs are not available.",
+      });
+    }
+
+    if (shouldLogConnectionQueryExecutionDebug(instance.widgetId)) {
+      console.log("[auto-execution-gate]", {
+        targetInstanceId,
+        widgetId: instance.widgetId,
+        widgetTitle: instance.title,
+        reason: options.reason,
+        refreshCycleId: options.refreshCycleId,
+        result: executable ? "run" : "skip",
+        skipReason: executable ? undefined : readiness.status,
+        hasConnectionRef: Boolean(effectiveProps.connectionRef),
+        hasConnectionId:
+          typeof (effectiveProps.connectionRef as { id?: unknown } | undefined)?.id === "number",
+        hasQueryModel: typeof effectiveProps.queryModelId === "string" &&
+          effectiveProps.queryModelId.trim().length > 0,
+        queryKeys: effectiveQuery && typeof effectiveQuery === "object" && !Array.isArray(effectiveQuery)
+          ? Object.keys(effectiveQuery).sort()
+          : [],
+        hasTargetOverrides: Boolean(options.targetOverrides),
+        sourceBoundaryInstanceId: options.sourceBoundaryInstanceId,
+      });
+    }
+
+    if (shouldLogVariableCommitDebug(options.refreshCycleId)) {
+      console.log("[widget-variable-commit:target-gate]", {
+        targetInstanceId,
+        widgetId: instance.widgetId,
+        widgetTitle: instance.title,
+        reason: options.reason,
+        result: executable ? "run" : "skip",
+        skipReason: executable ? undefined : readiness.status,
+        hasTargetOverrides: Boolean(options.targetOverrides),
+        sourceBoundaryInstanceId: options.sourceBoundaryInstanceId,
+        resolvedReferenceInputs: summarizeResolvedReferenceInputsForDebug(resolvedInputs),
+        effectiveTitle: effectiveState.title,
+        effectiveQuery: summarizeDebugValue(effectiveQuery),
+        effectiveVariables: summarizeDebugValue(
+          effectiveProps.variables,
+        ),
+      });
+    }
+
+    if (
+      !executable &&
+      shouldLogVariableCommitDebug(options.refreshCycleId) &&
+      instance.widgetId === "connection-query"
+    ) {
       console.log("[widget-exec:auto-skip]", {
         targetInstanceId,
         widgetId: instance.widgetId,
         reason: options.reason,
         hasTargetOverrides: Boolean(options.targetOverrides),
-        query: (effectiveState.props as Record<string, unknown>)?.query,
-        variables: (effectiveState.props as Record<string, unknown>)?.variables,
+        query: effectiveQuery,
+        variables: effectiveProps.variables,
       });
-      */
     }
 
     return executable;
@@ -408,8 +909,12 @@ export function DashboardWidgetExecutionProvider({
   ) {
     const dedupeKey = buildExecutionKey(targetInstanceId, options);
     const inFlight = inFlightRef.current.get(dedupeKey);
+    const targetTrace = formatLaunchTraceWidget(widgetsRef.current, targetInstanceId);
 
     if (inFlight) {
+      logLaunchTrace(
+        `[launch-run-dedupe] target=${targetTrace} reason=${options.reason} refreshCycleId=${options.refreshCycleId ?? ""}`,
+      );
       return inFlight;
     }
 
@@ -419,6 +924,18 @@ export function DashboardWidgetExecutionProvider({
       mountedRef.current &&
       !options.signal?.aborted &&
       dashboardStateKeyRef.current === executionDashboardStateKey;
+
+    logLaunchTrace(
+      `[launch-run-start] target=${targetTrace} reason=${options.reason} refreshCycleId=${options.refreshCycleId ?? ""} sourceBoundary=${options.sourceBoundaryInstanceId ?? ""}`,
+    );
+
+    markFiniteExecutionPlanWaiting({
+      reason: options.reason,
+      sourceBoundaryInstanceId: options.sourceBoundaryInstanceId,
+      targetInstanceIds: [targetInstanceId],
+      targetOverrides: options.targetOverrides,
+      widgets: widgetsRef.current,
+    });
 
     const executionPromise = executeDashboardWidgetGraph({
       scopeId,
@@ -444,6 +961,10 @@ export function DashboardWidgetExecutionProvider({
         writeRuntimeState(instanceId, runtimeState);
       },
       onNodeStart: ({ instanceId, reason, targetInstanceId: activeTargetInstanceId }) => {
+        logLaunchTrace(
+          `[launch-node-start] target=${formatLaunchTraceWidget(widgetsRef.current, activeTargetInstanceId)} node=${formatLaunchTraceWidget(widgetsRef.current, instanceId)} reason=${reason} refreshCycleId=${options.refreshCycleId ?? ""}`,
+        );
+
         if (!isExecutionCurrent()) {
           return;
         }
@@ -461,22 +982,45 @@ export function DashboardWidgetExecutionProvider({
         targetInstanceId: activeTargetInstanceId,
         status,
         error,
+        blockedByWidgetId,
+        blockedByOutputId,
       }) => {
+        logLaunchTrace(
+          `[launch-node-complete] target=${formatLaunchTraceWidget(widgetsRef.current, activeTargetInstanceId)} node=${formatLaunchTraceWidget(widgetsRef.current, instanceId)} reason=${reason} status=${status} error=${error ?? ""} refreshCycleId=${options.refreshCycleId ?? ""}`,
+        );
+
         if (!isExecutionCurrent()) {
           return;
         }
 
         clearRunningExecutionState(instanceId, {
-          status: status === "error" ? "error" : "success",
+          status:
+            status === "error"
+              ? "error"
+              : status === "upstream-error"
+                ? "upstream-error"
+              : status === "waiting"
+                ? "waiting"
+                : "success",
           reason,
           targetInstanceId: activeTargetInstanceId,
           finishedAtMs: Date.now(),
           error,
+          blockedByWidgetId,
+          blockedByOutputId,
         });
       },
     }).then((result) => {
+      logLaunchTrace(
+        `[launch-run-result] target=${targetTrace} reason=${options.reason} status=${result.status} error=${result.error ?? ""} nodes=${result.nodeResults.map((node) => `${node.instanceId}:${node.status}${node.error ? `:${node.error}` : ""}`).join(",")} refreshCycleId=${options.refreshCycleId ?? ""}`,
+      );
+
       if (isExecutionCurrent()) {
         widgetsRef.current = result.widgets;
+      } else {
+        logLaunchTrace(
+          `[launch-run-stale] target=${targetTrace} reason=${options.reason} refreshCycleId=${options.refreshCycleId ?? ""}`,
+        );
       }
       return result;
     }).finally(() => {
@@ -572,6 +1116,8 @@ export function DashboardWidgetExecutionProvider({
         let flowStatus: DashboardWidgetFlowExecutionResult["status"] =
           sourceResult.status === "error"
             ? "error"
+            : sourceResult.status === "waiting"
+              ? "waiting"
             : sourceResult.status === "success"
               ? "success"
               : "skipped";
@@ -629,6 +1175,9 @@ export function DashboardWidgetExecutionProvider({
 
             if (downstreamResult.status === "error") {
               flowStatus = "error";
+              flowError = flowError ?? downstreamResult.error;
+            } else if (downstreamResult.status === "waiting" && flowStatus !== "error") {
+              flowStatus = "waiting";
               flowError = flowError ?? downstreamResult.error;
             }
           }
@@ -706,6 +1255,21 @@ export function DashboardWidgetExecutionProvider({
       changedWidgetId: input.changedWidgetId,
       beforeSnapshot,
       afterSnapshot,
+      includeDownstreamVariableSources: input.changeOrigin !== "runtime",
+      shouldIncludeChangedVariableEntry:
+        input.changeOrigin === "runtime"
+          ? (entry) => {
+              const cachedSignature = variableEffectiveSignatureCacheRef.current.get(entry.entryId);
+              const previousSignature = cachedSignature ?? entry.beforeValueSignature;
+
+              variableEffectiveSignatureCacheRef.current.set(
+                entry.entryId,
+                entry.afterValueSignature,
+              );
+
+              return previousSignature !== entry.afterValueSignature;
+            }
+          : undefined,
       resolveManagedConnectionConsumerAdapter: getManagedConnectionConsumerAdapter,
     });
 
@@ -722,6 +1286,49 @@ export function DashboardWidgetExecutionProvider({
       };
     }
 
+    const refreshCycleId = `variable-commit:${scopeId}:${input.changedWidgetId}:${Date.now().toString(36)}`;
+    const planTargetWidgetIds = [
+      ...new Set([
+        ...plan.affectedConsumerWidgetIds,
+        ...plan.executableTargetWidgetIds,
+      ]),
+    ];
+
+    if (shouldLogVariableCommitDebug(refreshCycleId)) {
+      console.log("[widget-variable-commit:plan]", {
+        changedWidgetId: input.changedWidgetId,
+        changeOrigin: input.changeOrigin,
+        changedVariableEntries: plan.changedVariableEntries,
+        affectedConsumerWidgetIds: plan.affectedConsumerWidgetIds,
+        passiveConsumerWidgetIds: plan.passiveConsumerWidgetIds,
+        executableConsumerWidgetIds: plan.executableConsumerWidgetIds,
+        managedExecutableSourceWidgetIds: plan.managedExecutableSourceWidgetIds,
+        executableTargetWidgetIds: plan.executableTargetWidgetIds,
+        executableTargetOverrideIds: Object.keys(plan.executableTargetOverridesByWidgetId),
+        targets: planTargetWidgetIds.map((targetWidgetId) => {
+          const instance = afterSnapshot.getInstance(targetWidgetId);
+          const definition = afterSnapshot.getDefinition(targetWidgetId);
+          const resolvedInputs = afterSnapshot.dependencies.resolveInputs(targetWidgetId);
+
+          return {
+            targetWidgetId,
+            widgetId: instance?.widgetId,
+            title: instance?.title,
+            hasExecution: Boolean(definition?.execution),
+            resolvedReferenceInputs: summarizeResolvedReferenceInputsForDebug(resolvedInputs),
+            unresolvedReferenceInputs: listUnresolvedReferenceBackedPropInputs(resolvedInputs)
+              .map((entry) => ({
+                inputId: entry.inputId,
+                propPath: entry.propPath,
+                reason: entry.reason,
+                status: entry.status,
+                value: summarizeDebugValue(entry.value),
+              })),
+          };
+        }),
+      });
+    }
+
     if (plan.executableTargetWidgetIds.length === 0) {
       return {
         status: "success",
@@ -734,7 +1341,6 @@ export function DashboardWidgetExecutionProvider({
     }
 
     const sharedExecutedInstanceIds = new Set<string>();
-    const refreshCycleId = `variable-commit:${scopeId}:${input.changedWidgetId}:${Date.now().toString(36)}`;
     beginDashboardRequestTraceCycle({
       scopeId,
       refreshCycleId,
@@ -746,8 +1352,18 @@ export function DashboardWidgetExecutionProvider({
     let workingWidgets = input.afterWidgets;
     const downstreamResults: DashboardWidgetGraphExecutionResult[] = [];
     let executionError: string | undefined;
+    let executionWaiting: string | undefined;
     const sourceBoundaryInstanceId =
       input.changeOrigin === "runtime" ? input.changedWidgetId : undefined;
+
+    logRefreshLaunchPlan({
+      phase: "variable-commit",
+      refreshCycleId,
+      refreshTargets: plan.executableTargetWidgetIds,
+      widgets: workingWidgets,
+      resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+      runtimeDataStore,
+    });
 
     try {
       for (const targetInstanceId of plan.executableTargetWidgetIds) {
@@ -784,6 +1400,8 @@ export function DashboardWidgetExecutionProvider({
 
         if (result.status === "error" && !executionError) {
           executionError = result.error;
+        } else if (result.status === "waiting" && !executionWaiting) {
+          executionWaiting = result.error;
         }
       }
 
@@ -794,8 +1412,8 @@ export function DashboardWidgetExecutionProvider({
       });
 
       return {
-        status: executionError ? "error" : "success",
-        error: executionError,
+        status: executionError ? "error" : executionWaiting ? "waiting" : "success",
+        error: executionError ?? executionWaiting,
         changedWidgetId: input.changedWidgetId,
         plan,
         widgets: workingWidgets,
@@ -853,6 +1471,29 @@ export function DashboardWidgetExecutionProvider({
       setInitialRefreshSettled(true);
       return;
     }
+
+    if (CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED && import.meta.env.DEV) {
+      refreshTargets.forEach((targetInstanceId) => {
+        console.log("[hydration-target]", {
+          phase: "initial",
+          refreshCycleId: initialRefreshCycleId,
+          ...summarizeRefreshTargetForDebug(
+            targetInstanceId,
+            widgetsRef.current,
+            effectiveResolveWidgetDefinition,
+            runtimeDataStore,
+          ),
+        });
+      });
+    }
+    logRefreshLaunchPlan({
+      phase: "initial",
+      refreshCycleId: initialRefreshCycleId,
+      refreshTargets,
+      widgets: widgetsRef.current,
+      resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+      runtimeDataStore,
+    });
 
     const sharedExecutedInstanceIds = new Set<string>();
     const abortController = new AbortController();
@@ -1004,6 +1645,29 @@ export function DashboardWidgetExecutionProvider({
       return;
     }
 
+    if (CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED && import.meta.env.DEV) {
+      refreshTargets.forEach((targetInstanceId) => {
+        console.log("[hydration-target]", {
+          phase: "manual-refresh",
+          refreshCycleId,
+          ...summarizeRefreshTargetForDebug(
+            targetInstanceId,
+            widgetsRef.current,
+            effectiveResolveWidgetDefinition,
+            runtimeDataStore,
+          ),
+        });
+      });
+    }
+    logRefreshLaunchPlan({
+      phase: "manual-refresh",
+      refreshCycleId,
+      refreshTargets,
+      widgets: widgetsRef.current,
+      resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+      runtimeDataStore,
+    });
+
     const sharedExecutedInstanceIds = new Set<string>();
     const abortController = new AbortController();
     let cancelled = false;
@@ -1097,6 +1761,15 @@ export function DashboardWidgetExecutionProvider({
       );
       return;
     }
+
+    logRefreshLaunchPlan({
+      phase: "surface-return",
+      refreshCycleId: cycleId,
+      refreshTargets,
+      widgets: widgetsRef.current,
+      resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+      runtimeDataStore,
+    });
 
     const sharedExecutedInstanceIds = new Set<string>();
     const abortController = new AbortController();
@@ -1213,8 +1886,7 @@ export function DashboardWidgetExecutionProvider({
         }),
       resolvePassiveUpstream: (targetInstanceId, options) =>
         resolvePassiveUpstream(targetInstanceId, options),
-      getExecutionState: (instanceId) =>
-        instanceId ? executionStates[instanceId] : undefined,
+      getExecutionState: (instanceId) => resolveCurrentExecutionState(instanceId),
       getUpstreamRequirement: (instanceId, options) => {
         if (!instanceId) {
           return undefined;
@@ -1227,19 +1899,6 @@ export function DashboardWidgetExecutionProvider({
           targetOverrides: options?.targetOverrides,
           runtimeDataStore,
         });
-        const unresolvedReferenceInputs = listUnresolvedReferenceBackedPropInputs(
-          snapshot.dependencies.resolveInputs(instanceId),
-        );
-
-        if (unresolvedReferenceInputs.length > 0) {
-          return {
-            executableInstanceIds: [],
-            needsResolution: false,
-            requestKey: `${instanceId}::waiting-for-reference-backed-settings`,
-            settledKey: `${instanceId}::waiting-for-reference-backed-settings`,
-          };
-        }
-
         const requirement = resolveDashboardUpstreamRequirement(instanceId, snapshot);
 
         return {

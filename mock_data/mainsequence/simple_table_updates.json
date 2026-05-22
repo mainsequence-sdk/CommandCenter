@@ -1,7 +1,13 @@
 [
   {
     "id": 15001,
-    "remote_table": { "id": 14001, "storage_hash": "analytics_revenue_summary", "identifier": "Revenue Summary" },
+    "uid": "00000000-0000-0000-0000-000000015001",
+    "remote_table": {
+      "id": 14001,
+      "uid": "00000000-0000-0000-0000-000000014001",
+      "storage_hash": "analytics_revenue_summary",
+      "identifier": "Revenue Summary"
+    },
     "update_hash": "analytics_revenue_summary_update",
     "build_configuration": { "kind": "aggregation" },
     "ogm_dependencies_linked": true,
@@ -26,7 +32,13 @@
   },
   {
     "id": 15002,
-    "remote_table": { "id": 14002, "storage_hash": "macro_regime_snapshot", "identifier": "Macro Regime Snapshot" },
+    "uid": "00000000-0000-0000-0000-000000015002",
+    "remote_table": {
+      "id": 14002,
+      "uid": "00000000-0000-0000-0000-000000014002",
+      "storage_hash": "macro_regime_snapshot",
+      "identifier": "Macro Regime Snapshot"
+    },
     "update_hash": "macro_regime_snapshot_update",
     "build_configuration": { "kind": "snapshot" },
     "ogm_dependencies_linked": true,

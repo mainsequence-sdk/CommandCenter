@@ -29,6 +29,7 @@ export const lightweightChartsSpecWidget = defineWidget<LightweightChartsSpecWid
   mockProps: {
     specJson: starterSpecJson,
   },
+  workspaceRuntimeMode: "local-ui",
   buildAgentSnapshot: ({ domTextContent }) => ({
     displayKind: "chart",
     state: domTextContent?.trim() ? "ready" : "idle",

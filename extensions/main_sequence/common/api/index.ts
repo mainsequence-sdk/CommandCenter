@@ -530,13 +530,14 @@ export interface ManagedAccountListFilters {
 
 export interface InstrumentsConfigurationNodeOption {
   id: number;
+  uid?: string | null;
   label: string;
 }
 
 export interface InstrumentsConfigurationCurrentResponse {
   id: number;
-  discount_curves_storage_node: number | null;
-  reference_rates_fixings_storage_node: number | null;
+  discount_curves_storage_node: string | null;
+  reference_rates_fixings_storage_node: string | null;
   discount_nodes: InstrumentsConfigurationNodeOption[];
   fixings_nodes: InstrumentsConfigurationNodeOption[];
   can_edit: boolean;
@@ -759,6 +760,47 @@ export interface ManagedAccountTargetPositionsWriteResponse {
 
 function encodePathSegment(value: string) {
   return encodeURIComponent(value);
+}
+
+export type TsManagerPathIdentifier = string;
+
+type TsManagerIdentifiableRecord = {
+  uid?: string | null;
+};
+
+function readTsManagerIdentifier(value: TsManagerPathIdentifier | TsManagerIdentifiableRecord) {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (value && typeof value === "object") {
+    if (typeof value.uid === "string" && value.uid.trim()) {
+      return value.uid.trim();
+    }
+  }
+
+  return "";
+}
+
+export function getTsManagerRecordIdentifier(
+  value?: TsManagerIdentifiableRecord | TsManagerPathIdentifier | null,
+) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const identifier = readTsManagerIdentifier(value);
+  return identifier ? identifier : null;
+}
+
+function resolveTsManagerPath(identifier: TsManagerPathIdentifier | TsManagerIdentifiableRecord) {
+  const resolved = readTsManagerIdentifier(identifier);
+
+  if (!resolved) {
+    throw new Error("Missing ts_manager resource identifier.");
+  }
+
+  return encodePathSegment(resolved);
 }
 
 export interface AssetTranslationTableListRow {
@@ -1322,6 +1364,7 @@ export interface UploadBucketArtifactResponse {
 
 export interface SimpleTableRecord {
   id: number;
+  uid?: string | null;
   storage_hash?: string;
   creation_date?: string | null;
   source_class_name?: string | null;
@@ -1440,6 +1483,7 @@ export interface ColumnarDataSnapshot {
 
 export interface DataNodeSummary {
   id: number;
+  uid?: string | null;
   storage_hash: string;
   creation_date: string;
   namespace?: string | null;
@@ -1460,6 +1504,7 @@ export interface DataNodeSummary {
 
 export interface DataNodeQuickSearchRecord {
   id: number;
+  uid?: string | null;
   storage_hash: string;
   identifier: string | null;
 }
@@ -1473,10 +1518,12 @@ export interface ProjectQuickSearchRecord {
 
 export interface LocalTimeSerieQuickSearchRecord {
   id: number;
+  uid?: string | null;
   update_hash: string;
   project_id?: number | null;
   data_node_storage: {
     id: number;
+    uid?: string | null;
     storage_hash: string;
     identifier: string | null;
   } | null;
@@ -1484,9 +1531,11 @@ export interface LocalTimeSerieQuickSearchRecord {
 
 export interface SimpleTableUpdateQuickSearchRecord {
   id: number;
+  uid?: string | null;
   update_hash: string;
   remote_table: {
     id: number;
+    uid?: string | null;
     storage_hash: string | null;
     identifier: string | null;
   } | null;
@@ -1638,6 +1687,7 @@ export interface LocalTimeSerieUpdateDetails {
 
 export interface LocalTimeSerieRecord {
   id: number;
+  uid?: string | null;
   update_hash: string;
   build_configuration: unknown;
   update_details: LocalTimeSerieUpdateDetails | null;
@@ -1765,6 +1815,7 @@ export interface SimpleTableUpdateDetails {
 
 export interface SimpleTableUpdateRecord {
   id: number;
+  uid?: string | null;
   remote_table: SimpleTableDetail | SimpleTableRecord | null;
   update_hash: string;
   build_configuration: unknown;
@@ -4133,8 +4184,8 @@ export function updateCurrentInstrumentsConfiguration({
   discountCurvesStorageNode,
   referenceRatesFixingsStorageNode,
 }: {
-  discountCurvesStorageNode: number | null;
-  referenceRatesFixingsStorageNode: number | null;
+  discountCurvesStorageNode: string | null;
+  referenceRatesFixingsStorageNode: string | null;
 }) {
   return requestJson<InstrumentsConfigurationCurrentResponse>(
     instrumentsConfigurationEndpoint,
@@ -5558,17 +5609,17 @@ export function bulkRefreshSimpleTableSearchIndex(ids: number[]) {
   );
 }
 
-export function fetchSimpleTableSummary(simpleTableId: number) {
+export function fetchSimpleTableSummary(simpleTableIdentifier: TsManagerPathIdentifier) {
   return requestJson<SummaryResponse>(
     simpleTableEndpoint,
-    `${simpleTableId}/summary/`,
+    `${resolveTsManagerPath(simpleTableIdentifier)}/summary/`,
   );
 }
 
-export function fetchSimpleTableDetail(simpleTableId: number) {
+export function fetchSimpleTableDetail(simpleTableIdentifier: TsManagerPathIdentifier) {
   return requestJson<SimpleTableDetail>(
     simpleTableEndpoint,
-    `${simpleTableId}/`,
+    `${resolveTsManagerPath(simpleTableIdentifier)}/`,
   );
 }
 
@@ -5610,7 +5661,7 @@ function normalizeColumnarDataSnapshot(payload: unknown): ColumnarDataSnapshot {
 }
 
 export async function fetchSimpleTableDataSnapshot(
-  simpleTableId: number,
+  simpleTableIdentifier: TsManagerPathIdentifier,
   {
     limit = 100,
     offset = 0,
@@ -5620,7 +5671,7 @@ export async function fetchSimpleTableDataSnapshot(
   } = {},
 ) {
   if (env.useMockData) {
-    const detail = await fetchSimpleTableDetail(simpleTableId);
+    const detail = await fetchSimpleTableDetail(simpleTableIdentifier);
     const columns = Array.from(
       new Set(
         [
@@ -5642,7 +5693,7 @@ export async function fetchSimpleTableDataSnapshot(
 
   const payload = await requestJson<unknown>(
     simpleTableEndpoint,
-    `${simpleTableId}/get-data-snapshot/`,
+    `${resolveTsManagerPath(simpleTableIdentifier)}/get-data-snapshot/`,
     undefined,
     {
       limit,
@@ -5654,7 +5705,7 @@ export async function fetchSimpleTableDataSnapshot(
 }
 
 export function fetchSimpleTableSchemaGraph(
-  simpleTableId: number,
+  simpleTableIdentifier: TsManagerPathIdentifier,
   {
     depth,
     includeIncoming = false,
@@ -5665,7 +5716,7 @@ export function fetchSimpleTableSchemaGraph(
 ) {
   return requestJson<SimpleTableSchemaGraphResponse>(
     simpleTableEndpoint,
-    `${simpleTableId}/schema-graph/`,
+    `${resolveTsManagerPath(simpleTableIdentifier)}/schema-graph/`,
     undefined,
     {
       depth,
@@ -5700,27 +5751,29 @@ export async function listSimpleTableUpdates(
   };
 }
 
-export function fetchSimpleTableUpdateDetail(simpleTableUpdateId: number) {
+export function fetchSimpleTableUpdateDetail(simpleTableUpdateIdentifier: TsManagerPathIdentifier) {
   return requestJson<SimpleTableUpdateRecord>(
     simpleTableEndpoint,
-    `update/${simpleTableUpdateId}/`,
+    `update/${resolveTsManagerPath(simpleTableUpdateIdentifier)}/`,
   );
 }
 
-export function fetchSimpleTableUpdateRunConfiguration(simpleTableUpdateId: number) {
+export function fetchSimpleTableUpdateRunConfiguration(
+  simpleTableUpdateIdentifier: TsManagerPathIdentifier,
+) {
   return requestJson<SimpleTableUpdateRunConfiguration>(
     simpleTableEndpoint,
-    `update/${simpleTableUpdateId}/run-configuration/`,
+    `update/${resolveTsManagerPath(simpleTableUpdateIdentifier)}/run-configuration/`,
   );
 }
 
 export function updateSimpleTableUpdateRunConfiguration(
-  simpleTableUpdateId: number,
+  simpleTableUpdateIdentifier: TsManagerPathIdentifier,
   input: SimpleTableUpdateRunConfigurationInput,
 ) {
   return requestJson<SimpleTableUpdateRunConfiguration>(
     simpleTableEndpoint,
-    `update/${simpleTableUpdateId}/run-configuration/`,
+    `update/${resolveTsManagerPath(simpleTableUpdateIdentifier)}/run-configuration/`,
     {
       method: "PATCH",
       body: JSON.stringify(input),
@@ -5729,12 +5782,12 @@ export function updateSimpleTableUpdateRunConfiguration(
 }
 
 export function listSimpleTableUpdateHistoricalUpdates(
-  simpleTableUpdateId: number,
+  simpleTableUpdateIdentifier: TsManagerPathIdentifier,
   limit = 100,
 ) {
   return requestJson<SimpleTableHistoricalUpdateRecord[]>(
     simpleTableEndpoint,
-    `update/${simpleTableUpdateId}/historical-updates/`,
+    `update/${resolveTsManagerPath(simpleTableUpdateIdentifier)}/historical-updates/`,
     undefined,
     { limit },
   );
@@ -5805,17 +5858,20 @@ export async function quickSearchLocalTimeSeries({
 
   return rows.map<LocalTimeSerieQuickSearchRecord>((row) => ({
     id: row.id,
+    uid: typeof row.uid === "string" ? row.uid : null,
     update_hash: row.update_hash,
     project_id:
       "project_id" in row && typeof row.project_id === "number" && Number.isFinite(row.project_id)
         ? row.project_id
         : null,
     data_node_storage: row.data_node_storage
-      ? {
-          id: row.data_node_storage.id,
-          storage_hash: row.data_node_storage.storage_hash,
-          identifier: row.data_node_storage.identifier,
-        }
+        ? {
+            id: row.data_node_storage.id,
+            uid:
+              typeof row.data_node_storage.uid === "string" ? row.data_node_storage.uid : null,
+            storage_hash: row.data_node_storage.storage_hash,
+            identifier: row.data_node_storage.identifier,
+          }
       : null,
   }));
 }
@@ -5838,10 +5894,12 @@ export async function quickSearchSimpleTableUpdates({
 
   return rows.map<SimpleTableUpdateQuickSearchRecord>((row) => ({
     id: row.id,
+    uid: typeof row.uid === "string" ? row.uid : null,
     update_hash: row.update_hash,
     remote_table: row.remote_table
       ? {
           id: row.remote_table.id,
+          uid: typeof row.remote_table.uid === "string" ? row.remote_table.uid : null,
           storage_hash:
             typeof row.remote_table.storage_hash === "string" ? row.remote_table.storage_hash : null,
           identifier:
@@ -6788,34 +6846,37 @@ export function fetchProjectSummary(projectId: number) {
   );
 }
 
-export function fetchDataNodeSummary(dataNodeId: number) {
+export function fetchDataNodeSummary(dataNodeIdentifier: TsManagerPathIdentifier) {
   return requestJson<DataNodeSummaryHeader>(
     dynamicTableMetadataEndpoint,
-    `${dataNodeId}/summary/`,
+    `${resolveTsManagerPath(dataNodeIdentifier)}/summary/`,
   );
 }
 
-export function buildDataNodeDetailQueryKey(dataNodeId: number) {
-  return ["main_sequence", "data_node", "detail", dataNodeId] as const;
+export function buildDataNodeDetailQueryKey(dataNodeIdentifier: TsManagerPathIdentifier) {
+  return ["main_sequence", "data_node", "detail", String(dataNodeIdentifier)] as const;
 }
 
-function buildDataNodeDetailCacheKey(dataNodeId: number) {
+function buildDataNodeDetailCacheKey(dataNodeIdentifier: TsManagerPathIdentifier) {
   const userId = useAuthStore.getState().session?.user.id ?? "anonymous";
-  return `${userId}:${dataNodeId}`;
+  return `${userId}:${String(dataNodeIdentifier)}`;
 }
 
 export function fetchDataNodeDetail(
-  dataNodeId: number,
+  dataNodeIdentifier: TsManagerPathIdentifier,
   traceMeta?: DashboardRequestTraceMeta,
 ) {
+  const resolvedIdentifier = resolveTsManagerPath(dataNodeIdentifier);
+
   if (isWidgetPreviewMode()) {
-    return Promise.resolve(buildWidgetPreviewDataNodeDetail(dataNodeId));
+    const previewId = typeof dataNodeIdentifier === "number" ? dataNodeIdentifier : Number(dataNodeIdentifier);
+    return Promise.resolve(buildWidgetPreviewDataNodeDetail(Number.isFinite(previewId) ? previewId : 0));
   }
 
-  const cacheKey = buildDataNodeDetailCacheKey(dataNodeId);
+  const cacheKey = buildDataNodeDetailCacheKey(dataNodeIdentifier);
   const now = Date.now();
   const cachedEntry = dataNodeDetailCache.get(cacheKey);
-  const requestUrl = buildEndpointUrl(dynamicTableMetadataEndpoint, `${dataNodeId}/`);
+  const requestUrl = buildEndpointUrl(dynamicTableMetadataEndpoint, `${resolvedIdentifier}/`);
 
   if (cachedEntry?.value && cachedEntry.expiresAt > now) {
     startDashboardRequestTrace(traceMeta, {
@@ -6843,7 +6904,7 @@ export function fetchDataNodeDetail(
 
   const requestPromise = requestJson<DataNodeDetail>(
     dynamicTableMetadataEndpoint,
-    `${dataNodeId}/`,
+    `${resolvedIdentifier}/`,
     undefined,
     undefined,
     traceMeta,
@@ -6874,14 +6935,14 @@ export function fetchSourceTableConfigurationStats(sourceTableConfigurationId: n
 }
 
 export function deleteDataNodeTail(
-  dataNodeId: number,
+  dataNodeIdentifier: TsManagerPathIdentifier,
   input: DataNodeTailDeleteInput,
 ) {
   return requestJson<DataNodeTailDeleteResponse>(
     dynamicTableMetadataEndpoint,
-    `${dataNodeId}/delete_after_date/`,
+    `${resolveTsManagerPath(dataNodeIdentifier)}/delete_after_date/`,
     {
-      method: "PATCH",
+      method: "POST",
       body: JSON.stringify(input),
     },
   );
@@ -6939,10 +7000,10 @@ function normalizeDataNodeLastObservation(payload: unknown): DataNodeLastObserva
   return null;
 }
 
-export async function fetchDataNodeLastObservation(dataNodeId: number) {
+export async function fetchDataNodeLastObservation(dataNodeIdentifier: TsManagerPathIdentifier) {
   const payload = await requestJson<unknown>(
     dynamicTableMetadataEndpoint,
-    `${dataNodeId}/get_last_observation/`,
+    `${resolveTsManagerPath(dataNodeIdentifier)}/get_last_observation/`,
     {
       method: "POST",
       body: JSON.stringify({}),
@@ -6953,13 +7014,13 @@ export async function fetchDataNodeLastObservation(dataNodeId: number) {
 }
 
 export async function fetchDataNodeTailObservations(
-  dataNodeId: number,
+  dataNodeIdentifier: TsManagerPathIdentifier,
   input: { n?: number; order?: "asc" | "desc" } = {},
   traceMeta?: DashboardRequestTraceMeta,
 ) {
   const payload = await requestJson<unknown>(
     dynamicTableMetadataEndpoint,
-    `${dataNodeId}/get-tail-observations/`,
+    `${resolveTsManagerPath(dataNodeIdentifier)}/get-tail-observations/`,
     undefined,
     {
       n: input.n,
@@ -6972,7 +7033,7 @@ export async function fetchDataNodeTailObservations(
 }
 
 export async function fetchDataNodeDataBetweenDatesFromRemote(
-  dataNodeId: number,
+  dataNodeIdentifier: TsManagerPathIdentifier,
   input: DataNodeRemoteDataRequest,
   traceMeta?: DashboardRequestTraceMeta,
 ) {
@@ -6982,7 +7043,7 @@ export async function fetchDataNodeDataBetweenDatesFromRemote(
 
   const payload = await requestJson<unknown>(
     dynamicTableMetadataEndpoint,
-    `${dataNodeId}/get_data_between_dates_from_remote/`,
+    `${resolveTsManagerPath(dataNodeIdentifier)}/get_data_between_dates_from_remote/`,
     {
       method: "POST",
       body: JSON.stringify(input),
@@ -6994,34 +7055,36 @@ export async function fetchDataNodeDataBetweenDatesFromRemote(
   return normalizeDataNodeRemoteDataRows(payload);
 }
 
-export function fetchLocalTimeSerieSummary(localTimeSerieId: number) {
+export function fetchLocalTimeSerieSummary(localTimeSerieIdentifier: TsManagerPathIdentifier) {
   return requestJson<LocalTimeSerieSummaryHeader>(
     localTimeSerieEndpoint,
-    `${localTimeSerieId}/summary/`,
+    `${resolveTsManagerPath(localTimeSerieIdentifier)}/summary/`,
   );
 }
 
-export function fetchLocalTimeSerieDetail(localTimeSerieId: number) {
+export function fetchLocalTimeSerieDetail(localTimeSerieIdentifier: TsManagerPathIdentifier) {
   return requestJson<LocalTimeSerieRecord>(
     localTimeSerieEndpoint,
-    `${localTimeSerieId}/`,
+    `${resolveTsManagerPath(localTimeSerieIdentifier)}/`,
   );
 }
 
-export function fetchLocalTimeSerieRunConfiguration(localTimeSerieId: number) {
+export function fetchLocalTimeSerieRunConfiguration(
+  localTimeSerieIdentifier: TsManagerPathIdentifier,
+) {
   return requestJson<LocalTimeSerieRunConfiguration>(
     localTimeSerieEndpoint,
-    `${localTimeSerieId}/run-configuration/`,
+    `${resolveTsManagerPath(localTimeSerieIdentifier)}/run-configuration/`,
   );
 }
 
 export function updateLocalTimeSerieRunConfiguration(
-  localTimeSerieId: number,
+  localTimeSerieIdentifier: TsManagerPathIdentifier,
   input: LocalTimeSerieRunConfigurationInput,
 ) {
   return requestJson<LocalTimeSerieRunConfiguration>(
     localTimeSerieEndpoint,
-    `${localTimeSerieId}/run-configuration/`,
+    `${resolveTsManagerPath(localTimeSerieIdentifier)}/run-configuration/`,
     {
       method: "PATCH",
       body: JSON.stringify(input),
@@ -7030,17 +7093,23 @@ export function updateLocalTimeSerieRunConfiguration(
 }
 
 export function fetchLocalTimeSerieDependencyGraph(
-  localTimeSerieId: number,
+  localTimeSerieIdentifier: TsManagerPathIdentifier,
   direction: "downstream" | "upstream",
   traceMeta?: DashboardRequestTraceMeta,
 ) {
   if (isWidgetPreviewMode()) {
-    return Promise.resolve(buildWidgetPreviewDependencyGraph(localTimeSerieId, direction));
+    const previewId =
+      typeof localTimeSerieIdentifier === "number"
+        ? localTimeSerieIdentifier
+        : Number(localTimeSerieIdentifier);
+    return Promise.resolve(
+      buildWidgetPreviewDependencyGraph(Number.isFinite(previewId) ? previewId : 0, direction),
+    );
   }
 
   return requestJson<unknown>(
     localTimeSerieEndpoint,
-    `${localTimeSerieId}/dependencies-graph/`,
+    `${resolveTsManagerPath(localTimeSerieIdentifier)}/dependencies-graph/`,
     undefined,
     { direction },
     traceMeta,
@@ -7050,13 +7119,13 @@ export function fetchLocalTimeSerieDependencyGraph(
 }
 
 export function fetchSimpleTableUpdateDependencyGraph(
-  simpleTableUpdateId: number,
+  simpleTableUpdateIdentifier: TsManagerPathIdentifier,
   direction: "downstream" | "upstream",
   traceMeta?: DashboardRequestTraceMeta,
 ) {
   return requestJson<unknown>(
     simpleTableEndpoint,
-    `update/${simpleTableUpdateId}/dependencies-graph/`,
+    `update/${resolveTsManagerPath(simpleTableUpdateIdentifier)}/dependencies-graph/`,
     undefined,
     { direction },
     traceMeta,
@@ -7066,40 +7135,43 @@ export function fetchSimpleTableUpdateDependencyGraph(
 }
 
 export function listLocalTimeSerieHistoricalUpdates(
-  localTimeSerieId: number,
+  localTimeSerieIdentifier: TsManagerPathIdentifier,
   limit = 100,
 ) {
   return requestJson<LocalTimeSerieHistoricalUpdateRecord[]>(
     localTimeSerieEndpoint,
-    `${localTimeSerieId}/historical-updates/`,
+    `${resolveTsManagerPath(localTimeSerieIdentifier)}/historical-updates/`,
     undefined,
     { limit },
   );
 }
 
-export function fetchLocalTimeSerieLogs(localTimeSerieId: number, level?: string) {
+export function fetchLocalTimeSerieLogs(
+  localTimeSerieIdentifier: TsManagerPathIdentifier,
+  level?: string,
+) {
   return requestJson<LocalTimeSerieLogsGridResponse>(
     localTimeSerieEndpoint,
-    `${localTimeSerieId}/logs/`,
+    `${resolveTsManagerPath(localTimeSerieIdentifier)}/logs/`,
     undefined,
     level ? { level } : undefined,
   );
 }
 
-export function fetchDataNodeCompressionPolicy(dataNodeId: number) {
+export function fetchDataNodeCompressionPolicy(dataNodeIdentifier: TsManagerPathIdentifier) {
   return requestJson<DataNodePolicyState<DataNodeCompressionPolicyConfig>>(
     dynamicTableMetadataEndpoint,
-    `${dataNodeId}/compression-policy/`,
+    `${resolveTsManagerPath(dataNodeIdentifier)}/compression-policy/`,
   );
 }
 
 export function saveDataNodeCompressionPolicy(
-  dataNodeId: number,
+  dataNodeIdentifier: TsManagerPathIdentifier,
   input: DataNodeCompressionPolicyInput,
 ) {
   return requestJson<DataNodePolicyState<DataNodeCompressionPolicyConfig>>(
     dynamicTableMetadataEndpoint,
-    `${dataNodeId}/compression-policy/`,
+    `${resolveTsManagerPath(dataNodeIdentifier)}/compression-policy/`,
     {
       method: "POST",
       body: JSON.stringify(input),
@@ -7107,20 +7179,20 @@ export function saveDataNodeCompressionPolicy(
   );
 }
 
-export function fetchDataNodeRetentionPolicy(dataNodeId: number) {
+export function fetchDataNodeRetentionPolicy(dataNodeIdentifier: TsManagerPathIdentifier) {
   return requestJson<DataNodePolicyState<DataNodeRetentionPolicyConfig>>(
     dynamicTableMetadataEndpoint,
-    `${dataNodeId}/retention-policy/`,
+    `${resolveTsManagerPath(dataNodeIdentifier)}/retention-policy/`,
   );
 }
 
 export function saveDataNodeRetentionPolicy(
-  dataNodeId: number,
+  dataNodeIdentifier: TsManagerPathIdentifier,
   input: DataNodeRetentionPolicyInput,
 ) {
   return requestJson<DataNodePolicyState<DataNodeRetentionPolicyConfig>>(
     dynamicTableMetadataEndpoint,
-    `${dataNodeId}/retention-policy/`,
+    `${resolveTsManagerPath(dataNodeIdentifier)}/retention-policy/`,
     {
       method: "POST",
       body: JSON.stringify(input),

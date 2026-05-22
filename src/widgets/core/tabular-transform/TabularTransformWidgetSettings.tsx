@@ -2,17 +2,16 @@ import { useMemo, useState } from "react";
 
 import { Plus, Trash2 } from "lucide-react";
 
-import { normalizeTabularFrameSource } from "@/widgets/shared/tabular-frame-source";
 import { TabularMergeMappingEditor } from "@/widgets/shared/TabularMergeMappingEditor";
 import type { TabularFrameFieldType } from "@/widgets/shared/tabular-frame-source";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import {
-  TABULAR_TRANSFORM_SOURCE_INPUT_ID,
   formatFieldListText,
   normalizeTabularTransformProps,
   parseFieldListText,
   resolveTabularTransformComputedColumns,
+  resolveTabularTransformSourceConsumerState,
   type TabularAggregateMode,
   type TabularTransformComputedColumnConfig,
   type TabularTransformComputedColumnType,
@@ -391,13 +390,10 @@ export function TabularTransformWidgetSettings({
   resolvedInputs,
 }: Props) {
   const props = normalizeTabularTransformProps(draftProps);
-  const sourceInput = resolvedInputs?.[TABULAR_TRANSFORM_SOURCE_INPUT_ID];
-  const sourceEntry = Array.isArray(sourceInput)
-    ? sourceInput.find((entry) => entry.status === "valid")
-    : sourceInput;
-  const sourceFrame = normalizeTabularFrameSource(
-    sourceEntry?.upstreamBase ?? sourceEntry?.value,
+  const sourceConsumerState = resolveTabularTransformSourceConsumerState(
+    resolvedInputs,
   );
+  const sourceFrame = sourceConsumerState.dataset ?? sourceConsumerState.deltaDataset;
   const availableColumns = useMemo(
     () => sourceFrame?.columns ?? [],
     [sourceFrame?.columns],

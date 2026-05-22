@@ -43,8 +43,13 @@ export function TabularTransformWidget({
   runtimeDataStore,
 }: Props) {
   const sourceConsumerState = useMemo(
-    () => resolveTabularTransformSourceConsumerState(resolvedInputs, runtimeDataStore),
-    [resolvedInputs, runtimeDataStore],
+    () =>
+      resolveTabularTransformSourceConsumerState(
+        resolvedInputs,
+        runtimeDataStore,
+        runtimeState,
+      ),
+    [resolvedInputs, runtimeDataStore, runtimeState],
   );
   useResolveWidgetUpstream(instanceId, {
     enabled: sourceConsumerState.requiresUpstreamResolution,

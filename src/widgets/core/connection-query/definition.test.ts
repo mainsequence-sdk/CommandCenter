@@ -41,14 +41,14 @@ function buildExecutionContext(
 }
 
 describe("connectionQueryWidget automatic execution readiness", () => {
-  it("allows automatic execution when a reference-backed query input resolved to null", () => {
+  it("does not apply field-name-specific query validation in widget runtime", () => {
     const context = buildExecutionContext();
 
     expect(connectionQueryWidget.execution?.canExecute?.(context)).toBe(true);
     expect(connectionQueryWidget.execution?.getRefreshPolicy?.(context)).toBe("allow-refresh");
   });
 
-  it("blocks automatic execution when a reference-backed query input is not resolved", () => {
+  it("allows automatic execution when a reference-backed query input is not resolved", () => {
     const inputId = buildWidgetReferencePropInputId(["query", "symbols"]);
     const context = buildExecutionContext({
       props: {
@@ -74,8 +74,8 @@ describe("connectionQueryWidget automatic execution readiness", () => {
       },
     });
 
-    expect(connectionQueryWidget.execution?.canExecute?.(context)).toBe(false);
-    expect(connectionQueryWidget.execution?.getRefreshPolicy?.(context)).toBe("manual-only");
+    expect(connectionQueryWidget.execution?.canExecute?.(context)).toBe(true);
+    expect(connectionQueryWidget.execution?.getRefreshPolicy?.(context)).toBe("allow-refresh");
   });
 
   it("allows automatic execution when target overrides provide a concrete query value", () => {
@@ -100,7 +100,26 @@ describe("connectionQueryWidget automatic execution readiness", () => {
     expect(connectionQueryWidget.execution?.getRefreshPolicy?.(context)).toBe("allow-refresh");
   });
 
-  it("blocks manual test execution for unresolved reference-backed query inputs", () => {
+  it("uses query.kind as the effective query model when saved queryModelId is absent", () => {
+    const context = buildExecutionContext({
+      props: {
+        connectionRef: {
+          id: 5,
+          typeId: "finance.binance-market-data",
+        },
+        query: {
+          kind: "binance-usdm-futures-ohlc",
+          symbols: ["BTCUSDT"],
+        },
+        timeRangeMode: "none",
+      },
+    });
+
+    expect(connectionQueryWidget.execution?.canExecute?.(context)).toBe(true);
+    expect(connectionQueryWidget.execution?.getRefreshPolicy?.(context)).toBe("allow-refresh");
+  });
+
+  it("allows manual test execution for unresolved reference-backed query inputs", () => {
     const inputId = buildWidgetReferencePropInputId(["query", "symbols"]);
     const context = buildExecutionContext({
       reason: "settings-test",
@@ -127,6 +146,6 @@ describe("connectionQueryWidget automatic execution readiness", () => {
       },
     });
 
-    expect(connectionQueryWidget.execution?.canExecute?.(context)).toBe(false);
+    expect(connectionQueryWidget.execution?.canExecute?.(context)).toBe(true);
   });
 });

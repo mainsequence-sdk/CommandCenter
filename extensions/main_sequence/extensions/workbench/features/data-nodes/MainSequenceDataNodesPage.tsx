@@ -35,6 +35,7 @@ import {
   fetchDataNodeSummary,
   fetchSourceTableConfigurationStats,
   formatMainSequenceError,
+  getTsManagerRecordIdentifier,
   listDataNodes,
   mainSequenceRegistryPageSize,
   type DataNodeDetail,
@@ -417,13 +418,13 @@ export function MainSequenceDataNodesPage() {
   });
   const deferredFilterValue = useDeferredValue(filterValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedDataNodeId = Number(searchParams.get(mainSequenceDataNodeIdParam) ?? "");
+  const selectedDataNodeIdentifier = searchParams.get(mainSequenceDataNodeIdParam)?.trim() || null;
   const requestedDetailTabId = searchParams.get(mainSequenceDataNodeTabParam);
-  const selectedLocalUpdateId = Number(searchParams.get(mainSequenceLocalUpdateIdParam) ?? "");
+  const selectedLocalUpdateIdentifier =
+    searchParams.get(mainSequenceLocalUpdateIdParam)?.trim() || null;
   const selectedLocalUpdateTabId = searchParams.get(mainSequenceLocalUpdateTabParam);
-  const isDataNodeDetailOpen = Number.isFinite(selectedDataNodeId) && selectedDataNodeId > 0;
-  const isLocalUpdateDetailOpen =
-    Number.isFinite(selectedLocalUpdateId) && selectedLocalUpdateId > 0;
+  const isDataNodeDetailOpen = Boolean(selectedDataNodeIdentifier);
+  const isLocalUpdateDetailOpen = Boolean(selectedLocalUpdateIdentifier);
   const isStandaloneLocalUpdateDetailOpen = isLocalUpdateDetailOpen && !isDataNodeDetailOpen;
   const requestedDataNodeDetailTabId =
     isDataNodeDetailTabId(requestedDetailTabId) ? requestedDetailTabId : defaultDataNodeDetailTabId;
@@ -443,13 +444,13 @@ export function MainSequenceDataNodesPage() {
   }, [deferredFilterValue]);
 
   const dataNodeSummaryQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "summary", selectedDataNodeId],
-    queryFn: () => fetchDataNodeSummary(selectedDataNodeId),
+    queryKey: ["main_sequence", "data_nodes", "summary", selectedDataNodeIdentifier],
+    queryFn: () => fetchDataNodeSummary(selectedDataNodeIdentifier!),
     enabled: isDataNodeDetailOpen,
   });
   const dataNodeDetailQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "detail", selectedDataNodeId],
-    queryFn: () => fetchDataNodeDetail(selectedDataNodeId),
+    queryKey: ["main_sequence", "data_nodes", "detail", selectedDataNodeIdentifier],
+    queryFn: () => fetchDataNodeDetail(selectedDataNodeIdentifier!),
     enabled: isDataNodeDetailOpen,
   });
 
@@ -527,9 +528,14 @@ export function MainSequenceDataNodesPage() {
     });
   });
   const selectedDataNodeFromList = useMemo(
-    () => (dataNodesQuery.data?.results ?? []).find((dataNode) => dataNode.id === selectedDataNodeId) ?? null,
-    [dataNodesQuery.data?.results, selectedDataNodeId],
+    () =>
+      (dataNodesQuery.data?.results ?? []).find(
+        (dataNode) => getTsManagerRecordIdentifier(dataNode) === selectedDataNodeIdentifier,
+      ) ?? null,
+    [dataNodesQuery.data?.results, selectedDataNodeIdentifier],
   );
+  const selectedDataNodeNumericId =
+    selectedDataNodeFromList?.id ?? dataNodeDetailQuery.data?.id ?? null;
   const dataNodeEngineClassType = useMemo(
     () => resolveDataNodeEngineClassType(dataNodeDetailQuery.data ?? selectedDataNodeFromList),
     [dataNodeDetailQuery.data, selectedDataNodeFromList],
@@ -560,7 +566,7 @@ export function MainSequenceDataNodesPage() {
   const dataNodeTitle =
     dataNodeSummary?.entity.title ??
     selectedDataNodeFromList?.storage_hash ??
-    (isDataNodeDetailOpen ? `Data node ${selectedDataNodeId}` : "Data node");
+    (isDataNodeDetailOpen ? `Data node ${selectedDataNodeIdentifier}` : "Data node");
   const dataNodeColumnDetails = dataNodeDetailQuery.data?.sourcetableconfiguration?.columns_metadata ?? [];
   const selectedSourceTableConfiguration = dataNodeDetailQuery.data?.sourcetableconfiguration ?? null;
   const sourceTableConfigurationId = useMemo(
@@ -608,7 +614,7 @@ export function MainSequenceDataNodesPage() {
   }, [deleteTailIdentifierOptions, deleteTailIdentifierSearch]);
 
   const refreshSearchIndexMutation = useMutation({
-    mutationFn: () => bulkRefreshDataNodeTableSearchIndex([selectedDataNodeId]),
+    mutationFn: () => bulkRefreshDataNodeTableSearchIndex([selectedDataNodeNumericId ?? 0]),
     onSuccess: async (result) => {
       const payload =
         result && typeof result === "object" && "success_count" in result && "failed_count" in result
@@ -638,8 +644,8 @@ export function MainSequenceDataNodesPage() {
     },
   });
   const deleteTailMutation = useMutation({
-    mutationFn: (input: { dataNodeId: number; afterDate: string; uniqueIdentifierList?: string[] }) =>
-      deleteDataNodeTail(input.dataNodeId, {
+    mutationFn: (input: { dataNodeIdentifier: string; afterDate: string; uniqueIdentifierList?: string[] }) =>
+      deleteDataNodeTail(input.dataNodeIdentifier, {
         after_date: input.afterDate,
         unique_identifier_list: input.uniqueIdentifierList,
       }),
@@ -700,11 +706,11 @@ export function MainSequenceDataNodesPage() {
   }
 
   function openDataNodeDetail(
-    dataNodeId: number,
+    dataNodeIdentifier: string | number,
     tabId: DataNodeDetailTabId = defaultDataNodeDetailTabId,
   ) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceDataNodeIdParam, String(dataNodeId));
+      nextParams.set(mainSequenceDataNodeIdParam, String(dataNodeIdentifier));
       nextParams.set(mainSequenceDataNodeTabParam, tabId);
       nextParams.delete(mainSequenceLocalUpdateIdParam);
       nextParams.delete(mainSequenceLocalUpdateTabParam);
@@ -720,10 +726,10 @@ export function MainSequenceDataNodesPage() {
     });
   }
 
-  function openLocalUpdateDetail(localUpdateId: number) {
+  function openLocalUpdateDetail(localUpdateIdentifier: string | number) {
     updateSearchParams((nextParams) => {
       nextParams.set(mainSequenceDataNodeTabParam, "local-time-series");
-      nextParams.set(mainSequenceLocalUpdateIdParam, String(localUpdateId));
+      nextParams.set(mainSequenceLocalUpdateIdParam, String(localUpdateIdentifier));
       nextParams.set(mainSequenceLocalUpdateTabParam, "details");
     });
   }
@@ -754,7 +760,7 @@ export function MainSequenceDataNodesPage() {
 
   function selectDataNodeDetailTab(tabId: DataNodeDetailTabId) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceDataNodeIdParam, String(selectedDataNodeId));
+      nextParams.set(mainSequenceDataNodeIdParam, String(selectedDataNodeIdentifier));
       nextParams.set(mainSequenceDataNodeTabParam, tabId);
 
       if (tabId !== "local-time-series") {
@@ -821,7 +827,7 @@ export function MainSequenceDataNodesPage() {
     deleteTailMutation.reset();
   }, [
     deleteTailDialogOpen,
-    selectedDataNodeId,
+    selectedDataNodeIdentifier,
     selectedSourceTableConfiguration?.last_time_index_value,
   ]);
 
@@ -850,7 +856,7 @@ export function MainSequenceDataNodesPage() {
   }
 
   async function handleDeleteTailSubmit() {
-    if (!isDataNodeDetailOpen || !Number.isFinite(selectedDataNodeId) || selectedDataNodeId <= 0) {
+    if (!isDataNodeDetailOpen || !selectedDataNodeIdentifier) {
       return;
     }
 
@@ -869,7 +875,7 @@ export function MainSequenceDataNodesPage() {
     setDeleteTailFormError(null);
 
     await deleteTailMutation.mutateAsync({
-      dataNodeId: selectedDataNodeId,
+      dataNodeIdentifier: selectedDataNodeIdentifier,
       afterDate: parsedAfterDate.toISOString(),
       uniqueIdentifierList:
         isMultiIndexDataNode && selectedDeleteTailIdentifiers.length > 0
@@ -990,9 +996,11 @@ export function MainSequenceDataNodesPage() {
       return (
         <>
           <div className="font-medium">{selectedNames[0]}</div>
-          <div className="mt-1 text-muted-foreground">
-            Data node ID {bulkActionRequest.dataNodes[0]?.id}
-          </div>
+          {bulkActionRequest.dataNodes[0]?.uid?.trim() ? (
+            <div className="mt-1 text-muted-foreground">
+              UID {bulkActionRequest.dataNodes[0].uid.trim()}
+            </div>
+          ) : null}
         </>
       );
     }
@@ -1125,7 +1133,7 @@ export function MainSequenceDataNodesPage() {
     <div className="space-y-6">
       {isStandaloneLocalUpdateDetailOpen ? (
         <MainSequenceDataNodeLocalUpdateDetail
-          localTimeSerieId={selectedLocalUpdateId}
+          localTimeSerieId={selectedLocalUpdateIdentifier!}
           onClose={closeStandaloneLocalUpdateDetail}
           onOpenDataNodeDetail={openDataNodeDetail}
           onSelectTab={selectLocalUpdateTab}
@@ -1343,30 +1351,26 @@ export function MainSequenceDataNodesPage() {
                       </CardContent>
                     </Card>
                   ) : selectedDetailTabId === "data-snapshot" ? (
-                    <MainSequenceDataNodeSnapshotTab dataNodeId={selectedDataNodeId} />
+                    <MainSequenceDataNodeSnapshotTab dataNodeId={selectedDataNodeIdentifier!} />
                   ) : selectedDetailTabId === "local-time-series" ? (
                     <MainSequenceDataNodeLocalTimeSeriesTab
-                      dataNodeId={selectedDataNodeId}
+                      dataNodeId={selectedDataNodeNumericId ?? 0}
                       onCloseLocalUpdateDetail={closeLocalUpdateDetail}
                       onOpenDataNodeDetail={openDataNodeDetail}
                       onOpenLocalUpdateDetail={openLocalUpdateDetail}
                       onSelectLocalUpdateTab={selectLocalUpdateTab}
-                      selectedLocalUpdateId={
-                        Number.isFinite(selectedLocalUpdateId) && selectedLocalUpdateId > 0
-                          ? selectedLocalUpdateId
-                          : null
-                      }
+                      selectedLocalUpdateId={selectedLocalUpdateIdentifier}
                       selectedLocalUpdateTabId={selectedLocalUpdateTabId}
                     />
                   ) : selectedDetailTabId === "permissions" ? (
                     <MainSequencePermissionsTab
                       objectUrl={dataNodePermissionsObjectUrl}
-                      objectId={selectedDataNodeId}
+                      objectId={selectedDataNodeIdentifier!}
                       entityLabel="Data Node"
                       enabled={selectedDetailTabId === "permissions"}
                     />
                   ) : (
-                    <MainSequenceDataNodePoliciesTab dataNodeId={selectedDataNodeId} />
+                    <MainSequenceDataNodePoliciesTab dataNodeId={selectedDataNodeIdentifier!} />
                   )}
                 </CardContent>
               </Card>
@@ -1550,7 +1554,13 @@ export function MainSequenceDataNodesPage() {
                               type="button"
                               className="group inline-flex max-w-[240px] items-center gap-1 rounded-sm text-left font-mono text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
                               style={{ fontSize: "var(--table-meta-font-size)" }}
-                              onClick={() => openDataNodeDetail(dataNode.id)}
+                              onClick={() => {
+                                const dataNodeIdentifier = getTsManagerRecordIdentifier(dataNode);
+                                if (!dataNodeIdentifier) {
+                                  return;
+                                }
+                                openDataNodeDetail(dataNodeIdentifier);
+                              }}
                               title={dataNode.storage_hash}
                             >
                               <span className="truncate">{dataNode.storage_hash}</span>
@@ -1569,10 +1579,9 @@ export function MainSequenceDataNodesPage() {
                                 className="mt-0.5 text-muted-foreground"
                                 style={{ fontSize: "var(--table-meta-font-size)" }}
                               >
-                                ID {dataNode.id}
-                                {dataNode.description?.trim()
-                                  ? ` · ${dataNode.description.trim()}`
-                                  : ""}
+                                {[dataNode.uid?.trim() ? `UID ${dataNode.uid.trim()}` : null, dataNode.description?.trim() ?? null]
+                                  .filter(Boolean)
+                                  .join(" · ")}
                               </div>
                             </div>
                           </div>
@@ -1663,7 +1672,10 @@ export function MainSequenceDataNodesPage() {
                 Table Context
               </div>
               <div className="space-y-1 text-sm text-foreground">
-                <div>Dynamic table ID {selectedDataNodeId}</div>
+                <div>
+                  Dynamic table {selectedDataNodeIdentifier?.includes("-") ? "UID" : "ID"}{" "}
+                  {selectedDataNodeIdentifier}
+                </div>
                 <div>
                   Related table {selectedSourceTableConfiguration?.related_table ?? "Not available"}
                 </div>

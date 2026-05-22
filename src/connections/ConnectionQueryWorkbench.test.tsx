@@ -62,6 +62,7 @@ const connectionType: ConnectionTypeDefinition = {
       outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
       defaultQuery: {
         kind: "binance-usdm-futures-ohlc",
+        interval: "1m",
       },
       supportsMaxRows: true,
     },
@@ -143,6 +144,56 @@ describe("ConnectionQueryWorkbench", () => {
     );
 
     expect(requestPreview?.textContent).toContain("BTCUSDT");
+    expect(requestPreview?.textContent).not.toContain("ACTIVECELLVALUE");
+    expect(requestPreview?.textContent).not.toContain("TABLE-D8BA1F58");
+  });
+
+  it("keeps resolved query fields when auto-selecting the query model", async () => {
+    await act(async () => {
+      root.render(
+        <ConnectionQueryWorkbench
+          value={{
+            connectionRef: {
+              id: 5,
+              typeId: "binance-usdm",
+            },
+            query: {
+              symbols: [
+                "$(TABLE-D8BA1F58-C442-4C7F-9B28-1D905E23A380).ACTIVECELLVALUE",
+              ],
+            },
+            timeRangeMode: "dashboard",
+            maxRows: 1000,
+          }}
+          resolvedValue={{
+            connectionRef: {
+              id: 5,
+              typeId: "binance-usdm",
+            },
+            query: {
+              symbols: ["BTCUSDT"],
+            },
+            timeRangeMode: "dashboard",
+            maxRows: 1000,
+          }}
+          onChange={() => {}}
+          connectionInstance={connectionInstance}
+          connectionType={connectionType}
+          dashboardState={dashboardState}
+          showConnectionPicker={false}
+          showQueryEditor={false}
+          connectionPathSettings={null}
+        />,
+      );
+      await flushEffects();
+    });
+
+    const requestPreview = Array.from(container.querySelectorAll("pre")).find((entry) =>
+      entry.textContent?.includes('"connectionId": 5'),
+    );
+
+    expect(requestPreview?.textContent).toContain("BTCUSDT");
+    expect(requestPreview?.textContent).toContain('"interval": "1m"');
     expect(requestPreview?.textContent).not.toContain("ACTIVECELLVALUE");
     expect(requestPreview?.textContent).not.toContain("TABLE-D8BA1F58");
   });

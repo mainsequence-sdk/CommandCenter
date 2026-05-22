@@ -21,7 +21,7 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
   tags: ["main-sequence", "simple-table", "dependency", "graph", "workbench"],
   exampleProps: {
     sourceKind: "data_node",
-    dataNodeId: 714,
+    dataNodeId: "00000000-0000-0000-0000-000000000714",
     direction: "downstream",
   },
   mockRuntimeState: {
@@ -64,14 +64,14 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
         },
         {
           id: "dataNodeId",
-          label: "Data Node id",
-          type: "integer",
+          label: "Data Node UID",
+          type: "string",
           source: "custom-settings",
         },
         {
           id: "simpleTableUpdateId",
-          label: "Simple table id",
-          type: "integer",
+          label: "Simple table update UID",
+          type: "string",
           source: "custom-settings",
         },
         {
@@ -82,7 +82,7 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
         },
       ],
       requiredSetupSteps: [
-        "Select the source kind and valid resource id.",
+        "Select the source kind and valid resource UID.",
         "Choose whether to explore upstream or downstream dependencies.",
       ],
     },

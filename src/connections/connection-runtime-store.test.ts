@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createConnectionRuntimeStore } from "./connection-runtime-store";
+import {
+  createConnectionRuntimeStore,
+  planConnectionStreamPublication,
+} from "./connection-runtime-store";
 
 describe("ConnectionRuntimeStore", () => {
   it("shares one live stream session for the same runtime key", () => {
@@ -163,5 +166,102 @@ describe("ConnectionRuntimeStore", () => {
     expect(closeCalls).toEqual([]);
     expect(ownerStates).toHaveLength(2);
     expect(store.getEntrySnapshot("stream:d")?.activeOwnerCount).toBe(1);
+  });
+
+  it("suppresses lifecycle-identical stream publications", () => {
+    const store = createConnectionRuntimeStore("workspace-1");
+    const ownerStates: Array<Record<string, unknown>> = [];
+    const events: string[] = [];
+
+    store.subscribe(() => {
+      events.push(store.getEntrySnapshot("stream:e")?.status ?? "missing");
+    });
+    store.acquireStreamSession({
+      key: "stream:e",
+      ownerId: "widget-e",
+      onRuntimeStateChange: (state) => {
+        ownerStates.push(state);
+      },
+      start: () => ({
+        close: () => {},
+      }),
+    });
+
+    store.publishStreamState({
+      key: "stream:e",
+      runtimeState: {
+        streamStatus: "live",
+        columns: ["symbol", "price"],
+        rows: [{ symbol: "BTCUSDT", price: 70000 }],
+        lastHeartbeatAtMs: 1000,
+      },
+    });
+    store.publishStreamState({
+      key: "stream:e",
+      runtimeState: {
+        streamStatus: "live",
+        columns: ["symbol", "price"],
+        rows: [{ symbol: "BTCUSDT", price: 70000 }],
+        lastHeartbeatAtMs: 2000,
+      },
+    });
+    store.publishStreamState({
+      key: "stream:e",
+      runtimeState: {
+        streamStatus: "live",
+        columns: ["symbol", "price"],
+        rows: [{ symbol: "BTCUSDT", price: 70001 }],
+        lastHeartbeatAtMs: 3000,
+      },
+    });
+
+    expect(ownerStates).toHaveLength(2);
+    expect(ownerStates.map((state) => state.rows)).toEqual([
+      [{ symbol: "BTCUSDT", price: 70000 }],
+      [{ symbol: "BTCUSDT", price: 70001 }],
+    ]);
+    expect(events.filter((status) => status === "live")).toHaveLength(2);
+  });
+
+  it("plans stream publication from effective output signatures, not heartbeat churn", () => {
+    const firstPlan = planConnectionStreamPublication({
+      runtimeState: {
+        streamStatus: "live",
+        columns: ["symbol", "price"],
+        rows: [{ symbol: "BTCUSDT", price: 70000 }],
+        lastHeartbeatAtMs: 1000,
+      },
+    });
+    const heartbeatPlan = planConnectionStreamPublication({
+      previousEffectiveSignature: firstPlan.effectiveSignature,
+      runtimeState: {
+        streamStatus: "live",
+        columns: ["symbol", "price"],
+        rows: [{ symbol: "BTCUSDT", price: 70000 }],
+        lastHeartbeatAtMs: 2000,
+      },
+    });
+    const valuePlan = planConnectionStreamPublication({
+      previousEffectiveSignature: firstPlan.effectiveSignature,
+      runtimeState: {
+        streamStatus: "live",
+        columns: ["symbol", "price"],
+        rows: [{ symbol: "BTCUSDT", price: 70001 }],
+        lastHeartbeatAtMs: 3000,
+      },
+    });
+
+    expect(firstPlan).toMatchObject({
+      shouldPublish: true,
+      status: "live",
+    });
+    expect(heartbeatPlan).toMatchObject({
+      shouldPublish: false,
+      status: "live",
+    });
+    expect(valuePlan).toMatchObject({
+      shouldPublish: true,
+      status: "live",
+    });
   });
 });

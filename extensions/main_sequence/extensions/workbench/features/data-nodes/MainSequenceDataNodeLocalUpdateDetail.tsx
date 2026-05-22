@@ -22,6 +22,7 @@ import {
   fetchLocalTimeSerieRunConfiguration,
   fetchLocalTimeSerieSummary,
   formatMainSequenceError,
+  getTsManagerRecordIdentifier,
   listLocalTimeSerieHistoricalUpdates,
   type EntitySummaryHeader,
   type LocalTimeSerieLogsGridRow,
@@ -284,10 +285,8 @@ function getDataNodeIdFromSummaryHref(href?: string) {
       url.searchParams.get("dynamic_table_id") ??
       url.searchParams.get("msDataNodeId") ??
       url.searchParams.get("dynamicTableId");
-    const parsedId = Number(rawId ?? "");
-
-    if (Number.isFinite(parsedId) && parsedId > 0) {
-      return parsedId;
+    if (typeof rawId === "string" && rawId.trim()) {
+      return rawId.trim();
     }
   } catch {
     return null;
@@ -400,9 +399,9 @@ export function MainSequenceDataNodeLocalUpdateDetail({
   onSelectTab,
 }: {
   initialLocalTimeSerie?: LocalTimeSerieRecord | null;
-  localTimeSerieId: number;
+  localTimeSerieId: string;
   onClose: () => void;
-  onOpenDataNodeDetail: (dataNodeId: number) => void;
+  onOpenDataNodeDetail: (dataNodeId: string) => void;
   selectedTabId: string | null;
   onSelectTab: (tabId: LocalUpdateDetailTabId) => void;
 }) {
@@ -429,31 +428,32 @@ export function MainSequenceDataNodeLocalUpdateDetail({
       }),
     [runConfigurationForm.requiredCpus, runConfigurationForm.requiredGpus],
   );
+  const hasLocalTimeSerieIdentifier = Boolean(String(localTimeSerieId).trim());
 
   const summaryQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "local_updates", "summary", localTimeSerieId],
     queryFn: () => fetchLocalTimeSerieSummary(localTimeSerieId),
-    enabled: localTimeSerieId > 0,
+    enabled: hasLocalTimeSerieIdentifier,
   });
   const detailQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "local_updates", "detail", localTimeSerieId],
     queryFn: () => fetchLocalTimeSerieDetail(localTimeSerieId),
-    enabled: localTimeSerieId > 0,
+    enabled: hasLocalTimeSerieIdentifier,
   });
   const runConfigurationQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "local_updates", "run_configuration", localTimeSerieId],
     queryFn: () => fetchLocalTimeSerieRunConfiguration(localTimeSerieId),
-    enabled: localTimeSerieId > 0,
+    enabled: hasLocalTimeSerieIdentifier,
   });
   const historicalUpdatesQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "local_updates", "historical_updates", localTimeSerieId],
     queryFn: () => listLocalTimeSerieHistoricalUpdates(localTimeSerieId, 100),
-    enabled: localTimeSerieId > 0 && activeTabId === "historical-updates",
+    enabled: hasLocalTimeSerieIdentifier && activeTabId === "historical-updates",
   });
   const logsQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "local_updates", "logs", localTimeSerieId, selectedLogLevel],
     queryFn: () => fetchLocalTimeSerieLogs(localTimeSerieId, selectedLogLevel || undefined),
-    enabled: localTimeSerieId > 0 && activeTabId === "logs",
+    enabled: hasLocalTimeSerieIdentifier && activeTabId === "logs",
   });
 
   useEffect(() => {
@@ -562,7 +562,9 @@ export function MainSequenceDataNodeLocalUpdateDetail({
   }, [deferredLogFilterValue, logsQuery.data?.rows]);
 
   function handleSummaryFieldLink(field: SummaryField) {
-    const relatedDataNodeId = getDataNodeIdFromSummaryHref(field.href);
+    const relatedDataNodeId =
+      getDataNodeIdFromSummaryHref(field.href) ??
+      getTsManagerRecordIdentifier(detailQuery.data?.data_node_storage ?? null);
 
     if (relatedDataNodeId) {
       onOpenDataNodeDetail(relatedDataNodeId);

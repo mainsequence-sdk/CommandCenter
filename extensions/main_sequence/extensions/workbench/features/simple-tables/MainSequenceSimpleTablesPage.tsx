@@ -18,6 +18,7 @@ import {
   fetchSimpleTableDetail,
   fetchSimpleTableSummary,
   formatMainSequenceError,
+  getTsManagerRecordIdentifier,
   listSimpleTables,
   mainSequenceRegistryPageSize,
   type EntitySummaryHeader,
@@ -219,16 +220,14 @@ export function MainSequenceSimpleTablesPage() {
   const [bulkActionRequest, setBulkActionRequest] = useState<SimpleTableBulkActionRequest | null>(null);
   const deferredFilterValue = useDeferredValue(filterValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedSimpleTableId = Number(searchParams.get(mainSequenceSimpleTableIdParam) ?? "");
+  const selectedSimpleTableIdentifier =
+    searchParams.get(mainSequenceSimpleTableIdParam)?.trim() || null;
   const requestedDetailTabId = searchParams.get(mainSequenceSimpleTableTabParam);
-  const selectedSimpleTableUpdateId = Number(
-    searchParams.get(mainSequenceSimpleTableUpdateIdParam) ?? "",
-  );
+  const selectedSimpleTableUpdateIdentifier =
+    searchParams.get(mainSequenceSimpleTableUpdateIdParam)?.trim() || null;
   const selectedSimpleTableUpdateTabId = searchParams.get(mainSequenceSimpleTableUpdateTabParam);
-  const isSimpleTableDetailOpen =
-    Number.isFinite(selectedSimpleTableId) && selectedSimpleTableId > 0;
-  const isSimpleTableUpdateDetailOpen =
-    Number.isFinite(selectedSimpleTableUpdateId) && selectedSimpleTableUpdateId > 0;
+  const isSimpleTableDetailOpen = Boolean(selectedSimpleTableIdentifier);
+  const isSimpleTableUpdateDetailOpen = Boolean(selectedSimpleTableUpdateIdentifier);
   const isStandaloneSimpleTableUpdateDetailOpen =
     isSimpleTableUpdateDetailOpen && !isSimpleTableDetailOpen;
   const selectedDetailTabId: SimpleTableDetailTabId = isSimpleTableUpdateDetailOpen
@@ -262,13 +261,13 @@ export function MainSequenceSimpleTablesPage() {
   }, [simpleTablesPageIndex, simpleTablesQuery.data?.count]);
 
   const simpleTableSummaryQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "summary", selectedSimpleTableId],
-    queryFn: () => fetchSimpleTableSummary(selectedSimpleTableId),
+    queryKey: ["main_sequence", "simple_tables", "summary", selectedSimpleTableIdentifier],
+    queryFn: () => fetchSimpleTableSummary(selectedSimpleTableIdentifier!),
     enabled: isSimpleTableDetailOpen,
   });
   const simpleTableDetailQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "detail", selectedSimpleTableId],
-    queryFn: () => fetchSimpleTableDetail(selectedSimpleTableId),
+    queryKey: ["main_sequence", "simple_tables", "detail", selectedSimpleTableIdentifier],
+    queryFn: () => fetchSimpleTableDetail(selectedSimpleTableIdentifier!),
     enabled: isSimpleTableDetailOpen,
   });
 
@@ -286,10 +285,14 @@ export function MainSequenceSimpleTablesPage() {
 
   const selectedSimpleTableFromList = useMemo(
     () =>
-      (simpleTablesQuery.data?.results ?? []).find((table) => table.id === selectedSimpleTableId) ??
+      (simpleTablesQuery.data?.results ?? []).find(
+        (table) => getTsManagerRecordIdentifier(table) === selectedSimpleTableIdentifier,
+      ) ??
       null,
-    [selectedSimpleTableId, simpleTablesQuery.data?.results],
+    [selectedSimpleTableIdentifier, simpleTablesQuery.data?.results],
   );
+  const selectedSimpleTableNumericId =
+    selectedSimpleTableFromList?.id ?? simpleTableDetailQuery.data?.id ?? null;
   const simpleTableSummary =
     simpleTableSummaryQuery.data ??
     (simpleTableDetailQuery.data
@@ -301,7 +304,7 @@ export function MainSequenceSimpleTablesPage() {
     simpleTableSummary?.entity.title ??
     simpleTableDetailQuery.data?.storage_hash ??
     selectedSimpleTableFromList?.storage_hash ??
-    (isSimpleTableDetailOpen ? `Simple table ${selectedSimpleTableId}` : "Simple table");
+    (isSimpleTableDetailOpen ? `Simple table ${selectedSimpleTableIdentifier}` : "Simple table");
   const simpleTableColumnDetails = buildSimpleTableColumnDetails(simpleTableDetailQuery.data);
   const simpleTableDescription =
     getSimpleTableDescription(simpleTableDetailQuery.data) ||
@@ -406,11 +409,11 @@ export function MainSequenceSimpleTablesPage() {
   }
 
   function openSimpleTableDetail(
-    simpleTableId: number,
+    simpleTableIdentifier: string | number,
     tabId: SimpleTableDetailTabId = defaultSimpleTableDetailTabId,
   ) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceSimpleTableIdParam, String(simpleTableId));
+      nextParams.set(mainSequenceSimpleTableIdParam, String(simpleTableIdentifier));
       nextParams.set(mainSequenceSimpleTableTabParam, tabId);
       nextParams.delete(mainSequenceSimpleTableUpdateIdParam);
       nextParams.delete(mainSequenceSimpleTableUpdateTabParam);
@@ -426,10 +429,10 @@ export function MainSequenceSimpleTablesPage() {
     });
   }
 
-  function openSimpleTableUpdateDetail(simpleTableUpdateId: number) {
+  function openSimpleTableUpdateDetail(simpleTableUpdateIdentifier: string | number) {
     updateSearchParams((nextParams) => {
       nextParams.set(mainSequenceSimpleTableTabParam, "local-update");
-      nextParams.set(mainSequenceSimpleTableUpdateIdParam, String(simpleTableUpdateId));
+      nextParams.set(mainSequenceSimpleTableUpdateIdParam, String(simpleTableUpdateIdentifier));
       nextParams.set(mainSequenceSimpleTableUpdateTabParam, "details");
     });
   }
@@ -460,7 +463,7 @@ export function MainSequenceSimpleTablesPage() {
 
   function selectSimpleTableDetailTab(tabId: SimpleTableDetailTabId) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceSimpleTableIdParam, String(selectedSimpleTableId));
+      nextParams.set(mainSequenceSimpleTableIdParam, String(selectedSimpleTableIdentifier));
       nextParams.set(mainSequenceSimpleTableTabParam, tabId);
 
       if (tabId !== "local-update") {
@@ -556,9 +559,11 @@ export function MainSequenceSimpleTablesPage() {
       return (
         <>
           <div className="font-medium">{getPrimaryLabel(bulkActionRequest.tables[0] ?? { id: 0 })}</div>
-          <div className="mt-1 text-muted-foreground">
-            {`Simple table ID ${bulkActionRequest.tables[0]?.id ?? ""}`}
-          </div>
+          {bulkActionRequest.tables[0]?.uid?.trim() ? (
+            <div className="mt-1 text-muted-foreground">
+              UID {bulkActionRequest.tables[0].uid.trim()}
+            </div>
+          ) : null}
         </>
       );
     }
@@ -585,7 +590,7 @@ export function MainSequenceSimpleTablesPage() {
           onOpenSimpleTableDetail={openSimpleTableDetail}
           onSelectTab={selectSimpleTableUpdateTab}
           selectedTabId={selectedSimpleTableUpdateTabId}
-          simpleTableUpdateId={selectedSimpleTableUpdateId}
+          simpleTableUpdateId={selectedSimpleTableUpdateIdentifier!}
         />
       ) : isSimpleTableDetailOpen ? (
         <div className="space-y-4">
@@ -768,22 +773,18 @@ export function MainSequenceSimpleTablesPage() {
                       </CardContent>
                     </Card>
                   ) : selectedDetailTabId === "data-snapshot" ? (
-                    <MainSequenceSimpleTableSnapshotTab simpleTableId={selectedSimpleTableId} />
+                    <MainSequenceSimpleTableSnapshotTab simpleTableId={selectedSimpleTableIdentifier!} />
                   ) : selectedDetailTabId === "ulm-diagram" ? (
-                    <MainSequenceSimpleTableSchemaGraph simpleTableId={selectedSimpleTableId} />
+                    <MainSequenceSimpleTableSchemaGraph simpleTableId={selectedSimpleTableIdentifier!} />
                   ) : (
                     <MainSequenceSimpleTableUpdatesTab
                       onCloseSimpleTableUpdateDetail={closeSimpleTableUpdateDetail}
                       onOpenSimpleTableDetail={openSimpleTableDetail}
                       onOpenSimpleTableUpdateDetail={openSimpleTableUpdateDetail}
                       onSelectSimpleTableUpdateTab={selectSimpleTableUpdateTab}
-                      selectedSimpleTableUpdateId={
-                        Number.isFinite(selectedSimpleTableUpdateId) && selectedSimpleTableUpdateId > 0
-                          ? selectedSimpleTableUpdateId
-                          : null
-                      }
+                      selectedSimpleTableUpdateId={selectedSimpleTableUpdateIdentifier}
                       selectedSimpleTableUpdateTabId={selectedSimpleTableUpdateTabId}
-                      simpleTableId={selectedSimpleTableId}
+                      simpleTableId={selectedSimpleTableNumericId ?? 0}
                     />
                   )}
                 </CardContent>
@@ -910,7 +911,13 @@ export function MainSequenceSimpleTablesPage() {
                                   type="button"
                                   className="group inline-flex max-w-[240px] items-center gap-1 rounded-sm text-left font-mono text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
                                   style={{ fontSize: "var(--table-meta-font-size)" }}
-                                  onClick={() => openSimpleTableDetail(table.id)}
+                                  onClick={() => {
+                                    const simpleTableIdentifier = getTsManagerRecordIdentifier(table);
+                                    if (!simpleTableIdentifier) {
+                                      return;
+                                    }
+                                    openSimpleTableDetail(simpleTableIdentifier);
+                                  }}
                                   title={table.storage_hash ?? getPrimaryLabel(table)}
                                 >
                                   <span className="truncate">{table.storage_hash ?? getPrimaryLabel(table)}</span>
@@ -929,8 +936,9 @@ export function MainSequenceSimpleTablesPage() {
                                     className="mt-0.5 text-muted-foreground"
                                     style={{ fontSize: "var(--table-meta-font-size)" }}
                                   >
-                                    ID {table.id}
-                                    {table.description?.trim() ? ` · ${table.description.trim()}` : ""}
+                                    {[table.uid?.trim() ? `UID ${table.uid.trim()}` : null, table.description?.trim() ?? null]
+                                      .filter(Boolean)
+                                      .join(" · ")}
                                   </div>
                                 </div>
                               </div>

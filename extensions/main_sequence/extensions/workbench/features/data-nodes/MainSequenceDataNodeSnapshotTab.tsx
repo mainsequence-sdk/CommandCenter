@@ -63,14 +63,14 @@ function getSnapshotColumns(
 export function MainSequenceDataNodeSnapshotTab({
   dataNodeId,
 }: {
-  dataNodeId: number;
+  dataNodeId: string;
 }) {
   const [filterValue, setFilterValue] = useState("");
   const deferredFilterValue = useDeferredValue(filterValue);
   const detailQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "detail", dataNodeId],
     queryFn: () => fetchDataNodeDetail(dataNodeId),
-    enabled: dataNodeId > 0,
+    enabled: Boolean(String(dataNodeId).trim()),
     staleTime: 300_000,
   });
   const snapshotQuery = useQuery({
@@ -87,7 +87,7 @@ export function MainSequenceDataNodeSnapshotTab({
         order: "desc",
       }),
     enabled:
-      dataNodeId > 0 &&
+      Boolean(String(dataNodeId).trim()) &&
       detailQuery.data?.sourcetableconfiguration != null,
     staleTime: 60_000,
   });

@@ -39,6 +39,7 @@ export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
     openLinksInNewTab: true,
     showHeader: false,
   },
+  workspaceRuntimeMode: "local-ui",
   canvasEditing: {
     mode: "inline",
   },

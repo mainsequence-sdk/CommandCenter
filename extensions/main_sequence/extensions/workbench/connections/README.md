@@ -12,8 +12,8 @@ Workbench data access.
   Data Node.
 - `DataNodeConnectionQueryEditor.tsx`: typed Connection Query widget editor for Data Node row and
   latest-observation payloads. It renders columns, unique identifier filters, inclusive range
-  flags, limits, and legacy Data Node id fallback only when the selected instance has no
-  configured Data Node.
+  flags, limits, and configured-Data-Node validation when the selected instance has no configured
+  Data Node UID.
 - `dataNodeAuthoring.ts`: defines the shared `authoringContract` used by both Data Sources Explore
   and widget-managed/standalone `connection-query` settings for draft seeding and Explore copy.
 - `simpleTableConnection.ts`: registers the `mainsequence.simple-table` connection type and the
@@ -43,7 +43,7 @@ Workbench data access.
 - `dedupeInFlight` is a backend request-sharing policy for identical concurrent cache misses. It
   should default to enabled when omitted.
 - Main Sequence Data Node queries and resources must execute through real backend-owned connection
-  instances. This module must not fabricate placeholder ids or fall back to local dynamic-table
+  instances. This module must not fabricate placeholder UIDs or fall back to local dynamic-table
   helpers for connection execution.
 - The Connection Query widget uses the Data Node connection's typed `queryEditor` for per-query
   kwargs. The generic widget owns the standard envelope (`connectionId`, `query`, `timeRange`,
@@ -117,10 +117,10 @@ stored public config value is exactly `false`.
 Every adapter operation should first resolve the target Simple Table:
 
 1. Read `configured_simple_table_id` from `public_config.simpleTableId`.
-2. Reject requests when no configured Simple Table exists. Unlike the Data Node migration fallback,
-   Simple Table SQL should not accept an ad hoc table id from the query payload.
+2. Reject requests when no configured Simple Table exists. Simple Table SQL should not accept an
+   ad hoc table UID from the query payload.
 3. Validate the resolved id is a positive integer.
-4. Fetch `GET /orm/api/ts_manager/simple_table/{resolved_simple_table_id}/` to validate existence,
+4. Fetch `GET /orm/api/ts_manager/simple_table/{resolved_simple_table_uid}/` to validate existence,
    permissions, storage hash, and column metadata before execution or health checks.
 
 Permissions must be checked before execution and before joining any in-flight request. The minimum
@@ -217,7 +217,7 @@ for the resolved Data Node still apply.
 
 - Accepted payload: `{ "dataNodeId": number }`
 - Resolve and validate the Data Node id using the runtime resolution rules above.
-- Execute `GET /orm/api/ts_manager/dynamic_table/{resolved_data_node_id}/`.
+- Execute `GET /orm/api/ts_manager/dynamic_table/{resolved_data_node_uid}/`.
 - Return the Data Node detail object or a wrapped detail payload that includes the same object.
 - The result must include `sourcetableconfiguration` when the Data Node is row-queryable, because
   Explore and widgets use it to derive valid column names.
@@ -251,7 +251,7 @@ for the resolved Data Node still apply.
   backend, because output shape should be explicit for widgets.
 - Compute `effective_limit` from `query.limit`, then `request.maxRows`, then
   `public_config.defaultLimit`, then backend default. Clamp it to the backend maximum.
-- Execute `POST /orm/api/ts_manager/dynamic_table/{resolved_data_node_id}/get_data_between_dates_from_remote/`
+- Execute `POST /orm/api/ts_manager/dynamic_table/{resolved_data_node_uid}/get_data_between_dates_from_remote/`
   with the normalized snake_case body.
 - Return rows as a normalized `ConnectionQueryResponse` using one `core.tabular_frame@v1` frame.
   When a time field and numeric value fields are known, populate `meta.timeSeries` on that frame
@@ -261,7 +261,7 @@ for the resolved Data Node still apply.
 
 - Accepted payload: `{ "dataNodeId"?: number }`
 - Resolve and validate the Data Node id.
-- Execute `POST /orm/api/ts_manager/dynamic_table/{resolved_data_node_id}/get_last_observation/`
+- Execute `POST /orm/api/ts_manager/dynamic_table/{resolved_data_node_uid}/get_last_observation/`
   with `{}`.
 - Return a normalized `ConnectionQueryResponse` containing one `core.tabular_frame@v1` frame.
 

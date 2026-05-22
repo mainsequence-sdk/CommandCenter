@@ -29,9 +29,11 @@ import {
   Plus,
   SlidersHorizontal,
   X,
+  Zap,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
+import type { WidgetStatusIndicator, WidgetStatusTone } from "@/dashboards/widget-status";
 
 export type WorkspaceGraphPortStatus = "connected" | "unbound" | "broken";
 
@@ -77,8 +79,13 @@ export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   inputs: WorkspaceGraphInputPortData[];
   outputs: WorkspaceGraphOutputPortData[];
   availableOutputs: WorkspaceGraphOutputPortData[];
-  executionStatus?: "idle" | "running" | "success" | "error";
+  executionStatus?: "idle" | "running" | "success" | "waiting" | "error" | "upstream-error";
+  executionMessage?: string;
   executionFinishedAtMs?: number;
+  statusIndicator?: WidgetStatusIndicator;
+  statusIsLoading?: boolean;
+  statusLabel?: string;
+  statusTone?: WidgetStatusTone;
   expanded?: boolean;
   readOnly?: boolean;
   dependencyHighlighted?: boolean;
@@ -129,6 +136,63 @@ function getPortStatusClassName(status: WorkspaceGraphPortStatus) {
     default:
       return "bg-muted-foreground/60";
   }
+}
+
+function getGraphStatusForegroundClass(tone?: WidgetStatusTone) {
+  switch (tone) {
+    case "danger":
+      return "text-danger";
+    case "primary":
+      return "text-primary";
+    case "success":
+      return "text-success";
+    case "warning":
+      return "text-warning";
+    default:
+      return "text-muted-foreground";
+  }
+}
+
+function getGraphStatusDotClass(tone?: WidgetStatusTone) {
+  switch (tone) {
+    case "danger":
+      return "bg-danger";
+    case "primary":
+      return "bg-primary";
+    case "success":
+      return "bg-success";
+    case "warning":
+      return "bg-warning";
+    default:
+      return "bg-muted-foreground";
+  }
+}
+
+function GraphStatusIndicator({
+  indicator,
+  tone,
+}: {
+  indicator?: WidgetStatusIndicator;
+  tone?: WidgetStatusTone;
+}) {
+  if (!indicator) {
+    return null;
+  }
+
+  if (indicator === "lightning") {
+    return <Zap className={cn("h-2.5 w-2.5", getGraphStatusForegroundClass(tone))} />;
+  }
+
+  if (indicator === "dot+lightning") {
+    return (
+      <span className="inline-flex items-center gap-0.5">
+        <span className={cn("h-1.5 w-1.5 rounded-full", getGraphStatusDotClass(tone))} />
+        <Zap className={cn("h-2.5 w-2.5", getGraphStatusForegroundClass(tone))} />
+      </span>
+    );
+  }
+
+  return <span className={cn("h-1.5 w-1.5 rounded-full", getGraphStatusDotClass(tone))} />;
 }
 
 function logGraphPortEvent(
@@ -377,6 +441,26 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
     Boolean(data.onUpdateWidgetProps) &&
     Boolean(attachedEditorConfig?.editable);
   const attachedEditorVisible = Boolean(attachedEditorConfig && attachedEditorOpen);
+  const executionNotice =
+    data.statusTone === "danger"
+      ? {
+          label: data.statusLabel?.trim() || "Issue",
+          message:
+            data.executionMessage?.trim() ||
+            "Execution failed. Open the widget settings or inspect upstream inputs for details.",
+          tone: "danger" as const,
+        }
+      : data.statusTone === "warning" && data.executionMessage
+        ? {
+            label: data.statusLabel?.trim() || "Waiting",
+            message:
+              data.executionMessage?.trim() ||
+              "Waiting for an upstream widget before execution can continue.",
+            tone: "warning" as const,
+          }
+        : null;
+  const statusShowsLightning =
+    data.statusIndicator === "lightning" || data.statusIndicator === "dot+lightning";
 
   useEffect(() => {
     if (data.availableOutputs.length === 0) {
@@ -649,11 +733,20 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
         className={cn(
           "relative min-w-[250px] max-w-[300px] rounded-[18px] border bg-card/96 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur-xl",
             attachedEditorVisible ? "z-50" : undefined,
-          data.executionStatus === "running"
+          data.statusIsLoading
             ? "border-primary/80 ring-2 ring-primary/20 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent),0_18px_34px_-24px_color-mix(in_srgb,var(--primary)_55%,transparent)]"
             : undefined,
-          data.executionStatus === "error"
+          data.statusTone === "success" &&
+            !selected &&
+            !data.dependencyHighlighted &&
+            !data.dependencyRoot
+            ? "border-success/70 ring-2 ring-success/10"
+            : undefined,
+          data.statusTone === "danger"
             ? "border-danger/70 ring-2 ring-danger/15"
+            : undefined,
+          data.statusTone === "warning"
+            ? "border-warning/70 ring-2 ring-warning/15"
             : undefined,
           data.dependencyHighlighted
             ? "border-primary/55 bg-primary/5 shadow-[0_0_0_1px_color-mix(in_srgb,var(--primary)_18%,transparent),0_18px_34px_-24px_color-mix(in_srgb,var(--primary)_32%,transparent)]"
@@ -666,6 +759,12 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
             : selected
               ? "border-primary/70 ring-2 ring-primary/25"
               : "border-border/75",
+          executionNotice?.tone === "danger"
+            ? "border-2 border-danger/90 bg-danger/5 ring-4 ring-danger/25 shadow-[0_0_0_1px_color-mix(in_srgb,var(--danger)_40%,transparent),0_18px_40px_-22px_color-mix(in_srgb,var(--danger)_65%,transparent)]"
+            : undefined,
+          executionNotice?.tone === "warning"
+            ? "border-2 border-warning/85 bg-warning/6 ring-4 ring-warning/20 shadow-[0_0_0_1px_color-mix(in_srgb,var(--warning)_34%,transparent),0_18px_40px_-22px_color-mix(in_srgb,var(--warning)_52%,transparent)]"
+            : undefined,
         )}
       >
       {data.dependencyRoot && !readOnly && (data.onOpenSettings || data.referenceExpansion) ? (
@@ -766,12 +865,36 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
                 {data.title}
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
-                {data.executionStatus === "running" ? (
+                {data.statusIsLoading ? (
                   <Badge
                     variant="neutral"
                     className="px-1.5 py-0.5 text-[8px] tracking-[0.12em] text-primary"
                   >
-                    Running
+                    {data.statusLabel?.trim() || "Running"}
+                  </Badge>
+                ) : null}
+                {executionNotice ? (
+                  <Badge
+                    variant={executionNotice.tone}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[8px] tracking-[0.12em]"
+                  >
+                    <GraphStatusIndicator
+                      indicator={data.statusIndicator}
+                      tone={data.statusTone}
+                    />
+                    {executionNotice.label}
+                  </Badge>
+                ) : null}
+                {!executionNotice && statusShowsLightning && data.statusTone === "success" ? (
+                  <Badge
+                    variant="success"
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[8px] tracking-[0.12em]"
+                  >
+                    <GraphStatusIndicator
+                      indicator={data.statusIndicator}
+                      tone={data.statusTone}
+                    />
+                    {data.statusLabel?.trim() || "Live"}
                   </Badge>
                 ) : null}
                 {data.widgetKind ? (
@@ -896,6 +1019,38 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
           </Button>
         </div>
       </div>
+
+        {executionNotice ? (
+          <div
+            className={cn(
+              "border-b px-3.5 py-2",
+              executionNotice.tone === "danger"
+                ? "border-danger/35 bg-danger/10"
+                : "border-warning/35 bg-warning/10",
+            )}
+          >
+            <div className="flex items-start gap-2">
+              <span
+                className={cn(
+                  "shrink-0 rounded-full border px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-[0.14em]",
+                  executionNotice.tone === "danger"
+                    ? "border-danger/30 bg-danger/12 text-danger"
+                    : "border-warning/30 bg-warning/12 text-warning",
+                )}
+              >
+                {executionNotice.label}
+              </span>
+              <p
+                className={cn(
+                  "line-clamp-3 text-[11px] leading-4",
+                  executionNotice.tone === "danger" ? "text-danger" : "text-warning",
+                )}
+              >
+                {executionNotice.message}
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         {!expanded ? (
           <div className="px-3.5 py-2.5">

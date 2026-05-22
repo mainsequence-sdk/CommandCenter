@@ -280,7 +280,7 @@ export function MainSequenceProjectsPage() {
   const selectedResourceReleaseId = Number(
     searchParams.get(mainSequenceResourceReleaseIdParam) ?? "",
   );
-  const selectedLocalUpdateId = Number(searchParams.get(mainSequenceLocalUpdateIdParam) ?? "");
+  const selectedLocalUpdateId = searchParams.get(mainSequenceLocalUpdateIdParam)?.trim() || null;
   const selectedLocalUpdateTabId = searchParams.get(mainSequenceLocalUpdateTabParam);
   const activeTabId =
     searchParams.get(mainSequenceTabParam) ??
@@ -291,8 +291,7 @@ export function MainSequenceProjectsPage() {
   const isJobRunDetailOpen = Number.isFinite(selectedJobRunId) && selectedJobRunId > 0;
   const isResourceReleaseDetailOpen =
     Number.isFinite(selectedResourceReleaseId) && selectedResourceReleaseId > 0;
-  const isLocalUpdateDetailOpen =
-    Number.isFinite(selectedLocalUpdateId) && selectedLocalUpdateId > 0;
+  const isLocalUpdateDetailOpen = Boolean(selectedLocalUpdateId);
   const activeTab =
     projectDetailTabs.find((tab) => tab.id === (isLocalUpdateDetailOpen ? "data-node-updates" : activeTabId)) ??
     projectDetailTabs.find((tab) => tab.id === defaultProjectDetailTabId) ??
@@ -731,7 +730,7 @@ export function MainSequenceProjectsPage() {
     }, { replace: true });
   }
 
-  function openProjectLocalUpdateDetail(localUpdateId: number) {
+  function openProjectLocalUpdateDetail(localUpdateId: string | number) {
     navigateWithProjectSearch((nextParams) => {
       nextParams.delete(legacyProjectIdParam);
       nextParams.delete(legacyTabParam);
@@ -758,7 +757,7 @@ export function MainSequenceProjectsPage() {
     });
   }
 
-  function openDataNodeDetailFromProject(dataNodeId: number) {
+  function openDataNodeDetailFromProject(dataNodeId: string | number) {
     const nextParams = new URLSearchParams();
     nextParams.set("msDataNodeId", String(dataNodeId));
     nextParams.set("msDataNodeTab", "details");

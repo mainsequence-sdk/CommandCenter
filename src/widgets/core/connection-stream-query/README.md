@@ -86,6 +86,9 @@ for connection query models that advertise a WebSocket stream contract.
   `reconnecting`, `error`, or `closed`. Canonical frame `status` remains `idle`, `loading`,
   `ready`, or `error` so existing consumer-state resolution can distinguish awaiting publication,
   loading, ready, empty, and error states.
+- Lifecycle-only publications must not erase an already retained frame. If a stream shell has
+  retained rows or a runtime data ref, later idle/closed/reconnecting lifecycle updates keep the
+  canonical frame publishable while `streamStatus` carries the lifecycle.
 - Variable-backed stream props are resolved before subscription. If the resolved request changes,
   the existing stream lifecycle releases the old session and acquires a new one. If the referenced
   value is not available, the widget publishes an idle waiting state instead of opening a socket

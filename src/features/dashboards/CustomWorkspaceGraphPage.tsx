@@ -49,6 +49,7 @@ import {
   type DashboardWidgetDependencyGraph,
   type DashboardWidgetDependencyGraphEdge,
 } from "@/dashboards/widget-dependencies";
+import { resolveWidgetStatusSummary } from "@/dashboards/widget-status";
 import { isWidgetReferenceSourceOutputId } from "@/dashboards/widget-instance-references";
 import type { DashboardDefinition, DashboardWidgetInstance } from "@/dashboards/types";
 import type { ResolvedWidgetInput, ResolvedWidgetInputs } from "@/widgets/types";
@@ -129,6 +130,7 @@ interface WorkspaceGraphEdgeDiagnostic {
 interface WorkspaceGraphEdgeData extends Record<string, unknown> {
   diagnostic?: WorkspaceGraphEdgeDiagnostic;
   label?: string;
+  live?: boolean;
 }
 
 type WorkspaceGraphFlowEdge = Edge<WorkspaceGraphEdgeData, "workspaceGraphEdge">;
@@ -286,6 +288,47 @@ function isEmptyGraphEdgeValue(value: unknown) {
   );
 }
 
+function readWorkspaceGraphStreamStatus(runtimeState: unknown) {
+  if (!isRecord(runtimeState)) {
+    return null;
+  }
+
+  const streamStatus = runtimeState.streamStatus;
+  return typeof streamStatus === "string" && streamStatus.trim()
+    ? streamStatus.trim()
+    : null;
+}
+
+function isWorkspaceGraphLiveStreamStatus(status: string | null) {
+  return status === "connecting" || status === "live" || status === "reconnecting";
+}
+
+function isWorkspaceGraphStreamEdge(input: {
+  edge: DashboardWidgetDependencyGraphEdge;
+  sourceNode: DashboardWidgetDependencyGraph["nodes"][number];
+  sourceRuntimeState: unknown;
+}) {
+  if (input.edge.status !== "valid" || input.sourceNode.widgetId !== "connection-stream-query") {
+    return false;
+  }
+
+  return (
+    input.edge.fromPort === "updates" &&
+    isWorkspaceGraphLiveStreamStatus(readWorkspaceGraphStreamStatus(input.sourceRuntimeState))
+  );
+}
+
+function isWorkspaceGraphVariableEdgeFlowing(input: {
+  edge: DashboardWidgetDependencyGraphEdge;
+  resolvedInput: ResolvedWidgetInput | null;
+}) {
+  return (
+    input.edge.status === "valid" &&
+    input.edge.source === "variable-reference" &&
+    !isEmptyGraphEdgeValue(input.resolvedInput?.value)
+  );
+}
+
 function describeGraphEdgeReason(
   edge: DashboardWidgetDependencyGraphEdge,
   resolvedInput: ResolvedWidgetInput | null,
@@ -410,6 +453,7 @@ function WorkspaceGraphDiagnosticEdge({
     targetY,
   });
   const diagnostic = data?.diagnostic;
+  const live = data?.live === true;
 
   return (
     <>
@@ -421,6 +465,16 @@ function WorkspaceGraphDiagnosticEdge({
         style={style}
         interactionWidth={0}
       />
+      {live ? (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke="var(--color-primary)"
+          strokeLinecap="round"
+          strokeWidth={6}
+          className="workspace-graph-edge-live-pulse"
+        />
+      ) : null}
       {diagnostic ? (
         <path
           d={edgePath}
@@ -1108,6 +1162,11 @@ function WorkspaceGraphCanvas({
           output.id !== WIDGET_AGENT_CONTEXT_OUTPUT_ID,
       );
       const executionState = executionStateByNodeId[node.id];
+      const statusSummary = resolveWidgetStatusSummary({
+        widget: widgetDefinition,
+        executionState,
+        runtimeState: instanceIndex.get(node.id)?.runtimeState,
+      });
       const referenceTarget = workspaceReferenceTargetByNodeId[node.id];
       const referenceExpanded = Boolean(expandedReferenceNodeIds[node.id]);
       const referenceLoadState = referenceTarget
@@ -1143,7 +1202,12 @@ function WorkspaceGraphCanvas({
           outputs: visibleOutputs,
           availableOutputs,
           executionStatus: executionState?.status,
+          executionMessage: statusSummary.detail ?? statusSummary.label,
           executionFinishedAtMs: executionState?.finishedAtMs,
+          statusIndicator: statusSummary.indicator,
+          statusIsLoading: statusSummary.isLoading,
+          statusLabel: statusSummary.label,
+          statusTone: statusSummary.tone,
           referenceExpansion: referenceTarget
             ? {
                 expanded: referenceExpanded,
@@ -1308,6 +1372,7 @@ function WorkspaceGraphCanvas({
     expandedNodeIds,
     expandedReferenceNodeIds,
     attachedEditorState,
+    instanceIndex,
     layoutedPositions,
     onOpenWidgetSettings,
     onWidgetPropsChange,
@@ -1351,9 +1416,21 @@ function WorkspaceGraphCanvas({
         targetExecutionState?.status === "running";
       const variableEdge = edge.source === "variable-reference";
       const systemManagedEdge = edge.source === "system-managed";
+      const sourceRuntimeState = instanceIndex.get(edge.from)?.runtimeState;
+      const resolvedInput = findResolvedEdgeInput(edge, dependencyModel);
+      const streamEdgeLive = isWorkspaceGraphStreamEdge({
+        edge,
+        sourceNode,
+        sourceRuntimeState,
+      });
+      const variableEdgeFlowing = isWorkspaceGraphVariableEdgeFlowing({
+        edge,
+        resolvedInput,
+      });
+      const edgeLive = !broken && (edgeRunning || streamEdgeLive || variableEdgeFlowing);
       const edgeStroke = broken
         ? "var(--color-danger)"
-        : edgeRunning
+        : edgeLive
           ? "var(--color-primary)"
           : variableEdge
             ? "color-mix(in srgb, var(--primary) 78%, transparent)"
@@ -1372,6 +1449,8 @@ function WorkspaceGraphCanvas({
         ? targetLabel
           ? `variable -> ${targetLabel}`
           : "variable"
+        : streamEdgeLive
+          ? "live"
         : systemManagedEdge
           ? "managed"
           : undefined;
@@ -1392,6 +1471,7 @@ function WorkspaceGraphCanvas({
           data: {
             diagnostic,
             label: edgeLabel,
+            live: edgeLive,
           },
           style: {
             stroke: dependencyHighlighted ? highlightedStroke : edgeStroke,
@@ -1399,7 +1479,7 @@ function WorkspaceGraphCanvas({
               ? 4
               : broken
                 ? 2
-                : edgeRunning
+                : edgeLive
                   ? 3.5
                   : variableEdge
                     ? 3
@@ -1413,9 +1493,11 @@ function WorkspaceGraphCanvas({
                   : undefined,
             filter: dependencyHighlighted
               ? "drop-shadow(0 0 6px color-mix(in srgb, var(--primary) 40%, transparent))"
+              : edgeLive
+                ? "drop-shadow(0 0 7px color-mix(in srgb, var(--primary) 46%, transparent))"
               : undefined,
           },
-          animated: edgeRunning,
+          animated: edgeLive,
           deletable: edge.source === "binding",
           selectable: true,
         } satisfies WorkspaceGraphFlowEdge,
@@ -1425,6 +1507,7 @@ function WorkspaceGraphCanvas({
     dependencyHighlight.highlightedEdgeIds,
     dependencyModel,
     executionStateByNodeId,
+    instanceIndex,
     visibleGraph.edges,
     visibleGraph.nodes,
   ]);

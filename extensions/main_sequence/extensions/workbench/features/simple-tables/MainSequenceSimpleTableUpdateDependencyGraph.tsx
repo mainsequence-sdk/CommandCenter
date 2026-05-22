@@ -19,7 +19,7 @@ export function MainSequenceSimpleTableUpdateDependencyGraph({
 }: {
   direction: MainSequenceDependencyGraphDirection;
   enabled?: boolean;
-  simpleTableUpdateId: number;
+  simpleTableUpdateId: string;
   runtimeState?: MainSequenceDependencyGraphRuntimeState;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   variant?: "card" | "widget";
@@ -27,7 +27,7 @@ export function MainSequenceSimpleTableUpdateDependencyGraph({
   return (
     <MainSequenceUpdateDependencyGraph
       direction={direction}
-      enabled={enabled && simpleTableUpdateId > 0}
+      enabled={enabled && Boolean(String(simpleTableUpdateId).trim())}
       queryKey={[
         "main_sequence",
         "simple_tables",

@@ -1235,14 +1235,14 @@ export function DashboardControlsProvider({
 
   useEffect(() => {
     if (!resolvedConfig.refresh.enabled || refreshIntervalMs === null) {
-      setRefreshCycleStartedAt(null);
-      setRefreshProgress(0);
+      setRefreshCycleStartedAt((current) => current === null ? current : null);
+      setRefreshProgress((current) => current === 0 ? current : 0);
       return undefined;
     }
 
     const cycleStartedAt = Date.now();
-    setRefreshCycleStartedAt(cycleStartedAt);
-    setRefreshProgress(0);
+    setRefreshCycleStartedAt((current) => current === cycleStartedAt ? current : cycleStartedAt);
+    setRefreshProgress((current) => current === 0 ? current : 0);
 
     const timerId = window.setInterval(() => {
       void refreshNow();
@@ -1255,7 +1255,7 @@ export function DashboardControlsProvider({
 
   useEffect(() => {
     if (!resolvedConfig.refresh.enabled || refreshIntervalMs === null || refreshCycleStartedAt === null) {
-      setRefreshProgress(0);
+      setRefreshProgress((current) => current === 0 ? current : 0);
       return undefined;
     }
 
@@ -1264,17 +1264,20 @@ export function DashboardControlsProvider({
 
     function updateRefreshProgress() {
       const elapsed = Date.now() - activeRefreshCycleStartedAt;
-      setRefreshProgress(Math.max(0, Math.min(1, elapsed / activeRefreshIntervalMs)));
+      const nextProgress = Math.max(0, Math.min(1, elapsed / activeRefreshIntervalMs));
+      setRefreshProgress((current) =>
+        Math.abs(current - nextProgress) < 0.001 ? current : nextProgress,
+      );
     }
 
-    updateRefreshProgress();
-
+    const initialTimerId = window.setTimeout(updateRefreshProgress, 0);
     const timerId = window.setInterval(
       updateRefreshProgress,
       Math.max(120, Math.round(refreshProgressUpdateIntervalMs)),
     );
 
     return () => {
+      window.clearTimeout(initialTimerId);
       window.clearInterval(timerId);
     };
   }, [

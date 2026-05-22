@@ -21,7 +21,7 @@
   trace metadata to these shared API calls so graph/debug surfaces can show the real network path
   without each widget inventing its own endpoint logger.
 - `fetchDataNodeDetail(...)` now also owns a small shared in-memory cache/in-flight dedupe layer.
-  That lets headless execution and mounted runtime consumers share the same `dynamic_table/{id}/`
+  That lets headless execution and mounted runtime consumers share the same `dynamic_table/{uid}/`
   GET instead of issuing parallel metadata requests for the same data node.
 - Summary consumers should read endpoint-specific add-ons from `summary.extensions` instead of legacy keys such as `summary`, `extra`, `extras`, or top-level `readme`.
 - Summary label mutations also live here. Summary endpoints that support labels should expose a `label_management` block with `labels`, `add_label_url`, and `remove_label_url`; the shared summary card reads those backend-provided URLs directly instead of inferring label routes from the entity type.
@@ -53,5 +53,6 @@
   the caller provides an object root plus object id, and the API layer appends the configured
   `candidate-users`, `can-view`, `can-edit`, and add/remove permission suffixes from
   `main_sequence.permissions`.
-- `dynamic_table/{id}/get-tail-observations/`, `dynamic_table/{id}/get_data_between_dates_from_remote/`, and `dynamic_table/{id}/get_last_observation/` only use mock payloads that are explicitly keyed to the requested data-node id. Unkeyed endpoint dumps are not treated as valid per-node responses because they can mix multiple series and break widget assumptions.
+- `dynamic_table/{uid}/get-tail-observations/`, `dynamic_table/{uid}/get_data_between_dates_from_remote/`, and `dynamic_table/{uid}/get_last_observation/` only use mock payloads that are explicitly keyed to the requested data-node identifier. Unkeyed endpoint dumps are not treated as valid per-node responses because they can mix multiple series and break widget assumptions.
+- Shared ts_manager detail helpers resolve resource paths by `uid`. Frontend callers and mock fixtures must provide the backend `uid`; numeric ids are not accepted for these detail-style routes.
 - Collection-style Main Sequence mock datasets may be stored either as a raw JSON array or as a paginated object with a `results` array. The mock loader normalizes both shapes for list-backed resources such as `local_time_series`.

@@ -187,7 +187,7 @@ function lifecycleStatusToFrameStatus(
     return hasRetainedFrame ? "ready" : "idle";
   }
 
-  return "idle";
+  return hasRetainedFrame ? "ready" : "idle";
 }
 
 function buildStreamContext(input: {

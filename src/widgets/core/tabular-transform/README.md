@@ -16,19 +16,30 @@ for `core.tabular_frame@v1` datasets.
 
 ## Behavior
 
-- The widget consumes one `core.tabular_frame@v1` input and republishes transformed
-  `dataset` and `updates` outputs. Downstream seed inputs bind to `dataset`; downstream live
-  inputs bind to `updates`.
+- The widget consumes role-specific `core.tabular_frame@v1` inputs: `seedData` for retained/base
+  rows and `liveUpdates` for incremental update publications. It republishes transformed `dataset`
+  and `updates` outputs. Downstream seed inputs bind to `dataset`; downstream live inputs bind to
+  `updates`.
+- Legacy workspaces that still have a `sourceData` binding are migrated by the shared incremental
+  tabular consumer: bindings to `updates` become `liveUpdates`, and other source bindings become
+  `seedData`. The model keeps a legacy resolver fallback only so old saved workspaces continue to
+  resolve during migration.
 - Instances are fixed to sidebar placement. The transform is an executable graph/source node and
   settings surface, not a visible workspace canvas card.
 - Source-input validity and mounted waiting/loading/error semantics now go through the shared
   upstream consumer contract before transform execution or UI rendering. A valid binding with no
   published upstream value is treated as `awaiting-upstream`, not as a malformed dataset.
+- When a live-only binding briefly reports no current upstream publication, a ready retained
+  transform runtime frame keeps the widget in a ready state. The retained output is returned as-is
+  during that gap and is not fed back through the transform pipeline, which prevents double
+  transform passes while avoiding status flicker.
 - When an upstream source publishes incremental metadata, the transform reads the retained
   `upstreamBase` frame for correctness and republishes the transformed publication through the
-  explicit `updates` output. Pass-through/projection transforms also publish transformed
-  `upstreamDelta` metadata; aggregate, pivot, and unpivot modes fall back to snapshot output because
-  partial row deltas cannot preserve correctness there.
+  explicit `updates` output. If a live source has published a delta before a retained base frame is
+  available, that `upstreamDelta` is still treated as a real source publication instead of leaving
+  the transform idle. Pass-through/projection transforms also publish transformed `upstreamDelta`
+  metadata; aggregate, pivot, and unpivot modes fall back to snapshot output because partial row
+  deltas cannot preserve correctness there.
 - Supported initial transforms are `none`, `filter`, `aggregate`, `pivot`, `unpivot`, final
   projection, and optional latest-row merge by configured output keys.
 - The settings UI keeps available source fields visible as reference text, but hides key-field

@@ -344,6 +344,16 @@ export interface WidgetExecutionResult {
 }
 
 export type WidgetExecutionRefreshPolicy = "manual-only" | "allow-refresh";
+
+export type WidgetExecutionReadiness =
+  | {
+      status: "ready";
+    }
+  | {
+      status: "waiting" | "error";
+      reason?: string;
+    };
+
 export type WidgetWorkspaceRuntimeMode =
   | "execution-owner"
   | "consumer"
@@ -446,6 +456,10 @@ export interface WidgetExecutionDefinition<
   TProps extends Record<string, unknown> = Record<string, unknown>,
 > {
   canExecute?: (context: WidgetExecutionContext<TProps>) => boolean;
+  getExecutionReadiness?: (
+    context: WidgetExecutionContext<TProps>,
+  ) => WidgetExecutionReadiness;
+  getExecutionBlockedReason?: (context: WidgetExecutionContext<TProps>) => string | undefined;
   execute: (context: WidgetExecutionContext<TProps>) => Promise<WidgetExecutionResult>;
   getRefreshPolicy?: (
     context: WidgetExecutionContext<TProps>,

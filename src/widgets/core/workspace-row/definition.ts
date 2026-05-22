@@ -23,6 +23,7 @@ export const workspaceRowWidget = defineWidget<WorkspaceRowWidgetProps>({
   mockProps: {
     color: undefined,
   },
+  workspaceRuntimeMode: "local-ui",
   buildAgentSnapshot: ({ props }) => ({
     displayKind: "custom",
     state: "ready",

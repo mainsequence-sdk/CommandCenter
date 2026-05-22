@@ -31,6 +31,7 @@ export const echartsSpecWidget = defineWidget<EChartsSpecWidgetProps>({
     sourceMode: "json",
     optionJson: starterOptionJson,
   },
+  workspaceRuntimeMode: "local-ui",
   buildAgentSnapshot: ({ props, domTextContent }) => ({
     displayKind: "chart",
     state: domTextContent?.trim() ? "ready" : "idle",

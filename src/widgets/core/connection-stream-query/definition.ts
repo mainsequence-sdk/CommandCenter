@@ -4,6 +4,7 @@ import { getConnectionTypeById } from "@/app/registry";
 import { isConnectionQueryModelStreamable } from "@/connections/types";
 import { connectionQuerySettingsSchema } from "@/widgets/core/connection-query/ConnectionQueryWidgetSchema";
 import { TABULAR_UPDATES_OUTPUT_ID } from "@/widgets/shared/incremental-tabular-consumer";
+import { getRuntimeDataRef } from "@/widgets/shared/runtime-data-store";
 import { projectWidgetRuntimeUpdateOutput } from "@/widgets/shared/runtime-update";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
@@ -25,6 +26,49 @@ import {
 } from "./connectionStreamQueryModel";
 
 export const CONNECTION_STREAM_QUERY_DATASET_OUTPUT_ID = "dataset";
+
+const CONNECTION_STREAM_OUTPUT_DEBUG_LOGS_ENABLED = false;
+const connectionStreamOutputDebugSignatures = new Set<string>();
+
+function logConnectionStreamOutputDebug(event: string, payload: Record<string, unknown>) {
+  if (
+    typeof window === "undefined" ||
+    !import.meta.env.DEV ||
+    !CONNECTION_STREAM_OUTPUT_DEBUG_LOGS_ENABLED
+  ) {
+    return;
+  }
+
+  const signature = JSON.stringify({ event, payload });
+
+  if (connectionStreamOutputDebugSignatures.has(signature)) {
+    return;
+  }
+
+  connectionStreamOutputDebugSignatures.add(signature);
+
+  if (connectionStreamOutputDebugSignatures.size > 250) {
+    connectionStreamOutputDebugSignatures.clear();
+  }
+
+  console.log(`[connection-stream-output:${event}]`, payload);
+}
+
+function summarizeStreamOutputRuntimeState(runtimeState: unknown) {
+  const normalized = normalizeConnectionStreamQueryRuntimeState(runtimeState);
+
+  return normalized
+    ? {
+        status: normalized.status,
+        streamStatus: normalized.streamStatus,
+        columnCount: normalized.columns.length,
+        rowCount: normalized.rows.length,
+        hasRuntimeDataRef: Boolean(getRuntimeDataRef(normalized)),
+        sourceRunId: normalized.sourceRunId,
+        error: normalized.error,
+      }
+    : null;
+}
 
 function resolveConfiguredStreamQueryModel(props: ConnectionStreamQueryWidgetProps) {
   const normalizedProps = normalizeConnectionStreamQueryProps(props);
@@ -54,12 +98,21 @@ function resolveConnectionStreamQueryIo(
         description:
           `Publishes the ${queryModel?.id ?? "selected"} WebSocket connection stream as one canonical tabular dataset.`,
         valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
-        resolveValue: ({ props: outputProps, runtimeState }) => {
+        resolveValue: ({ instanceId, props: outputProps, runtimeState }) => {
           const publishedFrame = resolveConnectionStreamQueryOutput(runtimeState);
 
           if (publishedFrame) {
+            logConnectionStreamOutputDebug("dataset-published", {
+              instanceId,
+              runtimeState: summarizeStreamOutputRuntimeState(runtimeState),
+            });
             return publishedFrame;
           }
+
+          logConnectionStreamOutputDebug("dataset-idle-fallback", {
+            instanceId,
+            runtimeState: summarizeStreamOutputRuntimeState(runtimeState),
+          });
 
           return buildConnectionStreamQueryLifecycleFrame({
             props: outputProps,
@@ -74,15 +127,25 @@ function resolveConnectionStreamQueryIo(
         description:
           `Publishes the ${queryModel?.id ?? "selected"} WebSocket stream as explicit incremental seed/update publications for live consumers.`,
         valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
-        resolveValue: ({ props: outputProps, runtimeState }) => {
+        resolveValue: ({ instanceId, props: outputProps, runtimeState }) => {
           const publishedFrame = resolveConnectionStreamQueryOutput(runtimeState);
 
           if (!publishedFrame) {
+            logConnectionStreamOutputDebug("updates-idle-fallback", {
+              instanceId,
+              runtimeState: summarizeStreamOutputRuntimeState(runtimeState),
+            });
+
             return buildConnectionStreamQueryLifecycleFrame({
               props: outputProps,
               status: "idle",
             });
           }
+
+          logConnectionStreamOutputDebug("updates-published", {
+            instanceId,
+            runtimeState: summarizeStreamOutputRuntimeState(runtimeState),
+          });
 
           return projectWidgetRuntimeUpdateOutput(publishedFrame, {
             outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,

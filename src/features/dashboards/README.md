@@ -55,7 +55,10 @@ These flows are all part of one app surface, with instance state selected throug
 - `SavedWidgetLibraryDialog.tsx`: in-canvas library picker used to import saved widgets and groups back into the current workspace.
 - `WorkspaceChrome.tsx`: shared workspace toolbar-button and widget-rail chrome reused across canvas and graph views.
 - `WorkspaceComponentBrowser.tsx`: shared workspace component catalog drawer used for searching, favoriting, and adding widgets on the root canvas and inside structural slide regions.
-- `WorkspaceGraphNode.tsx`: custom React Flow node renderer that exposes named widget input and output ports.
+- `WorkspaceGraphNode.tsx`: custom React Flow node renderer that exposes named widget input and
+  output ports and surfaces shared execution/runtime status directly on graph cards. Ready nodes
+  use success styling, waiting nodes use warning styling, and only execution/runtime failures use
+  error styling.
 - `WorkspaceRequestDebugPanel.tsx`: workspace request trace sidebar. It groups requests by refresh cycle, exposes duplicate endpoint summaries, and lets each request card expand into execution metadata plus connection-query details such as the effective requested time range.
 - `WorkspaceVariableExplorerPanel.tsx` and `workspace-variable-explorer-model.ts`: passive workspace variable inspector. It reads the existing dependency model and variable registry, separates materialized variables from referenced/waiting variables, and never mutates runtime state, widget bindings, or persisted workspace content.
 - `useCustomWorkspaceStudio.ts`: route-aware hook that resolves the requested workspace instance and exposes shared actions.

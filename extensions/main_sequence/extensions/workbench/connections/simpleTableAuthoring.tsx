@@ -34,8 +34,9 @@ function readConfigNumber(
 }
 
 function readConfiguredSimpleTableId(config: Record<string, unknown>) {
-  const parsed = Number(config.simpleTableId);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : undefined;
+  return typeof config.simpleTableId === "string" && config.simpleTableId.trim()
+    ? config.simpleTableId.trim()
+    : undefined;
 }
 
 function getSimpleTableColumnNames(
@@ -129,7 +130,7 @@ export function SimpleTableConnectionAuthoringSummary({
             {simpleTableLabel}
           </div>
           <div className="truncate font-mono text-[11px] text-muted-foreground">
-            {simpleTableId ? `id ${simpleTableId}` : "not configured"}
+            {simpleTableId ? `uid ${simpleTableId}` : "not configured"}
           </div>
         </div>
         <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-3 py-2">

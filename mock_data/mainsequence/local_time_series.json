@@ -5,6 +5,7 @@
     "results": [
         {
             "id": 1167,
+            "uid": "00000000-0000-0000-0000-000000001167",
             "update_hash": "algoseekdailyohlcfigi_a93cfd55f6d3e912050e9ea7d4125b49",
             "build_configuration": {
                 "is_demo": true,
@@ -39,6 +40,7 @@
             "ogm_dependencies_linked": true,
             "data_node_storage": {
                 "id": 714,
+                "uid": "00000000-0000-0000-0000-000000000714",
                 "storage_hash": "algoseekdailyohlcfigi_24c436cfe890362de4b747334629dc14",
                 "creation_date": "2025-10-31T13:48:15.032954Z",
                 "build_configuration": {

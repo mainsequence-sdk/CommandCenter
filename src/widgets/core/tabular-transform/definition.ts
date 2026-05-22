@@ -1,6 +1,10 @@
 import { Shuffle } from "lucide-react";
 
-import { TABULAR_UPDATES_OUTPUT_ID } from "@/widgets/shared/incremental-tabular-consumer";
+import {
+  TABULAR_LIVE_UPDATES_INPUT_ID,
+  TABULAR_SEED_INPUT_ID,
+  TABULAR_UPDATES_OUTPUT_ID,
+} from "@/widgets/shared/incremental-tabular-consumer";
 import { projectWidgetRuntimeUpdateOutput } from "@/widgets/shared/runtime-update";
 import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
@@ -14,7 +18,6 @@ import { TabularTransformWidget } from "./TabularTransformWidget";
 import { TabularTransformWidgetSettings } from "./TabularTransformWidgetSettings";
 import {
   TABULAR_TRANSFORM_DATASET_OUTPUT_ID,
-  TABULAR_TRANSFORM_SOURCE_INPUT_ID,
   normalizeTabularTransformProps,
   resolveTabularTransformOutput,
   type TabularTransformWidgetProps,
@@ -22,7 +25,7 @@ import {
 
 export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>({
   id: "tabular-transform",
-  widgetVersion: "1.3.1",
+  widgetVersion: "1.3.4",
   title: "Tabular Transform",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -62,9 +65,9 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
     rowMergeMode: "passthrough",
   },
   mockResolvedInputs: {
-    [TABULAR_TRANSFORM_SOURCE_INPUT_ID]: {
-      inputId: TABULAR_TRANSFORM_SOURCE_INPUT_ID,
-      label: "Source data",
+    [TABULAR_SEED_INPUT_ID]: {
+      inputId: TABULAR_SEED_INPUT_ID,
+      label: "Seed data",
       status: "valid",
       sourceWidgetId: "mock-source",
       sourceOutputId: "dataset",
@@ -123,16 +126,38 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
   io: {
     inputs: [
       {
-        id: TABULAR_TRANSFORM_SOURCE_INPUT_ID,
-        label: "Source data",
+        id: TABULAR_SEED_INPUT_ID,
+        label: "Seed data",
         accepts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
-        required: true,
+        acceptedOutputIds: [TABULAR_TRANSFORM_DATASET_OUTPUT_ID],
+        required: false,
         effects: [
           {
             kind: "drives-render",
             sourcePath: "rows",
             target: { kind: "render", id: "transform" },
             description: "Incoming rows are transformed and republished.",
+          },
+          {
+            kind: "drives-options",
+            sourcePath: "fields",
+            target: { kind: "render", id: "field-options" },
+            description: "Upstream fields define available transform field choices.",
+          },
+        ],
+      },
+      {
+        id: TABULAR_LIVE_UPDATES_INPUT_ID,
+        label: "Live updates",
+        accepts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
+        acceptedOutputIds: [TABULAR_UPDATES_OUTPUT_ID],
+        required: false,
+        effects: [
+          {
+            kind: "drives-render",
+            sourcePath: "rows",
+            target: { kind: "render", id: "transform" },
+            description: "Incoming incremental rows are transformed and republished.",
           },
           {
             kind: "drives-options",
@@ -182,6 +207,35 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
     ],
   },
   execution: {
+    getExecutionReadiness: (context) => {
+      const output = resolveTabularTransformOutput({
+        props: normalizeTabularTransformProps(
+          (context.targetOverrides?.props ?? context.props) as TabularTransformWidgetProps,
+        ),
+        runtimeState: context.targetOverrides?.runtimeState ?? context.runtimeState,
+        resolvedInputs: context.resolvedInputs,
+        runtimeDataStore: context.runtimeDataStore,
+      });
+
+      if (output.status === "error") {
+        return {
+          status: "error",
+          reason: output.error,
+        };
+      }
+
+      if (output.status === "idle") {
+        return {
+          status: "waiting",
+          reason:
+            "Tabular Transform is waiting for a source dataset before it can publish a transformed frame.",
+        };
+      }
+
+      return {
+        status: "ready",
+      };
+    },
     canExecute: (context) => {
       const output = resolveTabularTransformOutput({
         props: normalizeTabularTransformProps(
@@ -193,6 +247,26 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
       });
 
       return output.status !== "idle" && output.status !== "error";
+    },
+    getExecutionBlockedReason: (context) => {
+      const output = resolveTabularTransformOutput({
+        props: normalizeTabularTransformProps(
+          (context.targetOverrides?.props ?? context.props) as TabularTransformWidgetProps,
+        ),
+        runtimeState: context.targetOverrides?.runtimeState ?? context.runtimeState,
+        resolvedInputs: context.resolvedInputs,
+        runtimeDataStore: context.runtimeDataStore,
+      });
+
+      if (output.status === "error") {
+        return output.error;
+      }
+
+      if (output.status === "idle") {
+        return "Tabular Transform is waiting for a source dataset before it can publish a transformed frame.";
+      }
+
+      return undefined;
     },
     execute: async (context) => {
       const output = resolveTabularTransformOutput({
@@ -237,9 +311,9 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
     configuration: {
       mode: "custom-settings",
       summary:
-        "Configures a sidebar-only transform node over one tabular dataset, including filter, aggregate, pivot, unpivot, projection, formulas, and row merge.",
+        "Configures a sidebar-only transform node over tabular seed and live-update inputs, including filter, aggregate, pivot, unpivot, projection, formulas, and row merge.",
       requiredSetupSteps: [
-        "Bind sourceData to an upstream tabular dataset.",
+        "Bind seedData to an upstream dataset output, liveUpdates to an upstream updates output, or both.",
         "Select a transform mode.",
         "Configure filter, key, pivot, unpivot, computed-column, or projection fields.",
         "Bind downstream seed inputs to dataset or live-update inputs to updates.",
@@ -263,7 +337,7 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
     io: {
       mode: "static",
       summary:
-        "Consumes one tabular dataset and publishes transformed dataset and live-update outputs.",
+        "Consumes role-specific tabular seed/live-update inputs and publishes transformed dataset and live-update outputs.",
       inputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
       outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
     },

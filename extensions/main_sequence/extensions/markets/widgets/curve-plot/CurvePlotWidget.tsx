@@ -9,10 +9,12 @@ import {
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useResolveWidgetUpstream } from "@/dashboards/DashboardWidgetExecution";
+import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 import { withAlpha } from "@/lib/color";
 import { useTheme } from "@/themes/ThemeProvider";
 import type { WidgetComponentProps } from "@/widgets/types";
 
+import { normalizeDataNodePublishedDataset } from "../../../workbench/widgets/data-node-shared/dataNodePublishedDataset";
 import { useResolvedDataNodeWidgetSourceBinding } from "../../../workbench/widgets/data-node-shared/dataNodeWidgetSource";
 import {
   buildCurvePlotSeriesFromCurveDataNodeRows,
@@ -49,9 +51,10 @@ function getSeriesPalette(resolvedTokens: Record<string, string>) {
   return curvePaletteTokenOrder.map((tokenKey) => resolvedTokens[tokenKey]);
 }
 
-export function CurvePlotWidget({ props, instanceId }: Props) {
+export function CurvePlotWidget({ props, instanceId, resolvedInputs, runtimeState }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { resolvedTokens } = useTheme();
+  const widgetPreviewMode = isWidgetPreviewMode();
 
   const normalizedProps = useMemo(
     () => normalizeCurvePlotProps(props),
@@ -60,11 +63,17 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
   const sourceBinding = useResolvedDataNodeWidgetSourceBinding({
     props: normalizedProps,
     currentWidgetInstanceId: instanceId,
+    resolvedInputs,
+    runtimeState,
   });
   useResolveWidgetUpstream(instanceId, {
     enabled: sourceBinding.requiresUpstreamResolution,
   });
-  const linkedDataset = sourceBinding.resolvedSourceDataset;
+  const previewRuntimeDataset = useMemo(
+    () => widgetPreviewMode ? normalizeDataNodePublishedDataset(runtimeState) : null,
+    [runtimeState, widgetPreviewMode],
+  );
+  const linkedDataset = sourceBinding.resolvedSourceDataset ?? previewRuntimeDataset;
   const effectiveSourceProps = sourceBinding.resolvedSourceProps;
   const effectiveProps = useMemo(
     () => ({
@@ -265,7 +274,7 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
     };
   }, [effectiveSeriesResult, palette, resolvedTokens]);
 
-  if (sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource) {
+  if (!linkedDataset && sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -354,7 +363,7 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
       ) : null}
 
       <div
-        className="min-h-0 flex-1 overflow-hidden rounded-[calc(var(--radius)-6px)] border px-2 pt-2 pb-4"
+        className="relative min-h-0 flex-1 overflow-hidden rounded-[calc(var(--radius)-6px)] border px-2 pt-2 pb-4"
         style={{
           borderColor: withAlpha(resolvedTokens.border, 0.72),
           background: `linear-gradient(180deg, ${withAlpha(resolvedTokens.background, 0.76)} 0%, ${withAlpha(
@@ -363,41 +372,34 @@ export function CurvePlotWidget({ props, instanceId }: Props) {
           )} 100%)`,
         }}
       >
+        {effectiveSeriesResult.series.length > 1 ? (
+          <div className="pointer-events-none absolute left-4 top-4 z-10 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2">
+            {effectiveSeriesResult.series.map((series, index) => {
+              const baseColor = palette[index % palette.length] ?? resolvedTokens.primary;
+
+              return (
+                <div
+                  key={series.id}
+                  className="inline-flex items-center gap-2 rounded-[calc(var(--radius)-7px)] border px-2.5 py-1 text-xs shadow-sm backdrop-blur"
+                  style={{
+                    borderColor: withAlpha(baseColor, 0.28),
+                    backgroundColor: withAlpha(resolvedTokens.background, 0.78),
+                  }}
+                >
+                  <span
+                    className="h-1.5 w-6 rounded-full"
+                    style={{
+                      background: `linear-gradient(90deg, ${withAlpha(baseColor, 0.32)} 0%, ${baseColor} 100%)`,
+                    }}
+                  />
+                  <span className="font-medium text-foreground">{series.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
         <div ref={containerRef} className="h-full min-h-0 w-full" />
       </div>
-
-      {effectiveSeriesResult.series.length > 1 ? (
-        <div
-          className="shrink-0 flex flex-wrap items-center gap-2 rounded-[calc(var(--radius)-6px)] border px-4 py-3"
-          style={{
-            borderColor: withAlpha(resolvedTokens.border, 0.72),
-            background: withAlpha(resolvedTokens.background, 0.6),
-          }}
-        >
-          {effectiveSeriesResult.series.map((series, index) => {
-            const baseColor = palette[index % palette.length] ?? resolvedTokens.primary;
-
-            return (
-              <div
-                key={series.id}
-                className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs"
-                style={{
-                  borderColor: withAlpha(baseColor, 0.22),
-                  backgroundColor: withAlpha(baseColor, index === 0 ? 0.14 : 0.08),
-                }}
-              >
-                <span
-                  className="h-2.5 w-8 rounded-full"
-                  style={{
-                    background: `linear-gradient(90deg, ${withAlpha(baseColor, 0.24)} 0%, ${baseColor} 100%)`,
-                  }}
-                />
-                <span className="font-medium text-foreground">{series.label}</span>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
     </div>
   );
 }

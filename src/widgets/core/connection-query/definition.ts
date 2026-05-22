@@ -19,10 +19,10 @@ import { ConnectionQueryWidgetSettings } from "./ConnectionQueryWidgetSettings";
 import {
   buildConnectionQueryErrorFrame,
   executeConnectionQueryWidgetRequest,
-  findUnresolvedConnectionQueryReferencePaths,
   normalizeConnectionQueryProps,
   normalizeConnectionQueryRuntimeState,
   resolveConnectionQueryRequestedOutputContract,
+  resolveEffectiveConnectionQueryProps,
   type ConnectionQueryWidgetProps,
 } from "./connectionQueryModel";
 import { connectionQuerySettingsSchema } from "./ConnectionQueryWidgetSchema";
@@ -34,10 +34,24 @@ function resolveConfiguredQueryModel(props: ConnectionQueryWidgetProps) {
   const connectionType = normalizedProps.connectionRef?.typeId
     ? getConnectionTypeById(normalizedProps.connectionRef.typeId)
     : undefined;
+  const queryKind = typeof normalizedProps.query?.kind === "string" && normalizedProps.query.kind.trim()
+    ? normalizedProps.query.kind.trim()
+    : undefined;
+  const queryModelId = normalizedProps.queryModelId ?? queryKind;
 
   return connectionType?.queryModels?.find(
-    (model) => model.id === normalizedProps.queryModelId,
+    (model) => model.id === queryModelId,
   );
+}
+
+function resolveExecutableConnectionQueryProps(props: ConnectionQueryWidgetProps) {
+  const queryModel = resolveConfiguredQueryModel(props);
+  const effectiveProps = resolveEffectiveConnectionQueryProps(props, queryModel);
+
+  return {
+    props: effectiveProps,
+    queryModel,
+  };
 }
 
 function resolveConfiguredOutputContract(props: ConnectionQueryWidgetProps) {
@@ -61,21 +75,6 @@ function formatConnectionQueryOutputContract(contract: string) {
   }
 
   return contract;
-}
-
-function shouldDeferAutomaticConnectionExecution(input: {
-  props: ConnectionQueryWidgetProps;
-  queryModel: ReturnType<typeof resolveConfiguredQueryModel>;
-}) {
-  const unresolvedReferencePaths = findUnresolvedConnectionQueryReferencePaths(
-    input.props,
-    input.queryModel,
-  );
-
-  return {
-    unresolvedReferencePaths,
-    shouldDefer: unresolvedReferencePaths.length > 0,
-  };
 }
 
 function resolveConnectionQueryIo(
@@ -141,7 +140,7 @@ function resolveConnectionQueryIo(
 
 export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   id: "connection-query",
-  widgetVersion: "1.6.3",
+  widgetVersion: "1.6.4",
   title: "Connection Query (HTTP)",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -228,28 +227,9 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   resolveIo: ({ props, runtimeState }) => resolveConnectionQueryIo(props, runtimeState),
   execution: {
     canExecute: (context) => {
-      const props = normalizeConnectionQueryProps(context.targetOverrides?.props ?? context.props);
-      const queryModel = resolveConfiguredQueryModel(props);
-      const readiness = shouldDeferAutomaticConnectionExecution({
-        props,
-        queryModel,
-      });
-
-      if (readiness.shouldDefer) {
-        if (import.meta.env.DEV) {
-          /*
-          console.log("[connection-query:auto-execution-deferred]", {
-            instanceId: context.instanceId,
-            reason: context.reason,
-            unresolvedReferencePaths: readiness.unresolvedReferencePaths,
-            query: props.query,
-            variables: props.variables,
-            hasTargetOverrides: Boolean(context.targetOverrides),
-          });
-          */
-        }
-        return false;
-      }
+      const { props } = resolveExecutableConnectionQueryProps(
+        (context.targetOverrides?.props ?? context.props) as ConnectionQueryWidgetProps,
+      );
 
       if (context.executionSurface === "public-workspace") {
         return Boolean(context.publicExecution?.queryUrl && props.queryModelId);
@@ -258,10 +238,12 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
       return Boolean(props.connectionRef?.id && props.queryModelId);
     },
     execute: async (context) => {
-      const props = normalizeConnectionQueryProps(
+      const {
+        props,
+        queryModel,
+      } = resolveExecutableConnectionQueryProps(
         (context.targetOverrides?.props ?? context.props) as ConnectionQueryWidgetProps,
       );
-      const queryModel = resolveConfiguredQueryModel(props);
 
       try {
         const runtimeStatePatch = await executeConnectionQueryWidgetRequest(
@@ -303,16 +285,9 @@ export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
       }
     },
     getRefreshPolicy: (context) => {
-      const props = normalizeConnectionQueryProps(context.targetOverrides?.props ?? context.props);
-      const queryModel = resolveConfiguredQueryModel(props);
-      const readiness = shouldDeferAutomaticConnectionExecution({
-        props,
-        queryModel,
-      });
-
-      if (readiness.shouldDefer) {
-        return "manual-only";
-      }
+      const { props } = resolveExecutableConnectionQueryProps(
+        (context.targetOverrides?.props ?? context.props) as ConnectionQueryWidgetProps,
+      );
 
       if (context.executionSurface === "public-workspace") {
         return context.publicExecution?.queryUrl && props.queryModelId

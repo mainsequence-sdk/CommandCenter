@@ -26,7 +26,7 @@ function widget(input: Partial<DashboardWidgetInstance> & Pick<DashboardWidgetIn
   } satisfies DashboardWidgetInstance;
 }
 
-function binding(input: Pick<WidgetPortBinding, "sourceWidgetId" | "sourceOutputId">) {
+function binding(input: Pick<WidgetPortBinding, "sourceWidgetId" | "sourceOutputId"> & Partial<WidgetPortBinding>) {
   return input as WidgetPortBinding;
 }
 
@@ -257,6 +257,8 @@ describe("workspace variable explorer model", () => {
           binding: binding({
             sourceWidgetId: "table-1",
             sourceOutputId: "activeRow",
+            transformId: "extract-path",
+            transformPath: ["Symbol"],
           }),
         },
         {
@@ -267,6 +269,8 @@ describe("workspace variable explorer model", () => {
           binding: binding({
             sourceWidgetId: "table-1",
             sourceOutputId: "activeRow",
+            transformId: "extract-path",
+            transformPath: ["Symbol"],
           }),
         },
       ],
@@ -301,6 +305,10 @@ describe("workspace variable explorer model", () => {
     expect(explorerModel.currentVariables[0]?.referenceToken).toBe(
       "$(table-1).activeRow.Symbol",
     );
+    expect(explorerModel.currentVariables[0]?.valuePreview).toMatchObject({
+      kind: "scalar",
+      text: "BTCUSDT",
+    });
     expect(explorerModel.totalConsumers).toBe(2);
     expect(
       filterWorkspaceVariableExplorerEntries(explorerModel.currentVariables, "binance"),
@@ -308,6 +316,60 @@ describe("workspace variable explorer model", () => {
     expect(
       filterWorkspaceVariableExplorerEntries(explorerModel.currentVariables, "symbol"),
     ).toHaveLength(1);
+  });
+
+  it("marks referenced variables as invalid when the transform cannot resolve", () => {
+    const entry = variableEntry({
+      sourceWidgetId: "table-1",
+      sourceOutputId: "activeRow",
+      transformSignature: "extract-path:missing",
+      consumers: [
+        {
+          targetWidgetId: "connection-query-1",
+          targetInputId: "__widget-reference.prop.query.symbols",
+          targetKind: "prop",
+          propPath: ["query", "symbols"],
+          binding: binding({
+            sourceWidgetId: "table-1",
+            sourceOutputId: "activeRow",
+            transformId: "extract-path",
+            transformPath: ["missing"],
+          }),
+        },
+      ],
+    });
+    const explorerModel = buildWorkspaceVariableExplorerModel({
+      dependencyModel: dependencyModel({
+        registry: variableRegistry([entry]),
+        outputs: {
+          "table-1": {
+            activeRow: {
+              Symbol: "BTCUSDT",
+            },
+          },
+        },
+      }),
+      widgets: [
+        widget({
+          id: "table-1",
+          title: "Crypto Table",
+        }),
+        widget({
+          id: "connection-query-1",
+          title: "Binance Query",
+        }),
+      ],
+    });
+
+    expect(explorerModel.currentVariables).toHaveLength(0);
+    expect(explorerModel.referencedVariables).toHaveLength(1);
+    expect(explorerModel.referencedVariables[0]).toMatchObject({
+      status: "error",
+      statusLabel: "Invalid transform",
+      valuePreview: {
+        text: "Transform could not be applied.",
+      },
+    });
   });
 
   it("truncates large value previews", () => {

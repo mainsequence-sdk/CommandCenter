@@ -81,6 +81,11 @@ export type ConnectionQueryRuntimeState =
   | ConnectionQueryRawFrameRuntimeState;
 
 const DEFAULT_PROMQL_RANGE_STEP_MS = 5 * 60 * 1000;
+const CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED = false;
+
+function shouldLogConnectionQueryExecutionDebug() {
+  return CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED && import.meta.env.DEV;
+}
 
 function stableJsonStringify(value: unknown): string {
   if (Array.isArray(value)) {
@@ -462,36 +467,28 @@ export function normalizeConnectionQueryProps(
   };
 }
 
-function resolveEffectiveConnectionQueryProps(
+export function resolveEffectiveConnectionQueryProps(
   props: ConnectionQueryWidgetProps,
   queryModel?: ConnectionQueryModel,
 ): ConnectionQueryWidgetProps {
   const normalizedProps = normalizeConnectionQueryProps(props);
   const resolvedQueryModelId = normalizeString(queryModel?.id) ?? normalizedProps.queryModelId;
   const existingQuery = isPlainRecord(normalizedProps.query) ? normalizedProps.query : {};
-  const queryModelChanged = normalizedProps.queryModelId !== resolvedQueryModelId;
-  const queryKindMatches = normalizeString(existingQuery.kind) === resolvedQueryModelId;
 
   if (!resolvedQueryModelId) {
     return normalizedProps;
   }
 
-  if (!queryModelChanged && queryKindMatches) {
-    return normalizedProps;
-  }
+  const defaultQuery = isPlainRecord(queryModel?.defaultQuery) ? queryModel.defaultQuery : {};
 
   return {
     ...normalizedProps,
     queryModelId: resolvedQueryModelId,
-    query: queryModelChanged
-      ? {
-          ...(queryModel?.defaultQuery ?? {}),
-          kind: resolvedQueryModelId,
-        }
-      : {
-          ...existingQuery,
-          kind: resolvedQueryModelId,
-        },
+    query: {
+      ...defaultQuery,
+      ...existingQuery,
+      kind: resolvedQueryModelId,
+    },
   };
 }
 
@@ -868,51 +865,6 @@ function buildEffectiveQuery(props: ConnectionQueryWidgetProps) {
   return query;
 }
 
-function isWidgetReferenceExpressionLiteral(value: unknown) {
-  return typeof value === "string" &&
-    /^\$\([^)]+\)\.[A-Za-z0-9_$-]+(?:\.[A-Za-z0-9_$-]+|\[(?:first|last|\d+)\])*$/.test(
-      value.trim(),
-    );
-}
-
-function findUnresolvedReferenceValuePaths(
-  value: unknown,
-  path: string[],
-): string[] {
-  if (typeof value === "string") {
-    return isWidgetReferenceExpressionLiteral(value) ? [path.join(".") || "$"] : [];
-  }
-
-  if (Array.isArray(value)) {
-    return value.flatMap((entry, index) =>
-      findUnresolvedReferenceValuePaths(entry, [...path, String(index)]),
-    );
-  }
-
-  if (!isPlainRecord(value)) {
-    return [];
-  }
-
-  return Object.entries(value).flatMap(([key, entryValue]) =>
-    findUnresolvedReferenceValuePaths(entryValue, [...path, key]),
-  );
-}
-
-export function findUnresolvedConnectionQueryReferencePaths(
-  props: ConnectionQueryWidgetProps,
-  queryModel?: ConnectionQueryModel,
-) {
-  const effectiveProps = resolveEffectiveConnectionQueryProps(props, queryModel);
-  const queryPaths = findUnresolvedReferenceValuePaths(buildEffectiveQuery(effectiveProps), ["query"]);
-  const variablePaths = queryModel?.supportsVariables && effectiveProps.variables !== undefined
-    ? findUnresolvedReferenceValuePaths(effectiveProps.variables, ["variables"])
-    : [];
-
-  return [...new Set([...queryPaths, ...variablePaths])].sort((left, right) =>
-    left.localeCompare(right),
-  );
-}
-
 async function enrichConnectionQueryRequest(
   request: ConnectionQueryRequest<Record<string, unknown>>,
   props: ConnectionQueryWidgetProps,
@@ -968,10 +920,6 @@ export function buildConnectionQueryRequest(
     return null;
   }
 
-  if (findUnresolvedConnectionQueryReferencePaths(effectiveProps, queryModel).length > 0) {
-    return null;
-  }
-
   const timeRangeProps =
     queryModel?.timeRangeAware && effectiveProps.timeRangeMode === "none"
       ? { ...effectiveProps, timeRangeMode: "dashboard" as const }
@@ -1014,10 +962,6 @@ function buildPublicConnectionQueryRequestPayload(
   }
 
   const effectiveProps = resolveEffectiveConnectionQueryProps(input.props, input.queryModel);
-
-  if (findUnresolvedConnectionQueryReferencePaths(effectiveProps, input.queryModel).length > 0) {
-    return null;
-  }
 
   const allowedInputs =
     isPlainRecord(input.publicExecution?.allowedInputs)
@@ -1206,28 +1150,60 @@ export async function executeConnectionQueryWidgetRequest(
   const allowedOutputContracts = resolveConnectionQueryAllowedOutputContracts(queryModel);
 
   if (!connectionRef) {
+    if (shouldLogConnectionQueryExecutionDebug()) {
+      console.log("[connection-query-request-build]", {
+        ownerId: options?.ownerId,
+        scopeId: options?.scopeId,
+        requestIsNull: true,
+        failureReason: "missing-connection-ref",
+        queryModelId,
+      });
+    }
+
     throw new Error("Select a connection before running this query.");
   }
 
   if (!queryModelId) {
+    if (shouldLogConnectionQueryExecutionDebug()) {
+      console.log("[connection-query-request-build]", {
+        ownerId: options?.ownerId,
+        scopeId: options?.scopeId,
+        requestIsNull: true,
+        failureReason: "missing-query-model",
+        connectionId: connectionRef.id,
+      });
+    }
+
     throw new Error("Select a connection path before running this query.");
   }
 
   const request = buildConnectionQueryRequest(resolvedProps, dashboardState, queryModel);
 
   if (!request) {
-    const unresolvedReferencePaths = findUnresolvedConnectionQueryReferencePaths(
-      resolvedProps,
-      queryModel,
-    );
-
-    if (unresolvedReferencePaths.length > 0) {
-      throw new Error(
-        `Waiting for referenced connection query value${unresolvedReferencePaths.length === 1 ? "" : "s"}: ${unresolvedReferencePaths.join(", ")}.`,
-      );
+    if (shouldLogConnectionQueryExecutionDebug()) {
+      console.log("[connection-query-request-build]", {
+        ownerId: options?.ownerId,
+        scopeId: options?.scopeId,
+        requestIsNull: true,
+        failureReason: "incomplete-request",
+        connectionId: connectionRef.id,
+        queryModelId,
+        requestedOutputContract,
+      });
     }
 
     throw new Error("Connection query request is incomplete.");
+  }
+
+  if (shouldLogConnectionQueryExecutionDebug()) {
+    console.log("[connection-query-request-build]", {
+      ownerId: options?.ownerId,
+      scopeId: options?.scopeId,
+      requestIsNull: false,
+      queryModelId,
+      requestedOutputContract,
+      request: summarizeConnectionQueryRequestForDebug(request),
+    });
   }
 
   if (import.meta.env.DEV) {
@@ -1277,9 +1253,48 @@ export async function executeConnectionQueryWidgetRequest(
   );
   const payload = await runConnectionQueryWithInFlightDedupe(
     incrementalDecision,
-    () => queryConnection(incrementalDecision.request, traceMeta, {
-      signal: options?.signal,
-    }),
+    async () => {
+      if (shouldLogConnectionQueryExecutionDebug()) {
+        console.log("[connection-query-dispatch]", {
+          ownerId: options?.ownerId,
+          scopeId: options?.scopeId,
+          queryModelId,
+          requestedOutputContract,
+          incrementalActive: incrementalDecision.active,
+          incrementalHasRetainedState: Boolean(incrementalDecision.retainedState),
+          incrementalReason: incrementalDecision.reason,
+          request: summarizeConnectionQueryRequestForDebug(incrementalDecision.request),
+        });
+      }
+
+      try {
+        const result = await queryConnection(incrementalDecision.request, traceMeta, {
+          signal: options?.signal,
+        });
+
+        if (shouldLogConnectionQueryExecutionDebug()) {
+          console.log("[connection-query-result]", {
+            ownerId: options?.ownerId,
+            scopeId: options?.scopeId,
+            queryModelId,
+            result: summarizeConnectionQueryValueForDebug(result),
+          });
+        }
+
+        return result;
+      } catch (error) {
+        if (shouldLogConnectionQueryExecutionDebug()) {
+          console.log("[connection-query-error]", {
+            ownerId: options?.ownerId,
+            scopeId: options?.scopeId,
+            queryModelId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+
+        throw error;
+      }
+    },
   );
   const frame = firstConnectionFramePayload(payload, {
     connectionRef,

@@ -53,8 +53,8 @@ export function SimpleTableUpdateQuickSearchPicker({
   searchPlaceholder = "Search simple table updates",
   selectionHelpText = "Choose the simple table update you want to inspect.",
 }: {
-  value?: number;
-  onChange: (nextId?: number) => void;
+  value?: string;
+  onChange: (nextId?: string) => void;
   editable: boolean;
   queryScope: string;
   placeholder?: string;
@@ -64,7 +64,7 @@ export function SimpleTableUpdateQuickSearchPicker({
   const [searchValue, setSearchValue] = useState("");
   const deferredSearchValue = useDeferredValue(searchValue);
   const normalizedSearchValue = deferredSearchValue.trim();
-  const selectedSimpleTableUpdateId = Number(value ?? 0);
+  const selectedSimpleTableUpdateId = value?.trim() || "";
 
   const selectedSimpleTableUpdateQuery = useQuery({
     queryKey: [
@@ -76,7 +76,7 @@ export function SimpleTableUpdateQuickSearchPicker({
       selectedSimpleTableUpdateId,
     ],
     queryFn: () => fetchSimpleTableUpdateDetail(selectedSimpleTableUpdateId),
-    enabled: Number.isFinite(selectedSimpleTableUpdateId) && selectedSimpleTableUpdateId > 0,
+    enabled: Boolean(selectedSimpleTableUpdateId),
     staleTime: 300_000,
   });
 
@@ -107,10 +107,12 @@ export function SimpleTableUpdateQuickSearchPicker({
 
     return {
       id: current.id,
+      uid: current.uid ?? null,
       update_hash: current.update_hash,
       remote_table: current.remote_table
         ? {
             id: current.remote_table.id,
+            uid: current.remote_table.uid ?? null,
             storage_hash:
               typeof current.remote_table.storage_hash === "string"
                 ? current.remote_table.storage_hash
@@ -130,7 +132,7 @@ export function SimpleTableUpdateQuickSearchPicker({
 
     if (
       selectedSimpleTableUpdate &&
-      !baseOptions.some((simpleTableUpdate) => simpleTableUpdate.id === selectedSimpleTableUpdate.id)
+      !baseOptions.some((simpleTableUpdate) => simpleTableUpdate.uid === selectedSimpleTableUpdate.uid)
     ) {
       return [selectedSimpleTableUpdate, ...baseOptions];
     }
@@ -141,15 +143,17 @@ export function SimpleTableUpdateQuickSearchPicker({
   const pickerOptions = useMemo<PickerOption[]>(
     () =>
       simpleTableUpdateOptions.map((simpleTableUpdate) => ({
-        value: String(simpleTableUpdate.id),
+        value: simpleTableUpdate.uid?.trim() || "",
         label: formatSimpleTableUpdateLabel(simpleTableUpdate),
         description:
           simpleTableUpdate.remote_table?.identifier?.trim() ||
           simpleTableUpdate.remote_table?.storage_hash?.trim() ||
           `Simple table ${simpleTableUpdate.remote_table?.id ?? "unknown"}`,
         keywords: [
+          simpleTableUpdate.uid ?? "",
           String(simpleTableUpdate.id),
           simpleTableUpdate.update_hash,
+          simpleTableUpdate.remote_table?.uid ?? "",
           String(simpleTableUpdate.remote_table?.id ?? ""),
           simpleTableUpdate.remote_table?.storage_hash ?? "",
           simpleTableUpdate.remote_table?.identifier ?? "",
@@ -161,10 +165,9 @@ export function SimpleTableUpdateQuickSearchPicker({
   return (
     <div className="space-y-2">
       <PickerField
-        value={value && value > 0 ? String(value) : ""}
+        value={value?.trim() ?? ""}
         onChange={(nextValue) => {
-          const nextId = Number(nextValue);
-          onChange(Number.isFinite(nextId) && nextId > 0 ? nextId : undefined);
+          onChange(nextValue.trim() || undefined);
         }}
         options={pickerOptions}
         placeholder={placeholder}

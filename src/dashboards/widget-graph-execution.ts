@@ -8,7 +8,6 @@ import {
   collectDashboardWidgetEntries,
   createDashboardWidgetDependencyModel,
   createDashboardWidgetEntryIndex,
-  listUnresolvedReferenceBackedPropInputs,
   normalizeWidgetInstanceBindings,
   type ResolvedWidgetOutputs,
   type DashboardWidgetDependencyModel,
@@ -21,6 +20,7 @@ import type {
   WidgetExecutionDashboardState,
   WidgetExecutionContext,
   WidgetExecutionReason,
+  WidgetExecutionReadiness,
   WidgetExecutionResult,
   WidgetExecutionSurface,
   WidgetExecutionTargetOverrides,
@@ -89,6 +89,35 @@ function summarizeExecutionContextForDebug(context: WidgetExecutionContext) {
     propsKeys: isPlainRecord(context.props) ? Object.keys(context.props).sort() : [],
     runtimeState: summarizeExecutionValueForDebug(context.runtimeState),
     resolvedInputIds: context.resolvedInputs ? Object.keys(context.resolvedInputs).sort() : [],
+  };
+}
+
+const CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED = false;
+
+function shouldLogConnectionQueryExecutionDebug(widgetId: string | undefined) {
+  return CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED &&
+    import.meta.env.DEV &&
+    widgetId === "connection-query";
+}
+
+function summarizeExecutionPropsForDebug(props: unknown) {
+  if (!isPlainRecord(props)) {
+    return {
+      hasConnectionRef: false,
+      hasConnectionId: false,
+      hasQueryModel: false,
+      queryKeys: [],
+    };
+  }
+
+  const connectionRef = props.connectionRef;
+  const query = props.query;
+
+  return {
+    hasConnectionRef: isPlainRecord(connectionRef),
+    hasConnectionId: isPlainRecord(connectionRef) && typeof connectionRef.id === "number",
+    hasQueryModel: typeof props.queryModelId === "string" && props.queryModelId.trim().length > 0,
+    queryKeys: isPlainRecord(query) ? Object.keys(query).sort() : [],
   };
 }
 
@@ -205,6 +234,22 @@ function listValidResolvedInputs(
       input.status === "valid" &&
       typeof input.sourceWidgetId === "string" &&
       input.sourceWidgetId.length > 0,
+  );
+}
+
+function listGraphDependencyInputs(
+  instanceId: string,
+  snapshot: DashboardExecutionSnapshot,
+) {
+  return flattenResolvedInputs(snapshot.dependencies.resolveInputs(instanceId)).filter(
+    (input): input is ResolvedWidgetInput & { sourceWidgetId: string } =>
+      typeof input.sourceWidgetId === "string" &&
+      input.sourceWidgetId.length > 0 &&
+      (
+        input.status === "valid" ||
+        input.status === "contract-mismatch" ||
+        input.status === "transform-invalid"
+      ),
   );
 }
 
@@ -337,6 +382,36 @@ function buildExecutionCycleError(cycle: string[]) {
   return `Widget execution cycle detected: ${nextCycle.join(" -> ")}.`;
 }
 
+function normalizeExecutionReadinessReason(reason: string | undefined, fallback: string) {
+  const trimmed = reason?.trim();
+
+  return trimmed || fallback;
+}
+
+export function resolveWidgetExecutionReadiness(
+  definition: WidgetDefinition,
+  context: WidgetExecutionContext,
+): WidgetExecutionReadiness {
+  const explicitReadiness = definition.execution?.getExecutionReadiness?.(context);
+
+  if (explicitReadiness) {
+    return explicitReadiness;
+  }
+
+  if (definition.execution?.canExecute?.(context) === false) {
+    return {
+      status: "error",
+      reason:
+        definition.execution.getExecutionBlockedReason?.(context) ??
+        `Widget ${context.instanceId} is not currently executable.`,
+    };
+  }
+
+  return {
+    status: "ready",
+  };
+}
+
 export interface DashboardExecutionSnapshot {
   widgets: DashboardWidgetInstance[];
   dependencies: DashboardWidgetDependencyModel;
@@ -360,6 +435,12 @@ export interface DashboardVariableDrivenCommitPlanEntry {
   sourceOutputId: string;
   transformSignature: string;
   targetWidgetIds: string[];
+}
+
+interface DashboardVariableDrivenCommitPlanEntryCandidate
+  extends DashboardVariableDrivenCommitPlanEntry {
+  beforeValueSignature: string;
+  afterValueSignature: string;
 }
 
 export interface DashboardVariableDrivenCommitPlan {
@@ -552,22 +633,31 @@ export function planDashboardVariableDrivenCommit(input: {
   changedWidgetId: string;
   beforeSnapshot: DashboardExecutionSnapshot;
   afterSnapshot: DashboardExecutionSnapshot;
+  includeDownstreamVariableSources?: boolean;
+  shouldIncludeChangedVariableEntry?: (
+    entry: DashboardVariableDrivenCommitPlanEntryCandidate,
+  ) => boolean;
   resolveManagedConnectionConsumerAdapter?: ResolveManagedConnectionConsumerAdapter;
 }): DashboardVariableDrivenCommitPlan {
   const candidateSourceWidgetIds = new Set<string>([input.changedWidgetId]);
-  const addDownstreamVariableSources = (snapshot: DashboardExecutionSnapshot) => {
-    const downstreamIndex = buildCanonicalDownstreamBindingIndex(snapshot);
+  const includeDownstreamVariableSources =
+    input.includeDownstreamVariableSources ?? true;
 
-    collectCanonicalDownstreamReachableIds(
-      input.changedWidgetId,
-      downstreamIndex,
-    ).forEach((instanceId) => {
-      candidateSourceWidgetIds.add(instanceId);
-    });
-  };
+  if (includeDownstreamVariableSources) {
+    const addDownstreamVariableSources = (snapshot: DashboardExecutionSnapshot) => {
+      const downstreamIndex = buildCanonicalDownstreamBindingIndex(snapshot);
 
-  addDownstreamVariableSources(input.beforeSnapshot);
-  addDownstreamVariableSources(input.afterSnapshot);
+      collectCanonicalDownstreamReachableIds(
+        input.changedWidgetId,
+        downstreamIndex,
+      ).forEach((instanceId) => {
+        candidateSourceWidgetIds.add(instanceId);
+      });
+    };
+
+    addDownstreamVariableSources(input.beforeSnapshot);
+    addDownstreamVariableSources(input.afterSnapshot);
+  }
 
   const beforeEntries = [...candidateSourceWidgetIds].flatMap((sourceWidgetId) =>
     input.beforeSnapshot.dependencies.variableRegistry.bySourceWidgetId.get(sourceWidgetId) ?? [],
@@ -608,16 +698,33 @@ export function planDashboardVariableDrivenCommit(input: {
         ...new Set(representativeEntry.consumers.map((consumer) => consumer.targetWidgetId)),
       ].sort((left, right) => left.localeCompare(right));
 
-      targetWidgetIds.forEach((targetWidgetId) => {
-        affectedConsumerWidgetIds.add(targetWidgetId);
-      });
-
-      changedVariableEntries.push({
+      const candidate = {
         entryId: representativeEntry.id,
         sourceWidgetId: representativeEntry.key.sourceWidgetId,
         sourceOutputId: representativeEntry.key.sourceOutputId,
         transformSignature: representativeEntry.key.transformSignature,
         targetWidgetIds,
+        beforeValueSignature: beforeSignature,
+        afterValueSignature: afterSignature,
+      } satisfies DashboardVariableDrivenCommitPlanEntryCandidate;
+
+      if (
+        input.shouldIncludeChangedVariableEntry &&
+        !input.shouldIncludeChangedVariableEntry(candidate)
+      ) {
+        return;
+      }
+
+      targetWidgetIds.forEach((targetWidgetId) => {
+        affectedConsumerWidgetIds.add(targetWidgetId);
+      });
+
+      changedVariableEntries.push({
+        entryId: candidate.entryId,
+        sourceWidgetId: candidate.sourceWidgetId,
+        sourceOutputId: candidate.sourceOutputId,
+        transformSignature: candidate.transformSignature,
+        targetWidgetIds: candidate.targetWidgetIds,
       });
     });
 
@@ -632,9 +739,11 @@ export function planDashboardVariableDrivenCommit(input: {
       executableTargetWidgetIds.add(widgetId);
     }
 
-    listDashboardDownstreamExecutionTargets(widgetId, input.afterSnapshot).forEach((targetWidgetId) => {
-      executableTargetWidgetIds.add(targetWidgetId);
-    });
+    if (includeDownstreamVariableSources) {
+      listDashboardDownstreamExecutionTargets(widgetId, input.afterSnapshot).forEach((targetWidgetId) => {
+        executableTargetWidgetIds.add(targetWidgetId);
+      });
+    }
 
     const beforeManagedProjectionBySourceWidgetId = new Map(
       resolveManagedExecutableSourceProjections(
@@ -712,11 +821,15 @@ function listValidDependencyIds(
 ) {
   const nextDependencyIds = new Set<string>();
 
-  for (const input of listValidResolvedInputs(instanceId, snapshot)) {
+  for (const input of listGraphDependencyInputs(instanceId, snapshot)) {
     nextDependencyIds.add(input.sourceWidgetId);
   }
 
   return [...nextDependencyIds];
+}
+
+function isRefreshNotApplicableDefinition(definition: WidgetDefinition | undefined) {
+  return definition?.registryContract?.runtime?.refreshPolicy === "not-applicable";
 }
 
 function collectTransitiveExecutableDependencyIds(
@@ -724,6 +837,9 @@ function collectTransitiveExecutableDependencyIds(
   snapshot: DashboardExecutionSnapshot,
   executableIds = new Set<string>(),
   visited = new Set<string>(),
+  options: {
+    excludeRefreshNotApplicable?: boolean;
+  } = {},
 ) {
   if (visited.has(instanceId)) {
     return executableIds;
@@ -734,7 +850,13 @@ function collectTransitiveExecutableDependencyIds(
   for (const dependencyId of listValidDependencyIds(instanceId, snapshot)) {
     const sourceDefinition = snapshot.getDefinition(dependencyId);
 
-    if (sourceDefinition?.execution) {
+    if (
+      sourceDefinition?.execution &&
+      !(
+        options.excludeRefreshNotApplicable === true &&
+        isRefreshNotApplicableDefinition(sourceDefinition)
+      )
+    ) {
       executableIds.add(dependencyId);
     }
 
@@ -743,6 +865,7 @@ function collectTransitiveExecutableDependencyIds(
       snapshot,
       executableIds,
       visited,
+      options,
     );
   }
 
@@ -766,7 +889,7 @@ function collectUpstreamResolutionSignatures(
 
   visited.add(instanceId);
 
-  for (const input of listValidResolvedInputs(instanceId, snapshot)) {
+  for (const input of listGraphDependencyInputs(instanceId, snapshot)) {
     signatures.add(
       [
         instanceId,
@@ -849,22 +972,8 @@ function buildExecutableResolutionSignature(
   ].join(":");
 }
 
-function formatUnresolvedReferenceInputMessage(
-  instanceId: string,
-  resolvedInputs: ResolvedWidgetInputs | undefined,
-) {
-  const unresolved = listUnresolvedReferenceBackedPropInputs(resolvedInputs);
-
-  if (unresolved.length === 0) {
-    return null;
-  }
-
-  const paths = unresolved.map((entry) => entry.propPath.join("."));
-
-  return `Widget ${instanceId} is waiting for referenced setting value${paths.length === 1 ? "" : "s"}: ${paths.join(", ")}.`;
-}
-
 interface DashboardWidgetExecutionOrderOptions {
+  excludeRefreshNotApplicable?: boolean;
   sourceBoundaryInstanceId?: string;
 }
 
@@ -905,7 +1014,13 @@ function collectExecutionOrder(
 
     const definition = snapshot.getDefinition(instanceId);
 
-    if (definition?.execution) {
+    if (
+      definition?.execution &&
+      !(
+        options.excludeRefreshNotApplicable === true &&
+        isRefreshNotApplicableDefinition(definition)
+      )
+    ) {
       order.push(instanceId);
     }
   }
@@ -921,6 +1036,95 @@ export function listDashboardWidgetExecutionOrder(
   options: DashboardWidgetExecutionOrderOptions = {},
 ) {
   return collectExecutionOrder(targetInstanceId, snapshot, options);
+}
+
+export interface DashboardFiniteExecutionPlanNode {
+  instanceId: string;
+  reason: WidgetExecutionReason;
+  targetInstanceIds: string[];
+}
+
+export interface DashboardFiniteExecutionPlan {
+  nodes: DashboardFiniteExecutionPlanNode[];
+  targetInstanceIds: string[];
+}
+
+export function planDashboardFiniteExecution(input: {
+  reason: WidgetExecutionReason;
+  snapshot: DashboardExecutionSnapshot;
+  sourceBoundaryInstanceId?: string;
+  targetInstanceIds: string[];
+}): DashboardFiniteExecutionPlan {
+  const targetInstanceIds = [...new Set(input.targetInstanceIds)].filter((instanceId) =>
+    Boolean(input.snapshot.getInstance(instanceId)),
+  );
+  const nodeTargetsByInstanceId = new Map<string, Set<string>>();
+  const nodeReasonByInstanceId = new Map<string, WidgetExecutionReason>();
+
+  const addNode = (
+    instanceId: string,
+    targetInstanceId: string,
+    reason: WidgetExecutionReason,
+  ) => {
+    if (!input.snapshot.getInstance(instanceId)) {
+      return;
+    }
+
+    const targetIds = nodeTargetsByInstanceId.get(instanceId) ?? new Set<string>();
+    targetIds.add(targetInstanceId);
+    nodeTargetsByInstanceId.set(instanceId, targetIds);
+
+    if (!nodeReasonByInstanceId.has(instanceId) || instanceId === targetInstanceId) {
+      nodeReasonByInstanceId.set(instanceId, reason);
+    }
+  };
+
+  targetInstanceIds.forEach((targetInstanceId) => {
+    let executionOrder: string[] = [];
+
+    try {
+      executionOrder = listDashboardWidgetExecutionOrder(targetInstanceId, input.snapshot, {
+        excludeRefreshNotApplicable: input.reason === "dashboard-refresh",
+        sourceBoundaryInstanceId: input.sourceBoundaryInstanceId,
+      });
+    } catch {
+      executionOrder = [];
+    }
+
+    executionOrder.forEach((instanceId) => {
+      addNode(
+        instanceId,
+        targetInstanceId,
+        resolveNodeExecutionReason(input.reason, instanceId === targetInstanceId),
+      );
+    });
+
+    if (!executionOrder.includes(targetInstanceId)) {
+      addNode(targetInstanceId, targetInstanceId, resolveNodeExecutionReason(input.reason, true));
+    }
+  });
+
+  const stableOrder = input.snapshot.dependencies.entries.map(({ instance }) => instance.id);
+  const orderIndex = new Map(stableOrder.map((instanceId, index) => [instanceId, index] as const));
+
+  return {
+    nodes: [...nodeTargetsByInstanceId.entries()]
+      .sort(
+        ([left], [right]) =>
+          (orderIndex.get(left) ?? Number.MAX_SAFE_INTEGER) -
+          (orderIndex.get(right) ?? Number.MAX_SAFE_INTEGER),
+      )
+      .map(([instanceId, targetIds]) => ({
+        instanceId,
+        reason: nodeReasonByInstanceId.get(instanceId) ?? input.reason,
+        targetInstanceIds: [...targetIds].sort(
+          (left, right) =>
+            (orderIndex.get(left) ?? Number.MAX_SAFE_INTEGER) -
+            (orderIndex.get(right) ?? Number.MAX_SAFE_INTEGER),
+        ),
+      })),
+    targetInstanceIds,
+  };
 }
 
 function buildCanonicalDownstreamBindingIndex(
@@ -1123,16 +1327,23 @@ export function resolveDashboardUpstreamRequirement(
   };
 }
 
+export type DashboardWidgetGraphNodeStatus =
+  | WidgetExecutionResult["status"]
+  | "waiting"
+  | "upstream-error";
+
 export interface ExecutedWidgetNodeResult {
   instanceId: string;
   reason: WidgetExecutionReason;
-  status: WidgetExecutionResult["status"];
+  status: DashboardWidgetGraphNodeStatus;
   error?: string;
+  blockedByWidgetId?: string;
+  blockedByOutputId?: string;
   runtimeState?: Record<string, unknown>;
 }
 
 export interface DashboardWidgetGraphExecutionResult {
-  status: "success" | "error" | "skipped";
+  status: "success" | "waiting" | "error" | "skipped";
   error?: string;
   widgets: DashboardWidgetInstance[];
   targetInstanceId: string;
@@ -1170,9 +1381,126 @@ export interface ExecuteDashboardWidgetGraphArgs {
     instanceId: string;
     reason: WidgetExecutionReason;
     targetInstanceId: string;
-    status: WidgetExecutionResult["status"];
+    status: DashboardWidgetGraphNodeStatus;
     error?: string;
+    blockedByWidgetId?: string;
+    blockedByOutputId?: string;
   }) => void;
+}
+
+function resolveDirectBlockingOutputId(
+  snapshot: DashboardExecutionSnapshot,
+  blockedInstanceId: string,
+  blockerInstanceId: string,
+) {
+  const blockedInstance = snapshot.getInstance(blockedInstanceId);
+  const bindings = normalizeWidgetInstanceBindings(blockedInstance?.bindings);
+
+  for (const binding of Object.values(bindings ?? {})) {
+    const entries = Array.isArray(binding) ? binding : [binding];
+    const match = entries.find(
+      (entry) => entry?.sourceWidgetId === blockerInstanceId &&
+        typeof entry.sourceOutputId === "string" &&
+        entry.sourceOutputId.trim().length > 0,
+    );
+
+    if (match?.sourceOutputId) {
+      return match.sourceOutputId;
+    }
+  }
+
+  return undefined;
+}
+
+function appendUpstreamErrorNodeResults(input: {
+  args: ExecuteDashboardWidgetGraphArgs;
+  blockerInstanceId: string;
+  blockerTitle: string;
+  executionIndex: number;
+  executionOrder: string[];
+  executedInstanceIds: Set<string>;
+  nodeResults: ExecutedWidgetNodeResult[];
+  snapshot: DashboardExecutionSnapshot;
+}) {
+  const {
+    args,
+    blockerInstanceId,
+    blockerTitle,
+    executionIndex,
+    executionOrder,
+    executedInstanceIds,
+    nodeResults,
+    snapshot,
+  } = input;
+  const blockedMessage = `Blocked by ${blockerTitle}.`;
+  const blockedNodeIds = new Set<string>();
+
+  for (let index = executionIndex + 1; index < executionOrder.length; index += 1) {
+    const blockedInstanceId = executionOrder[index];
+
+    if (executedInstanceIds.has(blockedInstanceId)) {
+      continue;
+    }
+
+    const blockedReason = resolveNodeExecutionReason(
+      args.reason,
+      blockedInstanceId === args.targetInstanceId,
+    );
+    const blockedByOutputId = resolveDirectBlockingOutputId(
+      snapshot,
+      blockedInstanceId,
+      blockerInstanceId,
+    );
+
+    blockedNodeIds.add(blockedInstanceId);
+    nodeResults.push({
+      instanceId: blockedInstanceId,
+      reason: blockedReason,
+      status: "upstream-error",
+      error: blockedMessage,
+      blockedByWidgetId: blockerInstanceId,
+      blockedByOutputId,
+    });
+    args.onNodeComplete?.({
+      instanceId: blockedInstanceId,
+      reason: blockedReason,
+      targetInstanceId: args.targetInstanceId,
+      status: "upstream-error",
+      error: blockedMessage,
+      blockedByWidgetId: blockerInstanceId,
+      blockedByOutputId,
+    });
+  }
+
+  if (
+    !blockedNodeIds.has(args.targetInstanceId) &&
+    !executedInstanceIds.has(args.targetInstanceId) &&
+    args.targetInstanceId !== blockerInstanceId
+  ) {
+    const blockedByOutputId = resolveDirectBlockingOutputId(
+      snapshot,
+      args.targetInstanceId,
+      blockerInstanceId,
+    );
+
+    nodeResults.push({
+      instanceId: args.targetInstanceId,
+      reason: resolveNodeExecutionReason(args.reason, true),
+      status: "upstream-error",
+      error: blockedMessage,
+      blockedByWidgetId: blockerInstanceId,
+      blockedByOutputId,
+    });
+    args.onNodeComplete?.({
+      instanceId: args.targetInstanceId,
+      reason: resolveNodeExecutionReason(args.reason, true),
+      targetInstanceId: args.targetInstanceId,
+      status: "upstream-error",
+      error: blockedMessage,
+      blockedByWidgetId: blockerInstanceId,
+      blockedByOutputId,
+    });
+  }
 }
 
 export async function executeDashboardWidgetGraph(
@@ -1207,6 +1535,7 @@ export async function executeDashboardWidgetGraph(
 
   try {
     executionOrder = listDashboardWidgetExecutionOrder(args.targetInstanceId, snapshot, {
+      excludeRefreshNotApplicable: args.reason === "dashboard-refresh",
       sourceBoundaryInstanceId: args.sourceBoundaryInstanceId,
     });
   } catch (error) {
@@ -1223,6 +1552,53 @@ export async function executeDashboardWidgetGraph(
     };
   }
 
+  if (CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED && import.meta.env.DEV) {
+    const connectionOrderRows = executionOrder.flatMap((instanceId, index) => {
+      const orderedInstance = snapshot.getInstance(instanceId);
+
+      if (orderedInstance?.widgetId !== "connection-query") {
+        return [];
+      }
+
+      const resolvedInputs = snapshot.dependencies.resolveInputs(instanceId);
+      const effectiveState = resolveReferenceBackedWidgetState({
+        instanceTitle: orderedInstance.title,
+        props: (orderedInstance.props ?? {}) as Record<string, unknown>,
+        resolvedInputs,
+      });
+      const row = {
+        instanceId,
+        widgetId: orderedInstance.widgetId,
+        widgetTitle: orderedInstance.title,
+        targetInstanceId: args.targetInstanceId,
+        targetWidgetId: targetInstance.widgetId,
+        targetWidgetTitle: targetInstance.title,
+        reason: args.reason,
+        refreshCycleId: args.refreshCycleId,
+        executionOrderIndex: index,
+        willSkipAlreadyExecuted: executedInstanceIds.has(instanceId),
+        ...summarizeExecutionPropsForDebug(effectiveState.props),
+      };
+
+      return [row];
+    });
+
+    if (connectionOrderRows.length > 0) {
+      console.log("[graph-execution-order]", {
+        targetInstanceId: args.targetInstanceId,
+        targetWidgetId: targetInstance.widgetId,
+        targetWidgetTitle: targetInstance.title,
+        reason: args.reason,
+        refreshCycleId: args.refreshCycleId,
+        executionOrder,
+        connectionQueryInstanceIds: connectionOrderRows.map((row) => row.instanceId),
+      });
+      connectionOrderRows.forEach((row) => {
+        console.log("[graph-execution-order-row]", row);
+      });
+    }
+  }
+
   if (executionOrder.length === 0) {
     return {
       status: "skipped",
@@ -1234,7 +1610,9 @@ export async function executeDashboardWidgetGraph(
     };
   }
 
-  for (const instanceId of executionOrder) {
+  for (let executionIndex = 0; executionIndex < executionOrder.length; executionIndex += 1) {
+    const instanceId = executionOrder[executionIndex];
+
     if (args.signal?.aborted) {
       return {
         status: "skipped",
@@ -1247,6 +1625,20 @@ export async function executeDashboardWidgetGraph(
     }
 
     if (executedInstanceIds.has(instanceId)) {
+      const skippedInstance = snapshot.getInstance(instanceId);
+
+      if (shouldLogConnectionQueryExecutionDebug(skippedInstance?.widgetId)) {
+        console.log("[graph-node-skip]", {
+          instanceId,
+          widgetId: skippedInstance?.widgetId,
+          widgetTitle: skippedInstance?.title,
+          reason: resolveNodeExecutionReason(args.reason, instanceId === args.targetInstanceId),
+          targetInstanceId: args.targetInstanceId,
+          refreshCycleId: args.refreshCycleId,
+          skipReason: "already-executed-in-shared-cycle",
+        });
+      }
+
       nodeResults.push({
         instanceId,
         reason: resolveNodeExecutionReason(args.reason, instanceId === args.targetInstanceId),
@@ -1283,37 +1675,6 @@ export async function executeDashboardWidgetGraph(
       instanceId === args.targetInstanceId,
     );
     const resolvedInputs = snapshot.dependencies.resolveInputs(instanceId);
-    const unresolvedReferenceInputMessage = formatUnresolvedReferenceInputMessage(
-      instanceId,
-      resolvedInputs,
-    );
-
-    if (unresolvedReferenceInputMessage) {
-      nodeResults.push({
-        instanceId,
-        reason: nodeReason,
-        status: "skipped",
-        error: unresolvedReferenceInputMessage,
-      });
-      args.onNodeComplete?.({
-        instanceId,
-        reason: nodeReason,
-        targetInstanceId: args.targetInstanceId,
-        status: "skipped",
-        error: unresolvedReferenceInputMessage,
-      });
-
-      return {
-        status: "skipped",
-        error: unresolvedReferenceInputMessage,
-        widgets: workingWidgets,
-        targetInstanceId: args.targetInstanceId,
-        targetRuntimeState,
-        nodeResults,
-        executedInstanceIds,
-      };
-    }
-
     const effectiveState = resolveReferenceBackedWidgetState({
       instanceTitle: instance.title,
       props: (instance.props ?? {}) as Record<string, unknown>,
@@ -1338,6 +1699,18 @@ export async function executeDashboardWidgetGraph(
       signal: args.signal,
     } satisfies WidgetExecutionContext;
 
+    if (shouldLogConnectionQueryExecutionDebug(instance.widgetId)) {
+      console.log("[graph-node-start]", {
+        instanceId,
+        widgetId: instance.widgetId,
+        widgetTitle: instance.title,
+        reason: nodeReason,
+        targetInstanceId: args.targetInstanceId,
+        refreshCycleId: args.refreshCycleId,
+        ...summarizeExecutionPropsForDebug(effectiveState.props),
+      });
+    }
+
     if (nodeReason === "dashboard-refresh" && instanceId === args.targetInstanceId) {
       const refreshPolicy =
         definition.execution.getRefreshPolicy?.(executionContext) ?? "manual-only";
@@ -1345,9 +1718,21 @@ export async function executeDashboardWidgetGraph(
       if (refreshPolicy !== "allow-refresh") {
         const error = `Widget ${instanceId} is not eligible for dashboard refresh execution.`;
 
+        args.onNodeStart?.({
+          instanceId,
+          reason: nodeReason,
+          targetInstanceId: args.targetInstanceId,
+        });
         nodeResults.push({
           instanceId,
           reason: nodeReason,
+          status: "error",
+          error,
+        });
+        args.onNodeComplete?.({
+          instanceId,
+          reason: nodeReason,
+          targetInstanceId: args.targetInstanceId,
           status: "error",
           error,
         });
@@ -1364,14 +1749,124 @@ export async function executeDashboardWidgetGraph(
       }
     }
 
-    if (definition.execution.canExecute?.(executionContext) === false) {
-      const error = `Widget ${instanceId} is not currently executable.`;
+    const readiness = resolveWidgetExecutionReadiness(definition, executionContext);
 
+    if (readiness.status === "waiting") {
+      const waitingReason = normalizeExecutionReadinessReason(
+        readiness.reason,
+        `Widget ${instanceId} is waiting for required upstream data.`,
+      );
+      const waitingSourceTitle = instance.title?.trim() || instanceId;
+      const waitingNodeIds = new Set<string>();
+
+      for (
+        let waitingIndex = executionIndex;
+        waitingIndex < executionOrder.length;
+        waitingIndex += 1
+      ) {
+        const waitingInstanceId = executionOrder[waitingIndex];
+
+        if (executedInstanceIds.has(waitingInstanceId)) {
+          continue;
+        }
+
+        const waitingInstance = snapshot.getInstance(waitingInstanceId);
+        const waitingNodeReason = resolveNodeExecutionReason(
+          args.reason,
+          waitingInstanceId === args.targetInstanceId,
+        );
+        const waitingMessage =
+          waitingInstanceId === instanceId
+            ? waitingReason
+            : `Waiting for ${waitingSourceTitle}.`;
+
+        waitingNodeIds.add(waitingInstanceId);
+        nodeResults.push({
+          instanceId: waitingInstanceId,
+          reason: waitingNodeReason,
+          status: "waiting",
+          error: waitingMessage,
+        });
+        args.onNodeComplete?.({
+          instanceId: waitingInstanceId,
+          reason: waitingNodeReason,
+          targetInstanceId: args.targetInstanceId,
+          status: "waiting",
+          error: waitingMessage,
+        });
+
+        if (waitingInstanceId === args.targetInstanceId) {
+          targetRuntimeState = waitingInstance?.runtimeState;
+        }
+      }
+
+      if (
+        !waitingNodeIds.has(args.targetInstanceId) &&
+        !executedInstanceIds.has(args.targetInstanceId)
+      ) {
+        const waitingTarget = snapshot.getInstance(args.targetInstanceId);
+        const waitingMessage = `Waiting for ${waitingSourceTitle}.`;
+
+        nodeResults.push({
+          instanceId: args.targetInstanceId,
+          reason: resolveNodeExecutionReason(args.reason, true),
+          status: "waiting",
+          error: waitingMessage,
+        });
+        args.onNodeComplete?.({
+          instanceId: args.targetInstanceId,
+          reason: resolveNodeExecutionReason(args.reason, true),
+          targetInstanceId: args.targetInstanceId,
+          status: "waiting",
+          error: waitingMessage,
+        });
+        targetRuntimeState = waitingTarget?.runtimeState;
+      }
+
+      return {
+        status: "waiting",
+        error: waitingReason,
+        widgets: workingWidgets,
+        targetInstanceId: args.targetInstanceId,
+        targetRuntimeState,
+        nodeResults,
+        executedInstanceIds,
+      };
+    }
+
+    if (readiness.status === "error") {
+      const error = normalizeExecutionReadinessReason(
+        readiness.reason,
+        `Widget ${instanceId} is not currently executable.`,
+      );
+
+      args.onNodeStart?.({
+        instanceId,
+        reason: nodeReason,
+        targetInstanceId: args.targetInstanceId,
+      });
       nodeResults.push({
         instanceId,
         reason: nodeReason,
         status: "error",
         error,
+      });
+      args.onNodeComplete?.({
+        instanceId,
+        reason: nodeReason,
+        targetInstanceId: args.targetInstanceId,
+        status: "error",
+        error,
+      });
+      appendUpstreamErrorNodeResults({
+        args,
+        blockerInstanceId: instanceId,
+        blockerTitle: instance.title?.trim() || instanceId,
+        executionIndex,
+        executionOrder,
+        executedInstanceIds,
+        nodeResults,
+        snapshot,
       });
 
       return {
@@ -1479,6 +1974,17 @@ export async function executeDashboardWidgetGraph(
     });
 
     if (result.status === "error") {
+      appendUpstreamErrorNodeResults({
+        args,
+        blockerInstanceId: instanceId,
+        blockerTitle: instance.title?.trim() || instanceId,
+        executionIndex,
+        executionOrder,
+        executedInstanceIds,
+        nodeResults,
+        snapshot,
+      });
+
       return {
         status: "error",
         error: result.error,
@@ -1515,14 +2021,18 @@ export function listDashboardRefreshableExecutionTargets(args: {
   });
   const candidates = snapshot.dependencies.entries.flatMap(({ instance }) => {
     const definition = snapshot.getDefinition(instance.id);
-    const upstreamExecutableIds = collectTransitiveExecutableDependencyIds(instance.id, snapshot);
+    const upstreamExecutableIds = collectTransitiveExecutableDependencyIds(
+      instance.id,
+      snapshot,
+      new Set<string>(),
+      new Set<string>(),
+      {
+        excludeRefreshNotApplicable: true,
+      },
+    );
 
-    if (definition?.execution) {
+    if (definition?.execution && !isRefreshNotApplicableDefinition(definition)) {
       const resolvedInputs = snapshot.dependencies.resolveInputs(instance.id);
-
-      if (listUnresolvedReferenceBackedPropInputs(resolvedInputs).length > 0) {
-        return [];
-      }
 
       const effectiveState = resolveReferenceBackedWidgetState({
         instanceTitle: instance.title,
@@ -1545,10 +2055,7 @@ export function listDashboardRefreshableExecutionTargets(args: {
       const refreshPolicy =
         definition.execution.getRefreshPolicy?.(context) ?? "manual-only";
 
-      if (
-        refreshPolicy === "allow-refresh" &&
-        definition.execution.canExecute?.(context) !== false
-      ) {
+      if (refreshPolicy === "allow-refresh") {
         return [instance.id];
       }
     }
@@ -1559,7 +2066,15 @@ export function listDashboardRefreshableExecutionTargets(args: {
   const transitiveUpstreamIds = new Set<string>();
 
   for (const candidateId of candidates) {
-    const upstreamIds = collectTransitiveExecutableDependencyIds(candidateId, snapshot);
+    const upstreamIds = collectTransitiveExecutableDependencyIds(
+      candidateId,
+      snapshot,
+      new Set<string>(),
+      new Set<string>(),
+      {
+        excludeRefreshNotApplicable: true,
+      },
+    );
 
     for (const upstreamId of upstreamIds) {
       if (candidateSet.has(upstreamId)) {
@@ -1568,5 +2083,70 @@ export function listDashboardRefreshableExecutionTargets(args: {
     }
   }
 
-  return candidates.filter((candidateId) => !transitiveUpstreamIds.has(candidateId));
+  const refreshableTargetIds = candidates.filter((candidateId) =>
+    !transitiveUpstreamIds.has(candidateId)
+  );
+
+  if (CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED && import.meta.env.DEV) {
+    const connectionQueryRows = snapshot.dependencies.entries.flatMap(({ instance }) => {
+      if (instance.widgetId !== "connection-query") {
+        return [];
+      }
+
+      const definition = snapshot.getDefinition(instance.id);
+      const resolvedInputs = snapshot.dependencies.resolveInputs(instance.id);
+      const effectiveState = resolveReferenceBackedWidgetState({
+        instanceTitle: instance.title,
+        props: (instance.props ?? {}) as Record<string, unknown>,
+        resolvedInputs,
+      });
+      const context = {
+        executionSurface: args.executionSurface ?? "private-dashboard",
+        publicWorkspaceToken: args.publicWorkspaceToken,
+        widgetId: instance.widgetId,
+        instanceId: instance.id,
+        reason: "dashboard-refresh" as const,
+        props: effectiveState.props,
+        runtimeState: instance.runtimeState,
+        publicExecution: instance.publicExecution,
+        resolvedInputs,
+        dashboardState: args.dashboardState,
+        refreshCycleId: args.refreshCycleId,
+      } satisfies WidgetExecutionContext;
+      const refreshPolicy = definition?.execution
+        ? definition.execution.getRefreshPolicy?.(context) ?? "manual-only"
+        : "missing-execution";
+      const canExecute = definition?.execution
+        ? definition.execution.canExecute?.(context) !== false
+        : false;
+
+      return [{
+        instanceId: instance.id,
+        widgetTitle: instance.title,
+        refreshPolicy,
+        canExecute,
+        includedAsCandidate: candidates.includes(instance.id),
+        includedAsRefreshTarget: refreshableTargetIds.includes(instance.id),
+        ...summarizeExecutionPropsForDebug(effectiveState.props),
+      }];
+    });
+
+    if (connectionQueryRows.length > 0) {
+      console.log("[refresh-targets]", {
+        refreshCycleId: args.refreshCycleId,
+        executionSurface: args.executionSurface ?? "private-dashboard",
+        refreshableTargetIds,
+        connectionQueryInstanceIds: connectionQueryRows.map((row) => row.instanceId),
+      });
+      connectionQueryRows.forEach((row) => {
+        console.log("[refresh-target-row]", {
+          refreshCycleId: args.refreshCycleId,
+          executionSurface: args.executionSurface ?? "private-dashboard",
+          ...row,
+        });
+      });
+    }
+  }
+
+  return refreshableTargetIds;
 }

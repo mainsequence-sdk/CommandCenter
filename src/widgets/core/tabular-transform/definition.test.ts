@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   TABULAR_LIVE_UPDATES_INPUT_ID,
+  TABULAR_SEED_INPUT_ID,
   TABULAR_UPDATES_OUTPUT_ID,
 } from "@/widgets/shared/incremental-tabular-consumer";
 import {
@@ -16,7 +17,6 @@ import {
 import { tabularTransformWidget } from "./definition";
 import {
   TABULAR_TRANSFORM_DATASET_OUTPUT_ID,
-  TABULAR_TRANSFORM_SOURCE_INPUT_ID,
   type TabularTransformWidgetProps,
 } from "./tabularTransformModel";
 
@@ -64,9 +64,9 @@ describe("tabularTransformWidget IO", () => {
       instanceId: "tabular-transform-1",
       props,
       resolvedInputs: {
-        [TABULAR_TRANSFORM_SOURCE_INPUT_ID]: {
-          inputId: TABULAR_TRANSFORM_SOURCE_INPUT_ID,
-          label: "Source data",
+        [TABULAR_LIVE_UPDATES_INPUT_ID]: {
+          inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+          label: "Live updates",
           status: "valid",
           sourceWidgetId: "stream-1",
           sourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
@@ -104,5 +104,61 @@ describe("tabularTransformWidget IO", () => {
     expect(
       tabularTransformWidget.io?.outputs?.some((output) => output.id === TABULAR_UPDATES_OUTPUT_ID),
     ).toBe(true);
+  });
+
+  it("is executable when a live delta publication is present without a retained base frame", () => {
+    const deltaFrame = frame([{ symbol: "ETHUSDT", close: 2136.36 }]);
+    const readiness = tabularTransformWidget.execution?.getExecutionReadiness?.({
+      executionSurface: "private-dashboard",
+      widgetId: "tabular-transform",
+      instanceId: "tabular-transform-1",
+      reason: "dashboard-refresh",
+      props: {
+        transformMode: "none",
+        computedColumns: [
+          {
+            key: "last",
+            type: "number",
+            formulaExpression: "[close]",
+          },
+        ],
+        projectFields: ["symbol", "last"],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: {
+        [TABULAR_LIVE_UPDATES_INPUT_ID]: {
+          inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+          label: "Live updates",
+          status: "valid",
+          sourceWidgetId: "stream-1",
+          sourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
+          contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          upstreamDelta: deltaFrame,
+          upstreamUpdate: {
+            contractVersion: WIDGET_RUNTIME_UPDATE_CONTRACT_VERSION,
+            mode: "delta",
+            sourceWidgetId: "stream-1",
+            sourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
+            outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+            retainedOutputLocation: "carrier",
+          },
+        },
+      },
+    });
+
+    expect(readiness).toEqual({ status: "ready" });
+  });
+
+  it("exposes role-specific seed and live update inputs instead of legacy single-source authoring", () => {
+    const inputs = tabularTransformWidget.io?.inputs ?? [];
+
+    expect(inputs.find((input) => input.id === TABULAR_SEED_INPUT_ID)).toMatchObject({
+      acceptedOutputIds: [TABULAR_TRANSFORM_DATASET_OUTPUT_ID],
+      required: false,
+    });
+    expect(inputs.find((input) => input.id === TABULAR_LIVE_UPDATES_INPUT_ID)).toMatchObject({
+      acceptedOutputIds: [TABULAR_UPDATES_OUTPUT_ID],
+      required: false,
+    });
+    expect(inputs.some((input) => input.id === "sourceData")).toBe(false);
   });
 });

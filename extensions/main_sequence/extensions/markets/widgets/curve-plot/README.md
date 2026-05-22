@@ -7,6 +7,7 @@ Connection Query or Tabular Transform output.
 ## Entry Points
 
 - `definition.ts`: registry definition for the stable `main-sequence-curve-plot` widget id.
+  It also owns the settings/catalog demo frame exposed through `mockResolvedInputs`.
 - `CurvePlotWidget.tsx`: runtime renderer built on `createYieldCurveChart(...)`.
 - `curvePlotModel.ts`: widget prop normalization, maturity parsing, and curve-series construction.
 - `controller.ts`: schema controller context for bound curve dataset field options.
@@ -36,6 +37,9 @@ Connection Query or Tabular Transform output.
 - Runtime fetch ownership should stay with upstream execution owners such as Connection Query or
   Tabular Transform. This widget may derive local chart series from the published rows, but it must
   not introduce its own canonical backend data fetch path on workspace surfaces.
+- Keep the bundled demo data in `definition.ts` as a valid `core.tabular_frame@v1` source input.
+  The renderer passes preview `resolvedInputs` through the shared data-node source hook so the
+  demo path stays aligned with the live binding path.
 - `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
   `registryContract`.
 - Keep that registry contract aligned with the real consumer behavior here: accepted maturity/value

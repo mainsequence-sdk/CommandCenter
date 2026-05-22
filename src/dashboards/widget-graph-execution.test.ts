@@ -12,6 +12,7 @@ import {
   listDashboardDownstreamExecutionTargets,
   listDashboardWidgetExecutionOrder,
   listDashboardRefreshableExecutionTargets,
+  planDashboardFiniteExecution,
   planDashboardVariableDrivenCommit,
   resolveDashboardUpstreamRequirement,
 } from "@/dashboards/widget-graph-execution";
@@ -19,7 +20,7 @@ import { TABULAR_SEED_INPUT_ID } from "@/widgets/shared/incremental-tabular-cons
 import type { AnyManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer";
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 import { CORE_VALUE_JSON_CONTRACT, CORE_VALUE_STRING_CONTRACT } from "@/widgets/shared/value-contracts";
-import { defineWidget, type WidgetDefinition } from "@/widgets/types";
+import { defineWidget, type WidgetBindingTransformStep, type WidgetDefinition } from "@/widgets/types";
 
 const TEST_CONNECTION_TYPE_ID = "test.mock-api";
 const TEST_CONNECTION_ID = 9001;
@@ -100,6 +101,77 @@ const sourceWidget = defineWidget({
       },
     }),
     getExecutionKey: (context) => `test-source:${context.instanceId}`,
+  },
+});
+
+const waitingSourceWidget = defineWidget({
+  id: "test-waiting-source",
+  widgetVersion: "1.0.0",
+  title: "Waiting Source",
+  description: "Executable source that is waiting for upstream data.",
+  category: "Test",
+  kind: "custom",
+  source: "test",
+  component: () => null,
+  workspaceRuntimeMode: "execution-owner",
+  io: {
+    outputs: [
+      {
+        id: "dataset",
+        label: "Dataset",
+        contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        resolveValue: ({ runtimeState }) =>
+          runtimeState ?? {
+            status: "idle",
+            columns: [],
+            rows: [],
+          },
+      },
+    ],
+  },
+  execution: {
+    getExecutionReadiness: () => ({
+      status: "waiting",
+      reason: "Waiting for seed dataset.",
+    }),
+    execute: async () => {
+      throw new Error("Waiting source should not execute while it is waiting.");
+    },
+    getExecutionKey: (context) => `test-waiting-source:${context.instanceId}`,
+  },
+});
+
+const errorSourceWidget = defineWidget({
+  id: "test-error-source",
+  widgetVersion: "1.0.0",
+  title: "Error Source",
+  description: "Executable source that fails for upstream-error propagation tests.",
+  category: "Test",
+  kind: "custom",
+  source: "test",
+  component: () => null,
+  workspaceRuntimeMode: "execution-owner",
+  io: {
+    outputs: [
+      {
+        id: "dataset",
+        label: "Dataset",
+        contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        resolveValue: ({ runtimeState }) =>
+          runtimeState ?? {
+            status: "idle",
+            columns: [],
+            rows: [],
+          },
+      },
+    ],
+  },
+  execution: {
+    execute: async () => ({
+      status: "error" as const,
+      error: "Backend failed.",
+    }),
+    getExecutionKey: (context) => `test-error-source:${context.instanceId}`,
   },
 });
 
@@ -243,6 +315,73 @@ const connectionQueryLikeWidget = defineWidget({
   },
 });
 
+const streamQueryLikeWidget = defineWidget({
+  id: "connection-stream-query",
+  widgetVersion: "1.0.0",
+  title: "Connection Stream Query",
+  description: "Connection-stream-query compatible source for graph tests.",
+  category: "Test",
+  kind: "custom",
+  source: "test",
+  component: () => null,
+  workspaceRuntimeMode: "execution-owner",
+  registryContract: {
+    runtime: {
+      refreshPolicy: "not-applicable",
+      executionTriggers: [],
+      executionSummary: "Socket lifecycle owns publication; refresh must not execute it.",
+    },
+    usageGuidance: {
+      buildPurpose: "Publishes a retained stream frame.",
+      whenToUse: ["Use as a live source."],
+      whenNotToUse: ["Do not use for finite refresh requests."],
+      authoringSteps: ["Configure the stream."],
+    },
+  },
+  io: {
+    outputs: [
+      {
+        id: "updates",
+        label: "Updates",
+        contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        resolveValue: ({ runtimeState }) =>
+          runtimeState ?? {
+            status: "idle",
+            streamStatus: "idle",
+            columns: [],
+            rows: [],
+          },
+      },
+    ],
+  },
+  execution: {
+    getRefreshPolicy: () => "allow-refresh",
+    execute: async () => {
+      throw new Error("Refresh must not execute WebSocket stream sources.");
+    },
+    getExecutionKey: (context) => `connection-stream-query:${context.instanceId}`,
+  },
+});
+
+function resolveTableLikeRows(resolvedInputs: Record<string, unknown> | undefined) {
+  const input = resolvedInputs?.[TABULAR_SEED_INPUT_ID];
+  const resolved = Array.isArray(input) ? input[0] : input;
+  const value =
+    resolved &&
+    typeof resolved === "object" &&
+    !Array.isArray(resolved) &&
+    "value" in resolved
+      ? (resolved as { value?: unknown }).value
+      : undefined;
+
+  return value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Array.isArray((value as { rows?: unknown }).rows)
+      ? (value as { rows: unknown[] }).rows
+      : [];
+}
+
 const tableLikeWidget = defineWidget({
   id: "table",
   widgetVersion: "1.0.0",
@@ -266,19 +405,60 @@ const tableLikeWidget = defineWidget({
         id: "activeRow",
         label: "Active row",
         contract: CORE_VALUE_JSON_CONTRACT,
+        resolveValue: ({ resolvedInputs }) =>
+          resolveTableLikeRows(resolvedInputs)[0] ?? null,
+      },
+      {
+        id: "selectedRows",
+        label: "Selected rows",
+        contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
         resolveValue: ({ resolvedInputs }) => {
-          const input = resolvedInputs?.[TABULAR_SEED_INPUT_ID];
-          const resolved = Array.isArray(input) ? input[0] : input;
-          const value = resolved?.value;
-          const rows =
-            value &&
-            typeof value === "object" &&
-            !Array.isArray(value) &&
-            Array.isArray((value as { rows?: unknown }).rows)
-              ? (value as { rows: unknown[] }).rows
-              : [];
+          const rows = resolveTableLikeRows(resolvedInputs);
+          const selectedRows = rows[0] ? [rows[0]] : [];
+          const selectedRow =
+            selectedRows[0] &&
+            typeof selectedRows[0] === "object" &&
+            !Array.isArray(selectedRows[0])
+              ? selectedRows[0] as Record<string, unknown>
+              : {};
 
-          return rows[0] ?? null;
+          return {
+            status: "ready",
+            columns: Object.keys(selectedRow),
+            rows: selectedRows,
+          };
+        },
+      },
+      {
+        id: "activeCell",
+        label: "Active cell",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        resolveValue: ({ resolvedInputs }) => {
+          const row = resolveTableLikeRows(resolvedInputs)[0];
+          const record =
+            row && typeof row === "object" && !Array.isArray(row)
+              ? row as Record<string, unknown>
+              : {};
+
+          return {
+            columnKey: "symbol",
+            row,
+            value: record.symbol,
+          };
+        },
+      },
+      {
+        id: "selectedCellValues",
+        label: "Selected cell values",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        resolveValue: ({ resolvedInputs }) => {
+          const row = resolveTableLikeRows(resolvedInputs)[0];
+          const record =
+            row && typeof row === "object" && !Array.isArray(row)
+              ? row as Record<string, unknown>
+              : {};
+
+          return record.symbol === undefined ? [] : [record.symbol];
         },
       },
     ],
@@ -301,6 +481,36 @@ const graphLikeWidget = defineWidget({
         id: TABULAR_SEED_INPUT_ID,
         label: "Seed data",
         accepts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
+      },
+    ],
+  },
+});
+
+const assetScreenerLikeWidget = defineWidget({
+  id: "ms-markets-asset-screener",
+  widgetVersion: "1.0.0",
+  title: "Asset Screener",
+  description: "Passive asset-screener-like consumer for active-row variable tests.",
+  category: "Test",
+  kind: "custom",
+  source: "test",
+  component: () => null,
+  workspaceRuntimeMode: "consumer",
+  io: {
+    inputs: [
+      {
+        id: TABULAR_SEED_INPUT_ID,
+        label: "Seed data",
+        accepts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
+      },
+    ],
+    outputs: [
+      {
+        id: "activeRow",
+        label: "Active row",
+        contract: CORE_VALUE_JSON_CONTRACT,
+        resolveValue: ({ resolvedInputs }) =>
+          resolveTableLikeRows(resolvedInputs)[0] ?? null,
       },
     ],
   },
@@ -338,13 +548,17 @@ const managedDatasetExecutionTargetWidget = defineWidget({
 
 const definitions = new Map<string, WidgetDefinition>([
   [sourceWidget.id, sourceWidget],
+  [waitingSourceWidget.id, waitingSourceWidget],
+  [errorSourceWidget.id, errorSourceWidget],
   [consumerWidget.id, consumerWidget],
   [variableSourceWidget.id, variableSourceWidget],
   [variableConsumerWidget.id, variableConsumerWidget],
   [variableExecutionTargetWidget.id, variableExecutionTargetWidget],
   [connectionQueryLikeWidget.id, connectionQueryLikeWidget],
+  [streamQueryLikeWidget.id, streamQueryLikeWidget],
   [tableLikeWidget.id, tableLikeWidget],
   [graphLikeWidget.id, graphLikeWidget],
+  [assetScreenerLikeWidget.id, assetScreenerLikeWidget],
   [managedDatasetExecutionTargetWidget.id, managedDatasetExecutionTargetWidget],
 ]);
 
@@ -729,6 +943,160 @@ function managedGraphViaTableVariableWidgetsWithRow(
   return widgets;
 }
 
+function tableInteractionVariableWidgets(row: Record<string, unknown>): DashboardWidgetInstance[] {
+  const makeConsumer = (
+    id: string,
+    sourceOutputId: string,
+    transformSteps: WidgetBindingTransformStep[],
+  ): DashboardWidgetInstance => ({
+    id,
+    widgetId: "test-variable-consumer",
+    title: id,
+    layout: { cols: 6, rows: 4 },
+    props: {
+      symbol: "",
+    },
+    bindings: {
+      [buildWidgetReferencePropInputId(["symbol"])]: {
+        sourceWidgetId: "table-1",
+        sourceOutputId,
+        transformSteps,
+      },
+    },
+  });
+
+  return [
+    {
+      id: "upstream-source-1",
+      widgetId: "connection-query",
+      title: "Upstream Source",
+      layout: { cols: 6, rows: 4 },
+      props: {
+        connectionRef: {
+          id: TEST_CONNECTION_ID,
+          typeId: TEST_CONNECTION_TYPE_ID,
+        },
+        queryModelId: TEST_QUERY_KIND,
+        query: {
+          kind: TEST_QUERY_KIND,
+          responseBody: [row],
+        },
+        timeRangeMode: "none",
+      },
+      runtimeState: {
+        status: "ready",
+        columns: Object.keys(row),
+        rows: [row],
+      },
+    },
+    {
+      id: "table-1",
+      widgetId: "table",
+      title: "Table",
+      layout: { cols: 6, rows: 4 },
+      bindings: {
+        [TABULAR_SEED_INPUT_ID]: {
+          sourceWidgetId: "upstream-source-1",
+          sourceOutputId: "dataset",
+        },
+      },
+    },
+    makeConsumer("active-row-consumer", "activeRow", [
+      {
+        id: "extract-path",
+        path: ["symbol"],
+      },
+    ]),
+    makeConsumer("selected-rows-consumer", "selectedRows", [
+      {
+        id: "extract-path",
+        path: ["rows"],
+      },
+      {
+        id: "select-array-item",
+        mode: "first",
+      },
+      {
+        id: "extract-path",
+        path: ["symbol"],
+      },
+    ]),
+    makeConsumer("active-cell-consumer", "activeCell", [
+      {
+        id: "extract-path",
+        path: ["value"],
+      },
+    ]),
+    makeConsumer("selected-cell-values-consumer", "selectedCellValues", [
+      {
+        id: "select-array-item",
+        mode: "first",
+      },
+    ]),
+  ];
+}
+
+function assetScreenerVariableWidgets(row: Record<string, unknown>): DashboardWidgetInstance[] {
+  return [
+    {
+      id: "upstream-source-1",
+      widgetId: "connection-query",
+      title: "Upstream Source",
+      layout: { cols: 6, rows: 4 },
+      props: {
+        connectionRef: {
+          id: TEST_CONNECTION_ID,
+          typeId: TEST_CONNECTION_TYPE_ID,
+        },
+        queryModelId: TEST_QUERY_KIND,
+        query: {
+          kind: TEST_QUERY_KIND,
+          responseBody: [row],
+        },
+        timeRangeMode: "none",
+      },
+      runtimeState: {
+        status: "ready",
+        columns: Object.keys(row),
+        rows: [row],
+      },
+    },
+    {
+      id: "asset-screener-1",
+      widgetId: "ms-markets-asset-screener",
+      title: "Asset Screener",
+      layout: { cols: 6, rows: 4 },
+      bindings: {
+        [TABULAR_SEED_INPUT_ID]: {
+          sourceWidgetId: "upstream-source-1",
+          sourceOutputId: "dataset",
+        },
+      },
+    },
+    {
+      id: "asset-row-consumer",
+      widgetId: "test-variable-consumer",
+      title: "Asset Row Consumer",
+      layout: { cols: 6, rows: 4 },
+      props: {
+        symbol: "",
+      },
+      bindings: {
+        [buildWidgetReferencePropInputId(["symbol"])]: {
+          sourceWidgetId: "asset-screener-1",
+          sourceOutputId: "activeRow",
+          transformSteps: [
+            {
+              id: "extract-path",
+              path: ["symbol"],
+            },
+          ],
+        },
+      },
+    },
+  ];
+}
+
 describe("dashboard upstream resolution keys", () => {
   it("changes when an executable upstream source changes props", () => {
     const firstKey = requestKeyFor(widgets());
@@ -978,6 +1346,300 @@ describe("dashboard upstream resolution keys", () => {
       });
   });
 
+  it("does not refresh or restart WebSocket stream sources", async () => {
+    const mockWidgets: DashboardWidgetInstance[] = [
+      {
+        id: "stream-source-1",
+        widgetId: "connection-stream-query",
+        title: "Live stream source",
+        layout: { cols: 6, rows: 4 },
+        runtimeState: {
+          status: "ready",
+          streamStatus: "live",
+          columns: ["value"],
+          rows: [{ value: 1 }],
+        },
+      },
+      {
+        id: "table-1",
+        widgetId: "table",
+        title: "Table",
+        layout: { cols: 6, rows: 4 },
+        bindings: {
+          [TABULAR_SEED_INPUT_ID]: {
+            sourceWidgetId: "stream-source-1",
+            sourceOutputId: "updates",
+          },
+        },
+      },
+    ];
+    const snapshot = buildDashboardExecutionSnapshot({
+      widgets: mockWidgets,
+      resolveWidgetDefinition,
+    });
+
+    expect(listDashboardWidgetExecutionOrder("table-1", snapshot)).toEqual([
+      "stream-source-1",
+    ]);
+    expect(
+      listDashboardWidgetExecutionOrder("table-1", snapshot, {
+        excludeRefreshNotApplicable: true,
+      }),
+    ).toEqual([]);
+
+    const refreshTargets = listDashboardRefreshableExecutionTargets({
+      widgets: mockWidgets,
+      resolveWidgetDefinition,
+      refreshCycleId: "test-refresh",
+    });
+
+    expect(refreshTargets).toEqual([]);
+
+    const result = await executeDashboardWidgetGraph({
+      scopeId: "workspace-test",
+      executionSurface: "private-dashboard",
+      widgets: mockWidgets,
+      resolveWidgetDefinition,
+      targetInstanceId: "table-1",
+      reason: "dashboard-refresh",
+      refreshCycleId: "test-refresh",
+    });
+
+    expect(result.status).toBe("skipped");
+    expect(result.nodeResults).toEqual([]);
+  });
+
+  it("builds a finite execution plan for executable upstream nodes and passive targets", () => {
+    const snapshot = buildDashboardExecutionSnapshot({
+      widgets: managedGraphViaTableVariableWidgets("AAPL"),
+      resolveWidgetDefinition,
+    });
+
+    const plan = planDashboardFiniteExecution({
+      reason: "manual-recalculate",
+      snapshot,
+      targetInstanceIds: ["graph-1"],
+    });
+
+    expect(plan.targetInstanceIds).toEqual(["graph-1"]);
+    expect(plan.nodes).toEqual([
+      {
+        instanceId: "upstream-source-1",
+        reason: "manual-recalculate",
+        targetInstanceIds: ["graph-1"],
+      },
+      {
+        instanceId: "graph-1",
+        reason: "manual-recalculate",
+        targetInstanceIds: ["graph-1"],
+      },
+      {
+        instanceId: "managed-source-1",
+        reason: "manual-recalculate",
+        targetInstanceIds: ["graph-1"],
+      },
+    ]);
+  });
+
+  it("keeps stream sources out of finite dashboard refresh plans", () => {
+    const mockWidgets: DashboardWidgetInstance[] = [
+      {
+        id: "stream-source-1",
+        widgetId: "connection-stream-query",
+        title: "Live stream source",
+        layout: { cols: 6, rows: 4 },
+        runtimeState: {
+          status: "ready",
+          streamStatus: "live",
+          columns: ["value"],
+          rows: [{ value: 1 }],
+        },
+      },
+      {
+        id: "table-1",
+        widgetId: "table",
+        title: "Table",
+        layout: { cols: 6, rows: 4 },
+        bindings: {
+          [TABULAR_SEED_INPUT_ID]: {
+            sourceWidgetId: "stream-source-1",
+            sourceOutputId: "updates",
+          },
+        },
+      },
+    ];
+    const snapshot = buildDashboardExecutionSnapshot({
+      widgets: mockWidgets,
+      resolveWidgetDefinition,
+    });
+
+    const plan = planDashboardFiniteExecution({
+      reason: "dashboard-refresh",
+      snapshot,
+      targetInstanceIds: ["table-1"],
+    });
+
+    expect(plan.nodes).toEqual([
+      {
+        instanceId: "table-1",
+        reason: "dashboard-refresh",
+        targetInstanceIds: ["table-1"],
+      },
+    ]);
+  });
+
+  it("marks a waiting executable and its downstream target as waiting instead of error", async () => {
+    const mockWidgets: DashboardWidgetInstance[] = [
+      {
+        id: "waiting-source-1",
+        widgetId: "test-waiting-source",
+        title: "Waiting source",
+        layout: { cols: 6, rows: 4 },
+      },
+      {
+        id: "consumer-1",
+        widgetId: "test-consumer",
+        title: "Consumer",
+        layout: { cols: 6, rows: 4 },
+        bindings: {
+          sourceData: {
+            sourceWidgetId: "waiting-source-1",
+            sourceOutputId: "dataset",
+          },
+        },
+      },
+    ];
+    const completions: Array<{
+      instanceId: string;
+      status: string;
+      error?: string;
+    }> = [];
+
+    const result = await executeDashboardWidgetGraph({
+      scopeId: "workspace-test",
+      executionSurface: "private-dashboard",
+      widgets: mockWidgets,
+      resolveWidgetDefinition,
+      targetInstanceId: "consumer-1",
+      reason: "manual-recalculate",
+      onNodeComplete(node) {
+        completions.push({
+          instanceId: node.instanceId,
+          status: node.status,
+          error: node.error,
+        });
+      },
+    });
+
+    expect(result.status).toBe("waiting");
+    expect(result.error).toBe("Waiting for seed dataset.");
+    expect(result.nodeResults).toMatchObject([
+      {
+        instanceId: "waiting-source-1",
+        status: "waiting",
+        error: "Waiting for seed dataset.",
+      },
+      {
+        instanceId: "consumer-1",
+        status: "waiting",
+        error: "Waiting for Waiting source.",
+      },
+    ]);
+    expect(result.executedInstanceIds.size).toBe(0);
+    expect(completions).toMatchObject([
+      {
+        instanceId: "waiting-source-1",
+        status: "waiting",
+        error: "Waiting for seed dataset.",
+      },
+      {
+        instanceId: "consumer-1",
+        status: "waiting",
+        error: "Waiting for Waiting source.",
+      },
+    ]);
+  });
+
+  it("marks downstream nodes as upstream-error when an executable parent fails", async () => {
+    const mockWidgets: DashboardWidgetInstance[] = [
+      {
+        id: "error-source-1",
+        widgetId: "test-error-source",
+        title: "Error source",
+        layout: { cols: 6, rows: 4 },
+      },
+      {
+        id: "consumer-1",
+        widgetId: "test-consumer",
+        title: "Consumer",
+        layout: { cols: 6, rows: 4 },
+        bindings: {
+          sourceData: {
+            sourceWidgetId: "error-source-1",
+            sourceOutputId: "dataset",
+          },
+        },
+      },
+    ];
+    const completions: Array<{
+      instanceId: string;
+      status: string;
+      error?: string;
+      blockedByWidgetId?: string;
+      blockedByOutputId?: string;
+    }> = [];
+
+    const result = await executeDashboardWidgetGraph({
+      scopeId: "workspace-test",
+      executionSurface: "private-dashboard",
+      widgets: mockWidgets,
+      resolveWidgetDefinition,
+      targetInstanceId: "consumer-1",
+      reason: "manual-recalculate",
+      onNodeComplete(node) {
+        completions.push({
+          instanceId: node.instanceId,
+          status: node.status,
+          error: node.error,
+          blockedByWidgetId: node.blockedByWidgetId,
+          blockedByOutputId: node.blockedByOutputId,
+        });
+      },
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.error).toBe("Backend failed.");
+    expect(result.nodeResults).toMatchObject([
+      {
+        instanceId: "error-source-1",
+        status: "error",
+        error: "Backend failed.",
+      },
+      {
+        instanceId: "consumer-1",
+        status: "upstream-error",
+        error: "Blocked by Error source.",
+        blockedByWidgetId: "error-source-1",
+        blockedByOutputId: "dataset",
+      },
+    ]);
+    expect(result.executedInstanceIds).toEqual(new Set(["error-source-1"]));
+    expect(completions).toMatchObject([
+      {
+        instanceId: "error-source-1",
+        status: "error",
+        error: "Backend failed.",
+      },
+      {
+        instanceId: "consumer-1",
+        status: "upstream-error",
+        error: "Blocked by Error source.",
+        blockedByWidgetId: "error-source-1",
+        blockedByOutputId: "dataset",
+      },
+    ]);
+  });
+
   it("persists runtime from execution-only target overrides without persisting the override props", async () => {
     const originalProps = {
       connectionRef: {
@@ -1113,6 +1775,80 @@ describe("dashboard upstream resolution keys", () => {
     ]);
   });
 
+  it("keeps not-yet-resolved reference-backed props in execution order", () => {
+    const snapshot = buildDashboardExecutionSnapshot({
+      widgets: [
+        {
+          id: "upstream-source-1",
+          widgetId: "connection-query",
+          title: "Upstream Source",
+          layout: { cols: 6, rows: 4 },
+          props: {
+            connectionRef: {
+              id: TEST_CONNECTION_ID,
+              typeId: TEST_CONNECTION_TYPE_ID,
+            },
+            queryModelId: TEST_QUERY_KIND,
+            query: {
+              kind: TEST_QUERY_KIND,
+              responseBody: [{ symbol: "MSFT" }],
+            },
+            timeRangeMode: "none",
+          },
+        },
+        {
+          id: "table-1",
+          widgetId: "table",
+          title: "Table",
+          layout: { cols: 6, rows: 4 },
+          bindings: {
+            [TABULAR_SEED_INPUT_ID]: {
+              sourceWidgetId: "upstream-source-1",
+              sourceOutputId: "dataset",
+            },
+          },
+        },
+        {
+          id: "http-1",
+          widgetId: "connection-query",
+          title: "HTTP Query",
+          layout: { cols: 6, rows: 4 },
+          props: {
+            connectionRef: {
+              id: TEST_CONNECTION_ID,
+              typeId: TEST_CONNECTION_TYPE_ID,
+            },
+            queryModelId: TEST_QUERY_KIND,
+            query: {
+              kind: TEST_QUERY_KIND,
+              symbols: ["$(table-1).activeRow.symbol"],
+              responseBody: [{ value: 1 }],
+            },
+            timeRangeMode: "none",
+          },
+        },
+        {
+          id: "chart-1",
+          widgetId: "test-consumer",
+          title: "Chart",
+          layout: { cols: 6, rows: 4 },
+          bindings: {
+            sourceData: {
+              sourceWidgetId: "http-1",
+              sourceOutputId: "dataset",
+            },
+          },
+        },
+      ],
+      resolveWidgetDefinition,
+    });
+
+    expect(listDashboardWidgetExecutionOrder("chart-1", snapshot)).toEqual([
+      "upstream-source-1",
+      "http-1",
+    ]);
+  });
+
   it("ignores unrelated source prop changes for variable-driven commit planning", () => {
     const beforeSnapshot = buildDashboardExecutionSnapshot({
       widgets: variableDrivenWidgets({
@@ -1144,6 +1880,79 @@ describe("dashboard upstream resolution keys", () => {
     expect(plan.managedExecutableSourceWidgetIds).toEqual([]);
     expect(plan.executableTargetWidgetIds).toEqual([]);
     expect(plan.executableTargetOverridesByWidgetId).toEqual({});
+  });
+
+  it("allows runtime variable planning to suppress unchanged effective signatures", () => {
+    const beforeSnapshot = buildDashboardExecutionSnapshot({
+      widgets: variableDrivenWidgets({
+        symbol: "AAPL",
+        interval: "1m",
+      }),
+      resolveWidgetDefinition,
+    });
+    const afterSnapshot = buildDashboardExecutionSnapshot({
+      widgets: variableDrivenWidgets({
+        symbol: "MSFT",
+        interval: "1m",
+      }),
+      resolveWidgetDefinition,
+    });
+    const inspectedEntryIds: string[] = [];
+
+    const plan = planDashboardVariableDrivenCommit({
+      changedWidgetId: "variable-source-1",
+      beforeSnapshot,
+      afterSnapshot,
+      shouldIncludeChangedVariableEntry: (entry) => {
+        inspectedEntryIds.push(entry.entryId);
+        expect(entry.beforeValueSignature).not.toEqual(entry.afterValueSignature);
+        return false;
+      },
+      resolveManagedConnectionConsumerAdapter: (widgetId) =>
+        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+    });
+
+    expect(inspectedEntryIds).toEqual([
+      '["variable-source-1","__widget-reference.source.props","extract-path:symbol"]',
+    ]);
+    expect(plan.changedVariableEntries).toEqual([]);
+    expect(plan.affectedConsumerWidgetIds).toEqual([]);
+    expect(plan.passiveConsumerWidgetIds).toEqual([]);
+    expect(plan.executableConsumerWidgetIds).toEqual([]);
+    expect(plan.managedExecutableSourceWidgetIds).toEqual([]);
+    expect(plan.executableTargetWidgetIds).toEqual([]);
+    expect(plan.executableTargetOverridesByWidgetId).toEqual({});
+  });
+
+  it("does not fan out from passive runtime consumers to their downstream execution targets", () => {
+    const beforeSnapshot = buildDashboardExecutionSnapshot({
+      widgets: variableDrivenWidgets({
+        symbol: "AAPL",
+        interval: "1m",
+      }),
+      resolveWidgetDefinition,
+    });
+    const afterSnapshot = buildDashboardExecutionSnapshot({
+      widgets: variableDrivenWidgets({
+        symbol: "MSFT",
+        interval: "1m",
+      }),
+      resolveWidgetDefinition,
+    });
+
+    const plan = planDashboardVariableDrivenCommit({
+      changedWidgetId: "variable-source-1",
+      beforeSnapshot,
+      afterSnapshot,
+      includeDownstreamVariableSources: false,
+      resolveManagedConnectionConsumerAdapter: (widgetId) =>
+        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+    });
+
+    expect(plan.changedVariableEntries).toHaveLength(1);
+    expect(plan.affectedConsumerWidgetIds).toEqual(["variable-consumer-1"]);
+    expect(plan.passiveConsumerWidgetIds).toEqual(["variable-consumer-1"]);
+    expect(plan.executableTargetWidgetIds).toEqual([]);
   });
 
   it("plans managed executable source projection when variable-backed owner source props change", () => {
@@ -1352,6 +2161,121 @@ describe("dashboard upstream resolution keys", () => {
     expect(plan.managedExecutableSourceWidgetIds).toEqual([]);
     expect(plan.executableTargetWidgetIds).toEqual([]);
     expect(plan.executableTargetOverridesByWidgetId).toEqual({});
+  });
+
+  it("suppresses unchanged table interaction output signatures", () => {
+    const beforeSnapshot = buildDashboardExecutionSnapshot({
+      widgets: tableInteractionVariableWidgets({
+        symbol: "AAPL",
+        price: 100,
+      }),
+      resolveWidgetDefinition,
+    });
+    const afterSnapshot = buildDashboardExecutionSnapshot({
+      widgets: tableInteractionVariableWidgets({
+        symbol: "AAPL",
+        price: 250,
+      }),
+      resolveWidgetDefinition,
+    });
+
+    const plan = planDashboardVariableDrivenCommit({
+      changedWidgetId: "upstream-source-1",
+      beforeSnapshot,
+      afterSnapshot,
+      resolveManagedConnectionConsumerAdapter: (widgetId) =>
+        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+    });
+
+    expect(plan.changedVariableEntries).toEqual([]);
+    expect(plan.affectedConsumerWidgetIds).toEqual([]);
+    expect(plan.executableTargetWidgetIds).toEqual([]);
+  });
+
+  it("detects effective table interaction output changes when referenced values change", () => {
+    const beforeSnapshot = buildDashboardExecutionSnapshot({
+      widgets: tableInteractionVariableWidgets({
+        symbol: "AAPL",
+        price: 100,
+      }),
+      resolveWidgetDefinition,
+    });
+    const afterSnapshot = buildDashboardExecutionSnapshot({
+      widgets: tableInteractionVariableWidgets({
+        symbol: "MSFT",
+        price: 100,
+      }),
+      resolveWidgetDefinition,
+    });
+
+    const plan = planDashboardVariableDrivenCommit({
+      changedWidgetId: "upstream-source-1",
+      beforeSnapshot,
+      afterSnapshot,
+      resolveManagedConnectionConsumerAdapter: (widgetId) =>
+        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+    });
+
+    expect(plan.changedVariableEntries.map((entry) => entry.sourceOutputId)).toEqual([
+      "activeCell",
+      "activeRow",
+      "selectedCellValues",
+      "selectedRows",
+    ]);
+    expect(plan.affectedConsumerWidgetIds).toEqual([
+      "active-row-consumer",
+      "selected-rows-consumer",
+      "active-cell-consumer",
+      "selected-cell-values-consumer",
+    ]);
+  });
+
+  it("gates Asset Screener active-row variables by the transformed referenced value", () => {
+    const beforeSnapshot = buildDashboardExecutionSnapshot({
+      widgets: assetScreenerVariableWidgets({
+        Symbol: "AAPL",
+        last_price: 100,
+      }),
+      resolveWidgetDefinition,
+    });
+    const sameSymbolSnapshot = buildDashboardExecutionSnapshot({
+      widgets: assetScreenerVariableWidgets({
+        Symbol: "AAPL",
+        last_price: 250,
+      }),
+      resolveWidgetDefinition,
+    });
+    const changedSymbolSnapshot = buildDashboardExecutionSnapshot({
+      widgets: assetScreenerVariableWidgets({
+        Symbol: "MSFT",
+        last_price: 250,
+      }),
+      resolveWidgetDefinition,
+    });
+
+    const unchangedPlan = planDashboardVariableDrivenCommit({
+      changedWidgetId: "upstream-source-1",
+      beforeSnapshot,
+      afterSnapshot: sameSymbolSnapshot,
+      resolveManagedConnectionConsumerAdapter: (widgetId) =>
+        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+    });
+    const changedPlan = planDashboardVariableDrivenCommit({
+      changedWidgetId: "upstream-source-1",
+      beforeSnapshot,
+      afterSnapshot: changedSymbolSnapshot,
+      resolveManagedConnectionConsumerAdapter: (widgetId) =>
+        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+    });
+
+    expect(unchangedPlan.changedVariableEntries).toEqual([]);
+    expect(changedPlan.changedVariableEntries).toMatchObject([
+      {
+        sourceWidgetId: "asset-screener-1",
+        sourceOutputId: "activeRow",
+        targetWidgetIds: ["asset-row-consumer"],
+      },
+    ]);
   });
 
   it("keeps saved owner props and managed source props unchanged when projecting runtime overrides", () => {

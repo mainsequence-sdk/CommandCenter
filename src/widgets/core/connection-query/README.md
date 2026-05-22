@@ -29,8 +29,10 @@ backend-owned connection instances.
 - The widget stores a stable `ConnectionRef`, selected `queryModelId` connection path, query
   payload, optional editor-state metadata for typed query editors, optional variables, date runtime
   behavior, row limit, and optional incremental refresh settings.
-- The selected `queryModelId` is authoritative and is always sent as `query.kind`; the generic JSON
-  editor cannot redirect a saved widget to another connection path.
+- The selected `queryModelId` is authoritative and is always sent as `query.kind`; legacy or
+  inferred drafts may fall back to `query.kind` only when it matches a query model on the selected
+  connection type. Query-model defaults fill missing query fields, but resolved/saved query fields
+  always win so reference-backed settings are not erased by default application.
 - Runtime execution calls `queryConnection(...)` and publishes one dataset from the first matching
   response frame. The widget always publishes `core.tabular_frame@v1`. Legacy backend
   series-shaped responses are coerced into canonical tabular rows at the widget edge.
@@ -46,7 +48,8 @@ backend-owned connection instances.
   reloads and settings previews can still render when the in-memory runtime store has not been
   rehydrated yet. Legacy consumers can still materialize the retained tabular frame through the
   shared compatibility path.
-- The settings test action uses the same request builder as runtime execution. Workspace dates are
+- The settings test action uses the same request builder and effective query-model resolution as
+  runtime execution. Workspace dates are
   read from dashboard controls; custom fixed dates are stored in props. Returned frames render
   through `src/connections/ConnectionQueryResponsePreview.tsx`, matching Data Sources Explore
   because both surfaces use `ConnectionQueryWorkbench.tsx`. When a saved setting path is backed by
@@ -115,6 +118,9 @@ backend-owned connection instances.
 - The mounted runtime card now treats `idle` and first-load `loading` without retained rows as an
   initial waiting state. It should not render `0 rows / 0 columns` until the widget has produced a
   real response frame.
+- Workspace graph and rail status must not mark this source green only because it is configured
+  enough to execute. Until a request publishes runtime data, the source remains waiting; backend
+  request failures should publish an error frame and show the error state.
 
 ## Maintenance Constraints
 

@@ -8,6 +8,7 @@ import {
   useDashboardWidgetExecution,
   useWidgetExecutionState,
 } from "@/dashboards/DashboardWidgetExecution";
+import { resolveWidgetStatusSummary } from "@/dashboards/widget-status";
 import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
 import { cn } from "@/lib/utils";
 import {
@@ -19,66 +20,6 @@ import {
 import { WidgetExplorerTrigger } from "@/widgets/shared/widget-explorer-trigger";
 import { WidgetSettingsTrigger } from "@/widgets/shared/widget-settings";
 import type { WidgetDefinition, WidgetInstancePresentation } from "@/widgets/types";
-
-function resolveRuntimeStatus(runtimeState?: Record<string, unknown>) {
-  return typeof runtimeState?.status === "string" ? runtimeState.status : null;
-}
-
-function isWidgetFrameLoading(input: {
-  widget: WidgetDefinition;
-  dashboardSurfaceHydrationActive: boolean;
-  executionState?: { status?: string };
-  runtimeState?: Record<string, unknown>;
-}) {
-  if (input.executionState?.status === "running") {
-    return true;
-  }
-
-  const runtimeStatus = resolveRuntimeStatus(input.runtimeState);
-
-  if (runtimeStatus === "loading") {
-    return true;
-  }
-
-  if (!input.dashboardSurfaceHydrationActive || input.widget.workspaceRuntimeMode === "local-ui") {
-    return false;
-  }
-
-  if (
-    input.executionState?.status === "success" ||
-    input.executionState?.status === "error"
-  ) {
-    return false;
-  }
-
-  if (
-    runtimeStatus === "ready" ||
-    runtimeStatus === "error" ||
-    runtimeStatus === "data_error" ||
-    runtimeStatus === "detail_error"
-  ) {
-    return false;
-  }
-
-  return true;
-}
-
-function resolveWidgetFrameLoadingLabel(input: {
-  executionState?: { status?: string };
-  runtimeState?: Record<string, unknown>;
-}) {
-  if (input.executionState?.status === "running") {
-    return "Running";
-  }
-
-  const runtimeStatus = resolveRuntimeStatus(input.runtimeState);
-
-  if (runtimeStatus === "loading") {
-    return "Loading data";
-  }
-
-  return "Loading";
-}
 
 export function WidgetFrame({
   widget,
@@ -118,19 +59,16 @@ export function WidgetFrame({
   const transparentSurface = resolveWidgetTransparentSurface(presentation);
   const dividerPresentation =
     (isWorkspaceRowWidgetId(widget.id) || minimalChrome) && !headerVisible;
-  const shellLoading = isWidgetFrameLoading({
+  const shellStatus = resolveWidgetStatusSummary({
     widget,
     dashboardSurfaceHydrationActive:
       widgetExecution?.dashboardSurfaceHydrationActive === true,
     executionState,
     runtimeState,
   });
-  const shellLoadingLabel = shellLoading
-    ? resolveWidgetFrameLoadingLabel({
-        executionState,
-        runtimeState,
-      })
-    : null;
+  const shellLoading = shellStatus.isLoading;
+  const shellLoadingLabel = shellLoading ? shellStatus.label : null;
+  const shellError = shellStatus.isError ? shellStatus.detail ?? shellStatus.label : null;
 
   return (
     <section
@@ -148,6 +86,9 @@ export function WidgetFrame({
             : "group flex h-full min-h-0 flex-col overflow-hidden rounded-none border border-border/80 bg-card/88 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur",
         shellLoading && !dividerPresentation && !transparentSurface
           ? "border-primary/35 shadow-[0_0_0_1px_hsl(var(--primary)/0.08),var(--shadow-panel)]"
+          : undefined,
+        shellError && !dividerPresentation && !transparentSurface
+          ? "border-danger/45 shadow-[0_0_0_1px_color-mix(in_srgb,var(--danger)_20%,transparent),var(--shadow-panel)]"
           : undefined,
       )}
     >
@@ -170,6 +111,17 @@ export function WidgetFrame({
           <Badge variant="primary" className="gap-1.5 px-2 py-1 text-[10px] tracking-[0.12em] shadow-sm">
             <Loader2 className="h-3 w-3 animate-spin" />
             {shellLoadingLabel}
+          </Badge>
+        </div>
+      ) : null}
+      {shellError && !headerVisible ? (
+        <div className="pointer-events-none absolute right-3 top-3 z-20">
+          <Badge
+            variant="danger"
+            className="max-w-[260px] gap-1.5 px-2 py-1 text-[10px] tracking-[0.12em] shadow-sm"
+            title={shellError}
+          >
+            Error
           </Badge>
         </div>
       ) : null}
@@ -215,6 +167,15 @@ export function WidgetFrame({
               >
                 <Loader2 className="h-3 w-3 animate-spin" />
                 {shellLoadingLabel}
+              </Badge>
+            ) : null}
+            {shellError ? (
+              <Badge
+                variant="danger"
+                className="max-w-[240px] px-2 py-1 text-[10px] tracking-[0.12em] shadow-sm"
+                title={shellError}
+              >
+                Error
               </Badge>
             ) : null}
             {headerActions}

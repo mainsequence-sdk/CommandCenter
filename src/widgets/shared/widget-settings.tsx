@@ -7,13 +7,19 @@ import {
   type ComponentType,
 } from "react";
 
-import { Copy, Loader2, Settings2, Trash2 } from "lucide-react";
+import { Copy, Loader2, Settings2, Trash2, Zap } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   useDashboardWidgetDependencies,
   useResolvedWidgetInputs,
 } from "@/dashboards/DashboardWidgetDependencies";
+import {
+  useDashboardWidgetExecution,
+  useWidgetExecutionState,
+} from "@/dashboards/DashboardWidgetExecution";
+import { resolveWidgetStatusSummary } from "@/dashboards/widget-status";
 import {
   buildWidgetReferenceLanguageSourceWidgets,
   deriveWidgetReferenceExpressionBindings,
@@ -696,6 +702,8 @@ export function WidgetSettingsPanel<
   const deferredRegionsReady = deferredRegionsHydratedKey === deferredRegionsKey;
   const deferredInstanceId = deferredRegionsReady ? instance.id : undefined;
   const dependencies = useDashboardWidgetDependencies();
+  const widgetExecution = useDashboardWidgetExecution();
+  const executionState = useWidgetExecutionState(instance.id);
   const liveResolvedInputs = useResolvedWidgetInputs(deferredInstanceId);
   const activeResolvedInputs = demoModeActive
     ? mockResolvedInputs
@@ -703,6 +711,15 @@ export function WidgetSettingsPanel<
   const activePreviewRuntimeState = demoModeActive
     ? demoDraftRuntimeState
     : (previewRuntimeStateOverride ?? instance.runtimeState);
+  const statusSummary = resolveWidgetStatusSummary({
+    widget,
+    executionState,
+    dashboardSurfaceHydrationActive:
+      widgetExecution?.dashboardSurfaceHydrationActive === true,
+    runtimeState: activePreviewRuntimeState,
+  });
+  const statusShowsLightning =
+    statusSummary.indicator === "lightning" || statusSummary.indicator === "dot+lightning";
   const SettingsComponent =
     widget.settingsComponent as
       | ComponentType<WidgetSettingsComponentProps<TProps>>
@@ -1132,11 +1149,49 @@ export function WidgetSettingsPanel<
             <p className="max-w-3xl text-sm text-muted-foreground">{panelDescription}</p>
           </div>
           <div className="grid min-w-[220px] gap-2">
+            <WidgetSettingsMetaField label="Status" value={statusSummary.label} />
             <WidgetSettingsMetaField label="Widget kind" value={widget.kind} />
             <WidgetSettingsMetaField label="Widget source" value={widget.source} />
             <WidgetSettingsMetaField label="Widget category" value={widget.category} />
           </div>
         </div>
+        {(statusSummary.isError || statusSummary.tone === "warning") && statusSummary.detail ? (
+          <div
+            className={cn(
+              "mt-4 rounded-[calc(var(--radius)-4px)] border px-4 py-3",
+              statusSummary.isError
+                ? "border-danger/30 bg-danger/8"
+                : "border-warning/30 bg-warning/8",
+            )}
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant={statusSummary.isError ? "danger" : "warning"}
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] tracking-[0.14em]"
+              >
+                {statusShowsLightning ? <Zap className="h-3 w-3" /> : null}
+                {statusSummary.label}
+              </Badge>
+              <span className="text-sm font-medium text-foreground">
+                {statusSummary.isError
+                  ? statusShowsLightning
+                    ? "Stream needs attention"
+                    : "Widget needs attention"
+                  : statusShowsLightning
+                    ? "Stream is waiting"
+                    : "Execution is waiting"}
+              </span>
+            </div>
+            <p
+              className={cn(
+                "mt-2 whitespace-pre-wrap break-words text-sm leading-5",
+                statusSummary.isError ? "text-danger" : "text-warning",
+              )}
+            >
+              {statusSummary.detail}
+            </p>
+          </div>
+        ) : null}
       </div>
       <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
         <section className="space-y-3">

@@ -58,16 +58,22 @@ function toDataNodePickerOption(dataNode: DataNodeSummary): PickerOption {
   ].filter((value): value is string => Boolean(value && value.trim()));
 
   return {
-    value: String(dataNode.id),
+    value: dataNode.uid?.trim() || "",
     label,
     description: descriptionParts.join(" • ") || undefined,
-    keywords: [String(dataNode.id), dataNode.identifier ?? "", dataNode.storage_hash ?? "", getDataSourceLabel(dataNode)],
+    keywords: [
+      dataNode.uid ?? "",
+      String(dataNode.id),
+      dataNode.identifier ?? "",
+      dataNode.storage_hash ?? "",
+      getDataSourceLabel(dataNode),
+    ],
   };
 }
 
-function toCurrentNodeOption(node: { id: number; label: string }): PickerOption {
+function toCurrentNodeOption(node: { id: number; uid?: string | null; label: string }): PickerOption {
   return {
-    value: String(node.id),
+    value: node.uid?.trim() || "",
     label: node.label.trim() || `Dynamic table ${node.id}`,
   };
 }
@@ -106,7 +112,7 @@ function findCurrentNodeOption(
 
   const optionSource =
     key === "discount_curves_storage_node" ? payload.discount_nodes : payload.fixings_nodes;
-  const selectedNode = optionSource.find((node) => node.id === selectedId);
+  const selectedNode = optionSource.find((node) => node.uid === selectedId);
 
   return selectedNode ? toCurrentNodeOption(selectedNode) : null;
 }
@@ -122,8 +128,8 @@ export function MainSequenceInstrumentsPage() {
 
   const deferredDiscountSearchValue = useDeferredValue(discountSearchValue.trim());
   const deferredFixingsSearchValue = useDeferredValue(fixingsSearchValue.trim());
-  const selectedDiscountNodeId = discountNodeId ? Number(discountNodeId) : null;
-  const selectedFixingsNodeId = fixingsNodeId ? Number(fixingsNodeId) : null;
+  const selectedDiscountNodeId = discountNodeId.trim() || null;
+  const selectedFixingsNodeId = fixingsNodeId.trim() || null;
 
   const configurationQuery = useQuery({
     queryKey: instrumentsConfigurationQueryKey,
@@ -177,8 +183,8 @@ export function MainSequenceInstrumentsPage() {
       "selected_discount_node",
       selectedDiscountNodeId,
     ],
-    queryFn: () => fetchDataNodeDetail(selectedDiscountNodeId as number),
-    enabled: Number.isInteger(selectedDiscountNodeId) && (selectedDiscountNodeId as number) > 0,
+    queryFn: () => fetchDataNodeDetail(selectedDiscountNodeId!),
+    enabled: Boolean(selectedDiscountNodeId),
     staleTime: 300_000,
   });
 
@@ -190,8 +196,8 @@ export function MainSequenceInstrumentsPage() {
       "selected_fixings_node",
       selectedFixingsNodeId,
     ],
-    queryFn: () => fetchDataNodeDetail(selectedFixingsNodeId as number),
-    enabled: Number.isInteger(selectedFixingsNodeId) && (selectedFixingsNodeId as number) > 0,
+    queryFn: () => fetchDataNodeDetail(selectedFixingsNodeId!),
+    enabled: Boolean(selectedFixingsNodeId),
     staleTime: 300_000,
   });
 
@@ -307,8 +313,8 @@ export function MainSequenceInstrumentsPage() {
   const saveMutation = useMutation({
     mutationFn: () =>
       updateCurrentInstrumentsConfiguration({
-        discountCurvesStorageNode: discountNodeId ? Number(discountNodeId) : null,
-        referenceRatesFixingsStorageNode: fixingsNodeId ? Number(fixingsNodeId) : null,
+        discountCurvesStorageNode: discountNodeId.trim() || null,
+        referenceRatesFixingsStorageNode: fixingsNodeId.trim() || null,
       }),
     onSuccess: (result) => {
       queryClient.setQueryData(instrumentsConfigurationQueryKey, result);

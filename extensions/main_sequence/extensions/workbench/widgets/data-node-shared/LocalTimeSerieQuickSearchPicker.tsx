@@ -24,8 +24,8 @@ export function LocalTimeSerieQuickSearchPicker({
   searchPlaceholder = "Search local updates",
   selectionHelpText = "Choose the local update you want to inspect.",
 }: {
-  value?: number;
-  onChange: (nextId?: number) => void;
+  value?: string;
+  onChange: (nextId?: string) => void;
   editable: boolean;
   queryScope: string;
   placeholder?: string;
@@ -35,7 +35,7 @@ export function LocalTimeSerieQuickSearchPicker({
   const [searchValue, setSearchValue] = useState("");
   const deferredSearchValue = useDeferredValue(searchValue);
   const normalizedSearchValue = deferredSearchValue.trim();
-  const selectedLocalTimeSerieId = Number(value ?? 0);
+  const selectedLocalTimeSerieId = value?.trim() || "";
 
   const selectedLocalTimeSerieQuery = useQuery({
     queryKey: [
@@ -47,7 +47,7 @@ export function LocalTimeSerieQuickSearchPicker({
       selectedLocalTimeSerieId,
     ],
     queryFn: () => fetchLocalTimeSerieDetail(selectedLocalTimeSerieId),
-    enabled: Number.isFinite(selectedLocalTimeSerieId) && selectedLocalTimeSerieId > 0,
+    enabled: Boolean(selectedLocalTimeSerieId),
     staleTime: 300_000,
   });
 
@@ -78,6 +78,7 @@ export function LocalTimeSerieQuickSearchPicker({
 
     return {
       id: current.id,
+      uid: current.uid ?? null,
       update_hash: current.update_hash,
       project_id:
         "project_id" in current && typeof current.project_id === "number" && Number.isFinite(current.project_id)
@@ -86,6 +87,7 @@ export function LocalTimeSerieQuickSearchPicker({
       data_node_storage: current.data_node_storage
         ? {
             id: current.data_node_storage.id,
+            uid: current.data_node_storage.uid ?? null,
             storage_hash: current.data_node_storage.storage_hash,
             identifier: current.data_node_storage.identifier,
           }
@@ -99,7 +101,7 @@ export function LocalTimeSerieQuickSearchPicker({
 
     if (
       selectedLocalTimeSerie &&
-      !baseOptions.some((localTimeSerie) => localTimeSerie.id === selectedLocalTimeSerie.id)
+      !baseOptions.some((localTimeSerie) => localTimeSerie.uid === selectedLocalTimeSerie.uid)
     ) {
       return [selectedLocalTimeSerie, ...baseOptions];
     }
@@ -110,10 +112,11 @@ export function LocalTimeSerieQuickSearchPicker({
   const pickerOptions = useMemo<PickerOption[]>(
     () =>
       localTimeSerieOptions.map((localTimeSerie) => ({
-        value: String(localTimeSerie.id),
+        value: localTimeSerie.uid?.trim() || "",
         label: formatLocalTimeSerieLabel(localTimeSerie),
         description: formatDataNodeLabel(localTimeSerie.data_node_storage),
         keywords: [
+          localTimeSerie.uid ?? "",
           String(localTimeSerie.id),
           localTimeSerie.update_hash,
           String(localTimeSerie.project_id ?? ""),
@@ -127,10 +130,9 @@ export function LocalTimeSerieQuickSearchPicker({
   return (
     <div className="space-y-2">
       <PickerField
-        value={value && value > 0 ? String(value) : ""}
+        value={value?.trim() ?? ""}
         onChange={(nextValue) => {
-          const nextId = Number(nextValue);
-          onChange(Number.isFinite(nextId) && nextId > 0 ? nextId : undefined);
+          onChange(nextValue.trim() || undefined);
         }}
         options={pickerOptions}
         placeholder={placeholder}

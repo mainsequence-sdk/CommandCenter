@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Transforms one bound `core.tabular_frame@v1` dataset and republishes the result as a new canonical tabular dataset.
+Transforms bound `core.tabular_frame@v1` seed and live-update inputs and republishes the result as a new canonical tabular dataset.
 It is a sidebar-only source/transform node, so it participates in bindings and graph execution
 without occupying a workspace canvas card.
 
@@ -27,7 +27,10 @@ without occupying a workspace canvas card.
 
 ## authoringSteps
 
-- Bind `sourceData` to a widget that publishes `core.tabular_frame@v1`.
+- Bind `seedData` to an upstream `dataset` output for retained/base rows.
+- Bind `liveUpdates` to an upstream `updates` output for incremental stream rows.
+- Bind either input by itself when the transform should act on only that role; bind both when a
+  retained baseline and live deltas should be combined before transformation.
 - Select a transform mode.
 - Configure only the mode-specific fields that appear: filter rules for filtering, key fields for
   aggregate/pivot/unpivot, pivot fields for pivoting, unpivot value fields for unpivoting, computed
@@ -48,9 +51,13 @@ without occupying a workspace canvas card.
 
 ## blockingRequirements
 
-- A compatible upstream tabular frame is required.
+- At least one compatible upstream tabular frame is required through `seedData` or `liveUpdates`.
 - Incremental upstream sources expose retained rows through `upstreamBase` and changed rows through
   `upstreamDelta`. The `updates` output republishes the transformed stream publication.
+  A live delta publication is enough for the transform to run even when the retained base frame has
+  not been published yet.
+  If a live-only source briefly has no current publication after the transform already published a
+  ready output, the retained transformed output remains valid instead of marking the widget waiting.
   Pass-through/projection transforms can publish transformed deltas; aggregate, pivot, and unpivot
   modes recompute from the retained frame and publish a snapshot result.
 - Aggregate mode requires one or more key fields to reduce rows.

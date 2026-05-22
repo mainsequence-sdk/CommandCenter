@@ -1,4 +1,7 @@
 import type { DashboardWidgetInstance } from "@/dashboards/types";
+import {
+  applyWidgetBindingTransform,
+} from "@/dashboards/widget-binding-transforms";
 import type {
   DashboardWidgetDependencyModel,
   ResolvedWidgetOutput,
@@ -144,7 +147,7 @@ export function buildWorkspaceVariableExplorerModel({
 
     totalConsumers += explorerEntry.consumers.length;
 
-    if (isMaterializedOutput(output)) {
+    if (explorerEntry.status === "ready") {
       currentVariables.push(explorerEntry);
     } else {
       referencedVariables.push(explorerEntry);
@@ -217,13 +220,20 @@ function buildExplorerEntry(input: {
       propPath: consumer.propPath,
     } satisfies WorkspaceVariableExplorerConsumer;
   });
-  const valuePreview = input.output?.valueRef
+  const transformedOutput = resolveExplorerOutputValue(input.entry, input.output);
+  const valuePreview = transformedOutput.output?.valueRef
     ? {
-        kind: "ref",
-        text: `Runtime data ref: ${input.output.valueRef.refId}`,
+        kind: "ref" as const,
+        text: `Runtime data ref: ${transformedOutput.output.valueRef.refId}`,
         truncated: false,
-      } satisfies WorkspaceVariableValuePreview
-    : serializeWorkspaceVariableValuePreview(input.output?.value);
+      }
+    : transformedOutput.status === "error"
+      ? {
+          kind: "unavailable" as const,
+          text: "Transform could not be applied.",
+          truncated: false,
+        }
+      : serializeWorkspaceVariableValuePreview(transformedOutput.output?.value);
 
   return {
     id: input.entry.id,
@@ -233,12 +243,66 @@ function buildExplorerEntry(input: {
     sourceWidgetTitle,
     sourceOutputId: input.entry.key.sourceOutputId,
     transformSignature: input.entry.key.transformSignature,
-    sourceContract: input.output?.contractId,
-    sourceOutputLabel: input.output?.label,
-    status: isMaterializedOutput(input.output) ? "ready" : "waiting",
-    statusLabel: isMaterializedOutput(input.output) ? "Ready" : "Waiting",
+    sourceContract: transformedOutput.output?.contractId,
+    sourceOutputLabel: transformedOutput.output?.label,
+    status: transformedOutput.status,
+    statusLabel: transformedOutput.statusLabel,
     valuePreview,
     consumers,
+  };
+}
+
+function resolveExplorerOutputValue(
+  entry: WorkspaceVariableReferenceEntry,
+  output: ResolvedWidgetOutput | undefined,
+): {
+  output: ResolvedWidgetOutput | undefined;
+  status: WorkspaceVariableExplorerStatus;
+  statusLabel: string;
+} {
+  if (!output) {
+    return {
+      output,
+      status: "waiting",
+      statusLabel: "Waiting",
+    };
+  }
+
+  const representativeBinding = entry.consumers[0]?.binding;
+
+  if (!representativeBinding || output.valueRef) {
+    return {
+      output,
+      status: isMaterializedOutput(output) ? "ready" : "waiting",
+      statusLabel: isMaterializedOutput(output) ? "Ready" : "Waiting",
+    };
+  }
+
+  const transformed = applyWidgetBindingTransform(representativeBinding, {
+    contractId: output.contractId,
+    value: output.value,
+    valueDescriptor: output.valueDescriptor,
+  });
+
+  if (transformed.status !== "valid") {
+    return {
+      output,
+      status: "error",
+      statusLabel: "Invalid transform",
+    };
+  }
+
+  const transformedOutput = {
+    ...output,
+    contractId: transformed.contractId,
+    value: transformed.value,
+    valueDescriptor: transformed.valueDescriptor,
+  } satisfies ResolvedWidgetOutput;
+
+  return {
+    output: transformedOutput,
+    status: isMaterializedOutput(transformedOutput) ? "ready" : "waiting",
+    statusLabel: isMaterializedOutput(transformedOutput) ? "Ready" : "Waiting",
   };
 }
 

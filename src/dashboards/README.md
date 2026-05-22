@@ -45,9 +45,15 @@ surfaces and the editable workspace studio.
   raw widget registry.
 - `widget-graph-execution.ts`: shared executable-widget graph runner. It builds dependency-backed
   execution snapshots, walks valid upstream executable dependencies, applies runtime-state patches,
-  and provides the refresh-target selection helpers used by the execution provider. It also blocks
-  executable widgets whose reference-backed prop inputs are unresolved, so graph scheduling waits
-  for runtime-backed variable values instead of sending literal or empty requests downstream.
+  and provides the refresh-target selection helpers used by the execution provider. Widget
+  execution readiness is intentionally tri-state: `ready` runs, `waiting` blocks the current
+  branch without marking it as failed, and `error` fails the branch. Legacy `canExecute=false`
+  still maps to an error unless a widget provides `getExecutionReadiness(...)` with a more precise
+  waiting/error classification.
+- `widget-status.ts`: shared non-persisted status summarizer for widget execution state and runtime
+  state. Workspace rail hover cards, widget settings, widget frames, and graph nodes should use this
+  helper so ready, waiting, and error states use the same labels, colors, and descriptive detail
+  text across surfaces.
 - `DashboardWidgetExecution.tsx`: React provider/hooks layer for executable widget graphs. It owns
   `executeWidgetGraph(...)`, source-driven `executeWidgetFlow(...)`, generic passive-consumer
   upstream resolution through `resolveUpstream(...)` / `useResolveWidgetUpstream(...)`, in-flight
@@ -147,6 +153,9 @@ surfaces and the editable workspace studio.
   execution runner consumes dependency snapshots, but execution side effects, runtime-state patch
   application, and refresh dedupe live in `widget-graph-execution.ts` /
   `DashboardWidgetExecution.tsx`, not in `widget-dependencies.ts`.
+- Execution blocking is not binary. A widget waiting for an upstream runtime publication should
+  report `waiting`, which keeps downstream nodes in an amber waiting state and retries on the next
+  invalidation. Only real execution failures should report `error` and paint the graph/rail red.
 - `executeWidgetGraph(...)` must stay target-scoped: it resolves upstream executable ancestors and
   executes the selected target graph only. Source widgets that need downstream propagation after a
   manual action should use `executeWidgetFlow(...)`, which runs the source graph first and then

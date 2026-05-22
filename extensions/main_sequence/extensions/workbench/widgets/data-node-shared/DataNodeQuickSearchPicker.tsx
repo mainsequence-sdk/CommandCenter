@@ -28,17 +28,17 @@ export function DataNodeQuickSearchPicker({
   detailError,
   hasNoData = false,
 }: {
-  value?: number;
-  onChange: (nextId?: number) => void;
+  value?: string;
+  onChange: (nextId?: string) => void;
   editable: boolean;
   queryScope: string;
-  selectedDataNode?: Pick<DataNodeQuickSearchRecord, "id" | "identifier" | "storage_hash"> | null;
+  selectedDataNode?: Pick<DataNodeQuickSearchRecord, "id" | "uid" | "identifier" | "storage_hash"> | null;
   placeholder?: string;
   searchPlaceholder?: string;
   selectionHelpText?: string;
   showStatus?: boolean;
   onSelectedDataNodeChange?: (
-    dataNode?: Pick<DataNodeQuickSearchRecord, "id" | "identifier" | "storage_hash">,
+    dataNode?: Pick<DataNodeQuickSearchRecord, "id" | "uid" | "identifier" | "storage_hash">,
   ) => void;
   detailError?: unknown;
   hasNoData?: boolean;
@@ -64,7 +64,7 @@ export function DataNodeQuickSearchPicker({
 
     if (
       selectedDataNode &&
-      !baseOptions.some((dataNode) => dataNode.id === selectedDataNode.id)
+      !baseOptions.some((dataNode) => dataNode.uid === selectedDataNode.uid)
     ) {
       return [selectedDataNode, ...baseOptions];
     }
@@ -75,13 +75,13 @@ export function DataNodeQuickSearchPicker({
   const pickerOptions = useMemo<PickerOption[]>(
     () =>
       dataNodeOptions.map((dataNode) => ({
-        value: String(dataNode.id),
+        value: dataNode.uid?.trim() || "",
         label: formatDataNodeLabel(dataNode),
         description:
           dataNode.identifier?.trim() && dataNode.storage_hash !== dataNode.identifier
             ? dataNode.storage_hash
             : undefined,
-        keywords: [String(dataNode.id), dataNode.identifier ?? "", dataNode.storage_hash ?? ""],
+        keywords: [dataNode.uid ?? "", String(dataNode.id), dataNode.identifier ?? "", dataNode.storage_hash ?? ""],
       })),
     [dataNodeOptions],
   );
@@ -89,15 +89,13 @@ export function DataNodeQuickSearchPicker({
   return (
     <div className="space-y-2">
       <PickerField
-        value={value && value > 0 ? String(value) : ""}
+        value={value?.trim() ?? ""}
         onChange={(nextValue) => {
-          const nextId = Number(nextValue);
-          const normalizedNextId = Number.isFinite(nextId) && nextId > 0 ? nextId : undefined;
-
+          const normalizedNextId = nextValue.trim() || undefined;
           onChange(normalizedNextId);
           onSelectedDataNodeChange?.(
             normalizedNextId
-              ? dataNodeOptions.find((dataNode) => dataNode.id === normalizedNextId)
+              ? dataNodeOptions.find((dataNode) => dataNode.uid === normalizedNextId)
               : undefined,
           );
         }}
@@ -154,7 +152,7 @@ export function DataNodeQuickSearchPicker({
             </div>
           ) : null}
 
-          {value && value > 0 && hasNoData ? (
+          {value?.trim() && hasNoData ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
               This data node has no data.
             </div>

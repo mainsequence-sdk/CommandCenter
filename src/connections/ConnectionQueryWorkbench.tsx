@@ -40,7 +40,6 @@ import {
   buildConnectionQueryRequest,
   buildConnectionQueryErrorFrame,
   executeConnectionQueryWidgetRequest,
-  findUnresolvedConnectionQueryReferencePaths,
   normalizeConnectionQueryProps,
   normalizeConnectionQueryRuntimeState,
   resolveConnectionQueryIncrementalSettings,
@@ -675,8 +674,12 @@ export function ConnectionQueryWorkbench({
     [authoringMode, connectionType, queryModelFilter, selectedConnectionInstance],
   );
   const autoSelectQueryModel = autoSelectFirstQueryModel || queryModels.length === 1;
-  const selectedQueryModel = normalizedProps.queryModelId
-    ? queryModels.find((model) => model.id === normalizedProps.queryModelId)
+  const queryKind = typeof normalizedProps.query?.kind === "string" && normalizedProps.query.kind.trim()
+    ? normalizedProps.query.kind.trim()
+    : undefined;
+  const requestedQueryModelId = normalizedProps.queryModelId ?? queryKind;
+  const selectedQueryModel = requestedQueryModelId
+    ? queryModels.find((model) => model.id === requestedQueryModelId)
     : undefined;
   const resolvedQueryModel =
     selectedQueryModel ??
@@ -731,16 +734,13 @@ export function ConnectionQueryWorkbench({
     | ComponentType<ConnectionQueryEditorProps<Record<string, unknown>>>
     | undefined;
   const SummaryComponent = resolveConnectionAuthoringSummaryComponent(connectionType);
-  const unresolvedReferencePaths = useMemo(
-    () => findUnresolvedConnectionQueryReferencePaths(effectiveProps, resolvedQueryModel),
-    [effectiveProps, resolvedQueryModel],
-  );
   const previewRequest = useMemo(
-    () =>
-      unresolvedReferencePaths.length > 0
-        ? null
-        : buildConnectionQueryRequest(effectiveProps, effectiveDashboardState, resolvedQueryModel),
-    [effectiveDashboardState, effectiveProps, resolvedQueryModel, unresolvedReferencePaths.length],
+    () => buildConnectionQueryRequest(effectiveProps, effectiveDashboardState, resolvedQueryModel),
+    [
+      effectiveDashboardState,
+      effectiveProps,
+      resolvedQueryModel,
+    ],
   );
   const runtimeRangeSummary = buildRuntimeRangeSummary({
     mode: effectiveProps.timeRangeMode,
@@ -765,7 +765,6 @@ export function ConnectionQueryWorkbench({
   );
   const canRunPreview = Boolean(
     previewRequest &&
-    unresolvedReferencePaths.length === 0 &&
     previewState.status !== "loading",
   );
   const publishedPreviewInstanceId =
@@ -905,18 +904,6 @@ export function ConnectionQueryWorkbench({
   }
 
   async function runPreview() {
-    if (unresolvedReferencePaths.length > 0) {
-      const errorMessage = `Waiting for referenced connection query value${unresolvedReferencePaths.length === 1 ? "" : "s"}: ${unresolvedReferencePaths.join(", ")}.`;
-
-      setPreviewState({
-        status: "error",
-        request: null,
-        error: errorMessage,
-      });
-      onPreviewRuntimeStateChange?.(undefined);
-      return;
-    }
-
     const request = buildConnectionQueryRequest(
       effectiveProps,
       effectiveDashboardState,
@@ -1012,12 +999,12 @@ export function ConnectionQueryWorkbench({
                 (model) => queryModelFilter?.(model) ?? true,
               );
               const selectedModelStillValid = sameQueryModelAvailable(
-                normalizedProps.queryModelId,
+                requestedQueryModelId,
                 filteredNextRuntimeQueryModels,
               );
               const fallbackQueryModel = selectedModelStillValid
                 ? filteredNextRuntimeQueryModels.find(
-                    (model) => model.id === normalizedProps.queryModelId,
+                    (model) => model.id === requestedQueryModelId,
                   )
                 : filteredNextRuntimeQueryModels.length === 1 || autoSelectFirstQueryModel
                   ? filteredNextRuntimeQueryModels[0]
@@ -1117,7 +1104,7 @@ export function ConnectionQueryWorkbench({
                 selectedQueryModel: nextQueryModel,
               });
               const nextQuery =
-                nextQueryModelId && nextQueryModelId === normalizedProps.queryModelId
+                nextQueryModelId && nextQueryModelId === requestedQueryModelId
                   ? { ...(normalizedProps.query ?? {}), kind: nextQueryModelId }
                   : nextQueryModel
                     ? nextDefaults.query ?? buildDefaultQueryForModel(nextQueryModel)
@@ -1497,19 +1484,13 @@ export function ConnectionQueryWorkbench({
           <div className="flex items-center justify-between gap-3 text-xs">
             <span className="font-medium text-foreground">Request preview</span>
             <span className="text-muted-foreground">
-              {unresolvedReferencePaths.length > 0
-                ? "Waiting for reference"
-                : previewRequest
-                  ? "Ready"
-                  : "Connection and path required"}
+              {previewRequest ? "Ready" : "Connection and path required"}
             </span>
           </div>
           <pre className="mt-2 max-h-56 overflow-auto rounded-[calc(var(--radius)-8px)] bg-background/70 p-2 text-[11px] leading-relaxed text-muted-foreground">
-            {unresolvedReferencePaths.length > 0
-              ? `Waiting for referenced value: ${unresolvedReferencePaths.join(", ")}.`
-              : previewRequest
-                ? JSON.stringify(previewRequest, null, 2)
-                : "Select a connection and query to build the request."}
+            {previewRequest
+              ? JSON.stringify(previewRequest, null, 2)
+              : "Select a connection and query to build the request."}
           </pre>
         </div>
 

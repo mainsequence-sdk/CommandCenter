@@ -15,7 +15,7 @@ export const DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_ROW_LIMIT = 1_000;
 export type MainSequenceSimpleTableQueryCachePolicy = "disabled" | "safe";
 
 export interface MainSequenceSimpleTableConnectionPublicConfig {
-  simpleTableId?: number;
+  simpleTableId?: string;
   simpleTableLabel?: string;
   simpleTableStorageHash?: string;
   simpleTableIdentifier?: string;
@@ -68,7 +68,7 @@ export const mainSequenceSimpleTableConnection: ConnectionTypeDefinition<
         id: "simpleTableId",
         sectionId: "simple-table",
         label: "Simple Table",
-        type: "number",
+        type: "string",
         required: true,
       },
       {
@@ -165,7 +165,7 @@ export const mainSequenceSimpleTableConnection: ConnectionTypeDefinition<
     {
       title: "Simple Table SQL source",
       publicConfig: {
-        simpleTableId: 123,
+        simpleTableId: "00000000-0000-0000-0000-000000000123",
         simpleTableLabel: "Example Simple Table",
         defaultLimit: DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_ROW_LIMIT,
         statementTimeoutMs: DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_STATEMENT_TIMEOUT_MS,

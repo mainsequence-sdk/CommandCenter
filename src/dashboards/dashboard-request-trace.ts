@@ -86,11 +86,28 @@ let storeState: DashboardRequestTraceStoreState = {
 };
 
 const listeners = new Set<() => void>();
+let emitChangeScheduled = false;
 
 function emitChange() {
-  listeners.forEach((listener) => {
-    listener();
-  });
+  if (emitChangeScheduled) {
+    return;
+  }
+
+  emitChangeScheduled = true;
+
+  const notify = () => {
+    emitChangeScheduled = false;
+    listeners.forEach((listener) => {
+      listener();
+    });
+  };
+
+  if (typeof queueMicrotask === "function") {
+    queueMicrotask(notify);
+    return;
+  }
+
+  void Promise.resolve().then(notify);
 }
 
 function subscribe(listener: () => void) {
@@ -117,7 +134,13 @@ function buildRequestPath(url: string) {
 function updateStore(
   updater: (state: DashboardRequestTraceStoreState) => DashboardRequestTraceStoreState,
 ) {
-  storeState = updater(storeState);
+  const nextState = updater(storeState);
+
+  if (nextState === storeState) {
+    return;
+  }
+
+  storeState = nextState;
   emitChange();
 }
 

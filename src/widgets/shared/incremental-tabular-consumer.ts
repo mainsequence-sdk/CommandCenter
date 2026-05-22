@@ -38,6 +38,7 @@ export interface TabularMergeKeyMapping {
 
 const LEGACY_TABULAR_CONSUMER_WIDGET_IDS = new Set([
   "graph",
+  "tabular-transform",
   "table",
   "statistic",
   "main-sequence-ohlc-bars",
@@ -403,7 +404,7 @@ function withConsumerMeta(
     source: {
       ...frame.source,
       kind: frame.source?.kind ?? "incremental-tabular-consumer",
-      updatedAtMs: frame.source?.updatedAtMs ?? Date.now(),
+      updatedAtMs: frame.source?.updatedAtMs,
       context: {
         ...(frame.source?.context ?? {}),
         incrementalConsumer: meta,
@@ -696,7 +697,7 @@ function buildPendingSeedBaselineFrame(input: {
     source: {
       ...template?.source,
       kind: template?.source?.kind ?? "incremental-tabular-consumer",
-      updatedAtMs: Date.now(),
+      updatedAtMs: template?.source?.updatedAtMs,
     },
   } satisfies TabularFrameSourceV1;
 }
@@ -773,8 +774,8 @@ function choosePreferredProblemState(
 }
 
 function buildInputConsumerState(input: ResolvedWidgetInput | undefined) {
-  const dataset = normalizeAnyTabularFrameSource(input?.upstreamBase ?? input?.value);
   const deltaDataset = normalizeAnyTabularFrameSource(input?.upstreamDelta);
+  const dataset = normalizeAnyTabularFrameSource(input?.upstreamBase ?? input?.value) ?? deltaDataset;
   const hasCanonicalSourceBinding = Boolean(input?.sourceWidgetId);
   const hasPublishedValue = Boolean(
     input && (input.upstreamBase !== undefined || input.value !== undefined || input.upstreamDelta !== undefined),
@@ -951,7 +952,7 @@ function mergeDeltaFrame(
     source: {
       ...retainedFrame.source,
       kind: retainedFrame.source?.kind ?? "incremental-tabular-consumer",
-      updatedAtMs: Date.now(),
+      updatedAtMs: deltaFrame.source?.updatedAtMs ?? retainedFrame.source?.updatedAtMs,
     },
   } satisfies TabularFrameSourceV1;
 }
@@ -972,7 +973,7 @@ function applySeedFrame(
     source: {
       ...nextBase.source,
       kind: nextBase.source?.kind ?? "incremental-tabular-consumer",
-      updatedAtMs: Date.now(),
+      updatedAtMs: nextBase.source?.updatedAtMs,
     },
   } satisfies TabularFrameSourceV1;
 }
@@ -1083,10 +1084,7 @@ function combineSeedAndLiveFrames(input: {
 
   return {
     ...input.seedFrame,
-    status: resolveRenderableFrameStatus(
-    [input.seedFrame, input.liveFrame],
-      rows.length,
-    ),
+    status: resolveRenderableFrameStatus([input.seedFrame, input.liveFrame], rows.length),
     columns: input.seedFrame.columns,
     fields: input.seedFrame.fields,
     rows,
@@ -1094,7 +1092,7 @@ function combineSeedAndLiveFrames(input: {
     source: {
       ...input.seedFrame.source,
       kind: input.seedFrame.source?.kind ?? "incremental-tabular-consumer",
-      updatedAtMs: Date.now(),
+      updatedAtMs: input.liveFrame.source?.updatedAtMs ?? input.seedFrame.source?.updatedAtMs,
     },
   } satisfies TabularFrameSourceV1;
 }
@@ -1176,8 +1174,7 @@ function buildDualConsumerState(input: {
         sourceOutputId: primarySourceOutputId,
         sourceWidgetTitle: primarySourceWidgetTitle,
         error: input.dataset.error ?? null,
-        requiresUpstreamResolution:
-          input.seedState.requiresUpstreamResolution || input.liveState.requiresUpstreamResolution,
+        requiresUpstreamResolution: false,
         hasCanonicalSourceBinding:
           input.seedState.hasCanonicalSourceBinding || input.liveState.hasCanonicalSourceBinding,
         hasPublishedValue:
@@ -1196,8 +1193,7 @@ function buildDualConsumerState(input: {
         sourceOutputId: primarySourceOutputId,
         sourceWidgetTitle: primarySourceWidgetTitle,
         error: null,
-        requiresUpstreamResolution:
-          input.seedState.requiresUpstreamResolution || input.liveState.requiresUpstreamResolution,
+        requiresUpstreamResolution: true,
         hasCanonicalSourceBinding:
           input.seedState.hasCanonicalSourceBinding || input.liveState.hasCanonicalSourceBinding,
         hasPublishedValue:
@@ -1216,8 +1212,7 @@ function buildDualConsumerState(input: {
         sourceOutputId: primarySourceOutputId,
         sourceWidgetTitle: primarySourceWidgetTitle,
         error: null,
-        requiresUpstreamResolution:
-          input.seedState.requiresUpstreamResolution || input.liveState.requiresUpstreamResolution,
+        requiresUpstreamResolution: false,
         hasCanonicalSourceBinding:
           input.seedState.hasCanonicalSourceBinding || input.liveState.hasCanonicalSourceBinding,
         hasPublishedValue:
@@ -1237,8 +1232,7 @@ function buildDualConsumerState(input: {
       sourceOutputId: primarySourceOutputId,
       sourceWidgetTitle: primarySourceWidgetTitle,
       error: null,
-      requiresUpstreamResolution:
-        input.seedState.requiresUpstreamResolution || input.liveState.requiresUpstreamResolution,
+      requiresUpstreamResolution: false,
       hasCanonicalSourceBinding:
         input.seedState.hasCanonicalSourceBinding || input.liveState.hasCanonicalSourceBinding,
       hasPublishedValue:
@@ -1303,7 +1297,16 @@ export function migrateLegacyIncrementalTabularBindings(
 
   const nextBindings = { ...bindings };
   delete nextBindings[LEGACY_TABULAR_SOURCE_INPUT_ID];
-  nextBindings[TABULAR_SEED_INPUT_ID] = sourceBinding;
+
+  if (
+    !Array.isArray(sourceBinding) &&
+    sourceBinding.sourceOutputId === TABULAR_UPDATES_OUTPUT_ID
+  ) {
+    nextBindings[TABULAR_LIVE_UPDATES_INPUT_ID] = sourceBinding;
+  } else {
+    nextBindings[TABULAR_SEED_INPUT_ID] = sourceBinding;
+  }
+
   return nextBindings;
 }
 
@@ -1377,6 +1380,7 @@ export function resolveIncrementalTabularOutputFrame(input: {
     input.runtimeDataStore,
     input.runtimeRowSelector,
   );
+  const effectiveLiveFrame = liveFrame ?? livePublication?.deltaFrame ?? null;
 
   if (shouldAwaitInitialDualRoleBaseline({
     seedInput,
@@ -1385,14 +1389,14 @@ export function resolveIncrementalTabularOutputFrame(input: {
     liveState,
     currentOutputFrame: null,
     seedFrame,
-    liveFrame,
+    liveFrame: effectiveLiveFrame,
   })) {
     return seedFrame?.status === "loading" ? seedFrame : null;
   }
 
   const combinedFrame = combineSeedAndLiveFrames({
     seedFrame,
-    liveFrame,
+    liveFrame: effectiveLiveFrame,
     mergeKeyFields: resolvePublicationMergeKeyFields(
       livePublication,
       resolveMarketAssetKeyFields(seedFrame),

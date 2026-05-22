@@ -4,10 +4,21 @@ import {
   CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   type TabularFrameSourceV1,
 } from "@/widgets/shared/tabular-frame-source";
-import { readWidgetRuntimeUpdateContext } from "@/widgets/shared/runtime-update";
+import {
+  TABULAR_LIVE_UPDATES_INPUT_ID,
+  TABULAR_UPDATES_OUTPUT_ID,
+} from "@/widgets/shared/incremental-tabular-consumer";
+import {
+  readWidgetRuntimeUpdateContext,
+  WIDGET_RUNTIME_UPDATE_CONTRACT_VERSION,
+} from "@/widgets/shared/runtime-update";
 import { createRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 
-import { resolveTabularTransformOutput, type TabularTransformWidgetProps } from "./tabularTransformModel";
+import {
+  resolveTabularTransformOutput,
+  resolveTabularTransformSourceConsumerState,
+  type TabularTransformWidgetProps,
+} from "./tabularTransformModel";
 
 function frame(
   rows: Array<Record<string, unknown>>,
@@ -85,6 +96,27 @@ describe("tabular transform filter mode", () => {
     expect(output.rows).toEqual([]);
     expect(output.columns).toEqual(["__name__", "queue_name", "value", "time"]);
     expect(output.fields?.map((field) => field.key)).toEqual(["__name__", "queue_name", "value", "time"]);
+  });
+
+  it("transforms an idle upstream frame when the frame still carries rows", () => {
+    const idleSource = {
+      ...frame([
+        { __name__: "sent", queue_name: "celery", value: 1, time: "2026-04-28T10:00:00.000Z" },
+      ]),
+      status: "idle",
+    } satisfies TabularFrameSourceV1;
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "filter",
+        filterRules: [{ field: "__name__", operator: "equals", value: "sent" }],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: resolvedInputs(idleSource),
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.rows).toEqual([
+      { __name__: "sent", queue_name: "celery", value: 1, time: "2026-04-28T10:00:00.000Z" },
+    ]);
   });
 
   it("filters rows by set membership", () => {
@@ -357,6 +389,91 @@ describe("tabular transform filter mode", () => {
       { symbol: "ETHUSDT", last_price: 95, previous_close: 100, one_day_return: -5 },
     ]);
     expect(deltaOutput?.meta).toBeUndefined();
+  });
+
+  it("treats live delta publications as source data when no retained base frame is present", () => {
+    const deltaFrame = frame(
+      [{ symbol: "ETHUSDT", close: 2136.36 }],
+      [
+        { key: "symbol", type: "string", provenance: "backend" },
+        { key: "close", type: "number", provenance: "backend" },
+      ],
+    );
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        computedColumns: [
+          {
+            key: "last",
+            label: "Last",
+            type: "number",
+            formulaExpression: "[close]",
+          },
+        ],
+        projectFields: ["symbol", "last"],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: {
+        [TABULAR_LIVE_UPDATES_INPUT_ID]: {
+          inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+          label: "Live updates",
+          status: "valid",
+          sourceWidgetId: "stream-1",
+          sourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
+          contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          upstreamDelta: deltaFrame,
+          upstreamUpdate: {
+            contractVersion: WIDGET_RUNTIME_UPDATE_CONTRACT_VERSION,
+            mode: "delta",
+            sourceWidgetId: "stream-1",
+            sourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
+            outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+            retainedOutputLocation: "carrier",
+          },
+        },
+      },
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.columns).toEqual(["symbol", "last"]);
+    expect(output.rows).toEqual([{ symbol: "ETHUSDT", last: 2136.36 }]);
+  });
+
+  it("keeps the last published transform output ready during valid live-input lifecycle gaps", () => {
+    const runtimeFrame = frame(
+      [{ symbol: "ETHUSDT", last: 2136.36 }],
+      [
+        { key: "symbol", type: "string", provenance: "backend" },
+        { key: "last", type: "number", provenance: "derived" },
+      ],
+    );
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        computedColumns: [
+          {
+            key: "last",
+            label: "Last",
+            type: "number",
+            formulaExpression: "[close]",
+          },
+        ],
+        projectFields: ["symbol", "last"],
+      } satisfies TabularTransformWidgetProps,
+      runtimeState: runtimeFrame,
+      resolvedInputs: {
+        [TABULAR_LIVE_UPDATES_INPUT_ID]: {
+          inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+          label: "Live updates",
+          status: "valid",
+          sourceWidgetId: "stream-1",
+          sourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
+          contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        },
+      },
+    });
+
+    expect(output.status).toBe("ready");
+    expect(output.rows).toEqual([{ symbol: "ETHUSDT", last: 2136.36 }]);
   });
 
   it("materializes retained stream rows from runtime refs before projection", () => {
@@ -703,5 +820,68 @@ describe("tabular transform filter mode", () => {
 
     expect(output.status).toBe("error");
     expect(output.error).toContain("Wrap field names in brackets");
+  });
+});
+
+describe("tabular transform live-only retention", () => {
+  it("keeps a retained transformed output ready during a transient live-only idle publication", () => {
+    const idleLiveFrame = {
+      status: "idle",
+      columns: ["symbol", "close"],
+      rows: [],
+      fields: [
+        { key: "symbol", type: "string", provenance: "manual" },
+        { key: "close", type: "number", provenance: "manual" },
+      ],
+      source: {
+        kind: "connection-stream-query",
+      },
+    } satisfies TabularFrameSourceV1;
+    const retainedOutput = frame(
+      [{ symbol: "ETHUSDT", last: 2139 }],
+      [
+        { key: "symbol", type: "string", provenance: "manual" },
+        { key: "last", type: "number", provenance: "derived" },
+      ],
+    );
+    const liveOnlyInputs = {
+      [TABULAR_LIVE_UPDATES_INPUT_ID]: {
+        inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+        label: "Live updates",
+        status: "valid",
+        sourceWidgetId: "stream-widget",
+        sourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
+        contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+        value: idleLiveFrame,
+      },
+    } as const;
+
+    const consumerState = resolveTabularTransformSourceConsumerState(
+      liveOnlyInputs,
+      undefined,
+      retainedOutput,
+    );
+    const output = resolveTabularTransformOutput({
+      props: {
+        transformMode: "none",
+        computedColumns: [
+          {
+            key: "last",
+            label: "Last",
+            type: "number",
+            formulaExpression: "[close]",
+          },
+        ],
+        projectFields: ["symbol", "last"],
+      } satisfies TabularTransformWidgetProps,
+      resolvedInputs: liveOnlyInputs,
+      runtimeState: retainedOutput,
+    });
+
+    expect(consumerState.kind).toBe("ready");
+    expect(consumerState.requiresUpstreamResolution).toBe(false);
+    expect(output.status).toBe("ready");
+    expect(output.rows).toEqual([{ symbol: "ETHUSDT", last: 2139 }]);
+    expect(output.columns).toEqual(["symbol", "last"]);
   });
 });

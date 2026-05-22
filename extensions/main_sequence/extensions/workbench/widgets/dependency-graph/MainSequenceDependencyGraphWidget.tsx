@@ -47,11 +47,11 @@ export function MainSequenceDependencyGraphWidget({
   const selectedSourceId =
     sourceKind === "simple_table"
       ? selectedSimpleTableUpdateId
-      : (normalizedRuntimeState.resolvedLocalTimeSerieId ?? 0);
+      : normalizedRuntimeState.resolvedLocalTimeSerieId;
 
   if (
-    (sourceKind === "data_node" && selectedDataNodeId <= 0) ||
-    (sourceKind === "simple_table" && selectedSimpleTableUpdateId <= 0)
+    (sourceKind === "data_node" && !selectedDataNodeId) ||
+    (sourceKind === "simple_table" && !selectedSimpleTableUpdateId)
   ) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
@@ -95,7 +95,7 @@ export function MainSequenceDependencyGraphWidget({
   if (
     isExecuting ||
     normalizedRuntimeState.status === "loading" ||
-    (!normalizedRuntimeState.payload && selectedSourceId > 0)
+    (!normalizedRuntimeState.payload && Boolean(selectedSourceId))
   ) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
@@ -118,7 +118,7 @@ export function MainSequenceDependencyGraphWidget({
   return (
     <MainSequenceUpdateDependencyGraph
       direction={direction}
-      enabled={selectedSourceId > 0}
+      enabled={Boolean(selectedSourceId)}
       error={normalizedRuntimeState.error ?? null}
       isLoading={isExecuting}
       payload={normalizedRuntimeState.payload}

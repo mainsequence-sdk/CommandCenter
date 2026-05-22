@@ -134,7 +134,7 @@ function PolicyField({
 function CompressionPolicyCard({
   dataNodeId,
 }: {
-  dataNodeId: number;
+  dataNodeId: string;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -146,7 +146,7 @@ function CompressionPolicyCard({
   const compressionPolicyQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "compression_policy", dataNodeId],
     queryFn: () => fetchDataNodeCompressionPolicy(dataNodeId),
-    enabled: dataNodeId > 0,
+    enabled: Boolean(String(dataNodeId).trim()),
   });
 
   useEffect(() => {
@@ -302,7 +302,7 @@ function CompressionPolicyCard({
 function RetentionPolicyCard({
   dataNodeId,
 }: {
-  dataNodeId: number;
+  dataNodeId: string;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -314,7 +314,7 @@ function RetentionPolicyCard({
   const retentionPolicyQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "retention_policy", dataNodeId],
     queryFn: () => fetchDataNodeRetentionPolicy(dataNodeId),
-    enabled: dataNodeId > 0,
+    enabled: Boolean(String(dataNodeId).trim()),
   });
 
   useEffect(() => {
@@ -470,7 +470,7 @@ function RetentionPolicyCard({
 export function MainSequenceDataNodePoliciesTab({
   dataNodeId,
 }: {
-  dataNodeId: number;
+  dataNodeId: string;
 }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">

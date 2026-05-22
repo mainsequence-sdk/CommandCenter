@@ -69,6 +69,7 @@ export interface PublishConnectionRuntimeStateInput {
 }
 
 interface InternalConnectionRuntimeEntry {
+  effectiveSignature?: string;
   key: string;
   kind: ConnectionRuntimeEntryKind;
   ownerCallbacks: Map<string, (runtimeState: Record<string, unknown>) => void>;
@@ -146,6 +147,73 @@ function resolveRuntimeErrorCode(runtimeState: Record<string, unknown> | undefin
   const stream = isRecord(context?.stream) ? context.stream : undefined;
 
   return typeof stream?.errorCode === "string" ? stream.errorCode : undefined;
+}
+
+function stableJsonStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableJsonStringify(entry)).join(",")}]`;
+  }
+
+  if (isRecord(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableJsonStringify(value[key])}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+function buildStreamRuntimeEffectiveSignature(runtimeState: Record<string, unknown>) {
+  const runtimeDataRef = isRecord(runtimeState.runtimeDataRef)
+    ? runtimeState.runtimeDataRef
+    : undefined;
+  const source = isRecord(runtimeState.source) ? runtimeState.source : undefined;
+  const context = isRecord(source?.context) ? source.context : undefined;
+  const stream = isRecord(context?.stream) ? context.stream : undefined;
+
+  return stableJsonStringify({
+    columns: Array.isArray(runtimeState.columns) ? runtimeState.columns : undefined,
+    error: typeof runtimeState.error === "string" ? runtimeState.error : undefined,
+    errorCode: resolveRuntimeErrorCode(runtimeState),
+    fields: Array.isArray(runtimeState.fields) ? runtimeState.fields : undefined,
+    rows: runtimeDataRef ? undefined : runtimeState.rows,
+    runtimeDataRef: runtimeDataRef
+      ? {
+          contractId: runtimeDataRef.contractId,
+          ownerId: runtimeDataRef.ownerId,
+          outputId: runtimeDataRef.outputId,
+          refId: runtimeDataRef.refId,
+          rowCount: runtimeDataRef.rowCount,
+          schemaSignature: runtimeDataRef.schemaSignature,
+          version: runtimeDataRef.version,
+        }
+      : undefined,
+    sourceRunId:
+      typeof runtimeState.sourceRunId === "string" ? runtimeState.sourceRunId : undefined,
+    status: typeof runtimeState.status === "string" ? runtimeState.status : undefined,
+    streamStatus: normalizeStatus(runtimeState.streamStatus),
+    streamTransportStatus: typeof stream?.status === "string" ? stream.status : undefined,
+  });
+}
+
+export interface ConnectionStreamPublicationPlan {
+  effectiveSignature: string;
+  shouldPublish: boolean;
+  status: ConnectionRuntimeStatus;
+}
+
+export function planConnectionStreamPublication(input: {
+  previousEffectiveSignature?: string;
+  runtimeState: Record<string, unknown>;
+}): ConnectionStreamPublicationPlan {
+  const effectiveSignature = buildStreamRuntimeEffectiveSignature(input.runtimeState);
+
+  return {
+    effectiveSignature,
+    shouldPublish: input.previousEffectiveSignature !== effectiveSignature,
+    status: normalizeStatus(input.runtimeState.streamStatus),
+  };
 }
 
 function summarizeRuntimeStoreKey(value: string) {
@@ -278,9 +346,18 @@ class InMemoryConnectionRuntimeStore implements ConnectionRuntimeStore {
     }
 
     const entry = this.getOrCreateEntry(key, input.kind ?? "stream");
+    const publicationPlan = planConnectionStreamPublication({
+      previousEffectiveSignature: entry.effectiveSignature,
+      runtimeState: input.runtimeState,
+    });
 
+    if (!publicationPlan.shouldPublish) {
+      return;
+    }
+
+    entry.effectiveSignature = publicationPlan.effectiveSignature;
     entry.runtimeState = input.runtimeState;
-    entry.status = normalizeStatus(input.runtimeState.streamStatus);
+    entry.status = publicationPlan.status;
     entry.sessionKind = input.sessionKind ?? entry.sessionKind;
     entry.updatedAtMs = Date.now();
     this.commit(entry);
@@ -417,7 +494,7 @@ export function useThrottledConnectionRuntimeEntry(
     const initialSnapshot = store?.getEntrySnapshot(key);
     pendingSnapshotRef.current = initialSnapshot;
     lastUpdateAtRef.current = Date.now();
-    setSnapshot(initialSnapshot);
+    setSnapshot((current) => current === initialSnapshot ? current : initialSnapshot);
 
     if (!store) {
       return undefined;
@@ -426,30 +503,21 @@ export function useThrottledConnectionRuntimeEntry(
     const flush = () => {
       timerRef.current = null;
       lastUpdateAtRef.current = Date.now();
-      setSnapshot(pendingSnapshotRef.current);
+      setSnapshot((current) =>
+        current === pendingSnapshotRef.current ? current : pendingSnapshotRef.current,
+      );
     };
 
     const scheduleSnapshot = () => {
       pendingSnapshotRef.current = store.getEntrySnapshot(key);
 
-      if (normalizedIntervalMs === 0) {
-        flush();
-        return;
-      }
-
       const elapsedMs = Date.now() - lastUpdateAtRef.current;
-
-      if (elapsedMs >= normalizedIntervalMs) {
-        if (timerRef.current !== null) {
-          clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
-        flush();
-        return;
-      }
+      const delayMs = normalizedIntervalMs === 0
+        ? 0
+        : Math.max(0, normalizedIntervalMs - elapsedMs);
 
       if (timerRef.current === null) {
-        timerRef.current = setTimeout(flush, normalizedIntervalMs - elapsedMs);
+        timerRef.current = setTimeout(flush, delayMs);
       }
     };
 

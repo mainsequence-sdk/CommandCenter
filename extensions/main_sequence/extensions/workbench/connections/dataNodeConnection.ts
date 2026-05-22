@@ -46,7 +46,7 @@ export type MainSequenceDataNodeConnectionQuery =
     };
 
 export interface MainSequenceDataNodeConnectionPublicConfig {
-  dataNodeId?: number;
+  dataNodeId?: string;
   dataNodeLabel?: string;
   dataNodeStorageHash?: string;
   defaultLimit?: number;
@@ -213,7 +213,7 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
         id: "dataNodeId",
         sectionId: "data-node",
         label: "Data Node",
-        type: "number",
+        type: "string",
         required: true,
       },
       {
@@ -302,7 +302,7 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
     {
       title: "Data Node row source",
       publicConfig: {
-        dataNodeId: 714,
+        dataNodeId: "00000000-0000-0000-0000-000000000714",
         dataNodeLabel: "Example Data Node",
         defaultLimit: DEFAULT_MAIN_SEQUENCE_DATA_NODE_ROW_LIMIT,
         queryCachePolicy: "read",

@@ -302,6 +302,23 @@ html[data-theme="sapphire"] {
   fill: currentColor;
 }
 
+.workspace-graph-flow .workspace-graph-edge-live-pulse {
+  pointer-events: none;
+  stroke-dasharray: 10 18;
+  opacity: 0.34;
+  animation: workspace-graph-live-edge-flow 1.15s linear infinite;
+}
+
+@keyframes workspace-graph-live-edge-flow {
+  from {
+    stroke-dashoffset: 28;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 .workspace-graph-flow .workspace-graph-port-row {
   cursor: crosshair !important;
 }

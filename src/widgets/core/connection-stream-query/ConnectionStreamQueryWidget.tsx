@@ -463,6 +463,7 @@ export function ConnectionStreamQueryWidget({
         buildConnectionStreamQueryLifecycleFrame({
           props: normalizedProps,
           status: "idle",
+          retainedState: runtimeRef.current,
           error: unresolvedReferenceMessage,
           errorCode: "waiting-for-reference",
         }) as unknown as Record<string, unknown>,
@@ -476,6 +477,7 @@ export function ConnectionStreamQueryWidget({
         buildConnectionStreamQueryLifecycleFrame({
           props: normalizedProps,
           status: hasExecutableConfig ? "error" : "idle",
+          retainedState: runtimeRef.current,
           error: hasExecutableConfig ? validationError : undefined,
         }) as unknown as Record<string, unknown>,
       );
@@ -488,6 +490,7 @@ export function ConnectionStreamQueryWidget({
         buildConnectionStreamQueryLifecycleFrame({
           props: normalizedProps,
           status: "idle",
+          retainedState: runtimeRef.current,
         }) as unknown as Record<string, unknown>,
       );
       return undefined;

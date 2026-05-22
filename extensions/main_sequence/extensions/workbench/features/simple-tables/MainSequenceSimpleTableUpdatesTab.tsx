@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 import {
   formatMainSequenceError,
+  getTsManagerRecordIdentifier,
   listSimpleTableUpdates,
   mainSequenceRegistryPageSize,
   type SimpleTableUpdateRecord,
@@ -101,10 +102,10 @@ export function MainSequenceSimpleTableUpdatesTab({
   simpleTableId,
 }: {
   onCloseSimpleTableUpdateDetail: () => void;
-  onOpenSimpleTableDetail: (simpleTableId: number) => void;
-  onOpenSimpleTableUpdateDetail: (simpleTableUpdateId: number) => void;
+  onOpenSimpleTableDetail: (simpleTableId: string | number) => void;
+  onOpenSimpleTableUpdateDetail: (simpleTableUpdateId: string | number) => void;
   onSelectSimpleTableUpdateTab: (tabId: SimpleTableUpdateDetailTabId) => void;
-  selectedSimpleTableUpdateId: number | null;
+  selectedSimpleTableUpdateId: string | null;
   selectedSimpleTableUpdateTabId: string | null;
   simpleTableId: number;
 }) {
@@ -150,6 +151,7 @@ export function MainSequenceSimpleTableUpdatesTab({
 
       return [
         String(simpleTableUpdate.id),
+        simpleTableUpdate.uid ?? "",
         simpleTableUpdate.update_hash,
         formatStatus(
           simpleTableUpdate.update_details?.active_update_status,
@@ -167,7 +169,8 @@ export function MainSequenceSimpleTableUpdatesTab({
   const selectedSimpleTableUpdateFromList = useMemo(
     () =>
       (simpleTableUpdatesQuery.data?.results ?? []).find(
-        (simpleTableUpdate) => simpleTableUpdate.id === selectedSimpleTableUpdateId,
+        (simpleTableUpdate) =>
+          getTsManagerRecordIdentifier(simpleTableUpdate) === selectedSimpleTableUpdateId,
       ) ?? null,
     [selectedSimpleTableUpdateId, simpleTableUpdatesQuery.data?.results],
   );
@@ -268,7 +271,14 @@ export function MainSequenceSimpleTableUpdatesTab({
                           <button
                             type="button"
                             className="text-left transition-colors hover:text-primary"
-                            onClick={() => onOpenSimpleTableUpdateDetail(simpleTableUpdate.id)}
+                              onClick={() => {
+                                const simpleTableUpdateIdentifier =
+                                  getTsManagerRecordIdentifier(simpleTableUpdate);
+                                if (!simpleTableUpdateIdentifier) {
+                                  return;
+                                }
+                                onOpenSimpleTableUpdateDetail(simpleTableUpdateIdentifier);
+                              }}
                           >
                             <div className="flex items-start gap-2">
                               <Activity className="mt-0.5 h-4 w-4 text-muted-foreground" />
@@ -277,7 +287,9 @@ export function MainSequenceSimpleTableUpdatesTab({
                                   {simpleTableUpdate.update_hash}
                                 </div>
                                 <div className="mt-1 text-xs text-muted-foreground">
-                                  Update ID {simpleTableUpdate.id}
+                                  {simpleTableUpdate.uid?.trim()
+                                    ? `Update UID ${simpleTableUpdate.uid.trim()}`
+                                    : ""}
                                 </div>
                               </div>
                             </div>

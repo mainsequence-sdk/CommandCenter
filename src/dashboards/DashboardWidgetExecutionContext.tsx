@@ -24,12 +24,14 @@ import type {
 } from "@/widgets/types";
 
 export interface WidgetExecutionState {
-  status: "idle" | "running" | "success" | "error";
+  status: "idle" | "running" | "success" | "waiting" | "error" | "upstream-error";
   reason?: WidgetExecutionReason;
   targetInstanceId?: string;
   startedAtMs?: number;
   finishedAtMs?: number;
   error?: string;
+  blockedByWidgetId?: string;
+  blockedByOutputId?: string;
 }
 
 export interface ExecuteWidgetGraphOptions {
@@ -54,7 +56,7 @@ interface PassiveUpstreamResolutionOptions extends ResolveWidgetUpstreamOptions 
 }
 
 export interface DashboardWidgetFlowExecutionResult {
-  status: "success" | "error" | "skipped";
+  status: "success" | "waiting" | "error" | "skipped";
   error?: string;
   widgets: DashboardWidgetInstance[];
   sourceInstanceId: string;
@@ -64,7 +66,7 @@ export interface DashboardWidgetFlowExecutionResult {
 }
 
 export interface DashboardVariableDrivenCommitExecutionResult {
-  status: "success" | "error" | "skipped";
+  status: "success" | "waiting" | "error" | "skipped";
   error?: string;
   changedWidgetId: string;
   plan: DashboardVariableDrivenCommitPlan;

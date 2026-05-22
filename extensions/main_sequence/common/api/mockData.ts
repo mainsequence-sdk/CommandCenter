@@ -669,6 +669,16 @@ function findById(rows: Array<Record<string, unknown>>, id: number) {
   return rows.find((row) => readNumber(row.id) === id) ?? null;
 }
 
+function findByUid(rows: Array<Record<string, unknown>>, uid: string) {
+  const normalized = uid.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return rows.find((row) => readString(row.uid) === normalized) ?? null;
+}
+
 function filterAssets(searchParams: URLSearchParams, body: Record<string, unknown> | null) {
   const search = searchParams.get("search") ?? readOptionalString(body?.search);
   const ticker = searchParams.get("ticker") ?? readOptionalString(body?.ticker);
@@ -1987,20 +1997,6 @@ function normalizeManagedAccountUid(value: unknown) {
   return readOptionalString(value);
 }
 
-function slugifyManagedAccountUid(value: string) {
-  const slug = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return slug || "managed-account";
-}
-
-function buildManagedAccountUid(accountName: string) {
-  return `${slugifyManagedAccountUid(accountName)}-${Date.now()}`;
-}
-
 function findManagedAccountByUid(accountUid: string) {
   return state.managedAccounts.find(
     (account) => normalizeManagedAccountUid(account.uid) === accountUid,
@@ -2268,37 +2264,6 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     state.managedAccountTargetPositionsByAccountUid[accountUid] = cloneValue(targetPositions);
 
     return targetPositions;
-  }
-
-  return undefined;
-}
-
-function handleManagedAccountHoldingsDataSources(route: string, method: string, searchParams: URLSearchParams) {
-  if (route === "/orm/api/connections/data_source/" && method === "GET") {
-    const filtered = state.projectDataSources
-      .map((source) => ({
-        id: readNumber(source.id),
-        display_name: readString(source.display_name),
-        class_type: readString(
-          (source.related_resource as Record<string, unknown> | null)?.class_type,
-        ),
-        description: readString(source.display_name),
-        status: readString(
-          (source.related_resource as Record<string, unknown> | null)?.status,
-        ),
-        metadata: {
-          is_default_data_source: readBoolean(source.is_default_data_source),
-        },
-        is_default_data_source: readBoolean(source.is_default_data_source),
-      }))
-      .filter((source) =>
-        matchesSearch(
-          [source.id, source.display_name, source.class_type, source.status],
-          searchParams.get("search"),
-        ),
-      );
-
-    return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
   return undefined;
@@ -2864,20 +2829,22 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
     };
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
-    return findById(state.simpleTables, Number(detailMatch[1]));
+    return findByUid(state.simpleTables, detailMatch[1] ?? "");
   }
 
-  const summaryMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/(\d+)\/summary\/$/);
+  const summaryMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/([^/]+)\/summary\/$/);
   if (summaryMatch && method === "GET") {
-    const table = findById(state.simpleTables, Number(summaryMatch[1]));
-    return buildSimpleTableSummary(table ?? { id: Number(summaryMatch[1]), storage_hash: `table_${summaryMatch[1]}` });
+    const table = findByUid(state.simpleTables, summaryMatch[1] ?? "");
+    return buildSimpleTableSummary(
+      table ?? { id: Number(summaryMatch[1]), uid: summaryMatch[1], storage_hash: `table_${summaryMatch[1]}` },
+    );
   }
 
-  const schemaMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/(\d+)\/schema-graph\/$/);
+  const schemaMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/([^/]+)\/schema-graph\/$/);
   if (schemaMatch && method === "GET") {
-    const table = findById(state.simpleTables, Number(schemaMatch[1]));
+    const table = findByUid(state.simpleTables, schemaMatch[1] ?? "");
     return {
       nodes: [
         {
@@ -2917,30 +2884,30 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
-  const updateMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/(\d+)\/$/);
+  const updateMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/([^/]+)\/$/);
   if (updateMatch && method === "GET") {
-    return findById(state.simpleTableUpdates, Number(updateMatch[1]));
+    return findByUid(state.simpleTableUpdates, updateMatch[1] ?? "");
   }
 
-  const updateConfigMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/(\d+)\/run-configuration\/$/);
+  const updateConfigMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/([^/]+)\/run-configuration\/$/);
   if (updateConfigMatch && method === "GET") {
-    const update = findById(state.simpleTableUpdates, Number(updateConfigMatch[1]));
+    const update = findByUid(state.simpleTableUpdates, updateConfigMatch[1] ?? "");
     return update?.run_configuration ?? { update_schedule: null };
   }
 
   if (updateConfigMatch && method === "PATCH") {
-    const update = findById(state.simpleTableUpdates, Number(updateConfigMatch[1]));
+    const update = findByUid(state.simpleTableUpdates, updateConfigMatch[1] ?? "");
     update && (update.run_configuration = { ...(update.run_configuration as Record<string, unknown> ?? {}), ...(parseBody(init) ?? {}) });
     return update?.run_configuration ?? { update_schedule: null };
   }
 
-  const updateHistoryMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/(\d+)\/historical-updates\/$/);
+  const updateHistoryMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/([^/]+)\/historical-updates\/$/);
   if (updateHistoryMatch && method === "GET") {
-    const update = findById(state.simpleTableUpdates, Number(updateHistoryMatch[1]));
+    const update = findByUid(state.simpleTableUpdates, updateHistoryMatch[1] ?? "");
     return readArray(update?.historical_updates).slice(0, Number(searchParams.get("limit") ?? 100));
   }
 
-  const updateGraphMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/(\d+)\/dependencies-graph\/$/);
+  const updateGraphMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/([^/]+)\/dependencies-graph\/$/);
   if (updateGraphMatch && method === "GET") {
     const graph = resolveMockDependencyGraph({
       sourceKind: "simple_table_update",
@@ -2986,31 +2953,34 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
       .slice(0, Number(searchParams.get("limit") ?? 50))
       .map((node) => ({
         id: readNumber(node.id),
+        uid: readOptionalString(node.uid),
         storage_hash: readString(node.storage_hash),
         identifier: readOptionalString(node.identifier),
       }));
   }
 
-  const summaryMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/summary\/$/);
+  const summaryMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/([^/]+)\/summary\/$/);
   if (summaryMatch && method === "GET") {
-    const node = findById(state.dataNodes, Number(summaryMatch[1]));
-    return buildDataNodeSummary(node ?? { id: Number(summaryMatch[1]), identifier: `Data Node ${summaryMatch[1]}` });
+    const node = findByUid(state.dataNodes, summaryMatch[1] ?? "");
+    return buildDataNodeSummary(
+      node ?? { id: Number(summaryMatch[1]), uid: summaryMatch[1], identifier: `Data Node ${summaryMatch[1]}` },
+    );
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
-    return findById(state.dataNodes, Number(detailMatch[1]));
+    return findByUid(state.dataNodes, detailMatch[1] ?? "");
   }
 
-  const lastObservationMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/get_last_observation\/$/);
+  const lastObservationMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/([^/]+)\/get_last_observation\/$/);
   if (lastObservationMatch && method === "POST") {
     return resolveMockDataNodeLastObservation(lastObservationMatch[1] ?? "");
   }
 
-  const tailObservationsMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/get-tail-observations\/$/);
+  const tailObservationsMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/([^/]+)\/get-tail-observations\/$/);
   if (tailObservationsMatch && method === "GET") {
     const dataNodeId = tailObservationsMatch[1] ?? "";
-    const node = state.dataNodes.find((candidate) => String(readNumber(candidate.id)) === dataNodeId);
+    const node = findByUid(state.dataNodes, dataNodeId);
     const { timeIndexName } = node ? getDataNodeIndexContext(node) : { timeIndexName: "" };
     const requestedOrder = readString(searchParams.get("order")).toLowerCase() === "asc" ? "asc" : "desc";
     const requestedCount = Math.max(0, Number(searchParams.get("n") ?? "") || 100);
@@ -3028,7 +2998,7 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
     return rows.slice(0, requestedCount);
   }
 
-  const dataBetweenDatesMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/get_data_between_dates_from_remote\/$/);
+  const dataBetweenDatesMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/([^/]+)\/get_data_between_dates_from_remote\/$/);
   if (dataBetweenDatesMatch && method === "POST") {
     const body = parseBody(init);
     const columns = new Set(readArray<string>(body?.columns));
@@ -3040,8 +3010,8 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
     return rows.slice(0, Number(body?.limit ?? rows.length));
   }
 
-  const deleteAfterDateMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/delete_after_date\/$/);
-  if (deleteAfterDateMatch && method === "PATCH") {
+  const deleteAfterDateMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/([^/]+)\/delete_after_date\/$/);
+  if (deleteAfterDateMatch && method === "POST") {
     const dataNodeId = deleteAfterDateMatch[1] ?? "";
     const body = parseBody(init);
     const afterDate = readString(body?.after_date);
@@ -3051,7 +3021,7 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
       throw new Error("Invalid after_date.");
     }
 
-    const node = state.dataNodes.find((candidate) => String(readNumber(candidate.id)) === dataNodeId);
+    const node = findByUid(state.dataNodes, dataNodeId);
 
     if (!node) {
       throw new Error(`Dynamic table ${dataNodeId} was not found.`);
@@ -3187,9 +3157,9 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
     };
   }
 
-  const compressionMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/compression-policy\/$/);
+  const compressionMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/([^/]+)\/compression-policy\/$/);
   if (compressionMatch && method === "GET") {
-    const node = findById(state.dataNodes, Number(compressionMatch[1]));
+    const node = findByUid(state.dataNodes, compressionMatch[1] ?? "");
     return {
       policy_type: "compression",
       supported: true,
@@ -3200,7 +3170,7 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
   }
 
   if (compressionMatch && method === "POST") {
-    const node = findById(state.dataNodes, Number(compressionMatch[1]));
+    const node = findByUid(state.dataNodes, compressionMatch[1] ?? "");
     if (node) {
       node.compression_policy = parseBody(init);
     }
@@ -3213,9 +3183,9 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
     };
   }
 
-  const retentionMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/(\d+)\/retention-policy\/$/);
+  const retentionMatch = route.match(/^\/orm\/api\/ts_manager\/dynamic_table\/([^/]+)\/retention-policy\/$/);
   if (retentionMatch && method === "GET") {
-    const node = findById(state.dataNodes, Number(retentionMatch[1]));
+    const node = findByUid(state.dataNodes, retentionMatch[1] ?? "");
     return {
       policy_type: "retention",
       supported: true,
@@ -3226,7 +3196,7 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
   }
 
   if (retentionMatch && method === "POST") {
-    const node = findById(state.dataNodes, Number(retentionMatch[1]));
+    const node = findByUid(state.dataNodes, retentionMatch[1] ?? "");
     if (node) {
       node.retention_policy = parseBody(init);
     }
@@ -3277,9 +3247,9 @@ function handleLocalTimeSeries(route: string, method: string, searchParams: URLS
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
-  const summaryMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/(\d+)\/summary\/$/);
+  const summaryMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/([^/]+)\/summary\/$/);
   if (summaryMatch && method === "GET") {
-    const update = findById(state.localTimeSeries, Number(summaryMatch[1]));
+    const update = findByUid(state.localTimeSeries, summaryMatch[1] ?? "");
     return buildEntitySummary(
       Number(summaryMatch[1]),
       "local_time_serie",
@@ -3306,19 +3276,19 @@ function handleLocalTimeSeries(route: string, method: string, searchParams: URLS
     );
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/(\d+)\/$/);
+  const detailMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
-    return findById(state.localTimeSeries, Number(detailMatch[1]));
+    return findByUid(state.localTimeSeries, detailMatch[1] ?? "");
   }
 
-  const configMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/(\d+)\/run-configuration\/$/);
+  const configMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/([^/]+)\/run-configuration\/$/);
   if (configMatch && method === "GET") {
-    const update = findById(state.localTimeSeries, Number(configMatch[1]));
+    const update = findByUid(state.localTimeSeries, configMatch[1] ?? "");
     return update?.run_configuration ?? null;
   }
 
   if (configMatch && method === "PATCH") {
-    const update = findById(state.localTimeSeries, Number(configMatch[1]));
+    const update = findByUid(state.localTimeSeries, configMatch[1] ?? "");
     if (update) {
       update.run_configuration = {
         ...(update.run_configuration as Record<string, unknown> | null ?? {}),
@@ -3328,7 +3298,7 @@ function handleLocalTimeSeries(route: string, method: string, searchParams: URLS
     return update?.run_configuration ?? null;
   }
 
-  const graphMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/(\d+)\/dependencies-graph\/$/);
+  const graphMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/([^/]+)\/dependencies-graph\/$/);
   if (graphMatch && method === "GET") {
     const graph = resolveMockDependencyGraph({
       sourceKind: "local_time_serie",
@@ -3345,15 +3315,15 @@ function handleLocalTimeSeries(route: string, method: string, searchParams: URLS
     return graph;
   }
 
-  const historicalMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/(\d+)\/historical-updates\/$/);
+  const historicalMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/([^/]+)\/historical-updates\/$/);
   if (historicalMatch && method === "GET") {
-    const update = findById(state.localTimeSeries, Number(historicalMatch[1]));
+    const update = findByUid(state.localTimeSeries, historicalMatch[1] ?? "");
     return readArray(update?.historical_updates).slice(0, Number(searchParams.get("limit") ?? 100));
   }
 
-  const logsMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/(\d+)\/logs\/$/);
+  const logsMatch = route.match(/^\/orm\/api\/ts_manager\/local_time_serie\/([^/]+)\/logs\/$/);
   if (logsMatch && method === "GET") {
-    const update = findById(state.localTimeSeries, Number(logsMatch[1]));
+    const update = findByUid(state.localTimeSeries, logsMatch[1] ?? "");
     const rows = readArray<Record<string, unknown>>(update?.logs);
     return {
       rows,
@@ -3859,7 +3829,6 @@ export function getMainSequenceMockResponse<T>({
     handleInstrumentsConfiguration(route, method, init) ??
     handleVirtualFunds(route, method, url.searchParams, init) ??
     handleManagedAccounts(route, method, url.searchParams, init) ??
-    handleManagedAccountHoldingsDataSources(route, method, url.searchParams) ??
     handleProjectDataSources(route, method, url.searchParams, init) ??
     handlePhysicalDataSources(route, method, url.searchParams, init) ??
     handleClusters(route, method, url.searchParams, init) ??

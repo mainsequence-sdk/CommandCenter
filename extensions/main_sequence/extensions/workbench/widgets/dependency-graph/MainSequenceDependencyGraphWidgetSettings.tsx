@@ -61,8 +61,8 @@ export function MainSequenceDependencyGraphWidgetSettings({
       "detail",
       dataNodeId,
     ],
-    queryFn: () => fetchDataNodeDetail(dataNodeId ?? 0),
-    enabled: sourceKind === "data_node" && Number.isFinite(dataNodeId) && (dataNodeId ?? 0) > 0,
+    queryFn: () => fetchDataNodeDetail(dataNodeId!),
+    enabled: sourceKind === "data_node" && Boolean(dataNodeId),
     staleTime: 300_000,
   });
   const latestLocalTimeSerieQuery = useQuery({
@@ -75,10 +75,11 @@ export function MainSequenceDependencyGraphWidgetSettings({
       "latest_local_time_serie",
     ],
     queryFn: async () => {
-      const page = await listLocalTimeSeries(dataNodeId ?? 0, { limit: 1, offset: 0 });
+      const dataNodeDetail = await fetchDataNodeDetail(dataNodeId!);
+      const page = await listLocalTimeSeries(dataNodeDetail.id, { limit: 1, offset: 0 });
       return page.results[0] ?? null;
     },
-    enabled: sourceKind === "data_node" && Number.isFinite(dataNodeId) && (dataNodeId ?? 0) > 0,
+    enabled: sourceKind === "data_node" && Boolean(dataNodeId),
     staleTime: 300_000,
   });
 
@@ -216,7 +217,7 @@ export function MainSequenceDependencyGraphWidgetSettings({
             <span>
               The graph will use LocalTimeSerie update{" "}
               <span className="font-medium text-foreground">
-                {latestLocalTimeSerieQuery.data.update_hash || latestLocalTimeSerieQuery.data.id}
+                {latestLocalTimeSerieQuery.data.update_hash || latestLocalTimeSerieQuery.data.uid}
               </span>
               .
             </span>

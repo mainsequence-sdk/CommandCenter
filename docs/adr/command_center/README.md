@@ -15,6 +15,7 @@ one file or one feature folder.
 
 ## Workspace And Runtime ADRs
 
+- [ADR 073: Split Finite Execution And Stream Publication Planning](./adr-073-split-finite-execution-and-stream-publication-planning.md)
 - [ADR 072: Backend Variables And Reference Defaults](./adr-072-backend-variables-and-reference-defaults.md)
 - [ADR 071: Atomic Widget Settings Workspace Save](./adr-071-atomic-widget-settings-workspace-save.md)
 - [ADR 070: Workspace Variable Explorer](./adr-070-workspace-variable-explorer.md)
@@ -57,6 +58,7 @@ one file or one feature folder.
 
 ## Widget Contract And Execution ADRs
 
+- [ADR 073: Split Finite Execution And Stream Publication Planning](./adr-073-split-finite-execution-and-stream-publication-planning.md)
 - [ADR 072: Backend Variables And Reference Defaults](./adr-072-backend-variables-and-reference-defaults.md)
 - [ADR 071: Atomic Widget Settings Workspace Save](./adr-071-atomic-widget-settings-workspace-save.md)
 - [ADR 070: Workspace Variable Explorer](./adr-070-workspace-variable-explorer.md)

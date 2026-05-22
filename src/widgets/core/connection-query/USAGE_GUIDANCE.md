@@ -19,7 +19,9 @@ When a workspace runtime data store is available, the retained frame is publishe
 ## authoringSteps
 
 - Select a configured connection instance.
-- Select one of the connection type's paths/query models. The selected path is saved and sent as `query.kind`; it is not inferred from the connection.
+- Select one of the connection type's paths/query models. The selected path is saved and sent as
+  `query.kind`; legacy drafts may fall back to `query.kind` only when it matches a query model on
+  the selected connection type.
 - Configure the selected path's connection-owned fields directly below the path selector.
 - Configure the query using the connection-specific editor when available. These editors render
   connection-owned kwargs such as Data Node columns and identifier filters, SQL parameters,
@@ -33,6 +35,8 @@ When a workspace runtime data store is available, the retained frame is publishe
 - Use the Test query action to run the draft request and inspect the returned frame before binding downstream widgets.
 - Variable-backed settings are resolved before the Test query request is built, so the preview
   payload should show the concrete upstream value rather than the raw `$(widget).source` expression.
+- Query-model defaults are fallback values only. Saved or reference-resolved query fields win over
+  defaults, so applying a default interval or path kind must not erase a resolved query field.
 - If a reference-backed query field is not available yet, the Test query action and runtime
   execution wait for that referenced value instead of sending a literal or empty placeholder to the
   backend.
@@ -65,6 +69,7 @@ When a workspace runtime data store is available, the retained frame is publishe
 - `timeRange` is always sent for query models that advertise `timeRangeAware: true`.
 - Incremental refresh is frontend-only and uses the same backend request shape. Follow-up refreshes narrow `timeRange.from`, merge rows into an in-memory retained frame, and publish the retained `core.tabular_frame@v1` dataset through a shared `widget-runtime-update@v1` envelope plus runtime data refs. Source runtime state also keeps inline rows so cold-loaded workspaces are not forced to wait for a fresh test run before downstream consumers can render.
 - Initial workspace execution, manual submit, and manual upstream recalculation rebuild the retained snapshot from the full workspace range. Later dashboard refreshes use the last successful request end plus overlap as the delta cursor.
+- A configured connection source is not considered ready until it has published runtime data. If it has not run yet, workspace status surfaces should show waiting; if the backend request fails, the widget publishes an error frame.
 - The dedupe key is not inferred from time-series semantics. It is the saved `incrementalMergeKeyFields` column combination selected by the user.
 - Overlapping refreshes for the same widget/query/request identity are deduped while the request is in flight.
 - If downstream widgets do not understand delta metadata, they still consume the retained full dataset as a normal snapshot. They must not cause this source widget to issue a second full backend query.

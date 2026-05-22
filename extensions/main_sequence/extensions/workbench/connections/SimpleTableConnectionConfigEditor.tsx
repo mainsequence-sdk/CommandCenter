@@ -23,14 +23,8 @@ import {
   DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_STATEMENT_TIMEOUT_MS,
 } from "./simpleTableConnection";
 
-function normalizePositiveInteger(value: unknown) {
-  const parsed = Number(value);
-
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  return Math.trunc(parsed);
+function normalizeUidString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function getSimpleTableLabel(table?: SimpleTableRecord | SimpleTableDetail | null) {
@@ -94,17 +88,18 @@ function updateSelectedSimpleTableConfig(
     };
   }
 
-  return {
-    ...config,
-    simpleTableId: table.id,
-    simpleTableIdentifier: table.identifier ?? undefined,
-    simpleTableLabel: getSimpleTableLabel(table),
-    simpleTableStorageHash: table.storage_hash ?? undefined,
+    return {
+      ...config,
+      simpleTableId: table.uid?.trim() || undefined,
+      simpleTableIdentifier: table.identifier ?? undefined,
+      simpleTableLabel: getSimpleTableLabel(table),
+      simpleTableStorageHash: table.storage_hash ?? undefined,
   };
 }
 
 function buildSearchText(table: SimpleTableRecord) {
   return [
+    table.uid ?? "",
     String(table.id),
     table.storage_hash ?? "",
     table.identifier ?? "",
@@ -120,7 +115,7 @@ export function SimpleTableConnectionConfigEditor({
   onChange,
   disabled,
 }: ConnectionConfigEditorProps<MainSequenceSimpleTableConnectionPublicConfig>) {
-  const simpleTableId = normalizePositiveInteger(value.simpleTableId);
+  const simpleTableId = normalizeUidString(value.simpleTableId);
   const [searchValue, setSearchValue] = useState("");
   const deferredSearchValue = useDeferredValue(searchValue);
   const simpleTablesQuery = useQuery({
@@ -136,10 +131,11 @@ export function SimpleTableConnectionConfigEditor({
   });
   const simpleTables = simpleTablesQuery.data?.results ?? [];
   const selectedSimpleTable = simpleTableDetailQuery.data ??
-    simpleTables.find((table) => table.id === simpleTableId) ??
+    simpleTables.find((table) => table.uid === simpleTableId) ??
     (simpleTableId
       ? {
-          id: simpleTableId,
+          id: 0,
+          uid: simpleTableId,
           identifier: value.simpleTableIdentifier ?? null,
           storage_hash: value.simpleTableStorageHash,
         }
@@ -212,7 +208,7 @@ export function SimpleTableConnectionConfigEditor({
             ) : (
               <div className="divide-y divide-border/60">
                 {filteredTables.map((table) => {
-                  const selected = table.id === simpleTableId;
+                  const selected = table.uid === simpleTableId;
 
                   return (
                     <button
@@ -227,7 +223,7 @@ export function SimpleTableConnectionConfigEditor({
                           {getSimpleTableLabel(table)}
                         </span>
                         <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">
-                          id {table.id}
+                          {table.uid?.trim() ? `uid ${table.uid.trim()}` : ""}
                           {table.identifier ? ` · ${table.identifier}` : ""}
                         </span>
                       </span>

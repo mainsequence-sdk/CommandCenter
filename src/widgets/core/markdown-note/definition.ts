@@ -49,6 +49,7 @@ export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
     contentVerticalAlign: "top",
     openLinksInNewTab: true,
   },
+  workspaceRuntimeMode: "local-ui",
   settingsComponent: MarkdownNoteWidgetSettings,
   io: {
     outputs: [{

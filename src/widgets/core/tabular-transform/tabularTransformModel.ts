@@ -17,19 +17,81 @@ import {
 import {
   attachWidgetRuntimeUpdateContext,
   mapWidgetRuntimeUpdateEnvelope,
+  type WidgetRuntimeUpdateEnvelope,
 } from "@/widgets/shared/runtime-update";
 import {
+  getRuntimeDataRef,
   materializeRuntimeTabularFrame,
   type RuntimeDataStore,
 } from "@/widgets/shared/runtime-data-store";
 import {
+  isUpstreamConsumerBindingProblemKind,
   resolveUpstreamConsumerState,
   type ResolvedUpstreamConsumerState,
 } from "@/widgets/shared/upstream-consumer-state";
-import type { TabularMergeKeyMapping } from "@/widgets/shared/incremental-tabular-consumer";
+import {
+  hasIncrementalTabularRoleBindings,
+  resolveIncrementalTabularBindingSnapshot,
+  type TabularMergeKeyMapping,
+} from "@/widgets/shared/incremental-tabular-consumer";
 
 export const TABULAR_TRANSFORM_SOURCE_INPUT_ID = "sourceData";
 export const TABULAR_TRANSFORM_DATASET_OUTPUT_ID = "dataset";
+
+const TABULAR_TRANSFORM_DEBUG_LOGS_ENABLED = false;
+const TABULAR_TRANSFORM_DEBUG_SIGNATURE_LIMIT = 2_000;
+const tabularTransformDebugSignatures = new Set<string>();
+
+function logTabularTransformDebug(event: string, payload: Record<string, unknown>) {
+  if (
+    typeof window === "undefined" ||
+    !import.meta.env.DEV ||
+    !TABULAR_TRANSFORM_DEBUG_LOGS_ENABLED
+  ) {
+    return;
+  }
+
+  const signature = JSON.stringify({ event, payload });
+
+  if (tabularTransformDebugSignatures.has(signature)) {
+    return;
+  }
+
+  tabularTransformDebugSignatures.add(signature);
+
+  if (tabularTransformDebugSignatures.size > TABULAR_TRANSFORM_DEBUG_SIGNATURE_LIMIT) {
+    tabularTransformDebugSignatures.clear();
+  }
+
+  console.log(`[tabular-transform:${event}]`, payload);
+}
+
+function summarizeFrameForDebug(frame: TabularFrameSourceV1 | null | undefined) {
+  return frame
+    ? {
+        status: frame.status,
+        columnCount: frame.columns.length,
+        rowCount: frame.rows.length,
+        hasRuntimeDataRef: Boolean(getRuntimeDataRef(frame)),
+        sourceKind: frame.source?.kind,
+        sourceLabel: frame.source?.label,
+        streamStatus:
+          (frame as { streamStatus?: unknown }).streamStatus ??
+          (frame.source?.context &&
+          typeof frame.source.context === "object" &&
+          "stream" in frame.source.context &&
+          frame.source.context.stream &&
+          typeof frame.source.context.stream === "object" &&
+          "status" in frame.source.context.stream
+            ? (frame.source.context.stream as { status?: unknown }).status
+            : undefined),
+      }
+    : null;
+}
+
+function resolveTransformSourceUpdatedAt(source: TabularFrameSourceV1) {
+  return source.source?.updatedAtMs;
+}
 
 export type TabularTransformMode = "none" | "filter" | "aggregate" | "pivot" | "unpivot";
 export type TabularAggregateMode = "first" | "last" | "sum" | "mean" | "min" | "max";
@@ -1430,6 +1492,110 @@ function resolveSourceInput(resolvedInputs: ResolvedWidgetInputs | undefined) {
   return candidate;
 }
 
+interface TabularTransformInputState {
+  consumerState: ResolvedUpstreamConsumerState<TabularFrameSourceV1>;
+  deltaFrame: TabularFrameSourceV1 | null;
+  retainedOutputFrame: TabularFrameSourceV1 | null;
+  sourceFrame: TabularFrameSourceV1 | null;
+  sourceInput: ResolvedWidgetInput | undefined;
+  sourceValuePresent: boolean;
+  upstreamUpdate?: WidgetRuntimeUpdateEnvelope;
+  upstreamUpdateInput?: ResolvedWidgetInput;
+}
+
+function resolveLegacyTabularTransformInputState(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+  runtimeDataStore?: RuntimeDataStore | null,
+): TabularTransformInputState {
+  const sourceInput = resolveSourceInput(resolvedInputs);
+  const sourceValue =
+    sourceInput?.upstreamBaseRef ??
+    sourceInput?.valueRef ??
+    sourceInput?.upstreamBase ??
+    sourceInput?.value;
+  const deltaValue =
+    sourceInput?.upstreamDeltaRef ??
+    sourceInput?.upstreamDelta;
+  const sourceFrame =
+    materializeRuntimeTabularFrame(sourceValue, runtimeDataStore) ??
+    normalizeTabularFrameSource(sourceInput?.upstreamBase ?? sourceInput?.value);
+  const deltaFrame =
+    materializeRuntimeTabularFrame(deltaValue, runtimeDataStore) ??
+    normalizeTabularFrameSource(sourceInput?.upstreamDelta);
+  const effectiveValue = sourceValue ?? deltaValue;
+  const effectiveFrame = sourceFrame ?? deltaFrame;
+  const consumerState = resolveUpstreamConsumerState({
+    hasCanonicalSourceBinding: Boolean(sourceInput?.sourceWidgetId),
+    hasPublishedValue: effectiveValue !== undefined,
+    resolvedSourceInput: sourceInput,
+    dataset: effectiveFrame,
+    deltaDataset: deltaFrame,
+    invalidPublishedValueMessage: "The bound source did not publish a valid tabular dataset.",
+  });
+
+  return {
+    consumerState,
+    deltaFrame,
+    retainedOutputFrame: null,
+    sourceFrame: effectiveFrame,
+    sourceInput,
+    sourceValuePresent: effectiveValue !== undefined,
+    upstreamUpdate: sourceInput?.upstreamUpdate,
+    upstreamUpdateInput: sourceInput,
+  };
+}
+
+function resolveTabularTransformInputState(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+  runtimeDataStore?: RuntimeDataStore | null,
+  runtimeState?: unknown,
+): TabularTransformInputState {
+  if (hasIncrementalTabularRoleBindings(resolvedInputs)) {
+    const bindingSnapshot = resolveIncrementalTabularBindingSnapshot({
+      resolvedInputs,
+      runtimeDataStore,
+      runtimeState,
+    });
+    const currentBindingSnapshot =
+      runtimeState === undefined
+        ? bindingSnapshot
+        : resolveIncrementalTabularBindingSnapshot({
+            resolvedInputs,
+            runtimeDataStore,
+          });
+    const retainedOutputFrame = normalizeTabularFrameSource(runtimeState);
+    const problemInput = [bindingSnapshot.liveInput, bindingSnapshot.seedInput].find((entry) =>
+      entry ? isUpstreamConsumerBindingProblemKind(entry.status) : false,
+    );
+    const validInput =
+      [bindingSnapshot.liveInput, bindingSnapshot.seedInput].find(
+        (entry) => entry?.status === "valid",
+      );
+    const upstreamUpdateInput = bindingSnapshot.liveInput?.upstreamUpdate
+      ? bindingSnapshot.liveInput
+      : bindingSnapshot.seedInput;
+
+    return {
+      consumerState: bindingSnapshot.consumerState,
+      deltaFrame: currentBindingSnapshot.deltaDataset,
+      retainedOutputFrame:
+        retainedOutputFrame && retainedOutputFrame.status !== "idle" ? retainedOutputFrame : null,
+      sourceFrame: currentBindingSnapshot.dataset,
+      sourceInput:
+        problemInput ?? validInput ?? bindingSnapshot.liveInput ?? bindingSnapshot.seedInput,
+      sourceValuePresent:
+        bindingSnapshot.consumerState.hasPublishedValue ||
+        Boolean(currentBindingSnapshot.dataset) ||
+        Boolean(currentBindingSnapshot.deltaDataset) ||
+        Boolean(retainedOutputFrame && retainedOutputFrame.status !== "idle"),
+      upstreamUpdate: upstreamUpdateInput?.upstreamUpdate,
+      upstreamUpdateInput,
+    };
+  }
+
+  return resolveLegacyTabularTransformInputState(resolvedInputs, runtimeDataStore);
+}
+
 function resolveInvalidInputError(input: ResolvedWidgetInput | undefined) {
   if (!input) {
     return "Bind a tabular dataset before this transform can run.";
@@ -1461,24 +1627,37 @@ function resolveInvalidInputError(input: ResolvedWidgetInput | undefined) {
 export function resolveTabularTransformSourceConsumerState(
   resolvedInputs: ResolvedWidgetInputs | undefined,
   runtimeDataStore?: RuntimeDataStore | null,
+  runtimeState?: unknown,
 ): ResolvedUpstreamConsumerState<TabularFrameSourceV1> {
-  const sourceInput = resolveSourceInput(resolvedInputs);
-  const sourceValue =
-    sourceInput?.upstreamBaseRef ??
-    sourceInput?.valueRef ??
-    sourceInput?.upstreamBase ??
-    sourceInput?.value;
-  const sourceFrame =
-    materializeRuntimeTabularFrame(sourceValue, runtimeDataStore) ??
-    normalizeTabularFrameSource(sourceInput?.upstreamBase ?? sourceInput?.value);
+  const inputState = resolveTabularTransformInputState(
+    resolvedInputs,
+    runtimeDataStore,
+    runtimeState,
+  );
+  const {
+    consumerState,
+    deltaFrame,
+    retainedOutputFrame,
+    sourceFrame,
+    sourceInput,
+  } = inputState;
 
-  return resolveUpstreamConsumerState({
-    hasCanonicalSourceBinding: Boolean(sourceInput?.sourceWidgetId),
-    hasPublishedValue: sourceValue !== undefined,
-    resolvedSourceInput: sourceInput,
-    dataset: sourceFrame,
-    invalidPublishedValueMessage: "The bound source did not publish a valid tabular dataset.",
+  logTabularTransformDebug("source-state", {
+    sourceInputStatus: sourceInput?.status,
+    sourceWidgetId: sourceInput?.sourceWidgetId,
+    sourceOutputId: sourceInput?.sourceOutputId,
+    sourceValuePresent: Boolean(sourceFrame),
+    deltaValuePresent: Boolean(deltaFrame),
+    effectiveValuePresent: inputState.sourceValuePresent,
+    consumerKind: consumerState.kind,
+    requiresUpstreamResolution: consumerState.requiresUpstreamResolution,
+    sourceFrame: summarizeFrameForDebug(sourceFrame),
+    deltaFrame: summarizeFrameForDebug(deltaFrame),
+    retainedOutputFrame: summarizeFrameForDebug(retainedOutputFrame),
+    effectiveFrame: summarizeFrameForDebug(sourceFrame ?? retainedOutputFrame),
   });
+
+  return consumerState;
 }
 
 export function resolveTabularTransformOutput(input: {
@@ -1488,21 +1667,79 @@ export function resolveTabularTransformOutput(input: {
   runtimeDataStore?: RuntimeDataStore | null;
 }): TabularTransformRuntimeState {
   const props = normalizeTabularTransformProps(input.props);
-  const sourceInput = resolveSourceInput(input.resolvedInputs);
-  const sourceConsumerState = resolveTabularTransformSourceConsumerState(
+  const transformInputState = resolveTabularTransformInputState(
     input.resolvedInputs,
     input.runtimeDataStore,
+    input.runtimeState,
   );
+  const {
+    consumerState: sourceConsumerState,
+    deltaFrame: inputDeltaFrame,
+    retainedOutputFrame,
+    sourceFrame: inputSourceFrame,
+    sourceInput,
+    sourceValuePresent,
+    upstreamUpdate,
+    upstreamUpdateInput,
+  } = transformInputState;
+  const hasSourceBinding =
+    Boolean(sourceInput) || hasIncrementalTabularRoleBindings(input.resolvedInputs);
 
-  if (sourceInput?.status === "valid") {
-    const source = sourceConsumerState.dataset;
-    const sourceValue =
-      sourceInput.upstreamBaseRef ??
-      sourceInput.valueRef ??
-      sourceInput.upstreamBase ??
-      sourceInput.value;
+  if (hasSourceBinding && (!sourceInput || sourceInput.status === "valid")) {
+    const source = inputSourceFrame;
+    const sourceCarriesFrame = source
+      ? source.rows.length > 0 ||
+        source.columns.length > 0 ||
+        Boolean(getRuntimeDataRef(source))
+      : false;
 
-    if (sourceConsumerState.kind === "awaiting-upstream" || sourceValue === undefined) {
+    logTabularTransformDebug("output-input", {
+      sourceWidgetId: sourceInput?.sourceWidgetId,
+      sourceOutputId: sourceInput?.sourceOutputId,
+      sourceConsumerKind: sourceConsumerState.kind,
+      sourceValuePresent,
+      upstreamUpdateMode: upstreamUpdate?.mode,
+      source: summarizeFrameForDebug(source),
+      delta: summarizeFrameForDebug(inputDeltaFrame),
+      retainedOutputFrame: summarizeFrameForDebug(retainedOutputFrame),
+    });
+
+    if (!source && retainedOutputFrame) {
+      logTabularTransformDebug("output-retained-runtime", {
+        sourceWidgetId: sourceInput?.sourceWidgetId,
+        sourceOutputId: sourceInput?.sourceOutputId,
+        sourceConsumerKind: sourceConsumerState.kind,
+        runtimeFrame: summarizeFrameForDebug(retainedOutputFrame),
+      });
+
+      return retainedOutputFrame;
+    }
+
+    if (
+      (sourceConsumerState.kind === "awaiting-upstream" || !sourceValuePresent) &&
+      !sourceCarriesFrame
+    ) {
+      const runtimeFrame = retainedOutputFrame ?? normalizeTabularFrameSource(input.runtimeState);
+
+      if (runtimeFrame && runtimeFrame.status !== "idle") {
+        logTabularTransformDebug("output-retained-runtime", {
+          sourceWidgetId: sourceInput?.sourceWidgetId,
+          sourceOutputId: sourceInput?.sourceOutputId,
+          sourceConsumerKind: sourceConsumerState.kind,
+          runtimeFrame: summarizeFrameForDebug(runtimeFrame),
+        });
+
+        return runtimeFrame;
+      }
+
+      logTabularTransformDebug("output-idle-awaiting", {
+        sourceWidgetId: sourceInput?.sourceWidgetId,
+        sourceOutputId: sourceInput?.sourceOutputId,
+        sourceConsumerKind: sourceConsumerState.kind,
+        sourceValuePresent,
+        sourceCarriesFrame,
+      });
+
       return {
         status: "idle",
         columns: [],
@@ -1511,6 +1748,13 @@ export function resolveTabularTransformOutput(input: {
     }
 
     if (!source) {
+      logTabularTransformDebug("output-error-invalid-source", {
+        sourceWidgetId: sourceInput?.sourceWidgetId,
+        sourceOutputId: sourceInput?.sourceOutputId,
+        sourceConsumerKind: sourceConsumerState.kind,
+        error: sourceConsumerState.error,
+      });
+
       return {
         status: "error",
         error: sourceConsumerState.error ?? "The bound source did not publish a valid tabular dataset.",
@@ -1520,6 +1764,14 @@ export function resolveTabularTransformOutput(input: {
     }
 
     if (sourceConsumerState.kind === "error" || source.status === "error") {
+      logTabularTransformDebug("output-error-source", {
+        sourceWidgetId: sourceInput?.sourceWidgetId,
+        sourceOutputId: sourceInput?.sourceOutputId,
+        sourceConsumerKind: sourceConsumerState.kind,
+        source: summarizeFrameForDebug(source),
+        error: sourceConsumerState.error ?? source.error,
+      });
+
       return {
         status: "error",
         error: sourceConsumerState.error ?? source.error ?? "The bound tabular source failed.",
@@ -1529,7 +1781,7 @@ export function resolveTabularTransformOutput(input: {
         source: {
           kind: "tabular-transform",
           label: "Tabular transform",
-          updatedAtMs: Date.now(),
+          updatedAtMs: resolveTransformSourceUpdatedAt(source),
           context: {
             transformMode: props.transformMode,
             upstreamSource: source.source,
@@ -1538,7 +1790,19 @@ export function resolveTabularTransformOutput(input: {
       };
     }
 
-    if (sourceConsumerState.kind === "loading" || source.status !== "ready") {
+    const shouldBlockForNonReadySource =
+      (sourceConsumerState.kind === "loading" || source.status !== "ready") &&
+      !sourceCarriesFrame;
+
+    if (shouldBlockForNonReadySource) {
+      logTabularTransformDebug("output-pass-through-non-ready", {
+        sourceWidgetId: sourceInput?.sourceWidgetId,
+        sourceOutputId: sourceInput?.sourceOutputId,
+        sourceConsumerKind: sourceConsumerState.kind,
+        sourceCarriesFrame,
+        source: summarizeFrameForDebug(source),
+      });
+
       return {
         status: source.status,
         columns: source.columns,
@@ -1556,9 +1820,26 @@ export function resolveTabularTransformOutput(input: {
       };
     }
 
+    if (source.status !== "ready") {
+      logTabularTransformDebug("output-transform-non-ready-frame", {
+        sourceWidgetId: sourceInput?.sourceWidgetId,
+        sourceOutputId: sourceInput?.sourceOutputId,
+        sourceConsumerKind: sourceConsumerState.kind,
+        sourceCarriesFrame,
+        source: summarizeFrameForDebug(source),
+      });
+    }
+
     const transformed = transformFrame(source, props);
 
     if ("error" in transformed) {
+      logTabularTransformDebug("output-error-transform", {
+        sourceWidgetId: sourceInput?.sourceWidgetId,
+        sourceOutputId: sourceInput?.sourceOutputId,
+        source: summarizeFrameForDebug(source),
+        error: transformed.error,
+      });
+
       return {
         status: "error",
         error: transformed.error,
@@ -1592,7 +1873,7 @@ export function resolveTabularTransformOutput(input: {
       source: {
         kind: "tabular-transform",
         label: "Tabular transform",
-        updatedAtMs: Date.now(),
+        updatedAtMs: resolveTransformSourceUpdatedAt(source),
         context: {
           transformMode: props.transformMode,
           aggregateMode: props.aggregateMode,
@@ -1607,7 +1888,17 @@ export function resolveTabularTransformOutput(input: {
       },
     } satisfies TabularTransformRuntimeState;
 
-    if (!sourceInput.upstreamUpdate) {
+    logTabularTransformDebug("output-ready", {
+      sourceWidgetId: sourceInput?.sourceWidgetId,
+      sourceOutputId: sourceInput?.sourceOutputId,
+      source: summarizeFrameForDebug(source),
+      output: summarizeFrameForDebug(outputFrame),
+      transformMode: props.transformMode,
+      rowMergeMode: props.rowMergeMode,
+      hasUpstreamUpdate: Boolean(upstreamUpdate),
+    });
+
+    if (!upstreamUpdate) {
       return outputFrame;
     }
 
@@ -1615,13 +1906,14 @@ export function resolveTabularTransformOutput(input: {
       ? resolveRowMergeKeyMappings(props)
       : [];
     const deltaSource =
+      inputDeltaFrame ??
       materializeRuntimeTabularFrame(
-        sourceInput.upstreamDeltaRef ?? sourceInput.upstreamDelta,
+        upstreamUpdateInput?.upstreamDeltaRef ?? upstreamUpdateInput?.upstreamDelta,
         input.runtimeDataStore,
       ) ??
-      normalizeTabularFrameSource(sourceInput.upstreamDelta);
+      normalizeTabularFrameSource(upstreamUpdateInput?.upstreamDelta);
     const canPublishDelta =
-      sourceInput.upstreamUpdate.mode === "delta" &&
+      upstreamUpdate.mode === "delta" &&
       canTransformDeltaFromRows(props) &&
       deltaSource !== null;
     const transformedDelta = canPublishDelta
@@ -1651,9 +1943,19 @@ export function resolveTabularTransformOutput(input: {
           } satisfies TabularTransformRuntimeState
         : undefined;
 
+    logTabularTransformDebug("output-runtime-update", {
+      sourceWidgetId: sourceInput?.sourceWidgetId,
+      sourceOutputId: sourceInput?.sourceOutputId,
+      upstreamUpdateMode: upstreamUpdate.mode,
+      canPublishDelta,
+      deltaSource: summarizeFrameForDebug(deltaSource),
+      deltaFrame: summarizeFrameForDebug(deltaFrame),
+      fallbackToSnapshot: !deltaFrame,
+    });
+
     return attachWidgetRuntimeUpdateContext(
       outputFrame,
-      mapWidgetRuntimeUpdateEnvelope(sourceInput.upstreamUpdate, {
+      mapWidgetRuntimeUpdateEnvelope(upstreamUpdate, {
         mode: deltaFrame ? "delta" : "snapshot",
         outputContractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
         upstreamBase: outputFrame,
@@ -1678,6 +1980,13 @@ export function resolveTabularTransformOutput(input: {
   }
 
   if (sourceInput) {
+    logTabularTransformDebug("output-error-input", {
+      sourceInputStatus: sourceInput.status,
+      sourceWidgetId: sourceInput.sourceWidgetId,
+      sourceOutputId: sourceInput.sourceOutputId,
+      error: resolveInvalidInputError(sourceInput),
+    });
+
     return {
       status: "error",
       error: resolveInvalidInputError(sourceInput),
@@ -1687,6 +1996,10 @@ export function resolveTabularTransformOutput(input: {
   }
 
   const runtimeFrame = normalizeTabularFrameSource(input.runtimeState);
+
+  logTabularTransformDebug("output-runtime-fallback", {
+    runtimeFrame: summarizeFrameForDebug(runtimeFrame),
+  });
 
   return runtimeFrame ?? {
     status: "idle",

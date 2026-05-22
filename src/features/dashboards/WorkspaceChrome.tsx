@@ -12,12 +12,20 @@ import { createPortal } from "react-dom";
 
 import {
   Loader2,
+  Zap,
 } from "lucide-react";
 
 import {
   useDashboardWidgetExecution,
   type WidgetExecutionState,
 } from "@/dashboards/DashboardWidgetExecution";
+import { useDashboardWidgetDependencies } from "@/dashboards/DashboardWidgetDependencies";
+import { listUnresolvedReferenceBackedPropInputs } from "@/dashboards/widget-dependencies";
+import {
+  resolveWidgetStatusSummary,
+  type WidgetStatusIndicator,
+  type WidgetStatusTone,
+} from "@/dashboards/widget-status";
 import { cn, titleCase } from "@/lib/utils";
 import type { WidgetInstancePresentation, WidgetDefinition } from "@/widgets/types";
 import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
@@ -25,92 +33,80 @@ import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
 const WORKSPACE_RAIL_SCROLL_TRACK_HEIGHT_PX = 128;
 const WORKSPACE_RAIL_SCROLL_THUMB_HEIGHT_PX = 10;
 
-function resolveRuntimeStatus(runtimeState?: Record<string, unknown>) {
-  return typeof runtimeState?.status === "string" ? runtimeState.status : null;
+function getWidgetRailStatusDotClass(tone: WidgetStatusTone) {
+  switch (tone) {
+    case "danger":
+      return "bg-danger";
+    case "primary":
+      return "bg-primary";
+    case "success":
+      return "bg-success";
+    case "warning":
+      return "bg-warning";
+    default:
+      return "bg-muted-foreground/70";
+  }
 }
 
-function resolveWidgetRailStatusDotClass({
-  widget,
-  executionState,
-  dashboardSurfaceHydrationActive,
-  runtimeState,
-}: {
-  widget?: WidgetDefinition;
-  executionState?: WidgetExecutionState;
-  dashboardSurfaceHydrationActive?: boolean;
-  runtimeState?: Record<string, unknown>;
-}) {
-  if (executionState?.status === "error") {
-    return "bg-danger";
+function getWidgetRailStatusTextClass(tone: WidgetStatusTone) {
+  switch (tone) {
+    case "danger":
+      return "text-danger";
+    case "primary":
+      return "text-primary";
+    case "success":
+      return "text-success";
+    case "warning":
+      return "text-warning";
+    default:
+      return "text-muted-foreground/70";
   }
-
-  if (executionState?.status === "running") {
-    return "bg-primary";
-  }
-
-  if (executionState?.status === "success") {
-    return "bg-success";
-  }
-
-  const status = resolveRuntimeStatus(runtimeState);
-
-  if (status === "error" || status === "data_error" || status === "detail_error") {
-    return "bg-danger";
-  }
-
-  if (status === "range") {
-    return "bg-warning";
-  }
-
-  if (status === "loading") {
-    return "bg-primary";
-  }
-
-  if (status === "ready") {
-    return "bg-success";
-  }
-
-  if (dashboardSurfaceHydrationActive && widget?.workspaceRuntimeMode !== "local-ui") {
-    return "bg-primary";
-  }
-
-  return "bg-success";
 }
 
-function resolveWidgetRailStatusLabel({
-  widget,
-  executionState,
-  dashboardSurfaceHydrationActive,
-  runtimeState,
+function WidgetRailStatusIndicator({
+  indicator,
+  loading,
+  tone,
 }: {
-  widget?: WidgetDefinition;
-  executionState?: WidgetExecutionState;
-  dashboardSurfaceHydrationActive?: boolean;
-  runtimeState?: Record<string, unknown>;
+  indicator: WidgetStatusIndicator;
+  loading?: boolean;
+  tone: WidgetStatusTone;
 }) {
-  if (executionState?.status === "running") {
-    return "Running";
+  const dotClassName = getWidgetRailStatusDotClass(tone);
+  const iconClassName = getWidgetRailStatusTextClass(tone);
+
+  if (indicator === "lightning") {
+    return (
+      <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-background/95">
+        <Zap className={cn("h-2.5 w-2.5", iconClassName)} />
+      </span>
+    );
   }
 
-  if (executionState?.status === "error") {
-    return executionState.error?.trim() ? "Execution error" : "Error";
+  if (indicator === "dot+lightning") {
+    return (
+      <span className="absolute -bottom-1 -right-1 flex items-center gap-0.5 rounded-full bg-background/95 px-0.5 py-px">
+        <span
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            dotClassName,
+            loading ? "animate-pulse" : undefined,
+          )}
+        />
+        <Zap className={cn("h-2.5 w-2.5", iconClassName)} />
+      </span>
+    );
   }
 
-  if (executionState?.status === "success") {
-    return "Ready";
-  }
-
-  const status = resolveRuntimeStatus(runtimeState);
-
-  if (!status) {
-    if (dashboardSurfaceHydrationActive && widget?.workspaceRuntimeMode !== "local-ui") {
-      return "Loading";
-    }
-
-    return "Ready";
-  }
-
-  return titleCase(status.replaceAll("_", " "));
+  return (
+    <span
+      className={cn(
+        "absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full",
+        dotClassName,
+        loading ? "animate-pulse" : undefined,
+      )}
+    />
+  );
 }
 
 function isWidgetRailLoading({
@@ -118,28 +114,21 @@ function isWidgetRailLoading({
   executionState,
   dashboardSurfaceHydrationActive,
   runtimeState,
+  hasUnresolvedReferenceInputs,
 }: {
   widget?: WidgetDefinition;
   executionState?: WidgetExecutionState;
   dashboardSurfaceHydrationActive?: boolean;
   runtimeState?: Record<string, unknown>;
+  hasUnresolvedReferenceInputs?: boolean;
 }) {
-  if (executionState?.status === "running" || runtimeState?.status === "loading") {
-    return true;
-  }
-
-  if (
-    executionState?.status === "success" ||
-    executionState?.status === "error" ||
-    runtimeState?.status === "ready" ||
-    runtimeState?.status === "error" ||
-    runtimeState?.status === "data_error" ||
-    runtimeState?.status === "detail_error"
-  ) {
-    return false;
-  }
-
-  return dashboardSurfaceHydrationActive === true && widget?.workspaceRuntimeMode !== "local-ui";
+  return resolveWidgetStatusSummary({
+    widget,
+    executionState,
+    dashboardSurfaceHydrationActive,
+    runtimeState,
+    hasUnresolvedReferenceInputs,
+  }).isLoading;
 }
 
 function RailHoverCard({
@@ -251,29 +240,59 @@ function DefaultWidgetRailSummary({
   executionState,
   dashboardSurfaceHydrationActive,
   runtimeState,
+  hasUnresolvedReferenceInputs,
 }: {
   title: string;
   widget: WidgetDefinition;
   executionState?: WidgetExecutionState;
   dashboardSurfaceHydrationActive?: boolean;
   runtimeState?: Record<string, unknown>;
+  hasUnresolvedReferenceInputs?: boolean;
 }) {
-  const statusLabel = resolveWidgetRailStatusLabel({
+  const statusSummary = resolveWidgetStatusSummary({
     widget,
     executionState,
     dashboardSurfaceHydrationActive,
     runtimeState,
+    hasUnresolvedReferenceInputs,
   });
 
   return (
-    <div className="pointer-events-none z-20 w-[220px] rounded-[calc(var(--radius)-4px)] border border-border/80 bg-popover/95 p-3 text-left shadow-xl backdrop-blur-sm">
+    <div className="pointer-events-none z-20 w-[280px] rounded-[calc(var(--radius)-4px)] border border-border/80 bg-popover/95 p-3 text-left shadow-xl backdrop-blur-sm">
       <div className="truncate text-sm font-medium text-foreground">{title}</div>
       <div className="mt-1 text-xs text-muted-foreground">{widget.title}</div>
       <div className="mt-3 space-y-1.5 text-xs">
         <div className="flex items-start justify-between gap-3">
           <span className="text-muted-foreground">Status</span>
-          <span className="font-medium text-foreground">{statusLabel}</span>
+          <span className="font-medium text-foreground">{statusSummary.label}</span>
         </div>
+        {statusSummary.detail ? (
+          <div
+            className={cn(
+              "rounded-[calc(var(--radius)-8px)] border px-2.5 py-2",
+              statusSummary.isError
+                ? "border-danger/25 bg-danger/8"
+                : "border-warning/25 bg-warning/8",
+            )}
+          >
+            <div
+              className={cn(
+                "text-[10px] font-medium uppercase tracking-[0.14em]",
+                statusSummary.isError ? "text-danger" : "text-warning",
+              )}
+            >
+              {statusSummary.isError ? "Issue" : "Attention"}
+            </div>
+            <div
+              className={cn(
+                "mt-1 break-words text-xs leading-4",
+                statusSummary.isError ? "text-danger" : "text-warning",
+              )}
+            >
+              {statusSummary.detail}
+            </div>
+          </div>
+        ) : null}
         <div className="flex items-start justify-between gap-3">
           <span className="text-muted-foreground">Kind</span>
           <span className="font-medium text-foreground">{titleCase(widget.kind)}</span>
@@ -400,6 +419,7 @@ export function WorkspaceWidgetRail({
   };
 }) {
   const widgetExecution = useDashboardWidgetExecution();
+  const dependencyModel = useDashboardWidgetDependencies();
   const dashboardSurfaceHydrationActive =
     widgetExecution?.dashboardSurfaceHydrationActive === true;
   const listViewportRef = useRef<HTMLDivElement | null>(null);
@@ -518,17 +538,23 @@ export function WorkspaceWidgetRail({
             });
             const active = activeInstanceId === id;
             const executionState = widgetExecution?.getExecutionState(id);
-            const dotClassName = resolveWidgetRailStatusDotClass({
+            const unresolvedReferenceInputs = dependencyModel
+              ? listUnresolvedReferenceBackedPropInputs(dependencyModel.resolveInputs(id))
+              : [];
+            const hasUnresolvedReferenceInputs = unresolvedReferenceInputs.length > 0;
+            const statusSummary = resolveWidgetStatusSummary({
               widget,
               executionState,
               dashboardSurfaceHydrationActive,
               runtimeState,
+              hasUnresolvedReferenceInputs,
             });
             const loading = isWidgetRailLoading({
               widget,
               executionState,
               dashboardSurfaceHydrationActive,
               runtimeState,
+              hasUnresolvedReferenceInputs,
             });
             const RailSummary =
               widget.railSummaryComponent as
@@ -556,6 +582,7 @@ export function WorkspaceWidgetRail({
                 executionState={executionState}
                 dashboardSurfaceHydrationActive={dashboardSurfaceHydrationActive}
                 runtimeState={runtimeState}
+                hasUnresolvedReferenceInputs={hasUnresolvedReferenceInputs}
               />
             );
 
@@ -579,12 +606,10 @@ export function WorkspaceWidgetRail({
                   }
                 >
                   <Icon className={cn("h-4 w-4", loading ? "animate-spin" : undefined)} />
-                  <span
-                    className={cn(
-                      "absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full",
-                      dotClassName,
-                      loading ? "animate-pulse" : undefined,
-                    )}
+                  <WidgetRailStatusIndicator
+                    indicator={statusSummary.indicator}
+                    loading={loading}
+                    tone={statusSummary.tone}
                   />
                 </div>
               </RailHoverCard>

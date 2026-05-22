@@ -12,6 +12,10 @@ import {
   type MainSequenceDataNodeQueryCachePolicy,
 } from "./dataNodeConnection";
 
+function normalizeUidString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 function normalizePositiveInteger(value: unknown) {
   const parsed = Number(value);
 
@@ -31,7 +35,8 @@ export function DataNodeConnectionConfigEditor({
     () =>
       value.dataNodeId
         ? {
-            id: value.dataNodeId,
+            id: 0,
+            uid: value.dataNodeId,
             identifier: value.dataNodeLabel ?? null,
             storage_hash: value.dataNodeStorageHash ?? "",
           }
@@ -56,7 +61,7 @@ export function DataNodeConnectionConfigEditor({
           onSelectedDataNodeChange={(dataNode) => {
             onChange({
               ...value,
-              dataNodeId: dataNode?.id,
+              dataNodeId: dataNode?.uid?.trim(),
               dataNodeLabel: dataNode ? formatDataNodeLabel(dataNode) : undefined,
               dataNodeStorageHash: dataNode?.storage_hash,
             });

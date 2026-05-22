@@ -19,7 +19,7 @@ const depthOptions = [1, 2, 3, 4, 5];
 export function MainSequenceSimpleTableSchemaGraph({
   simpleTableId,
 }: {
-  simpleTableId: number;
+  simpleTableId: string;
 }) {
   const [depth, setDepth] = useState("2");
   const [includeIncoming, setIncludeIncoming] = useState(false);
@@ -37,7 +37,7 @@ export function MainSequenceSimpleTableSchemaGraph({
         depth: Number(depth),
         includeIncoming,
       }),
-    enabled: simpleTableId > 0,
+    enabled: Boolean(String(simpleTableId).trim()),
   });
 
   const error = schemaGraphQuery.isError ? formatMainSequenceError(schemaGraphQuery.error) : null;
