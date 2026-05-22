@@ -19,7 +19,7 @@ This feature owns the Main Sequence Foundry registry screen for `ts_manager/simp
 
 ## Notes
 
-- Top-level detail navigation is URL-backed with `msSimpleTableId` and `msSimpleTableTab`. Nested SimpleTableUpdate detail uses `msSimpleTableUpdateId` and `msSimpleTableUpdateTab`.
+- Top-level detail navigation is URL-backed with `msSimpleTableUid` and `msSimpleTableTab`. Nested SimpleTableUpdate detail uses `msSimpleTableUpdateUid` and `msSimpleTableUpdateTab`.
 - The `Data Snapshot` tab intentionally uses the lightweight preview endpoint instead of the heavier Data Node widget pipeline, because Simple Tables expose their own row snapshot API.
 - The `ULM diagram` tab calls `/{uid}/schema-graph/` and currently exposes two query controls: `depth` and `include_incoming`.
 - URL-backed detail navigation stores the backend ts_manager `uid` for both Simple Tables and nested local updates.

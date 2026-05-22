@@ -15,7 +15,7 @@ export const DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_ROW_LIMIT = 1_000;
 export type MainSequenceSimpleTableQueryCachePolicy = "disabled" | "safe";
 
 export interface MainSequenceSimpleTableConnectionPublicConfig {
-  simpleTableId?: string;
+  simpleTableUid?: string;
   simpleTableLabel?: string;
   simpleTableStorageHash?: string;
   simpleTableIdentifier?: string;
@@ -65,11 +65,13 @@ export const mainSequenceSimpleTableConnection: ConnectionTypeDefinition<
     ],
     fields: [
       {
-        id: "simpleTableId",
+        id: "simpleTableUid",
         sectionId: "simple-table",
         label: "Simple Table",
         type: "string",
         required: true,
+        description:
+          "The authoritative Simple Table uid for this connection instance. Queries use this configured table and should not override it.",
       },
       {
         id: "simpleTableLabel",
@@ -77,6 +79,8 @@ export const mainSequenceSimpleTableConnection: ConnectionTypeDefinition<
         label: "Simple Table label",
         type: "string",
         required: false,
+        description:
+          "Optional cached display label for the selected Simple Table. The picker maintains this for UI summaries.",
       },
       {
         id: "simpleTableStorageHash",
@@ -84,6 +88,8 @@ export const mainSequenceSimpleTableConnection: ConnectionTypeDefinition<
         label: "Storage hash",
         type: "string",
         required: false,
+        description:
+          "Optional cached storage hash for the selected Simple Table. Used only for display and debugging context.",
       },
       {
         id: "simpleTableIdentifier",
@@ -91,6 +97,8 @@ export const mainSequenceSimpleTableConnection: ConnectionTypeDefinition<
         label: "Identifier",
         type: "string",
         required: false,
+        description:
+          "Optional cached backend identifier string for the selected Simple Table. Used only for UI context.",
       },
       {
         id: "defaultLimit",
@@ -165,7 +173,7 @@ export const mainSequenceSimpleTableConnection: ConnectionTypeDefinition<
     {
       title: "Simple Table SQL source",
       publicConfig: {
-        simpleTableId: "00000000-0000-0000-0000-000000000123",
+        simpleTableUid: "00000000-0000-0000-0000-000000000123",
         simpleTableLabel: "Example Simple Table",
         defaultLimit: DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_ROW_LIMIT,
         statementTimeoutMs: DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_STATEMENT_TIMEOUT_MS,

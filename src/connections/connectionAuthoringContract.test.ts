@@ -51,7 +51,7 @@ describe("connection authoring contract", () => {
   it("seeds Simple Table SQL defaults from the shared contract", () => {
     const draft = buildConnectionQueryDraftSeed({
       connectionInstance: createConnectionInstance(mainSequenceSimpleTableConnection, {
-        simpleTableId: "00000000-0000-0000-0000-000000000123",
+        simpleTableUid: "00000000-0000-0000-0000-000000000123",
         defaultLimit: 250,
       }),
       connectionType: mainSequenceSimpleTableConnection,
@@ -68,7 +68,7 @@ describe("connection authoring contract", () => {
   it("seeds Data Node request defaults from the shared contract", () => {
     const draft = buildConnectionQueryDraftSeed({
       connectionInstance: createConnectionInstance(mainSequenceDataNodeConnection, {
-        dataNodeId: "00000000-0000-0000-0000-000000000714",
+        dataNodeUid: "00000000-0000-0000-0000-000000000714",
         defaultLimit: 321,
       }),
       connectionType: mainSequenceDataNodeConnection,

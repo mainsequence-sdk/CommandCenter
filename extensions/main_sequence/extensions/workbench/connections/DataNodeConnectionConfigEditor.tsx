@@ -33,15 +33,15 @@ export function DataNodeConnectionConfigEditor({
 }: ConnectionConfigEditorProps<MainSequenceDataNodeConnectionPublicConfig>) {
   const selectedDataNode = useMemo(
     () =>
-      value.dataNodeId
+      value.dataNodeUid
         ? {
             id: 0,
-            uid: value.dataNodeId,
+            uid: value.dataNodeUid,
             identifier: value.dataNodeLabel ?? null,
             storage_hash: value.dataNodeStorageHash ?? "",
           }
         : null,
-    [value.dataNodeId, value.dataNodeLabel, value.dataNodeStorageHash],
+    [value.dataNodeUid, value.dataNodeLabel, value.dataNodeStorageHash],
   );
 
   return (
@@ -49,11 +49,11 @@ export function DataNodeConnectionConfigEditor({
       <div className="space-y-1.5">
         <div className="text-sm font-medium text-foreground">Data Node</div>
         <DataNodeQuickSearchPicker
-          value={value.dataNodeId}
+          value={value.dataNodeUid}
           onChange={(nextId) => {
             onChange({
               ...value,
-              dataNodeId: nextId,
+              dataNodeUid: nextId,
               dataNodeLabel: nextId ? value.dataNodeLabel : undefined,
               dataNodeStorageHash: nextId ? value.dataNodeStorageHash : undefined,
             });
@@ -61,7 +61,7 @@ export function DataNodeConnectionConfigEditor({
           onSelectedDataNodeChange={(dataNode) => {
             onChange({
               ...value,
-              dataNodeId: dataNode?.uid?.trim(),
+              dataNodeUid: dataNode?.uid?.trim(),
               dataNodeLabel: dataNode ? formatDataNodeLabel(dataNode) : undefined,
               dataNodeStorageHash: dataNode?.storage_hash,
             });

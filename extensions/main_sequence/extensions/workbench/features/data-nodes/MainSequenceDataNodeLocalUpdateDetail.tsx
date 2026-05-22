@@ -283,7 +283,7 @@ function getDataNodeIdFromSummaryHref(href?: string) {
     const url = new URL(href, "https://mainsequence.local");
     const rawId =
       url.searchParams.get("dynamic_table_id") ??
-      url.searchParams.get("msDataNodeId") ??
+      url.searchParams.get("msDataNodeUid") ??
       url.searchParams.get("dynamicTableId");
     if (typeof rawId === "string" && rawId.trim()) {
       return rawId.trim();

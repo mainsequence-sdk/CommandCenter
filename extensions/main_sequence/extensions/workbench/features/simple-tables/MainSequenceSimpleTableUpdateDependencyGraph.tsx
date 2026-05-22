@@ -12,14 +12,14 @@ import type {
 export function MainSequenceSimpleTableUpdateDependencyGraph({
   direction,
   enabled = true,
-  simpleTableUpdateId,
+  simpleTableUpdateUid,
   runtimeState,
   onRuntimeStateChange,
   variant = "card",
 }: {
   direction: MainSequenceDependencyGraphDirection;
   enabled?: boolean;
-  simpleTableUpdateId: string;
+  simpleTableUpdateUid: string;
   runtimeState?: MainSequenceDependencyGraphRuntimeState;
   onRuntimeStateChange?: (state: Record<string, unknown> | undefined) => void;
   variant?: "card" | "widget";
@@ -27,15 +27,15 @@ export function MainSequenceSimpleTableUpdateDependencyGraph({
   return (
     <MainSequenceUpdateDependencyGraph
       direction={direction}
-      enabled={enabled && Boolean(String(simpleTableUpdateId).trim())}
+      enabled={enabled && Boolean(String(simpleTableUpdateUid).trim())}
       queryKey={[
         "main_sequence",
         "simple_tables",
         "updates",
         "graph",
-        simpleTableUpdateId,
+        simpleTableUpdateUid,
       ]}
-      queryFn={() => fetchSimpleTableUpdateDependencyGraph(simpleTableUpdateId, direction)}
+      queryFn={() => fetchSimpleTableUpdateDependencyGraph(simpleTableUpdateUid, direction)}
       runtimeState={runtimeState}
       onRuntimeStateChange={onRuntimeStateChange}
       variant={variant}

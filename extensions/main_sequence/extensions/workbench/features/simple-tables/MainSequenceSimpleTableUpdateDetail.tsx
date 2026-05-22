@@ -268,16 +268,16 @@ function SimpleTableUpdateBuildConfiguration({
 
 export function MainSequenceSimpleTableUpdateDetail({
   initialSimpleTableUpdate,
-  simpleTableUpdateId,
+  simpleTableUpdateUid,
   onClose,
   onOpenSimpleTableDetail,
   onSelectTab,
   selectedTabId,
 }: {
   initialSimpleTableUpdate?: SimpleTableUpdateRecord | null;
-  simpleTableUpdateId: string;
+  simpleTableUpdateUid: string;
   onClose: () => void;
-  onOpenSimpleTableDetail: (simpleTableId: string) => void;
+  onOpenSimpleTableDetail: (simpleTableUid: string) => void;
   onSelectTab: (tabId: SimpleTableUpdateDetailTabId) => void;
   selectedTabId: string | null;
 }) {
@@ -291,21 +291,21 @@ export function MainSequenceSimpleTableUpdateDetail({
   )
     ? (selectedTabId as SimpleTableUpdateDetailTabId)
     : "details";
-  const hasSimpleTableUpdateIdentifier = Boolean(String(simpleTableUpdateId).trim());
+  const hasSimpleTableUpdateIdentifier = Boolean(String(simpleTableUpdateUid).trim());
 
   const detailQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "updates", "detail", simpleTableUpdateId],
-    queryFn: () => fetchSimpleTableUpdateDetail(simpleTableUpdateId),
+    queryKey: ["main_sequence", "simple_tables", "updates", "detail", simpleTableUpdateUid],
+    queryFn: () => fetchSimpleTableUpdateDetail(simpleTableUpdateUid),
     enabled: hasSimpleTableUpdateIdentifier,
   });
   const runConfigurationQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "updates", "run_configuration", simpleTableUpdateId],
-    queryFn: () => fetchSimpleTableUpdateRunConfiguration(simpleTableUpdateId),
+    queryKey: ["main_sequence", "simple_tables", "updates", "run_configuration", simpleTableUpdateUid],
+    queryFn: () => fetchSimpleTableUpdateRunConfiguration(simpleTableUpdateUid),
     enabled: hasSimpleTableUpdateIdentifier,
   });
   const historicalUpdatesQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "updates", "historical_updates", simpleTableUpdateId],
-    queryFn: () => listSimpleTableUpdateHistoricalUpdates(simpleTableUpdateId, 100),
+    queryKey: ["main_sequence", "simple_tables", "updates", "historical_updates", simpleTableUpdateUid],
+    queryFn: () => listSimpleTableUpdateHistoricalUpdates(simpleTableUpdateUid, 100),
     enabled: hasSimpleTableUpdateIdentifier && activeTabId === "historical-updates",
   });
 
@@ -315,7 +315,7 @@ export function MainSequenceSimpleTableUpdateDetail({
 
   const updateRunConfigurationMutation = useMutation({
     mutationFn: (input: SimpleTableUpdateRunConfigurationInput) =>
-      updateSimpleTableUpdateRunConfiguration(simpleTableUpdateId, input),
+      updateSimpleTableUpdateRunConfiguration(simpleTableUpdateUid, input),
     onSuccess: async () => {
       toast({
         variant: "success",
@@ -325,10 +325,10 @@ export function MainSequenceSimpleTableUpdateDetail({
 
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "simple_tables", "updates", "run_configuration", simpleTableUpdateId],
+          queryKey: ["main_sequence", "simple_tables", "updates", "run_configuration", simpleTableUpdateUid],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["main_sequence", "simple_tables", "updates", "detail", simpleTableUpdateId],
+          queryKey: ["main_sequence", "simple_tables", "updates", "detail", simpleTableUpdateUid],
         }),
         queryClient.invalidateQueries({
           queryKey: ["main_sequence", "simple_tables", "updates"],
@@ -349,7 +349,7 @@ export function MainSequenceSimpleTableUpdateDetail({
     ? buildFallbackSimpleTableUpdateSummary(simpleTableUpdate)
     : null;
   const detailTitle =
-    summary?.entity.title ?? simpleTableUpdate?.update_hash ?? `Simple table update ${simpleTableUpdateId}`;
+    summary?.entity.title ?? simpleTableUpdate?.update_hash ?? `Simple table update ${simpleTableUpdateUid}`;
   const linkedSimpleTableId = simpleTableUpdate?.remote_table
     ? getTsManagerRecordIdentifier(simpleTableUpdate.remote_table)
     : null;
@@ -565,14 +565,14 @@ export function MainSequenceSimpleTableUpdateDetail({
               <div className="min-h-[720px]">
                 <MainSequenceSimpleTableUpdateDependencyGraph
                   direction="downstream"
-                  simpleTableUpdateId={simpleTableUpdateId}
+                  simpleTableUpdateUid={simpleTableUpdateUid}
                   variant="widget"
                 />
               </div>
               <div className="min-h-[720px]">
                 <MainSequenceSimpleTableUpdateDependencyGraph
                   direction="upstream"
-                  simpleTableUpdateId={simpleTableUpdateId}
+                  simpleTableUpdateUid={simpleTableUpdateUid}
                   variant="widget"
                 />
               </div>

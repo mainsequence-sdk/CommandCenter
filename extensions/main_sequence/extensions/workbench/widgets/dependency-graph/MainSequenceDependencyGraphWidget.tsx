@@ -27,8 +27,8 @@ export function MainSequenceDependencyGraphWidget({
   const executionState = useWidgetExecutionState(instanceId);
   const direction = normalizeDependencyGraphDirection(props.direction);
   const sourceKind = normalizeDependencyGraphSourceKind(props.sourceKind);
-  const selectedDataNodeId = normalizeDependencyGraphSelectedId(props.dataNodeId);
-  const selectedSimpleTableUpdateId = normalizeDependencyGraphSelectedId(props.simpleTableUpdateId);
+  const selectedDataNodeUid = normalizeDependencyGraphSelectedId(props.dataNodeUid);
+  const selectedSimpleTableUpdateUid = normalizeDependencyGraphSelectedId(props.simpleTableUpdateUid);
   const normalizedRuntimeState = normalizeDependencyGraphRuntimeState(runtimeState);
   const directionLabel =
     direction === "upstream"
@@ -46,12 +46,12 @@ export function MainSequenceDependencyGraphWidget({
   const isExecuting = executionState?.status === "running";
   const selectedSourceId =
     sourceKind === "simple_table"
-      ? selectedSimpleTableUpdateId
+      ? selectedSimpleTableUpdateUid
       : normalizedRuntimeState.resolvedLocalTimeSerieId;
 
   if (
-    (sourceKind === "data_node" && !selectedDataNodeId) ||
-    (sourceKind === "simple_table" && !selectedSimpleTableUpdateId)
+    (sourceKind === "data_node" && !selectedDataNodeUid) ||
+    (sourceKind === "simple_table" && !selectedSimpleTableUpdateUid)
   ) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
@@ -132,8 +132,8 @@ export function MainSequenceDependencyGraphWidget({
           status: normalizedRuntimeState.status,
           sourceKind: normalizedRuntimeState.sourceKind,
           direction: normalizedRuntimeState.direction,
-          selectedDataNodeId: normalizedRuntimeState.selectedDataNodeId,
-          selectedSimpleTableUpdateId: normalizedRuntimeState.selectedSimpleTableUpdateId,
+          selectedDataNodeUid: normalizedRuntimeState.selectedDataNodeUid,
+          selectedSimpleTableUpdateUid: normalizedRuntimeState.selectedSimpleTableUpdateUid,
           resolvedLocalTimeSerieId: normalizedRuntimeState.resolvedLocalTimeSerieId,
           emptyReason: normalizedRuntimeState.emptyReason,
           lastLoadedAtMs: normalizedRuntimeState.lastLoadedAtMs,

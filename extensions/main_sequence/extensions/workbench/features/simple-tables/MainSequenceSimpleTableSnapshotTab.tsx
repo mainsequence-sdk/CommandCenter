@@ -39,19 +39,19 @@ function buildSnapshotSearchText(row: Record<string, unknown>, columns: string[]
 }
 
 export function MainSequenceSimpleTableSnapshotTab({
-  simpleTableId,
+  simpleTableUid,
 }: {
-  simpleTableId: string;
+  simpleTableUid: string;
 }) {
   const [filterValue, setFilterValue] = useState("");
   const deferredFilterValue = useDeferredValue(filterValue);
   const snapshotQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "snapshot", simpleTableId, snapshotRowLimit],
+    queryKey: ["main_sequence", "simple_tables", "snapshot", simpleTableUid, snapshotRowLimit],
     queryFn: () =>
-      fetchSimpleTableDataSnapshot(simpleTableId, {
+      fetchSimpleTableDataSnapshot(simpleTableUid, {
         limit: snapshotRowLimit,
       }),
-    enabled: Boolean(String(simpleTableId).trim()),
+    enabled: Boolean(String(simpleTableUid).trim()),
   });
   const snapshotColumns = snapshotQuery.data?.columns ?? [];
   const filteredRows = useMemo(() => {

@@ -10,7 +10,7 @@ export const defaultDataNodePublishedDatasetLimit = 2_500;
 
 export interface DataNodePublishedDataset {
   columns: string[];
-  dataNodeId?: string;
+  dataNodeUid?: string;
   error?: string;
   fields?: TabularFrameFieldSchema[];
   limit: number;
@@ -97,9 +97,9 @@ export function normalizeDataNodePublishedDataset(
 
   return {
     columns: normalizedFrame?.columns ?? normalizeColumns(value.columns),
-    dataNodeId:
-      normalizeUidString(value.dataNodeId) ??
-      sourceContext?.dataNodeId,
+    dataNodeUid:
+      normalizeUidString(value.dataNodeUid) ??
+      sourceContext?.dataNodeUid,
     error: typeof value.error === "string" && value.error.trim() ? value.error.trim() : undefined,
     fields: normalizedFrame?.fields,
     limit:

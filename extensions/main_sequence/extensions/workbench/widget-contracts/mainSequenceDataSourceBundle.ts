@@ -10,7 +10,7 @@ export const MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT = CORE_TABULAR_FRAME_SOUR
 export const MAIN_SEQUENCE_DATA_SOURCE_KIND = "main-sequence-data-node" as const;
 
 export interface MainSequenceDataSourceContext {
-  dataNodeId?: string;
+  dataNodeUid?: string;
   dateRangeMode?: "dashboard" | "fixed";
   fixedStartMs?: number;
   fixedEndMs?: number;
@@ -58,7 +58,7 @@ function normalizeUniqueIdentifierList(value: unknown) {
 }
 
 export function buildMainSequenceDataSourceDescriptor(input: {
-  dataNodeId?: string;
+  dataNodeUid?: string;
   dataNodeLabel?: string;
   dateRangeMode?: "dashboard" | "fixed";
   fixedStartMs?: number;
@@ -69,13 +69,13 @@ export function buildMainSequenceDataSourceDescriptor(input: {
 }): TabularFrameSourceDescriptor {
   return {
     kind: MAIN_SEQUENCE_DATA_SOURCE_KIND,
-    id: normalizeUidString(input.dataNodeId),
+    id: normalizeUidString(input.dataNodeUid),
     label: typeof input.dataNodeLabel === "string" && input.dataNodeLabel.trim()
       ? input.dataNodeLabel.trim()
       : undefined,
     updatedAtMs: normalizeTimestampMs(input.updatedAtMs),
     context: {
-      dataNodeId: normalizeUidString(input.dataNodeId),
+      dataNodeUid: normalizeUidString(input.dataNodeUid),
       dateRangeMode: input.dateRangeMode,
       fixedStartMs: normalizeTimestampMs(input.fixedStartMs),
       fixedEndMs: normalizeTimestampMs(input.fixedEndMs),
@@ -95,8 +95,8 @@ export function resolveMainSequenceDataSourceContext(
   const context = source.context ?? {};
 
   return {
-    dataNodeId:
-      normalizeUidString(context.dataNodeId) ??
+    dataNodeUid:
+      normalizeUidString(context.dataNodeUid) ??
       normalizeUidString(source.id),
     dataNodeLabel:
       typeof source.label === "string" && source.label.trim() ? source.label.trim() : undefined,

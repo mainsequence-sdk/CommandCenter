@@ -9,7 +9,7 @@ data-node metadata and remote rows.
   and label formatting for data nodes and local updates.
 - `dataNodePublishedDataset.ts`: the shared published runtime contract for Data Node consumers.
   This is the standard hop-local dataset shape used by `Data Node Graph`, `Data Node Table`, and
-  `Statistic`: `status`, `dataNodeId`, `columns: string[]`, `rows: Record<string, unknown>[]`,
+  `Statistic`: `status`, `dataNodeUid`, `columns: string[]`, `rows: Record<string, unknown>[]`,
   optional normalized `fields`, optional `source`, plus range metadata, identifiers, and update
   timestamps. Published `fields` now carry schema provenance metadata as well:
   `provenance`, `reason`, `derivedFrom`, and `warnings`.

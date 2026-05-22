@@ -64,7 +64,7 @@ export function SimpleTableUpdateQuickSearchPicker({
   const [searchValue, setSearchValue] = useState("");
   const deferredSearchValue = useDeferredValue(searchValue);
   const normalizedSearchValue = deferredSearchValue.trim();
-  const selectedSimpleTableUpdateId = value?.trim() || "";
+  const selectedSimpleTableUpdateUid = value?.trim() || "";
 
   const selectedSimpleTableUpdateQuery = useQuery({
     queryKey: [
@@ -73,10 +73,10 @@ export function SimpleTableUpdateQuickSearchPicker({
       queryScope,
       "simple_table_update",
       "detail",
-      selectedSimpleTableUpdateId,
+      selectedSimpleTableUpdateUid,
     ],
-    queryFn: () => fetchSimpleTableUpdateDetail(selectedSimpleTableUpdateId),
-    enabled: Boolean(selectedSimpleTableUpdateId),
+    queryFn: () => fetchSimpleTableUpdateDetail(selectedSimpleTableUpdateUid),
+    enabled: Boolean(selectedSimpleTableUpdateUid),
     staleTime: 300_000,
   });
 

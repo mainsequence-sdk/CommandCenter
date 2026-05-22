@@ -39,9 +39,9 @@ import { MainSequenceSimpleTableSchemaGraph } from "./MainSequenceSimpleTableSch
 import { MainSequenceSimpleTableSnapshotTab } from "./MainSequenceSimpleTableSnapshotTab";
 import { MainSequenceSimpleTableUpdatesTab } from "./MainSequenceSimpleTableUpdatesTab";
 
-const mainSequenceSimpleTableIdParam = "msSimpleTableId";
+const mainSequenceSimpleTableIdParam = "msSimpleTableUid";
 const mainSequenceSimpleTableTabParam = "msSimpleTableTab";
-const mainSequenceSimpleTableUpdateIdParam = "msSimpleTableUpdateId";
+const mainSequenceSimpleTableUpdateIdParam = "msSimpleTableUpdateUid";
 const mainSequenceSimpleTableUpdateTabParam = "msSimpleTableUpdateTab";
 const simpleTableDetailTabs = [
   { id: "details", label: "Details" },
@@ -590,7 +590,7 @@ export function MainSequenceSimpleTablesPage() {
           onOpenSimpleTableDetail={openSimpleTableDetail}
           onSelectTab={selectSimpleTableUpdateTab}
           selectedTabId={selectedSimpleTableUpdateTabId}
-          simpleTableUpdateId={selectedSimpleTableUpdateIdentifier!}
+          simpleTableUpdateUid={selectedSimpleTableUpdateIdentifier!}
         />
       ) : isSimpleTableDetailOpen ? (
         <div className="space-y-4">
@@ -773,18 +773,18 @@ export function MainSequenceSimpleTablesPage() {
                       </CardContent>
                     </Card>
                   ) : selectedDetailTabId === "data-snapshot" ? (
-                    <MainSequenceSimpleTableSnapshotTab simpleTableId={selectedSimpleTableIdentifier!} />
+                    <MainSequenceSimpleTableSnapshotTab simpleTableUid={selectedSimpleTableIdentifier!} />
                   ) : selectedDetailTabId === "ulm-diagram" ? (
-                    <MainSequenceSimpleTableSchemaGraph simpleTableId={selectedSimpleTableIdentifier!} />
+                    <MainSequenceSimpleTableSchemaGraph simpleTableUid={selectedSimpleTableIdentifier!} />
                   ) : (
                     <MainSequenceSimpleTableUpdatesTab
                       onCloseSimpleTableUpdateDetail={closeSimpleTableUpdateDetail}
                       onOpenSimpleTableDetail={openSimpleTableDetail}
                       onOpenSimpleTableUpdateDetail={openSimpleTableUpdateDetail}
                       onSelectSimpleTableUpdateTab={selectSimpleTableUpdateTab}
-                      selectedSimpleTableUpdateId={selectedSimpleTableUpdateIdentifier}
+                      selectedSimpleTableUpdateUid={selectedSimpleTableUpdateIdentifier}
                       selectedSimpleTableUpdateTabId={selectedSimpleTableUpdateTabId}
-                      simpleTableIdentifier={selectedSimpleTableIdentifier!}
+                      simpleTableUid={selectedSimpleTableIdentifier!}
                     />
                   )}
                 </CardContent>

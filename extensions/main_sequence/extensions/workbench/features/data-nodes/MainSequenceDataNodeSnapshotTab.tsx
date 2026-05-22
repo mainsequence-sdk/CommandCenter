@@ -61,16 +61,16 @@ function getSnapshotColumns(
 }
 
 export function MainSequenceDataNodeSnapshotTab({
-  dataNodeId,
+  dataNodeUid,
 }: {
-  dataNodeId: string;
+  dataNodeUid: string;
 }) {
   const [filterValue, setFilterValue] = useState("");
   const deferredFilterValue = useDeferredValue(filterValue);
   const detailQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "detail", dataNodeId],
-    queryFn: () => fetchDataNodeDetail(dataNodeId),
-    enabled: Boolean(String(dataNodeId).trim()),
+    queryKey: ["main_sequence", "data_nodes", "detail", dataNodeUid],
+    queryFn: () => fetchDataNodeDetail(dataNodeUid),
+    enabled: Boolean(String(dataNodeUid).trim()),
     staleTime: 300_000,
   });
   const snapshotQuery = useQuery({
@@ -78,16 +78,16 @@ export function MainSequenceDataNodeSnapshotTab({
       "main_sequence",
       "data_nodes",
       "tail_observations",
-      dataNodeId,
+      dataNodeUid,
       snapshotRowLimit,
     ],
     queryFn: () =>
-      fetchDataNodeTailObservations(dataNodeId, {
+      fetchDataNodeTailObservations(dataNodeUid, {
         n: snapshotRowLimit,
         order: "desc",
       }),
     enabled:
-      Boolean(String(dataNodeId).trim()) &&
+      Boolean(String(dataNodeUid).trim()) &&
       detailQuery.data?.sourcetableconfiguration != null,
     staleTime: 60_000,
   });

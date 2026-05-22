@@ -81,19 +81,19 @@ function updateSelectedSimpleTableConfig(
   if (!table) {
     return {
       ...config,
-      simpleTableId: undefined,
+      simpleTableUid: undefined,
       simpleTableIdentifier: undefined,
       simpleTableLabel: undefined,
       simpleTableStorageHash: undefined,
     };
   }
 
-    return {
-      ...config,
-      simpleTableId: table.uid?.trim() || undefined,
-      simpleTableIdentifier: table.identifier ?? undefined,
-      simpleTableLabel: getSimpleTableLabel(table),
-      simpleTableStorageHash: table.storage_hash ?? undefined,
+  return {
+    ...config,
+    simpleTableUid: table.uid?.trim() || undefined,
+    simpleTableIdentifier: table.identifier ?? undefined,
+    simpleTableLabel: getSimpleTableLabel(table),
+    simpleTableStorageHash: table.storage_hash ?? undefined,
   };
 }
 
@@ -115,7 +115,7 @@ export function SimpleTableConnectionConfigEditor({
   onChange,
   disabled,
 }: ConnectionConfigEditorProps<MainSequenceSimpleTableConnectionPublicConfig>) {
-  const simpleTableId = normalizeUidString(value.simpleTableId);
+  const simpleTableUid = normalizeUidString(value.simpleTableUid);
   const [searchValue, setSearchValue] = useState("");
   const deferredSearchValue = useDeferredValue(searchValue);
   const simpleTablesQuery = useQuery({
@@ -124,18 +124,18 @@ export function SimpleTableConnectionConfigEditor({
     staleTime: 300_000,
   });
   const simpleTableDetailQuery = useQuery({
-    queryKey: ["main_sequence", "connections", "simple_table", "detail", simpleTableId],
-    queryFn: () => fetchSimpleTableDetail(simpleTableId!),
-    enabled: Boolean(simpleTableId),
+    queryKey: ["main_sequence", "connections", "simple_table", "detail", simpleTableUid],
+    queryFn: () => fetchSimpleTableDetail(simpleTableUid!),
+    enabled: Boolean(simpleTableUid),
     staleTime: 300_000,
   });
   const simpleTables = simpleTablesQuery.data?.results ?? [];
   const selectedSimpleTable = simpleTableDetailQuery.data ??
-    simpleTables.find((table) => table.uid === simpleTableId) ??
-    (simpleTableId
+    simpleTables.find((table) => table.uid === simpleTableUid) ??
+    (simpleTableUid
       ? {
           id: 0,
-          uid: simpleTableId,
+          uid: simpleTableUid,
           identifier: value.simpleTableIdentifier ?? null,
           storage_hash: value.simpleTableStorageHash,
         }
@@ -208,7 +208,7 @@ export function SimpleTableConnectionConfigEditor({
             ) : (
               <div className="divide-y divide-border/60">
                 {filteredTables.map((table) => {
-                  const selected = table.uid === simpleTableId;
+                  const selected = table.uid === simpleTableUid;
 
                   return (
                     <button
@@ -283,7 +283,7 @@ export function SimpleTableConnectionConfigEditor({
         </div>
       </div>
 
-      {simpleTableId ? (
+      {simpleTableUid ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div>

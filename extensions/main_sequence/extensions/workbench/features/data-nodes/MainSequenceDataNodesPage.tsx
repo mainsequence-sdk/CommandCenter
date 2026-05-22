@@ -63,9 +63,9 @@ import {
   resolveDataNodeEngineClassType,
 } from "./dataNodeSummary";
 
-const mainSequenceDataNodeIdParam = "msDataNodeId";
+const mainSequenceDataNodeIdParam = "msDataNodeUid";
 const mainSequenceDataNodeTabParam = "msDataNodeTab";
-const mainSequenceLocalUpdateIdParam = "msLocalUpdateId";
+const mainSequenceLocalUpdateIdParam = "msLocalUpdateUid";
 const mainSequenceLocalUpdateTabParam = "msLocalUpdateTab";
 const dataNodePermissionsObjectUrl = "/orm/api/ts_manager/dynamic_table";
 const dataNodeLocalUpdatesTabId = "local-updates";
@@ -1361,7 +1361,7 @@ export function MainSequenceDataNodesPage() {
                       </CardContent>
                     </Card>
                   ) : selectedDetailTabId === "data-snapshot" ? (
-                    <MainSequenceDataNodeSnapshotTab dataNodeId={selectedDataNodeIdentifier!} />
+                    <MainSequenceDataNodeSnapshotTab dataNodeUid={selectedDataNodeIdentifier!} />
                   ) : selectedDetailTabId === dataNodeLocalUpdatesTabId ? (
                     <MainSequenceDataNodeLocalTimeSeriesTab
                       dataNodeIdentifier={selectedDataNodeIdentifier!}
@@ -1380,7 +1380,7 @@ export function MainSequenceDataNodesPage() {
                       enabled={selectedDetailTabId === "permissions"}
                     />
                   ) : (
-                    <MainSequenceDataNodePoliciesTab dataNodeId={selectedDataNodeIdentifier!} />
+                    <MainSequenceDataNodePoliciesTab dataNodeUid={selectedDataNodeIdentifier!} />
                   )}
                 </CardContent>
               </Card>
@@ -1683,8 +1683,7 @@ export function MainSequenceDataNodesPage() {
               </div>
               <div className="space-y-1 text-sm text-foreground">
                 <div>
-                  Dynamic table {selectedDataNodeIdentifier?.includes("-") ? "UID" : "ID"}{" "}
-                  {selectedDataNodeIdentifier}
+                  Dynamic table UID {selectedDataNodeIdentifier}
                 </div>
                 <div>
                   Related table {selectedSourceTableConfiguration?.related_table ?? "Not available"}

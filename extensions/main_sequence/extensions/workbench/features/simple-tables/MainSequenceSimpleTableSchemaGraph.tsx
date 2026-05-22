@@ -17,9 +17,9 @@ import { MainSequenceSimpleTableUmlExplorer } from "./MainSequenceSimpleTableUml
 const depthOptions = [1, 2, 3, 4, 5];
 
 export function MainSequenceSimpleTableSchemaGraph({
-  simpleTableId,
+  simpleTableUid,
 }: {
-  simpleTableId: string;
+  simpleTableUid: string;
 }) {
   const [depth, setDepth] = useState("2");
   const [includeIncoming, setIncludeIncoming] = useState(false);
@@ -28,16 +28,16 @@ export function MainSequenceSimpleTableSchemaGraph({
       "main_sequence",
       "simple_tables",
       "schema_graph",
-      simpleTableId,
+      simpleTableUid,
       depth,
       includeIncoming,
     ],
     queryFn: () =>
-      fetchSimpleTableSchemaGraph(simpleTableId, {
+      fetchSimpleTableSchemaGraph(simpleTableUid, {
         depth: Number(depth),
         includeIncoming,
       }),
-    enabled: Boolean(String(simpleTableId).trim()),
+    enabled: Boolean(String(simpleTableUid).trim()),
   });
 
   const error = schemaGraphQuery.isError ? formatMainSequenceError(schemaGraphQuery.error) : null;

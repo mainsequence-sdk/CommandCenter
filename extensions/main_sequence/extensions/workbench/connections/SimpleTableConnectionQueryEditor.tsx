@@ -18,6 +18,10 @@ function normalizePositiveInteger(value: unknown) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : undefined;
 }
 
+function normalizeUidString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 function readPublicConfig(value: unknown): MainSequenceSimpleTableConnectionPublicConfig {
   return value && typeof value === "object"
     ? (value as MainSequenceSimpleTableConnectionPublicConfig)
@@ -31,7 +35,7 @@ export function SimpleTableConnectionQueryEditor({
   value,
 }: ConnectionQueryEditorProps<MainSequenceSimpleTableConnectionQuery>) {
   const publicConfig = readPublicConfig(connectionInstance?.publicConfig);
-  const simpleTableId = normalizePositiveInteger(publicConfig.simpleTableId);
+  const simpleTableUid = normalizeUidString(publicConfig.simpleTableUid);
   const defaultLimit =
     normalizePositiveInteger(publicConfig.defaultLimit) ?? DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_ROW_LIMIT;
   const query: MainSequenceSimpleTableConnectionQuery = {
@@ -46,9 +50,9 @@ export function SimpleTableConnectionQueryEditor({
       <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2 text-xs text-muted-foreground">
         <div className="font-medium text-foreground">Configured source</div>
         <div className="mt-1 break-words">
-          {simpleTableId
-            ? `${publicConfig.simpleTableLabel ?? "Simple Table"} · ${simpleTableId}`
-            : "No Simple Table id is stored on this connection instance."}
+          {simpleTableUid
+            ? `${publicConfig.simpleTableLabel ?? "Simple Table"} · ${simpleTableUid}`
+            : "No Simple Table uid is stored on this connection instance."}
         </div>
       </div>
 

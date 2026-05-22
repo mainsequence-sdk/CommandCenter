@@ -297,7 +297,7 @@ function buildDataNodeUrl(node: DependencyGraphLayoutNode | null) {
     return null;
   }
 
-  return `/app/main_sequence_workbench/data-nodes?msDataNodeId=${remoteTableId}&msDataNodeTab=details`;
+  return `/app/main_sequence_workbench/data-nodes?msDataNodeUid=${remoteTableId}&msDataNodeTab=details`;
 }
 
 function buildSimpleTableUrl(node: DependencyGraphLayoutNode | null) {
@@ -324,7 +324,7 @@ function buildSimpleTableUrl(node: DependencyGraphLayoutNode | null) {
     return null;
   }
 
-  return `/app/main_sequence_workbench/simple-tables?msSimpleTableId=${remoteTableId}&msSimpleTableTab=details`;
+  return `/app/main_sequence_workbench/simple-tables?msSimpleTableUid=${remoteTableId}&msSimpleTableTab=details`;
 }
 
 function buildDataNodeUpdateUrl(node: DependencyGraphLayoutNode | null) {
@@ -345,11 +345,11 @@ function buildDataNodeUpdateUrl(node: DependencyGraphLayoutNode | null) {
   const search = new URLSearchParams();
 
   if (remoteTableId !== null) {
-    search.set("msDataNodeId", remoteTableId);
+    search.set("msDataNodeUid", remoteTableId);
   }
 
   search.set("msDataNodeTab", "local-updates");
-  search.set("msLocalUpdateId", localUpdateId);
+  search.set("msLocalUpdateUid", localUpdateId);
   search.set("msLocalUpdateTab", "graphs");
 
   return `/app/main_sequence_workbench/data-nodes?${search.toString()}`;
@@ -372,11 +372,11 @@ function buildSimpleTableUpdateUrl(node: DependencyGraphLayoutNode | null) {
   const search = new URLSearchParams();
 
   if (remoteTableId !== null) {
-    search.set("msSimpleTableId", remoteTableId);
+    search.set("msSimpleTableUid", remoteTableId);
   }
 
   search.set("msSimpleTableTab", "local-update");
-  search.set("msSimpleTableUpdateId", simpleTableUpdateId);
+  search.set("msSimpleTableUpdateUid", simpleTableUpdateId);
   search.set("msSimpleTableUpdateTab", "graphs");
 
   return `/app/main_sequence_workbench/simple-tables?${search.toString()}`;

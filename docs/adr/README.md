@@ -10,6 +10,8 @@ This section is the architectural decision log for the repository, split by appl
 
 - [Command Center](./command_center/README.md): workspace runtime, widgets, connections, shell,
   AppComponent, and other platform ADRs for the main application.
+- [Main Sequence](./main_sequence/README.md): Markets, Workbench, shared Main Sequence API
+  contracts, widgets, and feature-level architectural decisions.
 - [Main Sequence AI](./mainsequence_ai/README.md): assistant runtime, AgentSession, agent-facing
   UI, and project-agent ADRs for the AI application surface.
 

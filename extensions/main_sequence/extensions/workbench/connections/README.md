@@ -35,7 +35,7 @@ Workbench data access.
 - Backend-owned connection instances should handle health checks, platform permissions, and query
   execution.
 - A Main Sequence Data Node connection instance is configured by selecting a concrete Data Node.
-  Its public config stores `dataNodeId`, optional display metadata (`dataNodeLabel`,
+  Its public config stores `dataNodeUid`, optional display metadata (`dataNodeLabel`,
   `dataNodeStorageHash`), `defaultLimit`, `queryCachePolicy`, `queryCacheTtlMs`, and
   `dedupeInFlight`. It does not expose user-entered secrets.
 - `queryCachePolicy` controls completed-result caching for read operations. `queryCacheTtlMs`
@@ -64,7 +64,7 @@ Workbench data access.
   with `meta.timeSeries` hints, that shared preview exposes Graph and Table views using the core
   graph model and TradingView chart renderer.
 - A Main Sequence Simple Table connection instance is configured by selecting one concrete Simple
-  Table. Its public config stores `simpleTableId`, optional display metadata
+  Table. Its public config stores `simpleTableUid`, optional display metadata
   (`simpleTableLabel`, `simpleTableStorageHash`, `simpleTableIdentifier`), `defaultLimit`,
   `statementTimeoutMs`, `queryCachePolicy`, `queryCacheTtlMs`, and `dedupeInFlight`.
 - Simple Table Explore intentionally exposes one path: read-only SQL. The shared workbench sends
@@ -97,7 +97,7 @@ Workbench data access.
 The backend adapter for `type_id = "mainsequence.simple-table"` is the runtime owner for Simple
 Table SQL execution. The frontend contract provides these public config fields:
 
-- `simpleTableId?: string`
+- `simpleTableUid?: string`
 - `simpleTableLabel?: string`
 - `simpleTableStorageHash?: string`
 - `simpleTableIdentifier?: string`
@@ -116,7 +116,7 @@ stored public config value is exactly `false`.
 
 Every adapter operation should first resolve the target Simple Table:
 
-1. Read `configured_simple_table_uid` from `public_config.simpleTableId`.
+1. Read `configured_simple_table_uid` from `public_config.simpleTableUid`.
 2. Reject requests when no configured Simple Table exists. Simple Table SQL should not accept an
    ad hoc table UID from the query payload.
 3. Validate the resolved value is a non-empty UID string.
@@ -150,7 +150,7 @@ for the resolved Simple Table still apply.
 
 `testConnection(id)`:
 
-- Resolve the Simple Table id from configured public config only.
+- Resolve the Simple Table uid from configured public config only.
 - Fetch the Simple Table detail endpoint.
 - Return `ok` only when the table exists and the current backend context can view it.
 
@@ -184,7 +184,7 @@ The backend adapter for `type_id = "mainsequence.data-node"` should be implement
 owner for Data Node metadata and row access. The frontend contract provides these public config
 fields:
 
-- `dataNodeId?: string`
+- `dataNodeUid?: string`
 - `dataNodeLabel?: string`
 - `dataNodeStorageHash?: string`
 - `defaultLimit?: number`
@@ -199,8 +199,8 @@ fields:
 
 Every adapter operation should first resolve the target Data Node:
 
-1. Read `configured_data_node_uid` from the connection instance `public_config.dataNodeId`.
-2. Read `requested_data_node_uid` from the resource params or query payload `dataNodeId`.
+1. Read `configured_data_node_uid` from the connection instance `public_config.dataNodeUid`.
+2. Read `requested_data_node_uid` from the resource params or query payload `dataNodeUid`.
 3. If `configured_data_node_uid` exists, use it as the authority.
 4. If both UIDs exist and they differ, reject the request with a validation error.
 5. If no configured uid exists, require `requested_data_node_uid`. This keeps real backend
@@ -215,7 +215,7 @@ for the resolved Data Node still apply.
 
 `resource = "data-node-detail"`:
 
-- Accepted payload: `{ "dataNodeId": string }`
+- Accepted payload: `{ "dataNodeUid": string }`
 - Resolve and validate the Data Node uid using the runtime resolution rules above.
 - Execute `GET /orm/api/ts_manager/dynamic_table/{resolved_data_node_uid}/`.
 - Return the Data Node detail object or a wrapped detail payload that includes the same object.
@@ -236,7 +236,7 @@ for the resolved Data Node still apply.
   - date window from the top-level connection request `timeRange`
   - `columns: string[]`
 - Optional query payload:
-  - `dataNodeId?: string`
+  - `dataNodeUid?: string`
   - `unique_identifier_list?: string[]`
   - `unique_identifier_range_map?: Record<string, [number, number]>`
   - `great_or_equal?: boolean`
@@ -259,7 +259,7 @@ for the resolved Data Node still apply.
 
 `query.kind = "data-node-last-observation"`:
 
-- Accepted payload: `{ "dataNodeId"?: string }`
+- Accepted payload: `{ "dataNodeUid"?: string }`
 - Resolve and validate the Data Node uid.
 - Execute `POST /orm/api/ts_manager/dynamic_table/{resolved_data_node_uid}/get_last_observation/`
   with `{}`.
@@ -267,8 +267,8 @@ for the resolved Data Node still apply.
 
 `testConnection(id)`:
 
-- Resolve the Data Node id using configured public config only. For a system/default migration
-  connection with no configured id, return `unknown` or `error` explaining that no Data Node is
+- Resolve the Data Node uid using configured public config only. For a system/default migration
+  connection with no configured uid, return `unknown` or `error` explaining that no Data Node is
   configured for health checks.
 - Fetch the Data Node detail endpoint.
 - Return `ok` only when the Data Node exists and the current backend context can view it.
@@ -375,7 +375,7 @@ The execution shape should be:
 
 ```text
 resolve connection instance
-resolve and validate Data Node id
+resolve and validate Data Node uid
 check user/org/object permissions
 normalize payload and defaults
 if dedupe disabled: execute operation

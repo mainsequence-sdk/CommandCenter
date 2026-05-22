@@ -21,7 +21,7 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
   tags: ["main-sequence", "simple-table", "dependency", "graph", "workbench"],
   exampleProps: {
     sourceKind: "data_node",
-    dataNodeId: "00000000-0000-0000-0000-000000000714",
+    dataNodeUid: "00000000-0000-0000-0000-000000000714",
     direction: "downstream",
   },
   mockRuntimeState: {
@@ -41,8 +41,8 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
       widgetRole: "presentation",
       contentType: "graph",
       sourceKind: props.sourceKind ?? null,
-      dataNodeId: props.dataNodeId ?? null,
-      simpleTableUpdateId: props.simpleTableUpdateId ?? null,
+      dataNodeUid: props.dataNodeUid ?? null,
+      simpleTableUpdateUid: props.simpleTableUpdateUid ?? null,
       direction: props.direction ?? null,
     },
   }),
@@ -63,13 +63,13 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
           source: "custom-settings",
         },
         {
-          id: "dataNodeId",
+          id: "dataNodeUid",
           label: "Data Node UID",
           type: "string",
           source: "custom-settings",
         },
         {
-          id: "simpleTableUpdateId",
+          id: "simpleTableUpdateUid",
           label: "Simple table update UID",
           type: "string",
           source: "custom-settings",

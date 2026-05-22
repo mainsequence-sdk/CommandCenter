@@ -98,26 +98,26 @@ export function MainSequenceSimpleTableUpdatesTab({
   onOpenSimpleTableDetail,
   onOpenSimpleTableUpdateDetail,
   onSelectSimpleTableUpdateTab,
-  selectedSimpleTableUpdateId,
+  selectedSimpleTableUpdateUid,
   selectedSimpleTableUpdateTabId,
-  simpleTableIdentifier,
+  simpleTableUid,
 }: {
   onCloseSimpleTableUpdateDetail: () => void;
-  onOpenSimpleTableDetail: (simpleTableId: string) => void;
-  onOpenSimpleTableUpdateDetail: (simpleTableUpdateId: string) => void;
+  onOpenSimpleTableDetail: (simpleTableUid: string) => void;
+  onOpenSimpleTableUpdateDetail: (simpleTableUpdateUid: string) => void;
   onSelectSimpleTableUpdateTab: (tabId: SimpleTableUpdateDetailTabId) => void;
-  selectedSimpleTableUpdateId: string | null;
+  selectedSimpleTableUpdateUid: string | null;
   selectedSimpleTableUpdateTabId: string | null;
-  simpleTableIdentifier: string;
+  simpleTableUid: string;
 }) {
   const [filterValue, setFilterValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const deferredFilterValue = useDeferredValue(filterValue);
 
   const simpleTableDetailQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "detail", simpleTableIdentifier],
-    queryFn: () => fetchSimpleTableDetail(simpleTableIdentifier),
-    enabled: Boolean(simpleTableIdentifier.trim()),
+    queryKey: ["main_sequence", "simple_tables", "detail", simpleTableUid],
+    queryFn: () => fetchSimpleTableDetail(simpleTableUid),
+    enabled: Boolean(simpleTableUid.trim()),
   });
   const resolvedSimpleTableId = simpleTableDetailQuery.data?.id ?? null;
 
@@ -127,7 +127,7 @@ export function MainSequenceSimpleTableUpdatesTab({
       "simple_tables",
       "updates",
       "list",
-      simpleTableIdentifier,
+      simpleTableUid,
       pageIndex,
     ],
     queryFn: () =>
@@ -140,7 +140,7 @@ export function MainSequenceSimpleTableUpdatesTab({
 
   useEffect(() => {
     setPageIndex(0);
-  }, [deferredFilterValue, simpleTableIdentifier]);
+  }, [deferredFilterValue, simpleTableUid]);
 
   useEffect(() => {
     const totalPages = Math.max(
@@ -185,15 +185,15 @@ export function MainSequenceSimpleTableUpdatesTab({
     () =>
       (simpleTableUpdatesQuery.data?.results ?? []).find(
         (simpleTableUpdate) =>
-          getTsManagerRecordIdentifier(simpleTableUpdate) === selectedSimpleTableUpdateId,
+          getTsManagerRecordIdentifier(simpleTableUpdate) === selectedSimpleTableUpdateUid,
       ) ?? null,
-    [selectedSimpleTableUpdateId, simpleTableUpdatesQuery.data?.results],
+    [selectedSimpleTableUpdateUid, simpleTableUpdatesQuery.data?.results],
   );
   const isLoading = simpleTableDetailQuery.isLoading || simpleTableUpdatesQuery.isLoading;
   const hasDetailError = simpleTableDetailQuery.isError;
   const hasSimpleTableUpdatesError = simpleTableUpdatesQuery.isError;
 
-  if (selectedSimpleTableUpdateId) {
+  if (selectedSimpleTableUpdateUid) {
     return (
       <MainSequenceSimpleTableUpdateDetail
         initialSimpleTableUpdate={selectedSimpleTableUpdateFromList}
@@ -201,7 +201,7 @@ export function MainSequenceSimpleTableUpdatesTab({
         onOpenSimpleTableDetail={onOpenSimpleTableDetail}
         onSelectTab={onSelectSimpleTableUpdateTab}
         selectedTabId={selectedSimpleTableUpdateTabId}
-        simpleTableUpdateId={selectedSimpleTableUpdateId}
+        simpleTableUpdateUid={selectedSimpleTableUpdateUid}
       />
     );
   }
@@ -295,12 +295,12 @@ export function MainSequenceSimpleTableUpdatesTab({
                             type="button"
                             className="text-left transition-colors hover:text-primary"
                               onClick={() => {
-                                const simpleTableUpdateIdentifier =
+                                const simpleTableUpdateUidentifier =
                                   getTsManagerRecordIdentifier(simpleTableUpdate);
-                                if (!simpleTableUpdateIdentifier) {
+                                if (!simpleTableUpdateUidentifier) {
                                   return;
                                 }
-                                onOpenSimpleTableUpdateDetail(simpleTableUpdateIdentifier);
+                                onOpenSimpleTableUpdateDetail(simpleTableUpdateUidentifier);
                               }}
                           >
                             <div className="flex items-start gap-2">

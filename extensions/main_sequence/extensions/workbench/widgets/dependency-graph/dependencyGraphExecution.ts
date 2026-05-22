@@ -56,10 +56,10 @@ export async function executeDependencyGraphWidget(
   const props = (context.targetOverrides?.props ?? context.props) as MainSequenceDependencyGraphWidgetProps;
   const sourceKind = normalizeDependencyGraphSourceKind(props.sourceKind);
   const direction = normalizeDependencyGraphDirection(props.direction);
-  const selectedDataNodeId = normalizeDependencyGraphSelectedId(props.dataNodeId);
-  const selectedSimpleTableUpdateId = normalizeDependencyGraphSelectedId(props.simpleTableUpdateId);
+  const selectedDataNodeUid = normalizeDependencyGraphSelectedId(props.dataNodeUid);
+  const selectedSimpleTableUpdateUid = normalizeDependencyGraphSelectedId(props.simpleTableUpdateUid);
 
-  if (sourceKind === "data_node" && !selectedDataNodeId) {
+  if (sourceKind === "data_node" && !selectedDataNodeUid) {
     return {
       status: "skipped",
       runtimeStatePatch: buildDependencyGraphRuntimeState(context.runtimeState, {
@@ -67,8 +67,8 @@ export async function executeDependencyGraphWidget(
         error: undefined,
         sourceKind,
         direction,
-        selectedDataNodeId: undefined,
-        selectedSimpleTableUpdateId: undefined,
+        selectedDataNodeUid: undefined,
+        selectedSimpleTableUpdateUid: undefined,
         resolvedLocalTimeSerieId: undefined,
         payload: undefined,
         emptyReason: undefined,
@@ -76,7 +76,7 @@ export async function executeDependencyGraphWidget(
     };
   }
 
-  if (sourceKind === "simple_table" && !selectedSimpleTableUpdateId) {
+  if (sourceKind === "simple_table" && !selectedSimpleTableUpdateUid) {
     return {
       status: "skipped",
       runtimeStatePatch: buildDependencyGraphRuntimeState(context.runtimeState, {
@@ -84,8 +84,8 @@ export async function executeDependencyGraphWidget(
         error: undefined,
         sourceKind,
         direction,
-        selectedDataNodeId: undefined,
-        selectedSimpleTableUpdateId: undefined,
+        selectedDataNodeUid: undefined,
+        selectedSimpleTableUpdateUid: undefined,
         resolvedLocalTimeSerieId: undefined,
         payload: undefined,
         emptyReason: undefined,
@@ -97,7 +97,7 @@ export async function executeDependencyGraphWidget(
 
   if (sourceKind === "data_node") {
     try {
-      const dataNodeDetail = await fetchDataNodeDetail(selectedDataNodeId, requestTraceMeta);
+      const dataNodeDetail = await fetchDataNodeDetail(selectedDataNodeUid, requestTraceMeta);
       const page = await listLocalTimeSeries(dataNodeDetail.id, {
         limit: 1,
         offset: 0,
@@ -111,8 +111,8 @@ export async function executeDependencyGraphWidget(
         {
           sourceKind,
           direction,
-          selectedDataNodeId,
-          selectedSimpleTableUpdateId: undefined,
+          selectedDataNodeUid,
+          selectedSimpleTableUpdateUid: undefined,
           resolvedLocalTimeSerieId: undefined,
           emptyReason: undefined,
         },
@@ -130,8 +130,8 @@ export async function executeDependencyGraphWidget(
           error: undefined,
           sourceKind,
           direction,
-          selectedDataNodeId,
-          selectedSimpleTableUpdateId: undefined,
+          selectedDataNodeUid,
+          selectedSimpleTableUpdateUid: undefined,
           resolvedLocalTimeSerieId: undefined,
           payload: undefined,
           emptyReason: "no-linked-updates",
@@ -142,13 +142,13 @@ export async function executeDependencyGraphWidget(
   }
 
   const selectedSourceId =
-    sourceKind === "simple_table" ? selectedSimpleTableUpdateId : resolvedLocalTimeSerieId;
+    sourceKind === "simple_table" ? selectedSimpleTableUpdateUid : resolvedLocalTimeSerieId;
 
   try {
     const payload =
       sourceKind === "simple_table"
         ? await fetchSimpleTableUpdateDependencyGraph(
-            selectedSimpleTableUpdateId!,
+            selectedSimpleTableUpdateUid!,
             direction,
             requestTraceMeta,
           )
@@ -165,9 +165,9 @@ export async function executeDependencyGraphWidget(
         error: undefined,
         sourceKind,
         direction,
-        selectedDataNodeId: sourceKind === "data_node" ? selectedDataNodeId : undefined,
-        selectedSimpleTableUpdateId:
-          sourceKind === "simple_table" ? selectedSimpleTableUpdateId : undefined,
+        selectedDataNodeUid: sourceKind === "data_node" ? selectedDataNodeUid : undefined,
+        selectedSimpleTableUpdateUid:
+          sourceKind === "simple_table" ? selectedSimpleTableUpdateUid : undefined,
         resolvedLocalTimeSerieId,
         payload,
         emptyReason: undefined,
@@ -180,9 +180,9 @@ export async function executeDependencyGraphWidget(
       {
         sourceKind,
         direction,
-        selectedDataNodeId: sourceKind === "data_node" ? selectedDataNodeId : undefined,
-        selectedSimpleTableUpdateId:
-          sourceKind === "simple_table" ? selectedSimpleTableUpdateId : undefined,
+        selectedDataNodeUid: sourceKind === "data_node" ? selectedDataNodeUid : undefined,
+        selectedSimpleTableUpdateUid:
+          sourceKind === "simple_table" ? selectedSimpleTableUpdateUid : undefined,
         resolvedLocalTimeSerieId,
         emptyReason: undefined,
       },
@@ -198,8 +198,8 @@ export const dependencyGraphExecutionDefinition = {
     const props = (context.targetOverrides?.props ?? context.props) as MainSequenceDependencyGraphWidgetProps;
     const sourceKind = normalizeDependencyGraphSourceKind(props.sourceKind);
     return sourceKind === "simple_table"
-      ? Boolean(normalizeDependencyGraphSelectedId(props.simpleTableUpdateId))
-      : Boolean(normalizeDependencyGraphSelectedId(props.dataNodeId));
+      ? Boolean(normalizeDependencyGraphSelectedId(props.simpleTableUpdateUid))
+      : Boolean(normalizeDependencyGraphSelectedId(props.dataNodeUid));
   },
   execute: executeDependencyGraphWidget,
   getRefreshPolicy: () => "allow-refresh",

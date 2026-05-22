@@ -2,10 +2,10 @@ import type { LocalTimeSerieDependencyGraphResponse } from "../../../../common/a
 import type { MainSequenceDependencyGraphRuntimeState } from "./MainSequenceDependencyGraphExplorer";
 
 export interface MainSequenceDependencyGraphWidgetProps extends Record<string, unknown> {
-  dataNodeId?: string;
+  dataNodeUid?: string;
   direction?: "downstream" | "upstream";
   sourceKind?: "data_node" | "simple_table";
-  simpleTableUpdateId?: string;
+  simpleTableUpdateUid?: string;
 }
 
 export interface MainSequenceDependencyGraphWidgetRuntimeState
@@ -15,8 +15,8 @@ export interface MainSequenceDependencyGraphWidgetRuntimeState
   error?: string;
   sourceKind?: "data_node" | "simple_table";
   direction?: "downstream" | "upstream";
-  selectedDataNodeId?: string;
-  selectedSimpleTableUpdateId?: string;
+  selectedDataNodeUid?: string;
+  selectedSimpleTableUpdateUid?: string;
   resolvedLocalTimeSerieId?: string;
   payload?: LocalTimeSerieDependencyGraphResponse;
   emptyReason?: "no-linked-updates";
@@ -88,9 +88,9 @@ export function normalizeDependencyGraphRuntimeState(
       typeof value.error === "string" && value.error.trim() ? value.error : undefined,
     sourceKind: normalizeDependencyGraphSourceKind(value.sourceKind),
     direction: normalizeDependencyGraphDirection(value.direction),
-    selectedDataNodeId: normalizeDependencyGraphSelectedId(value.selectedDataNodeId) || undefined,
-    selectedSimpleTableUpdateId:
-      normalizeDependencyGraphSelectedId(value.selectedSimpleTableUpdateId) || undefined,
+    selectedDataNodeUid: normalizeDependencyGraphSelectedId(value.selectedDataNodeUid) || undefined,
+    selectedSimpleTableUpdateUid:
+      normalizeDependencyGraphSelectedId(value.selectedSimpleTableUpdateUid) || undefined,
     resolvedLocalTimeSerieId:
       normalizeDependencyGraphSelectedId(value.resolvedLocalTimeSerieId) || undefined,
     payload: normalizeDependencyGraphPayload(value.payload),

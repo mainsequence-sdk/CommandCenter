@@ -132,9 +132,9 @@ function PolicyField({
 }
 
 function CompressionPolicyCard({
-  dataNodeId,
+  dataNodeUid,
 }: {
-  dataNodeId: string;
+  dataNodeUid: string;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -144,9 +144,9 @@ function CompressionPolicyCard({
   const [timezone, setTimezone] = useState("UTC");
 
   const compressionPolicyQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "compression_policy", dataNodeId],
-    queryFn: () => fetchDataNodeCompressionPolicy(dataNodeId),
-    enabled: Boolean(String(dataNodeId).trim()),
+    queryKey: ["main_sequence", "data_nodes", "compression_policy", dataNodeUid],
+    queryFn: () => fetchDataNodeCompressionPolicy(dataNodeUid),
+    enabled: Boolean(String(dataNodeUid).trim()),
   });
 
   useEffect(() => {
@@ -160,7 +160,7 @@ function CompressionPolicyCard({
 
   const saveCompressionMutation = useMutation({
     mutationFn: () =>
-      saveDataNodeCompressionPolicy(dataNodeId, {
+      saveDataNodeCompressionPolicy(dataNodeUid, {
         compress_after: compressAfter.trim(),
         schedule_interval: scheduleInterval.trim() || null,
         initial_start: toOptionalIsoString(initialStart),
@@ -170,11 +170,11 @@ function CompressionPolicyCard({
       const wasConfigured = compressionPolicyQuery.data?.exists ?? false;
 
       queryClient.setQueryData(
-        ["main_sequence", "data_nodes", "compression_policy", dataNodeId],
+        ["main_sequence", "data_nodes", "compression_policy", dataNodeUid],
         policyState,
       );
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "data_nodes", "summary", dataNodeId],
+        queryKey: ["main_sequence", "data_nodes", "summary", dataNodeUid],
       });
 
       toast({
@@ -300,9 +300,9 @@ function CompressionPolicyCard({
 }
 
 function RetentionPolicyCard({
-  dataNodeId,
+  dataNodeUid,
 }: {
-  dataNodeId: string;
+  dataNodeUid: string;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -312,9 +312,9 @@ function RetentionPolicyCard({
   const [timezone, setTimezone] = useState("UTC");
 
   const retentionPolicyQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "retention_policy", dataNodeId],
-    queryFn: () => fetchDataNodeRetentionPolicy(dataNodeId),
-    enabled: Boolean(String(dataNodeId).trim()),
+    queryKey: ["main_sequence", "data_nodes", "retention_policy", dataNodeUid],
+    queryFn: () => fetchDataNodeRetentionPolicy(dataNodeUid),
+    enabled: Boolean(String(dataNodeUid).trim()),
   });
 
   useEffect(() => {
@@ -328,7 +328,7 @@ function RetentionPolicyCard({
 
   const saveRetentionMutation = useMutation({
     mutationFn: () =>
-      saveDataNodeRetentionPolicy(dataNodeId, {
+      saveDataNodeRetentionPolicy(dataNodeUid, {
         drop_after: dropAfter.trim(),
         schedule_interval: scheduleInterval.trim() || null,
         initial_start: toOptionalIsoString(initialStart),
@@ -338,11 +338,11 @@ function RetentionPolicyCard({
       const wasConfigured = retentionPolicyQuery.data?.exists ?? false;
 
       queryClient.setQueryData(
-        ["main_sequence", "data_nodes", "retention_policy", dataNodeId],
+        ["main_sequence", "data_nodes", "retention_policy", dataNodeUid],
         policyState,
       );
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "data_nodes", "summary", dataNodeId],
+        queryKey: ["main_sequence", "data_nodes", "summary", dataNodeUid],
       });
 
       toast({
@@ -468,14 +468,14 @@ function RetentionPolicyCard({
 }
 
 export function MainSequenceDataNodePoliciesTab({
-  dataNodeId,
+  dataNodeUid,
 }: {
-  dataNodeId: string;
+  dataNodeUid: string;
 }) {
   return (
     <div className="grid gap-4 xl:grid-cols-2">
-      <CompressionPolicyCard dataNodeId={dataNodeId} />
-      <RetentionPolicyCard dataNodeId={dataNodeId} />
+      <CompressionPolicyCard dataNodeUid={dataNodeUid} />
+      <RetentionPolicyCard dataNodeUid={dataNodeUid} />
     </div>
   );
 }

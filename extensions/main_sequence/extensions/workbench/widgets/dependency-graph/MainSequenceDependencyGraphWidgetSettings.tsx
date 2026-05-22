@@ -49,9 +49,9 @@ export function MainSequenceDependencyGraphWidgetSettings({
 }: WidgetSettingsComponentProps<MainSequenceDependencyGraphWidgetProps>) {
   const sourceKind = normalizeDependencyGraphSourceKind(draftProps.sourceKind);
   const direction = normalizeDependencyGraphDirection(draftProps.direction);
-  const dataNodeId = normalizeDependencyGraphSelectedId(draftProps.dataNodeId) || undefined;
-  const simpleTableUpdateId =
-    normalizeDependencyGraphSelectedId(draftProps.simpleTableUpdateId) || undefined;
+  const dataNodeUid = normalizeDependencyGraphSelectedId(draftProps.dataNodeUid) || undefined;
+  const simpleTableUpdateUid =
+    normalizeDependencyGraphSelectedId(draftProps.simpleTableUpdateUid) || undefined;
   const selectedDataNodeQuery = useQuery({
     queryKey: [
       "main_sequence",
@@ -59,10 +59,10 @@ export function MainSequenceDependencyGraphWidgetSettings({
       "dependency_graph_widget",
       "data_node",
       "detail",
-      dataNodeId,
+      dataNodeUid,
     ],
-    queryFn: () => fetchDataNodeDetail(dataNodeId!),
-    enabled: sourceKind === "data_node" && Boolean(dataNodeId),
+    queryFn: () => fetchDataNodeDetail(dataNodeUid!),
+    enabled: sourceKind === "data_node" && Boolean(dataNodeUid),
     staleTime: 300_000,
   });
   const latestLocalTimeSerieQuery = useQuery({
@@ -71,15 +71,15 @@ export function MainSequenceDependencyGraphWidgetSettings({
       "widgets",
       "dependency_graph_widget",
       "data_node",
-      dataNodeId,
+      dataNodeUid,
       "latest_local_time_serie",
     ],
     queryFn: async () => {
-      const dataNodeDetail = await fetchDataNodeDetail(dataNodeId!);
+      const dataNodeDetail = await fetchDataNodeDetail(dataNodeUid!);
       const page = await listLocalTimeSeries(dataNodeDetail.id, { limit: 1, offset: 0 });
       return page.results[0] ?? null;
     },
-    enabled: sourceKind === "data_node" && Boolean(dataNodeId),
+    enabled: sourceKind === "data_node" && Boolean(dataNodeUid),
     staleTime: 300_000,
   });
 
@@ -103,7 +103,7 @@ export function MainSequenceDependencyGraphWidgetSettings({
                 onDraftPropsChange({
                   ...draftProps,
                   sourceKind: "data_node",
-                  simpleTableUpdateId: undefined,
+                  simpleTableUpdateUid: undefined,
                 });
               }}
             >
@@ -116,7 +116,7 @@ export function MainSequenceDependencyGraphWidgetSettings({
                 onDraftPropsChange({
                   ...draftProps,
                   sourceKind: "simple_table",
-                  dataNodeId: undefined,
+                  dataNodeUid: undefined,
                 });
               }}
             >
@@ -170,12 +170,12 @@ export function MainSequenceDependencyGraphWidgetSettings({
         </span>
         {sourceKind === "simple_table" ? (
           <SimpleTableUpdateQuickSearchPicker
-            value={simpleTableUpdateId}
+            value={simpleTableUpdateUid}
             onChange={(nextId) => {
               onDraftPropsChange({
                 ...draftProps,
                 sourceKind,
-                simpleTableUpdateId: nextId,
+                simpleTableUpdateUid: nextId,
               });
             }}
             editable={editable}
@@ -186,12 +186,12 @@ export function MainSequenceDependencyGraphWidgetSettings({
           />
         ) : (
           <DataNodeQuickSearchPicker
-            value={dataNodeId}
+            value={dataNodeUid}
             onChange={(nextId) => {
               onDraftPropsChange({
                 ...draftProps,
                 sourceKind,
-                dataNodeId: nextId,
+                dataNodeUid: nextId,
               });
             }}
             editable={editable}
@@ -205,7 +205,7 @@ export function MainSequenceDependencyGraphWidgetSettings({
         )}
       </label>
 
-      {sourceKind === "data_node" && dataNodeId ? (
+      {sourceKind === "data_node" && dataNodeUid ? (
         <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-3 text-sm text-muted-foreground">
           {latestLocalTimeSerieQuery.isLoading ? (
             <span>Resolving the latest LocalTimeSerie update linked to this Data Node.</span>

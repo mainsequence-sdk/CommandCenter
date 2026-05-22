@@ -35,18 +35,18 @@ export type MainSequenceDataNodeRowsBetweenDatesQuery = Partial<
   >
 > & {
   kind: "data-node-rows-between-dates";
-  dataNodeId?: string;
+  dataNodeUid?: string;
 };
 
 export type MainSequenceDataNodeConnectionQuery =
   | MainSequenceDataNodeRowsBetweenDatesQuery
   | {
       kind: "data-node-last-observation";
-      dataNodeId?: string;
+      dataNodeUid?: string;
     };
 
 export interface MainSequenceDataNodeConnectionPublicConfig {
-  dataNodeId?: string;
+  dataNodeUid?: string;
   dataNodeLabel?: string;
   dataNodeStorageHash?: string;
   defaultLimit?: number;
@@ -82,7 +82,7 @@ function frameToRows(response: ConnectionQueryResponse): DataNodeRemoteDataRow[]
 }
 
 export function buildMainSequenceDataNodeDetailQueryKey(
-  dataNodeId?: string,
+  dataNodeUid?: string,
   connectionRef?: ConnectionRef,
 ) {
   return [
@@ -91,12 +91,12 @@ export function buildMainSequenceDataNodeDetailQueryKey(
     MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID,
     connectionRef?.id ?? "unselected",
     "data-node-detail",
-    dataNodeId ?? "",
+    dataNodeUid ?? "",
   ] as const;
 }
 
 export function buildMainSequenceDataNodeLastObservationQueryKey(
-  dataNodeId?: string,
+  dataNodeUid?: string,
   connectionRef?: ConnectionRef,
 ) {
   return [
@@ -105,18 +105,18 @@ export function buildMainSequenceDataNodeLastObservationQueryKey(
     MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID,
     connectionRef?.id ?? "unselected",
     "data-node-last-observation",
-    dataNodeId ?? "",
+    dataNodeUid ?? "",
   ] as const;
 }
 
 export async function queryMainSequenceDataNodeDetail(
-  dataNodeId?: string,
+  dataNodeUid?: string,
   connectionRef?: ConnectionRef,
   _traceMeta?: DashboardRequestTraceMeta,
 ) {
-  const resolvedDataNodeId = normalizeUidString(dataNodeId);
+  const resolvedDataNodeUid = normalizeUidString(dataNodeUid);
 
-  if (!resolvedDataNodeId) {
+  if (!resolvedDataNodeUid) {
     throw new Error("Select a Data Node before loading detail.");
   }
   const resolvedRef = requireDataNodeConnectionRef(connectionRef);
@@ -124,19 +124,19 @@ export async function queryMainSequenceDataNodeDetail(
   return fetchConnectionResource<DataNodeDetail>({
     connectionId: resolvedRef.id,
     resource: "data-node-detail",
-    params: { dataNodeId: resolvedDataNodeId },
+    params: { dataNodeUid: resolvedDataNodeUid },
   });
 }
 
 export async function queryMainSequenceDataNodeRowsBetweenDates(
-  dataNodeId: string | undefined,
+  dataNodeUid: string | undefined,
   input: DataNodeRemoteDataRequest,
   connectionRef?: ConnectionRef,
   traceMeta?: DashboardRequestTraceMeta,
 ) {
-  const resolvedDataNodeId = normalizeUidString(dataNodeId);
+  const resolvedDataNodeUid = normalizeUidString(dataNodeUid);
 
-  if (!resolvedDataNodeId) {
+  if (!resolvedDataNodeUid) {
     throw new Error("Select a Data Node before loading rows.");
   }
   const resolvedRef = requireDataNodeConnectionRef(connectionRef);
@@ -145,7 +145,7 @@ export async function queryMainSequenceDataNodeRowsBetweenDates(
     query: {
       ...input,
       kind: "data-node-rows-between-dates",
-      dataNodeId: resolvedDataNodeId,
+      dataNodeUid: resolvedDataNodeUid,
     },
     requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
     maxRows: input.limit,
@@ -155,12 +155,12 @@ export async function queryMainSequenceDataNodeRowsBetweenDates(
 }
 
 export async function queryMainSequenceDataNodeLastObservation(
-  dataNodeId?: string,
+  dataNodeUid?: string,
   connectionRef?: ConnectionRef,
 ) {
-  const resolvedDataNodeId = normalizeUidString(dataNodeId);
+  const resolvedDataNodeUid = normalizeUidString(dataNodeUid);
 
-  if (!resolvedDataNodeId) {
+  if (!resolvedDataNodeUid) {
     throw new Error("Select a Data Node before loading the latest observation.");
   }
   const resolvedRef = requireDataNodeConnectionRef(connectionRef);
@@ -168,7 +168,7 @@ export async function queryMainSequenceDataNodeLastObservation(
     connectionId: resolvedRef.id,
     query: {
       kind: "data-node-last-observation",
-      dataNodeId: resolvedDataNodeId,
+      dataNodeUid: resolvedDataNodeUid,
     },
     requestedOutputContract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
   });
@@ -208,11 +208,13 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
     ],
     fields: [
       {
-        id: "dataNodeId",
+        id: "dataNodeUid",
         sectionId: "data-node",
         label: "Data Node",
         type: "string",
         required: true,
+        description:
+          "The authoritative Data Node uid for this connection instance. Backend execution uses this configured uid and should not be overridden by query payloads.",
       },
       {
         id: "dataNodeLabel",
@@ -220,6 +222,8 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
         label: "Data Node label",
         type: "string",
         required: false,
+        description:
+          "Optional cached display label for the selected Data Node. The picker maintains this for UI summaries.",
       },
       {
         id: "dataNodeStorageHash",
@@ -227,6 +231,8 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
         label: "Storage hash",
         type: "string",
         required: false,
+        description:
+          "Optional cached storage hash for the selected Data Node. Used only for display and debugging context.",
       },
       {
         id: "defaultLimit",
@@ -300,7 +306,7 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
     {
       title: "Data Node row source",
       publicConfig: {
-        dataNodeId: "00000000-0000-0000-0000-000000000714",
+        dataNodeUid: "00000000-0000-0000-0000-000000000714",
         dataNodeLabel: "Example Data Node",
         defaultLimit: DEFAULT_MAIN_SEQUENCE_DATA_NODE_ROW_LIMIT,
         queryCachePolicy: "read",

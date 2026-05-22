@@ -67,7 +67,7 @@ const legacyTabParam = "tab";
 const mainSequenceJobIdParam = "msJobId";
 const mainSequenceJobRunIdParam = "msJobRunId";
 const mainSequenceResourceReleaseIdParam = "msResourceReleaseId";
-const mainSequenceLocalUpdateIdParam = "msLocalUpdateId";
+const mainSequenceLocalUpdateIdParam = "msLocalUpdateUid";
 const mainSequenceLocalUpdateTabParam = "msLocalUpdateTab";
 const mainSequenceCreateReleaseIntentParam = "msCreateReleaseIntent";
 
@@ -759,7 +759,7 @@ export function MainSequenceProjectsPage() {
 
   function openDataNodeDetailFromProject(dataNodeId: string) {
     const nextParams = new URLSearchParams();
-    nextParams.set("msDataNodeId", String(dataNodeId));
+    nextParams.set("msDataNodeUid", String(dataNodeId));
     nextParams.set("msDataNodeTab", "details");
     navigate(`/app/main_sequence_workbench/data-nodes?${nextParams.toString()}`);
   }

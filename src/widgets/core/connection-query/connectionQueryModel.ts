@@ -826,13 +826,13 @@ function buildEffectiveQuery(props: ConnectionQueryWidgetProps) {
     const normalizedQuery: Record<string, unknown> = {
       kind: queryModelId,
     };
-    const dataNodeId = normalizePositiveInteger(query.dataNodeId);
+    const dataNodeUid = normalizeString(query.dataNodeUid);
     const columns = normalizeStringArray(query.columns);
     const uniqueIdentifierList = normalizeStringArray(query.unique_identifier_list);
     const limit = normalizePositiveInteger(query.limit);
 
-    if (dataNodeId !== undefined) {
-      normalizedQuery.dataNodeId = dataNodeId;
+    if (dataNodeUid) {
+      normalizedQuery.dataNodeUid = dataNodeUid;
     }
 
     if (columns) {
@@ -880,13 +880,13 @@ async function enrichConnectionQueryRequest(
     return request;
   }
 
-  const dataNodeId = normalizePositiveInteger(query.dataNodeId);
+  const dataNodeUid = normalizeString(query.dataNodeUid);
 
   try {
     const detail = await fetchConnectionResource({
       connectionId: request.connectionId,
       resource: "data-node-detail",
-      params: dataNodeId ? { dataNodeId } : {},
+      params: dataNodeUid ? { dataNodeUid } : {},
     });
     const columns = extractDataNodeDetailColumns(detail);
 

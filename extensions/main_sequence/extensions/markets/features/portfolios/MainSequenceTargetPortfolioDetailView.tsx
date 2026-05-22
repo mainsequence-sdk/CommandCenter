@@ -86,7 +86,7 @@ function getTargetPortfolioDetailContent(summary: TargetPortfolioSummaryResponse
 function buildLocalUpdateWorkbenchPath(localUpdateId: string) {
   const searchParams = new URLSearchParams();
   searchParams.set("msDataNodeTab", "local-updates");
-  searchParams.set("msLocalUpdateId", localUpdateId);
+  searchParams.set("msLocalUpdateUid", localUpdateId);
   searchParams.set("msLocalUpdateTab", "details");
   return `${getAppPath("main_sequence_workbench", "data-nodes")}?${searchParams.toString()}`;
 }

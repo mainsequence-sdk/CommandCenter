@@ -16,9 +16,9 @@ This widget folder owns the reusable update dependency graph renderer used by da
 ## Props
 
 - `sourceKind`: either `data_node` or `simple_table`.
-- `dataNodeId`: Dynamic Table identifier used when `sourceKind === "data_node"`. The widget then
+- `dataNodeUid`: Dynamic Table identifier used when `sourceKind === "data_node"`. The widget then
   resolves the latest linked `LocalTimeSerie` update before fetching the dependency graph.
-- `simpleTableUpdateId`: Simple Table update identifier used when `sourceKind === "simple_table"`.
+- `simpleTableUpdateUid`: Simple Table update identifier used when `sourceKind === "simple_table"`.
 - `direction`: graph direction, either `downstream` or `upstream`.
 
 ## Notes

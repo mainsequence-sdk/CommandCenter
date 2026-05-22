@@ -34,8 +34,8 @@ function readConfigNumber(
 }
 
 function readConfiguredSimpleTableId(config: Record<string, unknown>) {
-  return typeof config.simpleTableId === "string" && config.simpleTableId.trim()
-    ? config.simpleTableId.trim()
+  return typeof config.simpleTableUid === "string" && config.simpleTableUid.trim()
+    ? config.simpleTableUid.trim()
     : undefined;
 }
 
@@ -95,11 +95,11 @@ export function SimpleTableConnectionAuthoringSummary({
   connectionInstance,
 }: ConnectionAuthoringSummaryProps) {
   const publicConfig = connectionInstance.publicConfig;
-  const simpleTableId = readConfiguredSimpleTableId(publicConfig);
+  const simpleTableUid = readConfiguredSimpleTableId(publicConfig);
   const simpleTableLabel = readConfigString(
     publicConfig,
     "simpleTableLabel",
-    simpleTableId ? `Simple Table ${simpleTableId}` : "No Simple Table configured",
+    simpleTableUid ? `Simple Table ${simpleTableUid}` : "No Simple Table configured",
   );
   const defaultMaxRows = readConfigNumber(
     publicConfig,
@@ -114,9 +114,9 @@ export function SimpleTableConnectionAuthoringSummary({
   );
   const dedupeInFlight = publicConfig.dedupeInFlight !== false;
   const simpleTableDetailQuery = useQuery({
-    queryKey: ["main_sequence", "connections", "simple_table", "authoring-summary", simpleTableId],
-    queryFn: () => fetchSimpleTableDetail(simpleTableId!),
-    enabled: Boolean(simpleTableId),
+    queryKey: ["main_sequence", "connections", "simple_table", "authoring-summary", simpleTableUid],
+    queryFn: () => fetchSimpleTableDetail(simpleTableUid!),
+    enabled: Boolean(simpleTableUid),
     staleTime: 300_000,
   });
   const columns = getSimpleTableColumnNames(simpleTableDetailQuery.data);
@@ -130,7 +130,7 @@ export function SimpleTableConnectionAuthoringSummary({
             {simpleTableLabel}
           </div>
           <div className="truncate font-mono text-[11px] text-muted-foreground">
-            {simpleTableId ? `uid ${simpleTableId}` : "not configured"}
+            {simpleTableUid ? `uid ${simpleTableUid}` : "not configured"}
           </div>
         </div>
         <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-3 py-2">

@@ -53,21 +53,21 @@ export function DataNodeConnectionQueryEditor({
   value,
 }: ConnectionQueryEditorProps<MainSequenceDataNodeConnectionQuery>) {
   const publicConfig = readPublicConfig(connectionInstance?.publicConfig);
-  const configuredDataNodeId = normalizeUidString(publicConfig.dataNodeId);
+  const configuredDataNodeUid = normalizeUidString(publicConfig.dataNodeUid);
   const defaultLimit =
     normalizePositiveInteger(publicConfig.defaultLimit) ?? DEFAULT_MAIN_SEQUENCE_DATA_NODE_ROW_LIMIT;
   const queryKind = getQueryKind(queryModel?.id, value);
   const query = { ...value, kind: queryKind } as MainSequenceDataNodeConnectionQuery;
-  const showLegacyDataNodeField = !configuredDataNodeId;
+  const showConnectionDataNodeField = !configuredDataNodeUid;
 
   function updateQuery(nextQuery: MainSequenceDataNodeConnectionQuery) {
     onChange(nextQuery);
   }
 
-  function updateDataNodeId(dataNodeId: string | undefined) {
+  function updateDataNodeUid(dataNodeUid: string | undefined) {
     updateQuery({
       ...query,
-      dataNodeId,
+      dataNodeUid,
     } as MainSequenceDataNodeConnectionQuery);
   }
 
@@ -76,8 +76,8 @@ export function DataNodeConnectionQueryEditor({
       <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2 text-xs text-muted-foreground">
         <div className="font-medium text-foreground">Configured source</div>
         <div className="mt-1 break-words">
-          {configuredDataNodeId
-            ? `${publicConfig.dataNodeLabel ?? "Data Node"} · ${configuredDataNodeId}`
+          {configuredDataNodeUid
+            ? `${publicConfig.dataNodeLabel ?? "Data Node"} · ${configuredDataNodeUid}`
             : "No Data Node uid is stored on this connection instance."}
         </div>
       </div>
@@ -87,11 +87,11 @@ export function DataNodeConnectionQueryEditor({
           title="Rows between dates"
           description="These fields become the Data Node query payload. The date window is still supplied by the widget runtime range."
         >
-          {showLegacyDataNodeField ? (
+          {showConnectionDataNodeField ? (
             <QueryTextField
               label="Data Node uid"
-              value={normalizeUidString(query.dataNodeId)}
-              onChange={updateDataNodeId}
+              value={normalizeUidString(query.dataNodeUid)}
+              onChange={updateDataNodeUid}
               disabled={disabled}
               placeholder="00000000-0000-0000-0000-000000000000"
               help="Only used when the selected connection instance does not already store a Data Node uid."
@@ -179,11 +179,11 @@ export function DataNodeConnectionQueryEditor({
         </ConnectionQueryEditorSection>
       ) : (
         <ConnectionQueryEditorSection title="Last observation">
-          {showLegacyDataNodeField ? (
+          {showConnectionDataNodeField ? (
             <QueryTextField
               label="Data Node uid"
-              value={normalizeUidString(query.dataNodeId)}
-              onChange={updateDataNodeId}
+              value={normalizeUidString(query.dataNodeUid)}
+              onChange={updateDataNodeUid}
               disabled={disabled}
               placeholder="00000000-0000-0000-0000-000000000000"
               help="Only used when the selected connection instance does not already store a Data Node uid."

@@ -67,7 +67,7 @@ export interface ManualDataNodeColumnDefinition {
 
 export interface DataNodeWidgetSourceProps extends Record<string, unknown> {
   connectionRef?: ConnectionRef;
-  dataNodeId?: string;
+  dataNodeUid?: string;
   dateRangeMode?: DataNodeDateRangeMode;
   fixedEndMs?: number;
   fixedStartMs?: number;
@@ -84,7 +84,7 @@ export interface DataNodeWidgetSourceReferenceProps extends Record<string, unkno
 export interface ResolvedDataNodeWidgetSourceConfig {
   availableFields: DataNodeFieldOption[];
   connectionRef?: ConnectionRef;
-  dataNodeId?: string;
+  dataNodeUid?: string;
   dataNodeLabel: string;
   dateRangeMode: DataNodeDateRangeMode;
   fixedEndMs?: number;
@@ -119,7 +119,7 @@ export interface DataNodeWidgetSourceControllerContext<
   resolvedSourceFrame: TabularFrameSourceV1 | null;
   resolvedSourceProps: DataNodeWidgetSourceProps;
   selectedDataNodeDetailQuery: UseQueryResult<DataNodeDetail>;
-  selectedDataNodeId?: string;
+  selectedDataNodeUid?: string;
   sourceMode: DataNodeWidgetSourceMode;
   sourceWidgetId?: string;
   supportsUniqueIdentifierList: boolean;
@@ -466,7 +466,7 @@ export function buildDataNodeRemoteRowsQueryKey(input: {
   sourceMode?: DataNodeWidgetSourceMode;
   sourceWidgetId?: string;
   connectionId?: string;
-  dataNodeId?: string;
+  dataNodeUid?: string;
   columns: string[];
   uniqueIdentifierList?: string[];
   rangeStartMs?: number | null;
@@ -480,7 +480,7 @@ export function buildDataNodeRemoteRowsQueryKey(input: {
     input.sourceMode ?? "direct",
     input.sourceWidgetId ?? "",
     input.connectionId ?? "",
-    input.dataNodeId ?? "",
+    input.dataNodeUid ?? "",
     input.columns.join("|"),
     (input.uniqueIdentifierList ?? []).join("|"),
     input.rangeStartMs ?? null,
@@ -752,7 +752,7 @@ export function useResolvedDataNodeWidgetSourceBinding<
         ? normalizeDataNodeWidgetSourceProps(
             {
               ...((referencedFilterWidget?.props ?? {}) as DataNodeWidgetSourceProps),
-              dataNodeId: resolvedSourceContext?.dataNodeId ?? referencedFilterWidget?.props?.dataNodeId,
+              dataNodeUid: resolvedSourceContext?.dataNodeUid ?? referencedFilterWidget?.props?.dataNodeUid,
               connectionRef:
                 (referencedFilterWidget?.props as DataNodeWidgetSourceProps | undefined)?.connectionRef,
               dateRangeMode:
@@ -852,7 +852,7 @@ export function resolveDataNodeWidgetSourceConfig(
   const sourceMode = normalizeSourceMode(
     (props as Partial<DataNodeWidgetSourceReferenceProps>).sourceMode,
   );
-  const dataNodeId = normalizeUidString(props.dataNodeId) ?? normalizeUidString(detail?.uid);
+  const dataNodeUid = normalizeUidString(props.dataNodeUid) ?? normalizeUidString(detail?.uid);
   const connectionRef = normalizeConnectionRef(props.connectionRef);
   const dateRangeMode: DataNodeDateRangeMode =
     props.dateRangeMode === "fixed" ? "fixed" : "dashboard";
@@ -884,12 +884,12 @@ export function resolveDataNodeWidgetSourceConfig(
   return {
     availableFields,
     connectionRef,
-    dataNodeId: sourceMode === "manual" ? undefined : dataNodeId,
+    dataNodeUid: sourceMode === "manual" ? undefined : dataNodeUid,
     dataNodeLabel:
       sourceMode === "manual"
         ? "Manual table"
         : formatDataNodeLabel(
-            detail ?? (dataNodeId ? { id: 0, uid: dataNodeId, storage_hash: "", identifier: null } : null),
+            detail ?? (dataNodeUid ? { id: 0, uid: dataNodeUid, storage_hash: "", identifier: null } : null),
           ),
     dateRangeMode,
     fixedEndMs,
@@ -908,7 +908,7 @@ export function normalizeDataNodeWidgetSourceProps<TProps extends DataNodeWidget
   return {
     ...props,
     connectionRef: resolved.connectionRef,
-    dataNodeId: resolved.dataNodeId,
+    dataNodeUid: resolved.dataNodeUid,
     dateRangeMode: resolved.dateRangeMode,
     fixedStartMs: resolved.fixedStartMs,
     fixedEndMs: resolved.fixedEndMs,
@@ -942,21 +942,21 @@ export function useDataNodeWidgetSourceControllerContext<
     resolvedInputs,
     runtimeState,
   });
-  const selectedDataNodeId = normalizeUidString(sourceBinding.resolvedSourceProps.dataNodeId);
+  const selectedDataNodeUid = normalizeUidString(sourceBinding.resolvedSourceProps.dataNodeUid);
   const selectedConnectionRef = sourceBinding.resolvedSourceProps.connectionRef;
   const selectedDataNodeDetailQuery = useQuery({
     queryKey: buildMainSequenceDataNodeDetailQueryKey(
-      selectedDataNodeId,
+      selectedDataNodeUid,
       selectedConnectionRef,
     ),
     queryFn: () =>
       queryMainSequenceDataNodeDetail(
-        selectedDataNodeId,
+        selectedDataNodeUid,
         selectedConnectionRef,
       ),
     enabled:
       sourceBinding.sourceMode !== "manual" &&
-      Boolean(selectedDataNodeId) &&
+      Boolean(selectedDataNodeUid) &&
       Boolean(selectedConnectionRef?.id),
     staleTime: 300_000,
   });
@@ -1001,7 +1001,7 @@ export function useDataNodeWidgetSourceControllerContext<
     resolvedSourceFrame: sourceBinding.resolvedSourceFrame,
     resolvedSourceProps: sourceBinding.resolvedSourceProps,
     selectedDataNodeDetailQuery,
-    selectedDataNodeId: resolvedConfig.dataNodeId ?? selectedDataNodeId,
+    selectedDataNodeUid: resolvedConfig.dataNodeUid ?? selectedDataNodeUid,
     sourceMode: sourceBinding.sourceMode,
     sourceWidgetId: sourceBinding.sourceWidgetId,
     supportsUniqueIdentifierList: resolvedConfig.supportsUniqueIdentifierList,
