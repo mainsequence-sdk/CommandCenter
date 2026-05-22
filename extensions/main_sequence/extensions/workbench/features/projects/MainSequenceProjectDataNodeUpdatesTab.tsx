@@ -117,8 +117,8 @@ export function MainSequenceProjectDataNodeUpdatesTab({
   selectedLocalUpdateTabId,
 }: {
   onCloseLocalUpdateDetail: () => void;
-  onOpenDataNodeDetail: (dataNodeId: string | number) => void;
-  onOpenLocalUpdateDetail: (localUpdateId: string | number) => void;
+  onOpenDataNodeDetail: (dataNodeId: string) => void;
+  onOpenLocalUpdateDetail: (localUpdateId: string) => void;
   onSelectLocalUpdateTab: (tabId: LocalUpdateDetailTabId) => void;
   projectId: number;
   selectedLocalUpdateId: string | null;

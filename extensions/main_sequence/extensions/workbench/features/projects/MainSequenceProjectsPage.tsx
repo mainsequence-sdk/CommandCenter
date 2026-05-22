@@ -730,7 +730,7 @@ export function MainSequenceProjectsPage() {
     }, { replace: true });
   }
 
-  function openProjectLocalUpdateDetail(localUpdateId: string | number) {
+  function openProjectLocalUpdateDetail(localUpdateId: string) {
     navigateWithProjectSearch((nextParams) => {
       nextParams.delete(legacyProjectIdParam);
       nextParams.delete(legacyTabParam);
@@ -757,7 +757,7 @@ export function MainSequenceProjectsPage() {
     });
   }
 
-  function openDataNodeDetailFromProject(dataNodeId: string | number) {
+  function openDataNodeDetailFromProject(dataNodeId: string) {
     const nextParams = new URLSearchParams();
     nextParams.set("msDataNodeId", String(dataNodeId));
     nextParams.set("msDataNodeTab", "details");

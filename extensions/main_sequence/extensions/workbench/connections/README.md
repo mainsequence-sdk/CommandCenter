@@ -83,7 +83,7 @@ Workbench data access.
 - Do not add connection-level secret fields for Data Node access. Authentication and authorization
   must flow through the platform/Main Sequence permission model and backend runtime context.
 - Treat `queryCachePolicy`, `queryCacheTtlMs`, and `dedupeInFlight` as backend adapter behavior:
-  key caches by connection id, query/resource kind, resolved Data Node id, normalized request
+  key caches by connection id, query/resource kind, resolved Data Node uid, normalized request
   payload, user/permission context, and effective row limit.
 - Preserve the Data Node row query's semantic contracts when changing connection query response
   normalization: `data-node-rows-between-dates` should publish `core.tabular_frame@v1` and include
@@ -97,7 +97,7 @@ Workbench data access.
 The backend adapter for `type_id = "mainsequence.simple-table"` is the runtime owner for Simple
 Table SQL execution. The frontend contract provides these public config fields:
 
-- `simpleTableId?: number`
+- `simpleTableId?: string`
 - `simpleTableLabel?: string`
 - `simpleTableStorageHash?: string`
 - `simpleTableIdentifier?: string`
@@ -116,10 +116,10 @@ stored public config value is exactly `false`.
 
 Every adapter operation should first resolve the target Simple Table:
 
-1. Read `configured_simple_table_id` from `public_config.simpleTableId`.
+1. Read `configured_simple_table_uid` from `public_config.simpleTableId`.
 2. Reject requests when no configured Simple Table exists. Simple Table SQL should not accept an
    ad hoc table UID from the query payload.
-3. Validate the resolved id is a positive integer.
+3. Validate the resolved value is a non-empty UID string.
 4. Fetch `GET /orm/api/ts_manager/simple_table/{resolved_simple_table_uid}/` to validate existence,
    permissions, storage hash, and column metadata before execution or health checks.
 
@@ -136,7 +136,7 @@ for the resolved Simple Table still apply.
 - Optional query payload:
   - `maxRows?: number`
   - `parameters?: Record<string, string | number | boolean | null>`
-- Resolve and validate the Simple Table id from the connection instance.
+- Resolve and validate the Simple Table uid from the connection instance.
 - Validate SQL as read-only. Reject writes, DDL, transaction control, unsafe function calls, and
   multi-statement payloads unless the backend parser can prove they are safe.
 - Expand `{{simple_table}}` to the backend-authoritative physical table reference for the resolved
@@ -167,7 +167,7 @@ Build cache and in-flight dedupe keys from:
 - connection id
 - connection type id
 - query kind
-- resolved Simple Table id
+- resolved Simple Table uid
 - normalized SQL after placeholder handling
 - normalized parameters
 - effective row limit
@@ -184,7 +184,7 @@ The backend adapter for `type_id = "mainsequence.data-node"` should be implement
 owner for Data Node metadata and row access. The frontend contract provides these public config
 fields:
 
-- `dataNodeId?: number`
+- `dataNodeId?: string`
 - `dataNodeLabel?: string`
 - `dataNodeStorageHash?: string`
 - `defaultLimit?: number`
@@ -199,13 +199,13 @@ fields:
 
 Every adapter operation should first resolve the target Data Node:
 
-1. Read `configured_data_node_id` from the connection instance `public_config.dataNodeId`.
-2. Read `requested_data_node_id` from the resource params or query payload `dataNodeId`.
-3. If `configured_data_node_id` exists, use it as the authority.
-4. If both ids exist and they differ, reject the request with a validation error.
-5. If no configured id exists, require `requested_data_node_id`. This keeps real backend
+1. Read `configured_data_node_uid` from the connection instance `public_config.dataNodeId`.
+2. Read `requested_data_node_uid` from the resource params or query payload `dataNodeId`.
+3. If `configured_data_node_uid` exists, use it as the authority.
+4. If both UIDs exist and they differ, reject the request with a validation error.
+5. If no configured uid exists, require `requested_data_node_uid`. This keeps real backend
    connection instances usable even when the connection config leaves the Data Node unset.
-6. Validate the resolved id is a positive integer before hitting Main Sequence APIs.
+6. Validate the resolved value is a non-empty UID string before hitting Main Sequence APIs.
 
 Permissions must be checked before execution and before joining any in-flight request. The minimum
 permission advertised by the frontend is `main_sequence_foundry:view`; backend object-level checks
@@ -215,8 +215,8 @@ for the resolved Data Node still apply.
 
 `resource = "data-node-detail"`:
 
-- Accepted payload: `{ "dataNodeId": number }`
-- Resolve and validate the Data Node id using the runtime resolution rules above.
+- Accepted payload: `{ "dataNodeId": string }`
+- Resolve and validate the Data Node uid using the runtime resolution rules above.
 - Execute `GET /orm/api/ts_manager/dynamic_table/{resolved_data_node_uid}/`.
 - Return the Data Node detail object or a wrapped detail payload that includes the same object.
 - The result must include `sourcetableconfiguration` when the Data Node is row-queryable, because
@@ -236,13 +236,13 @@ for the resolved Data Node still apply.
   - date window from the top-level connection request `timeRange`
   - `columns: string[]`
 - Optional query payload:
-  - `dataNodeId?: number`
+  - `dataNodeId?: string`
   - `unique_identifier_list?: string[]`
   - `unique_identifier_range_map?: Record<string, [number, number]>`
   - `great_or_equal?: boolean`
   - `less_or_equal?: boolean`
   - `limit?: number`
-- Resolve and validate the Data Node id.
+- Resolve and validate the Data Node uid.
 - Normalize the date window by mapping `request.timeRange.from` and `request.timeRange.to` to the
   Data Node API's `start_date` and `end_date` Unix-second fields. The generic Connection Query
   widget owns the path and runtime date mode; it must not inject Data Node-specific date fields into
@@ -259,8 +259,8 @@ for the resolved Data Node still apply.
 
 `query.kind = "data-node-last-observation"`:
 
-- Accepted payload: `{ "dataNodeId"?: number }`
-- Resolve and validate the Data Node id.
+- Accepted payload: `{ "dataNodeId"?: string }`
+- Resolve and validate the Data Node uid.
 - Execute `POST /orm/api/ts_manager/dynamic_table/{resolved_data_node_uid}/get_last_observation/`
   with `{}`.
 - Return a normalized `ConnectionQueryResponse` containing one `core.tabular_frame@v1` frame.
@@ -305,7 +305,7 @@ The result-cache key must be built from the same normalized dimensions as the in
 - connection type id
 - operation kind: `resource` or `query`
 - resource name or query kind
-- resolved Data Node id
+- resolved Data Node uid
 - normalized request payload
 - effective row limit for row queries
 - connection instance update/version marker if available
@@ -315,7 +315,7 @@ Read-through cache order:
 
 ```text
 resolve connection instance
-resolve and validate Data Node id
+resolve and validate Data Node uid
 check user/org/object permissions
 normalize payload and defaults
 if queryCachePolicy is read:
@@ -352,7 +352,7 @@ Build the key after validation/defaulting, not directly from the raw request bod
 - connection type id
 - operation kind: `resource` or `query`
 - resource name or query kind
-- resolved Data Node id
+- resolved Data Node uid
 - normalized request payload
 - effective row limit for row queries
 

@@ -716,7 +716,7 @@ export function MainSequenceDataNodesPage() {
   }
 
   function openDataNodeDetail(
-    dataNodeIdentifier: string | number,
+    dataNodeIdentifier: string,
     tabId: DataNodeDetailTabId = defaultDataNodeDetailTabId,
   ) {
     updateSearchParams((nextParams) => {
@@ -736,7 +736,7 @@ export function MainSequenceDataNodesPage() {
     });
   }
 
-  function openLocalUpdateDetail(localUpdateIdentifier: string | number) {
+  function openLocalUpdateDetail(localUpdateIdentifier: string) {
     updateSearchParams((nextParams) => {
       nextParams.set(mainSequenceDataNodeTabParam, dataNodeLocalUpdatesTabId);
       nextParams.set(mainSequenceLocalUpdateIdParam, String(localUpdateIdentifier));
