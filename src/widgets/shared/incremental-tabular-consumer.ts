@@ -68,6 +68,8 @@ export interface IncrementalTabularConsumerBindingState {
   consumerState: ResolvedUpstreamConsumerState<TabularFrameSourceV1>;
   liveInput: ResolvedWidgetInput | undefined;
   livePublication: IncrementalTabularPublication | null;
+  retainedLiveFrame: TabularFrameSourceV1 | null;
+  retainedSeedFrame: TabularFrameSourceV1 | null;
   requiresUpstreamResolution: boolean;
   seedInput: ResolvedWidgetInput | undefined;
   seedPublication: IncrementalTabularPublication | null;
@@ -356,16 +358,12 @@ function serializeRuntimeDataRef(ref: RuntimeTabularFrameRef | null | undefined)
   });
 }
 
-function readConsumerMeta(
-  frame: TabularFrameSourceV1 | null | undefined,
-): IncrementalTabularConsumerMeta | undefined {
-  const context = frame?.source?.context;
-
-  if (!isPlainRecord(context) || !isPlainRecord(context.incrementalConsumer)) {
+function normalizeConsumerMeta(value: unknown): IncrementalTabularConsumerMeta | undefined {
+  if (!isPlainRecord(value)) {
     return undefined;
   }
 
-  const meta = context.incrementalConsumer;
+  const meta = value;
 
   return meta.mode === "incremental-tabular-consumer"
     ? {
@@ -393,6 +391,32 @@ function readConsumerMeta(
         ),
       }
     : undefined;
+}
+
+function readConsumerMeta(
+  frame: TabularFrameSourceV1 | null | undefined,
+): IncrementalTabularConsumerMeta | undefined {
+  const context = frame?.source?.context;
+
+  if (!isPlainRecord(context)) {
+    return undefined;
+  }
+
+  return normalizeConsumerMeta(context.incrementalConsumer);
+}
+
+function readConsumerMetaFromValue(value: unknown): IncrementalTabularConsumerMeta | undefined {
+  if (!isPlainRecord(value) || !isPlainRecord(value.source)) {
+    return undefined;
+  }
+
+  const context = value.source.context;
+
+  if (!isPlainRecord(context)) {
+    return undefined;
+  }
+
+  return normalizeConsumerMeta(context.incrementalConsumer);
 }
 
 function withConsumerMeta(
@@ -1426,6 +1450,27 @@ export function resolveIncrementalTabularBindingSnapshot(input: {
   const seedState = buildInputConsumerState(seedInput);
   const liveState = buildInputConsumerState(liveInput);
   const active = hasIncrementalTabularRoleBindings(input.resolvedInputs);
+  const runtimeFrame = active
+    ? resolveIncrementalTabularRuntimeFrame(
+        input.runtimeState,
+        input.runtimeDataStore,
+        input.runtimeRowSelector,
+      )
+    : null;
+  const runtimeStateFrame = active ? normalizeAnyTabularFrameSource(input.runtimeState) : null;
+  const currentMeta = active
+    ? readConsumerMetaFromValue(input.runtimeState) ??
+      readConsumerMeta(runtimeStateFrame) ??
+      readConsumerMeta(runtimeFrame)
+    : undefined;
+  const retainedSeedFrame =
+    (currentMeta?.seedRef ? input.runtimeDataStore?.readFrame(currentMeta.seedRef) : null) ??
+    currentMeta?.seedFrame ??
+    null;
+  const retainedLiveFrame =
+    (currentMeta?.liveRef ? input.runtimeDataStore?.readFrame(currentMeta.liveRef) : null) ??
+    currentMeta?.liveFrame ??
+    null;
   const seedPublication = active
     ? buildPublication(seedInput, "seed", input.runtimeDataStore, input.runtimeRowSelector)
     : null;
@@ -1450,6 +1495,8 @@ export function resolveIncrementalTabularBindingSnapshot(input: {
     consumerState,
     liveInput,
     livePublication,
+    retainedLiveFrame,
+    retainedSeedFrame,
     requiresUpstreamResolution:
       seedState.requiresUpstreamResolution || liveState.requiresUpstreamResolution,
     seedInput,
@@ -1533,7 +1580,10 @@ export function useIncrementalTabularConsumerBindingState(input: {
         input.runtimeRowSelector,
       ) ??
       currentRuntimeStateFrame;
-    const currentMeta = readConsumerMeta(currentRuntimeStateFrame) ?? readConsumerMeta(currentFrame);
+    const currentMeta =
+      readConsumerMetaFromValue(input.runtimeState) ??
+      readConsumerMeta(currentRuntimeStateFrame) ??
+      readConsumerMeta(currentFrame);
     const effectiveLiveMergeKeyFields = resolvePublicationMergeKeyFields(
       livePublication,
       currentMeta?.liveMergeKeyFields ?? resolveMarketAssetKeyFields(currentFrame),

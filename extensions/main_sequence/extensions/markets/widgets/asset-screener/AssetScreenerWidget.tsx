@@ -755,6 +755,7 @@ export function AssetScreenerWidget({
   const activeRuntimeDataStore = runtimeDataStore ?? contextRuntimeDataStore;
   const incrementalBinding = useIncrementalTabularConsumerBindingState({
     instanceId,
+    liveMergeKeyMappings: normalizedProps.table?.liveMergeKeyMappings,
     onRuntimeStateChange,
     resolvedInputs,
     runtimeState,
@@ -775,6 +776,7 @@ export function AssetScreenerWidget({
         props: normalizedProps,
         resolvedInputs,
         runtimeDataStore: activeRuntimeDataStore,
+        runtimeState,
         fallbackFrames: isAssetScreenerDemoRuntimeState(runtimeState)
           ? runtimeState.marketAssetScreenerDemoFrames
           : undefined,
@@ -1194,6 +1196,7 @@ function buildAssetScreenerOutputContext({
     props: normalizedProps,
     resolvedInputs,
     runtimeDataStore: runtimeDataStore as never,
+    runtimeState,
     fallbackFrames: isAssetScreenerDemoRuntimeState(runtimeState)
       ? runtimeState.marketAssetScreenerDemoFrames
       : undefined,

@@ -148,8 +148,19 @@ classify the stream source itself as a finite refresh target.
 The UI must not directly choose between raw execution state and raw runtime state. It must consume a
 single derived display status.
 
-The shared reducer owns precedence and combination, but the derived status must preserve where the
-state came from:
+The shared reducer owns precedence and combination, but the derived status must not collapse three
+separate concepts into one overloaded glyph:
+
+- **Primary widget status**: whether this widget is healthy, waiting, updating, or errored.
+- **Output lineage**: whether the current published value is finite, stream-derived, or both.
+- **Activity**: whether this widget is actively executing, connecting, reconnecting, or processing
+  an update right now.
+
+These are different questions. A transform can be healthy and publishing a valid frame while that
+frame is stream-derived. That does not necessarily mean the transform itself owns a WebSocket. It
+means the current output lineage includes a stream source.
+
+The derived status must preserve these dimensions:
 
 ```ts
 type StatusSource =
@@ -163,10 +174,25 @@ type StatusIndicator =
   | "lightning"
   | "dot+lightning";
 
+type OutputLineage =
+  | "finite"
+  | "stream"
+  | "finite+stream"
+  | "local";
+
+type ActivityState =
+  | "idle"
+  | "executing"
+  | "connecting"
+  | "reconnecting"
+  | "processing-stream-update";
+
 type DisplayStatus = {
   tone: "neutral" | "waiting" | "updating" | "ready" | "error";
   source: StatusSource | StatusSource[];
   indicator: StatusIndicator;
+  lineage: OutputLineage;
+  activity: ActivityState;
   message: string;
   blockedByWidgetId?: string;
   blockedByOutputId?: string;
@@ -200,6 +226,61 @@ The visual indicator is source-aware:
 A single display reducer therefore means one canonical source of truth for status precedence and
 combination. It does not mean one visual glyph or one collapsed status source.
 
+Important: the dot/lightning display is not allowed to mean both "what the widget is" and "where its
+current value came from" without naming which layer is being shown. The reducer must expose the
+primary widget status separately from output lineage.
+
+Examples:
+
+- A WebSocket connection widget with a live socket has primary status `ready/live`, lineage
+  `stream`, and activity `idle` or `processing-stream-update` depending on whether a message is
+  currently being handled.
+- A Tabular Transform with only `liveUpdates` bound has primary status `ready` once it publishes a
+  transformed frame, lineage `stream`, and activity `idle` except during transform processing. It
+  does not become a WebSocket owner just because its output is stream-derived.
+- A Tabular Transform is single-source. It may bind `seedData` or `liveUpdates`, but not both; the
+  active input role decides the active output channel.
+- A finite HTTP connection query has primary status `ready` or `error`, lineage `finite`, and
+  activity `executing` only while the request is in flight.
+
+## Status Ownership Matrix
+
+Every widget must classify each active status signal by source before the shared reducer chooses the
+final color and indicator. This rule is global, not specific to Tabular Transform.
+
+Required composition rules:
+
+- `liveUpdates` only, with a stream source, shows the stream indicator only.
+- `seedData` only, with a finite or retained non-stream source, shows the finite/runtime dot only.
+- Widgets that are true dual-role consumers and have `seedData` plus `liveUpdates` bound show both
+  dot and lightning when both channels have active state. Tabular Transform is excluded because it
+  is a single-source transform, not a seed/live joiner.
+- finite execution `waiting`, `updating`, `ready`, or `error` owns the dot channel.
+- stream `connecting`, `live`, `reconnecting`, `waiting`, or `error` owns the lightning channel.
+- combined finite/seed plus stream state shows both channels without allowing one channel to erase
+  the other.
+
+The status reducer must therefore receive provenance for ready runtime outputs. A transformed output
+with `status: ready` is not automatically a finite/runtime dot. The producer must say whether that
+ready value came from:
+
+- seed-only input
+- live-only input
+- both seed and live inputs, only for widgets whose contract explicitly says they are dual-role
+  consumers
+- local finite execution
+- local static/runtime UI state
+
+This prevents the specific class of bug where a live-only transformed frame is valid and flowing,
+but the UI shows a green dot as if a separate finite execution path also succeeded. In that case the
+correct display is green lightning only. If the same transform also consumes seed data, the correct
+configuration is invalid for Tabular Transform; dot plus lightning applies to true dual-role
+consumers such as Table, Graph, Statistic, and Asset Screener.
+
+This provenance requirement applies to every multi-input or transformed-output widget. It is not
+valid for the display reducer to infer channel ownership from `source.kind`, widget id, or a generic
+`runtimeState.status` alone.
+
 ## Effective Change Gating
 
 Stream publication must not fan out through the graph on every raw runtime write.
@@ -215,6 +296,137 @@ This prevents high-frequency streams from:
 - repeatedly marking widgets waiting/updating when the effective consumed value did not change
 - forcing variable-driven consumers to re-execute on every raw WebSocket tick
 
+## Runtime Variable Change Planning
+
+Runtime value changes are not topology changes.
+
+Examples:
+
+- selecting a different table row
+- selecting a different Asset Screener row
+- changing an active cell
+- receiving a stream update that changes only retained runtime values
+
+These events do not change widgets, bindings, input ports, output ports, or graph edges. Therefore they
+must not use the same expensive before/after dependency-model rebuild path used for settings and
+binding changes.
+
+The runtime variable path has three separate responsibilities:
+
+1. **Immediate local value update**: the source widget's runtime state changes immediately and every
+   local runtime view, including Variable Explorer, can show the new value without waiting for
+   downstream execution.
+2. **Effective value gating**: only referenced variable entries owned by the changed source widget are
+   resolved, transformed, and compared against the previous effective signature.
+3. **Downstream dispatch**: if a referenced effective variable changed, the precomputed variable
+   registry and dependency graph are used to find consumers and executable descendants.
+
+The costly dependency path is reserved for topology-changing operations:
+
+- widget added or removed
+- binding added, removed, or retargeted
+- widget settings changed in a way that alters inputs, outputs, references, or execution behavior
+- registry or widget definition changed
+
+For runtime value changes, the planner must use the existing graph:
+
+```ts
+type RuntimeVariableChangePlan = {
+  changedWidgetId: string;
+  revision: number;
+  changedEntries: Array<{
+    entryId: string;
+    sourceOutputId: string;
+    transformSignature: string;
+    beforeEffectiveSignature: string | undefined;
+    afterEffectiveSignature: string;
+    targetWidgetIds: string[];
+  }>;
+  executableTargetWidgetIds: string[];
+};
+```
+
+Required runtime variable flow:
+
+1. Source widget publishes the new runtime state synchronously into the local runtime override store.
+2. Variable Explorer reads from that same effective runtime store and updates immediately.
+3. The runtime variable planner looks up `variableRegistry.bySourceWidgetId.get(changedWidgetId)`.
+4. It resolves only those outputs and only the referenced transforms, for example
+   `activeRow -> extract-path:symbol`.
+5. It compares effective signatures against the runtime variable signature cache.
+6. If no effective referenced value changed, it stops.
+7. If a value changed, it uses the already-known consumer list and existing dependency graph paths to
+   dispatch downstream finite execution or stream resubscription work.
+
+The runtime variable planner must not rebuild the full dependency model just to discover topology that
+is already known. Rebuilding the dependency model belongs to settings/bindings/widget topology changes.
+
+### Runtime Fast Resolution And Graph Reuse Plan
+
+Runtime variable resolution is a hot path. It must reuse the compiled workspace dependency graph and
+compiled variable registry instead of rebuilding dependency topology for every runtime publication.
+
+This applies to every runtime value publication, including:
+
+- active row or active cell changes
+- retained table/screener/chart runtime output changes
+- stream publications that update retained runtime values
+- local UI state publications that expose variables
+- any widget output that can be referenced through a variable transform
+
+Row selection is only one example. The primary contract is fast resolution over stable topology.
+
+Implementation order:
+
+1. Keep a compiled variable graph for the current workspace topology.
+2. Commit the source widget runtime publication to the local runtime override/output store
+   synchronously.
+3. Let Variable Explorer render from the updated effective-variable cache immediately.
+4. Resolve only referenced variable entries that the compiled registry says can be affected by the
+   changed source widget and output.
+5. Compare transformed effective signatures, for example `activeRow.symbol`, against the previous
+   cached signature for that variable entry.
+6. If no referenced effective signature changed, stop without downstream graph work.
+7. If a referenced effective signature changed, dispatch only the already-known consumers and
+   executable descendants from the compiled variable registry and graph paths.
+
+This plan intentionally avoids dependency recalculation on runtime publication. Dependency
+recalculation is allowed only after topology changes. Runtime publications can change values, but they
+cannot create or remove graph edges.
+
+Acceptance criteria:
+
+- Variable Explorer changes on the same interaction that commits the runtime publication, without waiting for
+  downstream HTTP requests, stream writes, or graph refresh.
+- A newer runtime publication during an active downstream refresh cannot be swallowed by an older
+  publication's completion handler.
+- Downstream consumers run only when the effective transformed variable value they reference changes.
+- Unrelated stream ticks do not rebuild dependency topology and do not trigger variable consumers when
+  their referenced effective variable values are unchanged.
+- Topology snapshots are rebuilt only for settings, binding, widget definition, or workspace graph
+  changes.
+
+### Runtime Variable Queue Revisions
+
+Runtime variable refresh work must be revision-safe.
+
+It is invalid to dedupe active work only by `changedWidgetId`. That can swallow a newer row selection
+while an older selection refresh is still running.
+
+Correct queue semantics:
+
+- Every runtime variable change receives a monotonic revision per source widget.
+- If no work is active for the source widget, enqueue the revision and start it.
+- If work is active and a newer revision arrives, keep the newer revision pending separately.
+- When an older revision finishes, it may clear only that revision.
+- If a newer revision is pending, it must run after the active revision completes.
+- A stale revision must never remove or overwrite a newer pending revision.
+- The variable signature cache is updated for the effective value that was actually evaluated, not for
+  an arbitrary raw runtime write.
+
+This preserves the intended performance property: high-frequency streams and repeated clicks still
+coalesce where safe, but the final user-visible selection cannot be dropped.
+
 ## Seed And Live Input Semantics
 
 Multi-input consumers must not be judged by a single generic upstream readiness bit.
@@ -228,7 +440,9 @@ For seed/live consumers:
 - a bound role that has not published its first usable value can make the consumer waiting
 - a bound role with a stream error can make the consumer `upstream-error`
 
-This rule is generic. It applies to any widget with role-aware inputs, not only Tabular Transform.
+This rule is generic for widgets whose contract declares dual-role consumption. A transform node may
+declare stricter cardinality. Tabular Transform declares a single active source role: `seedData`
+publishes `dataset`; `liveUpdates` publishes `updates`; binding both is a configuration error.
 
 ## Diagnostics
 
@@ -261,6 +475,9 @@ Tradeoffs:
 - the runtime needs a richer status model than `idle | running | success | waiting | error`
 - graph, sidebar, settings, and variable explorer status surfaces must read the same reducer
 - stream paths need their own propagation planner instead of piggybacking on target execution
+- runtime variable changes need a fast path separate from topology-changing settings/bindings changes
+- pending runtime variable work needs revision ownership so active work cannot swallow newer runtime
+  publications
 - tests must cover both finite request flows and stream publication flows
 
 ## Widget Gap Analysis
@@ -275,7 +492,7 @@ fully aligned with this ADR yet.
 | `position-detail` | `execution-owner`, finite request, refresh allowed | Mostly aligned | Bring into the finite planner conformance suite and verify refresh/readiness does not depend on ad hoc widget UI state. |
 | `main-sequence-dependency-graph` | `execution-owner`, finite request, refresh allowed | Mostly aligned | Bring into the finite planner conformance suite and verify runtime errors are source-attributed. |
 | `connection-stream-query` | stream source, refresh not applicable | Partially aligned | Make it the canonical first stream planner source. Socket lifecycle, retained publication, effective output signatures, stream errors, and downstream stream propagation must feed the stream planner instead of relying only on component runtime writes. |
-| `tabular-transform` | transform node with seed/live inputs and dataset/updates outputs | Not fully aligned | It still owns widget-specific readiness with `getExecutionReadiness` and `canExecute`. Replace this with generic role-aware seed/live readiness and stream-aware retained output semantics. Live-only bindings must resolve through the live path and remain ready once a retained transformed live frame exists. |
+| `tabular-transform` | single-source transform node with seed/live input alternatives and dataset/updates output alternatives | Partially aligned | It must not use the shared dual-role combiner. Enforce single-source cardinality, gate inactive outputs by active input role, and keep live-only bindings on the live path once a transformed live frame exists. |
 | `table` | passive tabular consumer and republisher, refresh not applicable | Partially aligned | Move status/readiness for seed/live input combinations into the shared role-aware consumer resolver. Table merge and active selection outputs must participate in effective signature gating so variable consumers do not refresh on unrelated stream ticks. |
 | `graph` | passive tabular consumer, refresh not applicable | Partially aligned | Use the shared role-aware seed/live resolver for live-only, seed-only, and combined inputs. Managed hidden connection sources must use the finite or stream planner based on source type, not custom graph behavior. |
 | `statistic` | passive tabular consumer, refresh not applicable | Partially aligned | Use the shared role-aware seed/live resolver and effective signature gating for reduced card outputs. |
@@ -335,8 +552,9 @@ in the finite planner and only stream publication owners participate in the stre
 - [x] Add conformance tests for stream publication-owner widgets, starting with
   `connection-stream-query`, covering refresh exclusion, retained output, stream error propagation,
   and effective output signature gating.
-- [x] Migrate seed/live consumers to the shared role-aware resolver: `table`, `graph`,
-  `statistic`, `ms-markets-asset-screener`, `main-sequence-ohlc-bars`, and `tabular-transform`.
+- [x] Migrate dual-role seed/live consumers to the shared role-aware resolver: `table`, `graph`,
+  `statistic`, `ms-markets-asset-screener`, and `main-sequence-ohlc-bars`. Keep
+  `tabular-transform` single-source with explicit seed-or-live cardinality.
 - [x] Verify passive bound-data consumers and debug/spec widgets use the shared display status
   reducer and explicit runtime classification: `main-sequence-curve-plot`,
   `main-sequence-zero-curve`, `debug_stream`, `markdown-note`, `rich-text-note`, `workspace-row`,
@@ -344,6 +562,23 @@ in the finite planner and only stream publication owners participate in the stre
   `lightweight-charts-spec`.
 - [x] Add variable-output effective signature tests for interaction outputs such as Table active
   row, Asset Screener active row, selected rows, active cell, and selected cell values.
+- [x] Split variable-driven planning into two paths: topology rebuild for settings/bindings/widget
+  changes, and source-scoped fast runtime planning for runtime value publications.
+- [x] Add an immediate effective variable value store that is updated by source runtime publications
+  before downstream execution starts, and make Variable Explorer read this store so variables update
+  synchronously with the publication that changed them.
+- [x] Replace `changedWidgetId`-only runtime variable refresh dedupe with per-source monotonic
+  revisions. Active work may coalesce pending revisions, but completion of an older revision must not
+  clear a newer runtime publication.
+- [x] Make runtime variable planning resolve only entries from
+  `variableRegistry.bySourceWidgetId.get(changedWidgetId)`, narrow further by changed source output
+  when available, compare effective transformed signatures, and dispatch through the existing graph
+  paths without rebuilding the full dependency topology.
+- [ ] Add regression tests for rapid runtime value changes, including row selection: publish A then B
+  while A's downstream refresh is active; B must remain visible in Variable Explorer and must trigger
+  the final downstream refresh.
+- [ ] Add regression tests proving that unrelated WebSocket ticks do not rebuild dependency topology and
+  do not fan out variable refresh work unless a referenced effective variable signature changes.
 
 ## Backend And Storage Contract Assessment
 

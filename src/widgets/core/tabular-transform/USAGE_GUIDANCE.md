@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Transforms bound `core.tabular_frame@v1` seed and live-update inputs and republishes the result as a new canonical tabular dataset.
+Transforms one bound `core.tabular_frame@v1` seed or live-update input and republishes the result on the matching downstream channel.
 It is a sidebar-only source/transform node, so it participates in bindings and graph execution
 without occupying a workspace canvas card.
 
@@ -29,8 +29,10 @@ without occupying a workspace canvas card.
 
 - Bind `seedData` to an upstream `dataset` output for retained/base rows.
 - Bind `liveUpdates` to an upstream `updates` output for incremental stream rows.
-- Bind either input by itself when the transform should act on only that role; bind both when a
-  retained baseline and live deltas should be combined before transformation.
+- Bind exactly one of those inputs. Tabular Transform is not a seed/live joiner; Table, Graph,
+  Statistic, and Asset Screener own dual-role consumer behavior.
+- When `seedData` is bound, bind downstream seed inputs to this widget's `dataset` output.
+- When `liveUpdates` is bound, bind downstream live-update inputs to this widget's `updates` output.
 - Select a transform mode.
 - Configure only the mode-specific fields that appear: filter rules for filtering, key fields for
   aggregate/pivot/unpivot, pivot fields for pivoting, unpivot value fields for unpivoting, computed
@@ -44,14 +46,14 @@ without occupying a workspace canvas card.
   keeps the transformed output aligned with whatever the upstream source currently publishes.
 - Use the panel preview to inspect the transformed columns and sample rows before connecting
   downstream widgets.
-- Bind downstream seed inputs to this widget's `dataset` output.
-- Bind downstream live-update inputs to this widget's `updates` output.
 - The widget stays mounted in the sidebar/widget rail; use settings and graph bindings to inspect
   and connect it.
 
 ## blockingRequirements
 
-- At least one compatible upstream tabular frame is required through `seedData` or `liveUpdates`.
+- Exactly one compatible upstream tabular frame is required through `seedData` or `liveUpdates`.
+  Binding both inputs is a configuration error because it would mix finite and stream downstream
+  paths inside a transform node.
 - Incremental upstream sources expose retained rows through `upstreamBase` and changed rows through
   `upstreamDelta`. The `updates` output republishes the transformed stream publication.
   A live delta publication is enough for the transform to run even when the retained base frame has
@@ -83,6 +85,8 @@ without occupying a workspace canvas card.
 - Row merge is output shaping. Table still has its own live merge safety setting for direct table
   consumption, but transform-level merge is the reusable place to clean a stream before Graph,
   Statistic, Asset Screener, Table, or another transform consumes it.
+- The inactive output channel intentionally publishes no frame. A seed-bound transform publishes
+  `dataset`, not `updates`; a live-bound transform publishes `updates`, not `dataset`.
 - Aggregate, pivot, and unpivot preserve source fields only when they survive the transform unchanged; generated fields are marked as derived.
 - This widget intentionally owns analytical reshaping as a visible graph node so execution and debugging stay inspectable.
 - This widget is not a canvas presentation widget. Bind its outputs to Table, Pro Table, Graph,

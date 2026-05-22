@@ -13,6 +13,7 @@ import {
   listDashboardWidgetExecutionOrder,
   listDashboardRefreshableExecutionTargets,
   planDashboardFiniteExecution,
+  planDashboardRuntimeVariableDrivenCommit,
   planDashboardVariableDrivenCommit,
   resolveDashboardUpstreamRequirement,
 } from "@/dashboards/widget-graph-execution";
@@ -2126,6 +2127,63 @@ describe("dashboard upstream resolution keys", () => {
       .toMatchObject({
         rows: [{ symbol: "MSFT" }],
       });
+  });
+
+  it("plans runtime variable changes from the changed source without rebuilding before topology", () => {
+    const afterSnapshot = buildDashboardExecutionSnapshot({
+      widgets: managedGraphViaTableVariableWidgets("MSFT"),
+      resolveWidgetDefinition,
+    });
+    const inspectedEntryIds: string[] = [];
+    const signatureCache = new Map<string, string>();
+
+    const firstPlan = planDashboardRuntimeVariableDrivenCommit({
+      changedWidgetId: "table-1",
+      afterSnapshot,
+      resolvePreviousVariableEntrySignature: (entryId) => signatureCache.get(entryId),
+      shouldIncludeChangedVariableEntry: (entry) => {
+        inspectedEntryIds.push(entry.entryId);
+        signatureCache.set(entry.entryId, entry.afterValueSignature);
+        return true;
+      },
+      resolveManagedConnectionConsumerAdapter: (widgetId) =>
+        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+    });
+
+    expect(inspectedEntryIds).toEqual([
+      '["table-1","activeRow","extract-path:symbol"]',
+    ]);
+    expect(firstPlan.changedVariableEntries).toEqual([
+      {
+        entryId: '["table-1","activeRow","extract-path:symbol"]',
+        sourceWidgetId: "table-1",
+        sourceOutputId: "activeRow",
+        transformSignature: "extract-path:symbol",
+        targetWidgetIds: ["graph-1", "managed-source-1"],
+      },
+    ]);
+    expect(firstPlan.managedExecutableSourceWidgetIds).toEqual(["managed-source-1"]);
+    expect(firstPlan.executableTargetWidgetIds).toEqual(["managed-source-1"]);
+    expect(firstPlan.executableTargetOverridesByWidgetId["managed-source-1"]?.props)
+      .toMatchObject({
+        query: {
+          symbols: ["MSFT"],
+        },
+      });
+
+    const secondPlan = planDashboardRuntimeVariableDrivenCommit({
+      changedWidgetId: "table-1",
+      afterSnapshot,
+      resolvePreviousVariableEntrySignature: (entryId) => signatureCache.get(entryId),
+      shouldIncludeChangedVariableEntry: () => {
+        throw new Error("unchanged runtime signatures should not be inspected");
+      },
+      resolveManagedConnectionConsumerAdapter: (widgetId) =>
+        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+    });
+
+    expect(secondPlan.changedVariableEntries).toEqual([]);
+    expect(secondPlan.executableTargetWidgetIds).toEqual([]);
   });
 
   it("does not schedule managed sources when downstream passive variable values stay the same", () => {

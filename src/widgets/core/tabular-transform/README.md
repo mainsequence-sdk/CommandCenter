@@ -16,10 +16,11 @@ for `core.tabular_frame@v1` datasets.
 
 ## Behavior
 
-- The widget consumes role-specific `core.tabular_frame@v1` inputs: `seedData` for retained/base
-  rows and `liveUpdates` for incremental update publications. It republishes transformed `dataset`
-  and `updates` outputs. Downstream seed inputs bind to `dataset`; downstream live inputs bind to
-  `updates`.
+- The widget consumes exactly one role-specific `core.tabular_frame@v1` input at a time:
+  `seedData` for retained/base rows or `liveUpdates` for incremental update publications. It does
+  not join seed and live streams; Table, Graph, Statistic, and Asset Screener own that dual-role
+  consumer behavior. When `seedData` is active, the transform publishes through `dataset`. When
+  `liveUpdates` is active, it publishes through `updates`.
 - Legacy workspaces that still have a `sourceData` binding are migrated by the shared incremental
   tabular consumer: bindings to `updates` become `liveUpdates`, and other source bindings become
   `seedData`. The model keeps a legacy resolver fallback only so old saved workspaces continue to
@@ -33,7 +34,7 @@ for `core.tabular_frame@v1` datasets.
   transform runtime frame keeps the widget in a ready state. The retained output is returned as-is
   during that gap and is not fed back through the transform pipeline, which prevents double
   transform passes while avoiding status flicker.
-- When an upstream source publishes incremental metadata, the transform reads the retained
+- When a live upstream source publishes incremental metadata, the transform reads the retained
   `upstreamBase` frame for correctness and republishes the transformed publication through the
   explicit `updates` output. If a live source has published a delta before a retained base frame is
   available, that `upstreamDelta` is still treated as a real source publication instead of leaving
@@ -77,6 +78,9 @@ for `core.tabular_frame@v1` datasets.
 - Keep the widget sidebar-only. If a future workflow needs a visible transform preview on the
   workspace canvas, add a dedicated visual widget instead of moving this source node onto canvas.
 - Keep output shape aligned with `core.tabular_frame@v1`.
+- Keep the transform single-source. Do not add Table/Graph-style seed+live joining here; if the
+  transform needs both roles, model that as separate transform nodes and wire each downstream path
+  explicitly.
 - Avoid source-specific terms such as Data Node in this generic widget.
 - Keep computed-column authoring aligned with the shared table expression contract. Do not create a
   second formula language in this widget.

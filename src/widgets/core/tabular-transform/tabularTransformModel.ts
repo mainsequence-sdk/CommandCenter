@@ -32,6 +32,8 @@ import {
 import {
   hasIncrementalTabularRoleBindings,
   resolveIncrementalTabularBindingSnapshot,
+  TABULAR_LIVE_UPDATES_INPUT_ID,
+  TABULAR_SEED_INPUT_ID,
   type TabularMergeKeyMapping,
 } from "@/widgets/shared/incremental-tabular-consumer";
 
@@ -181,6 +183,31 @@ export interface TabularTransformWidgetProps extends Record<string, unknown> {
 }
 
 export type TabularTransformRuntimeState = TabularFrameSourceV1;
+
+export type TabularTransformSourceRole = "conflict" | "legacy" | "live" | "none" | "seed";
+
+export type TabularTransformOutputChannel = "dataset" | "updates";
+
+export const TABULAR_TRANSFORM_SINGLE_SOURCE_ERROR =
+  "Tabular Transform accepts either seedData or liveUpdates, not both. Remove one binding so the transform publishes on a single downstream path.";
+
+const TABULAR_TRANSFORM_INACTIVE_DATASET_OUTPUT_MESSAGE =
+  "This Tabular Transform is bound to liveUpdates, so its dataset output is inactive. Bind downstream live inputs to the updates output.";
+
+const TABULAR_TRANSFORM_INACTIVE_UPDATES_OUTPUT_MESSAGE =
+  "This Tabular Transform is bound to seedData, so its updates output is inactive. Bind downstream seed inputs to the dataset output.";
+
+export interface TabularTransformStatusProvenance {
+  activeInputRole: TabularTransformSourceRole;
+  liveBound: boolean;
+  liveHasPublishedValue: boolean;
+  liveSourceOutputId?: string;
+  liveSourceWidgetId?: string;
+  seedBound: boolean;
+  seedHasPublishedValue: boolean;
+  seedSourceOutputId?: string;
+  seedSourceWidgetId?: string;
+}
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -1492,15 +1519,111 @@ function resolveSourceInput(resolvedInputs: ResolvedWidgetInputs | undefined) {
   return candidate;
 }
 
+function resolveRoleInput(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+  inputId: string,
+) {
+  const input = resolvedInputs?.[inputId];
+
+  return Array.isArray(input)
+    ? input.find((entry) => entry.status === "valid") ?? input[0]
+    : input;
+}
+
 interface TabularTransformInputState {
+  activeInputRole: TabularTransformSourceRole;
+  configurationError?: string;
   consumerState: ResolvedUpstreamConsumerState<TabularFrameSourceV1>;
   deltaFrame: TabularFrameSourceV1 | null;
   retainedOutputFrame: TabularFrameSourceV1 | null;
   sourceFrame: TabularFrameSourceV1 | null;
   sourceInput: ResolvedWidgetInput | undefined;
   sourceValuePresent: boolean;
+  statusProvenance: TabularTransformStatusProvenance;
   upstreamUpdate?: WidgetRuntimeUpdateEnvelope;
   upstreamUpdateInput?: ResolvedWidgetInput;
+}
+
+function isInputRoleBound(input: ResolvedWidgetInput | undefined) {
+  return Boolean(input?.sourceWidgetId || input?.sourceOutputId) && input?.status !== "unbound";
+}
+
+function hasInputPublishedValue(input: ResolvedWidgetInput | undefined) {
+  return Boolean(
+    input &&
+      (input.value !== undefined ||
+        input.valueRef !== undefined ||
+        input.upstreamBase !== undefined ||
+        input.upstreamBaseRef !== undefined ||
+        input.upstreamDelta !== undefined ||
+        input.upstreamDeltaRef !== undefined),
+  );
+}
+
+export function resolveTabularTransformSourceRole(
+  resolvedInputs: ResolvedWidgetInputs | undefined,
+): TabularTransformSourceRole {
+  if (hasIncrementalTabularRoleBindings(resolvedInputs)) {
+    const seedInput = resolveRoleInput(resolvedInputs, TABULAR_SEED_INPUT_ID);
+    const liveInput = resolveRoleInput(resolvedInputs, TABULAR_LIVE_UPDATES_INPUT_ID);
+    const seedBound = isInputRoleBound(seedInput);
+    const liveBound = isInputRoleBound(liveInput);
+
+    if (seedBound && liveBound) {
+      return "conflict";
+    }
+
+    if (liveBound) {
+      return "live";
+    }
+
+    if (seedBound) {
+      return "seed";
+    }
+
+    return "none";
+  }
+
+  return isInputRoleBound(resolveSourceInput(resolvedInputs)) ? "legacy" : "none";
+}
+
+function buildTabularTransformStatusProvenance(input: {
+  activeInputRole?: TabularTransformSourceRole;
+  liveHasPublishedValue?: boolean;
+  liveInput?: ResolvedWidgetInput;
+  seedHasPublishedValue?: boolean;
+  seedInput?: ResolvedWidgetInput;
+}): TabularTransformStatusProvenance {
+  return {
+    activeInputRole: input.activeInputRole ?? "none",
+    liveBound: isInputRoleBound(input.liveInput),
+    liveHasPublishedValue:
+      input.liveHasPublishedValue ?? hasInputPublishedValue(input.liveInput),
+    liveSourceOutputId: input.liveInput?.sourceOutputId,
+    liveSourceWidgetId: input.liveInput?.sourceWidgetId,
+    seedBound: isInputRoleBound(input.seedInput),
+    seedHasPublishedValue:
+      input.seedHasPublishedValue ?? hasInputPublishedValue(input.seedInput),
+    seedSourceOutputId: input.seedInput?.sourceOutputId,
+    seedSourceWidgetId: input.seedInput?.sourceWidgetId,
+  };
+}
+
+function withTabularTransformStatusProvenance<T extends TabularFrameSourceV1>(
+  frame: T,
+  statusProvenance: TabularTransformStatusProvenance,
+): T {
+  return {
+    ...frame,
+    source: {
+      ...frame.source,
+      kind: frame.source?.kind ?? "tabular-transform",
+      context: {
+        ...(frame.source?.context ?? {}),
+        statusProvenance,
+      },
+    },
+  };
 }
 
 function resolveLegacyTabularTransformInputState(
@@ -1508,6 +1631,7 @@ function resolveLegacyTabularTransformInputState(
   runtimeDataStore?: RuntimeDataStore | null,
 ): TabularTransformInputState {
   const sourceInput = resolveSourceInput(resolvedInputs);
+  const activeInputRole = isInputRoleBound(sourceInput) ? "legacy" : "none";
   const sourceValue =
     sourceInput?.upstreamBaseRef ??
     sourceInput?.valueRef ??
@@ -1534,12 +1658,18 @@ function resolveLegacyTabularTransformInputState(
   });
 
   return {
+    activeInputRole,
     consumerState,
     deltaFrame,
     retainedOutputFrame: null,
     sourceFrame: effectiveFrame,
     sourceInput,
     sourceValuePresent: effectiveValue !== undefined,
+    statusProvenance: buildTabularTransformStatusProvenance({
+      activeInputRole,
+      seedHasPublishedValue: effectiveValue !== undefined,
+      seedInput: sourceInput,
+    }),
     upstreamUpdate: sourceInput?.upstreamUpdate,
     upstreamUpdateInput: sourceInput,
   };
@@ -1551,6 +1681,7 @@ function resolveTabularTransformInputState(
   runtimeState?: unknown,
 ): TabularTransformInputState {
   if (hasIncrementalTabularRoleBindings(resolvedInputs)) {
+    const activeInputRole = resolveTabularTransformSourceRole(resolvedInputs);
     const bindingSnapshot = resolveIncrementalTabularBindingSnapshot({
       resolvedInputs,
       runtimeDataStore,
@@ -1574,8 +1705,59 @@ function resolveTabularTransformInputState(
     const upstreamUpdateInput = bindingSnapshot.liveInput?.upstreamUpdate
       ? bindingSnapshot.liveInput
       : bindingSnapshot.seedInput;
+    const seedHasPublishedValue = Boolean(
+      bindingSnapshot.seedPublication ||
+        currentBindingSnapshot.seedPublication ||
+        hasInputPublishedValue(bindingSnapshot.seedInput),
+    );
+    const liveHasPublishedValue = Boolean(
+      bindingSnapshot.livePublication ||
+        currentBindingSnapshot.livePublication ||
+        hasInputPublishedValue(bindingSnapshot.liveInput),
+    );
+    const statusProvenance = buildTabularTransformStatusProvenance({
+      activeInputRole,
+      liveHasPublishedValue,
+      liveInput: bindingSnapshot.liveInput,
+      seedHasPublishedValue,
+      seedInput: bindingSnapshot.seedInput,
+    });
+
+    if (activeInputRole === "conflict") {
+      const sourceInput =
+        problemInput ?? validInput ?? bindingSnapshot.seedInput ?? bindingSnapshot.liveInput;
+
+      return {
+        activeInputRole,
+        configurationError: TABULAR_TRANSFORM_SINGLE_SOURCE_ERROR,
+        consumerState: {
+          kind: "error",
+          dataset: null,
+          deltaDataset: null,
+          inputStatus: undefined,
+          sourceWidgetId: sourceInput?.sourceWidgetId,
+          sourceOutputId: sourceInput?.sourceOutputId,
+          sourceWidgetTitle: null,
+          error: TABULAR_TRANSFORM_SINGLE_SOURCE_ERROR,
+          requiresUpstreamResolution: false,
+          hasCanonicalSourceBinding: true,
+          hasPublishedValue: seedHasPublishedValue || liveHasPublishedValue,
+          isEmpty: false,
+        },
+        deltaFrame: null,
+        retainedOutputFrame:
+          retainedOutputFrame && retainedOutputFrame.status !== "idle" ? retainedOutputFrame : null,
+        sourceFrame: null,
+        sourceInput,
+        sourceValuePresent: false,
+        statusProvenance,
+        upstreamUpdate: undefined,
+        upstreamUpdateInput: undefined,
+      };
+    }
 
     return {
+      activeInputRole,
       consumerState: bindingSnapshot.consumerState,
       deltaFrame: currentBindingSnapshot.deltaDataset,
       retainedOutputFrame:
@@ -1588,6 +1770,7 @@ function resolveTabularTransformInputState(
         Boolean(currentBindingSnapshot.dataset) ||
         Boolean(currentBindingSnapshot.deltaDataset) ||
         Boolean(retainedOutputFrame && retainedOutputFrame.status !== "idle"),
+      statusProvenance,
       upstreamUpdate: upstreamUpdateInput?.upstreamUpdate,
       upstreamUpdateInput,
     };
@@ -1679,11 +1862,30 @@ export function resolveTabularTransformOutput(input: {
     sourceFrame: inputSourceFrame,
     sourceInput,
     sourceValuePresent,
+    statusProvenance,
+    configurationError,
     upstreamUpdate,
     upstreamUpdateInput,
   } = transformInputState;
   const hasSourceBinding =
     Boolean(sourceInput) || hasIncrementalTabularRoleBindings(input.resolvedInputs);
+
+  if (configurationError) {
+    return {
+      status: "error",
+      error: configurationError,
+      columns: [],
+      rows: [],
+      source: {
+        kind: "tabular-transform",
+        label: "Tabular transform",
+        context: {
+          statusProvenance,
+          transformMode: props.transformMode,
+        },
+      },
+    };
+  }
 
   if (hasSourceBinding && (!sourceInput || sourceInput.status === "valid")) {
     const source = inputSourceFrame;
@@ -1712,7 +1914,7 @@ export function resolveTabularTransformOutput(input: {
         runtimeFrame: summarizeFrameForDebug(retainedOutputFrame),
       });
 
-      return retainedOutputFrame;
+      return withTabularTransformStatusProvenance(retainedOutputFrame, statusProvenance);
     }
 
     if (
@@ -1729,7 +1931,7 @@ export function resolveTabularTransformOutput(input: {
           runtimeFrame: summarizeFrameForDebug(runtimeFrame),
         });
 
-        return runtimeFrame;
+        return withTabularTransformStatusProvenance(runtimeFrame, statusProvenance);
       }
 
       logTabularTransformDebug("output-idle-awaiting", {
@@ -1744,6 +1946,18 @@ export function resolveTabularTransformOutput(input: {
         status: "idle",
         columns: [],
         rows: [],
+        source: {
+          kind: "tabular-transform",
+          label: "Tabular transform",
+          context: {
+            statusProvenance,
+            transformMode: props.transformMode,
+            upstreamSource:
+              sourceInput?.value && typeof sourceInput.value === "object"
+                ? normalizeTabularFrameSource(sourceInput.value)?.source
+                : undefined,
+          },
+        },
       };
     }
 
@@ -1783,6 +1997,7 @@ export function resolveTabularTransformOutput(input: {
           label: "Tabular transform",
           updatedAtMs: resolveTransformSourceUpdatedAt(source),
           context: {
+            statusProvenance,
             transformMode: props.transformMode,
             upstreamSource: source.source,
           },
@@ -1813,6 +2028,7 @@ export function resolveTabularTransformOutput(input: {
           label: "Tabular transform",
           updatedAtMs: source.source?.updatedAtMs,
           context: {
+            statusProvenance,
             transformMode: props.transformMode,
             upstreamSource: source.source,
           },
@@ -1851,6 +2067,7 @@ export function resolveTabularTransformOutput(input: {
           label: "Tabular transform",
           updatedAtMs: source.source?.updatedAtMs,
           context: {
+            statusProvenance,
             transformMode: props.transformMode,
             upstreamSource: source.source,
           },
@@ -1875,6 +2092,7 @@ export function resolveTabularTransformOutput(input: {
         label: "Tabular transform",
         updatedAtMs: resolveTransformSourceUpdatedAt(source),
         context: {
+          statusProvenance,
           transformMode: props.transformMode,
           aggregateMode: props.aggregateMode,
           filterCombineMode: props.filterCombineMode,
@@ -2006,6 +2224,67 @@ export function resolveTabularTransformOutput(input: {
     columns: [],
     rows: [],
   };
+}
+
+function buildInactiveTabularTransformOutput(input: {
+  message: string;
+  props: ReturnType<typeof normalizeTabularTransformProps>;
+  statusProvenance: TabularTransformStatusProvenance;
+}): TabularTransformRuntimeState {
+  return {
+    status: "idle",
+    columns: [],
+    rows: [],
+    source: {
+      kind: "tabular-transform",
+      label: "Tabular transform",
+      context: {
+        inactiveOutputReason: input.message,
+        statusProvenance: input.statusProvenance,
+        transformMode: input.props.transformMode,
+      },
+    },
+  };
+}
+
+export function resolveTabularTransformChannelOutput(input: {
+  outputChannel: TabularTransformOutputChannel;
+  props: TabularTransformWidgetProps;
+  runtimeState?: unknown;
+  resolvedInputs?: ResolvedWidgetInputs;
+  runtimeDataStore?: RuntimeDataStore | null;
+}): TabularTransformRuntimeState {
+  const props = normalizeTabularTransformProps(input.props);
+  const inputState = resolveTabularTransformInputState(
+    input.resolvedInputs,
+    input.runtimeDataStore,
+    input.runtimeState,
+  );
+
+  if (inputState.configurationError) {
+    return resolveTabularTransformOutput(input);
+  }
+
+  if (input.outputChannel === "dataset" && inputState.activeInputRole === "live") {
+    return buildInactiveTabularTransformOutput({
+      message: TABULAR_TRANSFORM_INACTIVE_DATASET_OUTPUT_MESSAGE,
+      props,
+      statusProvenance: inputState.statusProvenance,
+    });
+  }
+
+  if (
+    input.outputChannel === "updates" &&
+    (inputState.activeInputRole === "seed" || inputState.activeInputRole === "legacy")
+  ) {
+    return buildInactiveTabularTransformOutput({
+      message: TABULAR_TRANSFORM_INACTIVE_UPDATES_OUTPUT_MESSAGE,
+      props,
+      statusProvenance: inputState.statusProvenance,
+    });
+  }
+
+  return resolveTabularTransformOutput(input);
 }
 
 export function normalizeTabularTransformRuntimeState(

@@ -6,6 +6,7 @@ import {
 } from "@/widgets/shared/tabular-frame-source";
 import {
   TABULAR_LIVE_UPDATES_INPUT_ID,
+  TABULAR_SEED_INPUT_ID,
   TABULAR_UPDATES_OUTPUT_ID,
 } from "@/widgets/shared/incremental-tabular-consumer";
 import {
@@ -15,8 +16,10 @@ import {
 import { createRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 
 import {
+  resolveTabularTransformChannelOutput,
   resolveTabularTransformOutput,
   resolveTabularTransformSourceConsumerState,
+  TABULAR_TRANSFORM_SINGLE_SOURCE_ERROR,
   type TabularTransformWidgetProps,
 } from "./tabularTransformModel";
 
@@ -436,6 +439,10 @@ describe("tabular transform filter mode", () => {
     expect(output.status).toBe("ready");
     expect(output.columns).toEqual(["symbol", "last"]);
     expect(output.rows).toEqual([{ symbol: "ETHUSDT", last: 2136.36 }]);
+    expect(output.source?.context?.statusProvenance).toMatchObject({
+      liveBound: true,
+      seedBound: false,
+    });
   });
 
   it("keeps the last published transform output ready during valid live-input lifecycle gaps", () => {
@@ -474,6 +481,10 @@ describe("tabular transform filter mode", () => {
 
     expect(output.status).toBe("ready");
     expect(output.rows).toEqual([{ symbol: "ETHUSDT", last: 2136.36 }]);
+    expect(output.source?.context?.statusProvenance).toMatchObject({
+      liveBound: true,
+      seedBound: false,
+    });
   });
 
   it("materializes retained stream rows from runtime refs before projection", () => {
@@ -883,5 +894,111 @@ describe("tabular transform live-only retention", () => {
     expect(output.status).toBe("ready");
     expect(output.rows).toEqual([{ symbol: "ETHUSDT", last: 2139 }]);
     expect(output.columns).toEqual(["symbol", "last"]);
+    expect(output.source?.context?.statusProvenance).toMatchObject({
+      activeInputRole: "live",
+      liveBound: true,
+      seedBound: false,
+    });
+  });
+
+  it("does not publish the dataset output when the transform is bound to live updates", () => {
+    const liveFrame = frame(
+      [{ symbol: "ETHUSDT", close: 2136.36 }],
+      [
+        { key: "symbol", type: "string", provenance: "manual" },
+        { key: "close", type: "number", provenance: "manual" },
+      ],
+    );
+
+    const output = resolveTabularTransformChannelOutput({
+      outputChannel: "dataset",
+      props: { transformMode: "none" } satisfies TabularTransformWidgetProps,
+      resolvedInputs: {
+        [TABULAR_LIVE_UPDATES_INPUT_ID]: {
+          inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+          label: "Live updates",
+          status: "valid",
+          sourceWidgetId: "stream-widget",
+          sourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
+          contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          value: liveFrame,
+        },
+      },
+    });
+
+    expect(output.status).toBe("idle");
+    expect(output.rows).toEqual([]);
+    expect(output.source?.context?.statusProvenance).toMatchObject({
+      activeInputRole: "live",
+      liveBound: true,
+      seedBound: false,
+    });
+    expect(output.source?.context?.inactiveOutputReason).toContain("dataset output is inactive");
+  });
+
+  it("does not publish the updates output when the transform is bound to seed data", () => {
+    const seedFrame = frame([{ symbol: "ETHUSDT", close: 2136.36 }]);
+
+    const output = resolveTabularTransformChannelOutput({
+      outputChannel: "updates",
+      props: { transformMode: "none" } satisfies TabularTransformWidgetProps,
+      resolvedInputs: {
+        [TABULAR_SEED_INPUT_ID]: {
+          inputId: TABULAR_SEED_INPUT_ID,
+          label: "Seed data",
+          status: "valid",
+          sourceWidgetId: "seed-widget",
+          sourceOutputId: "dataset",
+          contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          value: seedFrame,
+        },
+      },
+    });
+
+    expect(output.status).toBe("idle");
+    expect(output.rows).toEqual([]);
+    expect(output.source?.context?.statusProvenance).toMatchObject({
+      activeInputRole: "seed",
+      liveBound: false,
+      seedBound: true,
+    });
+    expect(output.source?.context?.inactiveOutputReason).toContain("updates output is inactive");
+  });
+
+  it("returns a configuration error when seed data and live updates are both bound", () => {
+    const seedFrame = frame([{ symbol: "ETHUSDT", close: 2136.36 }]);
+    const liveFrame = frame([{ symbol: "BTCUSDT", close: 77650 }]);
+
+    const output = resolveTabularTransformOutput({
+      props: { transformMode: "none" } satisfies TabularTransformWidgetProps,
+      resolvedInputs: {
+        [TABULAR_SEED_INPUT_ID]: {
+          inputId: TABULAR_SEED_INPUT_ID,
+          label: "Seed data",
+          status: "valid",
+          sourceWidgetId: "seed-widget",
+          sourceOutputId: "dataset",
+          contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          value: seedFrame,
+        },
+        [TABULAR_LIVE_UPDATES_INPUT_ID]: {
+          inputId: TABULAR_LIVE_UPDATES_INPUT_ID,
+          label: "Live updates",
+          status: "valid",
+          sourceWidgetId: "stream-widget",
+          sourceOutputId: TABULAR_UPDATES_OUTPUT_ID,
+          contractId: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+          value: liveFrame,
+        },
+      },
+    });
+
+    expect(output.status).toBe("error");
+    expect(output.error).toBe(TABULAR_TRANSFORM_SINGLE_SOURCE_ERROR);
+    expect(output.source?.context?.statusProvenance).toMatchObject({
+      activeInputRole: "conflict",
+      liveBound: true,
+      seedBound: true,
+    });
   });
 });

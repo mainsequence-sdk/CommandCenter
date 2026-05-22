@@ -247,7 +247,9 @@ These flows are all part of one app surface, with instance state selected throug
   `withRuntimeProviders={false}`, so the page must still mount
   `WorkspaceRuntimeVariableRefreshCoordinator` in that branch. Otherwise table-driven reference
   variables update the source runtime state but never re-execute affected connection-query widgets
-  or downstream consumers.
+  or downstream consumers. Runtime variable refresh queue entries are revisioned per source widget:
+  newer runtime publications replace older pending work without reusing the old queue id, so an
+  active refresh completion cannot clear a newer selection or stream-retained value update.
 - The workspace index should not scan every stored workspace draft to decide whether the current
   surface is dirty. Unsaved-state indicators are scoped to the currently selected workspace only.
 - Workspace normalization is now split by boundary. Load/import paths still run the full migration
@@ -525,6 +527,11 @@ These flows are all part of one app surface, with instance state selected throug
 - Widget runtime-state writes are coalesced before committing into workspace user state. Stream
   source widgets may publish many frames per second, but the dashboard host must not synchronously
   clone and compare the workspace tree for every WebSocket message.
+- Graph mode must use the same local runtime-state override layer as the workspace canvas before
+  building dependency models, rail status, request debug state, and variable explorer entries. A
+  stream widget can publish through the runtime store before persisted workspace state catches up,
+  so graph status must read the effective rendered workspace, not only persisted
+  `instance.runtimeState`.
 - Stream source cards must also throttle their visible runtime-entry subscription. The shared
   connection runtime store can ingest every frame, but visible canvas chrome should update at UI
   cadence so settings clicks are not queued behind WebSocket-status renders.

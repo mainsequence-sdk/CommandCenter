@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
 import {
+  fetchDataNodeDetail,
   formatMainSequenceError,
   getTsManagerRecordIdentifier,
   listLocalTimeSeries,
@@ -108,7 +109,7 @@ function getSchedulerValue(localTimeSerie: LocalTimeSerieRecord) {
 }
 
 export function MainSequenceDataNodeLocalTimeSeriesTab({
-  dataNodeId,
+  dataNodeIdentifier,
   onCloseLocalUpdateDetail,
   onOpenDataNodeDetail,
   onOpenLocalUpdateDetail,
@@ -116,10 +117,10 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
   selectedLocalUpdateId,
   selectedLocalUpdateTabId,
 }: {
-  dataNodeId: number;
+  dataNodeIdentifier: string;
   onCloseLocalUpdateDetail: () => void;
-  onOpenDataNodeDetail: (dataNodeId: string | number) => void;
-  onOpenLocalUpdateDetail: (localUpdateId: string | number) => void;
+  onOpenDataNodeDetail: (dataNodeId: string) => void;
+  onOpenLocalUpdateDetail: (localUpdateId: string) => void;
   onSelectLocalUpdateTab: (tabId: LocalUpdateDetailTabId) => void;
   selectedLocalUpdateId: string | null;
   selectedLocalUpdateTabId: string | null;
@@ -128,19 +129,26 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
   const [pageIndex, setPageIndex] = useState(0);
   const deferredFilterValue = useDeferredValue(filterValue);
 
+  const dataNodeDetailQuery = useQuery({
+    queryKey: ["main_sequence", "data_nodes", "detail", dataNodeIdentifier],
+    queryFn: () => fetchDataNodeDetail(dataNodeIdentifier),
+    enabled: Boolean(dataNodeIdentifier.trim()),
+  });
+  const resolvedDataNodeId = dataNodeDetailQuery.data?.id ?? null;
+
   const localTimeSeriesQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "local_time_series", dataNodeId, pageIndex],
+    queryKey: ["main_sequence", "data_nodes", "local_time_series", dataNodeIdentifier, pageIndex],
     queryFn: () =>
-      listLocalTimeSeries(dataNodeId, {
+      listLocalTimeSeries(resolvedDataNodeId!, {
         limit: mainSequenceRegistryPageSize,
         offset: pageIndex * mainSequenceRegistryPageSize,
       }),
-    enabled: dataNodeId > 0,
+    enabled: typeof resolvedDataNodeId === "number" && resolvedDataNodeId > 0,
   });
 
   useEffect(() => {
     setPageIndex(0);
-  }, [deferredFilterValue, dataNodeId]);
+  }, [deferredFilterValue, dataNodeIdentifier]);
 
   useEffect(() => {
     const totalPages = Math.max(
@@ -188,6 +196,9 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
       ) ?? null,
     [localTimeSeriesQuery.data?.results, selectedLocalUpdateId],
   );
+  const isLoading = dataNodeDetailQuery.isLoading || localTimeSeriesQuery.isLoading;
+  const hasDetailError = dataNodeDetailQuery.isError;
+  const hasLocalUpdatesError = localTimeSeriesQuery.isError;
 
   if (selectedLocalUpdateId) {
     return (
@@ -207,9 +218,6 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="text-sm font-medium text-foreground">Local update</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            LocalTimeSerie rows linked to this data node through the `remote_table` filter.
-          </p>
         </div>
         <MainSequenceRegistrySearch
           accessory={
@@ -222,7 +230,7 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
         />
       </div>
 
-      {localTimeSeriesQuery.isLoading ? (
+      {isLoading ? (
         <div className="flex min-h-64 items-center justify-center">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -231,14 +239,21 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
         </div>
       ) : null}
 
-      {localTimeSeriesQuery.isError ? (
+      {hasDetailError ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+          {formatMainSequenceError(dataNodeDetailQuery.error)}
+        </div>
+      ) : null}
+
+      {hasLocalUpdatesError ? (
         <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
           {formatMainSequenceError(localTimeSeriesQuery.error)}
         </div>
       ) : null}
 
-      {!localTimeSeriesQuery.isLoading &&
-      !localTimeSeriesQuery.isError &&
+      {!isLoading &&
+      !hasDetailError &&
+      !hasLocalUpdatesError &&
       filteredLocalTimeSeries.length === 0 ? (
         <div className="px-5 py-14 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-border/70 bg-background/35 text-primary">
@@ -253,8 +268,9 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
         </div>
       ) : null}
 
-      {!localTimeSeriesQuery.isLoading &&
-      !localTimeSeriesQuery.isError &&
+      {!isLoading &&
+      !hasDetailError &&
+      !hasLocalUpdatesError &&
       filteredLocalTimeSeries.length > 0 ? (
         <Card variant="nested">
           <CardContent className="pt-5">
@@ -372,8 +388,9 @@ export function MainSequenceDataNodeLocalTimeSeriesTab({
         </Card>
       ) : null}
 
-      {!localTimeSeriesQuery.isLoading &&
-      !localTimeSeriesQuery.isError &&
+      {!isLoading &&
+      !hasDetailError &&
+      !hasLocalUpdatesError &&
       (localTimeSeriesQuery.data?.count ?? 0) > 0 ? (
         <MainSequenceRegistryPagination
           count={localTimeSeriesQuery.data?.count ?? 0}

@@ -1054,6 +1054,96 @@ describe("AssetScreenerWidget", () => {
     });
   });
 
+  it("publishes activeRow from the retained live frame instead of only the latest live delta", () => {
+    const props = {
+      ...assetScreenerDefaultProps,
+      columnConfigMode: "custom",
+      columns: [
+        {
+          id: "symbol",
+          kind: "asset-field",
+          label: "Symbol",
+          field: "symbol",
+        },
+        {
+          id: "last",
+          kind: "latest-value",
+          label: "Last",
+          valueField: "price",
+          format: "price",
+        },
+      ],
+      sort: undefined,
+      table: {
+        selectionMode: "single-row",
+      },
+      fieldMappings: {
+        live: {
+          symbolField: "symbol",
+          valueFields: {
+            price: "last",
+          },
+        },
+      },
+    } satisfies MainSequenceAssetScreenerWidgetProps;
+    const retainedLiveFrame = frame([
+      {
+        symbol: "BTCUSDT",
+        last: 77295.7,
+      },
+      {
+        symbol: "ETHUSDT",
+        last: 2117.05,
+      },
+    ]);
+    const latestLiveDelta = frame([
+      {
+        symbol: "BTCUSDT",
+        last: 77301.2,
+      },
+    ]);
+    const runtimeState = {
+      ...retainedLiveFrame,
+      source: {
+        kind: "asset-screener-retained-live",
+      },
+      interaction: {
+        selection: {
+          mode: "single-row",
+          selectedRowIndices: [1],
+          selectedRowKeys: ['["ETHUSDT"]'],
+          activeRowIndex: 1,
+          activeRowKey: '["ETHUSDT"]',
+          selectedCells: [],
+          updatedAtMs: 1,
+        },
+      },
+    };
+    const resolvedInputs = {
+      liveUpdates: {
+        inputId: "liveUpdates",
+        label: "Live updates",
+        status: "valid",
+        sourceWidgetId: "stream-query",
+        sourceOutputId: "updates",
+        contractId: "core.tabular_frame@v1",
+        upstreamDelta: latestLiveDelta,
+      },
+    } satisfies ResolvedWidgetInputs;
+
+    expect(
+      resolveWidgetOutputValue(TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID, {
+        props,
+        resolvedInputs,
+        runtimeState,
+      }),
+    ).toMatchObject({
+      assetKey: "ETHUSDT",
+      symbol: "ETHUSDT",
+      last: 2117.05,
+    });
+  });
+
   it("publishes activeCell, activeCellValue, selectedCellValues, and selectedRows from asset selections", () => {
     const props = {
       ...assetScreenerDefaultProps,
@@ -1746,6 +1836,7 @@ describe("AssetScreenerWidget", () => {
       ...assetScreenerDefaultProps,
       table: {
         liveMergeKeyMappings: [{ seedField: "Symbol", liveField: "symbol" }],
+        selectionMode: "single-row",
         columnOverrides: {
           last_price: {
             decimals: 4,
@@ -1804,6 +1895,112 @@ describe("AssetScreenerWidget", () => {
     expect(tableFrame.rowObjects[0]?.last_price).toBe(109500.12345);
     expect(tableProps.columnOverrides.last_price).toMatchObject({
       decimals: 4,
+    });
+
+    const stateWithRetainedRuntime = resolveAssetScreenerState({
+      props,
+      resolvedInputs: {
+        seedData: {
+          inputId: "seedData",
+          label: "Seed data",
+          status: "valid",
+          sourceWidgetId: "seed-query",
+          sourceOutputId: "dataset",
+          contractId: "core.tabular_frame@v1",
+          upstreamBase: seedData,
+        },
+        liveUpdates: {
+          inputId: "liveUpdates",
+          label: "Live updates",
+          status: "valid",
+          sourceWidgetId: "stream-query",
+          sourceOutputId: "updates",
+          contractId: "core.tabular_frame@v1",
+          upstreamDelta: liveUpdates,
+        },
+      },
+      runtimeState: {
+        ...seedData,
+        rows: [
+          ...seedData.rows,
+          ...liveUpdates.rows,
+        ],
+      },
+    });
+    const tableFrameWithRetainedRuntime = buildAssetScreenerTableFrame({
+      columns: stateWithRetainedRuntime.columns,
+      rows: stateWithRetainedRuntime.filteredRows,
+      sourceFrame: stateWithRetainedRuntime.sourceFrame,
+      sourceColumns: stateWithRetainedRuntime.sourceColumns,
+    });
+
+    expect(tableFrameWithRetainedRuntime.rowObjects).toHaveLength(1);
+    expect(tableFrameWithRetainedRuntime.rowObjects[0]).toMatchObject({
+      Symbol: "BTCUSDT",
+      last_price: 109500.12345,
+    });
+
+    expect(
+      resolveWidgetOutputValue(TABLE_WIDGET_ACTIVE_ROW_OUTPUT_ID, {
+        props,
+        resolvedInputs: {
+          seedData: {
+            inputId: "seedData",
+            label: "Seed data",
+            status: "valid",
+            sourceWidgetId: "seed-query",
+            sourceOutputId: "dataset",
+            contractId: "core.tabular_frame@v1",
+            upstreamBase: seedData,
+          },
+          liveUpdates: {
+            inputId: "liveUpdates",
+            label: "Live updates",
+            status: "valid",
+            sourceWidgetId: "stream-query",
+            sourceOutputId: "updates",
+            contractId: "core.tabular_frame@v1",
+            upstreamDelta: frame([
+              {
+                symbol: "ETHUSDT",
+                last: 2121,
+              },
+            ]),
+          },
+        },
+        runtimeState: {
+          status: "ready",
+          columns: seedData.columns,
+          rows: [
+            ...seedData.rows,
+            ...liveUpdates.rows,
+          ],
+          source: {
+            context: {
+              incrementalConsumer: {
+                mode: "incremental-tabular-consumer",
+                seedFrame: seedData,
+                liveFrame: liveUpdates,
+              },
+            },
+          },
+          interaction: {
+            selection: {
+              mode: "single-row",
+              selectedRowIndices: [0],
+              selectedRowKeys: ['["uid:BTCUSDT"]'],
+              activeRowIndex: 0,
+              activeRowKey: '["uid:BTCUSDT"]',
+              selectedCells: [],
+              updatedAtMs: 1,
+            },
+          },
+        },
+      }),
+    ).toMatchObject({
+      assetKey: "uid:BTCUSDT",
+      Symbol: "BTCUSDT",
+      last_price: 109500.12345,
     });
   });
 });

@@ -19,13 +19,14 @@ import { TabularTransformWidgetSettings } from "./TabularTransformWidgetSettings
 import {
   TABULAR_TRANSFORM_DATASET_OUTPUT_ID,
   normalizeTabularTransformProps,
+  resolveTabularTransformChannelOutput,
   resolveTabularTransformOutput,
   type TabularTransformWidgetProps,
 } from "./tabularTransformModel";
 
 export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>({
   id: "tabular-transform",
-  widgetVersion: "1.3.4",
+  widgetVersion: "1.3.5",
   title: "Tabular Transform",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",
@@ -176,7 +177,8 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
         description: "Publishes the transformed tabular dataset.",
         valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
         resolveValue: ({ props, runtimeDataStore, runtimeState, resolvedInputs }) =>
-          resolveTabularTransformOutput({
+          resolveTabularTransformChannelOutput({
+            outputChannel: "dataset",
             props: props as TabularTransformWidgetProps,
             runtimeState,
             resolvedInputs,
@@ -191,7 +193,8 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
           "Publishes the transformed stream publication for downstream live-update inputs.",
         valueDescriptor: TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
         resolveValue: ({ props, runtimeDataStore, runtimeState, resolvedInputs }) => {
-          const output = resolveTabularTransformOutput({
+          const output = resolveTabularTransformChannelOutput({
+            outputChannel: "updates",
             props: props as TabularTransformWidgetProps,
             runtimeState,
             resolvedInputs,
@@ -311,12 +314,12 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
     configuration: {
       mode: "custom-settings",
       summary:
-        "Configures a sidebar-only transform node over tabular seed and live-update inputs, including filter, aggregate, pivot, unpivot, projection, formulas, and row merge.",
+        "Configures a sidebar-only transform node over one tabular seed or live-update input, including filter, aggregate, pivot, unpivot, projection, formulas, and row merge.",
       requiredSetupSteps: [
-        "Bind seedData to an upstream dataset output, liveUpdates to an upstream updates output, or both.",
+        "Bind either seedData to an upstream dataset output or liveUpdates to an upstream updates output. Do not bind both.",
         "Select a transform mode.",
         "Configure filter, key, pivot, unpivot, computed-column, or projection fields.",
-        "Bind downstream seed inputs to dataset or live-update inputs to updates.",
+        "If seedData is bound, bind downstream seed inputs to dataset. If liveUpdates is bound, bind downstream live-update inputs to updates.",
       ],
       configurationNotes: [
         "Projection runs after the selected transform.",
@@ -324,7 +327,7 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
         "Computed-column formulas must wrap field names in brackets, for example [last_price] * 10.",
         "Row merge can collapse transformed stream rows to the latest row per configured key.",
         "Filter mode is intentionally limited to lightweight field predicates.",
-        "The updates output preserves stream publications for live consumers.",
+        "The active downstream output follows the active input role: seedData publishes dataset, liveUpdates publishes updates.",
         "Analytical transforms are explicit graph nodes, not binding-level transforms.",
       ],
     },
@@ -337,7 +340,7 @@ export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>(
     io: {
       mode: "static",
       summary:
-        "Consumes role-specific tabular seed/live-update inputs and publishes transformed dataset and live-update outputs.",
+        "Consumes exactly one role-specific tabular seed/live-update input and publishes the matching transformed output channel.",
       inputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
       outputContracts: [CORE_TABULAR_FRAME_SOURCE_CONTRACT],
     },

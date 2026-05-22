@@ -60,7 +60,6 @@ import {
   updateDashboardControlsState,
   updateDashboardWidgetBindings,
   updateDashboardWidgetSettings,
-  updateDashboardWidgetRuntimeState,
 } from "./custom-dashboard-storage";
 import { WorkspaceComponentBrowser } from "./WorkspaceComponentBrowser";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
@@ -90,6 +89,11 @@ import {
   buildWorkspaceStudioCanvasPath,
   useWorkspaceStudioSurfaceConfig,
 } from "./workspace-studio-surface-config";
+import {
+  applyRuntimeStateOverridesToDashboard,
+  runtimeStateEquals,
+  type RuntimeWidgetStateOverrides,
+} from "./workspace-runtime-state-overrides";
 
 const GRAPH_NODE_HORIZONTAL_GAP = 420;
 const GRAPH_NODE_VERTICAL_GAP = 28;
@@ -1165,6 +1169,7 @@ function WorkspaceGraphCanvas({
       const statusSummary = resolveWidgetStatusSummary({
         widget: widgetDefinition,
         executionState,
+        resolvedInputs,
         runtimeState: instanceIndex.get(node.id)?.runtimeState,
       });
       const referenceTarget = workspaceReferenceTargetByNodeId[node.id];
@@ -1204,6 +1209,7 @@ function WorkspaceGraphCanvas({
           executionStatus: executionState?.status,
           executionMessage: statusSummary.detail ?? statusSummary.label,
           executionFinishedAtMs: executionState?.finishedAtMs,
+          statusChannels: statusSummary.channels,
           statusIndicator: statusSummary.indicator,
           statusIsLoading: statusSummary.isLoading,
           statusLabel: statusSummary.label,
@@ -2200,7 +2206,20 @@ export function CustomWorkspaceGraphPage({
   const [variableExplorerOpen, setVariableExplorerOpen] = useState(false);
   const [showManagedWidgets, setShowManagedWidgets] = useState(false);
   const [returningToDashboard, setReturningToDashboard] = useState(false);
+  const [runtimeStateOverridesByWidgetId, setRuntimeStateOverridesByWidgetId] =
+    useState<RuntimeWidgetStateOverrides>({});
+  const runtimeStateOverridesByWidgetIdRef = useRef<RuntimeWidgetStateOverrides>({});
   const pendingReturnFrameRef = useRef<number | null>(null);
+  const renderedResolvedDashboard = useMemo(
+    () =>
+      resolvedDashboard
+        ? applyRuntimeStateOverridesToDashboard(
+            resolvedDashboard,
+            runtimeStateOverridesByWidgetId,
+          )
+        : resolvedDashboard,
+    [resolvedDashboard, runtimeStateOverridesByWidgetId],
+  );
 
   useEffect(() => {
     setLibraryOpen(false);
@@ -2208,7 +2227,13 @@ export function CustomWorkspaceGraphPage({
     setVariableExplorerOpen(false);
     setShowManagedWidgets(false);
     setReturningToDashboard(false);
+    runtimeStateOverridesByWidgetIdRef.current = {};
+    setRuntimeStateOverridesByWidgetId({});
   }, [selectedDashboard?.id]);
+
+  useEffect(() => {
+    runtimeStateOverridesByWidgetIdRef.current = runtimeStateOverridesByWidgetId;
+  }, [runtimeStateOverridesByWidgetId]);
 
   useEffect(() => {
     return () => {
@@ -2218,6 +2243,32 @@ export function CustomWorkspaceGraphPage({
     };
   }, []);
 
+  const handleWidgetRuntimeStateChange = useCallback(
+    (instanceId: string, runtimeState: Record<string, unknown> | undefined) => {
+      const nextRuntimeState = runtimeState ?? null;
+      const currentRuntimeState =
+        runtimeStateOverridesByWidgetIdRef.current[instanceId] ?? null;
+
+      if (runtimeStateEquals(currentRuntimeState, nextRuntimeState)) {
+        return;
+      }
+
+      setRuntimeStateOverridesByWidgetId((current) => {
+        if (runtimeStateEquals(current[instanceId] ?? null, nextRuntimeState)) {
+          return current;
+        }
+
+        const next = {
+          ...current,
+          [instanceId]: nextRuntimeState,
+        };
+        runtimeStateOverridesByWidgetIdRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
   if (!user) {
     return (
       <div className="rounded-[var(--radius)] border border-border/80 bg-card/80 p-8 text-sm text-muted-foreground">
@@ -2226,11 +2277,11 @@ export function CustomWorkspaceGraphPage({
     );
   }
 
-  if (!selectedDashboard || !resolvedDashboard) {
+  if (!selectedDashboard || !renderedResolvedDashboard) {
     return null;
   }
 
-  const railWidgets = resolvedDashboard.widgets.flatMap((instance) => {
+  const railWidgets = renderedResolvedDashboard.widgets.flatMap((instance) => {
     const widget = getWidgetById(instance.widgetId);
     const required = [
       ...(widget?.requiredPermissions ?? []),
@@ -2425,7 +2476,7 @@ export function CustomWorkspaceGraphPage({
           }}
           placementClassName="right-4 top-4 bottom-4"
           scopeId={selectedDashboard.id}
-          widgets={resolvedDashboard.widgets}
+          widgets={renderedResolvedDashboard.widgets}
         />
         <WorkspaceVariableExplorerPanel
           open={variableExplorerOpen}
@@ -2433,7 +2484,7 @@ export function CustomWorkspaceGraphPage({
             setVariableExplorerOpen(false);
           }}
           placementClassName="right-4 top-4 bottom-4"
-          widgets={resolvedDashboard.widgets}
+          widgets={renderedResolvedDashboard.widgets}
         />
       </div>
     </div>
@@ -2454,19 +2505,14 @@ export function CustomWorkspaceGraphPage({
       }}
       onStateCommit={commitSelectedWorkspaceControlsState}
     >
-      <DashboardWidgetRegistryProvider widgets={resolvedDashboard.widgets}>
+      <DashboardWidgetRegistryProvider widgets={renderedResolvedDashboard.widgets}>
         <DashboardWidgetExecutionProvider
           activeSurface="graph"
           scopeId={selectedDashboard.id}
-          widgets={resolvedDashboard.widgets}
-          writeRuntimeState={(instanceId, runtimeState) => {
-            updateSelectedWorkspaceUserState((dashboard) =>
-              updateDashboardWidgetRuntimeState(dashboard, instanceId, runtimeState),
-              { bumpRevision: false },
-            );
-          }}
+          widgets={renderedResolvedDashboard.widgets}
+          writeRuntimeState={handleWidgetRuntimeStateChange}
         >
-          <DashboardWidgetDependenciesProvider widgets={resolvedDashboard.widgets}>
+          <DashboardWidgetDependenciesProvider widgets={renderedResolvedDashboard.widgets}>
             {content}
           </DashboardWidgetDependenciesProvider>
         </DashboardWidgetExecutionProvider>

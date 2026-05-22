@@ -33,7 +33,12 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
-import type { WidgetStatusIndicator, WidgetStatusTone } from "@/dashboards/widget-status";
+import type {
+  WidgetStatusChannel,
+  WidgetStatusChannels,
+  WidgetStatusIndicator,
+  WidgetStatusTone,
+} from "@/dashboards/widget-status";
 
 export type WorkspaceGraphPortStatus = "connected" | "unbound" | "broken";
 
@@ -82,6 +87,7 @@ export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   executionStatus?: "idle" | "running" | "success" | "waiting" | "error" | "upstream-error";
   executionMessage?: string;
   executionFinishedAtMs?: number;
+  statusChannels?: WidgetStatusChannels;
   statusIndicator?: WidgetStatusIndicator;
   statusIsLoading?: boolean;
   statusLabel?: string;
@@ -185,14 +191,42 @@ function GraphStatusIndicator({
 
   if (indicator === "dot+lightning") {
     return (
-      <span className="inline-flex items-center gap-0.5">
-        <span className={cn("h-1.5 w-1.5 rounded-full", getGraphStatusDotClass(tone))} />
+      <span className="inline-flex flex-col items-center gap-0.5">
         <Zap className={cn("h-2.5 w-2.5", getGraphStatusForegroundClass(tone))} />
+        <span className={cn("h-1.5 w-1.5 rounded-full", getGraphStatusDotClass(tone))} />
       </span>
     );
   }
 
   return <span className={cn("h-1.5 w-1.5 rounded-full", getGraphStatusDotClass(tone))} />;
+}
+
+function GraphBindingChannelIndicator({
+  channel,
+  position,
+}: {
+  channel?: WidgetStatusChannel;
+  position: "bottom-left" | "top-left";
+}) {
+  if (!channel?.present) {
+    return null;
+  }
+
+  const Icon = channel.kind === "live" ? Zap : Network;
+  const positionClassName =
+    position === "top-left" ? "-left-1 top-0.5" : "-bottom-0.5 -left-1";
+
+  return (
+    <span
+      className={cn(
+        "absolute flex h-3 w-3 items-center justify-center rounded-full bg-background/95",
+        positionClassName,
+      )}
+      title={channel.label}
+    >
+      <Icon className={cn("h-2.5 w-2.5", getGraphStatusForegroundClass(channel.tone))} />
+    </span>
+  );
 }
 
 function logGraphPortEvent(
@@ -857,8 +891,23 @@ export const WorkspaceGraphNode = memo(function WorkspaceGraphNode({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex items-start gap-2.5">
-            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-border/70 bg-background/55 text-muted-foreground">
+            <div className="relative mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-border/70 bg-background/55 text-muted-foreground">
               <WidgetIcon className="h-3.5 w-3.5" />
+              <GraphBindingChannelIndicator
+                channel={data.statusChannels?.live}
+                position="top-left"
+              />
+              <GraphBindingChannelIndicator
+                channel={data.statusChannels?.seed}
+                position="bottom-left"
+              />
+              <span
+                className={cn(
+                  "absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full",
+                  getGraphStatusDotClass(data.statusTone),
+                  data.statusIsLoading ? "animate-pulse" : undefined,
+                )}
+              />
             </div>
             <div className="min-w-0 space-y-1.5">
               <div className="truncate text-[13px] font-semibold leading-4 text-foreground">

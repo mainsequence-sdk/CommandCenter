@@ -815,6 +815,130 @@ export function planDashboardVariableDrivenCommit(input: {
   return plan;
 }
 
+export function planDashboardRuntimeVariableDrivenCommit(input: {
+  changedWidgetId: string;
+  afterSnapshot: DashboardExecutionSnapshot;
+  changedSourceOutputIds?: readonly string[];
+  resolvePreviousVariableEntrySignature?: (entryId: string) => string | undefined;
+  shouldIncludeChangedVariableEntry?: (
+    entry: DashboardVariableDrivenCommitPlanEntryCandidate,
+  ) => boolean;
+  resolveManagedConnectionConsumerAdapter?: ResolveManagedConnectionConsumerAdapter;
+}): DashboardVariableDrivenCommitPlan {
+  const changedSourceOutputIds =
+    input.changedSourceOutputIds && input.changedSourceOutputIds.length > 0
+      ? new Set(input.changedSourceOutputIds)
+      : null;
+  const sourceEntries = (
+    input.afterSnapshot.dependencies.variableRegistry.bySourceWidgetId.get(input.changedWidgetId) ?? []
+  ).filter((entry) =>
+    changedSourceOutputIds ? changedSourceOutputIds.has(entry.key.sourceOutputId) : true,
+  );
+  const changedVariableEntries: DashboardVariableDrivenCommitPlanEntry[] = [];
+  const affectedConsumerWidgetIds = new Set<string>();
+
+  sourceEntries
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .forEach((entry) => {
+      const afterValue = resolveVariableEntryValue(entry, input.afterSnapshot);
+      const afterSignature = buildVariableEntryValueSignature(afterValue);
+      const previousSignature = input.resolvePreviousVariableEntrySignature?.(entry.id);
+
+      if (previousSignature === afterSignature) {
+        return;
+      }
+
+      if (previousSignature === undefined && afterValue.status !== "valid") {
+        return;
+      }
+
+      const targetWidgetIds = [
+        ...new Set(entry.consumers.map((consumer) => consumer.targetWidgetId)),
+      ].sort((left, right) => left.localeCompare(right));
+
+      const candidate = {
+        entryId: entry.id,
+        sourceWidgetId: entry.key.sourceWidgetId,
+        sourceOutputId: entry.key.sourceOutputId,
+        transformSignature: entry.key.transformSignature,
+        targetWidgetIds,
+        beforeValueSignature: previousSignature ?? "",
+        afterValueSignature: afterSignature,
+      } satisfies DashboardVariableDrivenCommitPlanEntryCandidate;
+
+      if (
+        input.shouldIncludeChangedVariableEntry &&
+        !input.shouldIncludeChangedVariableEntry(candidate)
+      ) {
+        return;
+      }
+
+      targetWidgetIds.forEach((targetWidgetId) => {
+        affectedConsumerWidgetIds.add(targetWidgetId);
+      });
+
+      changedVariableEntries.push({
+        entryId: candidate.entryId,
+        sourceWidgetId: candidate.sourceWidgetId,
+        sourceOutputId: candidate.sourceOutputId,
+        transformSignature: candidate.transformSignature,
+        targetWidgetIds: candidate.targetWidgetIds,
+      });
+    });
+
+  const executableConsumerWidgetIds = new Set<string>();
+  const executableTargetWidgetIds = new Set<string>();
+  const managedExecutableSourceWidgetIds = new Set<string>();
+  const executableTargetOverridesByWidgetId: Record<string, WidgetExecutionTargetOverrides> = {};
+
+  [...affectedConsumerWidgetIds].forEach((widgetId) => {
+    if (input.afterSnapshot.getDefinition(widgetId)?.execution) {
+      executableConsumerWidgetIds.add(widgetId);
+      executableTargetWidgetIds.add(widgetId);
+    }
+
+    resolveManagedExecutableSourceProjections(
+      input.afterSnapshot,
+      widgetId,
+      input.resolveManagedConnectionConsumerAdapter,
+    ).forEach((projection) => {
+      managedExecutableSourceWidgetIds.add(projection.sourceWidgetId);
+      executableTargetWidgetIds.add(projection.sourceWidgetId);
+      executableTargetOverridesByWidgetId[projection.sourceWidgetId] =
+        projection.targetOverrides;
+    });
+  });
+
+  const stableOrder = input.afterSnapshot.dependencies.entries.map(({ instance }) => instance.id);
+  const orderIndex = new Map(stableOrder.map((instanceId, index) => [instanceId, index] as const));
+  const sortByStableOrder = (left: string, right: string) =>
+    (orderIndex.get(left) ?? Number.MAX_SAFE_INTEGER) -
+    (orderIndex.get(right) ?? Number.MAX_SAFE_INTEGER);
+  const affectedConsumerWidgetIdsList = [...affectedConsumerWidgetIds].sort(sortByStableOrder);
+  const executableConsumerWidgetIdsList = [...executableConsumerWidgetIds].sort(sortByStableOrder);
+  const passiveConsumerWidgetIdsList = affectedConsumerWidgetIdsList.filter(
+    (widgetId) => !executableConsumerWidgetIds.has(widgetId),
+  );
+  const managedExecutableSourceWidgetIdsList = [...managedExecutableSourceWidgetIds].sort(sortByStableOrder);
+  const executableTargetWidgetIdsList = [
+    ...managedExecutableSourceWidgetIdsList,
+    ...[...executableTargetWidgetIds]
+      .filter((widgetId) => !managedExecutableSourceWidgetIds.has(widgetId))
+      .sort(sortByStableOrder),
+  ];
+
+  return {
+    changedWidgetId: input.changedWidgetId,
+    changedVariableEntries,
+    affectedConsumerWidgetIds: affectedConsumerWidgetIdsList,
+    passiveConsumerWidgetIds: passiveConsumerWidgetIdsList,
+    executableConsumerWidgetIds: executableConsumerWidgetIdsList,
+    managedExecutableSourceWidgetIds: managedExecutableSourceWidgetIdsList,
+    executableTargetWidgetIds: executableTargetWidgetIdsList,
+    executableTargetOverridesByWidgetId,
+  } satisfies DashboardVariableDrivenCommitPlan;
+}
+
 function listValidDependencyIds(
   instanceId: string,
   snapshot: DashboardExecutionSnapshot,

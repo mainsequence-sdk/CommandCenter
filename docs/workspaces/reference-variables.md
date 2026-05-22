@@ -62,10 +62,12 @@ The runtime path is:
 1. A source widget writes runtime state through the workspace runtime-state callback.
 2. `CustomDashboardStudioPage.tsx` batches the runtime-state write so mounted consumers can read the
    latest source value without marking the workspace as authored/dirty.
-3. The same page queues a variable refresh for the changed source widget id.
+3. The same page queues a revisioned variable refresh for the changed source widget id.
 4. `WorkspaceRuntimeVariableRefreshCoordinator` drains that queue using the active
    `DashboardWidgetExecutionProvider`.
-5. `executeVariableDrivenWidgetCommit(...)` compares the before/after variable registry entries.
+5. `executeVariableDrivenWidgetCommit(...)` uses the runtime fast path: it reads only variable
+   registry entries owned by the changed source widget, compares cached transformed effective
+   signatures, and skips full before/after topology planning.
 6. Passive consumers rerender from dependency resolution.
 7. Affected executable consumers, including managed connection-query sources, are scheduled through
    the normal graph execution path.

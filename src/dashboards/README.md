@@ -70,10 +70,11 @@ surfaces and the editable workspace studio.
   incremental tabular publications. It now also owns commit-scoped
   `executeVariableDrivenWidgetCommit(...)` scheduling so saved widget title/prop changes rerender
   passive variable consumers in memory and only enqueue affected executable downstream branches.
-  Workspace runtime-state changes can also enter that same commit path when the active studio host
-  queues a variable refresh for a changed source widget. Runtime-origin variable refreshes execute
-  from the changed source as a boundary, so consuming a just-published table or Asset Screener
-  selection does not rerun that source widget's executable ancestors before downstream consumers.
+  Settings-origin commits rebuild before/after dependency snapshots because topology may have
+  changed. Runtime-origin commits use a source-scoped fast path over the current variable registry
+  and cached effective signatures, so runtime publications such as table or Asset Screener
+  selections do not rebuild topology and do not rerun executable ancestors before downstream
+  consumers.
 - `dashboard-request-trace.ts`: shared refresh-cycle request trace store. Execution-driven
   widgets and component-side widget queries can attach request metadata there so graph/debug
   surfaces inspect one canonical refresh request log instead of inventing local endpoint trackers.

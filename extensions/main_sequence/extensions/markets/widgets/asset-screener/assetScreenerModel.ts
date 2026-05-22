@@ -940,10 +940,12 @@ function resolveAssetScreenerCanonicalSourceFrame(input: {
   fallbackFrames?: MainSequenceAssetScreenerFallbackFrames;
   resolvedInputs?: ResolvedWidgetInputs;
   runtimeDataStore?: RuntimeDataStore | null;
+  runtimeState?: unknown;
 }) {
   const snapshot = resolveIncrementalTabularBindingSnapshot({
     resolvedInputs: input.resolvedInputs,
     runtimeDataStore: input.runtimeDataStore,
+    runtimeState: input.runtimeState,
   });
 
   return snapshot.dataset ?? resolveAssetScreenerSourceFrame(input.fallbackFrames ?? {});
@@ -997,6 +999,7 @@ export function resolveAssetScreenerState(input: {
   props: MainSequenceAssetScreenerWidgetProps;
   resolvedInputs?: ResolvedWidgetInputs;
   runtimeDataStore?: RuntimeDataStore | null;
+  runtimeState?: unknown;
 }): MainSequenceAssetScreenerResolvedState {
   const props = normalizeAssetScreenerProps(input.props);
   const seedInput = firstResolvedInput(input.resolvedInputs, MARKET_ASSET_SCREENER_SEED_INPUT_ID);
@@ -1004,25 +1007,55 @@ export function resolveAssetScreenerState(input: {
     input.resolvedInputs,
     MARKET_ASSET_SCREENER_LIVE_UPDATES_INPUT_ID,
   );
+  const retainedSnapshot = resolveIncrementalTabularBindingSnapshot({
+    resolvedInputs: input.resolvedInputs,
+    runtimeDataStore: input.runtimeDataStore,
+    runtimeState: input.runtimeState,
+  });
+  const retainedDataset =
+    retainedSnapshot.active && !seedInput
+      ? retainedSnapshot.dataset
+      : null;
+  const retainedSeedData = retainedSnapshot.active ? retainedSnapshot.retainedSeedFrame : null;
+  const retainedLiveUpdates = retainedSnapshot.active ? retainedSnapshot.retainedLiveFrame : null;
   const seedData =
-    materializeResolvedInput(seedInput, input.runtimeDataStore) ??
+    retainedSeedData ??
+    (
+      retainedDataset
+        ? null
+        : materializeResolvedInput(seedInput, input.runtimeDataStore)
+    ) ??
+    retainedDataset ??
     input.fallbackFrames?.seedData ??
     null;
   const liveUpdates =
+    retainedLiveUpdates ??
     materializeResolvedInput(liveInput, input.runtimeDataStore, "delta") ??
     input.fallbackFrames?.liveUpdates ??
     null;
+  const resolvedSourceFrame = resolveAssetScreenerSourceFrame({ seedData, liveUpdates });
+  const externalCanonicalSourceFrame = seedInput ? null : input.canonicalSourceFrame;
   const canonicalSourceFrame =
-    input.canonicalSourceFrame ??
-    resolveAssetScreenerCanonicalSourceFrame({
-      fallbackFrames: input.fallbackFrames,
-      resolvedInputs: input.resolvedInputs,
-      runtimeDataStore: input.runtimeDataStore,
-    });
+    externalCanonicalSourceFrame ??
+    resolvedSourceFrame ??
+    retainedDataset ??
+    (
+      seedInput
+        ? null
+        : resolveAssetScreenerCanonicalSourceFrame({
+            fallbackFrames: input.fallbackFrames,
+            resolvedInputs: input.resolvedInputs,
+            runtimeDataStore: input.runtimeDataStore,
+            runtimeState: input.runtimeState,
+          })
+    );
   const runtimeModel = buildMarketAssetScreenerRuntimeModelFromTabularFrames({
     seedData,
     liveUpdates,
-    seedMapping: props.fieldMappings?.seed,
+    seedMapping:
+      retainedDataset && !seedInput && !retainedLiveUpdates
+        ? props.fieldMappings?.live ?? props.fieldMappings?.seed
+        : props.fieldMappings?.seed,
     liveMapping: props.fieldMappings?.live,
     liveMergeKeyMappings: props.table?.liveMergeKeyMappings,
   });

@@ -31,6 +31,7 @@ import {
   listDashboardWidgetExecutionOrder,
   listDashboardRefreshableExecutionTargets,
   planDashboardFiniteExecution,
+  planDashboardRuntimeVariableDrivenCommit,
   planDashboardVariableDrivenCommit,
   resolveWidgetExecutionReadiness,
   type DashboardWidgetGraphExecutionResult,
@@ -1241,37 +1242,38 @@ export function DashboardWidgetExecutionProvider({
     afterWidgets: DashboardWidgetInstance[];
     changeOrigin?: "settings" | "runtime";
   }): Promise<DashboardVariableDrivenCommitExecutionResult> {
-    const beforeSnapshot = buildDashboardExecutionSnapshot({
-      widgets: input.beforeWidgets,
-      resolveWidgetDefinition: effectiveResolveWidgetDefinition,
-      runtimeDataStore,
-    });
     const afterSnapshot = buildDashboardExecutionSnapshot({
       widgets: input.afterWidgets,
       resolveWidgetDefinition: effectiveResolveWidgetDefinition,
       runtimeDataStore,
     });
-    const plan = planDashboardVariableDrivenCommit({
-      changedWidgetId: input.changedWidgetId,
-      beforeSnapshot,
-      afterSnapshot,
-      includeDownstreamVariableSources: input.changeOrigin !== "runtime",
-      shouldIncludeChangedVariableEntry:
-        input.changeOrigin === "runtime"
-          ? (entry) => {
-              const cachedSignature = variableEffectiveSignatureCacheRef.current.get(entry.entryId);
-              const previousSignature = cachedSignature ?? entry.beforeValueSignature;
-
+    const plan =
+      input.changeOrigin === "runtime"
+        ? planDashboardRuntimeVariableDrivenCommit({
+            changedWidgetId: input.changedWidgetId,
+            afterSnapshot,
+            resolvePreviousVariableEntrySignature: (entryId) =>
+              variableEffectiveSignatureCacheRef.current.get(entryId),
+            shouldIncludeChangedVariableEntry: (entry) => {
               variableEffectiveSignatureCacheRef.current.set(
                 entry.entryId,
                 entry.afterValueSignature,
               );
 
-              return previousSignature !== entry.afterValueSignature;
-            }
-          : undefined,
-      resolveManagedConnectionConsumerAdapter: getManagedConnectionConsumerAdapter,
-    });
+              return true;
+            },
+            resolveManagedConnectionConsumerAdapter: getManagedConnectionConsumerAdapter,
+          })
+        : planDashboardVariableDrivenCommit({
+            changedWidgetId: input.changedWidgetId,
+            beforeSnapshot: buildDashboardExecutionSnapshot({
+              widgets: input.beforeWidgets,
+              resolveWidgetDefinition: effectiveResolveWidgetDefinition,
+              runtimeDataStore,
+            }),
+            afterSnapshot,
+            resolveManagedConnectionConsumerAdapter: getManagedConnectionConsumerAdapter,
+          });
 
     widgetsRef.current = input.afterWidgets;
 

@@ -68,11 +68,13 @@ const mainSequenceDataNodeTabParam = "msDataNodeTab";
 const mainSequenceLocalUpdateIdParam = "msLocalUpdateId";
 const mainSequenceLocalUpdateTabParam = "msLocalUpdateTab";
 const dataNodePermissionsObjectUrl = "/orm/api/ts_manager/dynamic_table";
+const dataNodeLocalUpdatesTabId = "local-updates";
+const legacyDataNodeLocalUpdatesTabId = "local-time-series";
 const allDataNodeDetailTabs = [
   { id: "details", label: "Details" },
   { id: "description", label: "Description" },
   { id: "data-snapshot", label: "Data Snapshot" },
-  { id: "local-time-series", label: "Local Update" },
+  { id: dataNodeLocalUpdatesTabId, label: "Local Update" },
   { id: "policies", label: "TimeScale Policies" },
   { id: "permissions", label: "Permissions" },
 ] as const;
@@ -389,6 +391,14 @@ function isDataNodeDetailTabId(value: string | null): value is DataNodeDetailTab
   return allDataNodeDetailTabs.some((tab) => tab.id === value);
 }
 
+function normalizeDataNodeDetailTabId(value: string | null): DataNodeDetailTabId | null {
+  if (value === legacyDataNodeLocalUpdatesTabId) {
+    return dataNodeLocalUpdatesTabId;
+  }
+
+  return isDataNodeDetailTabId(value) ? value : null;
+}
+
 function buildAvailableDataNodeDetailTabs(includeTimeScalePolicies: boolean) {
   return allDataNodeDetailTabs.filter((tab) => includeTimeScalePolicies || tab.id !== "policies");
 }
@@ -427,7 +437,7 @@ export function MainSequenceDataNodesPage() {
   const isLocalUpdateDetailOpen = Boolean(selectedLocalUpdateIdentifier);
   const isStandaloneLocalUpdateDetailOpen = isLocalUpdateDetailOpen && !isDataNodeDetailOpen;
   const requestedDataNodeDetailTabId =
-    isDataNodeDetailTabId(requestedDetailTabId) ? requestedDetailTabId : defaultDataNodeDetailTabId;
+    normalizeDataNodeDetailTabId(requestedDetailTabId) ?? defaultDataNodeDetailTabId;
 
   const dataNodesQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "list", dataNodesPageIndex],
@@ -550,7 +560,7 @@ export function MainSequenceDataNodesPage() {
     [includeTimeScalePolicies],
   );
   const selectedDetailTabId: DataNodeDetailTabId = isLocalUpdateDetailOpen
-    ? "local-time-series"
+    ? dataNodeLocalUpdatesTabId
     : dataNodeDetailTabs.some((tab) => tab.id === requestedDataNodeDetailTabId)
       ? requestedDataNodeDetailTabId
       : defaultDataNodeDetailTabId;
@@ -728,7 +738,7 @@ export function MainSequenceDataNodesPage() {
 
   function openLocalUpdateDetail(localUpdateIdentifier: string | number) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceDataNodeTabParam, "local-time-series");
+      nextParams.set(mainSequenceDataNodeTabParam, dataNodeLocalUpdatesTabId);
       nextParams.set(mainSequenceLocalUpdateIdParam, String(localUpdateIdentifier));
       nextParams.set(mainSequenceLocalUpdateTabParam, "details");
     });
@@ -736,7 +746,7 @@ export function MainSequenceDataNodesPage() {
 
   function closeLocalUpdateDetail() {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceDataNodeTabParam, "local-time-series");
+      nextParams.set(mainSequenceDataNodeTabParam, dataNodeLocalUpdatesTabId);
       nextParams.delete(mainSequenceLocalUpdateIdParam);
       nextParams.delete(mainSequenceLocalUpdateTabParam);
     });
@@ -753,7 +763,7 @@ export function MainSequenceDataNodesPage() {
 
   function selectLocalUpdateTab(tabId: LocalUpdateDetailTabId) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceDataNodeTabParam, "local-time-series");
+      nextParams.set(mainSequenceDataNodeTabParam, dataNodeLocalUpdatesTabId);
       nextParams.set(mainSequenceLocalUpdateTabParam, tabId);
     });
   }
@@ -763,7 +773,7 @@ export function MainSequenceDataNodesPage() {
       nextParams.set(mainSequenceDataNodeIdParam, String(selectedDataNodeIdentifier));
       nextParams.set(mainSequenceDataNodeTabParam, tabId);
 
-      if (tabId !== "local-time-series") {
+      if (tabId !== dataNodeLocalUpdatesTabId) {
         nextParams.delete(mainSequenceLocalUpdateIdParam);
         nextParams.delete(mainSequenceLocalUpdateTabParam);
       }
@@ -1352,9 +1362,9 @@ export function MainSequenceDataNodesPage() {
                     </Card>
                   ) : selectedDetailTabId === "data-snapshot" ? (
                     <MainSequenceDataNodeSnapshotTab dataNodeId={selectedDataNodeIdentifier!} />
-                  ) : selectedDetailTabId === "local-time-series" ? (
+                  ) : selectedDetailTabId === dataNodeLocalUpdatesTabId ? (
                     <MainSequenceDataNodeLocalTimeSeriesTab
-                      dataNodeId={selectedDataNodeNumericId ?? 0}
+                      dataNodeIdentifier={selectedDataNodeIdentifier!}
                       onCloseLocalUpdateDetail={closeLocalUpdateDetail}
                       onOpenDataNodeDetail={openDataNodeDetail}
                       onOpenLocalUpdateDetail={openLocalUpdateDetail}

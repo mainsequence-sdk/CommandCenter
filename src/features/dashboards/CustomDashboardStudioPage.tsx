@@ -160,6 +160,12 @@ import type { WorkspaceSnapshotCaptureProfile } from "./snapshot/types";
 import { useCustomWorkspaceStudio } from "./useCustomWorkspaceStudio";
 import { useWorkspaceStudioSurfaceConfig } from "./workspace-studio-surface-config";
 import { normalizeDashboardDefinitionType } from "./workspace-definition-type";
+import {
+  applyRuntimeStateOverride,
+  runtimeStateEquals,
+  resolveRuntimeSelectionSignature,
+  type RuntimeWidgetStateOverrides,
+} from "./workspace-runtime-state-overrides";
 import { isManagedDashboardWidgetHiddenFromNormalRail } from "./workspace-widget-visibility";
 import {
   loadWidgetCatalogPreferences,
@@ -465,49 +471,28 @@ interface ActiveCrossHostTransferDrag {
   lastClientY: number | null;
 }
 
-type RuntimeWidgetStateOverrides = Record<string, Record<string, unknown> | null>;
-
-function runtimeStateEquals(left: unknown, right: unknown) {
-  if (Object.is(left, right)) {
-    return true;
-  }
-
-  try {
-    return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
-  } catch {
-    return false;
-  }
-}
-
-function resolveRuntimeSelectionSignature(runtimeState: unknown) {
-  const runtimeRecord =
-    runtimeState && typeof runtimeState === "object"
-      ? (runtimeState as Record<string, unknown>)
-      : null;
-  const interactionRecord =
-    runtimeRecord?.interaction && typeof runtimeRecord.interaction === "object"
-      ? (runtimeRecord.interaction as Record<string, unknown>)
-      : null;
-
-  if (
-    !interactionRecord ||
-    !Object.prototype.hasOwnProperty.call(interactionRecord, "selection")
-  ) {
-    return "";
-  }
-
-  try {
-    return JSON.stringify(interactionRecord.selection ?? null);
-  } catch {
-    return String(interactionRecord.selection);
-  }
-}
-
 interface PendingVariableRuntimeRefresh {
   queueId: string;
+  revision: number;
   changedWidgetId: string;
   beforeWidgets: DashboardWidgetInstance[];
   afterWidgets: DashboardWidgetInstance[];
+}
+
+function createPendingVariableRuntimeRefresh(
+  revisionByWidgetId: Map<string, number>,
+  input: Omit<PendingVariableRuntimeRefresh, "queueId" | "revision">,
+): PendingVariableRuntimeRefresh {
+  const previousRevision = revisionByWidgetId.get(input.changedWidgetId) ?? 0;
+  const revision = previousRevision + 1;
+
+  revisionByWidgetId.set(input.changedWidgetId, revision);
+
+  return {
+    ...input,
+    revision,
+    queueId: `${input.changedWidgetId}:${revision.toString(36)}`,
+  };
 }
 
 function appendPendingVariableRuntimeRefreshes(
@@ -532,10 +517,9 @@ function appendPendingVariableRuntimeRefreshes(
 
     const existing = result[existingIndex]!;
 
-    result[existingIndex] = {
-      ...existing,
-      afterWidgets: entry.afterWidgets,
-    };
+    if (entry.revision > existing.revision) {
+      result[existingIndex] = entry;
+    }
   });
 
   return result;
@@ -624,47 +608,6 @@ function WorkspaceRuntimeVariableRefreshCoordinator({
   }, [nextRefreshQueueId, onProcessed, widgetExecution]);
 
   return null;
-}
-
-function applyRuntimeStateOverride<T extends DashboardWidgetInstance>(
-  instance: T,
-  overrides: RuntimeWidgetStateOverrides,
-): T {
-  let nextInstance: DashboardWidgetInstance = instance;
-
-  if (Object.prototype.hasOwnProperty.call(overrides, instance.id)) {
-    nextInstance = {
-      ...instance,
-      runtimeState: overrides[instance.id] ?? undefined,
-    };
-  }
-
-  if (!nextInstance.row?.children?.length) {
-    return nextInstance as T;
-  }
-
-  let childrenChanged = false;
-  const nextChildren: DashboardWidgetInstance[] = nextInstance.row.children.map((child) => {
-    const nextChild: DashboardWidgetInstance = applyRuntimeStateOverride(child, overrides);
-
-    if (nextChild !== child) {
-      childrenChanged = true;
-    }
-
-    return nextChild;
-  });
-
-  if (!childrenChanged) {
-    return nextInstance as T;
-  }
-
-  return {
-    ...nextInstance,
-    row: {
-      ...nextInstance.row,
-      children: nextChildren,
-    },
-  } as T;
 }
 
 function getGridMetrics(
@@ -1406,6 +1349,7 @@ export function CustomDashboardStudioPage({
   const [runtimeStateOverridesByWidgetId, setRuntimeStateOverridesByWidgetId] =
     useState<RuntimeWidgetStateOverrides>({});
   const runtimeStateOverridesByWidgetIdRef = useRef<RuntimeWidgetStateOverrides>({});
+  const runtimeVariableRefreshRevisionByWidgetIdRef = useRef(new Map<string, number>());
   const [pendingVariableRuntimeRefreshes, setPendingVariableRuntimeRefreshes] = useState<
     PendingVariableRuntimeRefresh[]
   >([]);
@@ -1860,13 +1804,13 @@ export function CustomDashboardStudioPage({
       setRuntimeStateOverridesByWidgetId(nextOverrides);
 
       if (selectedDashboard && beforeWidgets.length > 0) {
-        const queuedAtMs = Date.now();
-        const nextEntries = [...new Set(changedWidgetIds)].map((changedWidgetId, index) => ({
-          queueId: `${changedWidgetId}:${queuedAtMs.toString(36)}:${index.toString(36)}`,
-          changedWidgetId,
-          beforeWidgets,
-          afterWidgets,
-        }));
+        const nextEntries = [...new Set(changedWidgetIds)].map((changedWidgetId) =>
+          createPendingVariableRuntimeRefresh(runtimeVariableRefreshRevisionByWidgetIdRef.current, {
+            changedWidgetId,
+            beforeWidgets,
+            afterWidgets,
+          }),
+        );
 
         setPendingVariableRuntimeRefreshes((current) =>
           appendPendingVariableRuntimeRefreshes(current, nextEntries),
@@ -1916,13 +1860,13 @@ export function CustomDashboardStudioPage({
     const uniqueChangedWidgetIds = [...new Set(changedWidgetIds)];
 
     setPendingVariableRuntimeRefreshes((current) => {
-      const queuedAtMs = Date.now();
-      const nextEntries = uniqueChangedWidgetIds.map((changedWidgetId, index) => ({
-        queueId: `${changedWidgetId}:${queuedAtMs.toString(36)}:${index.toString(36)}`,
-        changedWidgetId,
-        beforeWidgets,
-        afterWidgets: nextDashboard.widgets,
-      }));
+      const nextEntries = uniqueChangedWidgetIds.map((changedWidgetId) =>
+        createPendingVariableRuntimeRefresh(runtimeVariableRefreshRevisionByWidgetIdRef.current, {
+          changedWidgetId,
+          beforeWidgets,
+          afterWidgets: nextDashboard.widgets,
+        }),
+      );
       return appendPendingVariableRuntimeRefreshes(current, nextEntries);
     });
   }, [
@@ -2934,33 +2878,34 @@ export function CustomDashboardStudioPage({
             const afterWidgets = selectedDashboard.widgets.map((widget) =>
               applyRuntimeStateOverride(widget, nextOverrides),
             );
-            const queuedAtMs = Date.now();
 
             runtimeStateOverridesByWidgetIdRef.current = nextOverrides;
             setRuntimeStateOverridesByWidgetId(nextOverrides);
             setPendingVariableRuntimeRefreshes((current) =>
               appendPendingVariableRuntimeRefreshes(current, [
-                {
-                  queueId: `${instanceId}:${queuedAtMs.toString(36)}:selection`,
-                  changedWidgetId: instanceId,
-                  beforeWidgets,
-                  afterWidgets,
-                },
+                createPendingVariableRuntimeRefresh(
+                  runtimeVariableRefreshRevisionByWidgetIdRef.current,
+                  {
+                    changedWidgetId: instanceId,
+                    beforeWidgets,
+                    afterWidgets,
+                  },
+                ),
               ]),
             );
             return;
           }
         }
 
-	      pendingRuntimeStateWritesRef.current.set(instanceId, runtimeState);
-	      scheduleRuntimeStateWriteFlush();
-	    },
-    [
-      localRuntimeStateOverridesEnabled,
-      scheduleRuntimeStateWriteFlush,
-      selectedDashboard,
-    ],
-  );
+        pendingRuntimeStateWritesRef.current.set(instanceId, runtimeState);
+        scheduleRuntimeStateWriteFlush();
+      },
+      [
+        localRuntimeStateOverridesEnabled,
+        scheduleRuntimeStateWriteFlush,
+        selectedDashboard,
+      ],
+    );
   const slideRegionBrowserWidgetFilter = useCallback(
     (widget: WidgetDefinition) =>
       widget.id !== WORKSPACE_ROW_WIDGET_ID &&
@@ -4459,7 +4404,11 @@ export function CustomDashboardStudioPage({
     setPendingVariableRuntimeRefreshes((current) => {
       const next = current.filter((entry) => entry.queueId !== queueId);
 
-      return next.length === current.length ? current : next;
+      return next.length === current.length
+        ? current.length > 0
+          ? [...current]
+          : current
+        : next;
     });
   }, []);
 

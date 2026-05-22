@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useLayoutEffect,
   useRef,
@@ -12,6 +13,7 @@ import { createPortal } from "react-dom";
 
 import {
   Loader2,
+  Network,
   Zap,
 } from "lucide-react";
 
@@ -24,11 +26,16 @@ import { listUnresolvedReferenceBackedPropInputs } from "@/dashboards/widget-dep
 import {
   resolveWidgetStatusDiagnostics,
   resolveWidgetStatusSummary,
-  type WidgetStatusIndicator,
+  type WidgetStatusChannel,
+  type WidgetStatusSummary,
   type WidgetStatusTone,
 } from "@/dashboards/widget-status";
 import { cn, titleCase } from "@/lib/utils";
-import type { WidgetInstancePresentation, WidgetDefinition } from "@/widgets/types";
+import type {
+  ResolvedWidgetInputs,
+  WidgetInstancePresentation,
+  WidgetDefinition,
+} from "@/widgets/types";
 import { resolveWorkspaceWidgetIcon } from "./workspace-widget-icons";
 
 const WORKSPACE_RAIL_SCROLL_TRACK_HEIGHT_PX = 128;
@@ -65,48 +72,60 @@ function getWidgetRailStatusTextClass(tone: WidgetStatusTone) {
 }
 
 function WidgetRailStatusIndicator({
-  indicator,
   loading,
-  tone,
+  summary,
 }: {
-  indicator: WidgetStatusIndicator;
   loading?: boolean;
-  tone: WidgetStatusTone;
+  summary: WidgetStatusSummary;
 }) {
-  const dotClassName = getWidgetRailStatusDotClass(tone);
-  const iconClassName = getWidgetRailStatusTextClass(tone);
+  const primaryDotClassName = getWidgetRailStatusDotClass(summary.tone);
 
-  if (indicator === "lightning") {
-    return (
-      <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-background/95">
-        <Zap className={cn("h-2.5 w-2.5", iconClassName)} />
-      </span>
-    );
+  return (
+    <>
+      <WidgetRailBindingChannelIndicator
+        channel={summary.channels.live}
+        position="top-left"
+      />
+      <WidgetRailBindingChannelIndicator
+        channel={summary.channels.seed}
+        position="bottom-left"
+      />
+      <span
+        className={cn(
+          "absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full",
+          primaryDotClassName,
+          loading ? "animate-pulse" : undefined,
+        )}
+      />
+    </>
+  );
+}
+
+function WidgetRailBindingChannelIndicator({
+  channel,
+  position,
+}: {
+  channel?: WidgetStatusChannel;
+  position: "bottom-left" | "top-left";
+}) {
+  if (!channel?.present) {
+    return null;
   }
 
-  if (indicator === "dot+lightning") {
-    return (
-      <span className="absolute -bottom-1 -right-1 flex items-center gap-0.5 rounded-full bg-background/95 px-0.5 py-px">
-        <span
-          className={cn(
-            "h-1.5 w-1.5 rounded-full",
-            dotClassName,
-            loading ? "animate-pulse" : undefined,
-          )}
-        />
-        <Zap className={cn("h-2.5 w-2.5", iconClassName)} />
-      </span>
-    );
-  }
+  const Icon = channel.kind === "live" ? Zap : Network;
+  const positionClassName =
+    position === "top-left" ? "-left-1 top-0.5" : "-bottom-0.5 -left-1";
 
   return (
     <span
       className={cn(
-        "absolute bottom-0.5 right-0.5 h-1.5 w-1.5 rounded-full",
-        dotClassName,
-        loading ? "animate-pulse" : undefined,
+        "absolute flex h-3 w-3 items-center justify-center rounded-full bg-background/95",
+        positionClassName,
       )}
-    />
+      title={channel.label}
+    >
+      <Icon className={cn("h-2.5 w-2.5", getWidgetRailStatusTextClass(channel.tone))} />
+    </span>
   );
 }
 
@@ -115,12 +134,14 @@ function isWidgetRailLoading({
   executionState,
   dashboardSurfaceHydrationActive,
   runtimeState,
+  resolvedInputs,
   hasUnresolvedReferenceInputs,
 }: {
   widget?: WidgetDefinition;
   executionState?: WidgetExecutionState;
   dashboardSurfaceHydrationActive?: boolean;
   runtimeState?: Record<string, unknown>;
+  resolvedInputs?: ResolvedWidgetInputs;
   hasUnresolvedReferenceInputs?: boolean;
 }) {
   return resolveWidgetStatusSummary({
@@ -128,6 +149,7 @@ function isWidgetRailLoading({
     executionState,
     dashboardSurfaceHydrationActive,
     runtimeState,
+    resolvedInputs,
     hasUnresolvedReferenceInputs,
   }).isLoading;
 }
@@ -202,6 +224,69 @@ function RailHoverCard({
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const close = () => {
+      setOpen(false);
+    };
+    const clickedAnchor = (event: MouseEvent) => {
+      const anchor = anchorRef.current;
+
+      if (!anchor) {
+        return false;
+      }
+
+      const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+      return path.includes(anchor);
+    };
+    const closeWhenClickOutside = (event: MouseEvent) => {
+      if (!clickedAnchor(event)) {
+        close();
+      }
+    };
+    const closeWhenPointerLeavesAnchor = (event: PointerEvent) => {
+      const rect = anchorRef.current?.getBoundingClientRect();
+
+      if (!rect) {
+        close();
+        return;
+      }
+
+      const tolerance = 3;
+      const insideAnchor =
+        event.clientX >= rect.left - tolerance &&
+        event.clientX <= rect.right + tolerance &&
+        event.clientY >= rect.top - tolerance &&
+        event.clientY <= rect.bottom + tolerance;
+
+      if (!insideAnchor) {
+        close();
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        close();
+      }
+    };
+
+    window.addEventListener("pointermove", closeWhenPointerLeavesAnchor, true);
+    window.addEventListener("pointerdown", close, true);
+    window.addEventListener("click", closeWhenClickOutside, true);
+    window.addEventListener("blur", close);
+    window.addEventListener("keydown", closeOnEscape, true);
+
+    return () => {
+      window.removeEventListener("pointermove", closeWhenPointerLeavesAnchor, true);
+      window.removeEventListener("pointerdown", close, true);
+      window.removeEventListener("click", closeWhenClickOutside, true);
+      window.removeEventListener("blur", close);
+      window.removeEventListener("keydown", closeOnEscape, true);
+    };
+  }, [open]);
+
   return (
     <span
       ref={anchorRef}
@@ -210,6 +295,9 @@ function RailHoverCard({
         setOpen(true);
       }}
       onPointerLeave={() => {
+        setOpen(false);
+      }}
+      onPointerCancel={() => {
         setOpen(false);
       }}
       onFocus={() => {
@@ -241,6 +329,7 @@ function DefaultWidgetRailSummary({
   executionState,
   dashboardSurfaceHydrationActive,
   runtimeState,
+  resolvedInputs,
   hasUnresolvedReferenceInputs,
 }: {
   title: string;
@@ -248,6 +337,7 @@ function DefaultWidgetRailSummary({
   executionState?: WidgetExecutionState;
   dashboardSurfaceHydrationActive?: boolean;
   runtimeState?: Record<string, unknown>;
+  resolvedInputs?: ResolvedWidgetInputs;
   hasUnresolvedReferenceInputs?: boolean;
 }) {
   const statusSummary = resolveWidgetStatusSummary({
@@ -255,6 +345,7 @@ function DefaultWidgetRailSummary({
     executionState,
     dashboardSurfaceHydrationActive,
     runtimeState,
+    resolvedInputs,
     hasUnresolvedReferenceInputs,
   });
   const statusDiagnostics = resolveWidgetStatusDiagnostics({
@@ -262,8 +353,11 @@ function DefaultWidgetRailSummary({
     executionState,
     dashboardSurfaceHydrationActive,
     runtimeState,
+    resolvedInputs,
     hasUnresolvedReferenceInputs,
   });
+  const formatStatusToken = (value: string) =>
+    titleCase(value.replaceAll("-", " ").replaceAll("+", " + "));
 
   return (
     <div className="pointer-events-none z-20 w-[280px] rounded-[calc(var(--radius)-4px)] border border-border/80 bg-popover/95 p-3 text-left shadow-xl backdrop-blur-sm">
@@ -275,7 +369,41 @@ function DefaultWidgetRailSummary({
           <span className="font-medium text-foreground">{statusSummary.label}</span>
         </div>
         <div className="flex items-start justify-between gap-3">
-          <span className="text-muted-foreground">Status source</span>
+          <span className="text-muted-foreground">Primary</span>
+          <span className="font-medium text-foreground">
+            {formatStatusToken(statusDiagnostics.primaryStatus)}
+          </span>
+        </div>
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-muted-foreground">Lineage</span>
+          <span className="font-medium text-foreground">
+            {formatStatusToken(statusDiagnostics.outputLineage)}
+          </span>
+        </div>
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-muted-foreground">Activity</span>
+          <span className="font-medium text-foreground">
+            {formatStatusToken(statusDiagnostics.activity)}
+          </span>
+        </div>
+        {statusDiagnostics.channels.live ? (
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Live input</span>
+            <span className="max-w-[140px] text-right font-medium text-foreground">
+              {statusDiagnostics.channels.live.label}
+            </span>
+          </div>
+        ) : null}
+        {statusDiagnostics.channels.seed ? (
+          <div className="flex items-start justify-between gap-3">
+            <span className="text-muted-foreground">Seed input</span>
+            <span className="max-w-[140px] text-right font-medium text-foreground">
+              {statusDiagnostics.channels.seed.label}
+            </span>
+          </div>
+        ) : null}
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-muted-foreground">Signals</span>
           <span className="max-w-[140px] text-right font-medium text-foreground">
             {statusDiagnostics.sources.length > 0
               ? statusDiagnostics.sources.join(", ")
@@ -565,8 +693,9 @@ export function WorkspaceWidgetRail({
             });
             const active = activeInstanceId === id;
             const executionState = widgetExecution?.getExecutionState(id);
+            const resolvedInputs = dependencyModel?.resolveInputs(id);
             const unresolvedReferenceInputs = dependencyModel
-              ? listUnresolvedReferenceBackedPropInputs(dependencyModel.resolveInputs(id))
+              ? listUnresolvedReferenceBackedPropInputs(resolvedInputs)
               : [];
             const hasUnresolvedReferenceInputs = unresolvedReferenceInputs.length > 0;
             const statusSummary = resolveWidgetStatusSummary({
@@ -574,6 +703,7 @@ export function WorkspaceWidgetRail({
               executionState,
               dashboardSurfaceHydrationActive,
               runtimeState,
+              resolvedInputs,
               hasUnresolvedReferenceInputs,
             });
             const loading = isWidgetRailLoading({
@@ -581,6 +711,7 @@ export function WorkspaceWidgetRail({
               executionState,
               dashboardSurfaceHydrationActive,
               runtimeState,
+              resolvedInputs,
               hasUnresolvedReferenceInputs,
             });
             const RailSummary =
@@ -609,6 +740,7 @@ export function WorkspaceWidgetRail({
                 executionState={executionState}
                 dashboardSurfaceHydrationActive={dashboardSurfaceHydrationActive}
                 runtimeState={runtimeState}
+                resolvedInputs={resolvedInputs}
                 hasUnresolvedReferenceInputs={hasUnresolvedReferenceInputs}
               />
             );
@@ -633,11 +765,7 @@ export function WorkspaceWidgetRail({
                   }
                 >
                   <Icon className={cn("h-4 w-4", loading ? "animate-spin" : undefined)} />
-                  <WidgetRailStatusIndicator
-                    indicator={statusSummary.indicator}
-                    loading={loading}
-                    tone={statusSummary.tone}
-                  />
+                  <WidgetRailStatusIndicator loading={loading} summary={statusSummary} />
                 </div>
               </RailHoverCard>
             );
