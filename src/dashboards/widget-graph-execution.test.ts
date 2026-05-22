@@ -466,6 +466,12 @@ const tableLikeWidget = defineWidget({
   },
 });
 
+const proTableLikeWidget = {
+  ...tableLikeWidget,
+  id: "pro-table",
+  title: "Pro Table",
+} satisfies WidgetDefinition;
+
 const graphLikeWidget = defineWidget({
   id: "graph",
   widgetVersion: "1.0.0",
@@ -558,6 +564,7 @@ const definitions = new Map<string, WidgetDefinition>([
   [connectionQueryLikeWidget.id, connectionQueryLikeWidget],
   [streamQueryLikeWidget.id, streamQueryLikeWidget],
   [tableLikeWidget.id, tableLikeWidget],
+  [proTableLikeWidget.id, proTableLikeWidget],
   [graphLikeWidget.id, graphLikeWidget],
   [assetScreenerLikeWidget.id, assetScreenerLikeWidget],
   [managedDatasetExecutionTargetWidget.id, managedDatasetExecutionTargetWidget],
@@ -817,7 +824,15 @@ function managedGraphExpressionVariableWidgets(symbol: string): DashboardWidgetI
   ];
 }
 
-function managedGraphViaTableVariableWidgets(symbol: string): DashboardWidgetInstance[] {
+function managedGraphViaTableVariableWidgets(
+  symbol: string,
+  options: {
+    tableInstanceId?: string;
+    tableWidgetId?: "table" | "pro-table";
+  } = {},
+): DashboardWidgetInstance[] {
+  const tableInstanceId = options.tableInstanceId ?? "table-1";
+  const tableWidgetId = options.tableWidgetId ?? "table";
   const embeddedConnectionQuery = {
     connectionRef: {
       id: TEST_CONNECTION_ID,
@@ -826,7 +841,7 @@ function managedGraphViaTableVariableWidgets(symbol: string): DashboardWidgetIns
     queryModelId: TEST_QUERY_KIND,
     query: {
       kind: TEST_QUERY_KIND,
-      symbols: ["$(table-1).activeRow.symbol"],
+      symbols: [`$(${tableInstanceId}).activeRow.symbol`],
       responseBody: [{ symbol }],
     },
     timeRangeMode: "none",
@@ -857,9 +872,9 @@ function managedGraphViaTableVariableWidgets(symbol: string): DashboardWidgetIns
       },
     },
     {
-      id: "table-1",
-      widgetId: "table",
-      title: "Table",
+      id: tableInstanceId,
+      widgetId: tableWidgetId,
+      title: tableWidgetId === "pro-table" ? "Pro Table" : "Table",
       layout: { cols: 6, rows: 4 },
       bindings: {
         [TABULAR_SEED_INPUT_ID]: {
@@ -879,7 +894,7 @@ function managedGraphViaTableVariableWidgets(symbol: string): DashboardWidgetIns
       },
       bindings: {
         [buildWidgetReferencePropInputId(["embeddedConnectionQuery", "query", "symbols"])]: {
-          sourceWidgetId: "table-1",
+          sourceWidgetId: tableInstanceId,
           sourceOutputId: "activeRow",
           transformSteps: [
             {
@@ -2129,62 +2144,71 @@ describe("dashboard upstream resolution keys", () => {
       });
   });
 
-  it("plans runtime variable changes from the changed source without rebuilding before topology", () => {
-    const afterSnapshot = buildDashboardExecutionSnapshot({
-      widgets: managedGraphViaTableVariableWidgets("MSFT"),
-      resolveWidgetDefinition,
-    });
-    const inspectedEntryIds: string[] = [];
-    const signatureCache = new Map<string, string>();
+  it.each([
+    { tableInstanceId: "table-1", tableWidgetId: "table" as const },
+    { tableInstanceId: "pro-table-1", tableWidgetId: "pro-table" as const },
+  ])(
+    "plans runtime variable changes from $tableWidgetId without rebuilding before topology",
+    ({ tableInstanceId, tableWidgetId }) => {
+      const afterSnapshot = buildDashboardExecutionSnapshot({
+        widgets: managedGraphViaTableVariableWidgets("MSFT", {
+          tableInstanceId,
+          tableWidgetId,
+        }),
+        resolveWidgetDefinition,
+      });
+      const inspectedEntryIds: string[] = [];
+      const signatureCache = new Map<string, string>();
 
-    const firstPlan = planDashboardRuntimeVariableDrivenCommit({
-      changedWidgetId: "table-1",
-      afterSnapshot,
-      resolvePreviousVariableEntrySignature: (entryId) => signatureCache.get(entryId),
-      shouldIncludeChangedVariableEntry: (entry) => {
-        inspectedEntryIds.push(entry.entryId);
-        signatureCache.set(entry.entryId, entry.afterValueSignature);
-        return true;
-      },
-      resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
-    });
-
-    expect(inspectedEntryIds).toEqual([
-      '["table-1","activeRow","extract-path:symbol"]',
-    ]);
-    expect(firstPlan.changedVariableEntries).toEqual([
-      {
-        entryId: '["table-1","activeRow","extract-path:symbol"]',
-        sourceWidgetId: "table-1",
-        sourceOutputId: "activeRow",
-        transformSignature: "extract-path:symbol",
-        targetWidgetIds: ["graph-1", "managed-source-1"],
-      },
-    ]);
-    expect(firstPlan.managedExecutableSourceWidgetIds).toEqual(["managed-source-1"]);
-    expect(firstPlan.executableTargetWidgetIds).toEqual(["managed-source-1"]);
-    expect(firstPlan.executableTargetOverridesByWidgetId["managed-source-1"]?.props)
-      .toMatchObject({
-        query: {
-          symbols: ["MSFT"],
+      const firstPlan = planDashboardRuntimeVariableDrivenCommit({
+        changedWidgetId: tableInstanceId,
+        afterSnapshot,
+        resolvePreviousVariableEntrySignature: (entryId) => signatureCache.get(entryId),
+        shouldIncludeChangedVariableEntry: (entry) => {
+          inspectedEntryIds.push(entry.entryId);
+          signatureCache.set(entry.entryId, entry.afterValueSignature);
+          return true;
         },
+        resolveManagedConnectionConsumerAdapter: (widgetId) =>
+          widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
       });
 
-    const secondPlan = planDashboardRuntimeVariableDrivenCommit({
-      changedWidgetId: "table-1",
-      afterSnapshot,
-      resolvePreviousVariableEntrySignature: (entryId) => signatureCache.get(entryId),
-      shouldIncludeChangedVariableEntry: () => {
-        throw new Error("unchanged runtime signatures should not be inspected");
-      },
-      resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
-    });
+      expect(inspectedEntryIds).toEqual([
+        `["${tableInstanceId}","activeRow","extract-path:symbol"]`,
+      ]);
+      expect(firstPlan.changedVariableEntries).toEqual([
+        {
+          entryId: `["${tableInstanceId}","activeRow","extract-path:symbol"]`,
+          sourceWidgetId: tableInstanceId,
+          sourceOutputId: "activeRow",
+          transformSignature: "extract-path:symbol",
+          targetWidgetIds: ["graph-1", "managed-source-1"],
+        },
+      ]);
+      expect(firstPlan.managedExecutableSourceWidgetIds).toEqual(["managed-source-1"]);
+      expect(firstPlan.executableTargetWidgetIds).toEqual(["managed-source-1"]);
+      expect(firstPlan.executableTargetOverridesByWidgetId["managed-source-1"]?.props)
+        .toMatchObject({
+          query: {
+            symbols: ["MSFT"],
+          },
+        });
 
-    expect(secondPlan.changedVariableEntries).toEqual([]);
-    expect(secondPlan.executableTargetWidgetIds).toEqual([]);
-  });
+      const secondPlan = planDashboardRuntimeVariableDrivenCommit({
+        changedWidgetId: tableInstanceId,
+        afterSnapshot,
+        resolvePreviousVariableEntrySignature: (entryId) => signatureCache.get(entryId),
+        shouldIncludeChangedVariableEntry: () => {
+          throw new Error("unchanged runtime signatures should not be inspected");
+        },
+        resolveManagedConnectionConsumerAdapter: (widgetId) =>
+          widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+      });
+
+      expect(secondPlan.changedVariableEntries).toEqual([]);
+      expect(secondPlan.executableTargetWidgetIds).toEqual([]);
+    },
+  );
 
   it("does not schedule managed sources when downstream passive variable values stay the same", () => {
     const beforeWidgets = managedGraphViaTableVariableWidgetsWithRow({

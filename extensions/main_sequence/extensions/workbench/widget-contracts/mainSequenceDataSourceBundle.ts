@@ -10,6 +10,7 @@ export const MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT = CORE_TABULAR_FRAME_SOUR
 export const MAIN_SEQUENCE_DATA_SOURCE_KIND = "main-sequence-data-node" as const;
 
 export interface MainSequenceDataSourceContext {
+  dataNodeId?: string;
   dateRangeMode?: "dashboard" | "fixed";
   fixedStartMs?: number;
   fixedEndMs?: number;
@@ -28,6 +29,10 @@ function normalizeTimestampMs(value: unknown) {
   }
 
   return Math.trunc(parsed);
+}
+
+function normalizeUidString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function normalizePositiveInteger(value: unknown) {
@@ -53,7 +58,7 @@ function normalizeUniqueIdentifierList(value: unknown) {
 }
 
 export function buildMainSequenceDataSourceDescriptor(input: {
-  dataNodeId?: number;
+  dataNodeId?: string;
   dataNodeLabel?: string;
   dateRangeMode?: "dashboard" | "fixed";
   fixedStartMs?: number;
@@ -64,14 +69,13 @@ export function buildMainSequenceDataSourceDescriptor(input: {
 }): TabularFrameSourceDescriptor {
   return {
     kind: MAIN_SEQUENCE_DATA_SOURCE_KIND,
-    id: typeof input.dataNodeId === "number" && Number.isFinite(input.dataNodeId)
-      ? input.dataNodeId
-      : undefined,
+    id: normalizeUidString(input.dataNodeId),
     label: typeof input.dataNodeLabel === "string" && input.dataNodeLabel.trim()
       ? input.dataNodeLabel.trim()
       : undefined,
     updatedAtMs: normalizeTimestampMs(input.updatedAtMs),
     context: {
+      dataNodeId: normalizeUidString(input.dataNodeId),
       dateRangeMode: input.dateRangeMode,
       fixedStartMs: normalizeTimestampMs(input.fixedStartMs),
       fixedEndMs: normalizeTimestampMs(input.fixedEndMs),
@@ -92,11 +96,8 @@ export function resolveMainSequenceDataSourceContext(
 
   return {
     dataNodeId:
-      typeof source.id === "number" && Number.isFinite(source.id)
-        ? Math.trunc(source.id)
-        : typeof source.id === "string" && source.id.trim()
-          ? normalizePositiveInteger(source.id)
-          : undefined,
+      normalizeUidString(context.dataNodeId) ??
+      normalizeUidString(source.id),
     dataNodeLabel:
       typeof source.label === "string" && source.label.trim() ? source.label.trim() : undefined,
     dateRangeMode:

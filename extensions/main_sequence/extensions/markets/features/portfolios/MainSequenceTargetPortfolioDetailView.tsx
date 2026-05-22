@@ -83,10 +83,10 @@ function getTargetPortfolioDetailContent(summary: TargetPortfolioSummaryResponse
   };
 }
 
-function buildLocalUpdateWorkbenchPath(localUpdateId: number) {
+function buildLocalUpdateWorkbenchPath(localUpdateId: string) {
   const searchParams = new URLSearchParams();
-  searchParams.set("msDataNodeTab", "local-time-series");
-  searchParams.set("msLocalUpdateId", String(localUpdateId));
+  searchParams.set("msDataNodeTab", "local-updates");
+  searchParams.set("msLocalUpdateId", localUpdateId);
   searchParams.set("msLocalUpdateTab", "details");
   return `${getAppPath("main_sequence_workbench", "data-nodes")}?${searchParams.toString()}`;
 }
@@ -110,15 +110,15 @@ function normalizePortfolioSummaryField(field: SummaryField): SummaryField {
     typeof dataNodeUpdateValue === "string" && dataNodeUpdateValue.trim()
       ? dataNodeUpdateValue.trim()
       : "Not available";
-  const localUpdateId = Number(rawLocalUpdateId ?? "");
+  const localUpdateId =
+    typeof rawLocalUpdateId === "string" && rawLocalUpdateId.trim()
+      ? rawLocalUpdateId.trim()
+      : null;
 
   return {
     ...field,
     value: localUpdateLabel,
-    href:
-      Number.isFinite(localUpdateId) && localUpdateId > 0
-        ? buildLocalUpdateWorkbenchPath(localUpdateId)
-        : undefined,
+    href: localUpdateId ? buildLocalUpdateWorkbenchPath(localUpdateId) : undefined,
   };
 }
 

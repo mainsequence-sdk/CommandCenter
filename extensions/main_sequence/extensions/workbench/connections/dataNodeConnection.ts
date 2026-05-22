@@ -35,14 +35,14 @@ export type MainSequenceDataNodeRowsBetweenDatesQuery = Partial<
   >
 > & {
   kind: "data-node-rows-between-dates";
-  dataNodeId?: number;
+  dataNodeId?: string;
 };
 
 export type MainSequenceDataNodeConnectionQuery =
   | MainSequenceDataNodeRowsBetweenDatesQuery
   | {
       kind: "data-node-last-observation";
-      dataNodeId?: number;
+      dataNodeId?: string;
     };
 
 export interface MainSequenceDataNodeConnectionPublicConfig {
@@ -55,10 +55,8 @@ export interface MainSequenceDataNodeConnectionPublicConfig {
   dedupeInFlight?: boolean;
 }
 
-function normalizePositiveInteger(value: unknown) {
-  const parsed = Number(value);
-
-  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : undefined;
+function normalizeUidString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function requireDataNodeConnectionRef(connectionRef?: ConnectionRef) {
@@ -84,7 +82,7 @@ function frameToRows(response: ConnectionQueryResponse): DataNodeRemoteDataRow[]
 }
 
 export function buildMainSequenceDataNodeDetailQueryKey(
-  dataNodeId?: number,
+  dataNodeId?: string,
   connectionRef?: ConnectionRef,
 ) {
   return [
@@ -93,12 +91,12 @@ export function buildMainSequenceDataNodeDetailQueryKey(
     MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID,
     connectionRef?.id ?? "unselected",
     "data-node-detail",
-    dataNodeId ?? 0,
+    dataNodeId ?? "",
   ] as const;
 }
 
 export function buildMainSequenceDataNodeLastObservationQueryKey(
-  dataNodeId?: number,
+  dataNodeId?: string,
   connectionRef?: ConnectionRef,
 ) {
   return [
@@ -107,16 +105,16 @@ export function buildMainSequenceDataNodeLastObservationQueryKey(
     MAIN_SEQUENCE_DATA_NODE_CONNECTION_TYPE_ID,
     connectionRef?.id ?? "unselected",
     "data-node-last-observation",
-    dataNodeId ?? 0,
+    dataNodeId ?? "",
   ] as const;
 }
 
 export async function queryMainSequenceDataNodeDetail(
-  dataNodeId?: number,
+  dataNodeId?: string,
   connectionRef?: ConnectionRef,
   _traceMeta?: DashboardRequestTraceMeta,
 ) {
-  const resolvedDataNodeId = normalizePositiveInteger(dataNodeId);
+  const resolvedDataNodeId = normalizeUidString(dataNodeId);
 
   if (!resolvedDataNodeId) {
     throw new Error("Select a Data Node before loading detail.");
@@ -131,12 +129,12 @@ export async function queryMainSequenceDataNodeDetail(
 }
 
 export async function queryMainSequenceDataNodeRowsBetweenDates(
-  dataNodeId: number | undefined,
+  dataNodeId: string | undefined,
   input: DataNodeRemoteDataRequest,
   connectionRef?: ConnectionRef,
   traceMeta?: DashboardRequestTraceMeta,
 ) {
-  const resolvedDataNodeId = normalizePositiveInteger(dataNodeId);
+  const resolvedDataNodeId = normalizeUidString(dataNodeId);
 
   if (!resolvedDataNodeId) {
     throw new Error("Select a Data Node before loading rows.");
@@ -157,10 +155,10 @@ export async function queryMainSequenceDataNodeRowsBetweenDates(
 }
 
 export async function queryMainSequenceDataNodeLastObservation(
-  dataNodeId?: number,
+  dataNodeId?: string,
   connectionRef?: ConnectionRef,
 ) {
-  const resolvedDataNodeId = normalizePositiveInteger(dataNodeId);
+  const resolvedDataNodeId = normalizeUidString(dataNodeId);
 
   if (!resolvedDataNodeId) {
     throw new Error("Select a Data Node before loading the latest observation.");

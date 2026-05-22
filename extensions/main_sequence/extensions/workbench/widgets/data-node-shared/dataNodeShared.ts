@@ -298,7 +298,7 @@ function getFieldOptionDtype(
 }
 
 export function formatDataNodeLabel(
-  dataNode?: Pick<DataNodeSummary, "id" | "identifier" | "storage_hash"> | null,
+  dataNode?: Pick<DataNodeSummary, "id" | "uid" | "identifier" | "storage_hash"> | null,
 ) {
   if (!dataNode) {
     return "Data node";
@@ -310,7 +310,7 @@ export function formatDataNodeLabel(
     return identifier;
   }
 
-  return dataNode.storage_hash || `Data node ${dataNode.id}`;
+  return dataNode.storage_hash || dataNode.uid || `Data node ${dataNode.id}`;
 }
 
 export function formatLocalTimeSerieLabel(

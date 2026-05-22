@@ -10,7 +10,7 @@ export const defaultDataNodePublishedDatasetLimit = 2_500;
 
 export interface DataNodePublishedDataset {
   columns: string[];
-  dataNodeId?: number;
+  dataNodeId?: string;
   error?: string;
   fields?: TabularFrameFieldSchema[];
   limit: number;
@@ -25,6 +25,10 @@ export interface DataNodePublishedDataset {
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeUidString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 function normalizePositiveInteger(value: unknown) {
@@ -94,7 +98,7 @@ export function normalizeDataNodePublishedDataset(
   return {
     columns: normalizedFrame?.columns ?? normalizeColumns(value.columns),
     dataNodeId:
-      normalizePositiveInteger(value.dataNodeId) ??
+      normalizeUidString(value.dataNodeId) ??
       sourceContext?.dataNodeId,
     error: typeof value.error === "string" && value.error.trim() ? value.error.trim() : undefined,
     fields: normalizedFrame?.fields,

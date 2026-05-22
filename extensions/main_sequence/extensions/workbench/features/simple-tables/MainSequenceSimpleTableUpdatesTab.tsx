@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
 import {
+  fetchSimpleTableDetail,
   formatMainSequenceError,
   getTsManagerRecordIdentifier,
   listSimpleTableUpdates,
@@ -99,33 +100,47 @@ export function MainSequenceSimpleTableUpdatesTab({
   onSelectSimpleTableUpdateTab,
   selectedSimpleTableUpdateId,
   selectedSimpleTableUpdateTabId,
-  simpleTableId,
+  simpleTableIdentifier,
 }: {
   onCloseSimpleTableUpdateDetail: () => void;
-  onOpenSimpleTableDetail: (simpleTableId: string | number) => void;
-  onOpenSimpleTableUpdateDetail: (simpleTableUpdateId: string | number) => void;
+  onOpenSimpleTableDetail: (simpleTableId: string) => void;
+  onOpenSimpleTableUpdateDetail: (simpleTableUpdateId: string) => void;
   onSelectSimpleTableUpdateTab: (tabId: SimpleTableUpdateDetailTabId) => void;
   selectedSimpleTableUpdateId: string | null;
   selectedSimpleTableUpdateTabId: string | null;
-  simpleTableId: number;
+  simpleTableIdentifier: string;
 }) {
   const [filterValue, setFilterValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const deferredFilterValue = useDeferredValue(filterValue);
 
+  const simpleTableDetailQuery = useQuery({
+    queryKey: ["main_sequence", "simple_tables", "detail", simpleTableIdentifier],
+    queryFn: () => fetchSimpleTableDetail(simpleTableIdentifier),
+    enabled: Boolean(simpleTableIdentifier.trim()),
+  });
+  const resolvedSimpleTableId = simpleTableDetailQuery.data?.id ?? null;
+
   const simpleTableUpdatesQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "updates", "list", simpleTableId, pageIndex],
+    queryKey: [
+      "main_sequence",
+      "simple_tables",
+      "updates",
+      "list",
+      simpleTableIdentifier,
+      pageIndex,
+    ],
     queryFn: () =>
-      listSimpleTableUpdates(simpleTableId, {
+      listSimpleTableUpdates(resolvedSimpleTableId!, {
         limit: mainSequenceRegistryPageSize,
         offset: pageIndex * mainSequenceRegistryPageSize,
       }),
-    enabled: simpleTableId > 0,
+    enabled: typeof resolvedSimpleTableId === "number" && resolvedSimpleTableId > 0,
   });
 
   useEffect(() => {
     setPageIndex(0);
-  }, [deferredFilterValue, simpleTableId]);
+  }, [deferredFilterValue, simpleTableIdentifier]);
 
   useEffect(() => {
     const totalPages = Math.max(
@@ -174,6 +189,9 @@ export function MainSequenceSimpleTableUpdatesTab({
       ) ?? null,
     [selectedSimpleTableUpdateId, simpleTableUpdatesQuery.data?.results],
   );
+  const isLoading = simpleTableDetailQuery.isLoading || simpleTableUpdatesQuery.isLoading;
+  const hasDetailError = simpleTableDetailQuery.isError;
+  const hasSimpleTableUpdatesError = simpleTableUpdatesQuery.isError;
 
   if (selectedSimpleTableUpdateId) {
     return (
@@ -193,9 +211,6 @@ export function MainSequenceSimpleTableUpdatesTab({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="text-sm font-medium text-foreground">Local update</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            SimpleTableUpdate rows linked to this simple table through the `remote_table` filter.
-          </p>
         </div>
         <MainSequenceRegistrySearch
           accessory={
@@ -208,7 +223,7 @@ export function MainSequenceSimpleTableUpdatesTab({
         />
       </div>
 
-      {simpleTableUpdatesQuery.isLoading ? (
+      {isLoading ? (
         <div className="flex min-h-64 items-center justify-center">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -217,14 +232,21 @@ export function MainSequenceSimpleTableUpdatesTab({
         </div>
       ) : null}
 
-      {simpleTableUpdatesQuery.isError ? (
+      {hasDetailError ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+          {formatMainSequenceError(simpleTableDetailQuery.error)}
+        </div>
+      ) : null}
+
+      {!hasDetailError && hasSimpleTableUpdatesError ? (
         <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
           {formatMainSequenceError(simpleTableUpdatesQuery.error)}
         </div>
       ) : null}
 
-      {!simpleTableUpdatesQuery.isLoading &&
-      !simpleTableUpdatesQuery.isError &&
+      {!isLoading &&
+      !hasDetailError &&
+      !hasSimpleTableUpdatesError &&
       filteredSimpleTableUpdates.length === 0 ? (
         <div className="px-5 py-14 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-border/70 bg-background/35 text-primary">
@@ -237,8 +259,9 @@ export function MainSequenceSimpleTableUpdatesTab({
         </div>
       ) : null}
 
-      {!simpleTableUpdatesQuery.isLoading &&
-      !simpleTableUpdatesQuery.isError &&
+      {!isLoading &&
+      !hasDetailError &&
+      !hasSimpleTableUpdatesError &&
       filteredSimpleTableUpdates.length > 0 ? (
         <Card variant="nested">
           <CardContent className="pt-5">

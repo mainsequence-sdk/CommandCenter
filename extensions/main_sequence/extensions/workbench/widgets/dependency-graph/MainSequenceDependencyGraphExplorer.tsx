@@ -242,6 +242,10 @@ function getNumericPropertyValue(value: unknown) {
   return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : null;
 }
 
+function getStringPropertyValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 function getRemoteTableType(node: DependencyGraphLayoutNode | null) {
   if (!node) {
     return null;
@@ -280,12 +284,14 @@ function buildDataNodeUrl(node: DependencyGraphLayoutNode | null) {
 
   if (
     nodeType === "simple_table_update" ||
-    getNumericPropertyValue(node?.properties?.simple_table_update_id) !== null
+    getStringPropertyValue(node?.properties?.simple_table_update_uid) !== null
   ) {
     return null;
   }
 
-  const remoteTableId = getNumericPropertyValue(node?.properties?.remote_table_id);
+  const remoteTableId =
+    getStringPropertyValue(node?.properties?.remote_table_uid) ??
+    getStringPropertyValue(node?.properties?.uid);
 
   if (remoteTableId === null) {
     return null;
@@ -304,13 +310,15 @@ function buildSimpleTableUrl(node: DependencyGraphLayoutNode | null) {
 
   if (
     nodeType === "data_node_update" ||
-    getNumericPropertyValue(node?.properties?.data_node_update_id) !== null ||
-    getNumericPropertyValue(node?.properties?.local_time_serie_id) !== null
+    getStringPropertyValue(node?.properties?.data_node_update_uid) !== null ||
+    getStringPropertyValue(node?.properties?.local_time_serie_uid) !== null
   ) {
     return null;
   }
 
-  const remoteTableId = getNumericPropertyValue(node?.properties?.remote_table_id);
+  const remoteTableId =
+    getStringPropertyValue(node?.properties?.remote_table_uid) ??
+    getStringPropertyValue(node?.properties?.uid);
 
   if (remoteTableId === null) {
     return null;
@@ -325,22 +333,23 @@ function buildDataNodeUpdateUrl(node: DependencyGraphLayoutNode | null) {
   }
 
   const localUpdateId =
-    getNumericPropertyValue(node?.properties?.data_node_update_id) ??
-    getNumericPropertyValue(node?.properties?.local_time_serie_id);
+    getStringPropertyValue(node?.properties?.data_node_update_uid) ??
+    getStringPropertyValue(node?.properties?.local_time_serie_uid) ??
+    getStringPropertyValue(node?.properties?.uid);
 
   if (localUpdateId === null) {
     return null;
   }
 
-  const remoteTableId = getNumericPropertyValue(node?.properties?.remote_table_id);
+  const remoteTableId = getStringPropertyValue(node?.properties?.remote_table_uid);
   const search = new URLSearchParams();
 
   if (remoteTableId !== null) {
-    search.set("msDataNodeId", String(remoteTableId));
+    search.set("msDataNodeId", remoteTableId);
   }
 
-  search.set("msDataNodeTab", "local-time-series");
-  search.set("msLocalUpdateId", String(localUpdateId));
+  search.set("msDataNodeTab", "local-updates");
+  search.set("msLocalUpdateId", localUpdateId);
   search.set("msLocalUpdateTab", "graphs");
 
   return `/app/main_sequence_workbench/data-nodes?${search.toString()}`;
@@ -351,21 +360,23 @@ function buildSimpleTableUpdateUrl(node: DependencyGraphLayoutNode | null) {
     return null;
   }
 
-  const simpleTableUpdateId = getNumericPropertyValue(node?.properties?.simple_table_update_id);
+  const simpleTableUpdateId =
+    getStringPropertyValue(node?.properties?.simple_table_update_uid) ??
+    getStringPropertyValue(node?.properties?.uid);
 
   if (simpleTableUpdateId === null) {
     return null;
   }
 
-  const remoteTableId = getNumericPropertyValue(node?.properties?.remote_table_id);
+  const remoteTableId = getStringPropertyValue(node?.properties?.remote_table_uid);
   const search = new URLSearchParams();
 
   if (remoteTableId !== null) {
-    search.set("msSimpleTableId", String(remoteTableId));
+    search.set("msSimpleTableId", remoteTableId);
   }
 
   search.set("msSimpleTableTab", "local-update");
-  search.set("msSimpleTableUpdateId", String(simpleTableUpdateId));
+  search.set("msSimpleTableUpdateId", simpleTableUpdateId);
   search.set("msSimpleTableUpdateTab", "graphs");
 
   return `/app/main_sequence_workbench/simple-tables?${search.toString()}`;

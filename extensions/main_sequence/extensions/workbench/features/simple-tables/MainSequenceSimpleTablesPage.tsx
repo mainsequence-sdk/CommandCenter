@@ -409,7 +409,7 @@ export function MainSequenceSimpleTablesPage() {
   }
 
   function openSimpleTableDetail(
-    simpleTableIdentifier: string | number,
+    simpleTableIdentifier: string,
     tabId: SimpleTableDetailTabId = defaultSimpleTableDetailTabId,
   ) {
     updateSearchParams((nextParams) => {
@@ -429,7 +429,7 @@ export function MainSequenceSimpleTablesPage() {
     });
   }
 
-  function openSimpleTableUpdateDetail(simpleTableUpdateIdentifier: string | number) {
+  function openSimpleTableUpdateDetail(simpleTableUpdateIdentifier: string) {
     updateSearchParams((nextParams) => {
       nextParams.set(mainSequenceSimpleTableTabParam, "local-update");
       nextParams.set(mainSequenceSimpleTableUpdateIdParam, String(simpleTableUpdateIdentifier));
@@ -784,7 +784,7 @@ export function MainSequenceSimpleTablesPage() {
                       onSelectSimpleTableUpdateTab={selectSimpleTableUpdateTab}
                       selectedSimpleTableUpdateId={selectedSimpleTableUpdateIdentifier}
                       selectedSimpleTableUpdateTabId={selectedSimpleTableUpdateTabId}
-                      simpleTableId={selectedSimpleTableNumericId ?? 0}
+                      simpleTableIdentifier={selectedSimpleTableIdentifier!}
                     />
                   )}
                 </CardContent>

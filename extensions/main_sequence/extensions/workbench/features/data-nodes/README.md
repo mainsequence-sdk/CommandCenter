@@ -20,7 +20,7 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
 - Data-node detail navigation is URL-backed: `msDataNodeTab` selects the top-level detail tab, while `msLocalUpdateId` and `msLocalUpdateTab` drive the nested local-update detail view.
 - The surface also accepts standalone local-update deep links with `msLocalUpdateId` even when `msDataNodeId` is absent; this is used by cross-app links from Markets portfolio summaries.
 - The detail header exposes a `Delete Tail Data` action. It loads SourceTableConfiguration stats for multi-index tables, lets the user scope the delete to selected identifiers, and sends the suffix delete through `dynamic_table/<uid>/delete_after_date/`.
-- URL-backed detail navigation now stores the ts_manager resource identifier from the backend (`uid` when available, legacy `id` otherwise) so deep links keep working during the migration window.
+- URL-backed detail navigation stores the backend ts_manager `uid` for both Data Nodes and nested local updates.
 - Local-update run configuration uses the shared Main Sequence resource-requirements block for
   CPU/GPU requirements, keeping resource controls separate from retry, timeout, and schedule
   controls. The same block exposes the shared billing estimate action with zero memory and standard
