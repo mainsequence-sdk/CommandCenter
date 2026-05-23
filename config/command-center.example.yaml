@@ -116,8 +116,8 @@ command_center_access:
     list_url: /api/v1/command_center/access-policies/
     detail_url: /api/v1/command_center/access-policies/{id}/
   users:
-    shell_access_url: /api/v1/command_center/users/{user_id}/shell-access/
-    shell_access_preview_url: /api/v1/command_center/users/{user_id}/shell-access/preview/
+    shell_access_url: /api/v1/command_center/users/{user_uid}/shell-access/
+    shell_access_preview_url: /api/v1/command_center/users/{user_uid}/shell-access/preview/
 
 main_sequence:
   endpoint: /orm/api/pods/

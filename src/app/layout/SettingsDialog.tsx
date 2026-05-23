@@ -977,15 +977,15 @@ function AccessCatalogSettingsSection({
     staleTime: Number.POSITIVE_INFINITY,
   });
   const [lastResult, setLastResult] = useState<AccessCatalogSyncResponse | null>(null);
-  const appIdsPreview = useMemo(
-    () => (draftQuery.data?.payload.apps ?? []).map((app) => app.appId),
+  const appUidsPreview = useMemo(
+    () => (draftQuery.data?.payload.apps ?? []).map((app) => app.uid),
     [draftQuery.data?.payload.apps],
   );
   const surfacePreview = useMemo(
     () =>
       (draftQuery.data?.payload.surfaces ?? []).slice(0, 16).map((surface) => ({
-        appId: surface.appId,
-        surfaceId: surface.surfaceId,
+        appUid: surface.appUid,
+        surfaceUid: surface.surfaceUid,
         kind: surface.kind,
         hidden: surface.hidden,
         routePath: surface.routePath,
@@ -1148,12 +1148,12 @@ function AccessCatalogSettingsSection({
         ) : null}
 
         <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
-          <div className="text-sm font-medium text-topbar-foreground">App id preview</div>
+          <div className="text-sm font-medium text-topbar-foreground">App UID preview</div>
           <div className="mt-1 text-sm text-muted-foreground">
-            All app ids included in the generated access catalog.
+            All app UIDs included in the generated access catalog.
           </div>
           <div className="mt-3">
-            <SettingsCodeBlock value={appIdsPreview.join("\n") || "No apps available."} />
+            <SettingsCodeBlock value={appUidsPreview.join("\n") || "No apps available."} />
           </div>
         </div>
 
@@ -2520,7 +2520,7 @@ export function SettingsDialog({
                 description={t("settingsDialog.authUserGroupHelp")}
                 value={
                   <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-                    {"/api/v1/command_center/users/{user_id}/shell-access/ -> effective_permissions"}
+                    {"/api/v1/command_center/users/{user_uid}/shell-access/ -> effective_permissions"}
                   </span>
                 }
               />

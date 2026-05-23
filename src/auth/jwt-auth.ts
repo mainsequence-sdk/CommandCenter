@@ -783,16 +783,16 @@ function resolveSessionRole({
 
 async function fetchUserShellAccess(
   tokens: StoredJwtTokens,
-  userId: string,
+  userUid: string,
 ) {
   const shellAccessTemplate = commandCenterConfig.commandCenterAccess.users.shellAccessUrl.trim();
 
-  if (!shellAccessTemplate || !userId) {
+  if (!shellAccessTemplate || !userUid) {
     return null;
   }
 
   const shellAccessPath = buildConfigPath(shellAccessTemplate, {
-    user_id: userId,
+    user_uid: userUid,
   });
 
   let payload: Record<string, unknown>;
@@ -844,11 +844,11 @@ async function hydrateUserShellAccess(
   tokens: StoredJwtTokens,
   user: AppUser,
 ) {
-  if (!user.id) {
-    throw new Error("User details did not provide an id required for shell-access resolution.");
+  if (!user.uid) {
+    throw new Error("User details did not provide a uid required for shell-access resolution.");
   }
 
-  const shellPermissions = await fetchUserShellAccess(tokens, user.id);
+  const shellPermissions = await fetchUserShellAccess(tokens, user.uid);
 
   return applyShellAccessPermissions(user, shellPermissions);
 }
@@ -985,9 +985,22 @@ function buildUserProfileFromSources({
           readPathValue(userDetails, "id"),
       )
     : readStringish(resolveMappedValue(claimMapping.userId, tokenSources));
+  const uid = readStringish(
+    (userDetails &&
+      (readPathValue(userDetails, "uid") ??
+        readPathValue(userDetails, "user_uid") ??
+        readPathValue(userDetails, "userUid"))) ??
+      resolveMappedValue("uid", allSources) ??
+      resolveMappedValue("user_uid", allSources) ??
+      resolveMappedValue("userUid", allSources) ??
+      resolveMappedValue("user.uid", allSources) ??
+      resolveMappedValue("user.user_uid", allSources) ??
+      resolveMappedValue("user.userUid", allSources),
+  );
 
   return {
     id,
+    uid: uid || undefined,
     name,
     email,
     avatarUrl,
@@ -1113,6 +1126,7 @@ function parseStoredSession(value: unknown): Session | null {
     authMode: normalizeAuthMode(value.authMode),
     user: {
       id: readStringish(value.user.id),
+      uid: readStringish(value.user.uid ?? value.user.user_uid ?? value.user.userUid) || undefined,
       name: readString(value.user.name, "User"),
       email: readString(value.user.email),
       avatarUrl: readString(value.user.avatarUrl) || undefined,

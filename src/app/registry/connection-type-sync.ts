@@ -674,13 +674,13 @@ export async function syncConnectionTypes(
 
   const session = useAuthStore.getState().session;
 
-  if (!session?.token || !session.user.id) {
+  if (!session?.token || !session.user.uid) {
     throw new Error("You need to be signed in before the connection registry can sync.");
   }
 
   const effectivePayload = payload ?? await buildConnectionTypeSyncPayload();
   const syncMarker = `${effectivePayload.registryVersion}:${effectivePayload.checksum}`;
-  const inFlightKey = `${session.user.id}:${syncMarker}`;
+  const inFlightKey = `${session.user.uid}:${syncMarker}`;
   const existingPromise = inFlightSyncs.get(inFlightKey);
 
   if (existingPromise) {

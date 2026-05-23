@@ -33,7 +33,7 @@ backend user details / JWT claims
         |
         +-- /command_center/access-policies/ --------> reusable platform policy definitions
         |
-        +-- /command_center/users/<id>/shell-access/ -> user policy assignments plus direct grants/denies
+        +-- /command_center/users/<user_uid>/shell-access/ -> user policy assignments plus direct grants/denies
         |                                              resolve into effective permissions
         |
         +-- effective_permissions --------------------> platform gates decide what is visible,

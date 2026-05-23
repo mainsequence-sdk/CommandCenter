@@ -46,7 +46,7 @@ export interface UserShellAccessGroup {
 }
 
 export interface UserShellAccess {
-  userId: string;
+  userUid: string;
   policyIds: string[];
   grantPermissions: Permission[];
   denyPermissions: Permission[];
@@ -565,6 +565,14 @@ function normalizeUserRecord(record: Record<string, unknown>): AppUser {
     readPathValue(record, mapping.userId) ?? readPathValue(record, "id"),
     email || name || "user",
   );
+  const uid = readStringish(
+    readPathValue(record, "uid") ??
+      readPathValue(record, "user_uid") ??
+      readPathValue(record, "userUid") ??
+      readPathValue(record, "user.uid") ??
+      readPathValue(record, "user.user_uid") ??
+      readPathValue(record, "user.userUid"),
+  );
   const organizationTeams = normalizeOrganizationTeams(
     readPathValue(record, mapping.organizationTeams) ??
       readPathValue(record, "teams") ??
@@ -574,6 +582,7 @@ function normalizeUserRecord(record: Record<string, unknown>): AppUser {
 
   return {
     id,
+    uid: uid || undefined,
     name,
     email,
     first_name: firstName || undefined,
@@ -662,7 +671,7 @@ function normalizeShellAccessRecord(record: Record<string, unknown>): UserShellA
     : [];
 
   return {
-    userId: readStringish(record.user_id ?? record.userId, ""),
+    userUid: readStringish(record.user_uid ?? record.userUid ?? record.uid, ""),
     policyIds: normalizeStringList(record.policy_ids ?? record.policyIds),
     grantPermissions: normalizePermissions(
       record.grant_permissions ?? record.grantPermissions,
@@ -843,10 +852,10 @@ export async function deleteAccessPolicy(policyId: number) {
   );
 }
 
-export async function getUserShellAccess(userId: string | number) {
+export async function getUserShellAccess(userUid: string) {
   const payload = await requestAccessRbacJson<Record<string, unknown>>(
     buildConfigPath(commandCenterConfig.commandCenterAccess.users.shellAccessUrl, {
-      user_id: userId,
+      user_uid: userUid,
     }),
   );
 
@@ -854,12 +863,12 @@ export async function getUserShellAccess(userId: string | number) {
 }
 
 export async function updateUserShellAccess(
-  userId: string | number,
+  userUid: string,
   input: UserShellAccessPatchInput,
 ) {
   const payload = await requestAccessRbacJson<Record<string, unknown>>(
     buildConfigPath(commandCenterConfig.commandCenterAccess.users.shellAccessUrl, {
-      user_id: userId,
+      user_uid: userUid,
     }),
     {
       method: "PATCH",
@@ -871,12 +880,12 @@ export async function updateUserShellAccess(
 }
 
 export async function previewUserShellAccess(
-  userId: string | number,
+  userUid: string,
   input: UserShellAccessPatchInput,
 ) {
   const payload = await requestAccessRbacJson<Record<string, unknown>>(
     buildConfigPath(commandCenterConfig.commandCenterAccess.users.shellAccessPreviewUrl, {
-      user_id: userId,
+      user_uid: userUid,
     }),
     {
       method: "POST",

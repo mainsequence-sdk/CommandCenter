@@ -59,6 +59,9 @@ types.
 - Access-policy bootstrap should treat the access catalog as generated registry metadata. Hidden
   deep-link surfaces remain part of that catalog so backend policy tooling can reason about every
   registered surface, not only browsable navigation entries.
+- Access-catalog sync uses UID field names for backend-facing application and surface identifiers
+  (`uid`, `appUid`, `surfaceUid`, and `defaultSurfaceUid`). The values are still the frontend
+  registry slugs, but the synced contract must not expose `appId` or `surfaceId` fields.
 - Connection-type sync projects optional `physicalDataSource` metadata so backend adapters such as
   `timescaledb.database` can declare physical-source eligibility, required capabilities, default
   registration mode, and lifecycle ownership.

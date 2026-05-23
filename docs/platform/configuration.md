@@ -130,8 +130,8 @@ command_center_access:
     list_url: /api/v1/command_center/access-policies/
     detail_url: /api/v1/command_center/access-policies/{id}/
   users:
-    shell_access_url: /api/v1/command_center/users/{user_id}/shell-access/
-    shell_access_preview_url: /api/v1/command_center/users/{user_id}/shell-access/preview/
+    shell_access_url: /api/v1/command_center/users/{user_uid}/shell-access/
+    shell_access_preview_url: /api/v1/command_center/users/{user_uid}/shell-access/preview/
 
 notifications:
   list_url: /user/api/notifications/
@@ -179,7 +179,7 @@ notifications:
 - `access_rbac.users.list_url`: authenticated endpoint used by the Access & RBAC app user inspector to search the user directory
 - `command_center_access.access_policies.list_url`: authenticated list/create endpoint for visible Command Center shell policies
 - `command_center_access.access_policies.detail_url`: authenticated detail/update/delete endpoint for one Command Center shell policy; the frontend replaces `{id}` with the integer policy id
-- `command_center_access.users.shell_access_url`: authenticated read/update endpoint for one user's Command Center shell assignments; the frontend replaces `{user_id}` with the inspected user id
+- `command_center_access.users.shell_access_url`: authenticated read/update endpoint for one user's Command Center shell assignments; the frontend replaces `{user_uid}` with the inspected user UID
 - `command_center_access.users.shell_access_preview_url`: authenticated preview endpoint that resolves a draft shell-access payload without saving it
 - `notifications.list_url`: endpoint used to fetch the notification feed
 - `notifications.detail_url`: endpoint used to fetch a single notification body

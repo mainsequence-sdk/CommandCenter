@@ -15,6 +15,7 @@ export interface OrganizationTeam {
 
 export interface AppUser {
   id: string;
+  uid?: string;
   name: string;
   email: string;
   first_name?: string;

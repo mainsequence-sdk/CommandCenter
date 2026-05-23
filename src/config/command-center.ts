@@ -480,9 +480,9 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
       detail_url: "/api/v1/command_center/access-policies/{id}/",
     },
     users: {
-      shell_access_url: "/api/v1/command_center/users/{user_id}/shell-access/",
+      shell_access_url: "/api/v1/command_center/users/{user_uid}/shell-access/",
       shell_access_preview_url:
-        "/api/v1/command_center/users/{user_id}/shell-access/preview/",
+        "/api/v1/command_center/users/{user_uid}/shell-access/preview/",
     },
   },
   main_sequence: {

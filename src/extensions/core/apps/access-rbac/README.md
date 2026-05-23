@@ -31,7 +31,7 @@ Notable behavior:
   including hidden deep-link surfaces.
 - The shell app gates now use app-level permissions: `workspaces:view`,
   `main_sequence_markets:view`, and `main_sequence_foundry:view`.
-- The `User access inspector` surface now edits `/api/v1/command_center/users/<user_id>/shell-access/`
+- The `User access inspector` surface now edits `/api/v1/command_center/users/<user_uid>/shell-access/`
   instead of mutating `/user/api/user/<id>/`.
 - The Teams surface is now registry-first and links into a dedicated detail route for each team.
 - Team detail routes stay inside the Access & RBAC shell and force the sidebar highlight to remain on the `Teams` surface.

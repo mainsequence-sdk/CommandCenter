@@ -9,6 +9,7 @@ const mockJsonModules = import.meta.glob("/mock_data/command_center/auth.json", 
 
 type MockAuthUserRecord = {
   id: string;
+  uid: string;
   email: string;
   password: string;
   name: string;
@@ -137,6 +138,7 @@ function buildMockClaims(user: MockAuthUserRecord, expiresAtSeconds: number) {
 
   return {
     [claimMapping.userId]: user.id,
+    uid: user.uid,
     [claimMapping.name]: user.name,
     [claimMapping.email]: user.email,
     [claimMapping.team]: user.team,
@@ -263,6 +265,7 @@ function resolveMockMfaSetup(setupToken: string) {
 function buildUserDetails(user: MockAuthUserRecord) {
   return {
     id: user.id,
+    uid: user.uid,
     name: user.name,
     email: user.email,
     first_name: user.first_name ?? "",
@@ -563,7 +566,7 @@ export function handleMockJwtAuthorizedGet(
   const shellAccessPathname = user
     ? new URL(
         buildConfigPath(commandCenterConfig.commandCenterAccess.users.shellAccessUrl, {
-          user_id: user.id,
+          user_uid: user.uid,
         }),
         window.location.origin,
       ).pathname
@@ -579,7 +582,7 @@ export function handleMockJwtAuthorizedGet(
 
   if (pathname === shellAccessPathname) {
     return {
-      user_id: user.id,
+      user_uid: user.uid,
       policy_ids: [],
       grant_permissions: [],
       deny_permissions: [],
@@ -915,6 +918,7 @@ export function buildMockSessionUser(identifier: string): AppUser | null {
 
   return {
     id: user.id,
+    uid: user.uid,
     name: user.name,
     email: user.email,
     first_name: user.first_name,

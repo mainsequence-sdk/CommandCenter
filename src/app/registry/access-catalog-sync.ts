@@ -6,25 +6,25 @@ import { useAuthStore } from "@/auth/auth-store";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 
-export const ACCESS_CATALOG_VERSION = "2026-05-15-generated-access-catalog";
+export const ACCESS_CATALOG_VERSION = "2026-05-23-generated-access-catalog-uid";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
 export interface SyncedAccessAppPayload {
-  appId: string;
+  uid: string;
   title: string;
   description: string;
   source: string;
   requiredPermissions: string[];
-  defaultSurfaceId: string;
+  defaultSurfaceUid: string;
 }
 
 export interface SyncedAccessSurfacePayload {
-  appId: string;
+  appUid: string;
   appTitle: string;
   appSource: string;
-  surfaceId: string;
+  surfaceUid: string;
   title: string;
   navLabel?: string;
   description: string;
@@ -184,12 +184,12 @@ function projectNavigationSection(
 
 export function projectAccessAppForSync(app: AppDefinition): SyncedAccessAppPayload {
   return {
-    appId: app.id,
+    uid: app.id,
     title: app.title,
     description: app.description,
     source: app.source,
     requiredPermissions: uniqueSortedStrings(app.requiredPermissions ?? []),
-    defaultSurfaceId: app.defaultSurfaceId,
+    defaultSurfaceUid: app.defaultSurfaceId,
   };
 }
 
@@ -200,10 +200,10 @@ export function projectAccessSurfaceForSync(
   const appRequiredPermissions = uniqueSortedStrings(surface.appRequiredPermissions ?? []);
 
   return {
-    appId: surface.appId,
+    appUid: surface.appId,
     appTitle: surface.appTitle,
     appSource: surface.appSource,
-    surfaceId: surface.id,
+    surfaceUid: surface.id,
     title: surface.title,
     navLabel: surface.navLabel?.trim() || undefined,
     description: surface.description,
@@ -244,19 +244,19 @@ function validateAccessApp(
   app: SyncedAccessAppPayload,
   knownPermissionIds: Set<string>,
 ) {
-  if (!app.appId.trim()) {
-    appendValidationIssue(issues, "apps", "appId is required.");
+  if (!app.uid.trim()) {
+    appendValidationIssue(issues, "apps", "uid is required.");
   }
 
   if (!app.title.trim()) {
-    appendValidationIssue(issues, `apps.${app.appId || "(missing appId)"}`, "title is required.");
+    appendValidationIssue(issues, `apps.${app.uid || "(missing uid)"}`, "title is required.");
   }
 
-  if (!app.defaultSurfaceId.trim()) {
+  if (!app.defaultSurfaceUid.trim()) {
     appendValidationIssue(
       issues,
-      `apps.${app.appId || "(missing appId)"}`,
-      "defaultSurfaceId is required.",
+      `apps.${app.uid || "(missing uid)"}`,
+      "defaultSurfaceUid is required.",
     );
   }
 
@@ -264,7 +264,7 @@ function validateAccessApp(
     if (!knownPermissionIds.has(permissionId)) {
       appendValidationIssue(
         issues,
-        `apps.${app.appId || "(missing appId)"}.requiredPermissions`,
+        `apps.${app.uid || "(missing uid)"}.requiredPermissions`,
         `Unknown permission ${permissionId}.`,
       );
     }
@@ -276,10 +276,10 @@ function validateAccessSurface(
   surface: SyncedAccessSurfacePayload,
   knownPermissionIds: Set<string>,
 ) {
-  const section = `surfaces.${surface.appId || "(missing appId)"}.${surface.surfaceId || "(missing surfaceId)"}`;
+  const section = `surfaces.${surface.appUid || "(missing appUid)"}.${surface.surfaceUid || "(missing surfaceUid)"}`;
 
-  if (!surface.surfaceId.trim()) {
-    appendValidationIssue(issues, section, "surfaceId is required.");
+  if (!surface.surfaceUid.trim()) {
+    appendValidationIssue(issues, section, "surfaceUid is required.");
   }
 
   if (!surface.title.trim()) {
@@ -336,18 +336,18 @@ export async function buildAccessCatalogDraft(): Promise<AccessCatalogDraft> {
   const validationIssues: AccessCatalogValidationIssue[] = [];
   const apps = [...appRegistry.apps]
     .map((app) => projectAccessAppForSync(app))
-    .sort((left, right) => left.appId.localeCompare(right.appId));
+    .sort((left, right) => left.uid.localeCompare(right.uid));
   const permissions = getPermissionDefinitions()
     .map((definition) => projectPermissionDefinitionForSync(definition))
     .sort((left, right) => left.id.localeCompare(right.id));
   const surfaces = [...appRegistry.surfaces]
     .map((surface) => projectAccessSurfaceForSync(surface))
     .sort((left, right) => {
-      if (left.appId === right.appId) {
-        return left.surfaceId.localeCompare(right.surfaceId);
+      if (left.appUid === right.appUid) {
+        return left.surfaceUid.localeCompare(right.surfaceUid);
       }
 
-      return left.appId.localeCompare(right.appId);
+      return left.appUid.localeCompare(right.appUid);
     });
   const knownPermissionIds = new Set(permissions.map((permission) => permission.id));
 
@@ -447,13 +447,13 @@ export async function syncAccessCatalog(
 
   const session = useAuthStore.getState().session;
 
-  if (!session?.token || !session.user.id) {
+  if (!session?.token || !session.user.uid) {
     throw new Error("You need to be signed in before the access catalog can sync.");
   }
 
   const effectivePayload = payload ?? await buildAccessCatalogPayload();
   const syncMarker = `${effectivePayload.registryVersion}:${effectivePayload.checksum}`;
-  const inFlightKey = `${session.user.id}:${syncMarker}`;
+  const inFlightKey = `${session.user.uid}:${syncMarker}`;
   const existingPromise = inFlightSyncs.get(inFlightKey);
 
   if (existingPromise) {

@@ -163,7 +163,7 @@ The shell app access model is now explicit:
 - `main_sequence_markets:view` unlocks Main Sequence Markets
 - `main_sequence_foundry:view` unlocks Main Sequence Foundry
 
-The User Inspector complements that by managing `/api/v1/command_center/users/<user_id>/shell-access/`
+The User Inspector complements that by managing `/api/v1/command_center/users/<user_uid>/shell-access/`
 for one user at a time.
 
 That inspector:

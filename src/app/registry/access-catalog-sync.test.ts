@@ -25,13 +25,13 @@ describe("access catalog sync metadata", () => {
     const payload = await buildAccessCatalogPayload();
     const scalableServiceSurface = payload.surfaces.find(
       (surface) =>
-        surface.appId === "main_sequence_workbench" &&
-        surface.surfaceId === "scalable-services",
+        surface.appUid === "main_sequence_workbench" &&
+        surface.surfaceUid === "scalable-services",
     );
 
     expect(scalableServiceSurface).toMatchObject({
-      appId: "main_sequence_workbench",
-      surfaceId: "scalable-services",
+      appUid: "main_sequence_workbench",
+      surfaceUid: "scalable-services",
       title: "Scalable Service",
       kind: "page",
       hidden: true,

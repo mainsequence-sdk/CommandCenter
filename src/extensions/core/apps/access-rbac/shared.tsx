@@ -401,16 +401,24 @@ export function UserAccessInspectorPanel({
     setDraft(null);
     setPreviewAccess(null);
     setIsDirty(false);
-  }, [inspectedUser?.id]);
+  }, [inspectedUser?.id, inspectedUser?.uid]);
+  const inspectedUserUid = inspectedUser?.uid?.trim() || null;
+  function requireInspectedUserUid() {
+    if (!inspectedUserUid) {
+      throw new Error("Selected user did not include a UID for shell-access.");
+    }
+
+    return inspectedUserUid;
+  }
   const shellAccessQuery = useQuery({
-    queryKey: ["access-rbac", "users", inspectedUser?.id ?? null, "shell-access"],
-    queryFn: () => getUserShellAccess(inspectedUser!.id),
-    enabled: Boolean(inspectedUser?.id),
+    queryKey: ["access-rbac", "users", inspectedUserUid, "shell-access"],
+    queryFn: () => getUserShellAccess(requireInspectedUserUid()),
+    enabled: Boolean(inspectedUserUid),
     staleTime: 30_000,
   });
   const previewMutation = useMutation({
     mutationFn: (payload: UserShellAccessDraft) =>
-      previewUserShellAccess(inspectedUser!.id, payload),
+      previewUserShellAccess(requireInspectedUserUid(), payload),
     onSuccess: (result) => {
       setPreviewAccess(result);
       toast({
@@ -429,10 +437,10 @@ export function UserAccessInspectorPanel({
   });
   const saveMutation = useMutation({
     mutationFn: (payload: UserShellAccessDraft) =>
-      updateUserShellAccess(inspectedUser!.id, payload),
+      updateUserShellAccess(requireInspectedUserUid(), payload),
     onSuccess: (result) => {
       queryClient.setQueryData(
-        ["access-rbac", "users", inspectedUser?.id ?? null, "shell-access"],
+        ["access-rbac", "users", inspectedUserUid, "shell-access"],
         result,
       );
       setDraft(toUserShellAccessDraft(result));

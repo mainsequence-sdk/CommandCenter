@@ -128,7 +128,7 @@ Important behavior:
 
 - `token_url` and `refresh_url` accept relative or absolute URLs
 - `user_details.url` is fetched with the bearer access token immediately after login and refresh
-- `/api/v1/command_center/users/<user_id>/shell-access/` is then fetched and its
+- `/api/v1/command_center/users/<user_uid>/shell-access/` is then fetched and its
   `effective_permissions` become the shell source of truth
 - stored JWT sessions are rehydrated against shell-access on app boot
 - request field names are configurable so you can send `username` instead of `email` if needed
@@ -194,7 +194,7 @@ Identity and Command Center shell visibility are now separate contracts.
 
 - `/user/api/user/get_user_details/` provides identity/profile data for the signed-in user
 - `/api/v1/command_center/access-policies/` owns reusable shell policy definitions
-- `/api/v1/command_center/users/<user_id>/shell-access/` owns per-user shell policy assignments
+- `/api/v1/command_center/users/<user_uid>/shell-access/` owns per-user shell policy assignments
   plus direct permission grants and denies
 
 Configured endpoints live in `config/command-center.yaml` under `command_center_access`.
@@ -235,15 +235,15 @@ Important behavior:
 
 Shell-access endpoints:
 
-- `GET /api/v1/command_center/users/<user_id>/shell-access/`
-- `PATCH /api/v1/command_center/users/<user_id>/shell-access/`
-- `POST /api/v1/command_center/users/<user_id>/shell-access/preview/`
+- `GET /api/v1/command_center/users/<user_uid>/shell-access/`
+- `PATCH /api/v1/command_center/users/<user_uid>/shell-access/`
+- `POST /api/v1/command_center/users/<user_uid>/shell-access/preview/`
 
 Shell-access response shape:
 
 ```json
 {
-  "user_id": 42,
+  "user_uid": "11111111-1111-4111-8111-111111111111",
   "policy_ids": ["research-analyst"],
   "grant_permissions": ["orders:read"],
   "deny_permissions": [],
