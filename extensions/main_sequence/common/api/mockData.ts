@@ -7,6 +7,7 @@ const mockJsonModules = import.meta.glob("/mock_data/mainsequence/*.json", {
 
 const defaultPageSize = 25;
 const devAuthProxyPrefix = "/__command_center_auth__";
+const devMainSequenceMarketsProxyPrefix = "/__main_sequence_markets__";
 const mainSequencePodsRoot = "/orm/api/pods/";
 const mainSequenceConnectionsRoot = "/orm/api/connections/";
 const mainSequenceTsManagerRoot = "/orm/api/ts_manager/";
@@ -3755,9 +3756,10 @@ function handleSharedResources(
 }
 
 function normalizeMainSequenceRoute(pathname: string) {
-  const normalizedPathname = pathname.startsWith(devAuthProxyPrefix)
-    ? pathname.slice(devAuthProxyPrefix.length) || "/"
-    : pathname;
+  const proxyPrefix = [devAuthProxyPrefix, devMainSequenceMarketsProxyPrefix].find((prefix) =>
+    pathname.startsWith(prefix),
+  );
+  const normalizedPathname = proxyPrefix ? pathname.slice(proxyPrefix.length) || "/" : pathname;
   const route = normalizedPathname.replace(/\/+$/, "");
   const normalized = route ? `${route}/` : "/";
 

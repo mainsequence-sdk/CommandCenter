@@ -185,7 +185,7 @@ export interface OrganizationUserCreateInput {
 }
 
 export interface GithubOrganizationRecord {
-  id: number;
+  uid: string;
   login: string;
   display_name: string;
 }
@@ -210,8 +210,8 @@ export interface GithubOrganizationRepositoryRecord {
   ssh_url?: string | null;
   default_branch?: string | null;
   is_private?: boolean;
-  existing_git_repository_id?: number | null;
-  existing_project_id?: number | null;
+  existing_git_repository_uid?: string | null;
+  existing_project_uid?: string | null;
   suggested_project_name?: string | null;
 }
 
@@ -229,8 +229,8 @@ export interface GithubOrganizationImportRepositoryResult {
   full_name: string;
   project_name: string;
   status: string;
-  project_id: number | null;
-  git_repository_id: number | null;
+  project_uid: string | null;
+  git_repository_uid: string | null;
   detail?: string;
 }
 
@@ -567,6 +567,7 @@ export interface OrganizationCreditsUserAllocateInput {
 
 export interface OrganizationCreditsResponse {
   organization_id: number;
+  organization_uid?: string;
   balance_cents: number;
   currency: string;
   has_spendable_credits: boolean;
@@ -619,7 +620,7 @@ export interface OrganizationLoginSessionsPage {
 
 interface CurrentUserDetailsPayload {
   organization?: {
-    id?: number;
+    uid?: string;
   };
 }
 
@@ -817,68 +818,68 @@ export async function updateHostedTimescaleDatabase(
   });
 }
 
-export async function fetchCurrentOrganizationId() {
+export async function fetchCurrentOrganizationUid() {
   const payload = await requestAdminJson<CurrentUserDetailsPayload>("/user/api/user/get_user_details/");
-  const organizationId = payload.organization?.id;
+  const organizationUid = payload.organization?.uid;
 
-  if (typeof organizationId !== "number" || !Number.isFinite(organizationId) || organizationId <= 0) {
-    throw new Error("Current organization id is not available.");
+  if (typeof organizationUid !== "string" || !organizationUid.trim()) {
+    throw new Error("Current organization uid is not available.");
   }
 
-  return organizationId;
+  return organizationUid.trim();
 }
 
-export function listOrganizationActivePlans(organizationId: number) {
+export function listOrganizationActivePlans(organizationUid: string) {
   return requestAdminJson<OrganizationActivePlansResponse>(
-    `/user/api/organization/${encodeURIComponent(String(organizationId))}/active-plans/`,
+    `/user/api/organization/${encodeURIComponent(organizationUid)}/active-plans/`,
     {
       method: "GET",
     },
   );
 }
 
-export function listOrganizationSubscriptionSeats(organizationId: number) {
+export function listOrganizationSubscriptionSeats(organizationUid: string) {
   return requestAdminJson<OrganizationSubscriptionSeatsResponse>(
-    `/user/api/organization/${encodeURIComponent(String(organizationId))}/subscription-seats/`,
+    `/user/api/organization/${encodeURIComponent(organizationUid)}/subscription-seats/`,
     {
       method: "GET",
     },
   );
 }
 
-export function buildOrganizationCreditsPath(organizationId: number) {
-  return `/user/api/organization/${encodeURIComponent(String(organizationId))}/credits/`;
+export function buildOrganizationCreditsPath(organizationUid: string) {
+  return `/user/api/organization/${encodeURIComponent(organizationUid)}/credits/`;
 }
 
-export function buildOrganizationCreditsCheckoutPath(organizationId: number) {
-  return `/user/api/organization/${encodeURIComponent(String(organizationId))}/credits/checkout/`;
+export function buildOrganizationCreditsCheckoutPath(organizationUid: string) {
+  return `/user/api/organization/${encodeURIComponent(organizationUid)}/credits/checkout/`;
 }
 
-export function buildOrganizationCreditsAutoReloadPath(organizationId: number) {
-  return `/user/api/organization/${encodeURIComponent(String(organizationId))}/credits/auto-reload/`;
+export function buildOrganizationCreditsAutoReloadPath(organizationUid: string) {
+  return `/user/api/organization/${encodeURIComponent(organizationUid)}/credits/auto-reload/`;
 }
 
-export function buildOrganizationCreditsUsersPath(organizationId: number) {
-  return `/user/api/organization/${encodeURIComponent(String(organizationId))}/credits/users/`;
+export function buildOrganizationCreditsUsersPath(organizationUid: string) {
+  return `/user/api/organization/${encodeURIComponent(organizationUid)}/credits/users/`;
 }
 
 export function buildOrganizationCreditUserPolicyPath(
-  organizationId: number,
+  organizationUid: string,
   userId: number,
 ) {
-  return `/user/api/organization/${encodeURIComponent(String(organizationId))}/credits/users/${encodeURIComponent(String(userId))}/policy/`;
+  return `/user/api/organization/${encodeURIComponent(organizationUid)}/credits/users/${encodeURIComponent(String(userId))}/policy/`;
 }
 
 export function buildOrganizationCreditUserAllocatePath(
-  organizationId: number,
+  organizationUid: string,
   userId: number,
 ) {
-  return `/user/api/organization/${encodeURIComponent(String(organizationId))}/credits/users/${encodeURIComponent(String(userId))}/allocate/`;
+  return `/user/api/organization/${encodeURIComponent(organizationUid)}/credits/users/${encodeURIComponent(String(userId))}/allocate/`;
 }
 
-export function getOrganizationCredits(organizationId: number) {
+export function getOrganizationCredits(organizationUid: string) {
   return requestAdminJson<OrganizationCreditsResponse>(
-    buildOrganizationCreditsPath(organizationId),
+    buildOrganizationCreditsPath(organizationUid),
     {
       method: "GET",
     },
@@ -924,12 +925,12 @@ export function listOrganizationUserCredits(path: string) {
 }
 
 export function updateOrganizationUserCreditPolicy(
-  organizationId: number,
+  organizationUid: string,
   userId: number,
   payload: OrganizationCreditsUserPolicyUpdateInput,
 ) {
   return requestAdminJson<OrganizationCreditsPolicy>(
-    buildOrganizationCreditUserPolicyPath(organizationId, userId),
+    buildOrganizationCreditUserPolicyPath(organizationUid, userId),
     {
       method: "PUT",
       body: JSON.stringify(payload),
@@ -938,12 +939,12 @@ export function updateOrganizationUserCreditPolicy(
 }
 
 export function allocateOrganizationUserCredits(
-  organizationId: number,
+  organizationUid: string,
   userId: number,
   payload: OrganizationCreditsUserAllocateInput,
 ) {
   return requestAdminJson<UserCreditsState>(
-    buildOrganizationCreditUserAllocatePath(organizationId, userId),
+    buildOrganizationCreditUserAllocatePath(organizationUid, userId),
     {
       method: "POST",
       body: JSON.stringify(payload),
@@ -952,18 +953,18 @@ export function allocateOrganizationUserCredits(
 }
 
 export function submitOrganizationSubscriptionSeatsUpdate({
-  organizationId,
+  organizationUid,
   seatTotals,
   successUrl,
   cancelUrl,
 }: {
-  organizationId: number;
+  organizationUid: string;
   seatTotals: Record<string, number>;
   successUrl: string;
   cancelUrl: string;
 }) {
   return requestAdminJson<OrganizationSubscriptionSeatsUpdateResponse>(
-    `/user/api/organization/${encodeURIComponent(String(organizationId))}/subscription-seats/`,
+    `/user/api/organization/${encodeURIComponent(organizationUid)}/subscription-seats/`,
     {
       method: "POST",
       body: JSON.stringify({
@@ -980,7 +981,7 @@ export function resolveAdminBrowserUrl(path: string) {
 }
 
 export function updateOrganizationActivePlanAssignment(
-  organizationId: number,
+  organizationUid: string,
   userId: number,
   payload:
     | {
@@ -991,7 +992,7 @@ export function updateOrganizationActivePlanAssignment(
       },
 ) {
   return requestAdminJson<OrganizationActivePlanAssignmentUpdateResponse>(
-    `/user/api/organization/${encodeURIComponent(String(organizationId))}/active-plans/${encodeURIComponent(
+    `/user/api/organization/${encodeURIComponent(organizationUid)}/active-plans/${encodeURIComponent(
       String(userId),
     )}/`,
     {
@@ -1002,7 +1003,7 @@ export function updateOrganizationActivePlanAssignment(
 }
 
 export function listOrganizationLoginSessions(
-  organizationId: number,
+  organizationUid: string,
   {
     limit,
     offset,
@@ -1022,7 +1023,7 @@ export function listOrganizationLoginSessions(
   } = {},
 ) {
   return requestAdminJson<OrganizationLoginSessionsPage>(
-    `/user/api/organization/${encodeURIComponent(String(organizationId))}/login-sessions/`,
+    `/user/api/organization/${encodeURIComponent(organizationUid)}/login-sessions/`,
     {
       method: "GET",
     },
@@ -1039,33 +1040,33 @@ export function listOrganizationLoginSessions(
 }
 
 export function revokeOrganizationLoginSession(
-  organizationId: number,
+  organizationUid: string,
   sessionId: number,
 ) {
   return requestAdminJson<OrganizationLoginSessionRecord>(
-    `/user/api/organization/${encodeURIComponent(String(organizationId))}/login-sessions/${encodeURIComponent(String(sessionId))}/revoke/`,
+    `/user/api/organization/${encodeURIComponent(organizationUid)}/login-sessions/${encodeURIComponent(String(sessionId))}/revoke/`,
     {
       method: "POST",
     },
   );
 }
 
-export function startGithubOrganizationConnect(orgId: number) {
+export function startGithubOrganizationConnect(organizationUid: string) {
   return requestAdminJson<GithubOrganizationConnectStartResponse>(
-    `/orm/api/pods/github-organization/connect/start/${encodeURIComponent(String(orgId))}/`,
+    `/orm/api/pods/github-organization/connect/start/${encodeURIComponent(organizationUid)}/`,
     {
       method: "GET",
     },
   );
 }
 
-export function bulkDeleteGithubOrganizations(selectedIds: number[]) {
+export function bulkDeleteGithubOrganizations(selectedUids: string[]) {
   return requestAdminJson<GithubOrganizationBulkDeleteResponse>(
     "/orm/api/pods/github-organization/bulk-delete/",
     {
       method: "POST",
       body: JSON.stringify({
-        ids: selectedIds,
+        selected_uids: selectedUids,
       }),
     },
   );
@@ -1115,12 +1116,15 @@ function normalizeGithubRepositoryRecord(value: unknown): GithubOrganizationRepo
         : typeof record.private === "boolean"
           ? record.private
           : false,
-    existing_git_repository_id:
-      typeof record.existing_git_repository_id === "number"
-        ? record.existing_git_repository_id
+    existing_git_repository_uid:
+      typeof record.existing_git_repository_uid === "string" &&
+      record.existing_git_repository_uid.trim()
+        ? record.existing_git_repository_uid.trim()
         : null,
-    existing_project_id:
-      typeof record.existing_project_id === "number" ? record.existing_project_id : null,
+    existing_project_uid:
+      typeof record.existing_project_uid === "string" && record.existing_project_uid.trim()
+        ? record.existing_project_uid.trim()
+        : null,
     suggested_project_name:
       typeof record.suggested_project_name === "string" && record.suggested_project_name.trim()
         ? record.suggested_project_name.trim()
@@ -1148,9 +1152,9 @@ function normalizeGithubRepositoryPayload(payload: unknown): GithubOrganizationR
   return { repositories };
 }
 
-export async function listGithubOrganizationRepositories(organizationId: number) {
+export async function listGithubOrganizationRepositories(organizationUid: string) {
   const payload = await requestAdminJson<unknown>(
-    `/orm/api/pods/github-organization/${encodeURIComponent(String(organizationId))}/repositories/`,
+    `/orm/api/pods/github-organization/${encodeURIComponent(organizationUid)}/repositories/`,
     {
       method: "GET",
     },
@@ -1160,11 +1164,11 @@ export async function listGithubOrganizationRepositories(organizationId: number)
 }
 
 export function importGithubOrganizationRepositories(
-  organizationId: number,
+  organizationUid: string,
   repositories: GithubOrganizationImportRepositoryInput[],
 ) {
   return requestAdminJson<GithubOrganizationImportRepositoriesResponse>(
-    `/orm/api/pods/github-organization/${encodeURIComponent(String(organizationId))}/repositories/import/`,
+    `/orm/api/pods/github-organization/${encodeURIComponent(organizationUid)}/repositories/import/`,
     {
       method: "POST",
       body: JSON.stringify({
@@ -1175,11 +1179,11 @@ export function importGithubOrganizationRepositories(
 }
 
 export function createOrganizationUser(
-  organizationId: number,
+  organizationUid: string,
   payload: OrganizationUserCreateInput,
 ) {
   return requestAdminJson<OrganizationUserCreateResponse>(
-    `/user/api/organization/${encodeURIComponent(String(organizationId))}/users/add/`,
+    `/user/api/organization/${encodeURIComponent(organizationUid)}/users/add/`,
     {
       method: "POST",
       body: JSON.stringify(payload),

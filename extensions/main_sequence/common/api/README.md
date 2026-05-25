@@ -9,6 +9,9 @@
 - Encapsulate authenticated fetch behavior, error normalization, pagination helpers, and endpoint-specific request functions.
 - Route `VITE_USE_MOCK_DATA=true` requests through the local JSON-backed mock layer under `/mock_data/mainsequence` for the shared Main Sequence API roots:
   `/orm/api/pods/`, `/orm/api/ts_manager/`, and `/orm/api/assets/`.
+- Route Markets asset requests (`/orm/api/assets/...`) through `VITE_DEBUG_MAIN_SEQUENCE`
+  when it is set, for example `VITE_DEBUG_MAIN_SEQUENCE=http://127.0.0.1:8020`.
+  Other Main Sequence roots keep using the normal Command Center API base.
 - Provide a single import surface for Main Sequence feature code that lives outside app-specific extension folders.
 - Load the Main Sequence mock module lazily only when mock mode is active, so live mode does not eagerly import the JSON mock bundle.
 

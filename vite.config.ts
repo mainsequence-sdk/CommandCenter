@@ -7,6 +7,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, loadEnv, type PluginOption } from "vite";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
+const mainSequenceMarketsProxyPrefix = "/__main_sequence_markets__";
 const appComponentProxyPrefix = "/__app_component_proxy__";
 const assistantProxyPrefix = "/__assistant__";
 const assistantExecutorProxyPrefix = "/__assistant_executor__";
@@ -204,6 +205,20 @@ function readLoopbackAuthProxyTarget() {
   return "http://localhost:8000";
 }
 
+function readOptionalProxyTargetOrigin(value: string | undefined) {
+  const trimmed = value?.trim() ?? "";
+
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return null;
+  }
+}
+
 const loopbackAuthProxyTarget = readLoopbackAuthProxyTarget();
 
 export default defineConfig(async ({ mode }) => {
@@ -215,6 +230,9 @@ export default defineConfig(async ({ mode }) => {
     env.VITE_ASSISTANT_UI_ENDPOINT ||
     "http://192.168.1.253:8787";
   const assistantExecutorProxyTarget = env.VITE_ASSISTANT_UI_EXECUTOR_TARGET?.trim() || null;
+  const mainSequenceMarketsProxyTarget = readOptionalProxyTargetOrigin(
+    env.VITE_DEBUG_MAIN_SEQUENCE,
+  );
   const createProxyEntry = (target: string, prefix: string) => ({
     target,
     changeOrigin: true,
@@ -230,6 +248,13 @@ export default defineConfig(async ({ mode }) => {
     proxy[assistantExecutorProxyPrefix] = createProxyEntry(
       assistantExecutorProxyTarget,
       assistantExecutorProxyPrefix,
+    );
+  }
+
+  if (mainSequenceMarketsProxyTarget) {
+    proxy[mainSequenceMarketsProxyPrefix] = createProxyEntry(
+      mainSequenceMarketsProxyTarget,
+      mainSequenceMarketsProxyPrefix,
     );
   }
 

@@ -21,7 +21,7 @@ import {
   buildOrganizationCreditsAutoReloadPath,
   buildOrganizationCreditsCheckoutPath,
   buildOrganizationCreditsUsersPath,
-  fetchCurrentOrganizationId,
+  fetchCurrentOrganizationUid,
   getOrganizationCredits,
   listOrganizationUserCredits,
   listOrganizationUsers,
@@ -281,38 +281,38 @@ export function AdminManageCreditsPage() {
   const deferredSearchValue = useDeferredValue(searchValue);
   const normalizedSearchValue = deferredSearchValue.trim().toLowerCase();
 
-  const organizationIdQuery = useQuery({
-    queryKey: ["admin", "organization", "id"],
-    queryFn: fetchCurrentOrganizationId,
+  const organizationUidQuery = useQuery({
+    queryKey: ["admin", "organization", "uid"],
+    queryFn: fetchCurrentOrganizationUid,
     staleTime: 300_000,
   });
   const creditsQuery = useQuery({
-    queryKey: ["admin", "organization", organizationIdQuery.data, "credits"],
-    queryFn: () => getOrganizationCredits(organizationIdQuery.data!),
-    enabled: typeof organizationIdQuery.data === "number",
+    queryKey: ["admin", "organization", organizationUidQuery.data, "credits"],
+    queryFn: () => getOrganizationCredits(organizationUidQuery.data!),
+    enabled: typeof organizationUidQuery.data === "string",
     retry: false,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 
   const credits = creditsQuery.data;
-  const organizationId = credits?.organization_id ?? organizationIdQuery.data ?? null;
+  const organizationUid = credits?.organization_uid ?? organizationUidQuery.data ?? null;
   const autoReloadPath =
     credits?.actions?.load_auto_reload?.url ??
-    (typeof organizationId === "number" ? buildOrganizationCreditsAutoReloadPath(organizationId) : "");
+    (typeof organizationUid === "string" ? buildOrganizationCreditsAutoReloadPath(organizationUid) : "");
   const checkoutPath =
     credits?.forms?.purchase_checkout?.url ??
     credits?.actions?.purchase_checkout?.url ??
-    (typeof organizationId === "number" ? buildOrganizationCreditsCheckoutPath(organizationId) : "");
+    (typeof organizationUid === "string" ? buildOrganizationCreditsCheckoutPath(organizationUid) : "");
   const autoReloadSubmitPath =
     credits?.forms?.auto_reload?.url ??
     credits?.actions?.update_auto_reload?.url ??
-    (typeof organizationId === "number" ? buildOrganizationCreditsAutoReloadPath(organizationId) : "");
+    (typeof organizationUid === "string" ? buildOrganizationCreditsAutoReloadPath(organizationUid) : "");
   const userCreditsPath =
     credits?.actions?.list_user_credits?.url ??
-    (typeof organizationId === "number" ? buildOrganizationCreditsUsersPath(organizationId) : "");
+    (typeof organizationUid === "string" ? buildOrganizationCreditsUsersPath(organizationUid) : "");
   const autoReloadQuery = useQuery({
-    queryKey: ["admin", "organization", organizationId, "credits", "auto-reload", autoReloadPath],
+    queryKey: ["admin", "organization", organizationUid, "credits", "auto-reload", autoReloadPath],
     queryFn: () => loadOrganizationCreditsAutoReload(autoReloadPath),
     enabled: Boolean(autoReloadPath),
     retry: false,
@@ -320,7 +320,7 @@ export function AdminManageCreditsPage() {
     refetchOnWindowFocus: false,
   });
   const userCreditsQuery = useQuery({
-    queryKey: ["admin", "organization", organizationId, "credits", "users", userCreditsPath],
+    queryKey: ["admin", "organization", organizationUid, "credits", "users", userCreditsPath],
     queryFn: () => listOrganizationUserCredits(userCreditsPath),
     enabled: Boolean(userCreditsPath),
     retry: false,
@@ -330,7 +330,7 @@ export function AdminManageCreditsPage() {
   const organizationUsersQuery = useQuery({
     queryKey: ["admin", "organization-users", "lookup"],
     queryFn: () => listOrganizationUsers({ limit: 500 }),
-    enabled: typeof organizationId === "number",
+    enabled: typeof organizationUid === "string",
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
@@ -374,10 +374,10 @@ export function AdminManageCreditsPage() {
     onSuccess: async (result) => {
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["admin", "organization", organizationId, "credits"],
+          queryKey: ["admin", "organization", organizationUid, "credits"],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["admin", "organization", organizationId, "credits", "auto-reload"],
+          queryKey: ["admin", "organization", organizationUid, "credits", "auto-reload"],
         }),
         queryClient.invalidateQueries({
           queryKey: ["user", "credits"],
@@ -405,11 +405,11 @@ export function AdminManageCreditsPage() {
     }: {
       userId: number;
       payload: Parameters<typeof updateOrganizationUserCreditPolicy>[2];
-    }) => updateOrganizationUserCreditPolicy(organizationId!, userId, payload),
+    }) => updateOrganizationUserCreditPolicy(organizationUid!, userId, payload),
     onSuccess: async (_, variables) => {
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["admin", "organization", organizationId, "credits", "users"],
+          queryKey: ["admin", "organization", organizationUid, "credits", "users"],
         }),
         queryClient.invalidateQueries({
           queryKey: ["user", "credits"],
@@ -439,14 +439,14 @@ export function AdminManageCreditsPage() {
     }: {
       userId: number;
       payload: Parameters<typeof allocateOrganizationUserCredits>[2];
-    }) => allocateOrganizationUserCredits(organizationId!, userId, payload),
+    }) => allocateOrganizationUserCredits(organizationUid!, userId, payload),
     onSuccess: async (_, variables) => {
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["admin", "organization", organizationId, "credits"],
+          queryKey: ["admin", "organization", organizationUid, "credits"],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["admin", "organization", organizationId, "credits", "users"],
+          queryKey: ["admin", "organization", organizationUid, "credits", "users"],
         }),
         queryClient.invalidateQueries({
           queryKey: ["user", "credits"],
@@ -550,8 +550,8 @@ export function AdminManageCreditsPage() {
     () => buildFieldHelpLookup(credits?.forms?.auto_reload?.fields),
     [credits?.forms?.auto_reload?.fields],
   );
-  const loading = organizationIdQuery.isLoading || creditsQuery.isLoading;
-  const error = organizationIdQuery.error ?? creditsQuery.error;
+  const loading = organizationUidQuery.isLoading || creditsQuery.isLoading;
+  const error = organizationUidQuery.error ?? creditsQuery.error;
   const managedUserCount = userCreditRows.length;
   const allocatedUserCount = userCreditRows.filter((row) => row.normalizedMode === "allocated").length;
   const directPoolUserCount = userCreditRows.filter((row) => row.normalizedMode === "organization_pool").length;
@@ -822,7 +822,7 @@ export function AdminManageCreditsPage() {
             </CardHeader>
             <CardContent className="space-y-6 p-5">
               <div className="space-y-0">
-                <DetailRow label="Organization ID" value={String(credits.organization_id)} />
+                <DetailRow label="Organization UID" value={credits.organization_uid ?? organizationUid ?? ""} />
                 <DetailRow
                   label="Balance"
                   value={formatAmount(credits.balance_cents, credits.currency)}

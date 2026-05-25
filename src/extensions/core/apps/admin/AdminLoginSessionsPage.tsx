@@ -13,7 +13,7 @@ import { MainSequenceRegistrySearch } from "../../../../../extensions/main_seque
 import { mainSequenceRegistryPageSize } from "../../../../../extensions/main_sequence/common/api";
 
 import {
-  fetchCurrentOrganizationId,
+  fetchCurrentOrganizationUid,
   listOrganizationLoginSessions,
   revokeOrganizationLoginSession,
   type OrganizationLoginSessionAuthSource,
@@ -93,9 +93,9 @@ export function AdminLoginSessionsPage() {
       ? parsedUserIdFilter
       : undefined;
 
-  const organizationIdQuery = useQuery({
-    queryKey: ["admin", "organization-id"],
-    queryFn: fetchCurrentOrganizationId,
+  const organizationUidQuery = useQuery({
+    queryKey: ["admin", "organization-uid"],
+    queryFn: fetchCurrentOrganizationUid,
     staleTime: Number.POSITIVE_INFINITY,
   });
 
@@ -103,7 +103,7 @@ export function AdminLoginSessionsPage() {
     queryKey: [
       "admin",
       "organization-login-sessions",
-      organizationIdQuery.data ?? null,
+      organizationUidQuery.data ?? null,
       pageIndex,
       normalizedSearchValue,
       userIdFilter ?? null,
@@ -111,9 +111,9 @@ export function AdminLoginSessionsPage() {
       activeFilter,
       revokedFilter,
     ],
-    enabled: typeof organizationIdQuery.data === "number",
+    enabled: typeof organizationUidQuery.data === "string",
     queryFn: () =>
-      listOrganizationLoginSessions(organizationIdQuery.data!, {
+      listOrganizationLoginSessions(organizationUidQuery.data!, {
         limit: mainSequenceRegistryPageSize,
         offset: pageIndex * mainSequenceRegistryPageSize,
         search: normalizedSearchValue || undefined,
@@ -126,11 +126,11 @@ export function AdminLoginSessionsPage() {
 
   const revokeSessionMutation = useMutation({
     mutationFn: async (sessionId: number) => {
-      if (!organizationIdQuery.data) {
-        throw new Error("Organization id is not available.");
+      if (!organizationUidQuery.data) {
+        throw new Error("Organization uid is not available.");
       }
 
-      return revokeOrganizationLoginSession(organizationIdQuery.data, sessionId);
+      return revokeOrganizationLoginSession(organizationUidQuery.data, sessionId);
     },
     onSuccess: (session) => {
       toast({
@@ -239,7 +239,7 @@ export function AdminLoginSessionsPage() {
         </CardHeader>
 
         <CardContent className="p-0">
-          {organizationIdQuery.isLoading || sessionsQuery.isLoading ? (
+          {organizationUidQuery.isLoading || sessionsQuery.isLoading ? (
             <div className="flex min-h-64 items-center justify-center">
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -248,17 +248,17 @@ export function AdminLoginSessionsPage() {
             </div>
           ) : null}
 
-          {organizationIdQuery.isError || sessionsQuery.isError ? (
+          {organizationUidQuery.isError || sessionsQuery.isError ? (
             <div className="p-5">
               <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                {formatAdminError(organizationIdQuery.error ?? sessionsQuery.error)}
+                {formatAdminError(organizationUidQuery.error ?? sessionsQuery.error)}
               </div>
             </div>
           ) : null}
 
-          {!organizationIdQuery.isLoading &&
+          {!organizationUidQuery.isLoading &&
           !sessionsQuery.isLoading &&
-          !organizationIdQuery.isError &&
+          !organizationUidQuery.isError &&
           !sessionsQuery.isError &&
           totalItems === 0 ? (
             <div className="px-5 py-14 text-center">
@@ -272,9 +272,9 @@ export function AdminLoginSessionsPage() {
             </div>
           ) : null}
 
-          {!organizationIdQuery.isLoading &&
+          {!organizationUidQuery.isLoading &&
           !sessionsQuery.isLoading &&
-          !organizationIdQuery.isError &&
+          !organizationUidQuery.isError &&
           !sessionsQuery.isError &&
           totalItems > 0 ? (
             <div className="overflow-x-auto px-4 py-4">
@@ -370,9 +370,9 @@ export function AdminLoginSessionsPage() {
             </div>
           ) : null}
 
-          {!organizationIdQuery.isLoading &&
+          {!organizationUidQuery.isLoading &&
           !sessionsQuery.isLoading &&
-          !organizationIdQuery.isError &&
+          !organizationUidQuery.isError &&
           !sessionsQuery.isError &&
           totalItems > 0 ? (
             <MainSequenceRegistryPagination

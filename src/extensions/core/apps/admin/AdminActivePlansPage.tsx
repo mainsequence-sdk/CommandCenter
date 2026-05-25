@@ -14,7 +14,7 @@ import { MainSequenceRegistrySearch } from "../../../../../extensions/main_seque
 import { getRegistryTableCellClassName } from "../../../../../extensions/main_sequence/common/components/registryTable";
 
 import {
-  fetchCurrentOrganizationId,
+  fetchCurrentOrganizationUid,
   isAdminRequestError,
   listOrganizationActivePlans,
   listOrganizationSubscriptionSeats,
@@ -317,35 +317,35 @@ export function AdminActivePlansPage() {
   const [seatDrafts, setSeatDrafts] = useState<Record<string, number>>({});
   const deferredSearchValue = useDeferredValue(searchValue);
   const normalizedSearchValue = deferredSearchValue.trim().toLowerCase();
-  const organizationIdQuery = useQuery({
-    queryKey: ["admin", "organization", "id"],
-    queryFn: fetchCurrentOrganizationId,
+  const organizationUidQuery = useQuery({
+    queryKey: ["admin", "organization", "uid"],
+    queryFn: fetchCurrentOrganizationUid,
     staleTime: 300_000,
   });
   const activePlansQuery = useQuery({
-    queryKey: ["admin", "organization", organizationIdQuery.data, "active-plans"],
-    queryFn: () => listOrganizationActivePlans(organizationIdQuery.data!),
-    enabled: typeof organizationIdQuery.data === "number",
+    queryKey: ["admin", "organization", organizationUidQuery.data, "active-plans"],
+    queryFn: () => listOrganizationActivePlans(organizationUidQuery.data!),
+    enabled: typeof organizationUidQuery.data === "string",
   });
   const subscriptionSeatsQuery = useQuery({
-    queryKey: ["admin", "organization", organizationIdQuery.data, "subscription-seats"],
-    queryFn: () => listOrganizationSubscriptionSeats(organizationIdQuery.data!),
-    enabled: manageSeatsOpen && typeof organizationIdQuery.data === "number",
+    queryKey: ["admin", "organization", organizationUidQuery.data, "subscription-seats"],
+    queryFn: () => listOrganizationSubscriptionSeats(organizationUidQuery.data!),
+    enabled: manageSeatsOpen && typeof organizationUidQuery.data === "string",
   });
   const seatUpdateMutation = useMutation({
     mutationFn: ({
-      organizationId,
+      organizationUid,
       seatTotals,
       successUrl,
       cancelUrl,
     }: {
-      organizationId: number;
+      organizationUid: string;
       seatTotals: Record<string, number>;
       successUrl: string;
       cancelUrl: string;
     }) =>
       submitOrganizationSubscriptionSeatsUpdate({
-        organizationId,
+        organizationUid,
         seatTotals,
         successUrl,
         cancelUrl,
@@ -358,10 +358,10 @@ export function AdminActivePlansPage() {
 
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["admin", "organization", variables.organizationId, "active-plans"],
+          queryKey: ["admin", "organization", variables.organizationUid, "active-plans"],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["admin", "organization", variables.organizationId, "subscription-seats"],
+          queryKey: ["admin", "organization", variables.organizationUid, "subscription-seats"],
         }),
         queryClient.invalidateQueries({
           queryKey: ["admin", "organization-users"],
@@ -384,16 +384,16 @@ export function AdminActivePlansPage() {
   });
   const assignmentMutation = useMutation({
     mutationFn: ({
-      organizationId,
+      organizationUid,
       userId,
       action,
     }: {
-      organizationId: number;
+      organizationUid: string;
       userId: number;
       action: UserPlanDropdownAction;
     }) =>
       updateOrganizationActivePlanAssignment(
-        organizationId,
+        organizationUid,
         userId,
         action.kind === "assign"
           ? { assign_item_id: action.itemId }
@@ -405,13 +405,13 @@ export function AdminActivePlansPage() {
     onSuccess: async (result, variables) => {
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["admin", "organization", variables.organizationId, "active-plans"],
+          queryKey: ["admin", "organization", variables.organizationUid, "active-plans"],
         }),
         queryClient.invalidateQueries({
           queryKey: ["admin", "organization-users"],
         }),
         queryClient.invalidateQueries({
-          queryKey: ["admin", "organization", variables.organizationId, "subscription-seats"],
+          queryKey: ["admin", "organization", variables.organizationUid, "subscription-seats"],
         }),
       ]);
 
@@ -488,9 +488,9 @@ export function AdminActivePlansPage() {
     () => (subscriptionSeats?.plan_rows ?? []).some((row) => getDraftSeatQuantity(row, seatDrafts) !== row.current_qty),
     [seatDrafts, subscriptionSeats],
   );
-  const loading = organizationIdQuery.isLoading || activePlansQuery.isLoading;
-  const error = organizationIdQuery.error ?? activePlansQuery.error;
-  const manageSeatsError = organizationIdQuery.error ?? subscriptionSeatsQuery.error;
+  const loading = organizationUidQuery.isLoading || activePlansQuery.isLoading;
+  const error = organizationUidQuery.error ?? activePlansQuery.error;
+  const manageSeatsError = organizationUidQuery.error ?? subscriptionSeatsQuery.error;
   const manageSeatsUpgradePayload = readManageSeatsUpgradePayload(manageSeatsError);
 
   useEffect(() => {
@@ -512,15 +512,15 @@ export function AdminActivePlansPage() {
   }, [manageSeatsOpen]);
 
   function handleAssignmentChange(userId: number, value: string) {
-    const organizationId = organizationIdQuery.data;
+    const organizationUid = organizationUidQuery.data;
     const action = parseUserPlanDropdownAction(value);
 
-    if (typeof organizationId !== "number" || !action) {
+    if (typeof organizationUid !== "string" || !action) {
       return;
     }
 
     assignmentMutation.mutate({
-      organizationId,
+      organizationUid,
       userId,
       action,
     });
@@ -542,9 +542,9 @@ export function AdminActivePlansPage() {
   }
 
   function handleManageSeatsSubmit() {
-    const organizationId = organizationIdQuery.data;
+    const organizationUid = organizationUidQuery.data;
 
-    if (typeof organizationId !== "number" || !subscriptionSeats?.has_subscription) {
+    if (typeof organizationUid !== "string" || !subscriptionSeats?.has_subscription) {
       return;
     }
 
@@ -554,7 +554,7 @@ export function AdminActivePlansPage() {
     const returnUrl = buildManageSeatsReturnUrl();
 
     seatUpdateMutation.mutate({
-      organizationId,
+      organizationUid,
       seatTotals,
       successUrl: returnUrl,
       cancelUrl: returnUrl,
@@ -858,7 +858,7 @@ export function AdminActivePlansPage() {
         description="Adjust seat totals for the current subscription and compare the new totals before checkout."
         className="max-w-[min(980px,calc(100vw-24px))]"
       >
-        {organizationIdQuery.isLoading || subscriptionSeatsQuery.isLoading ? (
+        {organizationUidQuery.isLoading || subscriptionSeatsQuery.isLoading ? (
           <div className="flex min-h-56 items-center justify-center">
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -867,7 +867,7 @@ export function AdminActivePlansPage() {
           </div>
         ) : null}
 
-        {!organizationIdQuery.isLoading &&
+        {!organizationUidQuery.isLoading &&
         !subscriptionSeatsQuery.isLoading &&
         manageSeatsUpgradePayload ? (
           <div className="space-y-5 rounded-[calc(var(--radius)-2px)] border border-primary/35 bg-primary/10 p-5">
@@ -904,7 +904,7 @@ export function AdminActivePlansPage() {
           </div>
         ) : null}
 
-        {!organizationIdQuery.isLoading &&
+        {!organizationUidQuery.isLoading &&
         !subscriptionSeatsQuery.isLoading &&
         manageSeatsError &&
         !manageSeatsUpgradePayload ? (
@@ -913,7 +913,7 @@ export function AdminActivePlansPage() {
           </div>
         ) : null}
 
-        {!organizationIdQuery.isLoading &&
+        {!organizationUidQuery.isLoading &&
         !subscriptionSeatsQuery.isLoading &&
         !manageSeatsError &&
         subscriptionSeats &&
@@ -926,7 +926,7 @@ export function AdminActivePlansPage() {
           </div>
         ) : null}
 
-        {!organizationIdQuery.isLoading &&
+        {!organizationUidQuery.isLoading &&
         !subscriptionSeatsQuery.isLoading &&
         !manageSeatsError &&
         subscriptionSeats?.has_subscription ? (

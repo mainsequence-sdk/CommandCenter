@@ -1,4 +1,12 @@
 [
-  { "id": 1, "login": "mainsequence", "display_name": "Main Sequence" },
-  { "id": 2, "login": "mainsequence-labs", "display_name": "Main Sequence Labs" }
+  {
+    "uid": "11111111-1111-4111-8111-111111111111",
+    "login": "mainsequence",
+    "display_name": "Main Sequence"
+  },
+  {
+    "uid": "22222222-2222-4222-8222-222222222222",
+    "login": "mainsequence-labs",
+    "display_name": "Main Sequence Labs"
+  }
 ]

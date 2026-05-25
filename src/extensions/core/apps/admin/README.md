@@ -29,8 +29,10 @@ Current surfaces in this folder:
   results, and per-session revoke action through the matching org-scoped revoke endpoint
 - `AdminGithubOrganizationsPage.tsx`: GitHub organization registry backed by the pod-manager
   `github-organization` endpoint with connect-start, bulk delete, and organization-click
-  repository discovery through `/orm/api/pods/github-organization/{id}/repositories/` plus
-  selective project import through `/orm/api/pods/github-organization/{id}/repositories/import/`
+  repository discovery through `/orm/api/pods/github-organization/{uid}/repositories/` plus
+  selective project import through `/orm/api/pods/github-organization/{uid}/repositories/import/`.
+  This surface treats GitHub organization records as UID-addressed resources and sends bulk
+  actions with `uids`; numeric backend ids are not part of the frontend contract.
 - `AdminInvoicesPage.tsx`: billing invoice registry backed by `/orm/api/pods/billing/invoices/`
   with cursor pagination, `origin_url` fallback support, and View/PDF invoice actions
 - `AdminBillingDetailsPage.tsx`: billing usage table backed by `/orm/api/pods/billing/usage/`

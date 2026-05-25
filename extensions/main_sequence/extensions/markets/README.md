@@ -30,6 +30,9 @@ This nested extension is the separate application shell for market-facing Main S
 ## Dependencies
 
 - Shared Main Sequence UI, hooks, and API helpers come from `../../common/`.
+- Markets backend calls use the shared `/orm/api/assets/...` API helpers. Set
+  `VITE_DEBUG_MAIN_SEQUENCE=http://127.0.0.1:8020` in local development when the Markets backend
+  root differs from the main Command Center API base.
 - Markets-specific widget data models live in `widget-contracts/`; keep asset and price semantics
   scoped there unless another Main Sequence extension also needs the same interpretation layer.
 - The live `Curve Plot` and `Zero Curve` widgets currently reuse the existing Workbench

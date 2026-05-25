@@ -8,6 +8,8 @@ import {
 import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
+const devMainSequenceMarketsProxyPrefix = "/__main_sequence_markets__";
+const defaultMainSequenceAssetsRoot = "/orm/api/assets/";
 const dynamicTableDataSourceEndpoint = "/orm/api/ts_manager/dynamic_table_data_source/";
 const dynamicTableMetadataEndpoint = "/orm/api/ts_manager/dynamic_table/";
 const sourceTableConfigurationEndpoint = "/orm/api/ts_manager/source_table_config/";
@@ -17,14 +19,20 @@ const availableGpuTypesEndpoint = "/orm/api/pods/billing/available-gpu-types/";
 const billingEstimateEndpoint = "/orm/api/pods/billing/estimate-runtime-cost/";
 const mainSequenceConnectionsEndpoint = "/orm/api/connections/";
 const mainSequenceConnectionDataSourceEndpoint = "/orm/api/connections/data_source/";
-const assetEndpoint = "/orm/api/assets/asset/";
-const assetCategoryEndpoint = "/orm/api/assets/asset-category/";
-const instrumentsConfigurationEndpoint = "/orm/api/assets/instruments-configuration/";
-const virtualFundEndpoint = "/orm/api/assets/virtualfund/";
-const managedAccountEndpoint = "/orm/api/assets/account/";
-const portfolioGroupEndpoint = "/orm/api/assets/portfolio_group/";
-const targetPortfolioEndpoint = "/orm/api/assets/target_portfolio/";
-const assetTranslationTableEndpoint = "/orm/api/assets/asset-translation-tables/";
+const mainSequenceAssetsRoot = buildMainSequenceAssetsRoot(env.debugMainSequence);
+const debugMainSequenceOrigin = readUrlOrigin(env.debugMainSequence);
+const assetEndpoint = buildMainSequenceAssetEndpoint("asset/");
+const assetCategoryEndpoint = buildMainSequenceAssetEndpoint("asset-category/");
+const instrumentsConfigurationEndpoint = buildMainSequenceAssetEndpoint(
+  "instruments-configuration/",
+);
+const virtualFundEndpoint = buildMainSequenceAssetEndpoint("virtualfund/");
+const managedAccountEndpoint = buildMainSequenceAssetEndpoint("account/");
+const portfolioGroupEndpoint = buildMainSequenceAssetEndpoint("portfolio_group/");
+const targetPortfolioEndpoint = buildMainSequenceAssetEndpoint("target_portfolio/");
+const assetTranslationTableEndpoint = buildMainSequenceAssetEndpoint(
+  "asset-translation-tables/",
+);
 export const mainSequenceRegistryPageSize = 25;
 const DATA_NODE_DETAIL_CACHE_TTL_MS = 300_000;
 
@@ -3392,6 +3400,70 @@ function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
 }
 
+function readUrlOrigin(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return null;
+  }
+}
+
+function joinUrlPath(...parts: string[]) {
+  const normalized = parts
+    .map((part) => part.replace(/^\/+|\/+$/g, ""))
+    .filter(Boolean)
+    .join("/");
+
+  return normalized ? `/${normalized}/` : "/";
+}
+
+function buildMainSequenceAssetsRoot(debugMainSequenceRoot: string) {
+  const trimmed = debugMainSequenceRoot.trim();
+
+  if (!trimmed) {
+    return defaultMainSequenceAssetsRoot;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    const normalizedAssetsPath = defaultMainSequenceAssetsRoot.replace(/^\/+|\/+$/g, "");
+    const currentPath = url.pathname.replace(/\/+$/, "");
+    const nextPath = currentPath.endsWith(`/${normalizedAssetsPath}`)
+      ? joinUrlPath(currentPath)
+      : joinUrlPath(currentPath, normalizedAssetsPath);
+
+    url.pathname = nextPath;
+    url.search = "";
+    url.hash = "";
+
+    return url.toString();
+  } catch {
+    return defaultMainSequenceAssetsRoot;
+  }
+}
+
+function buildMainSequenceAssetEndpoint(path: string) {
+  return `${mainSequenceAssetsRoot.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
+
+function getDevLoopbackProxyPrefix(root: URL) {
+  if (!import.meta.env.DEV || !isLoopbackHostname(root.hostname)) {
+    return null;
+  }
+
+  if (debugMainSequenceOrigin && root.origin === debugMainSequenceOrigin) {
+    return devMainSequenceMarketsProxyPrefix;
+  }
+
+  return devAuthProxyPrefix;
+}
+
 function buildEndpointUrl(
   endpoint: string,
   path = "",
@@ -3408,8 +3480,10 @@ function buildEndpointUrl(
     requestUrl.searchParams.set(key, String(value));
   });
 
-  if (import.meta.env.DEV && isLoopbackHostname(root.hostname)) {
-    return `${devAuthProxyPrefix}${requestUrl.pathname}${requestUrl.search}`;
+  const proxyPrefix = getDevLoopbackProxyPrefix(root);
+
+  if (proxyPrefix) {
+    return `${proxyPrefix}${requestUrl.pathname}${requestUrl.search}`;
   }
 
   return requestUrl.toString();

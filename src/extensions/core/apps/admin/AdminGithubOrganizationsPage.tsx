@@ -19,7 +19,7 @@ import { mainSequenceRegistryPageSize } from "../../../../../extensions/main_seq
 
 import {
   bulkDeleteGithubOrganizations,
-  fetchCurrentOrganizationId,
+  fetchCurrentOrganizationUid,
   importGithubOrganizationRepositories,
   listGithubOrganizationRepositories,
   listGithubOrganizations,
@@ -48,9 +48,9 @@ export function AdminGithubOrganizationsPage() {
   const [lastImportResults, setLastImportResults] = useState<GithubOrganizationImportRepositoryResult[]>([]);
   const deferredSearchValue = useDeferredValue(searchValue);
   const normalizedSearchValue = deferredSearchValue.trim();
-  const organizationIdQuery = useQuery({
-    queryKey: ["admin", "organization", "id"],
-    queryFn: fetchCurrentOrganizationId,
+  const organizationUidQuery = useQuery({
+    queryKey: ["admin", "organization", "uid"],
+    queryFn: fetchCurrentOrganizationUid,
     staleTime: 300_000,
   });
   const connectOrganizationMutation = useMutation({
@@ -90,14 +90,15 @@ export function AdminGithubOrganizationsPage() {
   const selectableRows = useMemo(
     () =>
       pageRows.map((organization) => ({
-        id: organization.id,
+        id: organization.uid,
         organization,
       })),
     [pageRows],
   );
-  const organizationSelection = useRegistrySelection(selectableRows);
+  const organizationSelection = useRegistrySelection(selectableRows, (row) => row.id);
   const selectedOrganizations = organizationSelection.selectedItems.map((item) => item.organization);
-  const selectedOrganizationIds = organizationSelection.selectedIds;
+  const selectedOrganizationUids = organizationSelection.selectedIds;
+  const selectedRepositoryOrganizationUid = selectedOrganizationForRepositories?.uid ?? "";
   const totalItems = githubOrganizationsQuery.data?.count ?? 0;
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalItems / mainSequenceRegistryPageSize)),
@@ -108,10 +109,10 @@ export function AdminGithubOrganizationsPage() {
       "admin",
       "github-organizations",
       "repositories",
-      selectedOrganizationForRepositories?.id ?? null,
+      selectedRepositoryOrganizationUid || null,
     ],
-    queryFn: () => listGithubOrganizationRepositories(selectedOrganizationForRepositories?.id ?? 0),
-    enabled: selectedOrganizationForRepositories !== null,
+    queryFn: () => listGithubOrganizationRepositories(selectedRepositoryOrganizationUid),
+    enabled: selectedRepositoryOrganizationUid.length > 0,
     retry: false,
   });
   const repositorySelectableRows = useMemo(
@@ -126,16 +127,16 @@ export function AdminGithubOrganizationsPage() {
   const selectedRepositories = repositorySelection.selectedItems.map((item) => item.repository);
   const importRepositoriesMutation = useMutation({
     mutationFn: ({
-      organizationId,
+      organizationUid,
       repositories,
     }: {
-      organizationId: number;
+      organizationUid: string;
       repositories: Array<{
         github_repository_id: number;
         full_name: string;
         project_name: string;
       }>;
-    }) => importGithubOrganizationRepositories(organizationId, repositories),
+    }) => importGithubOrganizationRepositories(organizationUid, repositories),
     onSuccess: async (result) => {
       setLastImportResults(result.results);
       const createdCount = result.results.filter((entry) => entry.status === "created").length;
@@ -156,7 +157,7 @@ export function AdminGithubOrganizationsPage() {
           "admin",
           "github-organizations",
           "repositories",
-          selectedOrganizationForRepositories?.id ?? null,
+          selectedRepositoryOrganizationUid || null,
         ],
       });
     },
@@ -176,7 +177,7 @@ export function AdminGithubOrganizationsPage() {
           confirmButtonLabel: "Delete organizations",
             confirmWord: "DELETE",
             tone: "danger" as const,
-            onConfirm: () => bulkDeleteGithubOrganizations(selectedOrganizationIds),
+            onConfirm: () => bulkDeleteGithubOrganizations(selectedOrganizationUids),
           }
       : null;
   const githubOrganizationBulkActions = useMemo(
@@ -233,9 +234,9 @@ export function AdminGithubOrganizationsPage() {
     return (
       <div className="space-y-2">
         {selectedOrganizations.map((organization) => (
-          <div key={organization.id} className="flex items-center justify-between gap-3">
+          <div key={organization.uid} className="flex items-center justify-between gap-3">
             <span className="font-medium text-foreground">{organization.login}</span>
-            <span className="text-xs text-muted-foreground">#{organization.id}</span>
+            <span className="text-xs text-muted-foreground">{organization.uid}</span>
           </div>
         ))}
       </div>
@@ -243,20 +244,20 @@ export function AdminGithubOrganizationsPage() {
   }
 
   function handleConnectOrganization() {
-    const organizationId = organizationIdQuery.data;
+    const organizationUid = organizationUidQuery.data;
 
-    if (!organizationId) {
+    if (!organizationUid) {
       toast({
         variant: "error",
         title: "Connect organization failed",
-        description: organizationIdQuery.isError
-          ? formatAdminError(organizationIdQuery.error)
-          : "Current organization id is not available yet.",
+        description: organizationUidQuery.isError
+          ? formatAdminError(organizationUidQuery.error)
+          : "Current organization uid is not available yet.",
       });
       return;
     }
 
-    connectOrganizationMutation.mutate(organizationId);
+    connectOrganizationMutation.mutate(organizationUid);
   }
 
   function openOrganizationRepositories(organization: GithubOrganizationRecord) {
@@ -299,7 +300,7 @@ export function AdminGithubOrganizationsPage() {
     }
 
     importRepositoriesMutation.mutate({
-      organizationId: selectedOrganizationForRepositories.id,
+      organizationUid: selectedOrganizationForRepositories.uid,
       repositories,
     });
   }
@@ -340,9 +341,9 @@ export function AdminGithubOrganizationsPage() {
                     type="button"
                     size="sm"
                     onClick={handleConnectOrganization}
-                    disabled={organizationIdQuery.isLoading || connectOrganizationMutation.isPending}
+                    disabled={organizationUidQuery.isLoading || connectOrganizationMutation.isPending}
                   >
-                    {organizationIdQuery.isLoading || connectOrganizationMutation.isPending ? (
+                    {organizationUidQuery.isLoading || connectOrganizationMutation.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Plus className="h-4 w-4" />
@@ -429,11 +430,11 @@ export function AdminGithubOrganizationsPage() {
                 </thead>
                 <tbody>
                   {pageRows.map((organization) => {
-                    const selected = organizationSelection.isSelected(organization.id);
+                    const selected = organizationSelection.isSelected(organization.uid);
 
                     return (
                       <tr
-                        key={organization.id}
+                        key={organization.uid}
                         className="cursor-pointer"
                         onClick={() => openOrganizationRepositories(organization)}
                       >
@@ -444,7 +445,7 @@ export function AdminGithubOrganizationsPage() {
                           <MainSequenceSelectionCheckbox
                             ariaLabel={`Select ${organization.login}`}
                             checked={selected}
-                            onChange={() => organizationSelection.toggleSelection(organization.id)}
+                            onChange={() => organizationSelection.toggleSelection(organization.uid)}
                           />
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
@@ -583,8 +584,8 @@ export function AdminGithubOrganizationsPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-medium text-foreground">{result.full_name}</span>
                           <Badge variant={getImportResultVariant(result.status)}>{result.status}</Badge>
-                          {result.project_id ? (
-                            <Badge variant="neutral">{`Project #${result.project_id}`}</Badge>
+                          {result.project_uid ? (
+                            <Badge variant="neutral">{`Project ${result.project_uid}`}</Badge>
                           ) : null}
                         </div>
                         <div className="mt-1 text-sm text-muted-foreground">
@@ -675,13 +676,13 @@ export function AdminGithubOrganizationsPage() {
                         </td>
                         <td className={getRegistryTableCellClassName(selected, "right")}>
                           <div className="flex flex-wrap justify-end gap-2">
-                            {repository.existing_project_id ? (
-                              <Badge variant="neutral">{`Project #${repository.existing_project_id}`}</Badge>
+                            {repository.existing_project_uid ? (
+                              <Badge variant="neutral">{`Project ${repository.existing_project_uid}`}</Badge>
                             ) : null}
-                            {repository.existing_git_repository_id ? (
-                              <Badge variant="neutral">{`Git repo #${repository.existing_git_repository_id}`}</Badge>
+                            {repository.existing_git_repository_uid ? (
+                              <Badge variant="neutral">{`Git repo ${repository.existing_git_repository_uid}`}</Badge>
                             ) : null}
-                            {!repository.existing_project_id && !repository.existing_git_repository_id ? (
+                            {!repository.existing_project_uid && !repository.existing_git_repository_uid ? (
                               <Badge variant="neutral">Not linked</Badge>
                             ) : null}
                           </div>

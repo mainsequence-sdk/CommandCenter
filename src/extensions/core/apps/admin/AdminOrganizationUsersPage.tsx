@@ -23,7 +23,7 @@ import {
   AdminRequestError,
   bulkDeleteUsers,
   createOrganizationUser,
-  fetchCurrentOrganizationId,
+  fetchCurrentOrganizationUid,
   listOrganizationUsers,
   makeSelectedUsersAdministrators,
   type OrganizationUserCreateResponse,
@@ -350,9 +350,9 @@ export function AdminOrganizationUsersPage() {
   const normalizedCreateFirstName = createFirstName.trim();
   const normalizedCreateLastName = createLastName.trim();
   const usersQueryKey = ["admin", "organization-users", "list", pageIndex, normalizedSearchValue] as const;
-  const organizationIdQuery = useQuery({
-    queryKey: ["admin", "organization", "id"],
-    queryFn: fetchCurrentOrganizationId,
+  const organizationUidQuery = useQuery({
+    queryKey: ["admin", "organization", "uid"],
+    queryFn: fetchCurrentOrganizationUid,
     staleTime: 300_000,
   });
 
@@ -367,12 +367,9 @@ export function AdminOrganizationUsersPage() {
   });
   const createUserMutation = useMutation({
     mutationFn: async (payload: { email: string; first_name?: string; last_name?: string }) => {
-      const organizationId =
-        typeof organizationIdQuery.data === "number"
-          ? organizationIdQuery.data
-          : await fetchCurrentOrganizationId();
+      const organizationUid = organizationUidQuery.data ?? (await fetchCurrentOrganizationUid());
 
-      return createOrganizationUser(organizationId, payload);
+      return createOrganizationUser(organizationUid, payload);
     },
     onSuccess: async (result, payload) => {
       const createdUser = normalizeCreatedOrganizationUser(result);
