@@ -1,393 +1,118 @@
 # Main Sequence Workbench Connections
 
-This directory owns connection type definitions and compatibility runtime helpers for Main Sequence
+This directory owns connection type definitions and compatibility helpers for Main Sequence
 Workbench data access.
 
 ## Entry Points
 
-- `dataNodeConnection.ts`: registers the `mainsequence.data-node` connection type and exposes
-  query helpers for Data Node metadata, date-range rows, and latest observations.
-- `DataNodeConnectionConfigEditor.tsx`: connection-specific create/edit UI that reuses the
-  workbench Data Node quick-search picker so a configured data source represents one concrete
-  Data Node.
-- `DataNodeConnectionQueryEditor.tsx`: typed Connection Query widget editor for Data Node row and
-  latest-observation payloads. It renders columns, unique identifier filters, inclusive range
-  flags, limits, and configured-Data-Node validation when the selected instance has no configured
-  Data Node UID.
-- `dataNodeAuthoring.ts`: defines the shared `authoringContract` used by both Data Sources Explore
-  and widget-managed/standalone `connection-query` settings for draft seeding and Explore copy.
-- `simpleTableConnection.ts`: registers the `mainsequence.simple-table` connection type and the
-  `simple-table-sql` query model for backend-scoped SQL against one configured Simple Table.
-- `SimpleTableConnectionConfigEditor.tsx`: connection-specific create/edit UI that asks the user
-  to select a Main Sequence Simple Table, then loads detail metadata so columns can be inspected
-  before saving the data source.
-- `SimpleTableConnectionQueryEditor.tsx`: typed Connection Query widget editor for Simple Table
-  SQL, row limits, and parameter objects.
-- `simpleTableAuthoring.tsx`: defines the shared `authoringContract` used by both Data Sources
-  Explore and widget-managed/standalone `connection-query` settings for SQL draft seeding,
-  configured-table metadata, column preview badges, and Explore copy.
+- `dataNodeConnection.ts`: registers `mainsequence.data-node` and exposes query helpers for Data
+  Node metadata, date-range rows, and latest observations.
+- `DataNodeConnectionConfigEditor.tsx`: Data Node connection setup UI. It reuses the workbench
+  Data Node quick-search picker so a configured data source represents one concrete Data Node.
+- `DataNodeConnectionQueryEditor.tsx`: typed Connection Query editor for Data Node row and
+  latest-observation payloads.
+- `dataNodeAuthoring.ts`: shared `authoringContract` for Data Sources Explore and
+  widget-managed/standalone `connection-query` settings.
+- `simpleTableConnection.ts`: legacy filename that now registers `mainsequence.meta-table` and the
+  `meta-table-compiled-sql` query model for backend-scoped SQL against one configured MetaTable.
+- `SimpleTableConnectionConfigEditor.tsx`: legacy filename that now exports the MetaTable config
+  editor. It lets the user select a Main Sequence MetaTable and loads detail metadata for column
+  preview.
+- `SimpleTableConnectionQueryEditor.tsx`: legacy filename that now exports the MetaTable compiled
+  SQL editor.
+- `simpleTableAuthoring.tsx`: legacy filename that now defines the MetaTable authoring contract
+  for SQL draft seeding, configured-table metadata, column preview badges, and Explore copy.
 
 ## Behavior
 
-- The connection type is extension-owned metadata surfaced through `appRegistry.connections`.
-- The connection type uses the shared Main Sequence brand mark from `config/branding/logo_mark.png`
-  for catalog and data-source UI.
-- Backend-owned connection instances should handle health checks, platform permissions, and query
+- Connection types are extension-owned metadata surfaced through `appRegistry.connections`.
+- Both Main Sequence connection types use the shared Main Sequence brand mark from
+  `config/branding/logo_mark.png`.
+- Backend-owned connection instances handle health checks, platform permissions, and query
   execution.
-- A Main Sequence Data Node connection instance is configured by selecting a concrete Data Node.
-  Its public config stores `dataNodeUid`, optional display metadata (`dataNodeLabel`,
-  `dataNodeStorageHash`), `defaultLimit`, `queryCachePolicy`, `queryCacheTtlMs`, and
-  `dedupeInFlight`. It does not expose user-entered secrets.
-- `queryCachePolicy` controls completed-result caching for read operations. `queryCacheTtlMs`
-  defaults to `900000` milliseconds, which is 15 minutes.
-- `dedupeInFlight` is a backend request-sharing policy for identical concurrent cache misses. It
-  should default to enabled when omitted.
-- Main Sequence Data Node queries and resources must execute through real backend-owned connection
-  instances. This module must not fabricate placeholder UIDs or fall back to local dynamic-table
-  helpers for connection execution.
-- The Connection Query widget uses the Data Node connection's typed `queryEditor` for per-query
-  kwargs. The generic widget owns the standard envelope (`connectionId`, `query`, `timeRange`,
-  variables, and row limits); Data Node-specific fields stay in the Data Node connection module.
-- Data Node column and `unique_identifier_list` editors use the shared tokenized string-list
-  control. Values are committed to the query payload when the user presses Enter or comma, removes a
-  token, or leaves the field; do not replace them with blur-only text areas.
-- Data Node query models do not advertise `supportsVariables`, so the generic variables editor is
-  hidden and variables are omitted from Data Node connection requests.
+- Data Node public config stores `dataNodeUid`, optional display metadata, `defaultLimit`,
+  `queryCachePolicy`, `queryCacheTtlMs`, and `dedupeInFlight`.
+- MetaTable public config stores `metaTableUid`, optional display metadata
+  (`metaTableLabel`, `metaTableStorageHash`, `metaTableIdentifier`), `defaultLimit`,
+  `statementTimeoutMs`, `queryCachePolicy`, `queryCacheTtlMs`, and `dedupeInFlight`.
 - Main Sequence Explore shells should stay aligned with the core Connection Query widget: select a
   connection path, edit that path through the connection query editor, build the standard
   `ConnectionQueryRequest`, and preview the normalized runtime frame through
-  `ConnectionQueryWorkbench`. Connection-specific Explore behavior belongs in the shared
-  `authoringContract`, not in a separate wrapper component. Do not reintroduce separate Data Node
-  pickers, Simple Table SQL run paths, Unix-second inputs, or direct row/helper calls here.
-- Main Sequence connection explorers should render query responses through the shared
-  `ConnectionQueryResponsePreview` path. When a response normalizes as a canonical tabular frame
-  with `meta.timeSeries` hints, that shared preview exposes Graph and Table views using the core
-  graph model and TradingView chart renderer.
-- A Main Sequence Simple Table connection instance is configured by selecting one concrete Simple
-  Table. Its public config stores `simpleTableUid`, optional display metadata
-  (`simpleTableLabel`, `simpleTableStorageHash`, `simpleTableIdentifier`), `defaultLimit`,
-  `statementTimeoutMs`, `queryCachePolicy`, `queryCacheTtlMs`, and `dedupeInFlight`.
-- Simple Table Explore intentionally exposes one path: read-only SQL. The shared workbench sends
-  `query.kind = "simple-table-sql"` with `sql`, optional `parameters`, and standard envelope
-  fields such as `maxRows`; the backend adapter owns SQL validation, placeholder expansion,
-  execution, and response normalization.
-- The Simple Table Connection Query editor renders the same SQL payload shape inside the generic
-  widget so saved source widgets are not forced to edit raw JSON.
+  `ConnectionQueryWorkbench`.
 
-## Maintenance Constraints
+## MetaTable Backend Adapter Contract
 
-- Keep direct Main Sequence dynamic table endpoint construction inside this connection module or
-  the backend adapter. Data Node widgets should not own backend route construction.
-- Keep Data Node and Simple Table authoring defaults inside `dataNodeAuthoring.ts` and
-  `simpleTableAuthoring.tsx`. That shared contract is what prevents Explore/widget drift.
-- Do not add connection-level secret fields for Data Node access. Authentication and authorization
-  must flow through the platform/Main Sequence permission model and backend runtime context.
-- Treat `queryCachePolicy`, `queryCacheTtlMs`, and `dedupeInFlight` as backend adapter behavior:
-  key caches by connection id, query/resource kind, resolved Data Node uid, normalized request
-  payload, user/permission context, and effective row limit.
-- Preserve the Data Node row query's semantic contracts when changing connection query response
-  normalization: `data-node-rows-between-dates` should publish `core.tabular_frame@v1` and include
-  `meta.timeSeries` when time/value semantics are known.
-- Preserve the same `core.tabular_frame@v1` output contract for Simple Table SQL results. Widgets
-  should consume the normalized connection response rather than reaching directly into Simple Table
-  API routes.
+The backend adapter for `type_id = "mainsequence.meta-table"` owns MetaTable compiled SQL
+execution. The frontend contract provides these public config fields:
 
-## Simple Table Backend Adapter Contract
-
-The backend adapter for `type_id = "mainsequence.simple-table"` is the runtime owner for Simple
-Table SQL execution. The frontend contract provides these public config fields:
-
-- `simpleTableUid?: string`
-- `simpleTableLabel?: string`
-- `simpleTableStorageHash?: string`
-- `simpleTableIdentifier?: string`
+- `metaTableUid?: string`
+- `metaTableLabel?: string`
+- `metaTableStorageHash?: string`
+- `metaTableIdentifier?: string`
 - `defaultLimit?: number`
 - `statementTimeoutMs?: number`
 - `queryCachePolicy?: "disabled" | "safe"`
 - `queryCacheTtlMs?: number`
 - `dedupeInFlight?: boolean`
 
-`queryCachePolicy` should default to `"safe"` when omitted. `queryCacheTtlMs` should default to
-`300000` milliseconds when omitted, invalid, or less than or equal to zero. `statementTimeoutMs`
-should default to `30000` milliseconds. `dedupeInFlight` should default to enabled unless the
-stored public config value is exactly `false`.
+`queryCachePolicy` defaults to `"safe"`. `queryCacheTtlMs` defaults to `300000` milliseconds.
+`statementTimeoutMs` defaults to `30000` milliseconds. `dedupeInFlight` defaults to enabled unless
+the stored public config value is exactly `false`.
 
 ### Runtime Resolution
 
-Every adapter operation should first resolve the target Simple Table:
+Every adapter operation should first resolve the target MetaTable:
 
-1. Read `configured_simple_table_uid` from `public_config.simpleTableUid`.
-2. Reject requests when no configured Simple Table exists. Simple Table SQL should not accept an
-   ad hoc table UID from the query payload.
+1. Read `configured_meta_table_uid` from `public_config.metaTableUid`.
+2. Reject requests when no configured MetaTable exists. MetaTable SQL should not accept an ad hoc
+   table UID from the query payload.
 3. Validate the resolved value is a non-empty UID string.
-4. Fetch `GET /orm/api/ts_manager/simple_table/{resolved_simple_table_uid}/` to validate existence,
+4. Fetch `GET /orm/api/ts_manager/meta_table/{resolved_meta_table_uid}/` to validate existence,
    permissions, storage hash, and column metadata before execution or health checks.
 
 Permissions must be checked before execution and before joining any in-flight request. The minimum
 permission advertised by the frontend is `main_sequence_foundry:view`; backend object-level checks
-for the resolved Simple Table still apply.
+for the resolved MetaTable still apply.
 
 ### Operations
 
-`query.kind = "simple-table-sql"`:
+`query.kind = "meta-table-compiled-sql"`:
 
-- Required query payload:
-  - `sql: string`
-- Optional query payload:
-  - `maxRows?: number`
-  - `parameters?: Record<string, string | number | boolean | null>`
-- Resolve and validate the Simple Table uid from the connection instance.
+- Required query payload: `sql: string`
+- Optional query payload: `maxRows?: number`,
+  `parameters?: Record<string, string | number | boolean | null>`
+- Resolve and validate the MetaTable UID from the connection instance.
 - Validate SQL as read-only. Reject writes, DDL, transaction control, unsafe function calls, and
   multi-statement payloads unless the backend parser can prove they are safe.
-- Expand `{{simple_table}}` to the backend-authoritative physical table reference for the resolved
-  Simple Table. Do not trust frontend-provided physical table names.
+- Expand `{{meta_table}}` to the backend-authoritative physical table reference for the resolved
+  MetaTable. Do not trust frontend-provided physical table names.
 - Compute `effective_limit` from `query.maxRows`, then `request.maxRows`, then
   `public_config.defaultLimit`, then backend default. Clamp to the backend maximum.
 - Apply `statementTimeoutMs` to the database statement.
-- Return a `ConnectionQueryResponse` whose first frame uses the Data Node bundle tabular contract
-  (`core.tabular_frame@v1`). Include warnings when row limits, SQL normalization, or cache behavior
-  affected the result.
+- Return a `ConnectionQueryResponse` whose first frame uses `core.tabular_frame@v1`.
 
 `testConnection(id)`:
 
-- Resolve the Simple Table uid from configured public config only.
-- Fetch the Simple Table detail endpoint.
+- Resolve the MetaTable UID from configured public config only.
+- Fetch the MetaTable detail endpoint.
 - Return `ok` only when the table exists and the current backend context can view it.
 
-### Cache And Dedupe Logic
+## Data Node Backend Adapter Contract
 
-`queryCachePolicy = "safe"` should cache successful read-only query results after permission
-checks, target resolution, SQL normalization, parameter parsing, and effective limit calculation.
-`"disabled"` should bypass both cache reads and writes.
+The backend adapter for `type_id = "mainsequence.data-node"` owns Data Node metadata and row
+access. It resolves `dataNodeUid` from the configured connection instance, validates the UID,
+executes the relevant `/orm/api/ts_manager/dynamic_table/{uid}/...` route, and returns normalized
+`ConnectionQueryResponse` frames for row-oriented queries.
 
-Build cache and in-flight dedupe keys from:
+## Maintenance Constraints
 
-- organization id
-- user id or equivalent auth scope
-- connection id
-- connection type id
-- query kind
-- resolved Simple Table uid
-- normalized SQL after placeholder handling
-- normalized parameters
-- effective row limit
-- statement timeout
-- connection instance update/version marker if available
-- `simpleTableStorageHash` from public config when present
-
-Do not cache validation errors, permission errors, upstream errors, partial failures, or unsafe SQL
-rejections.
-
-## Backend Adapter Contract
-
-The backend adapter for `type_id = "mainsequence.data-node"` should be implemented as the runtime
-owner for Data Node metadata and row access. The frontend contract provides these public config
-fields:
-
-- `dataNodeUid?: string`
-- `dataNodeLabel?: string`
-- `dataNodeStorageHash?: string`
-- `defaultLimit?: number`
-- `queryCachePolicy?: "disabled" | "read"`
-- `queryCacheTtlMs?: number`
-- `dedupeInFlight?: boolean`
-
-`queryCachePolicy` should default to `"read"` when omitted. `queryCacheTtlMs` should default to
-`900000` milliseconds when omitted, invalid, or less than or equal to zero.
-
-### Runtime Resolution
-
-Every adapter operation should first resolve the target Data Node:
-
-1. Read `configured_data_node_uid` from the connection instance `public_config.dataNodeUid`.
-2. Read `requested_data_node_uid` from the resource params or query payload `dataNodeUid`.
-3. If `configured_data_node_uid` exists, use it as the authority.
-4. If both UIDs exist and they differ, reject the request with a validation error.
-5. If no configured uid exists, require `requested_data_node_uid`. This keeps real backend
-   connection instances usable even when the connection config leaves the Data Node unset.
-6. Validate the resolved value is a non-empty UID string before hitting Main Sequence APIs.
-
-Permissions must be checked before execution and before joining any in-flight request. The minimum
-permission advertised by the frontend is `main_sequence_foundry:view`; backend object-level checks
-for the resolved Data Node still apply.
-
-### Operations
-
-`resource = "data-node-detail"`:
-
-- Accepted payload: `{ "dataNodeUid": string }`
-- Resolve and validate the Data Node uid using the runtime resolution rules above.
-- Execute `GET /orm/api/ts_manager/dynamic_table/{resolved_data_node_uid}/`.
-- Return the Data Node detail object or a wrapped detail payload that includes the same object.
-- The result must include `sourcetableconfiguration` when the Data Node is row-queryable, because
-  Explore and widgets use it to derive valid column names.
-
-`query.kind = "data-node-detail"`:
-
-- Same target resolution and execution as the `data-node-detail` resource.
-- This is a resource-style response and should not advertise `core.tabular_frame@v1` unless the
-  backend wraps it as a real frame.
-- Reject unknown fields only if the backend query validator requires strict payloads; otherwise
-  ignore non-semantic UI fields after logging them.
-
-`query.kind = "data-node-rows-between-dates"`:
-
-- Required effective inputs:
-  - date window from the top-level connection request `timeRange`
-  - `columns: string[]`
-- Optional query payload:
-  - `dataNodeUid?: string`
-  - `unique_identifier_list?: string[]`
-  - `unique_identifier_range_map?: Record<string, [number, number]>`
-  - `great_or_equal?: boolean`
-  - `less_or_equal?: boolean`
-  - `limit?: number`
-- Resolve and validate the Data Node uid.
-- Normalize the date window by mapping `request.timeRange.from` and `request.timeRange.to` to the
-  Data Node API's `start_date` and `end_date` Unix-second fields. The generic Connection Query
-  widget owns the path and runtime date mode; it must not inject Data Node-specific date fields into
-  query JSON.
-- Validate `columns` is non-empty. Do not silently convert an empty list to all columns on the
-  backend, because output shape should be explicit for widgets.
-- Compute `effective_limit` from `query.limit`, then `request.maxRows`, then
-  `public_config.defaultLimit`, then backend default. Clamp it to the backend maximum.
-- Execute `POST /orm/api/ts_manager/dynamic_table/{resolved_data_node_uid}/get_data_between_dates_from_remote/`
-  with the normalized snake_case body.
-- Return rows as a normalized `ConnectionQueryResponse` using one `core.tabular_frame@v1` frame.
-  When a time field and numeric value fields are known, populate `meta.timeSeries` on that frame
-  so Graph/Preview defaults can resolve automatically.
-
-`query.kind = "data-node-last-observation"`:
-
-- Accepted payload: `{ "dataNodeUid"?: string }`
-- Resolve and validate the Data Node uid.
-- Execute `POST /orm/api/ts_manager/dynamic_table/{resolved_data_node_uid}/get_last_observation/`
-  with `{}`.
-- Return a normalized `ConnectionQueryResponse` containing one `core.tabular_frame@v1` frame.
-
-`testConnection(id)`:
-
-- Resolve the Data Node uid using configured public config only. For a system/default migration
-  connection with no configured uid, return `unknown` or `error` explaining that no Data Node is
-  configured for health checks.
-- Fetch the Data Node detail endpoint.
-- Return `ok` only when the Data Node exists and the current backend context can view it.
-
-### In-Flight Dedupe Logic
-
-### Result Cache Logic
-
-`queryCachePolicy` is the adapter-side completed-result cache switch:
-
-- `"read"`: cache successful read results.
-- `"disabled"`: do not read from or write to the completed-result cache.
-- missing/unknown: treat as `"read"`.
-
-`queryCacheTtlMs` is the completed-result cache lifetime. The default is `900000` milliseconds
-(15 minutes). Clamp the value to a backend-safe maximum if needed, but do not silently use 30
-seconds for Data Node connections.
-
-Apply result caching to:
-
-- `resource = "data-node-detail"`
-- `query.kind = "data-node-detail"`
-- `query.kind = "data-node-rows-between-dates"`
-- `query.kind = "data-node-last-observation"`
-
-Only cache successful responses after permission checks and after target Data Node resolution. Do
-not cache validation errors, permission errors, upstream errors, or partial failures.
-
-The result-cache key must be built from the same normalized dimensions as the in-flight dedupe key:
-
-- organization id
-- user id or equivalent auth scope
-- connection id
-- connection type id
-- operation kind: `resource` or `query`
-- resource name or query kind
-- resolved Data Node uid
-- normalized request payload
-- effective row limit for row queries
-- connection instance update/version marker if available
-- `dataNodeStorageHash` from public config when present
-
-Read-through cache order:
-
-```text
-resolve connection instance
-resolve and validate Data Node uid
-check user/org/object permissions
-normalize payload and defaults
-if queryCachePolicy is read:
-  build result cache key
-  if fresh cached result exists: return it
-if dedupeInFlight is enabled:
-  join or create the in-flight operation for the same normalized key
-execute upstream Data Node request on cache miss
-if queryCachePolicy is read and execution succeeds:
-  store result with expires_at = now + queryCacheTtlMs
-return result
-```
-
-### In-Flight Dedupe Logic
-
-`dedupeInFlight` is an adapter-side request-sharing switch for cache misses. The backend should
-treat it as enabled unless the stored public config value is exactly `false`:
-
-```text
-dedupe_enabled = public_config.dedupeInFlight is not false
-```
-
-When `dedupe_enabled` is false, execute every cache miss normally.
-
-When `dedupe_enabled` is true, the adapter should share one already-running backend operation for
-identical cache misses. The completed response should still be written to the result cache when
-`queryCachePolicy` is `"read"`.
-
-Build the key after validation/defaulting, not directly from the raw request body. Include:
-
-- organization id
-- user id or equivalent auth scope
-- connection id
-- connection type id
-- operation kind: `resource` or `query`
-- resource name or query kind
-- resolved Data Node uid
-- normalized request payload
-- effective row limit for row queries
-
-For `data-node-rows-between-dates`, the normalized payload portion must include:
-
-- `start_date`, derived from top-level `request.timeRange.from`
-- `end_date`, derived from top-level `request.timeRange.to`
-- `columns` in the requested order
-- `unique_identifier_list` in the requested order
-- `unique_identifier_range_map`
-- `great_or_equal`
-- `less_or_equal`
-- `limit`
-
-The key builder should use canonical JSON for objects with sorted keys, while preserving array
-order. Drop only non-semantic `null`/missing values consistently; do not drop empty arrays except
-where validation rejects them.
-
-The execution shape should be:
-
-```text
-resolve connection instance
-resolve and validate Data Node uid
-check user/org/object permissions
-normalize payload and defaults
-if dedupe disabled: execute operation
-build dedupe key
-under a short lock:
-  if key exists in in_flight map: join that running operation
-  otherwise create/register the operation
-await the operation
-remove the map entry in finally when the registered operation settles
-return the result or raise the same error to all joined callers
-```
-
-The in-flight map entry must be deleted on both success and failure. A failed request should not
-poison later requests. If multiple backend workers are running, this policy only dedupes inside one
-worker process unless a distributed in-flight registry is added later.
+- Keep direct Main Sequence endpoint construction inside this connection module or the backend
+  adapter. Widgets should consume connection responses instead of owning backend route construction.
+- Keep Data Node and MetaTable authoring defaults inside `dataNodeAuthoring.ts` and
+  `simpleTableAuthoring.tsx`. That shared contract prevents Explore/widget drift.
+- Do not add connection-level secret fields for Main Sequence access. Authentication and
+  authorization flow through the platform/Main Sequence permission model and backend runtime
+  context.
+- Preserve `core.tabular_frame@v1` output for both Data Node row queries and MetaTable compiled SQL.
+- The legacy filenames are intentionally not a backend contract. The registered connection id,
+  query kind, public config field names, and endpoint paths are the contract.

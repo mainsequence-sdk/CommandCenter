@@ -4,8 +4,6 @@ import type { MainSequenceDependencyGraphRuntimeState } from "./MainSequenceDepe
 export interface MainSequenceDependencyGraphWidgetProps extends Record<string, unknown> {
   dataNodeUid?: string;
   direction?: "downstream" | "upstream";
-  sourceKind?: "data_node" | "simple_table";
-  simpleTableUpdateUid?: string;
 }
 
 export interface MainSequenceDependencyGraphWidgetRuntimeState
@@ -13,10 +11,8 @@ export interface MainSequenceDependencyGraphWidgetRuntimeState
     Record<string, unknown> {
   status?: "idle" | "loading" | "success" | "error";
   error?: string;
-  sourceKind?: "data_node" | "simple_table";
   direction?: "downstream" | "upstream";
   selectedDataNodeUid?: string;
-  selectedSimpleTableUpdateUid?: string;
   resolvedLocalTimeSerieId?: string;
   payload?: LocalTimeSerieDependencyGraphResponse;
   emptyReason?: "no-linked-updates";
@@ -25,12 +21,6 @@ export interface MainSequenceDependencyGraphWidgetRuntimeState
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-export function normalizeDependencyGraphSourceKind(
-  value: unknown,
-): "data_node" | "simple_table" {
-  return value === "simple_table" ? "simple_table" : "data_node";
 }
 
 export function normalizeDependencyGraphDirection(
@@ -86,11 +76,8 @@ export function normalizeDependencyGraphRuntimeState(
         : "idle",
     error:
       typeof value.error === "string" && value.error.trim() ? value.error : undefined,
-    sourceKind: normalizeDependencyGraphSourceKind(value.sourceKind),
     direction: normalizeDependencyGraphDirection(value.direction),
     selectedDataNodeUid: normalizeDependencyGraphSelectedId(value.selectedDataNodeUid) || undefined,
-    selectedSimpleTableUpdateUid:
-      normalizeDependencyGraphSelectedId(value.selectedSimpleTableUpdateUid) || undefined,
     resolvedLocalTimeSerieId:
       normalizeDependencyGraphSelectedId(value.resolvedLocalTimeSerieId) || undefined,
     payload: normalizeDependencyGraphPayload(value.payload),

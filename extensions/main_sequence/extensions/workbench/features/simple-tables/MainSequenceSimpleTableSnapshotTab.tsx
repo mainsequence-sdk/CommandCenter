@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import {
-  fetchSimpleTableDataSnapshot,
+  fetchMetaTableDataSnapshot,
   formatMainSequenceError,
 } from "../../../../common/api";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
@@ -38,20 +38,20 @@ function buildSnapshotSearchText(row: Record<string, unknown>, columns: string[]
     .toLowerCase();
 }
 
-export function MainSequenceSimpleTableSnapshotTab({
-  simpleTableUid,
+export function MainSequenceMetaTableSnapshotTab({
+  metaTableUid,
 }: {
-  simpleTableUid: string;
+  metaTableUid: string;
 }) {
   const [filterValue, setFilterValue] = useState("");
   const deferredFilterValue = useDeferredValue(filterValue);
   const snapshotQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "snapshot", simpleTableUid, snapshotRowLimit],
+    queryKey: ["main_sequence", "meta_tables", "snapshot", metaTableUid, snapshotRowLimit],
     queryFn: () =>
-      fetchSimpleTableDataSnapshot(simpleTableUid, {
+      fetchMetaTableDataSnapshot(metaTableUid, {
         limit: snapshotRowLimit,
       }),
-    enabled: Boolean(String(simpleTableUid).trim()),
+    enabled: Boolean(String(metaTableUid).trim()),
   });
   const snapshotColumns = snapshotQuery.data?.columns ?? [];
   const filteredRows = useMemo(() => {
@@ -72,7 +72,7 @@ export function MainSequenceSimpleTableSnapshotTab({
           <div>
             <CardTitle className="text-base">Data Snapshot</CardTitle>
             <CardDescription>
-              Preview the latest rows returned by this simple table.
+              Preview the latest rows returned by this meta table.
             </CardDescription>
           </div>
           <MainSequenceRegistrySearch
@@ -105,7 +105,7 @@ export function MainSequenceSimpleTableSnapshotTab({
             columns={snapshotColumns}
             rows={filteredRows}
             maxRows={snapshotRowLimit}
-            emptyMessage="No snapshot rows are available for this simple table."
+            emptyMessage="No snapshot rows are available for this meta table."
           />
         ) : null}
       </CardContent>

@@ -9,10 +9,10 @@ import type {
   ConnectionQueryDraftDefaultsResolverInput,
 } from "@/connections/types";
 
-import { fetchSimpleTableDetail } from "../../../common/api";
+import { fetchMetaTableDetail } from "../../../common/api";
 
-const SIMPLE_TABLE_DEFAULT_MAX_ROWS = 1_000;
-const SIMPLE_TABLE_DEFAULT_QUERY_CACHE_TTL_MS = 5 * 60 * 1000;
+const META_TABLE_DEFAULT_MAX_ROWS = 1_000;
+const META_TABLE_DEFAULT_QUERY_CACHE_TTL_MS = 5 * 60 * 1000;
 
 function readConfigString(
   config: Record<string, unknown>,
@@ -33,14 +33,14 @@ function readConfigNumber(
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
 }
 
-function readConfiguredSimpleTableId(config: Record<string, unknown>) {
-  return typeof config.simpleTableUid === "string" && config.simpleTableUid.trim()
-    ? config.simpleTableUid.trim()
+function readConfiguredMetaTableUid(config: Record<string, unknown>) {
+  return typeof config.metaTableUid === "string" && config.metaTableUid.trim()
+    ? config.metaTableUid.trim()
     : undefined;
 }
 
-function getSimpleTableColumnNames(
-  detail: Awaited<ReturnType<typeof fetchSimpleTableDetail>> | undefined,
+function getMetaTableColumnNames(
+  detail: Awaited<ReturnType<typeof fetchMetaTableDetail>> | undefined,
 ) {
   if (!detail) {
     return [];
@@ -63,12 +63,12 @@ function getSimpleTableColumnNames(
   );
 }
 
-export function resolveSimpleTableDraftDefaults(
+export function resolveMetaTableDraftDefaults(
   input: ConnectionQueryDraftDefaultsResolverInput,
 ): ConnectionQueryDraftDefaults {
   const selectedQueryModel =
     input.selectedQueryModel ??
-    input.queryModels.find((model) => model.id === "simple-table-sql") ??
+    input.queryModels.find((model) => model.id === "meta-table-compiled-sql") ??
     input.queryModels[0];
 
   if (!selectedQueryModel) {
@@ -78,59 +78,59 @@ export function resolveSimpleTableDraftDefaults(
   const defaultMaxRows = readConfigNumber(
     input.connectionInstance.publicConfig,
     "defaultLimit",
-    SIMPLE_TABLE_DEFAULT_MAX_ROWS,
+    META_TABLE_DEFAULT_MAX_ROWS,
   );
 
   return {
     queryModelId: selectedQueryModel.id,
     query: {
       ...buildDefaultQueryForModel(selectedQueryModel),
-      sql: "select *\nfrom {{simple_table}}\nlimit 100",
+      sql: "select *\nfrom {{meta_table}}\nlimit 100",
     },
     maxRows: defaultMaxRows,
   };
 }
 
-export function SimpleTableConnectionAuthoringSummary({
+export function MetaTableConnectionAuthoringSummary({
   connectionInstance,
 }: ConnectionAuthoringSummaryProps) {
   const publicConfig = connectionInstance.publicConfig;
-  const simpleTableUid = readConfiguredSimpleTableId(publicConfig);
-  const simpleTableLabel = readConfigString(
+  const metaTableUid = readConfiguredMetaTableUid(publicConfig);
+  const metaTableLabel = readConfigString(
     publicConfig,
-    "simpleTableLabel",
-    simpleTableUid ? `Simple Table ${simpleTableUid}` : "No Simple Table configured",
+    "metaTableLabel",
+    metaTableUid ? `Meta Table ${metaTableUid}` : "No Meta Table configured",
   );
   const defaultMaxRows = readConfigNumber(
     publicConfig,
     "defaultLimit",
-    SIMPLE_TABLE_DEFAULT_MAX_ROWS,
+    META_TABLE_DEFAULT_MAX_ROWS,
   );
   const queryCachePolicy = readConfigString(publicConfig, "queryCachePolicy", "safe");
   const queryCacheTtlMs = readConfigNumber(
     publicConfig,
     "queryCacheTtlMs",
-    SIMPLE_TABLE_DEFAULT_QUERY_CACHE_TTL_MS,
+    META_TABLE_DEFAULT_QUERY_CACHE_TTL_MS,
   );
   const dedupeInFlight = publicConfig.dedupeInFlight !== false;
-  const simpleTableDetailQuery = useQuery({
-    queryKey: ["main_sequence", "connections", "simple_table", "authoring-summary", simpleTableUid],
-    queryFn: () => fetchSimpleTableDetail(simpleTableUid!),
-    enabled: Boolean(simpleTableUid),
+  const metaTableDetailQuery = useQuery({
+    queryKey: ["main_sequence", "connections", "meta_table", "authoring-summary", metaTableUid],
+    queryFn: () => fetchMetaTableDetail(metaTableUid!),
+    enabled: Boolean(metaTableUid),
     staleTime: 300_000,
   });
-  const columns = getSimpleTableColumnNames(simpleTableDetailQuery.data);
+  const columns = getMetaTableColumnNames(metaTableDetailQuery.data);
 
   return (
     <div className="space-y-5">
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_260px_180px]">
         <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-3 py-2">
-          <div className="text-xs font-medium text-muted-foreground">Simple Table</div>
+          <div className="text-xs font-medium text-muted-foreground">Meta Table</div>
           <div className="mt-1 truncate text-sm font-semibold text-foreground">
-            {simpleTableLabel}
+            {metaTableLabel}
           </div>
           <div className="truncate font-mono text-[11px] text-muted-foreground">
-            {simpleTableUid ? `uid ${simpleTableUid}` : "not configured"}
+            {metaTableUid ? `uid ${metaTableUid}` : "not configured"}
           </div>
         </div>
         <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-3 py-2">
@@ -155,9 +155,9 @@ export function SimpleTableConnectionAuthoringSummary({
         </div>
       </div>
 
-      {simpleTableDetailQuery.isError ? (
+      {metaTableDetailQuery.isError ? (
         <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-          Unable to load Simple Table detail metadata.
+          Unable to load Meta Table detail metadata.
         </div>
       ) : null}
 
@@ -177,10 +177,10 @@ export function SimpleTableConnectionAuthoringSummary({
   );
 }
 
-export const simpleTableConnectionAuthoringContract: ConnectionAuthoringContract = {
-  resolveDraftDefaults: resolveSimpleTableDraftDefaults,
-  SummaryComponent: SimpleTableConnectionAuthoringSummary,
-  exploreTitle: "Simple Table SQL Explore",
+export const metaTableConnectionAuthoringContract: ConnectionAuthoringContract = {
+  resolveDraftDefaults: resolveMetaTableDraftDefaults,
+  SummaryComponent: MetaTableConnectionAuthoringSummary,
+  exploreTitle: "Meta Table SQL Explore",
   exploreDescription:
     "Runs the same generated connection query request as the workspace Connection Query widget.",
   exploreRunButtonLabel: "Run query",

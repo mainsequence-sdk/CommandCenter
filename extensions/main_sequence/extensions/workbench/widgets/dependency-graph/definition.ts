@@ -18,9 +18,8 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
   kind: "chart",
   source: "main_sequence_workbench",
   requiredPermissions: ["main_sequence_foundry:view"],
-  tags: ["main-sequence", "simple-table", "dependency", "graph", "workbench"],
+  tags: ["main-sequence", "data-node", "dependency", "graph", "workbench"],
   exampleProps: {
-    sourceKind: "data_node",
     dataNodeUid: "00000000-0000-0000-0000-000000000714",
     direction: "downstream",
   },
@@ -40,9 +39,7 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
     data: {
       widgetRole: "presentation",
       contentType: "graph",
-      sourceKind: props.sourceKind ?? null,
       dataNodeUid: props.dataNodeUid ?? null,
-      simpleTableUpdateUid: props.simpleTableUpdateUid ?? null,
       direction: props.direction ?? null,
     },
   }),
@@ -53,24 +50,11 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
     configuration: {
       mode: "custom-settings",
       summary:
-        "Loads one dependency graph around a selected Main Sequence source resource and direction.",
+        "Loads one dependency graph around a selected Main Sequence Data Node and direction.",
       fields: [
-        {
-          id: "sourceKind",
-          label: "Source kind",
-          type: "enum",
-          required: true,
-          source: "custom-settings",
-        },
         {
           id: "dataNodeUid",
           label: "Data Node UID",
-          type: "string",
-          source: "custom-settings",
-        },
-        {
-          id: "simpleTableUpdateUid",
-          label: "Simple table update UID",
           type: "string",
           source: "custom-settings",
         },
@@ -82,7 +66,7 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
         },
       ],
       requiredSetupSteps: [
-        "Select the source kind and valid resource UID.",
+        "Select a valid Data Node UID.",
         "Choose whether to explore upstream or downstream dependencies.",
       ],
     },
@@ -90,14 +74,14 @@ export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDepend
       refreshPolicy: "allow-refresh",
       executionTriggers: ["dashboard-refresh", "manual-recalculate"],
       executionSummary:
-        "Owns dependency-graph fetch execution for the selected Main Sequence source resource.",
+        "Owns dependency-graph fetch execution for the selected Main Sequence Data Node.",
     },
     io: {
       mode: "none",
       summary: "This widget executes its own graph request and does not participate in typed widget bindings.",
     },
     capabilities: {
-      supportedSourceKinds: ["data_node", "simple_table"],
+      supportedSourceKinds: ["data_node"],
       supportedDirections: ["downstream", "upstream"],
     },
     usageGuidance: resolveWidgetUsageGuidance(usageGuidanceMarkdown),

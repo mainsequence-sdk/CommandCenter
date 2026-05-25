@@ -1,6 +1,6 @@
 ## buildPurpose
 
-Dependency graph for one Main Sequence source resource.
+Dependency graph for one Main Sequence Data Node.
 
 ## whenToUse
 
@@ -12,13 +12,13 @@ Dependency graph for one Main Sequence source resource.
 
 ## authoringSteps
 
-- Pick the source kind and source id.
+- Pick the Data Node.
 - Choose the graph direction to explore.
 
 ## blockingRequirements
 
-- A valid source resource id is required.
+- A valid Data Node UID is required.
 
 ## commonPitfalls
 
-- The selected source kind determines which id field is relevant.
+- The widget resolves the latest linked LocalTimeSerie update before it can draw the graph.

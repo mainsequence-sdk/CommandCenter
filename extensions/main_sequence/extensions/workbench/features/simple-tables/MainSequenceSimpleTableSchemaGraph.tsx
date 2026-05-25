@@ -9,35 +9,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select } from "@/components/ui/select";
 
 import {
-  fetchSimpleTableSchemaGraph,
+  fetchMetaTableSchemaGraph,
   formatMainSequenceError,
 } from "../../../../common/api";
-import { MainSequenceSimpleTableUmlExplorer } from "./MainSequenceSimpleTableUmlExplorer";
+import { MainSequenceMetaTableUmlExplorer } from "./MainSequenceSimpleTableUmlExplorer";
 
 const depthOptions = [1, 2, 3, 4, 5];
 
-export function MainSequenceSimpleTableSchemaGraph({
-  simpleTableUid,
+export function MainSequenceMetaTableSchemaGraph({
+  metaTableUid,
 }: {
-  simpleTableUid: string;
+  metaTableUid: string;
 }) {
   const [depth, setDepth] = useState("2");
   const [includeIncoming, setIncludeIncoming] = useState(false);
   const schemaGraphQuery = useQuery({
     queryKey: [
       "main_sequence",
-      "simple_tables",
+      "meta_tables",
       "schema_graph",
-      simpleTableUid,
+      metaTableUid,
       depth,
       includeIncoming,
     ],
     queryFn: () =>
-      fetchSimpleTableSchemaGraph(simpleTableUid, {
+      fetchMetaTableSchemaGraph(metaTableUid, {
         depth: Number(depth),
         includeIncoming,
       }),
-    enabled: Boolean(String(simpleTableUid).trim()),
+    enabled: Boolean(String(metaTableUid).trim()),
   });
 
   const error = schemaGraphQuery.isError ? formatMainSequenceError(schemaGraphQuery.error) : null;
@@ -53,7 +53,7 @@ export function MainSequenceSimpleTableSchemaGraph({
               ULM diagram
             </CardTitle>
             <CardDescription>
-              UML-style schema view for the selected simple table, including columns, indexes, and
+              UML-style schema view for the selected meta table, including columns, indexes, and
               foreign-key multiplicities.
             </CardDescription>
           </div>
@@ -99,7 +99,7 @@ export function MainSequenceSimpleTableSchemaGraph({
         </div>
       </CardHeader>
       <CardContent className="pt-5">
-        <MainSequenceSimpleTableUmlExplorer
+        <MainSequenceMetaTableUmlExplorer
           error={error}
           isLoading={schemaGraphQuery.isLoading}
           payload={payload}

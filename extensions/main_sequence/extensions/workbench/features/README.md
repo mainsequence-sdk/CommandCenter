@@ -13,7 +13,7 @@ Feature folders group screens and supporting components by domain instead of by 
 - `project-data-sources/`: project data source registry and editor workflows.
 - `projects/`: project registry, repository browsing, images, jobs, and related tabs.
 - `secrets/`: secret-management surfaces.
-- `simple-tables/`: `ts_manager/simple_table` registry, detail routing, and SimpleTableUpdate workflows.
+- `simple-tables/`: legacy path for the `ts_manager/meta_table` registry, detail routing, data snapshot, and schema graph workflows.
 - `scalable-services/`: scalable-service deep-link detail shell and nested pod-runtime detail.
 - `streamlit/`: gallery view for published Streamlit resource releases.
 - `timescaledb-services/`: read-only deployment service registry and summary-backed detail view.

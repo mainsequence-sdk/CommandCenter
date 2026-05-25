@@ -17,7 +17,7 @@ import { MainSequenceProjectDataSourcesPage } from "./features/project-data-sour
 import { MainSequenceProjectsPage } from "./features/projects/MainSequenceProjectsPage";
 import { MainSequenceScalableServicesPage } from "./features/scalable-services/MainSequenceScalableServicesPage";
 import { MainSequenceSecretsPage } from "./features/secrets/MainSequenceSecretsPage";
-import { MainSequenceSimpleTablesPage } from "./features/simple-tables/MainSequenceSimpleTablesPage";
+import { MainSequenceMetaTablesPage } from "./features/simple-tables/MainSequenceSimpleTablesPage";
 import { MainSequenceStreamlitPage } from "./features/streamlit/MainSequenceStreamlitPage";
 import { MainSequenceTimeScaleDbServicesPage } from "./features/timescaledb-services/MainSequenceTimeScaleDbServicesPage";
 
@@ -313,15 +313,15 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       component: MainSequenceDataNodesPage,
     },
     {
-      id: "simple-tables",
-      title: "Simple Tables",
-      navLabel: "Simple Tables",
-      description: "Browse and bulk delete ts_manager simple_table records.",
+      id: "meta-tables",
+      title: "Meta Tables",
+      navLabel: "Meta Tables",
+      description: "Browse and bulk delete ts_manager meta_table records.",
       ...defineSurfaceAssistantContext({
         summary:
-          "User is on Simple Tables. This page shows simple_table records and related table operations.",
+          "User is on Meta Tables. This page shows meta_table records and related table operations.",
         availableActions: [
-          "Browse simple tables",
+          "Browse meta tables",
           "Inspect table details",
           "Bulk delete table records",
         ],
@@ -329,7 +329,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       navigationSection: dataSection,
       kind: "page",
       requiredPermissions: ["main_sequence_foundry:view"],
-      component: MainSequenceSimpleTablesPage,
+      component: MainSequenceMetaTablesPage,
     },
   ],
 };

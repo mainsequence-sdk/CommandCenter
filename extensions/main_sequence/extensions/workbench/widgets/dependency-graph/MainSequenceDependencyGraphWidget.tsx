@@ -13,7 +13,6 @@ import {
   normalizeDependencyGraphDirection,
   normalizeDependencyGraphRuntimeState,
   normalizeDependencyGraphSelectedId,
-  normalizeDependencyGraphSourceKind,
   type MainSequenceDependencyGraphWidgetProps,
 } from "./dependencyGraphRuntime";
 
@@ -26,33 +25,20 @@ export function MainSequenceDependencyGraphWidget({
   const { t } = useTranslation();
   const executionState = useWidgetExecutionState(instanceId);
   const direction = normalizeDependencyGraphDirection(props.direction);
-  const sourceKind = normalizeDependencyGraphSourceKind(props.sourceKind);
   const selectedDataNodeUid = normalizeDependencyGraphSelectedId(props.dataNodeUid);
-  const selectedSimpleTableUpdateUid = normalizeDependencyGraphSelectedId(props.simpleTableUpdateUid);
   const normalizedRuntimeState = normalizeDependencyGraphRuntimeState(runtimeState);
   const directionLabel =
     direction === "upstream"
       ? t("mainSequenceDependencyGraph.settings.directionUpstreamShort")
       : t("mainSequenceDependencyGraph.settings.directionDownstreamShort");
-  const sourceBadge = sourceKind === "simple_table" ? "Simple Tables" : "Data Nodes";
-  const missingTitle =
-    sourceKind === "simple_table"
-      ? "Dependency graph needs a Simple Table update"
-      : "Dependency graph needs a Data Node";
+  const sourceBadge = "Data Nodes";
+  const missingTitle = "Dependency graph needs a Data Node";
   const missingDescription =
-    sourceKind === "simple_table"
-      ? "Select a Simple Table update in widget settings to load upstream or downstream dependencies."
-      : "Select a Data Node in widget settings. The graph uses the latest linked LocalTimeSerie update for that data node.";
+    "Select a Data Node in widget settings. The graph uses the latest linked LocalTimeSerie update for that data node.";
   const isExecuting = executionState?.status === "running";
-  const selectedSourceId =
-    sourceKind === "simple_table"
-      ? selectedSimpleTableUpdateUid
-      : normalizedRuntimeState.resolvedLocalTimeSerieId;
+  const selectedSourceId = normalizedRuntimeState.resolvedLocalTimeSerieId;
 
-  if (
-    (sourceKind === "data_node" && !selectedDataNodeUid) ||
-    (sourceKind === "simple_table" && !selectedSimpleTableUpdateUid)
-  ) {
+  if (!selectedDataNodeUid) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
@@ -70,7 +56,7 @@ export function MainSequenceDependencyGraphWidget({
     );
   }
 
-  if (sourceKind === "data_node" && normalizedRuntimeState.emptyReason === "no-linked-updates") {
+  if (normalizedRuntimeState.emptyReason === "no-linked-updates") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="text-sm font-medium text-foreground">No Data Node updates found</div>
@@ -100,12 +86,10 @@ export function MainSequenceDependencyGraphWidget({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
         <div className="text-sm font-medium text-foreground">
-          {sourceKind === "data_node" ? "Resolving Data Node update" : "Loading dependency graph"}
+          Resolving Data Node update
         </div>
         <p className="text-sm text-muted-foreground">
-          {sourceKind === "data_node"
-            ? "Loading the latest LocalTimeSerie update linked to the selected Data Node."
-            : "Loading the dependency graph for the selected Simple Table update."}
+          Loading the latest LocalTimeSerie update linked to the selected Data Node.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           <Badge variant="neutral">{sourceBadge}</Badge>
@@ -130,10 +114,8 @@ export function MainSequenceDependencyGraphWidget({
           payload: normalizedRuntimeState.payload,
           error: normalizedRuntimeState.error,
           status: normalizedRuntimeState.status,
-          sourceKind: normalizedRuntimeState.sourceKind,
           direction: normalizedRuntimeState.direction,
           selectedDataNodeUid: normalizedRuntimeState.selectedDataNodeUid,
-          selectedSimpleTableUpdateUid: normalizedRuntimeState.selectedSimpleTableUpdateUid,
           resolvedLocalTimeSerieId: normalizedRuntimeState.resolvedLocalTimeSerieId,
           emptyReason: normalizedRuntimeState.emptyReason,
           lastLoadedAtMs: normalizedRuntimeState.lastLoadedAtMs,

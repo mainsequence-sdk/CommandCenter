@@ -11,7 +11,7 @@ const devAuthProxyPrefix = "/__command_center_auth__";
 const dynamicTableDataSourceEndpoint = "/orm/api/ts_manager/dynamic_table_data_source/";
 const dynamicTableMetadataEndpoint = "/orm/api/ts_manager/dynamic_table/";
 const sourceTableConfigurationEndpoint = "/orm/api/ts_manager/source_table_config/";
-const simpleTableEndpoint = "/orm/api/ts_manager/simple_table/";
+const metaTableEndpoint = "/orm/api/ts_manager/meta_table/";
 const localTimeSerieEndpoint = "/orm/api/ts_manager/local_time_serie/";
 const availableGpuTypesEndpoint = "/orm/api/pods/billing/available-gpu-types/";
 const billingEstimateEndpoint = "/orm/api/pods/billing/estimate-runtime-cost/";
@@ -1406,9 +1406,9 @@ export interface UploadBucketArtifactResponse {
   content_url: string;
 }
 
-export interface SimpleTableRecord {
+export interface MetaTableRecord {
   id: number;
-  uid?: string | null;
+  uid: string;
   storage_hash?: string;
   creation_date?: string | null;
   source_class_name?: string | null;
@@ -1419,7 +1419,7 @@ export interface SimpleTableRecord {
   [key: string]: unknown;
 }
 
-export interface SimpleTableColumnRecord {
+export interface MetaTableColumnRecord {
   id: number;
   attr_name: string;
   column_name: string;
@@ -1429,7 +1429,7 @@ export interface SimpleTableColumnRecord {
   is_unique: boolean;
 }
 
-export interface SimpleTableForeignKeyRecord {
+export interface MetaTableForeignKeyRecord {
   id: number;
   source_column: string;
   target_table: number | Record<string, unknown> | null;
@@ -1437,13 +1437,13 @@ export interface SimpleTableForeignKeyRecord {
   on_delete: string;
 }
 
-export interface SimpleTableIndexRecord {
+export interface MetaTableIndexRecord {
   id: number;
   name: string;
   columns: string[];
 }
 
-export interface SimpleTableSchemaGraphColumnRecord {
+export interface MetaTableSchemaGraphColumnRecord {
   id: number;
   attr_name: string;
   column_name: string;
@@ -1453,23 +1453,23 @@ export interface SimpleTableSchemaGraphColumnRecord {
   is_unique: boolean;
 }
 
-export interface SimpleTableSchemaGraphIndexRecord {
+export interface MetaTableSchemaGraphIndexRecord {
   id: number;
   name: string;
   columns: string[];
 }
 
-export interface SimpleTableSchemaGraphTableRecord {
+export interface MetaTableSchemaGraphTableRecord {
   id: number;
   identifier: string;
   storage_hash: string;
   source_class_name: string | null;
   data_source_id: number | null;
-  columns: SimpleTableSchemaGraphColumnRecord[];
-  indexes: SimpleTableSchemaGraphIndexRecord[];
+  columns: MetaTableSchemaGraphColumnRecord[];
+  indexes: MetaTableSchemaGraphIndexRecord[];
 }
 
-export interface SimpleTableSchemaGraphRelationshipRecord {
+export interface MetaTableSchemaGraphRelationshipRecord {
   id: number;
   source_table_id: number;
   source_table_storage_hash: string | null;
@@ -1482,13 +1482,13 @@ export interface SimpleTableSchemaGraphRelationshipRecord {
   target_to_source_multiplicity: string | null;
 }
 
-export interface SimpleTableSchemaGraphResponse {
+export interface MetaTableSchemaGraphResponse {
   root_table_id: number;
-  tables: SimpleTableSchemaGraphTableRecord[];
-  relationships: SimpleTableSchemaGraphRelationshipRecord[];
+  tables: MetaTableSchemaGraphTableRecord[];
+  relationships: MetaTableSchemaGraphRelationshipRecord[];
 }
 
-export interface SimpleTableDetail extends SimpleTableRecord {
+export interface MetaTableDetail extends MetaTableRecord {
   schema?: unknown;
   sourcetableconfiguration?: DataNodeSourceTableConfiguration | null;
   build_configuration?: unknown;
@@ -1497,27 +1497,25 @@ export interface SimpleTableDetail extends SimpleTableRecord {
   created_by_user?: number | null;
   organization_owner?: number | null;
   open_for_everyone?: boolean;
-  columns?: SimpleTableColumnRecord[];
-  foreign_keys?: SimpleTableForeignKeyRecord[];
-  incoming_fks?: SimpleTableForeignKeyRecord[];
-  indexes_meta?: SimpleTableIndexRecord[];
+  columns?: MetaTableColumnRecord[];
+  foreign_keys?: MetaTableForeignKeyRecord[];
+  incoming_fks?: MetaTableForeignKeyRecord[];
+  indexes_meta?: MetaTableIndexRecord[];
 }
 
-export interface SimpleTableBulkDeleteInput {
+export interface MetaTableBulkDeleteInput {
   uids: string[];
-  fullDeleteSelected?: boolean;
-  fullDeleteDownstreamTables?: boolean;
 }
 
-export interface SimpleTableBulkRefreshResult {
+export interface MetaTableBulkRefreshResult {
   ok: boolean;
-  simple_table_uid: string;
+  meta_table_uid: string;
   search_index_updated: boolean;
   embedding_model?: string | null;
 }
 
-export interface SimpleTableBulkRefreshResponse {
-  results: SimpleTableBulkRefreshResult[];
+export interface MetaTableBulkRefreshResponse {
+  results: MetaTableBulkRefreshResult[];
 }
 
 export interface ColumnarDataSnapshot {
@@ -1570,18 +1568,6 @@ export interface LocalTimeSerieQuickSearchRecord {
     id: number;
     uid?: string | null;
     storage_hash: string;
-    identifier: string | null;
-  } | null;
-}
-
-export interface SimpleTableUpdateQuickSearchRecord {
-  id: number;
-  uid?: string | null;
-  update_hash: string;
-  remote_table: {
-    id: number;
-    uid?: string | null;
-    storage_hash: string | null;
     identifier: string | null;
   } | null;
 }
@@ -1835,51 +1821,6 @@ function normalizeDependencyGraphPayload(
     200,
     payload,
   );
-}
-
-export interface SimpleTableUpdateRunConfiguration {
-  update_schedule: unknown;
-  [key: string]: unknown;
-}
-
-export interface SimpleTableUpdateRunConfigurationInput {
-  update_schedule?: unknown;
-}
-
-export interface SimpleTableUpdateDetails {
-  related_table_uid: string | null;
-  active_update: boolean;
-  update_pid: number | null;
-  error_on_last_update: boolean;
-  last_update: string | null;
-  next_update: string | null;
-  active_update_status: string | null;
-  active_update_scheduler: number | null;
-  update_priority: number | null;
-  last_updated_by_user: number | null;
-  run_configuration: SimpleTableUpdateRunConfiguration | null;
-}
-
-export interface SimpleTableUpdateRecord {
-  id: number;
-  uid?: string | null;
-  remote_table: SimpleTableDetail | SimpleTableRecord | null;
-  update_hash: string;
-  build_configuration: unknown;
-  update_details: SimpleTableUpdateDetails | null;
-  run_configuration: SimpleTableUpdateRunConfiguration | null;
-  ogm_dependencies_linked: boolean;
-  open_for_everyone: boolean;
-}
-
-export interface SimpleTableHistoricalUpdateRecord {
-  id: number;
-  related_table_uid: string | null;
-  update_time_start: string | null;
-  update_time_end: string | null;
-  error_on_update: boolean;
-  trace_id: string | null;
-  updated_by_user: number | null;
 }
 
 function buildWidgetPreviewIsoTimestamp(offsetMs = 0) {
@@ -5622,15 +5563,15 @@ export function bulkDeleteBuckets(input: BucketBulkDeleteInput) {
   );
 }
 
-export async function listSimpleTables({
+export async function listMetaTables({
   limit = mainSequenceRegistryPageSize,
   offset = 0,
 }: {
   limit?: number;
   offset?: number;
 } = {}) {
-  const payload = await requestJson<PaginatedResponse<SimpleTableRecord> | SimpleTableRecord[]>(
-    simpleTableEndpoint,
+  const payload = await requestJson<PaginatedResponse<MetaTableRecord> | MetaTableRecord[]>(
+    metaTableEndpoint,
     "",
     undefined,
     {
@@ -5642,28 +5583,22 @@ export async function listSimpleTables({
   return normalizeOffsetPaginatedResponse(payload, limit, offset);
 }
 
-export function bulkDeleteSimpleTables({
+export function bulkDeleteMetaTables({
   uids,
-  fullDeleteSelected = false,
-  fullDeleteDownstreamTables = false,
-}: SimpleTableBulkDeleteInput) {
-  return requestJson<SimpleTableRecord[] | MainSequenceBulkDeleteResponse>(
-    simpleTableEndpoint,
+}: MetaTableBulkDeleteInput) {
+  return requestJson<MetaTableRecord[] | MainSequenceBulkDeleteResponse>(
+    metaTableEndpoint,
     "bulk-delete/",
     {
       method: "POST",
       body: JSON.stringify({ uids }),
     },
-    {
-      full_delete_selected: fullDeleteSelected || undefined,
-      full_delete_downstream_tables: fullDeleteDownstreamTables || undefined,
-    },
   );
 }
 
-export function bulkRefreshSimpleTableSearchIndex(uids: string[]) {
-  return requestJson<SimpleTableBulkRefreshResponse>(
-    simpleTableEndpoint,
+export function bulkRefreshMetaTableSearchIndex(uids: string[]) {
+  return requestJson<MetaTableBulkRefreshResponse>(
+    metaTableEndpoint,
     "bulk-refresh-table-search-index/",
     {
       method: "POST",
@@ -5672,17 +5607,17 @@ export function bulkRefreshSimpleTableSearchIndex(uids: string[]) {
   );
 }
 
-export function fetchSimpleTableSummary(simpleTableIdentifier: TsManagerPathIdentifier) {
+export function fetchMetaTableSummary(metaTableIdentifier: TsManagerPathIdentifier) {
   return requestJson<SummaryResponse>(
-    simpleTableEndpoint,
-    `${resolveTsManagerPath(simpleTableIdentifier)}/summary/`,
+    metaTableEndpoint,
+    `${resolveTsManagerPath(metaTableIdentifier)}/summary/`,
   );
 }
 
-export function fetchSimpleTableDetail(simpleTableIdentifier: TsManagerPathIdentifier) {
-  return requestJson<SimpleTableDetail>(
-    simpleTableEndpoint,
-    `${resolveTsManagerPath(simpleTableIdentifier)}/`,
+export function fetchMetaTableDetail(metaTableIdentifier: TsManagerPathIdentifier) {
+  return requestJson<MetaTableDetail>(
+    metaTableEndpoint,
+    `${resolveTsManagerPath(metaTableIdentifier)}/`,
   );
 }
 
@@ -5723,8 +5658,8 @@ function normalizeColumnarDataSnapshot(payload: unknown): ColumnarDataSnapshot {
   };
 }
 
-export async function fetchSimpleTableDataSnapshot(
-  simpleTableIdentifier: TsManagerPathIdentifier,
+export async function fetchMetaTableDataSnapshot(
+  metaTableIdentifier: TsManagerPathIdentifier,
   {
     limit = 100,
     offset = 0,
@@ -5734,7 +5669,7 @@ export async function fetchSimpleTableDataSnapshot(
   } = {},
 ) {
   if (env.useMockData) {
-    const detail = await fetchSimpleTableDetail(simpleTableIdentifier);
+    const detail = await fetchMetaTableDetail(metaTableIdentifier);
     const columns = Array.from(
       new Set(
         [
@@ -5755,8 +5690,8 @@ export async function fetchSimpleTableDataSnapshot(
   }
 
   const payload = await requestJson<unknown>(
-    simpleTableEndpoint,
-    `${resolveTsManagerPath(simpleTableIdentifier)}/get-data-snapshot/`,
+    metaTableEndpoint,
+    `${resolveTsManagerPath(metaTableIdentifier)}/get-data-snapshot/`,
     undefined,
     {
       limit,
@@ -5767,8 +5702,8 @@ export async function fetchSimpleTableDataSnapshot(
   return normalizeColumnarDataSnapshot(payload);
 }
 
-export function fetchSimpleTableSchemaGraph(
-  simpleTableIdentifier: TsManagerPathIdentifier,
+export function fetchMetaTableSchemaGraph(
+  metaTableIdentifier: TsManagerPathIdentifier,
   {
     depth,
     includeIncoming = false,
@@ -5777,82 +5712,14 @@ export function fetchSimpleTableSchemaGraph(
     includeIncoming?: boolean;
   } = {},
 ) {
-  return requestJson<SimpleTableSchemaGraphResponse>(
-    simpleTableEndpoint,
-    `${resolveTsManagerPath(simpleTableIdentifier)}/schema-graph/`,
+  return requestJson<MetaTableSchemaGraphResponse>(
+    metaTableEndpoint,
+    `${resolveTsManagerPath(metaTableIdentifier)}/schema-graph/`,
     undefined,
     {
       depth,
       include_incoming: includeIncoming,
     },
-  );
-}
-
-export async function listSimpleTableUpdates(
-  simpleTableUid: string,
-  {
-    limit = mainSequenceRegistryPageSize,
-    offset = 0,
-  }: {
-    limit?: number;
-    offset?: number;
-  } = {},
-) {
-  const payload = await requestJson<
-    PaginatedResponse<SimpleTableUpdateRecord> | SimpleTableUpdateRecord[]
-  >(simpleTableEndpoint, "update/", undefined, {
-    limit,
-    offset,
-    remote_table__uid: simpleTableUid,
-  });
-
-  const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
-
-  return {
-    ...page,
-    results: [...page.results].sort((left, right) => right.id - left.id),
-  };
-}
-
-export function fetchSimpleTableUpdateDetail(simpleTableUpdateIdentifier: TsManagerPathIdentifier) {
-  return requestJson<SimpleTableUpdateRecord>(
-    simpleTableEndpoint,
-    `update/${resolveTsManagerPath(simpleTableUpdateIdentifier)}/`,
-  );
-}
-
-export function fetchSimpleTableUpdateRunConfiguration(
-  simpleTableUpdateIdentifier: TsManagerPathIdentifier,
-) {
-  return requestJson<SimpleTableUpdateRunConfiguration>(
-    simpleTableEndpoint,
-    `update/${resolveTsManagerPath(simpleTableUpdateIdentifier)}/run-configuration/`,
-  );
-}
-
-export function updateSimpleTableUpdateRunConfiguration(
-  simpleTableUpdateIdentifier: TsManagerPathIdentifier,
-  input: SimpleTableUpdateRunConfigurationInput,
-) {
-  return requestJson<SimpleTableUpdateRunConfiguration>(
-    simpleTableEndpoint,
-    `update/${resolveTsManagerPath(simpleTableUpdateIdentifier)}/run-configuration/`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(input),
-    },
-  );
-}
-
-export function listSimpleTableUpdateHistoricalUpdates(
-  simpleTableUpdateIdentifier: TsManagerPathIdentifier,
-  limit = 100,
-) {
-  return requestJson<SimpleTableHistoricalUpdateRecord[]>(
-    simpleTableEndpoint,
-    `update/${resolveTsManagerPath(simpleTableUpdateIdentifier)}/historical-updates/`,
-    undefined,
-    { limit },
   );
 }
 
@@ -5935,39 +5802,6 @@ export async function quickSearchLocalTimeSeries({
             storage_hash: row.data_node_storage.storage_hash,
             identifier: row.data_node_storage.identifier,
           }
-      : null,
-  }));
-}
-
-export async function quickSearchSimpleTableUpdates({
-  limit = 50,
-  q,
-}: {
-  limit?: number;
-  q: string;
-}) {
-  const payload = await requestJson<
-    PaginatedResponse<SimpleTableUpdateRecord> | SimpleTableUpdateRecord[]
-  >(simpleTableEndpoint, "update/", undefined, {
-    limit,
-    q: q.trim(),
-  });
-
-  const rows = normalizeListResponse(payload);
-
-  return rows.map<SimpleTableUpdateQuickSearchRecord>((row) => ({
-    id: row.id,
-    uid: typeof row.uid === "string" ? row.uid : null,
-    update_hash: row.update_hash,
-    remote_table: row.remote_table
-      ? {
-          id: row.remote_table.id,
-          uid: typeof row.remote_table.uid === "string" ? row.remote_table.uid : null,
-          storage_hash:
-            typeof row.remote_table.storage_hash === "string" ? row.remote_table.storage_hash : null,
-          identifier:
-            typeof row.remote_table.identifier === "string" ? row.remote_table.identifier : null,
-        }
       : null,
   }));
 }
@@ -7180,22 +7014,6 @@ export function fetchLocalTimeSerieDependencyGraph(
     traceMeta,
   ).then((payload) =>
     normalizeDependencyGraphPayload(payload, "LocalTimeSerie dependency graph"),
-  );
-}
-
-export function fetchSimpleTableUpdateDependencyGraph(
-  simpleTableUpdateIdentifier: TsManagerPathIdentifier,
-  direction: "downstream" | "upstream",
-  traceMeta?: DashboardRequestTraceMeta,
-) {
-  return requestJson<unknown>(
-    simpleTableEndpoint,
-    `update/${resolveTsManagerPath(simpleTableUpdateIdentifier)}/dependencies-graph/`,
-    undefined,
-    { direction },
-    traceMeta,
-  ).then((payload) =>
-    normalizeDependencyGraphPayload(payload, "SimpleTableUpdate dependency graph"),
   );
 }
 

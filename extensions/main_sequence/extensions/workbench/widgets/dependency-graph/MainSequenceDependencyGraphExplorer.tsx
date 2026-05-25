@@ -76,7 +76,6 @@ const dependencyGraphPropertyLabelKeyMap: Record<string, string> = {
   error_on_last_update: "errorOnLastUpdate",
   last_update: "lastUpdate",
   next_update: "nextUpdate",
-  simple_table_update_id: "simpleTableUpdateId",
 };
 
 function getDirectionLabel(direction: MainSequenceDependencyGraphDirection, t: TFunction) {
@@ -194,7 +193,6 @@ function getPropertyEntries(node: DependencyGraphLayoutNode | null, t: TFunction
     "human_readable",
     "update_hash",
     "data_node_update_id",
-    "simple_table_update_id",
     "local_time_serie_id",
     "remote_table_hash_id",
     "remote_table_id",
@@ -282,10 +280,7 @@ function buildDataNodeUrl(node: DependencyGraphLayoutNode | null) {
     return null;
   }
 
-  if (
-    nodeType === "simple_table_update" ||
-    getStringPropertyValue(node?.properties?.simple_table_update_uid) !== null
-  ) {
+  if (nodeType === "meta_table_update") {
     return null;
   }
 
@@ -300,11 +295,11 @@ function buildDataNodeUrl(node: DependencyGraphLayoutNode | null) {
   return `/app/main_sequence_workbench/data-nodes?msDataNodeUid=${remoteTableId}&msDataNodeTab=details`;
 }
 
-function buildSimpleTableUrl(node: DependencyGraphLayoutNode | null) {
+function buildMetaTableUrl(node: DependencyGraphLayoutNode | null) {
   const remoteTableType = getRemoteTableType(node);
   const nodeType = getNodeType(node);
 
-  if (remoteTableType && remoteTableType !== "simple_table") {
+  if (remoteTableType && remoteTableType !== "meta_table") {
     return null;
   }
 
@@ -324,11 +319,11 @@ function buildSimpleTableUrl(node: DependencyGraphLayoutNode | null) {
     return null;
   }
 
-  return `/app/main_sequence_workbench/simple-tables?msSimpleTableUid=${remoteTableId}&msSimpleTableTab=details`;
+  return `/app/main_sequence_workbench/meta-tables?msMetaTableUid=${remoteTableId}&msMetaTableTab=details`;
 }
 
 function buildDataNodeUpdateUrl(node: DependencyGraphLayoutNode | null) {
-  if (getNodeType(node) === "simple_table_update") {
+  if (getNodeType(node) === "meta_table_update") {
     return null;
   }
 
@@ -355,35 +350,8 @@ function buildDataNodeUpdateUrl(node: DependencyGraphLayoutNode | null) {
   return `/app/main_sequence_workbench/data-nodes?${search.toString()}`;
 }
 
-function buildSimpleTableUpdateUrl(node: DependencyGraphLayoutNode | null) {
-  if (getNodeType(node) === "data_node_update") {
-    return null;
-  }
-
-  const simpleTableUpdateId =
-    getStringPropertyValue(node?.properties?.simple_table_update_uid) ??
-    getStringPropertyValue(node?.properties?.uid);
-
-  if (simpleTableUpdateId === null) {
-    return null;
-  }
-
-  const remoteTableId = getStringPropertyValue(node?.properties?.remote_table_uid);
-  const search = new URLSearchParams();
-
-  if (remoteTableId !== null) {
-    search.set("msSimpleTableUid", remoteTableId);
-  }
-
-  search.set("msSimpleTableTab", "local-update");
-  search.set("msSimpleTableUpdateUid", simpleTableUpdateId);
-  search.set("msSimpleTableUpdateTab", "graphs");
-
-  return `/app/main_sequence_workbench/simple-tables?${search.toString()}`;
-}
-
 function getNodeIcon(node: DependencyGraphLayoutNode) {
-  if (node.node_type === "simple_table_update") {
+  if (node.remote_table_type === "meta_table") {
     return <Table2 className="h-3.5 w-3.5" />;
   }
 
@@ -1185,16 +1153,6 @@ export function MainSequenceDependencyGraphExplorer({
                       Open Data Node Update
                     </Button>
                   ) : null}
-                  {buildSimpleTableUpdateUrl(selectedNode) ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenExternal(buildSimpleTableUpdateUrl(selectedNode))}
-                    >
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                      Open Simple Table Update
-                    </Button>
-                  ) : null}
                   {buildDataNodeUrl(selectedNode) ? (
                     <Button
                       variant="outline"
@@ -1205,14 +1163,14 @@ export function MainSequenceDependencyGraphExplorer({
                       Open Data Node
                     </Button>
                   ) : null}
-                  {buildSimpleTableUrl(selectedNode) ? (
+                  {buildMetaTableUrl(selectedNode) ? (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleOpenExternal(buildSimpleTableUrl(selectedNode))}
+                      onClick={() => handleOpenExternal(buildMetaTableUrl(selectedNode))}
                     >
                       <ArrowUpRight className="h-3.5 w-3.5" />
-                      Open Simple Table
+                      Open Meta Table
                     </Button>
                   ) : null}
                 </div>

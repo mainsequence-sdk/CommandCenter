@@ -1,7 +1,7 @@
 import type { AppExtension } from "@/app/registry/types";
 
 import { mainSequenceDataNodeConnection } from "./connections/dataNodeConnection";
-import { mainSequenceSimpleTableConnection } from "./connections/simpleTableConnection";
+import { mainSequenceMetaTableConnection } from "./connections/simpleTableConnection";
 import { mainSequenceWorkbenchApp } from "./app";
 import { mainSequenceDependencyGraphWidget } from "./widgets/dependency-graph/definition";
 import { mainSequenceProjectInfraGraphWidget } from "./widgets/project-infra-graph/definition";
@@ -15,7 +15,7 @@ const mainSequenceWorkbenchExtension: AppExtension = {
     mainSequenceProjectInfraGraphWidget,
   ],
   apps: [mainSequenceWorkbenchApp],
-  connections: [mainSequenceDataNodeConnection, mainSequenceSimpleTableConnection],
+  connections: [mainSequenceDataNodeConnection, mainSequenceMetaTableConnection],
 };
 
 export default mainSequenceWorkbenchExtension;

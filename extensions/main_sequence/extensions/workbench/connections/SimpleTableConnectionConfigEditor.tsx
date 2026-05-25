@@ -9,25 +9,25 @@ import { Select } from "@/components/ui/select";
 import type { ConnectionConfigEditorProps } from "@/connections/types";
 
 import {
-  fetchSimpleTableDetail,
-  listSimpleTables,
-  type SimpleTableColumnRecord,
-  type SimpleTableDetail,
-  type SimpleTableRecord,
+  fetchMetaTableDetail,
+  listMetaTables,
+  type MetaTableColumnRecord,
+  type MetaTableDetail,
+  type MetaTableRecord,
 } from "../../../common/api";
 import { DataNodePreviewTable } from "../widgets/data-node-shared/DataNodePreviewTable";
-import type { MainSequenceSimpleTableConnectionPublicConfig } from "./simpleTableConnection";
+import type { MainSequenceMetaTableConnectionPublicConfig } from "./simpleTableConnection";
 import {
-  DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_QUERY_CACHE_TTL_MS,
-  DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_ROW_LIMIT,
-  DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_STATEMENT_TIMEOUT_MS,
+  DEFAULT_MAIN_SEQUENCE_META_TABLE_QUERY_CACHE_TTL_MS,
+  DEFAULT_MAIN_SEQUENCE_META_TABLE_ROW_LIMIT,
+  DEFAULT_MAIN_SEQUENCE_META_TABLE_STATEMENT_TIMEOUT_MS,
 } from "./simpleTableConnection";
 
 function normalizeUidString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-function getSimpleTableLabel(table?: SimpleTableRecord | SimpleTableDetail | null) {
+function getMetaTableLabel(table?: MetaTableRecord | MetaTableDetail | null) {
   const candidates = [
     table?.storage_hash,
     table?.identifier,
@@ -37,10 +37,10 @@ function getSimpleTableLabel(table?: SimpleTableRecord | SimpleTableDetail | nul
   ];
 
   return candidates.find((value) => typeof value === "string" && value.trim())?.trim() ??
-    (table?.id ? `Simple Table ${table.id}` : "Selected Simple Table");
+    (table?.uid ? `Meta Table ${table.uid}` : "Selected Meta Table");
 }
 
-function getSimpleTableColumns(detail?: SimpleTableDetail | null): SimpleTableColumnRecord[] {
+function getMetaTableColumns(detail?: MetaTableDetail | null): MetaTableColumnRecord[] {
   if (!detail) {
     return [];
   }
@@ -69,38 +69,37 @@ function getSimpleTableColumns(detail?: SimpleTableDetail | null): SimpleTableCo
         is_pk: false,
         nullable: true,
         is_unique: false,
-      } satisfies SimpleTableColumnRecord,
+      } satisfies MetaTableColumnRecord,
     ];
   });
 }
 
-function updateSelectedSimpleTableConfig(
-  config: MainSequenceSimpleTableConnectionPublicConfig,
-  table?: SimpleTableRecord | SimpleTableDetail | null,
-): MainSequenceSimpleTableConnectionPublicConfig {
+function updateSelectedMetaTableConfig(
+  config: MainSequenceMetaTableConnectionPublicConfig,
+  table?: MetaTableRecord | MetaTableDetail | null,
+): MainSequenceMetaTableConnectionPublicConfig {
   if (!table) {
     return {
       ...config,
-      simpleTableUid: undefined,
-      simpleTableIdentifier: undefined,
-      simpleTableLabel: undefined,
-      simpleTableStorageHash: undefined,
+      metaTableUid: undefined,
+      metaTableIdentifier: undefined,
+      metaTableLabel: undefined,
+      metaTableStorageHash: undefined,
     };
   }
 
   return {
     ...config,
-    simpleTableUid: table.uid?.trim() || undefined,
-    simpleTableIdentifier: table.identifier ?? undefined,
-    simpleTableLabel: getSimpleTableLabel(table),
-    simpleTableStorageHash: table.storage_hash ?? undefined,
+    metaTableUid: table.uid?.trim() || undefined,
+    metaTableIdentifier: table.identifier ?? undefined,
+    metaTableLabel: getMetaTableLabel(table),
+    metaTableStorageHash: table.storage_hash ?? undefined,
   };
 }
 
-function buildSearchText(table: SimpleTableRecord) {
+function buildSearchText(table: MetaTableRecord) {
   return [
     table.uid ?? "",
-    String(table.id),
     table.storage_hash ?? "",
     table.identifier ?? "",
     table.source_class_name ?? "",
@@ -110,117 +109,117 @@ function buildSearchText(table: SimpleTableRecord) {
     .toLowerCase();
 }
 
-export function SimpleTableConnectionConfigEditor({
+export function MetaTableConnectionConfigEditor({
   value,
   onChange,
   disabled,
-}: ConnectionConfigEditorProps<MainSequenceSimpleTableConnectionPublicConfig>) {
-  const simpleTableUid = normalizeUidString(value.simpleTableUid);
+}: ConnectionConfigEditorProps<MainSequenceMetaTableConnectionPublicConfig>) {
+  const metaTableUid = normalizeUidString(value.metaTableUid);
   const [searchValue, setSearchValue] = useState("");
   const deferredSearchValue = useDeferredValue(searchValue);
-  const simpleTablesQuery = useQuery({
-    queryKey: ["main_sequence", "connections", "simple_table", "list"],
-    queryFn: () => listSimpleTables({ limit: 100 }),
+  const metaTablesQuery = useQuery({
+    queryKey: ["main_sequence", "connections", "meta_table", "list"],
+    queryFn: () => listMetaTables({ limit: 100 }),
     staleTime: 300_000,
   });
-  const simpleTableDetailQuery = useQuery({
-    queryKey: ["main_sequence", "connections", "simple_table", "detail", simpleTableUid],
-    queryFn: () => fetchSimpleTableDetail(simpleTableUid!),
-    enabled: Boolean(simpleTableUid),
+  const metaTableDetailQuery = useQuery({
+    queryKey: ["main_sequence", "connections", "meta_table", "detail", metaTableUid],
+    queryFn: () => fetchMetaTableDetail(metaTableUid!),
+    enabled: Boolean(metaTableUid),
     staleTime: 300_000,
   });
-  const simpleTables = simpleTablesQuery.data?.results ?? [];
-  const selectedSimpleTable = simpleTableDetailQuery.data ??
-    simpleTables.find((table) => table.uid === simpleTableUid) ??
-    (simpleTableUid
+  const metaTables = metaTablesQuery.data?.results ?? [];
+  const selectedMetaTable = metaTableDetailQuery.data ??
+    metaTables.find((table) => table.uid === metaTableUid) ??
+    (metaTableUid
       ? {
           id: 0,
-          uid: simpleTableUid,
-          identifier: value.simpleTableIdentifier ?? null,
-          storage_hash: value.simpleTableStorageHash,
+          uid: metaTableUid,
+          identifier: value.metaTableIdentifier ?? null,
+          storage_hash: value.metaTableStorageHash,
         }
       : null);
   const filteredTables = useMemo(() => {
     const normalizedSearch = deferredSearchValue.trim().toLowerCase();
 
     if (!normalizedSearch) {
-      return simpleTables;
+      return metaTables;
     }
 
-    return simpleTables.filter((table) => buildSearchText(table).includes(normalizedSearch));
-  }, [deferredSearchValue, simpleTables]);
+    return metaTables.filter((table) => buildSearchText(table).includes(normalizedSearch));
+  }, [deferredSearchValue, metaTables]);
   const columns = useMemo(
-    () => getSimpleTableColumns(simpleTableDetailQuery.data),
-    [simpleTableDetailQuery.data],
+    () => getMetaTableColumns(metaTableDetailQuery.data),
+    [metaTableDetailQuery.data],
   );
 
   useEffect(() => {
-    if (!simpleTableDetailQuery.data) {
+    if (!metaTableDetailQuery.data) {
       return;
     }
 
-    const nextConfig = updateSelectedSimpleTableConfig(value, simpleTableDetailQuery.data);
+    const nextConfig = updateSelectedMetaTableConfig(value, metaTableDetailQuery.data);
 
     if (
-      nextConfig.simpleTableLabel === value.simpleTableLabel &&
-      nextConfig.simpleTableStorageHash === value.simpleTableStorageHash &&
-      nextConfig.simpleTableIdentifier === value.simpleTableIdentifier
+      nextConfig.metaTableLabel === value.metaTableLabel &&
+      nextConfig.metaTableStorageHash === value.metaTableStorageHash &&
+      nextConfig.metaTableIdentifier === value.metaTableIdentifier
     ) {
       return;
     }
 
     onChange(nextConfig);
-  }, [onChange, simpleTableDetailQuery.data, value]);
+  }, [onChange, metaTableDetailQuery.data, value]);
 
   return (
     <div className="space-y-5 border-t border-border/70 pt-5">
       <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-        Simple Table
+        Meta Table
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(260px,360px)]">
         <div className="space-y-3">
           <label className="block space-y-1.5">
             <span className="text-xs font-medium text-muted-foreground">
-              Search Simple Tables
+              Search Meta Tables
             </span>
             <Input
               value={searchValue}
               disabled={disabled}
               onChange={(event) => setSearchValue(event.target.value)}
-              placeholder="Search by storage hash, identifier, source class, or id"
+              placeholder="Search by storage hash, identifier, source class, or UID"
             />
           </label>
 
           <div className="max-h-72 overflow-auto rounded-[calc(var(--radius)-4px)] border border-border/70">
-            {simpleTablesQuery.isLoading ? (
+            {metaTablesQuery.isLoading ? (
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                Loading Simple Tables
+                Loading Meta Tables
               </div>
-            ) : simpleTablesQuery.isError ? (
+            ) : metaTablesQuery.isError ? (
               <div className="px-4 py-8 text-center text-sm text-danger">
-                Unable to load Simple Tables.
+                Unable to load Meta Tables.
               </div>
             ) : filteredTables.length === 0 ? (
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                No Simple Tables match the current search.
+                No Meta Tables match the current search.
               </div>
             ) : (
               <div className="divide-y divide-border/60">
                 {filteredTables.map((table) => {
-                  const selected = table.uid === simpleTableUid;
+                  const selected = table.uid === metaTableUid;
 
                   return (
                     <button
-                      key={table.id}
+                      key={table.uid}
                       type="button"
                       disabled={disabled}
                       className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/35 disabled:cursor-not-allowed disabled:opacity-60"
-                      onClick={() => onChange(updateSelectedSimpleTableConfig(value, table))}
+                      onClick={() => onChange(updateSelectedMetaTableConfig(value, table))}
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-medium text-foreground">
-                          {getSimpleTableLabel(table)}
+                          {getMetaTableLabel(table)}
                         </span>
                         <span className="mt-1 block truncate font-mono text-xs text-muted-foreground">
                           {table.uid?.trim() ? `uid ${table.uid.trim()}` : ""}
@@ -237,31 +236,33 @@ export function SimpleTableConnectionConfigEditor({
         </div>
 
         <div className="rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/35 p-4 text-sm">
-          {selectedSimpleTable ? (
+          {selectedMetaTable ? (
             <div className="space-y-3">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Selected
                 </div>
                 <div className="mt-1 font-medium text-foreground">
-                  {getSimpleTableLabel(selectedSimpleTable)}
+                  {getMetaTableLabel(selectedMetaTable)}
                 </div>
               </div>
               <div className="grid gap-3 text-xs text-muted-foreground">
                 <div>
-                  <div className="font-semibold uppercase tracking-[0.12em]">ID</div>
-                  <div className="mt-1 font-mono text-foreground">{selectedSimpleTable.id}</div>
+                  <div className="font-semibold uppercase tracking-[0.12em]">UID</div>
+                  <div className="mt-1 break-all font-mono text-foreground">
+                    {selectedMetaTable.uid}
+                  </div>
                 </div>
                 <div>
                   <div className="font-semibold uppercase tracking-[0.12em]">Storage hash</div>
                   <div className="mt-1 break-all font-mono text-foreground">
-                    {selectedSimpleTable.storage_hash ?? "Pending detail"}
+                    {selectedMetaTable.storage_hash ?? "Pending detail"}
                   </div>
                 </div>
                 <div>
                   <div className="font-semibold uppercase tracking-[0.12em]">Identifier</div>
                   <div className="mt-1 break-all font-mono text-foreground">
-                    {selectedSimpleTable.identifier ?? "Not set"}
+                    {selectedMetaTable.identifier ?? "Not set"}
                   </div>
                 </div>
               </div>
@@ -270,29 +271,29 @@ export function SimpleTableConnectionConfigEditor({
                 variant="outline"
                 size="sm"
                 disabled={disabled}
-                onClick={() => onChange(updateSelectedSimpleTableConfig(value))}
+                onClick={() => onChange(updateSelectedMetaTableConfig(value))}
               >
                 Clear selection
               </Button>
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">
-              Select a Simple Table to configure this data source.
+              Select a Meta Table to configure this data source.
             </div>
           )}
         </div>
       </div>
 
-      {simpleTableUid ? (
+      {metaTableUid ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-medium text-foreground">Columns</div>
               <div className="mt-1 text-xs text-muted-foreground">
-                Detail metadata from the selected Simple Table.
+                Detail metadata from the selected Meta Table.
               </div>
             </div>
-            {simpleTableDetailQuery.isFetching ? <Badge variant="neutral">Loading detail</Badge> : null}
+            {metaTableDetailQuery.isFetching ? <Badge variant="neutral">Loading detail</Badge> : null}
           </div>
           <DataNodePreviewTable
             columns={["column_name", "attr_name", "db_type", "nullable", "is_pk"]}
@@ -303,7 +304,7 @@ export function SimpleTableConnectionConfigEditor({
               nullable: column.nullable,
               is_pk: column.is_pk,
             }))}
-            emptyMessage="No column metadata is available for this Simple Table."
+            emptyMessage="No column metadata is available for this Meta Table."
             maxRows={100}
           />
         </div>
@@ -315,7 +316,7 @@ export function SimpleTableConnectionConfigEditor({
           <Input
             type="number"
             min={1}
-            value={value.defaultLimit ?? DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_ROW_LIMIT}
+            value={value.defaultLimit ?? DEFAULT_MAIN_SEQUENCE_META_TABLE_ROW_LIMIT}
             disabled={disabled}
             onChange={(event) => {
               const parsed = Number(event.target.value);
@@ -324,7 +325,7 @@ export function SimpleTableConnectionConfigEditor({
                 defaultLimit:
                   Number.isFinite(parsed) && parsed > 0
                     ? Math.trunc(parsed)
-                    : DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_ROW_LIMIT,
+                    : DEFAULT_MAIN_SEQUENCE_META_TABLE_ROW_LIMIT,
               });
             }}
           />
@@ -337,7 +338,7 @@ export function SimpleTableConnectionConfigEditor({
           <Input
             type="number"
             min={1}
-            value={value.statementTimeoutMs ?? DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_STATEMENT_TIMEOUT_MS}
+            value={value.statementTimeoutMs ?? DEFAULT_MAIN_SEQUENCE_META_TABLE_STATEMENT_TIMEOUT_MS}
             disabled={disabled}
             onChange={(event) => {
               const parsed = Number(event.target.value);
@@ -346,7 +347,7 @@ export function SimpleTableConnectionConfigEditor({
                 statementTimeoutMs:
                   Number.isFinite(parsed) && parsed > 0
                     ? Math.trunc(parsed)
-                    : DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_STATEMENT_TIMEOUT_MS,
+                    : DEFAULT_MAIN_SEQUENCE_META_TABLE_STATEMENT_TIMEOUT_MS,
               });
             }}
           />
@@ -378,7 +379,7 @@ export function SimpleTableConnectionConfigEditor({
           <Input
             type="number"
             min={1}
-            value={value.queryCacheTtlMs ?? DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_QUERY_CACHE_TTL_MS}
+            value={value.queryCacheTtlMs ?? DEFAULT_MAIN_SEQUENCE_META_TABLE_QUERY_CACHE_TTL_MS}
             disabled={disabled || value.queryCachePolicy === "disabled"}
             onChange={(event) => {
               const parsed = Number(event.target.value);
@@ -387,7 +388,7 @@ export function SimpleTableConnectionConfigEditor({
                 queryCacheTtlMs:
                   Number.isFinite(parsed) && parsed > 0
                     ? Math.trunc(parsed)
-                    : DEFAULT_MAIN_SEQUENCE_SIMPLE_TABLE_QUERY_CACHE_TTL_MS,
+                    : DEFAULT_MAIN_SEQUENCE_META_TABLE_QUERY_CACHE_TTL_MS,
               });
             }}
           />
@@ -412,7 +413,7 @@ export function SimpleTableConnectionConfigEditor({
             Dedupe in-flight identical queries
           </span>
           <span className="block text-xs leading-5 text-muted-foreground">
-            Share one running backend Simple Table SQL request when identical cache misses arrive
+            Share one running backend Meta Table SQL request when identical cache misses arrive
             at the same time.
           </span>
         </span>

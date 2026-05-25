@@ -90,7 +90,6 @@ type MockState = {
   dataNodes: Array<Record<string, unknown>>;
   localTimeSeries: Array<Record<string, unknown>>;
   simpleTables: Array<Record<string, unknown>>;
-  simpleTableUpdates: Array<Record<string, unknown>>;
   permissionCandidateUsers: Array<Record<string, unknown>>;
   teams: Array<Record<string, unknown>>;
   availableGpuTypes: Array<Record<string, unknown>>;
@@ -133,7 +132,6 @@ function createMockState(): MockState {
     dataNodes: readCollectionDataset("data_nodes"),
     localTimeSeries: readCollectionDataset("local_time_series"),
     simpleTables: readCollectionDataset("simple_tables"),
-    simpleTableUpdates: readCollectionDataset("simple_table_updates"),
     permissionCandidateUsers: readDataset("permission_candidate_users"),
     teams: readDataset("teams"),
     availableGpuTypes: readDataset("available_gpu_types"),
@@ -265,7 +263,7 @@ function isDependencyGraphPayload(payload: unknown): payload is Record<string, u
 }
 
 function resolveMockDependencyGraph(input: {
-  sourceKind: "local_time_serie" | "simple_table_update";
+  sourceKind: "local_time_serie";
   sourceId: string;
   direction?: string | null;
 }) {
@@ -1006,38 +1004,33 @@ function buildDataNodeSummary(dataNode: Record<string, unknown>) {
   });
 }
 
-function buildSimpleTableSummary(simpleTable: Record<string, unknown>) {
-  const columns = readArray(simpleTable.columns);
-  const foreignKeys = readArray(simpleTable.foreign_keys);
-  const updates = state.simpleTableUpdates.filter(
-    (update) =>
-      readString((update.remote_table as Record<string, unknown> | null)?.uid) ===
-      readString(simpleTable.uid),
-  );
+function buildMetaTableSummary(metaTable: Record<string, unknown>) {
+  const columns = readArray(metaTable.columns);
+  const foreignKeys = readArray(metaTable.foreign_keys);
 
   return buildEntitySummary(
-    readString(simpleTable.uid),
-    "simple_table",
-    readString(simpleTable.storage_hash) || `Simple Table ${simpleTable.id}`,
+    readString(metaTable.uid),
+    "meta_table",
+    readString(metaTable.storage_hash) || `Meta Table ${readString(metaTable.uid)}`,
     {
       badges: [
         {
           key: "visibility",
-          label: readBoolean(simpleTable.open_for_everyone) ? "Public" : "Private",
-          tone: readBoolean(simpleTable.open_for_everyone) ? "success" : "neutral",
+          label: readBoolean(metaTable.open_for_everyone) ? "Public" : "Private",
+          tone: readBoolean(metaTable.open_for_everyone) ? "success" : "neutral",
         },
       ],
       inlineFields: [
         {
           key: "identifier",
           label: "Identifier",
-          value: readString(simpleTable.identifier) || "Not set",
+          value: readString(metaTable.identifier) || "Not set",
           kind: "text",
         },
         {
           key: "description",
           label: "Description",
-          value: readString(simpleTable.description) || "No description",
+          value: readString(metaTable.description) || "No description",
           kind: "text",
         },
       ],
@@ -1054,13 +1047,6 @@ function buildSimpleTableSummary(simpleTable: Record<string, unknown>) {
           label: "Foreign Keys",
           display: String(foreignKeys.length),
           value: foreignKeys.length,
-          kind: "number",
-        },
-        {
-          key: "updates",
-          label: "Updates",
-          display: String(updates.length),
-          value: updates.length,
           kind: "number",
         },
       ],
@@ -2840,11 +2826,11 @@ function handleBuckets(route: string, method: string, searchParams: URLSearchPar
 }
 
 function handleSimpleTables(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
-  if (route === "/orm/api/ts_manager/simple_table/" && method === "GET") {
+  if (route === "/orm/api/ts_manager/meta_table/" && method === "GET") {
     return paginate(sortDescendingById(state.simpleTables), searchParams.get("limit"), searchParams.get("offset"));
   }
 
-  if (route === "/orm/api/ts_manager/simple_table/bulk-delete/" && method === "POST") {
+  if (route === "/orm/api/ts_manager/meta_table/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
     const uids = new Set(readArray<string>(body?.uids));
     const before = state.simpleTables.length;
@@ -2854,31 +2840,31 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
     };
   }
 
-  if (route === "/orm/api/ts_manager/simple_table/bulk-refresh-table-search-index/" && method === "POST") {
+  if (route === "/orm/api/ts_manager/meta_table/bulk-refresh-table-search-index/" && method === "POST") {
     const body = parseBody(init);
     return {
       results: readArray<string>(body?.uids).map((uid) => ({
-        simple_table_uid: uid,
+        meta_table_uid: uid,
         ok: true,
         detail: "Search index refreshed in mock mode.",
       })),
     };
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/([^/]+)\/$/);
+  const detailMatch = route.match(/^\/orm\/api\/ts_manager\/meta_table\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
     return findByUid(state.simpleTables, detailMatch[1] ?? "");
   }
 
-  const summaryMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/([^/]+)\/summary\/$/);
+  const summaryMatch = route.match(/^\/orm\/api\/ts_manager\/meta_table\/([^/]+)\/summary\/$/);
   if (summaryMatch && method === "GET") {
     const table = findByUid(state.simpleTables, summaryMatch[1] ?? "");
-    return buildSimpleTableSummary(
+    return buildMetaTableSummary(
       table ?? { id: Number(summaryMatch[1]), uid: summaryMatch[1], storage_hash: `table_${summaryMatch[1]}` },
     );
   }
 
-  const schemaMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/([^/]+)\/schema-graph\/$/);
+  const schemaMatch = route.match(/^\/orm\/api\/ts_manager\/meta_table\/([^/]+)\/schema-graph\/$/);
   if (schemaMatch && method === "GET") {
     const table = findByUid(state.simpleTables, schemaMatch[1] ?? "");
     return {
@@ -2894,70 +2880,6 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
         depth: Number(searchParams.get("depth") ?? 2),
       },
     };
-  }
-
-  if (route === "/orm/api/ts_manager/simple_table/update/" && method === "GET") {
-    const simpleTableUid = searchParams.get("remote_table__uid") ?? "";
-    const query = searchParams.get("q");
-    const filtered = sortDescendingById(
-      state.simpleTableUpdates.filter(
-        (update) =>
-          (simpleTableUid
-            ? readString((update.remote_table as Record<string, unknown> | null)?.uid) === simpleTableUid
-            : true) &&
-          matchesSearch(
-            [
-              update.id,
-              update.update_hash,
-              (update.remote_table as Record<string, unknown> | null)?.uid,
-              (update.remote_table as Record<string, unknown> | null)?.storage_hash,
-              (update.remote_table as Record<string, unknown> | null)?.identifier,
-            ],
-            query,
-          ),
-      ),
-    );
-    return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
-  }
-
-  const updateMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/([^/]+)\/$/);
-  if (updateMatch && method === "GET") {
-    return findByUid(state.simpleTableUpdates, updateMatch[1] ?? "");
-  }
-
-  const updateConfigMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/([^/]+)\/run-configuration\/$/);
-  if (updateConfigMatch && method === "GET") {
-    const update = findByUid(state.simpleTableUpdates, updateConfigMatch[1] ?? "");
-    return update?.run_configuration ?? { update_schedule: null };
-  }
-
-  if (updateConfigMatch && method === "PATCH") {
-    const update = findByUid(state.simpleTableUpdates, updateConfigMatch[1] ?? "");
-    update && (update.run_configuration = { ...(update.run_configuration as Record<string, unknown> ?? {}), ...(parseBody(init) ?? {}) });
-    return update?.run_configuration ?? { update_schedule: null };
-  }
-
-  const updateHistoryMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/([^/]+)\/historical-updates\/$/);
-  if (updateHistoryMatch && method === "GET") {
-    const update = findByUid(state.simpleTableUpdates, updateHistoryMatch[1] ?? "");
-    return readArray(update?.historical_updates).slice(0, Number(searchParams.get("limit") ?? 100));
-  }
-
-  const updateGraphMatch = route.match(/^\/orm\/api\/ts_manager\/simple_table\/update\/([^/]+)\/dependencies-graph\/$/);
-  if (updateGraphMatch && method === "GET") {
-    const graph = resolveMockDependencyGraph({
-      sourceKind: "simple_table_update",
-      sourceId: updateGraphMatch[1] ?? "",
-      direction: searchParams.get("direction"),
-    });
-
-    if (!graph) {
-      throw new Error(
-        `Missing Main Sequence mock dependency graph payload for simple_table_update/${updateGraphMatch[1]}.`,
-      );
-    }
-
-    return graph;
   }
 
   return undefined;

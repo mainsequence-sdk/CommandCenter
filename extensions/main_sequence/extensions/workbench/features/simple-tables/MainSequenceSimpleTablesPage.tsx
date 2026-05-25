@@ -13,17 +13,17 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toaster";
 
 import {
-  bulkDeleteSimpleTables,
-  bulkRefreshSimpleTableSearchIndex,
-  fetchSimpleTableDetail,
-  fetchSimpleTableSummary,
+  bulkDeleteMetaTables,
+  bulkRefreshMetaTableSearchIndex,
+  fetchMetaTableDetail,
+  fetchMetaTableSummary,
   formatMainSequenceError,
   getTsManagerRecordIdentifier,
-  listSimpleTables,
+  listMetaTables,
   mainSequenceRegistryPageSize,
   type EntitySummaryHeader,
-  type SimpleTableDetail,
-  type SimpleTableRecord,
+  type MetaTableDetail,
+  type MetaTableRecord,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
@@ -31,42 +31,34 @@ import { MainSequenceRegistrySearch } from "../../../../common/components/MainSe
 import { MainSequenceSelectionCheckbox } from "../../../../common/components/MainSequenceSelectionCheckbox";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
 import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelection";
-import {
-  MainSequenceSimpleTableUpdateDetail,
-  type SimpleTableUpdateDetailTabId,
-} from "./MainSequenceSimpleTableUpdateDetail";
-import { MainSequenceSimpleTableSchemaGraph } from "./MainSequenceSimpleTableSchemaGraph";
-import { MainSequenceSimpleTableSnapshotTab } from "./MainSequenceSimpleTableSnapshotTab";
-import { MainSequenceSimpleTableUpdatesTab } from "./MainSequenceSimpleTableUpdatesTab";
+import { MainSequenceMetaTableSchemaGraph } from "./MainSequenceSimpleTableSchemaGraph";
+import { MainSequenceMetaTableSnapshotTab } from "./MainSequenceSimpleTableSnapshotTab";
 
-const mainSequenceSimpleTableIdParam = "msSimpleTableUid";
-const mainSequenceSimpleTableTabParam = "msSimpleTableTab";
-const mainSequenceSimpleTableUpdateIdParam = "msSimpleTableUpdateUid";
-const mainSequenceSimpleTableUpdateTabParam = "msSimpleTableUpdateTab";
-const simpleTableDetailTabs = [
+const mainSequenceMetaTableIdParam = "msMetaTableUid";
+const mainSequenceMetaTableTabParam = "msMetaTableTab";
+const metaTableDetailTabs = [
   { id: "details", label: "Details" },
   { id: "description", label: "Description" },
   { id: "data-snapshot", label: "Data Snapshot" },
   { id: "ulm-diagram", label: "ULM diagram" },
-  { id: "local-update", label: "Local Update" },
 ] as const;
-type SimpleTableDetailTabId = (typeof simpleTableDetailTabs)[number]["id"];
-const defaultSimpleTableDetailTabId: SimpleTableDetailTabId = "details";
+type MetaTableDetailTabId = (typeof metaTableDetailTabs)[number]["id"];
+const defaultMetaTableDetailTabId: MetaTableDetailTabId = "details";
 
-type SimpleTableBulkActionKind = "delete" | "delete-downstream" | "refresh-search-index";
+type MetaTableBulkActionKind = "delete" | "refresh-search-index";
 
-type SimpleTableBulkActionRequest = {
-  kind: SimpleTableBulkActionKind;
-  tables: SimpleTableRecord[];
+type MetaTableBulkActionRequest = {
+  kind: MetaTableBulkActionKind;
+  tables: MetaTableRecord[];
 };
 
-function getPrimaryLabel(table: SimpleTableRecord) {
+function getPrimaryLabel(table: MetaTableRecord) {
   const candidates = [
     table.storage_hash,
     table.display_name,
     table.name,
     table.table_name,
-    table.simple_table_name,
+    table.meta_table_name,
     table.title,
     table.identifier,
   ];
@@ -77,7 +69,11 @@ function getPrimaryLabel(table: SimpleTableRecord) {
     }
   }
 
-  return `Simple Table ${table.id}`;
+  return `Meta Table ${table.uid}`;
+}
+
+function getMetaTableUid(table: MetaTableRecord) {
+  return table.uid;
 }
 
 const creationDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -85,7 +81,7 @@ const creationDateFormatter = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
 });
 
-function getDataSourceLabel(table: SimpleTableRecord) {
+function getDataSourceLabel(table: MetaTableRecord) {
   if (!table.data_source?.related_resource) {
     return "No data source";
   }
@@ -111,9 +107,8 @@ function formatCreationDate(value?: string | null) {
   return creationDateFormatter.format(new Date(parsed));
 }
 
-function buildSearchText(table: SimpleTableRecord) {
+function buildSearchText(table: MetaTableRecord) {
   return [
-    String(table.id),
     table.identifier ?? "",
     table.storage_hash ?? "",
     table.source_class_name ?? "",
@@ -124,23 +119,23 @@ function buildSearchText(table: SimpleTableRecord) {
     .toLowerCase();
 }
 
-function getSimpleTableDescription(table?: SimpleTableRecord | SimpleTableDetail | null) {
+function getMetaTableDescription(table?: MetaTableRecord | MetaTableDetail | null) {
   return typeof table?.description === "string" ? table.description.trim() : "";
 }
 
-function buildFallbackSimpleTableSummary(
-  simpleTable: SimpleTableRecord | SimpleTableDetail,
+function buildFallbackMetaTableSummary(
+  metaTable: MetaTableRecord | MetaTableDetail,
 ): EntitySummaryHeader {
   const openForEveryone =
-    typeof simpleTable.open_for_everyone === "boolean" ? simpleTable.open_for_everyone : false;
+    typeof metaTable.open_for_everyone === "boolean" ? metaTable.open_for_everyone : false;
   const protectFromDeletion =
-    typeof simpleTable.protect_from_deletion === "boolean" ? simpleTable.protect_from_deletion : false;
+    typeof metaTable.protect_from_deletion === "boolean" ? metaTable.protect_from_deletion : false;
 
   return {
     entity: {
-      id: simpleTable.id,
-      type: "simple_table",
-      title: simpleTable.storage_hash ?? getPrimaryLabel(simpleTable),
+      id: metaTable.id,
+      type: "meta_table",
+      title: metaTable.storage_hash ?? getPrimaryLabel(metaTable),
     },
     badges: [
       {
@@ -158,19 +153,19 @@ function buildFallbackSimpleTableSummary(
       {
         key: "identifier",
         label: "Identifier",
-        value: simpleTable.identifier?.trim() || "Not set",
+        value: metaTable.identifier?.trim() || "Not set",
         kind: "text",
       },
       {
         key: "data_source",
         label: "Data Source",
-        value: getDataSourceLabel(simpleTable),
+        value: getDataSourceLabel(metaTable),
         kind: "text",
       },
       {
         key: "creation_date",
         label: "Created",
-        value: formatCreationDate(simpleTable.creation_date),
+        value: formatCreationDate(metaTable.creation_date),
         kind: "datetime",
       },
     ],
@@ -178,13 +173,13 @@ function buildFallbackSimpleTableSummary(
       {
         key: "source_class_name",
         label: "Source Class",
-        value: simpleTable.source_class_name ?? "Unknown",
+        value: metaTable.source_class_name ?? "Unknown",
         kind: "code",
       },
       {
         key: "description",
         label: "Description",
-        value: getSimpleTableDescription(simpleTable) || "Not set",
+        value: getMetaTableDescription(metaTable) || "Not set",
         kind: "text",
       },
     ],
@@ -192,12 +187,12 @@ function buildFallbackSimpleTableSummary(
   };
 }
 
-function buildSimpleTableColumnDetails(simpleTable?: SimpleTableDetail | null) {
-  if (Array.isArray(simpleTable?.sourcetableconfiguration?.columns_metadata)) {
-    return simpleTable.sourcetableconfiguration.columns_metadata;
+function buildMetaTableColumnDetails(metaTable?: MetaTableDetail | null) {
+  if (Array.isArray(metaTable?.sourcetableconfiguration?.columns_metadata)) {
+    return metaTable.sourcetableconfiguration.columns_metadata;
   }
 
-  return (simpleTable?.columns ?? []).map((column) => ({
+  return (metaTable?.columns ?? []).map((column) => ({
     source_config_id: column.id ?? null,
     column_name: column.column_name,
     dtype: column.db_type ?? null,
@@ -206,136 +201,122 @@ function buildSimpleTableColumnDetails(simpleTable?: SimpleTableDetail | null) {
   }));
 }
 
-function isSimpleTableDetailTabId(value: string | null): value is SimpleTableDetailTabId {
-  return simpleTableDetailTabs.some((tab) => tab.id === value);
+function isMetaTableDetailTabId(value: string | null): value is MetaTableDetailTabId {
+  return metaTableDetailTabs.some((tab) => tab.id === value);
 }
 
-export function MainSequenceSimpleTablesPage() {
+export function MainSequenceMetaTablesPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const [filterValue, setFilterValue] = useState("");
-  const [simpleTablesPageIndex, setSimpleTablesPageIndex] = useState(0);
-  const [bulkActionRequest, setBulkActionRequest] = useState<SimpleTableBulkActionRequest | null>(null);
+  const [metaTablesPageIndex, setMetaTablesPageIndex] = useState(0);
+  const [bulkActionRequest, setBulkActionRequest] = useState<MetaTableBulkActionRequest | null>(null);
   const deferredFilterValue = useDeferredValue(filterValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedSimpleTableIdentifier =
-    searchParams.get(mainSequenceSimpleTableIdParam)?.trim() || null;
-  const requestedDetailTabId = searchParams.get(mainSequenceSimpleTableTabParam);
-  const selectedSimpleTableUpdateIdentifier =
-    searchParams.get(mainSequenceSimpleTableUpdateIdParam)?.trim() || null;
-  const selectedSimpleTableUpdateTabId = searchParams.get(mainSequenceSimpleTableUpdateTabParam);
-  const isSimpleTableDetailOpen = Boolean(selectedSimpleTableIdentifier);
-  const isSimpleTableUpdateDetailOpen = Boolean(selectedSimpleTableUpdateIdentifier);
-  const isStandaloneSimpleTableUpdateDetailOpen =
-    isSimpleTableUpdateDetailOpen && !isSimpleTableDetailOpen;
-  const selectedDetailTabId: SimpleTableDetailTabId = isSimpleTableUpdateDetailOpen
-    ? "local-update"
-    : isSimpleTableDetailTabId(requestedDetailTabId)
+  const selectedMetaTableIdentifier =
+    searchParams.get(mainSequenceMetaTableIdParam)?.trim() || null;
+  const requestedDetailTabId = searchParams.get(mainSequenceMetaTableTabParam);
+  const isMetaTableDetailOpen = Boolean(selectedMetaTableIdentifier);
+  const selectedDetailTabId: MetaTableDetailTabId = isMetaTableDetailTabId(requestedDetailTabId)
       ? requestedDetailTabId
-      : defaultSimpleTableDetailTabId;
+      : defaultMetaTableDetailTabId;
 
-  const simpleTablesQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "list", simpleTablesPageIndex],
+  const metaTablesQuery = useQuery({
+    queryKey: ["main_sequence", "meta_tables", "list", metaTablesPageIndex],
     queryFn: () =>
-      listSimpleTables({
+      listMetaTables({
         limit: mainSequenceRegistryPageSize,
-        offset: simpleTablesPageIndex * mainSequenceRegistryPageSize,
+        offset: metaTablesPageIndex * mainSequenceRegistryPageSize,
       }),
   });
 
   useEffect(() => {
-    setSimpleTablesPageIndex(0);
+    setMetaTablesPageIndex(0);
   }, [deferredFilterValue]);
 
   useEffect(() => {
     const totalPages = Math.max(
       1,
-      Math.ceil((simpleTablesQuery.data?.count ?? 0) / mainSequenceRegistryPageSize),
+      Math.ceil((metaTablesQuery.data?.count ?? 0) / mainSequenceRegistryPageSize),
     );
 
-    if (simpleTablesPageIndex > totalPages - 1) {
-      setSimpleTablesPageIndex(totalPages - 1);
+    if (metaTablesPageIndex > totalPages - 1) {
+      setMetaTablesPageIndex(totalPages - 1);
     }
-  }, [simpleTablesPageIndex, simpleTablesQuery.data?.count]);
+  }, [metaTablesPageIndex, metaTablesQuery.data?.count]);
 
-  const simpleTableSummaryQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "summary", selectedSimpleTableIdentifier],
-    queryFn: () => fetchSimpleTableSummary(selectedSimpleTableIdentifier!),
-    enabled: isSimpleTableDetailOpen,
+  const metaTableSummaryQuery = useQuery({
+    queryKey: ["main_sequence", "meta_tables", "summary", selectedMetaTableIdentifier],
+    queryFn: () => fetchMetaTableSummary(selectedMetaTableIdentifier!),
+    enabled: isMetaTableDetailOpen,
   });
-  const simpleTableDetailQuery = useQuery({
-    queryKey: ["main_sequence", "simple_tables", "detail", selectedSimpleTableIdentifier],
-    queryFn: () => fetchSimpleTableDetail(selectedSimpleTableIdentifier!),
-    enabled: isSimpleTableDetailOpen,
+  const metaTableDetailQuery = useQuery({
+    queryKey: ["main_sequence", "meta_tables", "detail", selectedMetaTableIdentifier],
+    queryFn: () => fetchMetaTableDetail(selectedMetaTableIdentifier!),
+    enabled: isMetaTableDetailOpen,
   });
 
   const filteredTables = useMemo(() => {
     const needle = deferredFilterValue.trim().toLowerCase();
 
-    return (simpleTablesQuery.data?.results ?? []).filter((table) => {
+    return (metaTablesQuery.data?.results ?? []).filter((table) => {
       if (!needle) {
         return true;
       }
 
       return buildSearchText(table).includes(needle);
     });
-  }, [deferredFilterValue, simpleTablesQuery.data?.results]);
+  }, [deferredFilterValue, metaTablesQuery.data?.results]);
 
-  const selectedSimpleTableFromList = useMemo(
+  const selectedMetaTableFromList = useMemo(
     () =>
-      (simpleTablesQuery.data?.results ?? []).find(
-        (table) => getTsManagerRecordIdentifier(table) === selectedSimpleTableIdentifier,
+      (metaTablesQuery.data?.results ?? []).find(
+        (table) => getTsManagerRecordIdentifier(table) === selectedMetaTableIdentifier,
       ) ??
       null,
-    [selectedSimpleTableIdentifier, simpleTablesQuery.data?.results],
+    [selectedMetaTableIdentifier, metaTablesQuery.data?.results],
   );
-  const simpleTableSummary =
-    simpleTableSummaryQuery.data ??
-    (simpleTableDetailQuery.data
-      ? buildFallbackSimpleTableSummary(simpleTableDetailQuery.data)
-      : selectedSimpleTableFromList
-        ? buildFallbackSimpleTableSummary(selectedSimpleTableFromList)
+  const metaTableSummary =
+    metaTableSummaryQuery.data ??
+    (metaTableDetailQuery.data
+      ? buildFallbackMetaTableSummary(metaTableDetailQuery.data)
+      : selectedMetaTableFromList
+        ? buildFallbackMetaTableSummary(selectedMetaTableFromList)
         : null);
-  const simpleTableTitle =
-    simpleTableSummary?.entity.title ??
-    simpleTableDetailQuery.data?.storage_hash ??
-    selectedSimpleTableFromList?.storage_hash ??
-    (isSimpleTableDetailOpen ? `Simple table ${selectedSimpleTableIdentifier}` : "Simple table");
-  const simpleTableColumnDetails = buildSimpleTableColumnDetails(simpleTableDetailQuery.data);
-  const simpleTableDescription =
-    getSimpleTableDescription(simpleTableDetailQuery.data) ||
-    getSimpleTableDescription(selectedSimpleTableFromList);
+  const metaTableTitle =
+    metaTableSummary?.entity.title ??
+    metaTableDetailQuery.data?.storage_hash ??
+    selectedMetaTableFromList?.storage_hash ??
+    (isMetaTableDetailOpen ? `Meta table ${selectedMetaTableIdentifier}` : "Meta table");
+  const metaTableColumnDetails = buildMetaTableColumnDetails(metaTableDetailQuery.data);
+  const metaTableDescription =
+    getMetaTableDescription(metaTableDetailQuery.data) ||
+    getMetaTableDescription(selectedMetaTableFromList);
 
-  const simpleTableSelection = useRegistrySelection(filteredTables);
+  const metaTableSelection = useRegistrySelection(filteredTables, getMetaTableUid);
 
   const bulkActionMutation = useMutation({
-    mutationFn: async (request: SimpleTableBulkActionRequest) => {
+    mutationFn: async (request: MetaTableBulkActionRequest) => {
       const uids = request.tables
-        .map((table) => table.uid?.trim())
+        .map((table) => table.uid.trim())
         .filter((uid): uid is string => Boolean(uid));
 
       switch (request.kind) {
         case "delete":
-          return bulkDeleteSimpleTables({
+          return bulkDeleteMetaTables({
             uids,
-            fullDeleteSelected: true,
-          });
-        case "delete-downstream":
-          return bulkDeleteSimpleTables({
-            uids,
-            fullDeleteDownstreamTables: true,
           });
         case "refresh-search-index":
-          return bulkRefreshSimpleTableSearchIndex(uids);
+          return bulkRefreshMetaTableSearchIndex(uids);
         default:
           return null;
       }
     },
     onSuccess: async (result, request) => {
       await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "simple_tables"],
+        queryKey: ["main_sequence", "meta_tables"],
       });
 
       if (request.kind === "refresh-search-index") {
@@ -349,8 +330,8 @@ export function MainSequenceSimpleTablesPage() {
           title: "Search index refreshed",
           description:
             refreshedCount === 1
-              ? `${getPrimaryLabel(request.tables[0] ?? { id: 0 })} was refreshed.`
-              : `Search index refreshed for ${refreshedCount} simple tables.`,
+              ? `${request.tables[0] ? getPrimaryLabel(request.tables[0]) : "Meta table"} was refreshed.`
+              : `Search index refreshed for ${refreshedCount} meta tables.`,
         });
       } else {
         const deletedCount =
@@ -363,24 +344,18 @@ export function MainSequenceSimpleTablesPage() {
         toast({
           variant: "success",
           title:
-            request.kind === "delete-downstream"
-              ? "Downstream delete completed"
-              : deletedCount === 1
-                ? "Simple table deleted"
-                : "Simple tables deleted",
+            deletedCount === 1
+                ? "Meta table deleted"
+                : "Meta tables deleted",
           description:
-            request.kind === "delete-downstream"
-              ? deletedCount === 1
-                ? "1 simple table was deleted."
-                : `${deletedCount} simple tables were deleted.`
-              : deletedCount === 1
-                ? `${getPrimaryLabel(request.tables[0] ?? { id: 0 })} was deleted.`
-                : `${deletedCount} simple tables were deleted.`,
+            deletedCount === 1
+                ? `${request.tables[0] ? getPrimaryLabel(request.tables[0]) : "Meta table"} was deleted.`
+                : `${deletedCount} meta tables were deleted.`,
         });
       }
 
       setBulkActionRequest(null);
-      simpleTableSelection.clearSelection();
+      metaTableSelection.clearSelection();
     },
     onError: (error) => {
       toast({
@@ -388,7 +363,7 @@ export function MainSequenceSimpleTablesPage() {
         title:
           bulkActionRequest?.kind === "refresh-search-index"
             ? "Search index refresh failed"
-            : "Simple table action failed",
+            : "Meta table action failed",
         description: formatMainSequenceError(error),
       });
     },
@@ -408,73 +383,32 @@ export function MainSequenceSimpleTablesPage() {
     );
   }
 
-  function openSimpleTableDetail(
-    simpleTableIdentifier: string,
-    tabId: SimpleTableDetailTabId = defaultSimpleTableDetailTabId,
+  function openMetaTableDetail(
+    metaTableIdentifier: string,
+    tabId: MetaTableDetailTabId = defaultMetaTableDetailTabId,
   ) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceSimpleTableIdParam, String(simpleTableIdentifier));
-      nextParams.set(mainSequenceSimpleTableTabParam, tabId);
-      nextParams.delete(mainSequenceSimpleTableUpdateIdParam);
-      nextParams.delete(mainSequenceSimpleTableUpdateTabParam);
+      nextParams.set(mainSequenceMetaTableIdParam, String(metaTableIdentifier));
+      nextParams.set(mainSequenceMetaTableTabParam, tabId);
     });
   }
 
-  function closeSimpleTableDetail() {
+  function closeMetaTableDetail() {
     updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceSimpleTableIdParam);
-      nextParams.delete(mainSequenceSimpleTableTabParam);
-      nextParams.delete(mainSequenceSimpleTableUpdateIdParam);
-      nextParams.delete(mainSequenceSimpleTableUpdateTabParam);
+      nextParams.delete(mainSequenceMetaTableIdParam);
+      nextParams.delete(mainSequenceMetaTableTabParam);
     });
   }
 
-  function openSimpleTableUpdateDetail(simpleTableUpdateIdentifier: string) {
+  function selectMetaTableDetailTab(tabId: MetaTableDetailTabId) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceSimpleTableTabParam, "local-update");
-      nextParams.set(mainSequenceSimpleTableUpdateIdParam, String(simpleTableUpdateIdentifier));
-      nextParams.set(mainSequenceSimpleTableUpdateTabParam, "details");
+      nextParams.set(mainSequenceMetaTableIdParam, String(selectedMetaTableIdentifier));
+      nextParams.set(mainSequenceMetaTableTabParam, tabId);
     });
   }
 
-  function closeSimpleTableUpdateDetail() {
-    updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceSimpleTableTabParam, "local-update");
-      nextParams.delete(mainSequenceSimpleTableUpdateIdParam);
-      nextParams.delete(mainSequenceSimpleTableUpdateTabParam);
-    });
-  }
-
-  function closeStandaloneSimpleTableUpdateDetail() {
-    updateSearchParams((nextParams) => {
-      nextParams.delete(mainSequenceSimpleTableIdParam);
-      nextParams.delete(mainSequenceSimpleTableTabParam);
-      nextParams.delete(mainSequenceSimpleTableUpdateIdParam);
-      nextParams.delete(mainSequenceSimpleTableUpdateTabParam);
-    });
-  }
-
-  function selectSimpleTableUpdateTab(tabId: SimpleTableUpdateDetailTabId) {
-    updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceSimpleTableTabParam, "local-update");
-      nextParams.set(mainSequenceSimpleTableUpdateTabParam, tabId);
-    });
-  }
-
-  function selectSimpleTableDetailTab(tabId: SimpleTableDetailTabId) {
-    updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceSimpleTableIdParam, String(selectedSimpleTableIdentifier));
-      nextParams.set(mainSequenceSimpleTableTabParam, tabId);
-
-      if (tabId !== "local-update") {
-        nextParams.delete(mainSequenceSimpleTableUpdateIdParam);
-        nextParams.delete(mainSequenceSimpleTableUpdateTabParam);
-      }
-    });
-  }
-
-  function openBulkAction(kind: SimpleTableBulkActionKind) {
-    const selectedItems = simpleTableSelection.selectedItems;
+  function openBulkAction(kind: MetaTableBulkActionKind) {
+    const selectedItems = metaTableSelection.selectedItems;
 
     if (selectedItems.length === 0) {
       return;
@@ -488,21 +422,14 @@ export function MainSequenceSimpleTablesPage() {
   }
 
   const bulkActions =
-    simpleTableSelection.selectedCount > 0
+    metaTableSelection.selectedCount > 0
       ? [
           {
-            id: "delete-simple-table",
+            id: "delete-meta-table",
             label: "Delete Table",
             icon: Trash2,
             tone: "danger" as const,
             onSelect: () => openBulkAction("delete"),
-          },
-          {
-            id: "delete-downstream-simple-tables",
-            label: "Delete Downstream Tables",
-            icon: Trash2,
-            tone: "danger" as const,
-            onSelect: () => openBulkAction("delete-downstream"),
           },
           {
             id: "refresh-table-search-index",
@@ -528,16 +455,6 @@ export function MainSequenceSimpleTablesPage() {
           tone: "danger" as const,
           specialText: undefined,
         };
-      case "delete-downstream":
-        return {
-          title: "Delete Downstream Tables",
-          actionLabel: "delete",
-          confirmButtonLabel: "Delete Downstream Tables",
-          confirmWord: "DELETE",
-          tone: "danger" as const,
-          specialText:
-            "The following command will delete all the Simple Tables that flow downstream are you sure you want to proceed?",
-        };
       default:
         return {
           title: "Refresh table search index",
@@ -558,7 +475,11 @@ export function MainSequenceSimpleTablesPage() {
     if (bulkActionRequest.tables.length === 1) {
       return (
         <>
-          <div className="font-medium">{getPrimaryLabel(bulkActionRequest.tables[0] ?? { id: 0 })}</div>
+          <div className="font-medium">
+            {bulkActionRequest.tables[0]
+              ? getPrimaryLabel(bulkActionRequest.tables[0])
+              : "Meta table"}
+          </div>
           {bulkActionRequest.tables[0]?.uid?.trim() ? (
             <div className="mt-1 text-muted-foreground">
               UID {bulkActionRequest.tables[0].uid.trim()}
@@ -570,7 +491,7 @@ export function MainSequenceSimpleTablesPage() {
 
     return (
       <>
-        <div className="font-medium">{bulkActionRequest.tables.length} simple tables selected</div>
+        <div className="font-medium">{bulkActionRequest.tables.length} meta tables selected</div>
         <div className="mt-1 text-muted-foreground">
           {bulkActionRequest.tables
             .slice(0, 3)
@@ -584,63 +505,55 @@ export function MainSequenceSimpleTablesPage() {
 
   return (
     <div className="space-y-6">
-      {isStandaloneSimpleTableUpdateDetailOpen ? (
-        <MainSequenceSimpleTableUpdateDetail
-          onClose={closeStandaloneSimpleTableUpdateDetail}
-          onOpenSimpleTableDetail={openSimpleTableDetail}
-          onSelectTab={selectSimpleTableUpdateTab}
-          selectedTabId={selectedSimpleTableUpdateTabId}
-          simpleTableUpdateUid={selectedSimpleTableUpdateIdentifier!}
-        />
-      ) : isSimpleTableDetailOpen ? (
+      {isMetaTableDetailOpen ? (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <button
                 type="button"
                 className="transition-colors hover:text-foreground"
-                onClick={closeSimpleTableDetail}
+                onClick={closeMetaTableDetail}
               >
-                Simple tables
+                Meta tables
               </button>
               <span>/</span>
-              <span className="text-foreground">{simpleTableTitle}</span>
+              <span className="text-foreground">{metaTableTitle}</span>
             </div>
-            <Button variant="outline" size="sm" onClick={closeSimpleTableDetail}>
+            <Button variant="outline" size="sm" onClick={closeMetaTableDetail}>
               <ArrowLeft className="h-4 w-4" />
-              Back to simple tables
+              Back to meta tables
             </Button>
           </div>
 
-          {simpleTableSummaryQuery.isLoading && !simpleTableSummary ? (
+          {metaTableSummaryQuery.isLoading && !metaTableSummary ? (
             <Card>
               <CardContent className="flex min-h-48 items-center justify-center">
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading simple table details
+                  Loading meta table details
                 </div>
               </CardContent>
             </Card>
           ) : null}
 
-          {simpleTableSummaryQuery.isError && !simpleTableSummary ? (
+          {metaTableSummaryQuery.isError && !metaTableSummary ? (
             <Card>
               <CardContent className="p-5">
                 <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                  {formatMainSequenceError(simpleTableSummaryQuery.error)}
+                  {formatMainSequenceError(metaTableSummaryQuery.error)}
                 </div>
               </CardContent>
             </Card>
           ) : null}
 
-          {simpleTableSummary ? (
+          {metaTableSummary ? (
             <>
-              <MainSequenceEntitySummaryCard summary={simpleTableSummary} />
+              <MainSequenceEntitySummaryCard summary={metaTableSummary} />
 
               <Card>
                 <CardHeader className="border-b border-border/70 pb-4">
                   <div className="flex flex-wrap gap-2">
-                    {simpleTableDetailTabs.map((tab) => (
+                    {metaTableDetailTabs.map((tab) => (
                       <button
                         key={tab.id}
                         type="button"
@@ -649,7 +562,7 @@ export function MainSequenceSimpleTablesPage() {
                             ? "rounded-[calc(var(--radius)-8px)] border border-primary/35 bg-primary/12 px-3 py-2 text-sm font-medium text-topbar-foreground"
                             : "rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-background/36 hover:text-foreground"
                         }
-                        onClick={() => selectSimpleTableDetailTab(tab.id)}
+                        onClick={() => selectMetaTableDetailTab(tab.id)}
                       >
                         {tab.label}
                       </button>
@@ -659,22 +572,22 @@ export function MainSequenceSimpleTablesPage() {
                 <CardContent className="pt-5">
                   {selectedDetailTabId === "details" ? (
                     <div className="space-y-4">
-                      {simpleTableDetailQuery.isLoading ? (
+                      {metaTableDetailQuery.isLoading ? (
                         <div className="flex min-h-48 items-center justify-center">
                           <div className="flex items-center gap-3 text-sm text-muted-foreground">
                             <Loader2 className="h-4 w-4 animate-spin" />
-                            Loading simple table details
+                            Loading meta table details
                           </div>
                         </div>
                       ) : null}
 
-                      {simpleTableDetailQuery.isError ? (
+                      {metaTableDetailQuery.isError ? (
                         <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                          {formatMainSequenceError(simpleTableDetailQuery.error)}
+                          {formatMainSequenceError(metaTableDetailQuery.error)}
                         </div>
                       ) : null}
 
-                      {!simpleTableDetailQuery.isLoading && !simpleTableDetailQuery.isError ? (
+                      {!metaTableDetailQuery.isLoading && !metaTableDetailQuery.isError ? (
                         <Card variant="nested">
                           <CardHeader className="pb-3">
                             <CardTitle className="text-base">Column details</CardTitle>
@@ -683,7 +596,7 @@ export function MainSequenceSimpleTablesPage() {
                             </CardDescription>
                           </CardHeader>
                           <CardContent className="pt-0">
-                            {simpleTableColumnDetails.length > 0 ? (
+                            {metaTableColumnDetails.length > 0 ? (
                               <div className="overflow-x-auto">
                                 <table
                                   className="w-full min-w-[920px] border-separate"
@@ -712,7 +625,7 @@ export function MainSequenceSimpleTablesPage() {
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {simpleTableColumnDetails.map((column) => (
+                                    {metaTableColumnDetails.map((column) => (
                                       <tr
                                         key={`${column.source_config_id ?? "none"}-${column.column_name}`}
                                       >
@@ -738,7 +651,7 @@ export function MainSequenceSimpleTablesPage() {
                               </div>
                             ) : (
                               <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
-                                No column metadata is available for this simple table.
+                                No column metadata is available for this meta table.
                               </div>
                             )}
                           </CardContent>
@@ -750,42 +663,34 @@ export function MainSequenceSimpleTablesPage() {
                       <CardHeader className="pb-3">
                         <CardTitle className="text-base">Description</CardTitle>
                         <CardDescription>
-                          Description stored on the Simple Table resource.
+                          Description stored on the Meta Table resource.
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="pt-0">
-                        {simpleTableDetailQuery.isLoading && !simpleTableDescription ? (
+                        {metaTableDetailQuery.isLoading && !metaTableDescription ? (
                           <div className="flex min-h-40 items-center justify-center">
                             <div className="flex items-center gap-3 text-sm text-muted-foreground">
                               <Loader2 className="h-4 w-4 animate-spin" />
                               Loading description
                             </div>
                           </div>
-                        ) : simpleTableDescription ? (
+                        ) : metaTableDescription ? (
                           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/32 px-5 py-5">
-                            <MarkdownContent content={simpleTableDescription} />
+                            <MarkdownContent content={metaTableDescription} />
                           </div>
                         ) : (
                           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/32 px-4 py-4 text-sm text-muted-foreground">
-                            No description is available for this simple table.
+                            No description is available for this meta table.
                           </div>
                         )}
                       </CardContent>
                     </Card>
                   ) : selectedDetailTabId === "data-snapshot" ? (
-                    <MainSequenceSimpleTableSnapshotTab simpleTableUid={selectedSimpleTableIdentifier!} />
+                    <MainSequenceMetaTableSnapshotTab metaTableUid={selectedMetaTableIdentifier!} />
                   ) : selectedDetailTabId === "ulm-diagram" ? (
-                    <MainSequenceSimpleTableSchemaGraph simpleTableUid={selectedSimpleTableIdentifier!} />
+                    <MainSequenceMetaTableSchemaGraph metaTableUid={selectedMetaTableIdentifier!} />
                   ) : (
-                    <MainSequenceSimpleTableUpdatesTab
-                      onCloseSimpleTableUpdateDetail={closeSimpleTableUpdateDetail}
-                      onOpenSimpleTableDetail={openSimpleTableDetail}
-                      onOpenSimpleTableUpdateDetail={openSimpleTableUpdateDetail}
-                      onSelectSimpleTableUpdateTab={selectSimpleTableUpdateTab}
-                      selectedSimpleTableUpdateUid={selectedSimpleTableUpdateIdentifier}
-                      selectedSimpleTableUpdateTabId={selectedSimpleTableUpdateTabId}
-                      simpleTableUid={selectedSimpleTableIdentifier!}
-                    />
+                    null
                   )}
                 </CardContent>
               </Card>
@@ -796,72 +701,72 @@ export function MainSequenceSimpleTablesPage() {
         <>
           <PageHeader
             eyebrow="Main Sequence"
-            title="Simple Tables"
-            description="Browse ts_manager simple_table rows and bulk delete selected entries."
-            actions={<Badge variant="neutral">{`${simpleTablesQuery.data?.count ?? 0} simple tables`}</Badge>}
+            title="Meta Tables"
+            description="Browse ts_manager meta_table rows and bulk delete selected entries."
+            actions={<Badge variant="neutral">{`${metaTablesQuery.data?.count ?? 0} meta tables`}</Badge>}
           />
 
           <Card>
             <CardHeader className="border-b border-border/70">
               <div className="space-y-4">
                 <div>
-                  <CardTitle>Simple table registry</CardTitle>
+                  <CardTitle>Meta table registry</CardTitle>
                   <CardDescription>
                     Search across identifiers, hashes, sources, descriptions, and backing data
                     sources.
                   </CardDescription>
                 </div>
                 <MainSequenceRegistrySearch
-                  actionMenuLabel="Simple table actions"
-                  accessory={<Badge variant="neutral">{`${simpleTablesQuery.data?.count ?? 0} rows`}</Badge>}
+                  actionMenuLabel="Meta table actions"
+                  accessory={<Badge variant="neutral">{`${metaTablesQuery.data?.count ?? 0} rows`}</Badge>}
                   bulkActions={bulkActions}
                   clearSelectionLabel="Clear selection"
-                  onClearSelection={simpleTableSelection.clearSelection}
+                  onClearSelection={metaTableSelection.clearSelection}
                   renderSelectionSummary={(selectionCount) =>
-                    `${selectionCount} simple table${selectionCount === 1 ? "" : "s"} selected`
+                    `${selectionCount} meta table${selectionCount === 1 ? "" : "s"} selected`
                   }
                   value={filterValue}
                   onChange={(event) => setFilterValue(event.target.value)}
-                  placeholder="Filter by identifier, id, hash, source class, or data source"
+                  placeholder="Filter by identifier, hash, source class, or data source"
                   searchClassName="max-w-xl"
-                  selectionCount={simpleTableSelection.selectedCount}
+                  selectionCount={metaTableSelection.selectedCount}
                 />
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {simpleTablesQuery.isLoading ? (
+              {metaTablesQuery.isLoading ? (
                 <div className="flex min-h-64 items-center justify-center">
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading simple tables
+                    Loading meta tables
                   </div>
                 </div>
               ) : null}
 
-              {simpleTablesQuery.isError ? (
+              {metaTablesQuery.isError ? (
                 <div className="p-5">
                   <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                    {formatMainSequenceError(simpleTablesQuery.error)}
+                    {formatMainSequenceError(metaTablesQuery.error)}
                   </div>
                 </div>
               ) : null}
 
-              {!simpleTablesQuery.isLoading &&
-              !simpleTablesQuery.isError &&
+              {!metaTablesQuery.isLoading &&
+              !metaTablesQuery.isError &&
               filteredTables.length === 0 ? (
                 <div className="px-5 py-14 text-center">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-border/70 bg-background/35 text-primary">
                     <Table2 className="h-6 w-6" />
                   </div>
-                  <div className="mt-4 text-sm font-medium text-foreground">No simple tables found</div>
+                  <div className="mt-4 text-sm font-medium text-foreground">No meta tables found</div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Clear the current filter or confirm the authenticated user can view simple tables.
+                    Clear the current filter or confirm the authenticated user can view meta tables.
                   </p>
                 </div>
               ) : null}
 
-              {!simpleTablesQuery.isLoading &&
-              !simpleTablesQuery.isError &&
+              {!metaTablesQuery.isLoading &&
+              !metaTablesQuery.isError &&
               filteredTables.length > 0 ? (
                 <div className="overflow-x-auto px-4 py-4">
                   <table
@@ -878,10 +783,10 @@ export function MainSequenceSimpleTablesPage() {
                       >
                         <th className="w-12 px-3 py-[var(--table-standard-header-padding-y)]">
                           <MainSequenceSelectionCheckbox
-                            ariaLabel="Select all visible simple tables"
-                            checked={simpleTableSelection.allSelected}
-                            indeterminate={simpleTableSelection.someSelected}
-                            onChange={simpleTableSelection.toggleAll}
+                            ariaLabel="Select all visible meta tables"
+                            checked={metaTableSelection.allSelected}
+                            indeterminate={metaTableSelection.someSelected}
+                            onChange={metaTableSelection.toggleAll}
                           />
                         </th>
                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">Storage hash</th>
@@ -893,15 +798,15 @@ export function MainSequenceSimpleTablesPage() {
                     </thead>
                     <tbody>
                       {filteredTables.map((table) => {
-                        const selected = simpleTableSelection.isSelected(table.id);
+                        const selected = metaTableSelection.isSelected(table.uid);
 
                         return (
-                          <tr key={table.id}>
+                          <tr key={table.uid}>
                             <td className={getRegistryTableCellClassName(selected, "left")}>
                               <MainSequenceSelectionCheckbox
                                 ariaLabel={`Select ${getPrimaryLabel(table)}`}
                                 checked={selected}
-                                onChange={() => simpleTableSelection.toggleSelection(table.id)}
+                                onChange={() => metaTableSelection.toggleSelection(table.uid)}
                               />
                             </td>
                             <td className={getRegistryTableCellClassName(selected)}>
@@ -912,11 +817,11 @@ export function MainSequenceSimpleTablesPage() {
                                   className="group inline-flex max-w-[240px] items-center gap-1 rounded-sm text-left font-mono text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
                                   style={{ fontSize: "var(--table-meta-font-size)" }}
                                   onClick={() => {
-                                    const simpleTableIdentifier = getTsManagerRecordIdentifier(table);
-                                    if (!simpleTableIdentifier) {
+                                    const metaTableIdentifier = getTsManagerRecordIdentifier(table);
+                                    if (!metaTableIdentifier) {
                                       return;
                                     }
-                                    openSimpleTableDetail(simpleTableIdentifier);
+                                    openMetaTableDetail(metaTableIdentifier);
                                   }}
                                   title={table.storage_hash ?? getPrimaryLabel(table)}
                                 >
@@ -968,15 +873,15 @@ export function MainSequenceSimpleTablesPage() {
             </CardContent>
           </Card>
 
-          {!simpleTablesQuery.isLoading &&
-          !simpleTablesQuery.isError &&
-          (simpleTablesQuery.data?.count ?? 0) > 0 ? (
+          {!metaTablesQuery.isLoading &&
+          !metaTablesQuery.isError &&
+          (metaTablesQuery.data?.count ?? 0) > 0 ? (
             <MainSequenceRegistryPagination
-              count={simpleTablesQuery.data?.count ?? 0}
-              itemLabel="simple tables"
-              pageIndex={simpleTablesPageIndex}
+              count={metaTablesQuery.data?.count ?? 0}
+              itemLabel="meta tables"
+              pageIndex={metaTablesPageIndex}
               pageSize={mainSequenceRegistryPageSize}
-              onPageChange={setSimpleTablesPageIndex}
+              onPageChange={setMetaTablesPageIndex}
             />
           ) : null}
         </>
@@ -993,13 +898,13 @@ export function MainSequenceSimpleTablesPage() {
           }}
           tone={bulkActionConfig.tone}
           actionLabel={bulkActionConfig.actionLabel}
-          objectLabel={bulkActionRequest.tables.length > 1 ? "simple tables" : "simple table"}
+          objectLabel={bulkActionRequest.tables.length > 1 ? "meta tables" : "meta table"}
           confirmWord={bulkActionConfig.confirmWord}
           confirmButtonLabel={bulkActionConfig.confirmButtonLabel}
           description={
             bulkActionRequest.kind === "refresh-search-index"
-              ? "This action refreshes the search index for the selected simple tables."
-              : "This action applies to the selected simple tables."
+              ? "This action refreshes the search index for the selected meta tables."
+              : "This action applies to the selected meta tables."
           }
           specialText={bulkActionConfig.specialText}
           objectSummary={bulkActionObjectSummary}

@@ -8,7 +8,7 @@ This nested extension owns the administrative and operational Main Sequence Foun
 - `app.ts`: declares the `AppDefinition` for `main_sequence_workbench`.
 - `features/`: page surfaces and feature-owned workflows.
 - `connections/`: extension-owned connection type definitions and compatibility helpers for
-  backend Data Node and Simple Table access.
+  backend Data Node and MetaTable access.
 - `widget-contracts/`: shared versioned data contracts used for widget-to-widget composition inside
   Workbench.
 - `widgets/`: widget definitions and widget-specific rendering code.

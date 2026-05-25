@@ -23,15 +23,15 @@ import { withAlpha } from "@/lib/color";
 import { useTheme } from "@/themes/ThemeProvider";
 
 import type {
-  SimpleTableSchemaGraphRelationshipRecord,
-  SimpleTableSchemaGraphResponse,
-  SimpleTableSchemaGraphTableRecord,
+  MetaTableSchemaGraphRelationshipRecord,
+  MetaTableSchemaGraphResponse,
+  MetaTableSchemaGraphTableRecord,
 } from "../../../../common/api";
 
-interface MainSequenceSimpleTableUmlExplorerProps {
+interface MainSequenceMetaTableUmlExplorerProps {
   error: string | null;
   isLoading: boolean;
-  payload: SimpleTableSchemaGraphResponse | undefined;
+  payload: MetaTableSchemaGraphResponse | undefined;
 }
 
 interface PointerPanState {
@@ -42,7 +42,7 @@ interface PointerPanState {
   startClientY: number;
 }
 
-interface SimpleTableUmlLayoutCard extends SimpleTableSchemaGraphTableRecord {
+interface MetaTableUmlLayoutCard extends MetaTableSchemaGraphTableRecord {
   columnAnchors: Map<string, { leftX: number; rightX: number; y: number }>;
   depth: number;
   height: number;
@@ -51,18 +51,18 @@ interface SimpleTableUmlLayoutCard extends SimpleTableSchemaGraphTableRecord {
   y: number;
 }
 
-interface SimpleTableUmlLayoutResult {
+interface MetaTableUmlLayoutResult {
   bounds: {
     height: number;
     width: number;
     x: number;
     y: number;
   };
-  cards: SimpleTableUmlLayoutCard[];
-  cardsById: Map<number, SimpleTableUmlLayoutCard>;
+  cards: MetaTableUmlLayoutCard[];
+  cardsById: Map<number, MetaTableUmlLayoutCard>;
   maxDepth: number;
   minDepth: number;
-  relationships: SimpleTableSchemaGraphRelationshipRecord[];
+  relationships: MetaTableSchemaGraphRelationshipRecord[];
 }
 
 const umlGraphConfig = {
@@ -96,13 +96,13 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function estimateIndexPillWidth(index: SimpleTableSchemaGraphTableRecord["indexes"][number]) {
+function estimateIndexPillWidth(index: MetaTableSchemaGraphTableRecord["indexes"][number]) {
   const content = [index.name, index.columns.join(", ")].filter(Boolean).join(" · ");
 
   return Math.max(96, Math.min(308, 28 + content.length * 6.8));
 }
 
-function estimateIndexRows(table: SimpleTableSchemaGraphTableRecord) {
+function estimateIndexRows(table: MetaTableSchemaGraphTableRecord) {
   if (table.indexes.length === 0) {
     return 0;
   }
@@ -131,7 +131,7 @@ function estimateIndexRows(table: SimpleTableSchemaGraphTableRecord) {
   return rows;
 }
 
-function getCardHeight(table: SimpleTableSchemaGraphTableRecord) {
+function getCardHeight(table: MetaTableSchemaGraphTableRecord) {
   const columnCount = Math.max(1, table.columns.length);
   const columnHeight =
     columnCount * umlGraphConfig.rowHeight +
@@ -158,7 +158,7 @@ function getCardHeight(table: SimpleTableSchemaGraphTableRecord) {
 }
 
 function getFitTransform(
-  bounds: SimpleTableUmlLayoutResult["bounds"],
+  bounds: MetaTableUmlLayoutResult["bounds"],
   viewport: { height: number; width: number },
 ) {
   const width = Math.max(1, viewport.width);
@@ -178,7 +178,7 @@ function getFitTransform(
   };
 }
 
-function buildDepthMap(payload: SimpleTableSchemaGraphResponse) {
+function buildDepthMap(payload: MetaTableSchemaGraphResponse) {
   const outgoing = new Map<number, Set<number>>();
   const incoming = new Map<number, Set<number>>();
 
@@ -241,7 +241,7 @@ function buildColumnAnchors(card: {
   width: number;
   x: number;
   y: number;
-  columns: SimpleTableSchemaGraphTableRecord["columns"];
+  columns: MetaTableSchemaGraphTableRecord["columns"];
 }) {
   const anchors = new Map<string, { leftX: number; rightX: number; y: number }>();
   const startY = card.y + umlGraphConfig.headerHeight;
@@ -257,9 +257,9 @@ function buildColumnAnchors(card: {
   return anchors;
 }
 
-function buildSimpleTableUmlLayout(
-  payload: SimpleTableSchemaGraphResponse | undefined,
-): SimpleTableUmlLayoutResult | null {
+function buildMetaTableUmlLayout(
+  payload: MetaTableSchemaGraphResponse | undefined,
+): MetaTableUmlLayoutResult | null {
   if (!payload) {
     return null;
   }
@@ -294,7 +294,7 @@ function buildSimpleTableUmlLayout(
     );
   });
 
-  const groups = new Map<number, SimpleTableSchemaGraphTableRecord[]>();
+  const groups = new Map<number, MetaTableSchemaGraphTableRecord[]>();
   payload.tables.forEach((table) => {
     const depth = depths.get(table.id) ?? 0;
     const current = groups.get(depth) ?? [];
@@ -337,7 +337,7 @@ function buildSimpleTableUmlLayout(
   });
 
   const maxGroupHeight = Math.max(...Array.from(groupHeights.values()), umlGraphConfig.minCardHeight);
-  const cards: SimpleTableUmlLayoutCard[] = [];
+  const cards: MetaTableUmlLayoutCard[] = [];
 
   orderedDepths.forEach((depth) => {
     const tables = groups.get(depth) ?? [];
@@ -349,7 +349,7 @@ function buildSimpleTableUmlLayout(
 
     tables.forEach((table) => {
       const height = getCardHeight(table);
-      const card: SimpleTableUmlLayoutCard = {
+      const card: MetaTableUmlLayoutCard = {
         ...table,
         depth,
         height,
@@ -389,8 +389,8 @@ function buildSimpleTableUmlLayout(
 }
 
 function buildRelationshipPath(
-  relationship: SimpleTableSchemaGraphRelationshipRecord,
-  cardsById: Map<number, SimpleTableUmlLayoutCard>,
+  relationship: MetaTableSchemaGraphRelationshipRecord,
+  cardsById: Map<number, MetaTableUmlLayoutCard>,
 ) {
   const sourceCard = cardsById.get(relationship.source_table_id);
   const targetCard = cardsById.get(relationship.target_table_id);
@@ -433,7 +433,7 @@ function buildRelationshipPath(
 }
 
 function getSelectedTable(
-  payload: SimpleTableSchemaGraphResponse | undefined,
+  payload: MetaTableSchemaGraphResponse | undefined,
   selectedTableId: number | null,
 ) {
   if (!payload || !payload.tables.length) {
@@ -451,14 +451,14 @@ function formatNullable(nullable: boolean) {
   return nullable ? "nullable" : "required";
 }
 
-export function MainSequenceSimpleTableUmlExplorer({
+export function MainSequenceMetaTableUmlExplorer({
   error,
   isLoading,
   payload,
-}: MainSequenceSimpleTableUmlExplorerProps) {
+}: MainSequenceMetaTableUmlExplorerProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const { resolvedTokens } = useTheme();
-  const layout = useMemo(() => buildSimpleTableUmlLayout(payload), [payload]);
+  const layout = useMemo(() => buildMetaTableUmlLayout(payload), [payload]);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
@@ -628,7 +628,7 @@ export function MainSequenceSimpleTableUmlExplorer({
   }
 
   const tablesById = useMemo(() => {
-    const map = new Map<number, SimpleTableSchemaGraphTableRecord>();
+    const map = new Map<number, MetaTableSchemaGraphTableRecord>();
     payload?.tables.forEach((table) => {
       map.set(table.id, table);
     });
@@ -712,7 +712,7 @@ export function MainSequenceSimpleTableUmlExplorer({
 
         {!isLoading && !error && payload && payload.tables.length === 0 ? (
           <div className="absolute inset-4 z-20 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/60 px-4 py-10 text-center text-sm text-muted-foreground">
-            No schema graph data is available for this simple table.
+            No schema graph data is available for this meta table.
           </div>
         ) : null}
 

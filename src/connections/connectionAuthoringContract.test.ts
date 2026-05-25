@@ -12,7 +12,7 @@ import postgreSqlConnection, {
 } from "../../connections/postgresql";
 import { timescaleDbConnection } from "../../connections/timescaledb";
 import { mainSequenceDataNodeConnection } from "../../extensions/main_sequence/extensions/workbench/connections/dataNodeConnection";
-import { mainSequenceSimpleTableConnection } from "../../extensions/main_sequence/extensions/workbench/connections/simpleTableConnection";
+import { mainSequenceMetaTableConnection } from "../../extensions/main_sequence/extensions/workbench/connections/simpleTableConnection";
 
 function createConnectionInstance(
   connectionType: AnyConnectionTypeDefinition,
@@ -48,19 +48,19 @@ describe("connection authoring contract", () => {
     expect(queryModels.some((model) => model.id === "massive-stocks-custom-bars")).toBe(false);
   });
 
-  it("seeds Simple Table SQL defaults from the shared contract", () => {
+  it("seeds Meta Table compiled SQL defaults from the shared contract", () => {
     const draft = buildConnectionQueryDraftSeed({
-      connectionInstance: createConnectionInstance(mainSequenceSimpleTableConnection, {
-        simpleTableUid: "00000000-0000-0000-0000-000000000123",
+      connectionInstance: createConnectionInstance(mainSequenceMetaTableConnection, {
+        metaTableUid: "00000000-0000-0000-0000-000000000123",
         defaultLimit: 250,
       }),
-      connectionType: mainSequenceSimpleTableConnection,
+      connectionType: mainSequenceMetaTableConnection,
     });
 
-    expect(draft.queryModelId).toBe("simple-table-sql");
+    expect(draft.queryModelId).toBe("meta-table-compiled-sql");
     expect(draft.query).toEqual({
-      kind: "simple-table-sql",
-      sql: "select *\nfrom {{simple_table}}\nlimit 100",
+      kind: "meta-table-compiled-sql",
+      sql: "select *\nfrom {{meta_table}}\nlimit 100",
     });
     expect(draft.maxRows).toBe(250);
   });

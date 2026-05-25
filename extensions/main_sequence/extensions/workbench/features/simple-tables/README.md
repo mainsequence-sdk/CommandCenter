@@ -1,27 +1,26 @@
-# Simple Tables Feature
+# Meta Tables Feature
 
-This feature owns the Main Sequence Foundry registry screen for `ts_manager/simple_table/`.
+This feature owns the Main Sequence Foundry registry screen for `ts_manager/meta_table/`.
+The directory name is still `simple-tables` only because older local imports used that path.
 
 ## Entry Points
 
-- `MainSequenceSimpleTablesPage.tsx`: paginated registry page that lists `simple_table` rows, supports client-side filtering over the current page, owns URL-backed detail state, and sends bulk delete requests for the current selection.
-- `MainSequenceSimpleTableSnapshotTab.tsx`: detail-tab wrapper that loads the `/get-data-snapshot/` preview endpoint for the selected simple table and renders a searchable row preview.
-- `MainSequenceSimpleTableSchemaGraph.tsx`: tab wrapper for the simple-table `/schema-graph/` endpoint, including depth and incoming-reference controls.
-- `MainSequenceSimpleTableUmlExplorer.tsx`: themed UML-style explorer that renders schema tables, columns, indexes, and foreign-key multiplicities.
-- `MainSequenceSimpleTableUpdatesTab.tsx`: local-update tab that lists `simple_table/update` rows for the selected table and opens nested update detail.
-- `MainSequenceSimpleTableUpdateDetail.tsx`: SimpleTableUpdate detail surface with tabs for update details, dependency graphs, and historical updates.
-- `MainSequenceSimpleTableUpdateDependencyGraph.tsx`: feature wrapper that binds the reusable dependency-graph renderer to the `simple_table/update/{uid}/dependencies-graph/` endpoint.
+- `MainSequenceSimpleTablesPage.tsx`: exports `MainSequenceMetaTablesPage`, the paginated registry page for `meta_table` rows. It owns URL-backed detail state and sends MetaTable bulk actions using UID arrays.
+- `MainSequenceSimpleTableSnapshotTab.tsx`: exports `MainSequenceMetaTableSnapshotTab`, which loads `/get-data-snapshot/` for the selected MetaTable and renders a searchable row preview.
+- `MainSequenceSimpleTableSchemaGraph.tsx`: exports `MainSequenceMetaTableSchemaGraph`, the tab wrapper for the MetaTable `/schema-graph/` endpoint.
+- `MainSequenceSimpleTableUmlExplorer.tsx`: exports `MainSequenceMetaTableUmlExplorer`, the themed UML-style explorer for schema tables, columns, indexes, and foreign-key multiplicities.
 
 ## Dependencies
 
-- Data is loaded through `extensions/main_sequence/common/api/index.ts` using the standard offset-paginated list query for `/orm/api/ts_manager/simple_table/`, detail helpers for `/summary/`, `/{uid}/`, the snapshot helper for `/{uid}/get-data-snapshot/?limit=100`, the schema-graph helper for `/{uid}/schema-graph/`, and update helpers rooted at `/orm/api/ts_manager/simple_table/update/`.
+- Data is loaded through `extensions/main_sequence/common/api/index.ts` using `/orm/api/ts_manager/meta_table/`.
+- Detail tabs use `/{uid}/summary/`, `/{uid}/`, `/{uid}/get-data-snapshot/`, and `/{uid}/schema-graph/`.
+- Bulk actions use `/bulk-delete/` and `/bulk-refresh-table-search-index/` with `{ "uids": string[] }`.
 - Shared registry controls come from `extensions/main_sequence/common/components/` and `extensions/main_sequence/common/hooks/`.
 
 ## Notes
 
-- Top-level detail navigation is URL-backed with `msSimpleTableUid` and `msSimpleTableTab`. Nested SimpleTableUpdate detail uses `msSimpleTableUpdateUid` and `msSimpleTableUpdateTab`.
-- The `Data Snapshot` tab intentionally uses the lightweight preview endpoint instead of the heavier Data Node widget pipeline, because Simple Tables expose their own row snapshot API.
-- The `ULM diagram` tab calls `/{uid}/schema-graph/` and currently exposes two query controls: `depth` and `include_incoming`.
-- URL-backed detail navigation stores the backend ts_manager `uid` for both Simple Tables and nested local updates.
-- The top-level summary endpoint now uses the shared `SummaryResponse` contract directly, so this feature consumes the summary payload without local shape adapters.
-- The update detail intentionally exposes only the views supported by the current backend surface: details, dependency graphs, run configuration, and historical updates.
+- There is no MetaTable update-node endpoint. Update-node screens remain only under Data Nodes and LocalTimeSerie workflows.
+- Bulk delete removes MetaTable registrations only; it does not drop physical database tables.
+- Top-level detail navigation is URL-backed with `msMetaTableUid` and `msMetaTableTab`.
+- The `Data Snapshot` tab intentionally uses the lightweight preview endpoint instead of the heavier Data Node widget pipeline.
+- The `ULM diagram` tab calls `/{uid}/schema-graph/` and exposes `depth` and `include_incoming`.
