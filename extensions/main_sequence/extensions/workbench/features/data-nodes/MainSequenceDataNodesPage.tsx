@@ -23,6 +23,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toaster";
 
 import {
@@ -36,11 +37,13 @@ import {
   fetchSourceTableConfigurationStats,
   formatMainSequenceError,
   getTsManagerRecordIdentifier,
+  listDataNodeNamespaces,
   listDataNodes,
   mainSequenceRegistryPageSize,
   type DataNodeDetail,
   type DataNodeSummary,
   type EntitySummaryHeader,
+  type MainSequenceNamespaceOptionRecord,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import { MainSequencePermissionsTab } from "../../../../common/components/MainSequencePermissionsTab";
@@ -55,6 +58,7 @@ import {
 } from "./MainSequenceDataNodeLocalUpdateDetail";
 import { MainSequenceDataNodeLocalTimeSeriesTab } from "./MainSequenceDataNodeLocalTimeSeriesTab";
 import { MainSequenceDataNodePoliciesTab } from "./MainSequenceDataNodePoliciesTab";
+import { MainSequenceDataNodeSchemaGraphTab } from "./MainSequenceDataNodeSchemaGraphTab";
 import { MainSequenceDataNodeSnapshotTab } from "./MainSequenceDataNodeSnapshotTab";
 import {
   buildDataNodeEngineFieldDecoration,
@@ -68,12 +72,14 @@ const mainSequenceDataNodeTabParam = "msDataNodeTab";
 const mainSequenceLocalUpdateIdParam = "msLocalUpdateUid";
 const mainSequenceLocalUpdateTabParam = "msLocalUpdateTab";
 const dataNodePermissionsObjectUrl = "/orm/api/ts_manager/dynamic_table";
+const allNamespacesOptionValue = "__all__";
 const dataNodeLocalUpdatesTabId = "local-updates";
 const legacyDataNodeLocalUpdatesTabId = "local-time-series";
 const allDataNodeDetailTabs = [
   { id: "details", label: "Details" },
   { id: "description", label: "Description" },
   { id: "data-snapshot", label: "Data Snapshot" },
+  { id: "ulm-diagram", label: "ULM diagram" },
   { id: dataNodeLocalUpdatesTabId, label: "Local Update" },
   { id: "policies", label: "TimeScale Policies" },
   { id: "permissions", label: "Permissions" },
@@ -168,6 +174,14 @@ function getDataNodeNamespaceLabel(dataNode: DataNodeSummary) {
   return dataNode.namespace?.trim() || "";
 }
 
+function getNamespaceOptionLabel(namespace: MainSequenceNamespaceOptionRecord) {
+  return `${namespace.display_name} (${namespace.table_count})`;
+}
+
+function getNamespaceOptionValue(namespace: MainSequenceNamespaceOptionRecord) {
+  return namespace.filters.namespace?.trim() || namespace.namespace.trim();
+}
+
 function formatCreationDate(value?: string | null) {
   if (!value) {
     return "Unknown";
@@ -180,6 +194,10 @@ function formatCreationDate(value?: string | null) {
   }
 
   return creationDateFormatter.format(new Date(parsed));
+}
+
+function formatJoinedValues(values?: string[] | null) {
+  return values && values.length > 0 ? values.join(", ") : "Not set";
 }
 
 function normalizeDataNodeSortValue(value?: string | null) {
@@ -389,6 +407,7 @@ export function MainSequenceDataNodesPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [filterValue, setFilterValue] = useState("");
+  const [selectedNamespaceValue, setSelectedNamespaceValue] = useState("");
   const [dataNodesPageIndex, setDataNodesPageIndex] = useState(0);
   const [bulkActionRequest, setBulkActionRequest] = useState<DataNodeBulkActionRequest | null>(null);
   const [deleteOptions, setDeleteOptions] = useState<DataNodeDeleteOptions>(
@@ -419,19 +438,59 @@ export function MainSequenceDataNodesPage() {
   const requestedDataNodeDetailTabId =
     normalizeDataNodeDetailTabId(requestedDetailTabId) ?? defaultDataNodeDetailTabId;
 
+  const dataNodeNamespacesQuery = useQuery({
+    queryKey: ["main_sequence", "data_nodes", "namespaces"],
+    queryFn: () => listDataNodeNamespaces(),
+  });
+  const dataNodeNamespaceOptions = dataNodeNamespacesQuery.data ?? [];
+  const effectiveSelectedNamespace =
+    selectedNamespaceValue && selectedNamespaceValue !== allNamespacesOptionValue
+      ? selectedNamespaceValue
+      : null;
+  const isDataNodeNamespaceBootstrapReady =
+    !dataNodeNamespacesQuery.isLoading &&
+    (!dataNodeNamespaceOptions.length || selectedNamespaceValue.length > 0);
+
   const dataNodesQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "list", dataNodesPageIndex],
+    queryKey: [
+      "main_sequence",
+      "data_nodes",
+      "list",
+      dataNodesPageIndex,
+      effectiveSelectedNamespace,
+    ],
     queryFn: () =>
       listDataNodes({
         limit: mainSequenceRegistryPageSize,
         light: false,
         offset: dataNodesPageIndex * mainSequenceRegistryPageSize,
+        namespace: effectiveSelectedNamespace ?? undefined,
       }),
+    enabled: isDataNodeNamespaceBootstrapReady && !dataNodeNamespacesQuery.isError,
   });
 
   useEffect(() => {
+    if (dataNodeNamespaceOptions.length === 0) {
+      if (!dataNodeNamespacesQuery.isLoading && selectedNamespaceValue !== allNamespacesOptionValue) {
+        setSelectedNamespaceValue(allNamespacesOptionValue);
+      }
+      return;
+    }
+
+    if (selectedNamespaceValue === allNamespacesOptionValue) {
+      return;
+    }
+
+    const optionValues = new Set(dataNodeNamespaceOptions.map(getNamespaceOptionValue));
+
+    if (!selectedNamespaceValue || !optionValues.has(selectedNamespaceValue)) {
+      setSelectedNamespaceValue(getNamespaceOptionValue(dataNodeNamespaceOptions[0]!));
+    }
+  }, [dataNodeNamespaceOptions, dataNodeNamespacesQuery.isLoading, selectedNamespaceValue]);
+
+  useEffect(() => {
     setDataNodesPageIndex(0);
-  }, [deferredFilterValue]);
+  }, [deferredFilterValue, effectiveSelectedNamespace]);
 
   const dataNodeSummaryQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "summary", selectedDataNodeIdentifier],
@@ -556,6 +615,7 @@ export function MainSequenceDataNodesPage() {
     selectedDataNodeFromList?.storage_hash ??
     (isDataNodeDetailOpen ? `Data node ${selectedDataNodeIdentifier}` : "Data node");
   const dataNodeColumnDetails = dataNodeDetailQuery.data?.sourcetableconfiguration?.columns_metadata ?? [];
+  const dataNodeForeignKeys = dataNodeDetailQuery.data?.foreign_keys ?? [];
   const selectedSourceTableConfiguration = dataNodeDetailQuery.data?.sourcetableconfiguration ?? null;
   const sourceTableConfigurationUid = useMemo(
     () => getSourceTableConfigurationUid(dataNodeDetailQuery.data),
@@ -1286,6 +1346,75 @@ export function MainSequenceDataNodesPage() {
                               )}
                             </CardContent>
                           </Card>
+
+                          <Card variant="nested">
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-base">Foreign keys</CardTitle>
+                              <CardDescription>
+                                Foreign-key metadata returned by the data node detail endpoint.
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              {dataNodeForeignKeys.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                  <table
+                                    className="w-full min-w-[980px] border-separate"
+                                    style={{
+                                      borderSpacing: "0 var(--table-row-gap-y)",
+                                      fontSize: "var(--table-font-size)",
+                                    }}
+                                  >
+                                    <thead>
+                                      <tr
+                                        className="text-left uppercase tracking-[0.18em] text-muted-foreground"
+                                        style={{ fontSize: "var(--table-meta-font-size)" }}
+                                      >
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Source Columns
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Target MetaTable UID
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Target Columns
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          On Delete
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {dataNodeForeignKeys.map((foreignKey, index) => (
+                                        <tr
+                                          key={`${foreignKey.target_meta_table_uid ?? "none"}-${index}`}
+                                        >
+                                          <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {formatJoinedValues(foreignKey.source_columns)}
+                                          </td>
+                                          <td
+                                            className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground"
+                                            style={{ fontSize: "var(--table-meta-font-size)" }}
+                                          >
+                                            {foreignKey.target_meta_table_uid?.trim() || "Not set"}
+                                          </td>
+                                          <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {formatJoinedValues(foreignKey.target_columns)}
+                                          </td>
+                                          <td className="rounded-r-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {foreignKey.on_delete?.trim() || "Not set"}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                                  No foreign-key metadata is available for this data node.
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
                         </>
                       ) : null}
                     </div>
@@ -1296,7 +1425,8 @@ export function MainSequenceDataNodesPage() {
                           <div>
                             <CardTitle className="text-base">AI description</CardTitle>
                             <CardDescription>
-                              This is AI-generated information about the DataNode.
+                              This document is AI-generated using the data node description, the
+                              code that generates the data node, and the column metadata.
                             </CardDescription>
                           </div>
                           {!generatedSearchDocument ? (
@@ -1340,6 +1470,8 @@ export function MainSequenceDataNodesPage() {
                     </Card>
                   ) : selectedDetailTabId === "data-snapshot" ? (
                     <MainSequenceDataNodeSnapshotTab dataNodeUid={selectedDataNodeIdentifier!} />
+                  ) : selectedDetailTabId === "ulm-diagram" ? (
+                    <MainSequenceDataNodeSchemaGraphTab dataNodeUid={selectedDataNodeIdentifier!} />
                   ) : selectedDetailTabId === dataNodeLocalUpdatesTabId ? (
                     <MainSequenceDataNodeLocalTimeSeriesTab
                       dataNodeIdentifier={selectedDataNodeIdentifier!}
@@ -1370,7 +1502,7 @@ export function MainSequenceDataNodesPage() {
           <PageHeader
             eyebrow="Main Sequence"
             title="DataNodes"
-            description="Browse data nodes from the ts_manager API."
+            description="Browse data nodes from the ts_manager API by namespace."
             actions={<Badge variant="neutral">{`${dataNodesQuery.data?.count ?? 0} data nodes`}</Badge>}
           />
 
@@ -1380,24 +1512,44 @@ export function MainSequenceDataNodesPage() {
                 <div>
                   <CardTitle>Data nodes registry</CardTitle>
                   <CardDescription>
-                    Search across identifiers, hashes, sources, descriptions, and index names.
+                    Start from a namespace, then search across identifiers, hashes, sources,
+                    descriptions, and index names inside that slice.
                   </CardDescription>
                 </div>
                 <MainSequenceRegistrySearch
                   actionMenuLabel="Data node actions"
+                  accessory={
+                    <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+                      <Badge variant="neutral">{`${dataNodesQuery.data?.count ?? 0} rows`}</Badge>
+                      <div className="w-full sm:w-64">
+                        <Select
+                          value={selectedNamespaceValue}
+                          onChange={(event) => setSelectedNamespaceValue(event.target.value)}
+                          disabled={dataNodeNamespacesQuery.isLoading || dataNodeNamespacesQuery.isError}
+                        >
+                          <option value={allNamespacesOptionValue}>All namespaces</option>
+                          {dataNodeNamespaceOptions.map((namespace) => (
+                            <option key={namespace.namespace_uid} value={getNamespaceOptionValue(namespace)}>
+                              {getNamespaceOptionLabel(namespace)}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+                  }
                   bulkActions={dataNodeBulkActions}
                   clearSelectionLabel="Clear data nodes"
                   onClearSelection={dataNodeSelection.clearSelection}
                   renderSelectionSummary={(selectionCount) => `${selectionCount} data nodes selected`}
                   value={filterValue}
                   onChange={(event) => setFilterValue(event.target.value)}
-                  placeholder="Filter by identifier, id, hash, source class, or data source"
+                  placeholder="Filter by identifier, hash, namespace, source class, or data source"
                   selectionCount={dataNodeSelection.selectedCount}
                 />
               </div>
             </CardHeader>
             <CardContent className="p-0">
-          {dataNodesQuery.isLoading ? (
+          {dataNodeNamespacesQuery.isLoading || dataNodesQuery.isLoading ? (
             <div className="flex min-h-64 items-center justify-center">
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1406,27 +1558,35 @@ export function MainSequenceDataNodesPage() {
             </div>
           ) : null}
 
-          {dataNodesQuery.isError ? (
+          {dataNodeNamespacesQuery.isError || dataNodesQuery.isError ? (
             <div className="p-5">
               <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                {formatMainSequenceError(dataNodesQuery.error)}
+                {formatMainSequenceError(dataNodeNamespacesQuery.error ?? dataNodesQuery.error)}
               </div>
             </div>
           ) : null}
 
-          {!dataNodesQuery.isLoading && !dataNodesQuery.isError && filteredDataNodes.length === 0 ? (
+          {!dataNodeNamespacesQuery.isLoading &&
+          !dataNodeNamespacesQuery.isError &&
+          !dataNodesQuery.isLoading &&
+          !dataNodesQuery.isError &&
+          filteredDataNodes.length === 0 ? (
             <div className="px-5 py-14 text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-border/70 bg-background/35 text-primary">
                 <Network className="h-6 w-6" />
               </div>
               <div className="mt-4 text-sm font-medium text-foreground">No data nodes found</div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Clear the current filter or confirm the authenticated user can view dynamic tables.
+                Clear the current filter, switch namespace, or confirm the authenticated user can view dynamic tables.
               </p>
             </div>
           ) : null}
 
-                  {!dataNodesQuery.isLoading && !dataNodesQuery.isError && sortedDataNodes.length > 0 ? (
+                  {!dataNodeNamespacesQuery.isLoading &&
+                  !dataNodeNamespacesQuery.isError &&
+                  !dataNodesQuery.isLoading &&
+                  !dataNodesQuery.isError &&
+                  sortedDataNodes.length > 0 ? (
                     <div className="overflow-x-auto px-4 py-4">
               <table
                 className="w-full min-w-[1220px] border-separate"

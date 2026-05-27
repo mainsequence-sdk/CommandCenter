@@ -10,19 +10,26 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toaster";
 
 import {
+  bulkDeleteMetaTablesWithCascade,
   bulkDeleteMetaTables,
   bulkRefreshMetaTableSearchIndex,
+  deleteMetaTable,
   fetchMetaTableDetail,
   fetchMetaTableSummary,
   formatMainSequenceError,
   getTsManagerRecordIdentifier,
+  listMetaTableNamespaces,
   listMetaTables,
+  MainSequenceApiError,
   mainSequenceRegistryPageSize,
   type EntitySummaryHeader,
+  type MainSequenceNamespaceOptionRecord,
   type MetaTableDetail,
+  type MetaTableDeleteWithCascadeResponse,
   type MetaTableRecord,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
@@ -44,12 +51,46 @@ const metaTableDetailTabs = [
 ] as const;
 type MetaTableDetailTabId = (typeof metaTableDetailTabs)[number]["id"];
 const defaultMetaTableDetailTabId: MetaTableDetailTabId = "details";
+const allNamespacesOptionValue = "__all__";
 
-type MetaTableBulkActionKind = "delete" | "refresh-search-index";
+type MetaTableActionKind = "delete" | "delete-with-cascade" | "refresh-search-index";
 
-type MetaTableBulkActionRequest = {
-  kind: MetaTableBulkActionKind;
+type MetaTableActionRequest = {
+  kind: MetaTableActionKind;
   tables: MetaTableRecord[];
+};
+
+type MetaTableColumnDetailRow = {
+  key: string;
+  name: string;
+  label: string | null;
+  logicalName: string | null;
+  dataType: string | null;
+  backendType: string | null;
+  nullable: boolean;
+  primaryKey: boolean;
+  unique: boolean;
+  ordinalPosition: number | null;
+  description: string | null;
+};
+
+type MetaTableIndexDetailRow = {
+  key: string;
+  name: string;
+  columns: string[];
+  unique: boolean | null;
+  method: string | null;
+  expression: string | null;
+};
+
+type MetaTableForeignKeyDetailRow = {
+  key: string;
+  name: string;
+  sourceColumns: string[];
+  targetTableUid: string | null;
+  targetTableStorageHash: string | null;
+  targetColumns: string[];
+  onDelete: string | null;
 };
 
 function getPrimaryLabel(table: MetaTableRecord) {
@@ -111,7 +152,7 @@ function buildSearchText(table: MetaTableRecord) {
   return [
     table.identifier ?? "",
     table.storage_hash ?? "",
-    table.source_class_name ?? "",
+    table.namespace ?? "",
     table.description ?? "",
     getDataSourceLabel(table),
   ]
@@ -121,6 +162,34 @@ function buildSearchText(table: MetaTableRecord) {
 
 function getMetaTableDescription(table?: MetaTableRecord | MetaTableDetail | null) {
   return typeof table?.description === "string" ? table.description.trim() : "";
+}
+
+function formatMetaTableValue(value?: string | null) {
+  return typeof value === "string" && value.trim() ? value.trim() : "Not set";
+}
+
+function formatMetaTableListValue(values: string[]) {
+  return values.length > 0 ? values.join(", ") : "Not set";
+}
+
+function getNamespaceOptionLabel(namespace: MainSequenceNamespaceOptionRecord) {
+  return `${namespace.display_name} (${namespace.table_count})`;
+}
+
+function getNamespaceOptionValue(namespace: MainSequenceNamespaceOptionRecord) {
+  return namespace.filters.namespace?.trim() || namespace.namespace.trim();
+}
+
+function formatManagementMode(value?: string | null) {
+  if (!value?.trim()) {
+    return "Not set";
+  }
+
+  return value
+    .trim()
+    .split("_")
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
 }
 
 function buildFallbackMetaTableSummary(
@@ -133,7 +202,7 @@ function buildFallbackMetaTableSummary(
 
   return {
     entity: {
-      id: metaTable.id,
+      id: metaTable.uid || metaTable.id || getPrimaryLabel(metaTable),
       type: "meta_table",
       title: metaTable.storage_hash ?? getPrimaryLabel(metaTable),
     },
@@ -171,9 +240,9 @@ function buildFallbackMetaTableSummary(
     ],
     highlight_fields: [
       {
-        key: "source_class_name",
-        label: "Source Class",
-        value: metaTable.source_class_name ?? "Unknown",
+        key: "namespace",
+        label: "Namespace",
+        value: formatMetaTableValue(metaTable.namespace),
         kind: "code",
       },
       {
@@ -188,17 +257,95 @@ function buildFallbackMetaTableSummary(
 }
 
 function buildMetaTableColumnDetails(metaTable?: MetaTableDetail | null) {
-  if (Array.isArray(metaTable?.sourcetableconfiguration?.columns_metadata)) {
-    return metaTable.sourcetableconfiguration.columns_metadata;
+  return (metaTable?.columns ?? []).map((column, index) => ({
+    key: `${column.id ?? index}-${column.name}`,
+    name: column.name,
+    label: column.label ?? null,
+    logicalName: column.logical_name ?? null,
+    dataType: column.data_type ?? null,
+    backendType: column.backend_type ?? null,
+    nullable: column.nullable,
+    primaryKey: column.primary_key,
+    unique: column.unique,
+    ordinalPosition: column.ordinal_position ?? null,
+    description: column.description ?? null,
+  }));
+}
+
+function buildMetaTableIndexDetails(metaTable?: MetaTableDetail | null) {
+  return (metaTable?.indexes_meta ?? []).map((index, position) => ({
+    key: `${index.name}-${position}`,
+    name: index.name,
+    columns: index.columns ?? [],
+    unique: typeof index.unique === "boolean" ? index.unique : null,
+    method: index.method ?? null,
+    expression: index.expression ?? null,
+  }));
+}
+
+function buildMetaTableForeignKeyDetails(
+  foreignKeys: MetaTableDetail["foreign_keys"] | MetaTableDetail["incoming_fks"] | undefined,
+) {
+  return (foreignKeys ?? []).map((foreignKey, position) => ({
+    key: `${foreignKey.name}-${position}`,
+    name: foreignKey.name,
+    sourceColumns: foreignKey.source_columns ?? [],
+    targetTableUid: foreignKey.target_table_uid ?? null,
+    targetTableStorageHash: foreignKey.target_table_storage_hash ?? null,
+    targetColumns: foreignKey.target_columns ?? [],
+    onDelete: foreignKey.on_delete ?? null,
+  }));
+}
+
+function buildMetaTableFactItems(metaTable?: MetaTableDetail | null) {
+  if (!metaTable) {
+    return [];
   }
 
-  return (metaTable?.columns ?? []).map((column) => ({
-    source_config_id: column.id ?? null,
-    column_name: column.column_name,
-    dtype: column.db_type ?? null,
-    label: column.attr_name ?? null,
-    description: null,
-  }));
+  return [
+    {
+      key: "namespace",
+      label: "Namespace",
+      value: formatMetaTableValue(metaTable.namespace),
+      monospace: true,
+    },
+    {
+      key: "data_source",
+      label: "Data Source",
+      value: getDataSourceLabel(metaTable),
+      monospace: false,
+    },
+    {
+      key: "management_mode",
+      label: "Management Mode",
+      value: formatManagementMode(metaTable.management_mode),
+      monospace: false,
+    },
+    {
+      key: "physical_table_name",
+      label: "Physical Table",
+      value: formatMetaTableValue(metaTable.physical_table_name ?? metaTable.storage_hash ?? null),
+      monospace: true,
+    },
+    {
+      key: "contract_version",
+      label: "Contract Version",
+      value: formatMetaTableValue(metaTable.contract_version),
+      monospace: true,
+    },
+  ];
+}
+
+function getMetaTableActionErrorDescription(error: unknown, actionKind: MetaTableActionKind) {
+  if (
+    actionKind === "delete" &&
+    error instanceof MainSequenceApiError &&
+    error.status === 409
+  ) {
+    return `${formatMainSequenceError(error)} Use Delete with Cascade if you want to remove the referencing tables too.`;
+  }
+
+  return formatMainSequenceError(error);
 }
 
 function isMetaTableDetailTabId(value: string | null): value is MetaTableDetailTabId {
@@ -211,8 +358,9 @@ export function MainSequenceMetaTablesPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [filterValue, setFilterValue] = useState("");
+  const [selectedNamespaceValue, setSelectedNamespaceValue] = useState("");
   const [metaTablesPageIndex, setMetaTablesPageIndex] = useState(0);
-  const [bulkActionRequest, setBulkActionRequest] = useState<MetaTableBulkActionRequest | null>(null);
+  const [actionRequest, setActionRequest] = useState<MetaTableActionRequest | null>(null);
   const deferredFilterValue = useDeferredValue(filterValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const selectedMetaTableIdentifier =
@@ -223,18 +371,63 @@ export function MainSequenceMetaTablesPage() {
       ? requestedDetailTabId
       : defaultMetaTableDetailTabId;
 
+  const metaTableNamespacesQuery = useQuery({
+    queryKey: ["main_sequence", "meta_tables", "namespaces"],
+    queryFn: () => listMetaTableNamespaces(),
+  });
+
+  const metaTableNamespaceOptions = metaTableNamespacesQuery.data ?? [];
+  const effectiveSelectedNamespace =
+    selectedNamespaceValue && selectedNamespaceValue !== allNamespacesOptionValue
+      ? selectedNamespaceValue
+      : null;
+  const isMetaTableNamespaceBootstrapReady =
+    !metaTableNamespacesQuery.isLoading &&
+    (!metaTableNamespaceOptions.length || selectedNamespaceValue.length > 0);
+
   const metaTablesQuery = useQuery({
-    queryKey: ["main_sequence", "meta_tables", "list", metaTablesPageIndex],
+    queryKey: [
+      "main_sequence",
+      "meta_tables",
+      "list",
+      metaTablesPageIndex,
+      effectiveSelectedNamespace,
+    ],
     queryFn: () =>
       listMetaTables({
         limit: mainSequenceRegistryPageSize,
         offset: metaTablesPageIndex * mainSequenceRegistryPageSize,
+        namespace: effectiveSelectedNamespace ?? undefined,
       }),
+    enabled: isMetaTableNamespaceBootstrapReady && !metaTableNamespacesQuery.isError,
   });
 
   useEffect(() => {
+    if (metaTableNamespaceOptions.length === 0) {
+      if (!metaTableNamespacesQuery.isLoading && selectedNamespaceValue !== allNamespacesOptionValue) {
+        setSelectedNamespaceValue(allNamespacesOptionValue);
+      }
+      return;
+    }
+
+    if (selectedNamespaceValue === allNamespacesOptionValue) {
+      return;
+    }
+
+    const optionValues = new Set(metaTableNamespaceOptions.map(getNamespaceOptionValue));
+
+    if (!selectedNamespaceValue || !optionValues.has(selectedNamespaceValue)) {
+      setSelectedNamespaceValue(getNamespaceOptionValue(metaTableNamespaceOptions[0]!));
+    }
+  }, [
+    metaTableNamespaceOptions,
+    metaTableNamespacesQuery.isLoading,
+    selectedNamespaceValue,
+  ]);
+
+  useEffect(() => {
     setMetaTablesPageIndex(0);
-  }, [deferredFilterValue]);
+  }, [deferredFilterValue, effectiveSelectedNamespace]);
 
   useEffect(() => {
     const totalPages = Math.max(
@@ -291,22 +484,39 @@ export function MainSequenceMetaTablesPage() {
     selectedMetaTableFromList?.storage_hash ??
     (isMetaTableDetailOpen ? `Meta table ${selectedMetaTableIdentifier}` : "Meta table");
   const metaTableColumnDetails = buildMetaTableColumnDetails(metaTableDetailQuery.data);
+  const metaTableIndexDetails = buildMetaTableIndexDetails(metaTableDetailQuery.data);
+  const metaTableForeignKeyDetails = buildMetaTableForeignKeyDetails(
+    metaTableDetailQuery.data?.foreign_keys,
+  );
+  const metaTableIncomingForeignKeyDetails = buildMetaTableForeignKeyDetails(
+    metaTableDetailQuery.data?.incoming_fks,
+  );
+  const metaTableFactItems = buildMetaTableFactItems(metaTableDetailQuery.data);
   const metaTableDescription =
     getMetaTableDescription(metaTableDetailQuery.data) ||
     getMetaTableDescription(selectedMetaTableFromList);
 
   const metaTableSelection = useRegistrySelection(filteredTables, getMetaTableUid);
 
-  const bulkActionMutation = useMutation({
-    mutationFn: async (request: MetaTableBulkActionRequest) => {
+  const actionMutation = useMutation({
+    mutationFn: async (request: MetaTableActionRequest) => {
       const uids = request.tables
         .map((table) => table.uid.trim())
         .filter((uid): uid is string => Boolean(uid));
 
       switch (request.kind) {
         case "delete":
+          if (uids.length === 1) {
+            return deleteMetaTable(uids[0]!);
+          }
+
           return bulkDeleteMetaTables({
             uids,
+          });
+        case "delete-with-cascade":
+          return bulkDeleteMetaTablesWithCascade({
+            uids,
+            confirm_cascade_delete: true,
           });
         case "refresh-search-index":
           return bulkRefreshMetaTableSearchIndex(uids);
@@ -317,6 +527,12 @@ export function MainSequenceMetaTablesPage() {
     onSuccess: async (result, request) => {
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "meta_tables"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "data_nodes"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "namespaces"],
       });
 
       if (request.kind === "refresh-search-index") {
@@ -332,6 +548,22 @@ export function MainSequenceMetaTablesPage() {
             refreshedCount === 1
               ? `${request.tables[0] ? getPrimaryLabel(request.tables[0]) : "Meta table"} was refreshed.`
               : `Search index refreshed for ${refreshedCount} meta tables.`,
+        });
+      } else if (request.kind === "delete-with-cascade") {
+        const cascadeResult =
+          result && typeof result === "object"
+            ? (result as MetaTableDeleteWithCascadeResponse)
+            : null;
+        const deletedMetaTableCount = cascadeResult?.deleted_meta_table_count ?? request.tables.length;
+        const deletedDynamicTableCount = cascadeResult?.deleted_dynamic_table_count ?? 0;
+
+        toast({
+          variant: "success",
+          title: "Meta table cascade delete complete",
+          description:
+            deletedDynamicTableCount > 0
+              ? `${deletedMetaTableCount} meta table${deletedMetaTableCount === 1 ? "" : "s"} and ${deletedDynamicTableCount} data node${deletedDynamicTableCount === 1 ? "" : "s"} were deleted.`
+              : `${deletedMetaTableCount} meta table${deletedMetaTableCount === 1 ? "" : "s"} were deleted with cascade.`,
         });
       } else {
         const deletedCount =
@@ -354,17 +586,24 @@ export function MainSequenceMetaTablesPage() {
         });
       }
 
-      setBulkActionRequest(null);
+      if (
+        selectedMetaTableIdentifier &&
+        request.tables.some((table) => table.uid === selectedMetaTableIdentifier)
+      ) {
+        closeMetaTableDetail();
+      }
+
+      setActionRequest(null);
       metaTableSelection.clearSelection();
     },
     onError: (error) => {
       toast({
         variant: "error",
         title:
-          bulkActionRequest?.kind === "refresh-search-index"
+          actionRequest?.kind === "refresh-search-index"
             ? "Search index refresh failed"
             : "Meta table action failed",
-        description: formatMainSequenceError(error),
+        description: getMetaTableActionErrorDescription(error, actionRequest?.kind ?? "delete"),
       });
     },
   });
@@ -407,18 +646,33 @@ export function MainSequenceMetaTablesPage() {
     });
   }
 
-  function openBulkAction(kind: MetaTableBulkActionKind) {
-    const selectedItems = metaTableSelection.selectedItems;
-
-    if (selectedItems.length === 0) {
+  function openAction(kind: MetaTableActionKind, tables: MetaTableRecord[]) {
+    if (tables.length === 0) {
       return;
     }
 
-    bulkActionMutation.reset();
-    setBulkActionRequest({
+    actionMutation.reset();
+    setActionRequest({
       kind,
-      tables: selectedItems,
+      tables,
     });
+  }
+
+  function openBulkAction(kind: MetaTableActionKind) {
+    const selectedItems = metaTableSelection.selectedItems;
+
+    openAction(kind, selectedItems);
+  }
+
+  function openDetailAction(kind: MetaTableActionKind) {
+    if (metaTableDetailQuery.data) {
+      openAction(kind, [metaTableDetailQuery.data]);
+      return;
+    }
+
+    if (selectedMetaTableFromList) {
+      openAction(kind, [selectedMetaTableFromList]);
+    }
   }
 
   const bulkActions =
@@ -432,6 +686,13 @@ export function MainSequenceMetaTablesPage() {
             onSelect: () => openBulkAction("delete"),
           },
           {
+            id: "delete-meta-table-with-cascade",
+            label: "Delete with Cascade",
+            icon: Trash2,
+            tone: "danger" as const,
+            onSelect: () => openBulkAction("delete-with-cascade"),
+          },
+          {
             id: "refresh-table-search-index",
             label: "Refresh table search index",
             tone: "primary" as const,
@@ -441,11 +702,11 @@ export function MainSequenceMetaTablesPage() {
       : [];
 
   const bulkActionConfig = useMemo(() => {
-    if (!bulkActionRequest) {
+    if (!actionRequest) {
       return null;
     }
 
-    switch (bulkActionRequest.kind) {
+    switch (actionRequest.kind) {
       case "delete":
         return {
           title: "Delete Table",
@@ -454,6 +715,16 @@ export function MainSequenceMetaTablesPage() {
           confirmWord: "DELETE",
           tone: "danger" as const,
           specialText: undefined,
+        };
+      case "delete-with-cascade":
+        return {
+          title: "Delete with Cascade",
+          actionLabel: "delete with cascade",
+          confirmButtonLabel: "Delete with Cascade",
+          confirmWord: "DELETE WITH CASCADE",
+          tone: "danger" as const,
+          specialText:
+            "This will recursively delete referencing MetaTables and Data Nodes, and it will drop platform-managed physical tables.",
         };
       default:
         return {
@@ -465,24 +736,24 @@ export function MainSequenceMetaTablesPage() {
           specialText: "This will refresh the table search index",
         };
     }
-  }, [bulkActionRequest]);
+  }, [actionRequest]);
 
   const bulkActionObjectSummary = useMemo(() => {
-    if (!bulkActionRequest) {
+    if (!actionRequest) {
       return null;
     }
 
-    if (bulkActionRequest.tables.length === 1) {
+    if (actionRequest.tables.length === 1) {
       return (
         <>
           <div className="font-medium">
-            {bulkActionRequest.tables[0]
-              ? getPrimaryLabel(bulkActionRequest.tables[0])
+            {actionRequest.tables[0]
+              ? getPrimaryLabel(actionRequest.tables[0])
               : "Meta table"}
           </div>
-          {bulkActionRequest.tables[0]?.uid?.trim() ? (
+          {actionRequest.tables[0]?.uid?.trim() ? (
             <div className="mt-1 text-muted-foreground">
-              UID {bulkActionRequest.tables[0].uid.trim()}
+              UID {actionRequest.tables[0].uid.trim()}
             </div>
           ) : null}
         </>
@@ -491,17 +762,17 @@ export function MainSequenceMetaTablesPage() {
 
     return (
       <>
-        <div className="font-medium">{bulkActionRequest.tables.length} meta tables selected</div>
+        <div className="font-medium">{actionRequest.tables.length} meta tables selected</div>
         <div className="mt-1 text-muted-foreground">
-          {bulkActionRequest.tables
+          {actionRequest.tables
             .slice(0, 3)
             .map((table) => getPrimaryLabel(table))
             .join(", ")}
-          {bulkActionRequest.tables.length > 3 ? ", ..." : ""}
+          {actionRequest.tables.length > 3 ? ", ..." : ""}
         </div>
       </>
     );
-  }, [bulkActionRequest]);
+  }, [actionRequest]);
 
   return (
     <div className="space-y-6">
@@ -519,10 +790,30 @@ export function MainSequenceMetaTablesPage() {
               <span>/</span>
               <span className="text-foreground">{metaTableTitle}</span>
             </div>
-            <Button variant="outline" size="sm" onClick={closeMetaTableDetail}>
-              <ArrowLeft className="h-4 w-4" />
-              Back to meta tables
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => openDetailAction("delete-with-cascade")}
+                disabled={!metaTableDetailQuery.data && !selectedMetaTableFromList}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete with Cascade
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openDetailAction("delete")}
+                disabled={!metaTableDetailQuery.data && !selectedMetaTableFromList}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </Button>
+              <Button variant="outline" size="sm" onClick={closeMetaTableDetail}>
+                <ArrowLeft className="h-4 w-4" />
+                Back to meta tables
+              </Button>
+            </div>
           </div>
 
           {metaTableSummaryQuery.isLoading && !metaTableSummary ? (
@@ -588,18 +879,46 @@ export function MainSequenceMetaTablesPage() {
                       ) : null}
 
                       {!metaTableDetailQuery.isLoading && !metaTableDetailQuery.isError ? (
-                        <Card variant="nested">
-                          <CardHeader className="pb-3">
-                            <CardTitle className="text-base">Column details</CardTitle>
-                            <CardDescription>
-                              Column metadata from the source table configuration.
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            {metaTableColumnDetails.length > 0 ? (
-                              <div className="overflow-x-auto">
+                        <div className="space-y-4">
+                          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            {metaTableFactItems.map((item) => (
+                              <div
+                                key={item.key}
+                                className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3"
+                              >
+                                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                                  {item.label}
+                                </div>
+                                <div
+                                  className={`mt-1 text-sm text-foreground ${item.monospace ? "font-mono" : ""}`}
+                                >
+                                  {item.value}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {metaTableDetailQuery.data?.labels?.length ? (
+                            <div className="flex flex-wrap gap-2">
+                              {metaTableDetailQuery.data.labels.map((label) => (
+                                <Badge key={label} variant="neutral">
+                                  {label}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : null}
+
+                          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/28">
+                            <div className="border-b border-border/70 px-4 py-3">
+                              <div className="text-base font-medium text-foreground">Column Details</div>
+                              <div className="mt-1 text-sm text-muted-foreground">
+                                Normalized column metadata returned by the Meta Table detail endpoint.
+                              </div>
+                            </div>
+                            <div className="overflow-x-auto p-4">
+                              {metaTableColumnDetails.length > 0 ? (
                                 <table
-                                  className="w-full min-w-[920px] border-separate"
+                                  className="w-full min-w-[1120px] border-separate"
                                   style={{
                                     borderSpacing: "0 var(--table-row-gap-y)",
                                     fontSize: "var(--table-font-size)",
@@ -611,13 +930,22 @@ export function MainSequenceMetaTablesPage() {
                                       style={{ fontSize: "var(--table-meta-font-size)" }}
                                     >
                                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Ord
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
                                         Column
                                       </th>
                                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">
-                                        Dtype
+                                        Label
                                       </th>
                                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">
-                                        Label
+                                        Data Type
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Backend
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Flags
                                       </th>
                                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">
                                         Description
@@ -626,36 +954,282 @@ export function MainSequenceMetaTablesPage() {
                                   </thead>
                                   <tbody>
                                     {metaTableColumnDetails.map((column) => (
-                                      <tr
-                                        key={`${column.source_config_id ?? "none"}-${column.column_name}`}
-                                      >
+                                      <tr key={column.key}>
+                                        <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          {column.ordinalPosition ?? "?"}
+                                        </td>
                                         <td
-                                          className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground"
+                                          className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground"
                                           style={{ fontSize: "var(--table-meta-font-size)" }}
                                         >
-                                          {column.column_name}
+                                          {column.name}
                                         </td>
                                         <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
-                                          {column.dtype?.trim() || "Not set"}
+                                          <div>{column.label || "Not set"}</div>
+                                          {column.logicalName &&
+                                          column.logicalName !== column.label ? (
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                              {column.logicalName}
+                                            </div>
+                                          ) : null}
                                         </td>
                                         <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
-                                          {column.label?.trim() || "Not set"}
+                                          {column.dataType || "Not set"}
+                                        </td>
+                                        <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          {column.backendType || "Not set"}
+                                        </td>
+                                        <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          <div className="flex flex-wrap gap-1.5">
+                                            <Badge variant={column.nullable ? "neutral" : "warning"}>
+                                              {column.nullable ? "Nullable" : "Required"}
+                                            </Badge>
+                                            {column.primaryKey ? (
+                                              <Badge variant="primary">PK</Badge>
+                                            ) : null}
+                                            {column.unique ? (
+                                              <Badge variant="success">Unique</Badge>
+                                            ) : null}
+                                          </div>
                                         </td>
                                         <td className="rounded-r-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
-                                          {column.description?.trim() || "Not set"}
+                                          {column.description || "Not set"}
                                         </td>
                                       </tr>
                                     ))}
                                   </tbody>
                                 </table>
+                              ) : (
+                                <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                                  No column metadata is available for this meta table.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/28">
+                            <div className="border-b border-border/70 px-4 py-3">
+                              <div className="text-base font-medium text-foreground">Indexes</div>
+                              <div className="mt-1 text-sm text-muted-foreground">
+                                Index metadata exposed by the Meta Table detail endpoint.
                               </div>
-                            ) : (
-                              <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
-                                No column metadata is available for this meta table.
+                            </div>
+                            <div className="overflow-x-auto p-4">
+                              {metaTableIndexDetails.length > 0 ? (
+                                <table
+                                  className="w-full min-w-[860px] border-separate"
+                                  style={{
+                                    borderSpacing: "0 var(--table-row-gap-y)",
+                                    fontSize: "var(--table-font-size)",
+                                  }}
+                                >
+                                  <thead>
+                                    <tr
+                                      className="text-left uppercase tracking-[0.18em] text-muted-foreground"
+                                      style={{ fontSize: "var(--table-meta-font-size)" }}
+                                    >
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Name
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Columns
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Unique
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Method
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Expression
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {metaTableIndexDetails.map((index) => (
+                                      <tr key={index.key}>
+                                        <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground">
+                                          {index.name}
+                                        </td>
+                                        <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          {formatMetaTableListValue(index.columns)}
+                                        </td>
+                                        <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          {index.unique === null ? "Not set" : index.unique ? "Yes" : "No"}
+                                        </td>
+                                        <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          {index.method || "Not set"}
+                                        </td>
+                                        <td className="rounded-r-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          {index.expression || "Not set"}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              ) : (
+                                <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                                  No index metadata is available for this meta table.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/28">
+                            <div className="border-b border-border/70 px-4 py-3">
+                              <div className="text-base font-medium text-foreground">Foreign Keys</div>
+                              <div className="mt-1 text-sm text-muted-foreground">
+                                Outgoing foreign-key definitions declared on this Meta Table.
                               </div>
-                            )}
-                          </CardContent>
-                        </Card>
+                            </div>
+                            <div className="overflow-x-auto p-4">
+                              {metaTableForeignKeyDetails.length > 0 ? (
+                                <table
+                                  className="w-full min-w-[1040px] border-separate"
+                                  style={{
+                                    borderSpacing: "0 var(--table-row-gap-y)",
+                                    fontSize: "var(--table-font-size)",
+                                  }}
+                                >
+                                  <thead>
+                                    <tr
+                                      className="text-left uppercase tracking-[0.18em] text-muted-foreground"
+                                      style={{ fontSize: "var(--table-meta-font-size)" }}
+                                    >
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Name
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Source Columns
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Target Table
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Target Columns
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        On Delete
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {metaTableForeignKeyDetails.map((foreignKey) => (
+                                      <tr key={foreignKey.key}>
+                                        <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground">
+                                          {foreignKey.name}
+                                        </td>
+                                        <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          {formatMetaTableListValue(foreignKey.sourceColumns)}
+                                        </td>
+                                        <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          <div className="font-mono">
+                                            {foreignKey.targetTableStorageHash ||
+                                              foreignKey.targetTableUid ||
+                                              "Not set"}
+                                          </div>
+                                          {foreignKey.targetTableStorageHash &&
+                                          foreignKey.targetTableUid ? (
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                              {foreignKey.targetTableUid}
+                                            </div>
+                                          ) : null}
+                                        </td>
+                                        <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          {formatMetaTableListValue(foreignKey.targetColumns)}
+                                        </td>
+                                        <td className="rounded-r-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          {foreignKey.onDelete || "Not set"}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              ) : (
+                                <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                                  No foreign-key metadata is available for this meta table.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/28">
+                            <div className="border-b border-border/70 px-4 py-3">
+                              <div className="text-base font-medium text-foreground">Incoming References</div>
+                              <div className="mt-1 text-sm text-muted-foreground">
+                                Foreign keys from other tables that target this Meta Table.
+                              </div>
+                            </div>
+                            <div className="overflow-x-auto p-4">
+                              {metaTableIncomingForeignKeyDetails.length > 0 ? (
+                                <table
+                                  className="w-full min-w-[980px] border-separate"
+                                  style={{
+                                    borderSpacing: "0 var(--table-row-gap-y)",
+                                    fontSize: "var(--table-font-size)",
+                                  }}
+                                >
+                                  <thead>
+                                    <tr
+                                      className="text-left uppercase tracking-[0.18em] text-muted-foreground"
+                                      style={{ fontSize: "var(--table-meta-font-size)" }}
+                                    >
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Name
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Source Columns
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Current Table
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        Target Columns
+                                      </th>
+                                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                        On Delete
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {metaTableIncomingForeignKeyDetails.map((foreignKey) => (
+                                      <tr key={foreignKey.key}>
+                                        <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground">
+                                          {foreignKey.name}
+                                        </td>
+                                        <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          {formatMetaTableListValue(foreignKey.sourceColumns)}
+                                        </td>
+                                        <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          <div className="font-mono">
+                                            {foreignKey.targetTableStorageHash ||
+                                              metaTableDetailQuery.data?.storage_hash ||
+                                              "Not set"}
+                                          </div>
+                                          {foreignKey.targetTableUid ? (
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                              {foreignKey.targetTableUid}
+                                            </div>
+                                          ) : null}
+                                        </td>
+                                        <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          {formatMetaTableListValue(foreignKey.targetColumns)}
+                                        </td>
+                                        <td className="rounded-r-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          {foreignKey.onDelete || "Not set"}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              ) : (
+                                <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                                  No incoming foreign keys are available for this meta table.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       ) : null}
                     </div>
                   ) : selectedDetailTabId === "description" ? (
@@ -702,7 +1276,7 @@ export function MainSequenceMetaTablesPage() {
           <PageHeader
             eyebrow="Main Sequence"
             title="Meta Tables"
-            description="Browse ts_manager meta_table rows and bulk delete selected entries."
+            description="Browse ts_manager meta_table rows by namespace and bulk delete selected entries."
             actions={<Badge variant="neutral">{`${metaTablesQuery.data?.count ?? 0} meta tables`}</Badge>}
           />
 
@@ -712,13 +1286,31 @@ export function MainSequenceMetaTablesPage() {
                 <div>
                   <CardTitle>Meta table registry</CardTitle>
                   <CardDescription>
-                    Search across identifiers, hashes, sources, descriptions, and backing data
-                    sources.
+                    Start from a namespace, then search across identifiers, hashes, descriptions,
+                    and backing data sources inside that slice.
                   </CardDescription>
                 </div>
                 <MainSequenceRegistrySearch
                   actionMenuLabel="Meta table actions"
-                  accessory={<Badge variant="neutral">{`${metaTablesQuery.data?.count ?? 0} rows`}</Badge>}
+                  accessory={
+                    <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+                      <Badge variant="neutral">{`${metaTablesQuery.data?.count ?? 0} rows`}</Badge>
+                      <div className="w-full sm:w-64">
+                        <Select
+                          value={selectedNamespaceValue}
+                          onChange={(event) => setSelectedNamespaceValue(event.target.value)}
+                          disabled={metaTableNamespacesQuery.isLoading || metaTableNamespacesQuery.isError}
+                        >
+                          <option value={allNamespacesOptionValue}>All namespaces</option>
+                          {metaTableNamespaceOptions.map((namespace) => (
+                            <option key={namespace.namespace_uid} value={getNamespaceOptionValue(namespace)}>
+                              {getNamespaceOptionLabel(namespace)}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+                  }
                   bulkActions={bulkActions}
                   clearSelectionLabel="Clear selection"
                   onClearSelection={metaTableSelection.clearSelection}
@@ -727,14 +1319,14 @@ export function MainSequenceMetaTablesPage() {
                   }
                   value={filterValue}
                   onChange={(event) => setFilterValue(event.target.value)}
-                  placeholder="Filter by identifier, hash, source class, or data source"
+                  placeholder="Filter by identifier, hash, namespace, or data source"
                   searchClassName="max-w-xl"
                   selectionCount={metaTableSelection.selectedCount}
                 />
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {metaTablesQuery.isLoading ? (
+              {metaTableNamespacesQuery.isLoading || metaTablesQuery.isLoading ? (
                 <div className="flex min-h-64 items-center justify-center">
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -743,15 +1335,17 @@ export function MainSequenceMetaTablesPage() {
                 </div>
               ) : null}
 
-              {metaTablesQuery.isError ? (
+              {metaTableNamespacesQuery.isError || metaTablesQuery.isError ? (
                 <div className="p-5">
                   <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                    {formatMainSequenceError(metaTablesQuery.error)}
+                    {formatMainSequenceError(metaTableNamespacesQuery.error ?? metaTablesQuery.error)}
                   </div>
                 </div>
               ) : null}
 
-              {!metaTablesQuery.isLoading &&
+              {!metaTableNamespacesQuery.isLoading &&
+              !metaTableNamespacesQuery.isError &&
+              !metaTablesQuery.isLoading &&
               !metaTablesQuery.isError &&
               filteredTables.length === 0 ? (
                 <div className="px-5 py-14 text-center">
@@ -760,12 +1354,14 @@ export function MainSequenceMetaTablesPage() {
                   </div>
                   <div className="mt-4 text-sm font-medium text-foreground">No meta tables found</div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Clear the current filter or confirm the authenticated user can view meta tables.
+                    Clear the current filter, switch namespace, or confirm the authenticated user can view meta tables.
                   </p>
                 </div>
               ) : null}
 
-              {!metaTablesQuery.isLoading &&
+              {!metaTableNamespacesQuery.isLoading &&
+              !metaTableNamespacesQuery.isError &&
+              !metaTablesQuery.isLoading &&
               !metaTablesQuery.isError &&
               filteredTables.length > 0 ? (
                 <div className="overflow-x-auto px-4 py-4">
@@ -792,7 +1388,7 @@ export function MainSequenceMetaTablesPage() {
                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">Storage hash</th>
                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">Identifier</th>
                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">Data source</th>
-                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">Source class</th>
+                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">Namespace</th>
                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">Created</th>
                       </tr>
                     </thead>
@@ -852,7 +1448,7 @@ export function MainSequenceMetaTablesPage() {
                               <div className="text-foreground">{getDataSourceLabel(table)}</div>
                             </td>
                             <td className={getRegistryTableCellClassName(selected)}>
-                              <div className="text-foreground">{table.source_class_name ?? "Unknown"}</div>
+                              <div className="text-foreground">{table.namespace?.trim() || "Not set"}</div>
                               <div
                                 className="mt-0.5 text-muted-foreground"
                                 style={{ fontSize: "var(--table-meta-font-size)" }}
@@ -887,32 +1483,39 @@ export function MainSequenceMetaTablesPage() {
         </>
       )}
 
-      {bulkActionRequest && bulkActionConfig ? (
+      {actionRequest && bulkActionConfig ? (
         <ActionConfirmationDialog
           title={bulkActionConfig.title}
           open
           onClose={() => {
-            if (!bulkActionMutation.isPending) {
-              setBulkActionRequest(null);
+            if (!actionMutation.isPending) {
+              setActionRequest(null);
             }
           }}
           tone={bulkActionConfig.tone}
           actionLabel={bulkActionConfig.actionLabel}
-          objectLabel={bulkActionRequest.tables.length > 1 ? "meta tables" : "meta table"}
+          objectLabel={actionRequest.tables.length > 1 ? "meta tables" : "meta table"}
           confirmWord={bulkActionConfig.confirmWord}
           confirmButtonLabel={bulkActionConfig.confirmButtonLabel}
           description={
-            bulkActionRequest.kind === "refresh-search-index"
+            actionRequest.kind === "refresh-search-index"
               ? "This action refreshes the search index for the selected meta tables."
-              : "This action applies to the selected meta tables."
+              : actionRequest.kind === "delete-with-cascade"
+                ? "This action recursively deletes the selected meta tables and everything that references them."
+                : "This action applies to the selected meta tables."
           }
           specialText={bulkActionConfig.specialText}
           objectSummary={bulkActionObjectSummary}
           error={
-            bulkActionMutation.isError ? formatMainSequenceError(bulkActionMutation.error) : undefined
+            actionMutation.isError
+              ? getMetaTableActionErrorDescription(
+                  actionMutation.error,
+                  actionRequest.kind,
+                )
+              : undefined
           }
-          isPending={bulkActionMutation.isPending}
-          onConfirm={() => bulkActionMutation.mutateAsync(bulkActionRequest)}
+          isPending={actionMutation.isPending}
+          onConfirm={() => actionMutation.mutateAsync(actionRequest)}
         />
       ) : null}
     </div>

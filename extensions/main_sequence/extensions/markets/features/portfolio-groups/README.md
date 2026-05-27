@@ -10,14 +10,14 @@ This feature owns the Main Sequence Markets portfolio-group registry and the ded
 
 ## API Dependencies
 
-- `GET /orm/api/assets/portfolio_group/?response_format=frontend_list` for the list flow using the standard DRF `limit` and `offset` contract.
-- `POST /orm/api/assets/portfolio_group/get_or_create/` for the create action from the list screen.
-- `POST /orm/api/assets/portfolio_group/bulk-delete/` for selected-row deletion from the list screen.
-- `GET /orm/api/assets/portfolio_group/{uid}/` for the direct detail payload.
-- `POST /orm/api/assets/portfolio_group/{uid}/append-portfolios/` to add selected portfolios to the current group.
-- `POST /orm/api/assets/portfolio_group/{uid}/remove-portfolios/` to remove selected portfolios from the current group.
-- `GET /orm/api/assets/target_portfolio/?response_format=frontend_list&index_asset__current_snapshot__name=...` to search portfolios from the settings tab by name.
-- `GET /orm/api/assets/target_portfolio/{uid}/summary/` to resolve portfolio uids from the group detail payload into linked portfolio names.
+- `GET /api/v1/portfolio_group/?response_format=frontend_list` for the list flow using the standard DRF `limit` and `offset` contract.
+- `POST /api/v1/portfolio_group/get_or_create/` for the create action from the list screen.
+- `POST /api/v1/portfolio_group/bulk-delete/` for selected-row deletion from the list screen.
+- `GET /api/v1/portfolio_group/{uid}/` for the direct detail payload.
+- `POST /api/v1/portfolio_group/{uid}/append-portfolios/` to add selected portfolios to the current group.
+- `POST /api/v1/portfolio_group/{uid}/remove-portfolios/` to remove selected portfolios from the current group.
+- `GET /api/v1/target_portfolio/?response_format=frontend_list&index_asset__current_snapshot__name=...` to search portfolios from the settings tab by name.
+- `GET /api/v1/target_portfolio/{uid}/summary/` to resolve portfolio uids from the group detail payload into linked portfolio names.
 
 ## Rules
 

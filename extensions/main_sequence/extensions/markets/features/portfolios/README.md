@@ -10,10 +10,10 @@ This feature provides the Main Sequence Markets target-portfolio registry screen
 
 ## Backend Contract
 
-- `GET /orm/api/assets/target_portfolio/`: list portfolios using `search`, `limit`, `offset`, and UID-bearing rows.
-- `GET /orm/api/assets/target_portfolio/{uid}/summary/`: load the canonical detail header for the selected portfolio.
-- `GET /orm/api/assets/target_portfolio/{uid}/weights-position-details/`: load the weights and position-detail grids for the `Weights` tab.
-- `POST /orm/api/assets/target_portfolio/bulk-delete/`: delete selected rows or all rows matching the current filtered URL.
+- `GET /api/v1/target_portfolio/`: list portfolios using `search`, `limit`, `offset`, and UID-bearing rows.
+- `GET /api/v1/target_portfolio/{uid}/summary/`: load the canonical detail header for the selected portfolio.
+- `GET /api/v1/target_portfolio/{uid}/weights-position-details/`: load the weights and position-detail grids for the `Weights` tab.
+- `POST /api/v1/target_portfolio/bulk-delete/`: delete selected rows or all rows matching the current filtered URL.
 
 ## Notes
 

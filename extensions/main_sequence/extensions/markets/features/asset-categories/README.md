@@ -9,13 +9,13 @@ This feature owns the Main Sequence Markets asset-category registry, dedicated d
 
 ## API Dependencies
 
-- `GET /orm/api/assets/asset-category/?response_format=frontend_list` for the default list flow.
-- `GET /orm/api/assets/asset-category/{uid}/?response_format=frontend_detail` for the detail dialog payload.
-- `POST /orm/api/assets/asset-category/` for category creation.
-- `PATCH /orm/api/assets/asset-category/{uid}/` for category metadata updates.
-- `DELETE /orm/api/assets/asset-category/{uid}/` for single-category deletion from detail.
-- `POST /orm/api/assets/asset-category/bulk-delete/` for row and bulk delete flows.
-- `GET /orm/api/assets/asset/?response_format=frontend_list&categories__uid={uid}&limit={limit}&offset={offset}` for the nested assets table.
+- `GET /api/v1/asset-category/?response_format=frontend_list` for the default list flow.
+- `GET /api/v1/asset-category/{uid}/?response_format=frontend_detail` for the detail dialog payload.
+- `POST /api/v1/asset-category/` for category creation.
+- `PATCH /api/v1/asset-category/{uid}/` for category metadata updates.
+- `DELETE /api/v1/asset-category/{uid}/` for single-category deletion from detail.
+- `POST /api/v1/asset-category/bulk-delete/` for row and bulk delete flows.
+- `GET /api/v1/asset/?response_format=frontend_list&categories__uid={uid}&limit={limit}&offset={offset}` for the nested assets table.
 
 ## Rules
 

@@ -10,17 +10,17 @@ This feature owns the Main Sequence Markets asset translation table registry, th
 
 ## API Dependencies
 
-- `GET /orm/api/assets/asset-translation-tables/?response_format=frontend_list` for the default list flow.
-- `POST /orm/api/assets/asset-translation-tables/query/` for optional POST-based list querying.
-- `POST /orm/api/assets/asset-translation-tables/` for table creation.
-- `POST /orm/api/assets/asset-translation-tables/bulk-delete/` for selected-row and filtered delete flows.
-- `GET /orm/api/assets/asset-translation-tables/{uid}/?response_format=frontend_detail` for the detail payload.
-- `PATCH /orm/api/assets/asset-translation-tables/{uid}/` for rename.
-- `DELETE /orm/api/assets/asset-translation-tables/{uid}/` for table deletion.
-- `GET /orm/api/assets/asset-translation-tables/{uid}/rules/?response_format=frontend_list` for the embedded rules list.
-- `POST /orm/api/assets/asset-translation-tables/{uid}/rules/` for rule creation.
-- `PATCH /orm/api/assets/asset-translation-tables/{uid}/rules/{rule_uid}/` for rule updates.
-- `DELETE /orm/api/assets/asset-translation-tables/{uid}/rules/{rule_uid}/` for rule deletion.
+- `GET /api/v1/asset-translation-tables/?response_format=frontend_list` for the default list flow.
+- `POST /api/v1/asset-translation-tables/query/` for optional POST-based list querying.
+- `POST /api/v1/asset-translation-tables/` for table creation.
+- `POST /api/v1/asset-translation-tables/bulk-delete/` for selected-row and filtered delete flows.
+- `GET /api/v1/asset-translation-tables/{uid}/?response_format=frontend_detail` for the detail payload.
+- `PATCH /api/v1/asset-translation-tables/{uid}/` for rename.
+- `DELETE /api/v1/asset-translation-tables/{uid}/` for table deletion.
+- `GET /api/v1/asset-translation-tables/{uid}/rules/?response_format=frontend_list` for the embedded rules list.
+- `POST /api/v1/asset-translation-tables/{uid}/rules/` for rule creation.
+- `PATCH /api/v1/asset-translation-tables/{uid}/rules/{rule_uid}/` for rule updates.
+- `DELETE /api/v1/asset-translation-tables/{uid}/rules/{rule_uid}/` for rule deletion.
 
 ## Rules
 

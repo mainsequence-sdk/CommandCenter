@@ -9,11 +9,12 @@ import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 const devMainSequenceMarketsProxyPrefix = "/__main_sequence_markets__";
-const defaultMainSequenceAssetsRoot = "/orm/api/assets/";
+const defaultMainSequenceAssetsRoot = "/api/v1/";
 const dynamicTableDataSourceEndpoint = "/orm/api/ts_manager/dynamic_table_data_source/";
 const dynamicTableMetadataEndpoint = "/orm/api/ts_manager/dynamic_table/";
 const sourceTableConfigurationEndpoint = "/orm/api/ts_manager/source_table_config/";
 const metaTableEndpoint = "/orm/api/ts_manager/meta_table/";
+const namespaceEndpoint = "/orm/api/ts_manager/namespace/";
 const localTimeSerieEndpoint = "/orm/api/ts_manager/local_time_serie/";
 const availableGpuTypesEndpoint = "/orm/api/pods/billing/available-gpu-types/";
 const billingEstimateEndpoint = "/orm/api/pods/billing/estimate-runtime-cost/";
@@ -1415,40 +1416,102 @@ export interface UploadBucketArtifactResponse {
 }
 
 export interface MetaTableRecord {
-  id: number;
+  id?: number | string;
   uid: string;
   storage_hash?: string;
   creation_date?: string | null;
   source_class_name?: string | null;
   identifier?: string | null;
   description?: string | null;
+  namespace?: string | null;
+  labels?: string[];
+  management_mode?: string | null;
+  physical_table_name?: string | null;
+  contract_version?: string | null;
   data_frequency_id?: string | number | null;
   data_source?: DynamicTableDataSourceOption | null;
+  data_source_uid?: string | null;
+  protect_from_deletion?: boolean;
+  open_for_everyone?: boolean;
   [key: string]: unknown;
 }
 
+export interface MainSequenceNamespaceRecord {
+  uid: string;
+  name: string;
+  description: string | null;
+  creation_date: string | null;
+  created_by_user_uid: string | null;
+  organization_owner_uid: string | null;
+  open_for_everyone: boolean;
+  meta_table_count: number;
+  dynamic_table_metadata_count: number;
+}
+
+export interface MainSequenceNamespaceOptionRecord {
+  namespace_uid: string;
+  namespace: string;
+  display_name: string;
+  table_count: number;
+  filters: {
+    namespace: string;
+    namespace_uid: string;
+  };
+}
+
+export interface MainSequenceNamespaceOption extends MainSequenceNamespaceOptionRecord {
+  value: string;
+}
+
+export interface MainSequenceNamespaceDetail extends MainSequenceNamespaceRecord {
+  [key: string]: unknown;
+}
+
+export type MainSequenceNamespaceTableKind = "meta_table" | "dynamic_table" | "unknown";
+
+export interface MainSequenceNamespaceTableRecord {
+  uid: string;
+  kind: MainSequenceNamespaceTableKind;
+  storage_hash: string | null;
+  identifier: string | null;
+  creation_date: string | null;
+  namespace: string | null;
+  raw: Record<string, unknown>;
+}
+
 export interface MetaTableColumnRecord {
-  id: number;
-  attr_name: string;
-  column_name: string;
-  db_type: string;
-  is_pk: boolean;
+  id?: number | null;
+  name: string;
+  label?: string | null;
+  logical_name?: string | null;
+  data_type?: string | null;
+  backend_type?: string | null;
   nullable: boolean;
-  is_unique: boolean;
+  primary_key: boolean;
+  unique: boolean;
+  ordinal_position?: number | null;
+  description?: string | null;
+  contract_fragment?: Record<string, unknown> | null;
 }
 
 export interface MetaTableForeignKeyRecord {
-  id: number;
-  source_column: string;
-  target_table: number | Record<string, unknown> | null;
-  target_column: string;
-  on_delete: string;
+  id?: number | null;
+  name: string;
+  source_columns: string[];
+  target_table_uid?: string | null;
+  target_table_storage_hash?: string | null;
+  target_columns: string[];
+  on_delete?: string | null;
+  contract_fragment?: Record<string, unknown> | null;
 }
 
 export interface MetaTableIndexRecord {
-  id: number;
   name: string;
   columns: string[];
+  unique?: boolean;
+  method?: string | null;
+  expression?: string | null;
+  contract_fragment?: Record<string, unknown> | null;
 }
 
 export interface MetaTableSchemaGraphColumnRecord {
@@ -1469,7 +1532,10 @@ export interface MetaTableSchemaGraphIndexRecord {
 
 export interface MetaTableSchemaGraphTableRecord {
   id: number;
+  uid: string;
   identifier: string;
+  namespace: string | null;
+  physical_table_name: string;
   storage_hash: string;
   source_class_name: string | null;
   data_source_id: number | null;
@@ -1479,11 +1545,16 @@ export interface MetaTableSchemaGraphTableRecord {
 
 export interface MetaTableSchemaGraphRelationshipRecord {
   id: number;
+  name: string;
   source_table_id: number;
+  source_table_uid: string;
   source_table_storage_hash: string | null;
+  source_columns: string[];
   source_column: string;
   target_table_id: number;
+  target_table_uid: string;
   target_table_storage_hash: string | null;
+  target_columns: string[];
   target_column: string;
   on_delete: string | null;
   source_to_target_multiplicity: string | null;
@@ -1499,12 +1570,14 @@ export interface MetaTableSchemaGraphResponse {
 export interface MetaTableDetail extends MetaTableRecord {
   schema?: unknown;
   sourcetableconfiguration?: DataNodeSourceTableConfiguration | null;
+  table_contract?: unknown;
+  introspection_snapshot?: unknown;
   build_configuration?: unknown;
   build_configuration_json_schema?: unknown;
-  protect_from_deletion?: boolean;
   created_by_user?: number | null;
+  created_by_user_uid?: string | null;
   organization_owner?: number | null;
-  open_for_everyone?: boolean;
+  organization_owner_uid?: string | null;
   columns?: MetaTableColumnRecord[];
   foreign_keys?: MetaTableForeignKeyRecord[];
   incoming_fks?: MetaTableForeignKeyRecord[];
@@ -1513,6 +1586,26 @@ export interface MetaTableDetail extends MetaTableRecord {
 
 export interface MetaTableBulkDeleteInput {
   uids: string[];
+}
+
+export interface MetaTableDeleteWithCascadeInput {
+  uids: string[];
+  confirm_cascade_delete: true;
+  delete_referencing_meta_tables?: boolean;
+  delete_referencing_dynamic_tables?: boolean;
+  drop_platform_managed_physical_tables?: boolean;
+}
+
+export interface MetaTableDeleteWithCascadeResponse {
+  ok: boolean;
+  action?: string;
+  root_meta_table_uid?: string;
+  root_meta_table_uids?: string[];
+  deleted_meta_tables?: string[];
+  deleted_dynamic_tables?: string[];
+  deleted_meta_table_count?: number;
+  deleted_dynamic_table_count?: number;
+  blocking_edges?: unknown[];
 }
 
 export interface MetaTableBulkRefreshResult {
@@ -1603,10 +1696,18 @@ export interface DataNodeSourceTableConfiguration {
   columns_metadata: DataNodeColumnMetadata[];
 }
 
+export interface DataNodeForeignKeyRecord {
+  source_columns: string[];
+  target_meta_table_uid: string | null;
+  target_columns: string[];
+  on_delete: string | null;
+}
+
 export interface DataNodeDetail extends DataNodeSummary {
   build_configuration: unknown;
   build_meta_data: unknown;
   sourcetableconfiguration: DataNodeSourceTableConfiguration | null;
+  foreign_keys?: DataNodeForeignKeyRecord[];
 }
 
 export interface SourceTableConfigurationStatsResponse {
@@ -3489,12 +3590,39 @@ function buildEndpointUrl(
   return requestUrl.toString();
 }
 
-function normalizeListResponse<T>(payload: PaginatedResponse<T> | T[]) {
+function normalizeListResponse<T>(
+  payload:
+    | PaginatedResponse<T>
+    | FrontendRowsResponse<T>
+    | T[]
+    | {
+        rows?: T[];
+        results?: T[];
+        items?: T[];
+        data?: T[];
+      },
+) {
   if (Array.isArray(payload)) {
     return payload;
   }
 
-  return payload.results;
+  if ("results" in payload && Array.isArray(payload.results)) {
+    return payload.results;
+  }
+
+  if ("rows" in payload && Array.isArray(payload.rows)) {
+    return payload.rows;
+  }
+
+  if ("items" in payload && Array.isArray(payload.items)) {
+    return payload.items;
+  }
+
+  if ("data" in payload && Array.isArray(payload.data)) {
+    return payload.data;
+  }
+
+  return [];
 }
 
 function normalizeOffsetPaginatedResponse<T>(
@@ -4033,31 +4161,6 @@ export async function listAssets({
   );
 
   return normalizeOffsetPaginatedResponse(payload, limit, offset);
-}
-
-export function fetchAssetSummary({
-  search,
-  categoryUid,
-  ticker,
-  name,
-  exchangeCode,
-  isCustomByOrganization,
-  currentSnapshotFilters,
-}: AssetListFilters = {}) {
-  return requestJson<SummaryResponse>(
-    assetEndpoint,
-    "summary/",
-    undefined,
-    {
-      search: search?.trim() || undefined,
-      categories__uid: buildAssetCategorySearchFilterValue(categoryUid),
-      ticker: ticker?.trim() || undefined,
-      name: name?.trim() || undefined,
-      exchange_code: exchangeCode?.trim() || undefined,
-      is_custom_by_organization: isCustomByOrganization,
-      ...(currentSnapshotFilters ?? {}),
-    },
-  );
 }
 
 export function bulkDeleteAssets(input: AssetBulkDeleteInput) {
@@ -5640,9 +5743,13 @@ export function bulkDeleteBuckets(input: BucketBulkDeleteInput) {
 export async function listMetaTables({
   limit = mainSequenceRegistryPageSize,
   offset = 0,
+  namespace,
+  namespaceUid,
 }: {
   limit?: number;
   offset?: number;
+  namespace?: string;
+  namespaceUid?: string;
 } = {}) {
   const payload = await requestJson<PaginatedResponse<MetaTableRecord> | MetaTableRecord[]>(
     metaTableEndpoint,
@@ -5651,10 +5758,93 @@ export async function listMetaTables({
     {
       limit,
       offset,
+      namespace: namespace?.trim() || undefined,
+      namespace_uid: namespaceUid?.trim() || undefined,
     },
   );
 
   return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export async function listNamespaces() {
+  const payload = await requestJson<
+    | FrontendRowsResponse<MainSequenceNamespaceRecord>
+    | PaginatedResponse<MainSequenceNamespaceRecord>
+    | MainSequenceNamespaceRecord[]
+  >(namespaceEndpoint, "");
+
+  return normalizeListResponse(payload)
+    .map((record) => normalizeMainSequenceNamespaceRecord(record))
+    .filter((record): record is MainSequenceNamespaceRecord => record !== null);
+}
+
+export function fetchNamespaceDetail(namespaceUid: string) {
+  return requestJson<unknown>(
+    namespaceEndpoint,
+    `${resolveTsManagerPath(namespaceUid)}/`,
+  ).then((payload) => normalizeMainSequenceNamespaceDetail(payload));
+}
+
+export async function fetchNamespaceTables(namespaceUid: string) {
+  const payload = await requestJson<
+    PaginatedResponse<MainSequenceNamespaceTableRecord> | MainSequenceNamespaceTableRecord[]
+  >(namespaceEndpoint, `${resolveTsManagerPath(namespaceUid)}/tables/`);
+
+  return normalizeListResponse(payload as PaginatedResponse<unknown> | unknown[])
+    .map((record) => normalizeMainSequenceNamespaceTableRecord(record))
+    .filter((record): record is MainSequenceNamespaceTableRecord => record !== null);
+}
+
+export function setNamespacePermissions(namespaceUid: string, assignments: {
+  view: { userIds: Array<string | number>; teamIds: Array<string | number> };
+  edit: { userIds: Array<string | number>; teamIds: Array<string | number> };
+}) {
+  return requestJson<Record<string, unknown> | null>(
+    namespaceEndpoint,
+    `${resolveTsManagerPath(namespaceUid)}/set-permissions/`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        assignments: {
+          view: {
+            user_ids: assignments.view.userIds,
+            team_ids: assignments.view.teamIds,
+          },
+          edit: {
+            user_ids: assignments.edit.userIds,
+            team_ids: assignments.edit.teamIds,
+          },
+        },
+      }),
+    },
+  );
+}
+
+export function propagateNamespacePermissions(namespaceUid: string) {
+  return requestJson<Record<string, unknown> | null>(
+    namespaceEndpoint,
+    `${resolveTsManagerPath(namespaceUid)}/propagate-permissions/`,
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+    },
+  );
+}
+
+export async function listMetaTableNamespaces() {
+  const payload = await requestJson<
+    PaginatedResponse<MainSequenceNamespaceOptionRecord> | MainSequenceNamespaceOptionRecord[] | string[]
+  >(metaTableEndpoint, "namespaces/");
+
+  return normalizeNamespaceOptionListResponse(payload);
+}
+
+export async function listDataNodeNamespaces() {
+  const payload = await requestJson<
+    PaginatedResponse<MainSequenceNamespaceOptionRecord> | MainSequenceNamespaceOptionRecord[] | string[]
+  >(dynamicTableMetadataEndpoint, "namespaces/");
+
+  return normalizeNamespaceOptionListResponse(payload);
 }
 
 export function bulkDeleteMetaTables({
@@ -5666,6 +5856,36 @@ export function bulkDeleteMetaTables({
     {
       method: "POST",
       body: JSON.stringify({ uids }),
+    },
+  );
+}
+
+export function deleteMetaTable(metaTableIdentifier: TsManagerPathIdentifier) {
+  return requestJson<Record<string, unknown> | null>(
+    metaTableEndpoint,
+    `${resolveTsManagerPath(metaTableIdentifier)}/`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function bulkDeleteMetaTablesWithCascade(
+  input: MetaTableDeleteWithCascadeInput,
+) {
+  return requestJson<MetaTableDeleteWithCascadeResponse>(
+    metaTableEndpoint,
+    "bulk-delete-with-cascade/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        uids: input.uids,
+        confirm_cascade_delete: input.confirm_cascade_delete,
+        delete_referencing_meta_tables: input.delete_referencing_meta_tables ?? true,
+        delete_referencing_dynamic_tables: input.delete_referencing_dynamic_tables ?? true,
+        drop_platform_managed_physical_tables:
+          input.drop_platform_managed_physical_tables ?? true,
+      }),
     },
   );
 }
@@ -5688,11 +5908,442 @@ export function fetchMetaTableSummary(metaTableIdentifier: TsManagerPathIdentifi
   );
 }
 
+function readStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter((entry): entry is string => entry.length > 0)
+    : [];
+}
+
+function readMetaTableSourceClassName(value: Record<string, unknown>) {
+  const directValue = readOptionalString(value.source_class_name)?.trim();
+
+  if (directValue) {
+    return directValue;
+  }
+
+  if (!isObjectRecord(value.table_contract)) {
+    return null;
+  }
+
+  const authoring = value.table_contract.authoring;
+
+  if (!isObjectRecord(authoring) || !isObjectRecord(authoring.table_model)) {
+    return null;
+  }
+
+  const moduleName = readOptionalString(authoring.table_model.module)?.trim();
+  const qualname = readOptionalString(authoring.table_model.qualname)?.trim();
+
+  if (moduleName && qualname) {
+    return `${moduleName}.${qualname}`;
+  }
+
+  return qualname ?? moduleName ?? null;
+}
+
+function normalizeMetaTableColumn(value: unknown, index: number): MetaTableColumnRecord | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const name =
+    readOptionalString(value.name)?.trim() ?? readOptionalString(value.column_name)?.trim();
+
+  if (!name) {
+    return null;
+  }
+
+  const label =
+    readOptionalString(value.label)?.trim() ??
+    readOptionalString(value.logical_name)?.trim() ??
+    readOptionalString(value.attr_name)?.trim() ??
+    null;
+  const logicalName =
+    readOptionalString(value.logical_name)?.trim() ??
+    readOptionalString(value.attr_name)?.trim() ??
+    label;
+  const dataType = readOptionalString(value.data_type)?.trim() ?? null;
+  const backendType =
+    readOptionalString(value.backend_type)?.trim() ??
+    readOptionalString(value.db_type)?.trim() ??
+    null;
+
+  return {
+    id: readFiniteNumber(value.id) ?? index,
+    name,
+    label,
+    logical_name: logicalName,
+    data_type: dataType,
+    backend_type: backendType,
+    nullable: typeof value.nullable === "boolean" ? value.nullable : true,
+    primary_key:
+      value.primary_key === true || value.is_primary_key === true || value.is_pk === true,
+    unique: value.unique === true || value.is_unique === true,
+    ordinal_position: readFiniteNumber(value.ordinal_position),
+    description: readOptionalString(value.description)?.trim() ?? null,
+    contract_fragment: isObjectRecord(value.contract_fragment) ? value.contract_fragment : null,
+  };
+}
+
+function normalizeMetaTableIndex(value: unknown): MetaTableIndexRecord | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const name = readOptionalString(value.name)?.trim();
+
+  if (!name) {
+    return null;
+  }
+
+  return {
+    name,
+    columns: readStringArray(value.columns),
+    unique: typeof value.unique === "boolean" ? value.unique : undefined,
+    method: readOptionalString(value.method)?.trim() ?? null,
+    expression: readOptionalString(value.expression)?.trim() ?? null,
+    contract_fragment: isObjectRecord(value.contract_fragment) ? value.contract_fragment : null,
+  };
+}
+
+function normalizeMetaTableForeignKey(
+  value: unknown,
+  index: number,
+): MetaTableForeignKeyRecord | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const name = readOptionalString(value.name)?.trim() || `fk_${index + 1}`;
+  const sourceColumns = readStringArray(value.source_columns);
+  const sourceColumn = readOptionalString(value.source_column)?.trim();
+  const targetColumns = readStringArray(value.target_columns);
+  const targetColumn = readOptionalString(value.target_column)?.trim();
+
+  return {
+    id: readFiniteNumber(value.id) ?? index,
+    name,
+    source_columns:
+      sourceColumns.length > 0 ? sourceColumns : sourceColumn ? [sourceColumn] : [],
+    target_table_uid:
+      readOptionalString(value.target_table_uid)?.trim() ??
+      readOptionalString(value.target_meta_table_uid)?.trim() ??
+      null,
+    target_table_storage_hash:
+      readOptionalString(value.target_table_storage_hash)?.trim() ??
+      readOptionalString(value.target_table_name)?.trim() ??
+      null,
+    target_columns:
+      targetColumns.length > 0 ? targetColumns : targetColumn ? [targetColumn] : [],
+    on_delete: readOptionalString(value.on_delete)?.trim() ?? null,
+    contract_fragment: isObjectRecord(value.contract_fragment) ? value.contract_fragment : null,
+  };
+}
+
+function normalizeMetaTableDetailPayload(payload: unknown): MetaTableDetail {
+  if (!isObjectRecord(payload)) {
+    throw new MainSequenceApiError(
+      "The meta table detail endpoint did not return an object payload.",
+      200,
+      payload,
+    );
+  }
+
+  const uid = readOptionalString(payload.uid)?.trim();
+
+  if (!uid) {
+    throw new MainSequenceApiError(
+      "The meta table detail endpoint did not return a uid.",
+      200,
+      payload,
+    );
+  }
+
+  const tableContract = isObjectRecord(payload.table_contract) ? payload.table_contract : undefined;
+  const introspectionSnapshot = isObjectRecord(payload.introspection_snapshot)
+    ? payload.introspection_snapshot
+    : undefined;
+  const topLevelColumns = Array.isArray(payload.columns) ? payload.columns : null;
+  const contractColumns =
+    tableContract && Array.isArray(tableContract.columns) ? tableContract.columns : null;
+  const topLevelIndexes = Array.isArray(payload.indexes_meta) ? payload.indexes_meta : null;
+  const contractIndexes =
+    tableContract && Array.isArray(tableContract.indexes) ? tableContract.indexes : null;
+  const introspectionIndexes =
+    introspectionSnapshot && Array.isArray(introspectionSnapshot.indexes)
+      ? introspectionSnapshot.indexes
+      : null;
+  const topLevelForeignKeys = Array.isArray(payload.foreign_keys) ? payload.foreign_keys : null;
+  const contractForeignKeys =
+    tableContract && Array.isArray(tableContract.foreign_keys) ? tableContract.foreign_keys : null;
+  const introspectionForeignKeys =
+    introspectionSnapshot && Array.isArray(introspectionSnapshot.foreign_keys)
+      ? introspectionSnapshot.foreign_keys
+      : null;
+  const incomingForeignKeys = Array.isArray(payload.incoming_fks) ? payload.incoming_fks : null;
+
+  return {
+    ...payload,
+    id: readFiniteNumber(payload.id) ?? uid,
+    uid,
+    storage_hash: readOptionalString(payload.storage_hash)?.trim() ?? undefined,
+    creation_date: readOptionalString(payload.creation_date)?.trim() ?? null,
+    source_class_name: readMetaTableSourceClassName(payload),
+    identifier: readOptionalString(payload.identifier)?.trim() ?? null,
+    description: readOptionalString(payload.description)?.trim() ?? null,
+    namespace: readOptionalString(payload.namespace)?.trim() ?? null,
+    labels: readStringArray(payload.labels),
+    management_mode: readOptionalString(payload.management_mode)?.trim() ?? null,
+    physical_table_name: readOptionalString(payload.physical_table_name)?.trim() ?? null,
+    contract_version: readOptionalString(payload.contract_version)?.trim() ?? null,
+    data_frequency_id:
+      readOptionalString(payload.data_frequency_id)?.trim() ??
+      readFiniteNumber(payload.data_frequency_id) ??
+      null,
+    data_source: isObjectRecord(payload.data_source)
+      ? (payload.data_source as unknown as DynamicTableDataSourceOption)
+      : null,
+    data_source_uid:
+      readOptionalString(payload.data_source_uid)?.trim() ??
+      (isObjectRecord(payload.data_source)
+        ? readOptionalString(payload.data_source.uid)?.trim() ?? null
+        : null),
+    protect_from_deletion: payload.protect_from_deletion === true,
+    open_for_everyone: payload.open_for_everyone === true,
+    table_contract: tableContract,
+    introspection_snapshot: introspectionSnapshot,
+    columns: (topLevelColumns ?? contractColumns ?? [])
+      .map((column, index) => normalizeMetaTableColumn(column, index))
+      .filter((column): column is MetaTableColumnRecord => column !== null),
+    indexes_meta: (topLevelIndexes ?? contractIndexes ?? introspectionIndexes ?? [])
+      .map((index) => normalizeMetaTableIndex(index))
+      .filter((index): index is MetaTableIndexRecord => index !== null),
+    foreign_keys: (topLevelForeignKeys ?? contractForeignKeys ?? introspectionForeignKeys ?? [])
+      .map((foreignKey, index) => normalizeMetaTableForeignKey(foreignKey, index))
+      .filter((foreignKey): foreignKey is MetaTableForeignKeyRecord => foreignKey !== null),
+    incoming_fks: (incomingForeignKeys ?? [])
+      .map((foreignKey, index) => normalizeMetaTableForeignKey(foreignKey, index))
+      .filter((foreignKey): foreignKey is MetaTableForeignKeyRecord => foreignKey !== null),
+    created_by_user_uid: readOptionalString(payload.created_by_user_uid)?.trim() ?? null,
+    organization_owner_uid:
+      readOptionalString(payload.organization_owner_uid)?.trim() ?? null,
+    sourcetableconfiguration: isObjectRecord(payload.sourcetableconfiguration)
+      ? (payload.sourcetableconfiguration as unknown as DataNodeSourceTableConfiguration)
+      : null,
+  };
+}
+
 export function fetchMetaTableDetail(metaTableIdentifier: TsManagerPathIdentifier) {
-  return requestJson<MetaTableDetail>(
+  return requestJson<unknown>(
     metaTableEndpoint,
     `${resolveTsManagerPath(metaTableIdentifier)}/`,
-  );
+  ).then((payload) => normalizeMetaTableDetailPayload(payload));
+}
+
+function normalizeMainSequenceNamespaceRecord(
+  value: unknown,
+): MainSequenceNamespaceRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const uid = readOptionalString(record.uid)?.trim() ?? "";
+  const name = readOptionalString(record.name)?.trim() ?? "";
+  const metaTableCount = readFiniteNumber(record.meta_table_count);
+  const dynamicTableMetadataCount = readFiniteNumber(record.dynamic_table_metadata_count);
+
+  if (!uid || !name || metaTableCount === null || dynamicTableMetadataCount === null) {
+    return null;
+  }
+
+  return {
+    uid,
+    name,
+    description: readOptionalString(record.description)?.trim() ?? null,
+    creation_date: readOptionalString(record.creation_date)?.trim() ?? null,
+    created_by_user_uid: readOptionalString(record.created_by_user_uid)?.trim() ?? null,
+    organization_owner_uid:
+      readOptionalString(record.organization_owner_uid)?.trim() ?? null,
+    open_for_everyone: record.open_for_everyone === true,
+    meta_table_count: metaTableCount,
+    dynamic_table_metadata_count: dynamicTableMetadataCount,
+  };
+}
+
+function normalizeNamespaceOptionRecord(
+  value: unknown,
+): MainSequenceNamespaceOptionRecord | null {
+  if (typeof value === "string") {
+    const namespace = value.trim();
+
+    if (!namespace) {
+      return null;
+    }
+
+    return {
+      namespace_uid: namespace,
+      namespace,
+      display_name: namespace,
+      table_count: 0,
+      filters: {
+        namespace,
+        namespace_uid: namespace,
+      },
+    };
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const namespace = readOptionalString(record.namespace)?.trim() ?? "";
+  const namespaceUid = readOptionalString(record.namespace_uid)?.trim() ?? "";
+  const displayName =
+    readOptionalString(record.display_name)?.trim() ||
+    readOptionalString(record.label)?.trim() ||
+    namespace;
+  const tableCount =
+    readFiniteNumber(record.table_count) ??
+    readFiniteNumber(record.count) ??
+    readFiniteNumber(record.meta_table_count) ??
+    readFiniteNumber(record.dynamic_table_count);
+
+  if (!namespace || !namespaceUid || !displayName || tableCount === null) {
+    return null;
+  }
+
+  const filters =
+    record.filters && typeof record.filters === "object" && !Array.isArray(record.filters)
+      ? (record.filters as Record<string, unknown>)
+      : {};
+
+  return {
+    namespace_uid: namespaceUid,
+    namespace,
+    display_name: displayName,
+    table_count: tableCount,
+    filters: {
+      namespace: readOptionalString(filters.namespace)?.trim() || namespace,
+      namespace_uid: readOptionalString(filters.namespace_uid)?.trim() || namespaceUid,
+    },
+  };
+}
+
+function normalizeNamespaceOptionListResponse(
+  payload:
+    | PaginatedResponse<MainSequenceNamespaceOptionRecord>
+    | MainSequenceNamespaceOptionRecord[]
+    | string[],
+) {
+  const rows = normalizeListResponse(payload as PaginatedResponse<unknown> | unknown[]);
+
+  return rows
+    .map((record) => normalizeNamespaceOptionRecord(record))
+    .filter((record): record is MainSequenceNamespaceOptionRecord => record !== null)
+    .sort((left, right) => left.display_name.localeCompare(right.display_name));
+}
+
+function normalizeMainSequenceNamespaceDetail(
+  value: unknown,
+): MainSequenceNamespaceDetail {
+  const normalized = normalizeMainSequenceNamespaceRecord(value);
+
+  if (!normalized) {
+    throw new Error("The namespace detail endpoint did not return a valid namespace payload.");
+  }
+
+  const record =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+
+  return {
+    ...record,
+    ...normalized,
+  };
+}
+
+function normalizeMainSequenceNamespaceTableKind(value: unknown): MainSequenceNamespaceTableKind {
+  const rawValue = readOptionalString(value)?.trim().toLowerCase() ?? "";
+
+  if (
+    rawValue === "meta_table" ||
+    rawValue === "meta-table" ||
+    rawValue === "metatable" ||
+    rawValue.includes("meta")
+  ) {
+    return "meta_table";
+  }
+
+  if (
+    rawValue === "dynamic_table" ||
+    rawValue === "dynamic-table" ||
+    rawValue === "dynamic_table_metadata" ||
+    rawValue === "dynamictablemetadata" ||
+    rawValue === "data_node" ||
+    rawValue === "data-node" ||
+    rawValue.includes("dynamic") ||
+    rawValue.includes("data_node")
+  ) {
+    return "dynamic_table";
+  }
+
+  return "unknown";
+}
+
+function normalizeMainSequenceNamespaceTableRecord(
+  value: unknown,
+): MainSequenceNamespaceTableRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  const kind =
+    normalizeMainSequenceNamespaceTableKind(record.kind) !== "unknown"
+      ? normalizeMainSequenceNamespaceTableKind(record.kind)
+      : normalizeMainSequenceNamespaceTableKind(record.table_type) !== "unknown"
+        ? normalizeMainSequenceNamespaceTableKind(record.table_type)
+        : normalizeMainSequenceNamespaceTableKind(record.object_type) !== "unknown"
+          ? normalizeMainSequenceNamespaceTableKind(record.object_type)
+          : record.meta_table_uid
+            ? "meta_table"
+            : record.dynamic_table_uid || record.dynamic_table_metadata_uid
+              ? "dynamic_table"
+              : "unknown";
+  const uid =
+    readOptionalString(record.uid)?.trim() ??
+    readOptionalString(record.table_uid)?.trim() ??
+    readOptionalString(record.meta_table_uid)?.trim() ??
+    readOptionalString(record.dynamic_table_uid)?.trim() ??
+    readOptionalString(record.dynamic_table_metadata_uid)?.trim() ??
+    "";
+
+  if (!uid) {
+    return null;
+  }
+
+  return {
+    uid,
+    kind,
+    storage_hash:
+      readOptionalString(record.storage_hash)?.trim() ??
+      readOptionalString(record.physical_table_name)?.trim() ??
+      readOptionalString(record.table_name)?.trim() ??
+      null,
+    identifier:
+      readOptionalString(record.identifier)?.trim() ??
+      readOptionalString(record.display_name)?.trim() ??
+      readOptionalString(record.name)?.trim() ??
+      null,
+    creation_date: readOptionalString(record.creation_date)?.trim() ?? null,
+    namespace: readOptionalString(record.namespace)?.trim() ?? null,
+    raw: record,
+  };
 }
 
 function normalizeColumnarDataSnapshot(payload: unknown): ColumnarDataSnapshot {
@@ -5732,6 +6383,241 @@ function normalizeColumnarDataSnapshot(payload: unknown): ColumnarDataSnapshot {
   };
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readFiniteNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readOptionalString(value: unknown) {
+  return typeof value === "string" ? value : null;
+}
+
+function normalizeMetaTableSchemaGraphColumn(
+  value: unknown,
+  index = 0,
+): MetaTableSchemaGraphColumnRecord | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const id = readFiniteNumber(value.id) ?? index;
+  const columnName =
+    readOptionalString(value.column_name)?.trim() ?? readOptionalString(value.name)?.trim();
+
+  if (!columnName) {
+    return null;
+  }
+
+  return {
+    id,
+    attr_name:
+      readOptionalString(value.attr_name)?.trim() ??
+      readOptionalString(value.logical_name)?.trim() ??
+      readOptionalString(value.label)?.trim() ??
+      columnName,
+    column_name: columnName,
+    db_type:
+      readOptionalString(value.db_type)?.trim() ??
+      readOptionalString(value.data_type)?.trim() ??
+      readOptionalString(value.backend_type)?.trim() ??
+      "unknown",
+    nullable: value.nullable === true,
+    is_primary_key: value.is_primary_key === true || value.primary_key === true,
+    is_unique: value.is_unique === true,
+  };
+}
+
+function normalizeMetaTableSchemaGraphIndex(
+  value: unknown,
+): MetaTableSchemaGraphIndexRecord | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const id = readFiniteNumber(value.id);
+  const name = readOptionalString(value.name)?.trim();
+
+  if (id === null || !name) {
+    return null;
+  }
+
+  return {
+    id,
+    name,
+    columns: Array.isArray(value.columns)
+      ? value.columns
+          .map((column) => (typeof column === "string" ? column.trim() : ""))
+          .filter((column): column is string => column.length > 0)
+      : [],
+  };
+}
+
+function normalizeMetaTableSchemaGraphTable(
+  value: unknown,
+  index = 0,
+): MetaTableSchemaGraphTableRecord | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const uid = readOptionalString(value.uid)?.trim();
+  const id = readFiniteNumber(value.id) ?? index + 1;
+
+  if (!uid) {
+    return null;
+  }
+
+  return {
+    id,
+    uid,
+    identifier: readOptionalString(value.identifier)?.trim() || `table_${id}`,
+    namespace: readOptionalString(value.namespace)?.trim() || null,
+    physical_table_name:
+      readOptionalString(value.physical_table_name)?.trim() ||
+      readOptionalString(value.storage_hash)?.trim() ||
+      `table_${id}`,
+    storage_hash: readOptionalString(value.storage_hash)?.trim() || `table_${id}`,
+    source_class_name: readOptionalString(value.source_class_name)?.trim() || null,
+    data_source_id: readFiniteNumber(value.data_source_id),
+    columns: Array.isArray(value.columns)
+      ? value.columns
+          .map((column, columnIndex) => normalizeMetaTableSchemaGraphColumn(column, columnIndex))
+          .filter((column): column is MetaTableSchemaGraphColumnRecord => column !== null)
+      : [],
+    indexes: Array.isArray(value.indexes)
+      ? value.indexes
+          .map((index) => normalizeMetaTableSchemaGraphIndex(index))
+          .filter((index): index is MetaTableSchemaGraphIndexRecord => index !== null)
+      : [],
+  };
+}
+
+function normalizeMetaTableSchemaGraphRelationship(
+  value: unknown,
+  index: number,
+  nodeIdByUid: Map<string, number>,
+  storageHashByUid: Map<string, string>,
+): MetaTableSchemaGraphRelationshipRecord | null {
+  if (!isObjectRecord(value)) {
+    return null;
+  }
+
+  const sourceTableUid =
+    readOptionalString(value.source_uid)?.trim() ??
+    readOptionalString(value.source_table_uid)?.trim();
+  const targetTableUid =
+    readOptionalString(value.target_uid)?.trim() ??
+    readOptionalString(value.target_table_uid)?.trim();
+  const sourceColumns = Array.isArray(value.source_columns)
+    ? value.source_columns
+        .map((column) => (typeof column === "string" ? column.trim() : ""))
+        .filter((column): column is string => column.length > 0)
+    : [];
+  const targetColumns = Array.isArray(value.target_columns)
+    ? value.target_columns
+        .map((column) => (typeof column === "string" ? column.trim() : ""))
+        .filter((column): column is string => column.length > 0)
+    : [];
+  const sourceTableId = sourceTableUid ? nodeIdByUid.get(sourceTableUid) ?? null : null;
+  const targetTableId = targetTableUid ? nodeIdByUid.get(targetTableUid) ?? null : null;
+  const sourceColumn =
+    sourceColumns[0] ??
+    readOptionalString(value.source_column)?.trim() ??
+    null;
+  const targetColumn =
+    targetColumns[0] ??
+    readOptionalString(value.target_column)?.trim() ??
+    null;
+
+  if (!sourceTableUid || !targetTableUid || sourceTableId === null || targetTableId === null) {
+    return null;
+  }
+
+  return {
+    id: readFiniteNumber(value.id) ?? index + 1,
+    name: readOptionalString(value.name)?.trim() || `edge_${index + 1}`,
+    source_table_id: sourceTableId,
+    source_table_uid: sourceTableUid,
+    source_table_storage_hash:
+      readOptionalString(value.source_table_storage_hash)?.trim() ??
+      storageHashByUid.get(sourceTableUid) ??
+      null,
+    source_columns: sourceColumns,
+    source_column: sourceColumn ?? "",
+    target_table_id: targetTableId,
+    target_table_uid: targetTableUid,
+    target_table_storage_hash:
+      readOptionalString(value.target_table_storage_hash)?.trim() ??
+      storageHashByUid.get(targetTableUid) ??
+      null,
+    target_columns: targetColumns,
+    target_column: targetColumn ?? "",
+    on_delete: readOptionalString(value.on_delete)?.trim() || null,
+    source_to_target_multiplicity: null,
+    target_to_source_multiplicity: null,
+  };
+}
+
+function normalizeMetaTableSchemaGraphPayload(
+  payload: unknown,
+): MetaTableSchemaGraphResponse {
+  if (!isObjectRecord(payload)) {
+    throw new MainSequenceApiError(
+      "The meta table schema graph endpoint did not return an object payload.",
+      200,
+      payload,
+    );
+  }
+
+  const rootUid = readOptionalString(payload.root_uid)?.trim();
+  const nodes = Array.isArray(payload.nodes) ? payload.nodes : null;
+  const edges = Array.isArray(payload.edges) ? payload.edges : null;
+
+  if (!rootUid || !nodes || !edges) {
+    throw new MainSequenceApiError(
+      "The meta table schema graph endpoint did not return root_uid, nodes, and edges.",
+      200,
+      payload,
+    );
+  }
+
+  const tables = nodes
+    .map((table, tableIndex) => normalizeMetaTableSchemaGraphTable(table, tableIndex))
+    .filter((table): table is MetaTableSchemaGraphTableRecord => table !== null);
+  const nodeIdByUid = new Map(tables.map((table) => [table.uid, table.id]));
+  const storageHashByUid = new Map(tables.map((table) => [table.uid, table.storage_hash]));
+  const rootTableId = nodeIdByUid.get(rootUid);
+
+  if (rootTableId === undefined) {
+    throw new MainSequenceApiError(
+      "The meta table schema graph endpoint did not include the root_uid inside nodes.",
+      200,
+      payload,
+    );
+  }
+
+  return {
+    root_table_id: rootTableId,
+    tables,
+    relationships: edges
+      .map((relationship, relationshipIndex) =>
+        normalizeMetaTableSchemaGraphRelationship(
+          relationship,
+          relationshipIndex,
+          nodeIdByUid,
+          storageHashByUid,
+        ),
+      )
+      .filter(
+        (relationship): relationship is MetaTableSchemaGraphRelationshipRecord =>
+          relationship !== null,
+      ),
+  };
+}
+
 export async function fetchMetaTableDataSnapshot(
   metaTableIdentifier: TsManagerPathIdentifier,
   {
@@ -5748,7 +6634,7 @@ export async function fetchMetaTableDataSnapshot(
       new Set(
         [
           ...(Array.isArray(detail?.columns)
-            ? detail.columns.map((column) => column.column_name)
+            ? detail.columns.map((column) => column.name)
             : []),
           ...(Array.isArray(detail?.sourcetableconfiguration?.columns_metadata)
             ? detail.sourcetableconfiguration.columns_metadata.map((column) => column.column_name)
@@ -5786,7 +6672,7 @@ export function fetchMetaTableSchemaGraph(
     includeIncoming?: boolean;
   } = {},
 ) {
-  return requestJson<MetaTableSchemaGraphResponse>(
+  return requestJson<unknown>(
     metaTableEndpoint,
     `${resolveTsManagerPath(metaTableIdentifier)}/schema-graph/`,
     undefined,
@@ -5794,18 +6680,43 @@ export function fetchMetaTableSchemaGraph(
       depth,
       include_incoming: includeIncoming,
     },
-  );
+  ).then((payload) => normalizeMetaTableSchemaGraphPayload(payload));
+}
+
+export function fetchDataNodeSchemaGraph(
+  dataNodeIdentifier: TsManagerPathIdentifier,
+  {
+    depth,
+    includeIncoming = false,
+  }: {
+    depth?: number;
+    includeIncoming?: boolean;
+  } = {},
+) {
+  return requestJson<unknown>(
+    dynamicTableMetadataEndpoint,
+    `${resolveTsManagerPath(dataNodeIdentifier)}/schema-graph/`,
+    undefined,
+    {
+      depth,
+      include_incoming: includeIncoming,
+    },
+  ).then((payload) => normalizeMetaTableSchemaGraphPayload(payload));
 }
 
 export async function listDataNodes({
   limit = mainSequenceRegistryPageSize,
   light = true,
   offset = 0,
+  namespace,
+  namespaceUid,
   q,
 }: {
   limit?: number;
   light?: boolean;
   offset?: number;
+  namespace?: string;
+  namespaceUid?: string;
   q?: string;
 } = {}) {
   const payload = await requestJson<PaginatedResponse<DataNodeSummary> | DataNodeSummary[]>(
@@ -5817,6 +6728,8 @@ export async function listDataNodes({
       light,
       offset,
       ordering: "storage_hash_id",
+      namespace: namespace?.trim() || undefined,
+      namespace_uid: namespaceUid?.trim() || undefined,
       q: q?.trim() || undefined,
     },
   );

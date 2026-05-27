@@ -13,13 +13,13 @@ This feature owns the Main Sequence Markets funds registry screen.
 
 ## Backend Contract
 
-- `GET /orm/api/assets/virtualfund/?response_format=frontend_list` for the reduced list used by the
+- `GET /api/v1/virtualfund/?response_format=frontend_list` for the reduced list used by the
   Markets screen. List rows now carry `uid`, and the React registry treats that as the canonical
   identifier instead of numeric `id`.
 - UID-based virtual-fund detail/write helpers are available in the shared API layer for:
-  - `GET /orm/api/assets/virtualfund/<fund_uid>/`
-  - `POST /orm/api/assets/virtualfund/`
-  - `PATCH /orm/api/assets/virtualfund/<fund_uid>/`
+  - `GET /api/v1/virtualfund/<fund_uid>/`
+  - `POST /api/v1/virtualfund/`
+  - `PATCH /api/v1/virtualfund/<fund_uid>/`
 
 ## Notes
 

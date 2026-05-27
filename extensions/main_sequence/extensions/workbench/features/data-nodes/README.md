@@ -4,8 +4,9 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
 
 ## Files
 
-- `MainSequenceDataNodesPage.tsx`: registry page for data nodes. It also owns the top-level detail tabs for summary, description, data snapshot, policies, permissions, and local-update navigation.
+- `MainSequenceDataNodesPage.tsx`: registry page for data nodes. It also owns the top-level detail tabs for summary, description, data snapshot, UML schema graph, policies, permissions, and local-update navigation.
 - `MainSequenceDataNodeSnapshotTab.tsx`: detail-tab wrapper that loads the latest tail observations for the selected data node and renders a searchable preview table.
+- `MainSequenceDataNodeSchemaGraphTab.tsx`: detail-tab wrapper for the data-node `/schema-graph/` endpoint. It reuses the shared UML explorer and depth/incoming controls.
 - `MainSequenceDataNodeLocalTimeSeriesTab.tsx`: local time series listing and interactions for a selected data node.
 - `MainSequenceDataNodeLocalUpdateDetail.tsx`: local update detail surface with tabs for details, graphs, history, and logs.
 - `MainSequenceDataNodePoliciesTab.tsx`: policy-oriented controls and displays for a data node.
@@ -13,11 +14,18 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
 
 ## Notes
 
+- The top-level registry now bootstraps namespace options from
+  `/orm/api/ts_manager/dynamic_table/namespaces/` and defaults to the first returned namespace.
+  Users can switch to `All namespaces` to remove the namespace filter.
 - Keep reusable graph and inspector subcomponents here if they are specific to data nodes. Shared dependency-graph rendering now lives under `../../widgets/dependency-graph/`.
 - The data-snapshot tab intentionally uses the lightweight tail-observations preview endpoint (`dynamic_table/{uid}/get-tail-observations/?n=100&order=desc`) instead of the older latest-observation plus point-range query chain, because the registry detail surface does not have a canonical upstream `Data Node` widget runtime to bind against.
+- The `ULM diagram` tab calls `dynamic_table/{uid}/schema-graph/` with `depth` and `include_incoming`, and it uses the same normalized graph contract and explorer as Meta Tables.
+- The `Details` tab renders both source-table column metadata and `foreign_keys` returned by `GET /orm/api/ts_manager/dynamic_table/{uid}/`.
 - Data-node permissions use the shared `MainSequencePermissionsTab`, but they target the absolute `ts_manager/dynamic_table` object root instead of the default pods-scoped permission paths used by projects, constants, and secrets.
 - If a piece becomes useful outside this feature, move it to `../../components` and update this README.
 - Data-node detail navigation is URL-backed: `msDataNodeTab` selects the top-level detail tab, while `msLocalUpdateUid` and `msLocalUpdateTab` drive the nested local-update detail view.
+- The list view is namespace-first on purpose. It narrows the heavier DynamicTableMetaData registry
+  before applying the page-local text filter.
 - The surface also accepts standalone local-update deep links with `msLocalUpdateUid` even when `msDataNodeUid` is absent; this is used by cross-app links from Markets portfolio summaries.
 - The detail header exposes a `Delete Tail Data` action. It loads SourceTableConfiguration stats for multi-index tables, lets the user scope the delete to selected identifiers, and sends the suffix delete through `dynamic_table/<uid>/delete_after_date/`.
 - URL-backed detail navigation stores the backend ts_manager `uid` for both Data Nodes and nested local updates.

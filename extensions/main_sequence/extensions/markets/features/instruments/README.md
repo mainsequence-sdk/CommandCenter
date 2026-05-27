@@ -8,9 +8,9 @@ This feature owns the Main Sequence Markets instruments surface.
 
 ## Backend Contract
 
-- `GET /orm/api/assets/instruments-configuration/current/`: returns the current org-scoped
+- `GET /api/v1/instruments-configuration/current/`: returns the current org-scoped
   configuration plus the currently selected node labels.
-- `PATCH /orm/api/assets/instruments-configuration/current/`: updates the selected storage-node uids.
+- `PATCH /api/v1/instruments-configuration/current/`: updates the selected storage-node uids.
 - `listDataNodes(...)` from `../../../../common/api/`: powers the searchable node pickers.
 - `fetchDataNodeDetail(...)` from `../../../../common/api/`: automatically resolves the currently
   selected node uids so the picker always shows the real assigned node labels.

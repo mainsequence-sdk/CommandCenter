@@ -9,35 +9,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select } from "@/components/ui/select";
 
 import {
-  fetchMetaTableSchemaGraph,
+  fetchDataNodeSchemaGraph,
   formatMainSequenceError,
 } from "../../../../common/api";
-import { MainSequenceMetaTableUmlExplorer } from "./MainSequenceSimpleTableUmlExplorer";
+import { MainSequenceMetaTableUmlExplorer } from "../simple-tables/MainSequenceSimpleTableUmlExplorer";
 
 const depthOptions = [1, 2, 3, 4, 5];
 
-export function MainSequenceMetaTableSchemaGraph({
-  metaTableUid,
+export function MainSequenceDataNodeSchemaGraphTab({
+  dataNodeUid,
 }: {
-  metaTableUid: string;
+  dataNodeUid: string;
 }) {
   const [depth, setDepth] = useState("2");
   const [includeIncoming, setIncludeIncoming] = useState(false);
   const schemaGraphQuery = useQuery({
     queryKey: [
       "main_sequence",
-      "meta_tables",
+      "data_nodes",
       "schema_graph",
-      metaTableUid,
+      dataNodeUid,
       depth,
       includeIncoming,
     ],
     queryFn: () =>
-      fetchMetaTableSchemaGraph(metaTableUid, {
+      fetchDataNodeSchemaGraph(dataNodeUid, {
         depth: Number(depth),
         includeIncoming,
       }),
-    enabled: Boolean(String(metaTableUid).trim()),
+    enabled: Boolean(String(dataNodeUid).trim()),
   });
 
   const error = schemaGraphQuery.isError ? formatMainSequenceError(schemaGraphQuery.error) : null;
@@ -53,7 +53,7 @@ export function MainSequenceMetaTableSchemaGraph({
               ULM diagram
             </CardTitle>
             <CardDescription>
-              UML-style schema view for the selected meta table, including columns and foreign-key
+              UML-style schema view for the selected data node, including columns and foreign-key
               links within the requested traversal depth.
             </CardDescription>
           </div>

@@ -63,12 +63,14 @@ function getMetaTableColumns(detail?: MetaTableDetail | null): MetaTableColumnRe
     return [
       {
         id: index,
-        attr_name: column.label ?? column.column_name,
-        column_name: column.column_name,
-        db_type: column.dtype ?? "unknown",
-        is_pk: false,
+        name: column.column_name,
+        label: column.label ?? column.column_name,
+        logical_name: column.label ?? column.column_name,
+        data_type: column.dtype ?? "unknown",
+        backend_type: column.dtype ?? "unknown",
         nullable: true,
-        is_unique: false,
+        primary_key: false,
+        unique: false,
       } satisfies MetaTableColumnRecord,
     ];
   });
@@ -296,13 +298,13 @@ export function MetaTableConnectionConfigEditor({
             {metaTableDetailQuery.isFetching ? <Badge variant="neutral">Loading detail</Badge> : null}
           </div>
           <DataNodePreviewTable
-            columns={["column_name", "attr_name", "db_type", "nullable", "is_pk"]}
+            columns={["name", "label", "backend_type", "nullable", "primary_key"]}
             rows={columns.map((column) => ({
-              column_name: column.column_name,
-              attr_name: column.attr_name,
-              db_type: column.db_type,
+              name: column.name,
+              label: column.label,
+              backend_type: column.backend_type ?? column.data_type,
               nullable: column.nullable,
-              is_pk: column.is_pk,
+              primary_key: column.primary_key,
             }))}
             emptyMessage="No column metadata is available for this Meta Table."
             maxRows={100}

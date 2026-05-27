@@ -133,7 +133,7 @@ function normalizePortfolioSummary<T extends SummaryResponse>(
 }
 
 function buildFallbackPortfolioSummary(
-  portfolioId: number,
+  portfolioUid: string,
   portfolio: TargetPortfolioListRow | null,
 ): SummaryResponse<TargetPortfolioSummaryExtensions> | null {
   if (!portfolio) {
@@ -146,9 +146,9 @@ function buildFallbackPortfolioSummary(
 
   return {
     entity: {
-      id: portfolioId,
+      id: portfolioUid,
       type: "target_portfolio",
-      title: portfolioName || `Portfolio ${portfolioId}`,
+      title: portfolioName || `Portfolio ${portfolioUid}`,
     },
     badges: [
       {
@@ -159,9 +159,9 @@ function buildFallbackPortfolioSummary(
     ],
     inline_fields: [
       {
-        key: "portfolio_id",
-        label: "ID",
-        value: String(portfolioId),
+        key: "portfolio_uid",
+        label: "UID",
+        value: portfolioUid,
         kind: "code",
       },
       ...(creationDate
@@ -208,8 +208,8 @@ export function MainSequenceTargetPortfolioDetailView({
 }) {
   const navigate = useNavigate();
   const fallbackSummary = useMemo(
-    () => buildFallbackPortfolioSummary(initialPortfolio?.id ?? 0, initialPortfolio),
-    [initialPortfolio],
+    () => buildFallbackPortfolioSummary(portfolioUid, initialPortfolio),
+    [initialPortfolio, portfolioUid],
   );
 
   const portfolioSummaryQuery = useQuery({

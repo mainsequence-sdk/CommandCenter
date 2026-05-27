@@ -68,7 +68,7 @@ Every adapter operation should first resolve the target MetaTable:
    table UID from the query payload.
 3. Validate the resolved value is a non-empty UID string.
 4. Fetch `GET /orm/api/ts_manager/meta_table/{resolved_meta_table_uid}/` to validate existence,
-   permissions, storage hash, and column metadata before execution or health checks.
+   permissions, storage hash, and normalized column metadata before execution or health checks.
 
 Permissions must be checked before execution and before joining any in-flight request. The minimum
 permission advertised by the frontend is `main_sequence_foundry:view`; backend object-level checks

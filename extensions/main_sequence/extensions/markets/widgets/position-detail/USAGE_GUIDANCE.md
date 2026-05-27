@@ -67,10 +67,10 @@ Render portfolio, account, target-position, or account target-position rows with
 ## backendContracts
 
 - Portfolio hydration uses the existing target-portfolio weights/positions endpoint through the shared Markets API layer.
-- Account hydration uses `GET /orm/api/assets/account/<account_uid>/holdings/`. The widget requests `order=desc&limit=1` for the latest snapshot when `holdingsDate` is not set, or `holdings_date=<timestamp>&limit=1` when an exact timestamp is requested.
-- Account save uses `POST /orm/api/assets/account/<account_uid>/add-holdings/` with `overwrite: true`. The widget injects `target_trade_time` from `holdingsDate`, maps blank prices to `missing_price: true`, always writes `position_type: "units"`, and always sends `extra_details: {}` because that field is API-only in the current frontend contract.
-- Target positions account hydration uses `GET /orm/api/assets/account/<account_uid>/target-positions/`. The widget always requests `include_asset_detail=true`, uses `order=desc&limit=1` when `targetPositionsDate` is not set, and when `targetPositionsDate` is set it sends `target_positions_date=<timestamp>&limit=1` to load the exact assignment for that timestamp.
-- Target positions account save uses `POST /orm/api/assets/account/<account_uid>/add-target-positions/`. The widget writes the top-level `target_positions_date`, sends `unique_identifier` on every row, and maps the selected position type to exactly one of:
+- Account hydration uses `GET /api/v1/account/<account_uid>/holdings/`. The widget requests `order=desc&limit=1` for the latest snapshot when `holdingsDate` is not set, or `holdings_date=<timestamp>&limit=1` when an exact timestamp is requested.
+- Account save uses `POST /api/v1/account/<account_uid>/add-holdings/` with `overwrite: true`. The widget injects `target_trade_time` from `holdingsDate`, maps blank prices to `missing_price: true`, always writes `position_type: "units"`, and always sends `extra_details: {}` because that field is API-only in the current frontend contract.
+- Target positions account hydration uses `GET /api/v1/account/<account_uid>/target-positions/`. The widget always requests `include_asset_detail=true`, uses `order=desc&limit=1` when `targetPositionsDate` is not set, and when `targetPositionsDate` is set it sends `target_positions_date=<timestamp>&limit=1` to load the exact assignment for that timestamp.
+- Target positions account save uses `POST /api/v1/account/<account_uid>/add-target-positions/`. The widget writes the top-level `target_positions_date`, sends `unique_identifier` on every row, and maps the selected position type to exactly one of:
   - `weight_notional_exposure`
   - `constant_notional_exposure`
   - `single_asset_quantity`

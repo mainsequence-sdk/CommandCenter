@@ -1191,29 +1191,29 @@ export function createOrganizationUser(
   );
 }
 
-export function bulkDeleteUsers(selectedIds: number[]) {
+export function bulkDeleteUsers(selectedUids: string[]) {
   return requestAdminJson<UserBulkDeleteResponse>("/user/api/user/bulk-delete/", {
     method: "POST",
     body: JSON.stringify({
-      selected_ids: selectedIds,
+      selected_uids: selectedUids,
     }),
   });
 }
 
-export function makeSelectedUsersAdministrators(selectedIds: number[]) {
+export function makeSelectedUsersAdministrators(selectedUids: string[]) {
   return requestAdminJson<UserBulkOrgAdminActionResponse>("/user/api/user/make-org-admins/", {
     method: "POST",
     body: JSON.stringify({
-      selected_ids: selectedIds,
+      selected_uids: selectedUids,
     }),
   });
 }
 
-export function removeSelectedUsersAsAdministrators(selectedIds: number[]) {
+export function removeSelectedUsersAsAdministrators(selectedUids: string[]) {
   return requestAdminJson<UserBulkOrgAdminActionResponse>("/user/api/user/remove-org-admins/", {
     method: "POST",
     body: JSON.stringify({
-      selected_ids: selectedIds,
+      selected_uids: selectedUids,
     }),
   });
 }

@@ -39,6 +39,10 @@ function formatOrganizationTeams(value?: Array<{ id: number; name: string }>) {
   return value.map((team) => team.name).join(", ");
 }
 
+function getUserUid(user: AppUser) {
+  return typeof user.uid === "string" && user.uid.trim() ? user.uid.trim() : "";
+}
+
 function formatGroups(value?: string[]) {
   if (!value?.length) {
     return "No groups";
@@ -461,24 +465,24 @@ export function AdminOrganizationUsersPage() {
   const selectableRows = useMemo(
     () =>
       sortedPageRows.flatMap((user) => {
-        const numericId = Number(user.id);
+        const userUid = getUserUid(user);
 
-        if (!Number.isFinite(numericId) || numericId <= 0) {
+        if (!userUid) {
           return [];
         }
 
         return [
           {
-            id: numericId,
+            id: userUid,
             user,
           },
         ];
       }),
     [sortedPageRows],
   );
-  const userSelection = useRegistrySelection(selectableRows);
+  const userSelection = useRegistrySelection(selectableRows, (row) => row.id);
   const selectedUsers = userSelection.selectedItems.map((item) => item.user);
-  const selectedUserIds = userSelection.selectedIds;
+  const selectedUserUids = userSelection.selectedIds;
   const totalItems = usersQuery.data?.count ?? 0;
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(totalItems / mainSequenceRegistryPageSize)),
@@ -494,7 +498,7 @@ export function AdminOrganizationUsersPage() {
           tone: "danger" as const,
           specialText:
             "The following command will delete the selected users. However their subscriptions will remain active until the next billing cycle",
-          onConfirm: () => bulkDeleteUsers(selectedUserIds),
+          onConfirm: () => bulkDeleteUsers(selectedUserUids),
         }
       : activeBulkAction === "make-admins"
         ? {
@@ -505,7 +509,7 @@ export function AdminOrganizationUsersPage() {
             tone: "warning" as const,
             specialText:
               "The following command will give admin rights to the selected users. Allowing them to manage subscriptions and add or delete users.",
-            onConfirm: () => makeSelectedUsersAdministrators(selectedUserIds),
+            onConfirm: () => makeSelectedUsersAdministrators(selectedUserUids),
           }
         : activeBulkAction === "remove-admins"
           ? {
@@ -516,7 +520,7 @@ export function AdminOrganizationUsersPage() {
               tone: "warning" as const,
               specialText:
                 "The following command will remove admin rights to the selected users.",
-              onConfirm: () => removeSelectedUsersAsAdministrators(selectedUserIds),
+              onConfirm: () => removeSelectedUsersAsAdministrators(selectedUserUids),
             }
           : null;
   const userBulkActions = useMemo(
@@ -795,9 +799,9 @@ export function AdminOrganizationUsersPage() {
                 </thead>
                 <tbody>
                   {sortedPageRows.map((user) => {
-                    const numericId = Number(user.id);
-                    const selectable = Number.isFinite(numericId) && numericId > 0;
-                    const selected = selectable ? userSelection.isSelected(numericId) : false;
+                    const userUid = getUserUid(user);
+                    const selectable = Boolean(userUid);
+                    const selected = selectable ? userSelection.isSelected(userUid) : false;
 
                     return (
                       <tr key={user.id}>
@@ -806,7 +810,7 @@ export function AdminOrganizationUsersPage() {
                             <MainSequenceSelectionCheckbox
                               ariaLabel={`Select ${user.email || `user ${user.id}`}`}
                               checked={selected}
-                              onChange={() => userSelection.toggleSelection(numericId)}
+                              onChange={() => userSelection.toggleSelection(userUid)}
                             />
                           ) : null}
                         </td>

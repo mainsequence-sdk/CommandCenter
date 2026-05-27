@@ -8,9 +8,9 @@
 - Normalize the shared `SummaryResponse` contract used by Main Sequence and Markets summary endpoints, including `entity`, `badges`, `inline_fields`, `highlight_fields`, `stats`, optional `label_management`, optional `extensions`, and `summary_warning`.
 - Encapsulate authenticated fetch behavior, error normalization, pagination helpers, and endpoint-specific request functions.
 - Route `VITE_USE_MOCK_DATA=true` requests through the local JSON-backed mock layer under `/mock_data/mainsequence` for the shared Main Sequence API roots:
-  `/orm/api/pods/`, `/orm/api/ts_manager/`, and `/orm/api/assets/`.
-- Route Markets asset requests (`/orm/api/assets/...`) through `VITE_DEBUG_MAIN_SEQUENCE`
-  when it is set, for example `VITE_DEBUG_MAIN_SEQUENCE=http://127.0.0.1:8020`.
+  `/orm/api/pods/`, `/orm/api/ts_manager/`, and `/api/v1/`.
+- Route Markets API requests (`/api/v1/...`) through `VITE_DEBUG_MAIN_SEQUENCE`
+  when it is set, for example `VITE_DEBUG_MAIN_SEQUENCE=http://127.0.0.1:8021`.
   Other Main Sequence roots keep using the normal Command Center API base.
 - Provide a single import surface for Main Sequence feature code that lives outside app-specific extension folders.
 - Load the Main Sequence mock module lazily only when mock mode is active, so live mode does not eagerly import the JSON mock bundle.
@@ -35,20 +35,24 @@
 - `listDataNodes(...)` defaults to the backend light serializer (`light=true`) for picker/list
   surfaces that only need lightweight identity fields. Full registry/detail-style tables that rely
   on richer `dynamic_table` fields must opt out explicitly with `light: false`.
+- Foundry registry pages for Meta Tables and Data Nodes now bootstrap namespace options from the
+  resource-specific `.../namespaces/` endpoints before issuing the heavier list queries. The shared
+  API layer exposes those namespace list helpers and forwards the selected `namespace` query param
+  into the registry list endpoints.
 - Markets positions helpers also live here. `fetchManagedAccountHoldingsPositionDetails(...)`
   adapts the canonical managed-account holdings collection endpoint
-  `/orm/api/assets/account/{uid}/holdings/` into the shared position-detail payload shape used by
+  `/api/v1/account/{uid}/holdings/` into the shared position-detail payload shape used by
   the reusable `Position Detail` widget. It now requests the latest snapshot with
   `order=desc&limit=1` when no exact `holdings_date` filter is provided, preserves
   `include_asset_detail=true`, and normalizes empty collection responses to an empty positions
   payload instead of pushing collection-handling into widgets.
 - `saveManagedAccountHoldings(...)` also lives here. It posts a canonical holdings snapshot to
-  `/orm/api/assets/account/{uid}/add-holdings/`, normalizes the write response, and adapts it back
+  `/api/v1/account/{uid}/add-holdings/`, normalizes the write response, and adapts it back
   into the same reusable position-detail payload so the holdings widget can stay on one rendering
   contract before and after save.
 - `fetchManagedAccountTargetPositionsPositionDetails(...)` also lives here. It adapts the canonical
   managed-account target-positions collection endpoint
-  `/orm/api/assets/account/{uid}/target-positions/` into the same reusable position-detail payload,
+  `/api/v1/account/{uid}/target-positions/` into the same reusable position-detail payload,
   requests the latest assignment with `order=desc&limit=1` when no exact
   `target_positions_date` filter is provided, preserves `include_asset_detail=true`, and normalizes
   empty collection responses to an empty positions payload.
@@ -56,6 +60,10 @@
   the caller provides an object root plus object uid, and the API layer appends the configured
   `candidate-users`, `can-view`, `can-edit`, and add/remove permission suffixes from
   `main_sequence.permissions`.
+- Namespace helpers also live here. The namespace detail surface reads
+  `/orm/api/ts_manager/namespace/`, `/namespace/{uid}/`, and `/namespace/{uid}/tables/`, while the
+  namespace sharing UI uses `can-view`, `can-edit`, `set-permissions`, and
+  `propagate-permissions/` on the namespace resource root.
 - `dynamic_table/{uid}/get-tail-observations/`, `dynamic_table/{uid}/get_data_between_dates_from_remote/`, and `dynamic_table/{uid}/get_last_observation/` only use mock payloads that are explicitly keyed to the requested data-node identifier. Unkeyed endpoint dumps are not treated as valid per-node responses because they can mix multiple series and break widget assumptions.
 - Shared ts_manager detail helpers resolve resource paths by `uid`. Frontend callers and mock fixtures must provide the backend `uid`; numeric ids are not accepted for these detail-style routes.
 - Collection-style Main Sequence mock datasets may be stored either as a raw JSON array or as a paginated object with a `results` array. The mock loader normalizes both shapes for list-backed resources such as `local_time_series`.

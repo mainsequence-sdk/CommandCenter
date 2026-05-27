@@ -9,6 +9,8 @@ import {
 
 import {
   ArrowRightLeft,
+  ChevronDown,
+  ChevronRight,
   KeyRound,
   Loader2,
   Move,
@@ -44,6 +46,7 @@ interface PointerPanState {
 
 interface MetaTableUmlLayoutCard extends MetaTableSchemaGraphTableRecord {
   columnAnchors: Map<string, { leftX: number; rightX: number; y: number }>;
+  columnsExpanded: boolean;
   depth: number;
   height: number;
   width: number;
@@ -69,8 +72,10 @@ const umlGraphConfig = {
   bodyBottomSafety: 20,
   bodyPaddingY: 24,
   cardWidth: 360,
+  collapsedBodyHeight: 12,
   columnGap: 144,
   columnRowGap: 8,
+  collapsedCardHeight: 164,
   fitPadding: 52,
   headerHeight: 94,
   indexBlockGapTop: 16,
@@ -83,6 +88,7 @@ const umlGraphConfig = {
   minZoom: 0.42,
   paddingX: 64,
   paddingY: 56,
+  relationshipLabelCardClearance: 20,
   rowGap: 34,
   rowHeight: 36,
   maxZoom: 1.8,
@@ -131,7 +137,17 @@ function estimateIndexRows(table: MetaTableSchemaGraphTableRecord) {
   return rows;
 }
 
-function getCardHeight(table: MetaTableSchemaGraphTableRecord) {
+function getCardHeight(table: MetaTableSchemaGraphTableRecord, columnsExpanded: boolean) {
+  if (!columnsExpanded) {
+    return Math.max(
+      umlGraphConfig.collapsedCardHeight,
+      umlGraphConfig.headerHeight +
+        umlGraphConfig.bodyPaddingY +
+        umlGraphConfig.collapsedBodyHeight +
+        umlGraphConfig.bodyBottomSafety,
+    );
+  }
+
   const columnCount = Math.max(1, table.columns.length);
   const columnHeight =
     columnCount * umlGraphConfig.rowHeight +
@@ -242,8 +258,14 @@ function buildColumnAnchors(card: {
   x: number;
   y: number;
   columns: MetaTableSchemaGraphTableRecord["columns"];
+  columnsExpanded: boolean;
 }) {
   const anchors = new Map<string, { leftX: number; rightX: number; y: number }>();
+
+  if (!card.columnsExpanded) {
+    return anchors;
+  }
+
   const startY = card.y + umlGraphConfig.headerHeight;
 
   card.columns.forEach((column, index) => {
@@ -259,6 +281,7 @@ function buildColumnAnchors(card: {
 
 function buildMetaTableUmlLayout(
   payload: MetaTableSchemaGraphResponse | undefined,
+  expandedTables: Record<number, boolean>,
 ): MetaTableUmlLayoutResult | null {
   if (!payload) {
     return null;
@@ -305,6 +328,34 @@ function buildMetaTableUmlLayout(
   const orderedDepths = Array.from(groups.keys()).sort((left, right) => left - right);
   const minDepth = orderedDepths[0] ?? 0;
   const maxDepth = orderedDepths[orderedDepths.length - 1] ?? 0;
+  const depthGapByColumn = new Map<number, number>();
+
+  for (let depth = minDepth; depth < maxDepth; depth += 1) {
+    depthGapByColumn.set(depth, umlGraphConfig.columnGap);
+  }
+
+  payload.relationships.forEach((relationship) => {
+    const sourceDepth = depths.get(relationship.source_table_id);
+    const targetDepth = depths.get(relationship.target_table_id);
+
+    if (
+      sourceDepth === undefined ||
+      targetDepth === undefined ||
+      sourceDepth === targetDepth ||
+      Math.abs(sourceDepth - targetDepth) !== 1
+    ) {
+      return;
+    }
+
+    const columnDepth = Math.min(sourceDepth, targetDepth);
+    const requiredGap =
+      estimateRelationshipLabelWidth(relationship) +
+      umlGraphConfig.relationshipLabelCardClearance * 2;
+    depthGapByColumn.set(
+      columnDepth,
+      Math.max(depthGapByColumn.get(columnDepth) ?? umlGraphConfig.columnGap, requiredGap),
+    );
+  });
 
   const groupHeights = new Map<number, number>();
   orderedDepths.forEach((depth) => {
@@ -331,7 +382,10 @@ function buildMetaTableUmlLayout(
     groups.set(depth, tables);
 
     const totalHeight =
-      tables.reduce((sum, table) => sum + getCardHeight(table), 0) +
+      tables.reduce(
+        (sum, table) => sum + getCardHeight(table, expandedTables[table.id] === true),
+        0,
+      ) +
       Math.max(0, tables.length - 1) * umlGraphConfig.rowGap;
     groupHeights.set(depth, totalHeight);
   });
@@ -343,14 +397,18 @@ function buildMetaTableUmlLayout(
     const tables = groups.get(depth) ?? [];
     const groupHeight = groupHeights.get(depth) ?? 0;
     let currentY = umlGraphConfig.paddingY + (maxGroupHeight - groupHeight) / 2;
-    const x =
-      umlGraphConfig.paddingX +
-      (depth - minDepth) * (umlGraphConfig.cardWidth + umlGraphConfig.columnGap);
+    let x = umlGraphConfig.paddingX;
+
+    for (let currentDepth = minDepth; currentDepth < depth; currentDepth += 1) {
+      x += umlGraphConfig.cardWidth + (depthGapByColumn.get(currentDepth) ?? umlGraphConfig.columnGap);
+    }
 
     tables.forEach((table) => {
-      const height = getCardHeight(table);
+      const columnsExpanded = expandedTables[table.id] === true;
+      const height = getCardHeight(table, columnsExpanded);
       const card: MetaTableUmlLayoutCard = {
         ...table,
+        columnsExpanded,
         depth,
         height,
         width: umlGraphConfig.cardWidth,
@@ -451,6 +509,51 @@ function formatNullable(nullable: boolean) {
   return nullable ? "nullable" : "required";
 }
 
+function formatRelationshipColumns(columns: string[]) {
+  return columns.length > 0 ? columns.join(", ") : "?";
+}
+
+function buildRelationshipLabel(relationship: MetaTableSchemaGraphRelationshipRecord) {
+  return `${formatRelationshipColumns(relationship.source_columns)} -> ${formatRelationshipColumns(
+    relationship.target_columns,
+  )}`;
+}
+
+function estimateRelationshipLabelWidth(relationship: MetaTableSchemaGraphRelationshipRecord) {
+  return Math.max(112, buildRelationshipLabel(relationship).length * 6.6);
+}
+
+function RelationshipLegendLine({
+  color,
+  dashed = false,
+}: {
+  color: string;
+  dashed?: boolean;
+}) {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-3 w-14 shrink-0 overflow-visible"
+      viewBox="0 0 56 12"
+      fill="none"
+    >
+      <path
+        d="M 3 6 C 18 6, 38 6, 53 6"
+        stroke={alphaColor(color, 0.18)}
+        strokeLinecap="round"
+        strokeWidth={8}
+      />
+      <path
+        d="M 3 6 C 18 6, 38 6, 53 6"
+        stroke={alphaColor(color, 0.82)}
+        strokeLinecap="round"
+        strokeWidth={2.25}
+        strokeDasharray={dashed ? "7 5" : undefined}
+      />
+    </svg>
+  );
+}
+
 export function MainSequenceMetaTableUmlExplorer({
   error,
   isLoading,
@@ -458,7 +561,20 @@ export function MainSequenceMetaTableUmlExplorer({
 }: MainSequenceMetaTableUmlExplorerProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const { resolvedTokens } = useTheme();
-  const layout = useMemo(() => buildMetaTableUmlLayout(payload), [payload]);
+  const [expandedTables, setExpandedTables] = useState<Record<number, boolean>>({});
+  const expandedTablesKey = useMemo(
+    () =>
+      Object.entries(expandedTables)
+        .filter(([, expanded]) => expanded)
+        .map(([tableId]) => Number(tableId))
+        .sort((left, right) => left - right)
+        .join("|"),
+    [expandedTables],
+  );
+  const layout = useMemo(
+    () => buildMetaTableUmlLayout(payload, expandedTables),
+    [expandedTables, payload],
+  );
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
@@ -471,8 +587,8 @@ export function MainSequenceMetaTableUmlExplorer({
       return "empty";
     }
 
-    return `${payload.root_table_id}:${payload.tables.map((table) => table.id).join("|")}:${payload.relationships.map((relationship) => relationship.id).join("|")}`;
-  }, [payload]);
+    return `${payload.root_table_id}:${payload.tables.map((table) => table.id).join("|")}:${payload.relationships.map((relationship) => relationship.id).join("|")}:${expandedTablesKey}`;
+  }, [expandedTablesKey, payload]);
 
   const selectedTable = useMemo(
     () => getSelectedTable(payload, selectedTableId),
@@ -511,6 +627,20 @@ export function MainSequenceMetaTableUmlExplorer({
       }
 
       return payload?.root_table_id ?? payload?.tables[0]?.id ?? null;
+    });
+    setExpandedTables((currentValue) => {
+      if (!payload) {
+        return {};
+      }
+
+      const nextEntries = Object.entries(currentValue).filter(([tableId, expanded]) => {
+        return (
+          expanded &&
+          payload.tables.some((table) => table.id === Number(tableId))
+        );
+      });
+
+      return nextEntries.length > 0 ? Object.fromEntries(nextEntries) : {};
     });
     fittedLayoutKeyRef.current = null;
   }, [payload, layoutKey]);
@@ -627,6 +757,13 @@ export function MainSequenceMetaTableUmlExplorer({
     });
   }
 
+  function toggleTableColumns(tableId: number) {
+    setExpandedTables((currentValue) => ({
+      ...currentValue,
+      [tableId]: currentValue[tableId] !== true,
+    }));
+  }
+
   const tablesById = useMemo(() => {
     const map = new Map<number, MetaTableSchemaGraphTableRecord>();
     payload?.tables.forEach((table) => {
@@ -651,8 +788,8 @@ export function MainSequenceMetaTableUmlExplorer({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="neutral">Root table</Badge>
-          <Badge variant="neutral">Columns + indexes</Badge>
-          <Badge variant="neutral">FK multiplicities</Badge>
+          <Badge variant="neutral">Columns</Badge>
+          <Badge variant="neutral">Foreign keys</Badge>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => updateZoom(zoom / 1.12)}>
@@ -668,6 +805,42 @@ export function MainSequenceMetaTableUmlExplorer({
             <RefreshCw className="h-3.5 w-3.5" />
             Fit
           </Button>
+        </div>
+      </div>
+
+      <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/28 px-4 py-3">
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-3 text-xs text-muted-foreground">
+          <div className="space-y-2">
+            <div className="font-medium uppercase tracking-[0.14em] text-foreground/85">
+              Edge Color
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="inline-flex items-center gap-2">
+                <RelationshipLegendLine color={resolvedTokens.primary} />
+                <span>Touches the root table</span>
+              </div>
+              <div className="inline-flex items-center gap-2">
+                <RelationshipLegendLine color={resolvedTokens.accent} />
+                <span>Indirect relation in the current graph</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="font-medium uppercase tracking-[0.14em] text-foreground/85">
+              Edge Style
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="inline-flex items-center gap-2">
+                <RelationshipLegendLine color={resolvedTokens.foreground} />
+                <span>On delete: cascade</span>
+              </div>
+              <div className="inline-flex items-center gap-2">
+                <RelationshipLegendLine color={resolvedTokens.foreground} dashed />
+                <span>Any other delete policy</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -740,8 +913,8 @@ export function MainSequenceMetaTableUmlExplorer({
                     return null;
                   }
 
-                  const label = `${relationship.source_column} -> ${relationship.target_column}`;
-                  const labelWidth = Math.max(112, label.length * 6.6);
+                  const label = buildRelationshipLabel(relationship);
+                  const labelWidth = estimateRelationshipLabelWidth(relationship);
                   const isRootRelationship =
                     relationship.source_table_id === payload?.root_table_id ||
                     relationship.target_table_id === payload?.root_table_id;
@@ -786,31 +959,6 @@ export function MainSequenceMetaTableUmlExplorer({
                       >
                         {label}
                       </text>
-
-                      {relationship.source_to_target_multiplicity ? (
-                        <text
-                          x={geometry.startX + (geometry.leftToRight ? 12 : -12)}
-                          y={geometry.startY - 10}
-                          fill={resolvedTokens["muted-foreground"]}
-                          fontSize="11"
-                          fontWeight="600"
-                          textAnchor={geometry.leftToRight ? "start" : "end"}
-                        >
-                          {relationship.source_to_target_multiplicity}
-                        </text>
-                      ) : null}
-                      {relationship.target_to_source_multiplicity ? (
-                        <text
-                          x={geometry.endX + (geometry.leftToRight ? -12 : 12)}
-                          y={geometry.endY - 10}
-                          fill={resolvedTokens["muted-foreground"]}
-                          fontSize="11"
-                          fontWeight="600"
-                          textAnchor={geometry.leftToRight ? "end" : "start"}
-                        >
-                          {relationship.target_to_source_multiplicity}
-                        </text>
-                      ) : null}
                     </g>
                   );
                 })}
@@ -821,11 +969,18 @@ export function MainSequenceMetaTableUmlExplorer({
                 const isSelected = selectedTable?.id === table.id;
 
                 return (
-                  <button
+                  <div
                     key={table.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     data-uml-card
                     onClick={() => setSelectedTableId(table.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedTableId(table.id);
+                      }
+                    }}
                     className="absolute text-left"
                     style={{
                       left: table.x,
@@ -883,104 +1038,108 @@ export function MainSequenceMetaTableUmlExplorer({
                               {table.storage_hash}
                             </div>
                           </div>
-                          <Badge variant={isRootTable ? "primary" : "neutral"}>
-                            {isRootTable ? "Root" : `${table.columns.length} cols`}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            {isRootTable ? <Badge variant="primary">Root</Badge> : null}
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:bg-background/75 hover:text-foreground"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                toggleTableColumns(table.id);
+                              }}
+                              aria-expanded={table.columnsExpanded}
+                              aria-label={
+                                table.columnsExpanded
+                                  ? `Collapse columns for ${table.identifier || `Table ${table.id}`}`
+                                  : `Expand columns for ${table.identifier || `Table ${table.id}`}`
+                              }
+                            >
+                              {table.columnsExpanded ? (
+                                <ChevronDown className="h-3 w-3" />
+                              ) : (
+                                <ChevronRight className="h-3 w-3" />
+                              )}
+                              {table.columns.length} cols
+                            </button>
+                          </div>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
                           <span className="rounded-full border border-border/70 bg-background/55 px-2.5 py-1">
-                            {table.source_class_name?.trim() || "No updater"}
+                            {table.namespace?.trim() || "No namespace"}
                           </span>
                           <span className="rounded-full border border-border/70 bg-background/55 px-2.5 py-1">
-                            DS {table.data_source_id ?? "?"}
+                            {table.physical_table_name}
                           </span>
                         </div>
                       </div>
 
                       <div className="flex min-h-0 flex-1 flex-col px-4 py-3">
-                        <div className="space-y-2">
-                          {table.columns.map((column) => (
-                            <div
-                              key={`${table.id}-${column.column_name}`}
-                              className="rounded-[14px] border px-3 py-2"
-                              style={{
-                                borderColor: column.is_primary_key
-                                  ? alphaColor(resolvedTokens.primary, 0.42)
-                                  : alphaColor(resolvedTokens.border, 0.56),
-                                background: column.is_primary_key
-                                  ? `linear-gradient(90deg, ${alphaColor(
-                                      resolvedTokens.primary,
-                                      0.14,
-                                    )} 0%, ${alphaColor(resolvedTokens.background, 0.42)} 100%)`
-                                  : column.is_unique
+                        {table.columnsExpanded ? (
+                          <div className="space-y-2">
+                            {table.columns.map((column) => (
+                              <div
+                                key={`${table.id}-${column.column_name}`}
+                                className="rounded-[14px] border px-3 py-2"
+                                style={{
+                                  borderColor: column.is_primary_key
+                                    ? alphaColor(resolvedTokens.primary, 0.42)
+                                    : alphaColor(resolvedTokens.border, 0.56),
+                                  background: column.is_primary_key
                                     ? `linear-gradient(90deg, ${alphaColor(
-                                        resolvedTokens.accent,
-                                        0.1,
-                                      )} 0%, ${alphaColor(resolvedTokens.background, 0.38)} 100%)`
-                                    : alphaColor(resolvedTokens.background, 0.36),
-                              }}
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="truncate font-mono text-[12px] font-semibold text-foreground">
-                                    {column.column_name}
-                                  </div>
-                                  {column.attr_name !== column.column_name ? (
-                                    <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                                      {column.attr_name}
+                                        resolvedTokens.primary,
+                                        0.14,
+                                      )} 0%, ${alphaColor(resolvedTokens.background, 0.42)} 100%)`
+                                    : column.is_unique
+                                      ? `linear-gradient(90deg, ${alphaColor(
+                                          resolvedTokens.accent,
+                                          0.1,
+                                        )} 0%, ${alphaColor(resolvedTokens.background, 0.38)} 100%)`
+                                      : alphaColor(resolvedTokens.background, 0.36),
+                                }}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="truncate font-mono text-[12px] font-semibold text-foreground">
+                                      {column.column_name}
                                     </div>
-                                  ) : null}
-                                </div>
-                                <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
-                                  <span className="rounded-full border border-border/70 bg-background/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                                    {column.db_type}
-                                  </span>
-                                  {column.is_primary_key ? (
-                                    <span className="rounded-full border border-primary/35 bg-primary/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
-                                      PK
+                                    {column.attr_name !== column.column_name ? (
+                                      <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                                        {column.attr_name}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                  <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+                                    <span className="rounded-full border border-border/70 bg-background/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                                      {column.db_type}
                                     </span>
-                                  ) : null}
-                                  {column.is_unique ? (
-                                    <span className="rounded-full border border-accent/35 bg-accent/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
-                                      UQ
+                                    {column.is_primary_key ? (
+                                      <span className="rounded-full border border-primary/35 bg-primary/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
+                                        PK
+                                      </span>
+                                    ) : null}
+                                    {column.is_unique ? (
+                                      <span className="rounded-full border border-accent/35 bg-accent/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">
+                                        UQ
+                                      </span>
+                                    ) : null}
+                                    <span className="rounded-full border border-border/70 bg-background/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                                      {column.nullable ? "NULL" : "NOT NULL"}
                                     </span>
-                                  ) : null}
-                                  <span className="rounded-full border border-border/70 bg-background/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                                    {column.nullable ? "NULL" : "NOT NULL"}
-                                  </span>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {table.indexes.length ? (
-                          <div className="mt-4 border-t border-border/60 pt-3">
-                            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                              <ArrowRightLeft className="h-3 w-3" />
-                              Indexes
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {table.indexes.map((index) => (
-                                <div
-                                  key={`${table.id}-index-${index.id}`}
-                                  className="rounded-full border border-border/70 bg-background/52 px-3 py-1.5 text-[11px] text-foreground"
-                                >
-                                  <span className="font-medium">{index.name}</span>
-                                  {index.columns.length ? (
-                                    <span className="text-muted-foreground">
-                                      {" "}
-                                      · {index.columns.join(", ")}
-                                    </span>
-                                  ) : null}
-                                </div>
-                              ))}
-                            </div>
+                            ))}
                           </div>
-                        ) : null}
+                        ) : (
+                          <div className="flex min-h-[1.75rem] items-center text-[11px] text-muted-foreground">
+                            Expand columns to inspect the table shape.
+                          </div>
+                        )}
+
                       </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -1006,7 +1165,6 @@ export function MainSequenceMetaTableUmlExplorer({
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Badge variant="neutral">{selectedTable.columns.length} columns</Badge>
-                    <Badge variant="neutral">{selectedTable.indexes.length} indexes</Badge>
                     <Badge variant="neutral">
                       {selectedOutgoingRelationships.length + selectedIncomingRelationships.length} relations
                     </Badge>
@@ -1018,18 +1176,18 @@ export function MainSequenceMetaTableUmlExplorer({
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/45 px-3 py-3">
                         <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                          Source Class
+                          Namespace
                         </div>
                         <div className="mt-1 text-sm text-foreground">
-                          {selectedTable.source_class_name?.trim() || "Not set"}
+                          {selectedTable.namespace?.trim() || "Not set"}
                         </div>
                       </div>
                       <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/45 px-3 py-3">
                         <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                          Data Source
+                          Physical Table
                         </div>
-                        <div className="mt-1 text-sm text-foreground">
-                          {selectedTable.data_source_id ?? "Not set"}
+                        <div className="mt-1 break-all font-mono text-sm text-foreground">
+                          {selectedTable.physical_table_name || "Not set"}
                         </div>
                       </div>
                     </div>
@@ -1080,16 +1238,17 @@ export function MainSequenceMetaTableUmlExplorer({
                               <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                                 Outgoing
                               </div>
+                              <div className="mt-1 font-mono text-xs text-muted-foreground">
+                                {relationship.name}
+                              </div>
                               <div className="mt-1 text-sm text-foreground">
-                                {relationship.source_column}
+                                {formatRelationshipColumns(relationship.source_columns)}
                                 {" -> "}
                                 {targetTable?.identifier || `Table ${relationship.target_table_id}`}.
-                                {relationship.target_column}
+                                {formatRelationshipColumns(relationship.target_columns)}
                               </div>
                               <div className="mt-1 text-xs text-muted-foreground">
-                                {relationship.source_to_target_multiplicity || "?"} /{" "}
-                                {relationship.target_to_source_multiplicity || "?"} · on delete{" "}
-                                {relationship.on_delete || "not set"}
+                                on delete {relationship.on_delete || "not set"}
                               </div>
                             </div>
                           );
@@ -1104,16 +1263,17 @@ export function MainSequenceMetaTableUmlExplorer({
                               <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                                 Incoming
                               </div>
+                              <div className="mt-1 font-mono text-xs text-muted-foreground">
+                                {relationship.name}
+                              </div>
                               <div className="mt-1 text-sm text-foreground">
                                 {sourceTable?.identifier || `Table ${relationship.source_table_id}`}.
-                                {relationship.source_column}
+                                {formatRelationshipColumns(relationship.source_columns)}
                                 {" -> "}
-                                {relationship.target_column}
+                                {formatRelationshipColumns(relationship.target_columns)}
                               </div>
                               <div className="mt-1 text-xs text-muted-foreground">
-                                {relationship.source_to_target_multiplicity || "?"} /{" "}
-                                {relationship.target_to_source_multiplicity || "?"} · on delete{" "}
-                                {relationship.on_delete || "not set"}
+                                on delete {relationship.on_delete || "not set"}
                               </div>
                             </div>
                           );
@@ -1136,11 +1296,11 @@ export function MainSequenceMetaTableUmlExplorer({
       {!isLoading && !error ? (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="neutral">
-            {payload?.tables.length ?? 0} table{payload?.tables.length === 1 ? "" : "s"}
+            {payload?.tables?.length ?? 0} table{payload?.tables?.length === 1 ? "" : "s"}
           </Badge>
           <Badge variant="neutral">
-            {payload?.relationships.length ?? 0} relationship
-            {(payload?.relationships.length ?? 0) === 1 ? "" : "s"}
+            {payload?.relationships?.length ?? 0} relationship
+            {(payload?.relationships?.length ?? 0) === 1 ? "" : "s"}
           </Badge>
           <span className="inline-flex items-center gap-1.5">
             <Move className="h-3.5 w-3.5" />

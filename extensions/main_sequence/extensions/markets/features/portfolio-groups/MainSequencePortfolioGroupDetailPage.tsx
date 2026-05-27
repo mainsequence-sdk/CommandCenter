@@ -681,7 +681,7 @@ export function MainSequencePortfolioGroupDetailPage() {
                 <div>
                   <CardTitle>Portfolio group details</CardTitle>
                   <CardDescription>
-	                    These fields come directly from `GET /orm/api/assets/portfolio_group/{portfolioGroupUid}/`.
+	                    These fields come directly from `GET /api/v1/portfolio_group/{portfolioGroupUid}/`.
                   </CardDescription>
                 </div>
               </CardHeader>

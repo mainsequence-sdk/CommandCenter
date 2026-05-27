@@ -47,7 +47,7 @@ function getMetaTableColumnNames(
   }
 
   if (Array.isArray(detail.columns) && detail.columns.length > 0) {
-    return detail.columns.map((column) => column.column_name).filter(Boolean);
+    return detail.columns.map((column) => column.name).filter(Boolean);
   }
 
   const metadata = detail.sourcetableconfiguration?.columns_metadata;

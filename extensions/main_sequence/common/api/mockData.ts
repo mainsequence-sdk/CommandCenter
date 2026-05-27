@@ -11,7 +11,7 @@ const devMainSequenceMarketsProxyPrefix = "/__main_sequence_markets__";
 const mainSequencePodsRoot = "/orm/api/pods/";
 const mainSequenceConnectionsRoot = "/orm/api/connections/";
 const mainSequenceTsManagerRoot = "/orm/api/ts_manager/";
-const mainSequenceAssetsRoot = "/orm/api/assets/";
+const mainSequenceAssetsRoot = "/api/v1/";
 
 function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -592,6 +592,92 @@ function matchesSearch(values: unknown[], search: string | null | undefined) {
 
 function sortDescendingById<T extends Record<string, unknown>>(rows: T[]) {
   return [...rows].sort((left, right) => readNumber(right.id) - readNumber(left.id));
+}
+
+function buildMockNamespaceRows(rows: Array<Record<string, unknown>>) {
+  const groupedNamespaces = new Map<
+    string,
+    {
+      namespace_uid: string;
+      namespace: string;
+      display_name: string;
+      table_count: number;
+      filters: {
+        namespace: string;
+        namespace_uid: string;
+      };
+    }
+  >();
+
+  for (const row of rows) {
+    const namespace = readOptionalString(row.namespace)?.trim();
+
+    if (!namespace) {
+      continue;
+    }
+
+    const existing = groupedNamespaces.get(namespace);
+
+    if (existing) {
+      existing.table_count += 1;
+      continue;
+    }
+
+    const namespaceUid = `mock-namespace-${namespace}`;
+    groupedNamespaces.set(namespace, {
+      namespace_uid: namespaceUid,
+      namespace,
+      display_name: namespace,
+      table_count: 1,
+      filters: {
+        namespace,
+        namespace_uid: namespaceUid,
+      },
+    });
+  }
+
+  return Array.from(groupedNamespaces.values()).sort((left, right) =>
+    left.namespace.localeCompare(right.namespace),
+  );
+}
+
+function findMockNamespaceByUid(namespaceUid: string) {
+  return buildMockNamespaceRows([...state.simpleTables, ...state.dataNodes]).find(
+    (namespace) => namespace.namespace_uid === namespaceUid,
+  );
+}
+
+function buildMockNamespaceTableRows(namespaceUid: string) {
+  const namespace = findMockNamespaceByUid(namespaceUid);
+  const namespaceName = namespace?.namespace ?? "";
+
+  if (!namespaceName) {
+    return [];
+  }
+
+  const metaTables = state.simpleTables
+    .filter((table) => readOptionalString(table.namespace)?.trim() === namespaceName)
+    .map((table) => ({
+      kind: "meta_table",
+      uid: readString(table.uid),
+      storage_hash: readOptionalString(table.storage_hash) ?? null,
+      identifier: readOptionalString(table.identifier) ?? null,
+      creation_date: readOptionalString(table.creation_date) ?? null,
+      namespace: namespaceName,
+    }));
+
+  const dataNodes = state.dataNodes
+    .filter((table) => readOptionalString(table.namespace)?.trim() === namespaceName)
+    .map((table) => ({
+      kind: "dynamic_table",
+      uid: readString(table.uid),
+      storage_hash: readOptionalString(table.storage_hash) ?? null,
+      identifier: readOptionalString(table.identifier) ?? null,
+      creation_date: readOptionalString(table.creation_date) ?? null,
+      namespace: namespaceName,
+    }));
+
+  return [...metaTables, ...dataNodes];
 }
 
 function paginate<T>(rows: T[], limitValue: string | null, offsetValue: string | null) {
@@ -1333,7 +1419,7 @@ function buildClusterDetail(cluster: Record<string, unknown>) {
   };
 }
 
-function buildPermissionResponse(objectId: number, accessLevel: "view" | "edit") {
+function buildPermissionResponse(objectId: number | string, accessLevel: "view" | "edit") {
   const users = readArray<Record<string, unknown>>(
     accessLevel === "view" ? state.permissionCandidateUsers.slice(0, 2) : state.permissionCandidateUsers.slice(2, 3),
   );
@@ -1341,6 +1427,7 @@ function buildPermissionResponse(objectId: number, accessLevel: "view" | "edit")
 
   return {
     object_id: objectId,
+    object_uid: typeof objectId === "string" ? objectId : String(objectId),
     object_type: "resource",
     access_level: accessLevel,
     users,
@@ -1448,44 +1535,21 @@ function handleProjects(route: string, method: string, searchParams: URLSearchPa
 }
 
 function handleAssets(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
-  if (route === "/orm/api/assets/asset/" && method === "GET") {
+  if (route === "/api/v1/asset/" && method === "GET") {
     return paginate(filterAssets(searchParams, null), searchParams.get("limit"), searchParams.get("offset"));
   }
 
-  if (route === "/orm/api/assets/asset/query/" && method === "POST") {
+  if (route === "/api/v1/asset/query/" && method === "POST") {
     const body = parseBody(init);
     return paginate(filterAssets(searchParams, body), String(body?.limit ?? defaultPageSize), String(body?.offset ?? 0));
   }
 
-  if (route === "/orm/api/assets/asset/summary/" && method === "GET") {
-    const filtered = filterAssets(searchParams, null);
-    return buildEntitySummary(0, "asset_registry", "Assets", {
-      inlineFields: [
-        {
-          key: "search",
-          label: "Search",
-          value: searchParams.get("search") || "All assets",
-          kind: "text",
-        },
-      ],
-      stats: [
-        {
-          key: "assets",
-          label: "Assets",
-          display: String(filtered.length),
-          value: filtered.length,
-          kind: "number",
-        },
-      ],
-    });
-  }
-
-  const detailMatch = route.match(/^\/orm\/api\/assets\/asset\/([^/]+)\/$/);
+  const detailMatch = route.match(/^\/api\/v1\/asset\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
     return findByUid(state.assets, detailMatch[1] ?? "");
   }
 
-  const orderFieldsMatch = route.match(/^\/orm\/api\/assets\/asset\/([^/]+)\/order-form-fields\/$/);
+  const orderFieldsMatch = route.match(/^\/api\/v1\/asset\/([^/]+)\/order-form-fields\/$/);
   if (orderFieldsMatch && method === "GET") {
     const asset = findByUid(state.assets, orderFieldsMatch[1] ?? "");
     const orderFieldsByType = (asset?.order_form_fields ?? {}) as Record<string, unknown>;
@@ -1493,7 +1557,7 @@ function handleAssets(route: string, method: string, searchParams: URLSearchPara
     return readArray(orderFieldsByType[orderType]) || readArray(asset?.order_form_default_fields);
   }
 
-  if (route === "/orm/api/assets/asset/bulk-delete/" && method === "POST") {
+  if (route === "/api/v1/asset/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
     const uids = new Set(readArray<string>(body?.uids));
     const before = state.assets.length;
@@ -1508,7 +1572,7 @@ function handleAssets(route: string, method: string, searchParams: URLSearchPara
 }
 
 function handleAssetCategories(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
-  if (route === "/orm/api/assets/asset-category/" && method === "GET") {
+  if (route === "/api/v1/asset-category/" && method === "GET") {
     const filtered = state.assetCategories.filter((category) =>
       matchesSearch(
         [category.id, category.unique_identifier, category.display_name, category.description],
@@ -1530,7 +1594,7 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
     );
   }
 
-  if (route === "/orm/api/assets/asset-category/" && method === "POST") {
+  if (route === "/api/v1/asset-category/" && method === "POST") {
     const body = parseBody(init);
     const id = nextId(state.assetCategories);
     const record = {
@@ -1545,7 +1609,7 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
     return record;
   }
 
-  if (route === "/orm/api/assets/asset-category/bulk-delete/" && method === "POST") {
+  if (route === "/api/v1/asset-category/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
     const uids = new Set(readArray<string>(body?.uids));
     const before = state.assetCategories.length;
@@ -1556,7 +1620,7 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
     };
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/assets\/asset-category\/([^/]+)\/$/);
+  const detailMatch = route.match(/^\/api\/v1\/asset-category\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
     const categoryUid = detailMatch[1] ?? "";
     const category = findByUid(state.assetCategories, categoryUid);
@@ -1591,12 +1655,12 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
       actions: {
         can_edit: true,
         can_delete: true,
-        update_endpoint: `/orm/api/assets/asset-category/${categoryUid}/`,
-        delete_endpoint: `/orm/api/assets/asset-category/${categoryUid}/`,
+        update_endpoint: `/api/v1/asset-category/${categoryUid}/`,
+        delete_endpoint: `/api/v1/asset-category/${categoryUid}/`,
       },
       assets_list: {
-        list_endpoint: "/orm/api/assets/asset/",
-        query_endpoint: "/orm/api/assets/asset/query/",
+        list_endpoint: "/api/v1/asset/",
+        query_endpoint: "/api/v1/asset/query/",
         response_format: "frontend_list",
         default_filters: {
           categories__uid: categoryUid,
@@ -1626,7 +1690,7 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
 }
 
 function handlePortfolioGroups(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
-  if (route === "/orm/api/assets/portfolio_group/" && method === "GET") {
+  if (route === "/api/v1/portfolio_group/" && method === "GET") {
     const filtered = state.portfolioGroups.filter((group) =>
       matchesSearch(
         [group.id, group.name, group.display_name, group.unique_identifier, group.description],
@@ -1636,7 +1700,7 @@ function handlePortfolioGroups(route: string, method: string, searchParams: URLS
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
-  if (route === "/orm/api/assets/portfolio_group/get_or_create/" && method === "POST") {
+  if (route === "/api/v1/portfolio_group/get_or_create/" && method === "POST") {
     const body = parseBody(init);
     const record = {
       id: nextId(state.portfolioGroups),
@@ -1653,7 +1717,7 @@ function handlePortfolioGroups(route: string, method: string, searchParams: URLS
     return record;
   }
 
-  if (route === "/orm/api/assets/portfolio_group/bulk-delete/" && method === "POST") {
+  if (route === "/api/v1/portfolio_group/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
     const uids = new Set(readArray<string>(body?.uids));
     const before = state.portfolioGroups.length;
@@ -1664,12 +1728,12 @@ function handlePortfolioGroups(route: string, method: string, searchParams: URLS
     };
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/assets\/portfolio_group\/([^/]+)\/$/);
+  const detailMatch = route.match(/^\/api\/v1\/portfolio_group\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
     return findByUid(state.portfolioGroups, detailMatch[1] ?? "");
   }
 
-  const appendMatch = route.match(/^\/orm\/api\/assets\/portfolio_group\/([^/]+)\/append-portfolios\/$/);
+  const appendMatch = route.match(/^\/api\/v1\/portfolio_group\/([^/]+)\/append-portfolios\/$/);
   if (appendMatch && method === "POST") {
     const group = findByUid(state.portfolioGroups, appendMatch[1] ?? "");
     const body = parseBody(init);
@@ -1681,7 +1745,7 @@ function handlePortfolioGroups(route: string, method: string, searchParams: URLS
     return group;
   }
 
-  const removeMatch = route.match(/^\/orm\/api\/assets\/portfolio_group\/([^/]+)\/remove-portfolios\/$/);
+  const removeMatch = route.match(/^\/api\/v1\/portfolio_group\/([^/]+)\/remove-portfolios\/$/);
   if (removeMatch && method === "POST") {
     const group = findByUid(state.portfolioGroups, removeMatch[1] ?? "");
     const body = parseBody(init);
@@ -1696,7 +1760,7 @@ function handlePortfolioGroups(route: string, method: string, searchParams: URLS
 }
 
 function handleTargetPortfolios(route: string, method: string, searchParams: URLSearchParams) {
-  if (route === "/orm/api/assets/target_portfolio/" && method === "GET") {
+  if (route === "/api/v1/target_portfolio/" && method === "GET") {
     const filtered = state.targetPortfolios.filter((portfolio) =>
       matchesSearch(
         [
@@ -1710,21 +1774,21 @@ function handleTargetPortfolios(route: string, method: string, searchParams: URL
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
-  if (route === "/orm/api/assets/target_portfolio/bulk-delete/" && method === "POST") {
+  if (route === "/api/v1/target_portfolio/bulk-delete/" && method === "POST") {
     return {
       detail: "Target portfolios removed from mock state.",
       deleted_count: 0,
     };
   }
 
-  const summaryMatch = route.match(/^\/orm\/api\/assets\/target_portfolio\/([^/]+)\/summary\/$/);
+  const summaryMatch = route.match(/^\/api\/v1\/target_portfolio\/([^/]+)\/summary\/$/);
   if (summaryMatch && method === "GET") {
     const portfolioUid = summaryMatch[1] ?? "";
     const portfolio = findByUid(state.targetPortfolios, portfolioUid);
     return buildTargetPortfolioSummary(portfolio ?? { uid: portfolioUid, portfolio_name: `Portfolio ${portfolioUid}` });
   }
 
-  const weightsMatch = route.match(/^\/orm\/api\/assets\/target_portfolio\/([^/]+)\/weights-position-details\/$/);
+  const weightsMatch = route.match(/^\/api\/v1\/target_portfolio\/([^/]+)\/weights-position-details\/$/);
   if (weightsMatch && method === "GET") {
     const portfolio = findByUid(state.targetPortfolios, weightsMatch[1] ?? "");
     return {
@@ -1750,8 +1814,8 @@ function handleTargetPortfolios(route: string, method: string, searchParams: URL
 
 function handleTranslationTables(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
   if (
-    (route === "/orm/api/assets/asset-translation-tables/" && method === "GET") ||
-    (route === "/orm/api/assets/asset-translation-tables/query/" && method === "POST")
+    (route === "/api/v1/asset-translation-tables/" && method === "GET") ||
+    (route === "/api/v1/asset-translation-tables/query/" && method === "POST")
   ) {
     const body = parseBody(init);
     const search = searchParams.get("search") ?? readOptionalString(body?.search);
@@ -1774,7 +1838,7 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
     );
   }
 
-  if (route === "/orm/api/assets/asset-translation-tables/" && method === "POST") {
+  if (route === "/api/v1/asset-translation-tables/" && method === "POST") {
     const body = parseBody(init);
     const id = nextId(state.assetTranslationTables);
     const record = {
@@ -1787,7 +1851,7 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
     return record;
   }
 
-  if (route === "/orm/api/assets/asset-translation-tables/bulk-delete/" && method === "POST") {
+  if (route === "/api/v1/asset-translation-tables/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
     const uids = new Set(readArray<string>(body?.uids));
     const before = state.assetTranslationTables.length;
@@ -1799,7 +1863,7 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
     };
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/assets\/asset-translation-tables\/([^/]+)\/$/);
+  const detailMatch = route.match(/^\/api\/v1\/asset-translation-tables\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
     const tableUid = detailMatch[1] ?? "";
     const table = findByUid(state.assetTranslationTables, tableUid);
@@ -1828,13 +1892,13 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
       actions: {
         can_edit: true,
         can_delete: true,
-        update_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/`,
-        delete_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/`,
+        update_endpoint: `/api/v1/asset-translation-tables/${tableUid}/`,
+        delete_endpoint: `/api/v1/asset-translation-tables/${tableUid}/`,
       },
       rules_list: {
-        list_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/rules/`,
+        list_endpoint: `/api/v1/asset-translation-tables/${tableUid}/rules/`,
         response_format: "frontend_list",
-        create_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/rules/`,
+        create_endpoint: `/api/v1/asset-translation-tables/${tableUid}/rules/`,
       },
     };
   }
@@ -1852,7 +1916,7 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
     return null;
   }
 
-  const rulesMatch = route.match(/^\/orm\/api\/assets\/asset-translation-tables\/([^/]+)\/rules\/$/);
+  const rulesMatch = route.match(/^\/api\/v1\/asset-translation-tables\/([^/]+)\/rules\/$/);
   if (rulesMatch && method === "GET") {
     const tableUid = rulesMatch[1] ?? "";
     const filtered = state.assetTranslationTableRules.filter(
@@ -1888,15 +1952,15 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
       target_exchange_code: readOptionalString(body?.target_exchange_code),
       default_column_name: readOptionalString(body?.default_column_name),
       creation_date: new Date().toISOString(),
-      detail_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/rules/${ruleUid}/`,
-      update_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/rules/${ruleUid}/`,
-      delete_endpoint: `/orm/api/assets/asset-translation-tables/${tableUid}/rules/${ruleUid}/`,
+      detail_endpoint: `/api/v1/asset-translation-tables/${tableUid}/rules/${ruleUid}/`,
+      update_endpoint: `/api/v1/asset-translation-tables/${tableUid}/rules/${ruleUid}/`,
+      delete_endpoint: `/api/v1/asset-translation-tables/${tableUid}/rules/${ruleUid}/`,
     };
     state.assetTranslationTableRules.unshift(record);
     return record;
   }
 
-  const ruleDetailMatch = route.match(/^\/orm\/api\/assets\/asset-translation-tables\/([^/]+)\/rules\/([^/]+)\/$/);
+  const ruleDetailMatch = route.match(/^\/api\/v1\/asset-translation-tables\/([^/]+)\/rules\/([^/]+)\/$/);
   if (ruleDetailMatch && method === "PATCH") {
     const rule = findByUid(state.assetTranslationTableRules, ruleDetailMatch[2] ?? "");
     const body = parseBody(init);
@@ -1926,11 +1990,11 @@ function handleTranslationTables(route: string, method: string, searchParams: UR
 }
 
 function handleInstrumentsConfiguration(route: string, method: string, init?: RequestInit) {
-  if (route === "/orm/api/assets/instruments-configuration/current/" && method === "GET") {
+  if (route === "/api/v1/instruments-configuration/current/" && method === "GET") {
     return state.instrumentsConfiguration;
   }
 
-  if (route === "/orm/api/assets/instruments-configuration/current/" && method === "PATCH") {
+  if (route === "/api/v1/instruments-configuration/current/" && method === "PATCH") {
     Object.assign(state.instrumentsConfiguration, parseBody(init) ?? {});
     return state.instrumentsConfiguration;
   }
@@ -1944,7 +2008,7 @@ function handleVirtualFunds(
   searchParams: URLSearchParams,
   init?: RequestInit,
 ) {
-  if (route === "/orm/api/assets/virtualfund/" && method === "GET") {
+  if (route === "/api/v1/virtualfund/" && method === "GET") {
     const filtered = state.virtualFunds.filter((fund) =>
       matchesSearch(
         [fund.uid, fund.id, fund.target_portfolio_name, fund.account_name],
@@ -1954,7 +2018,7 @@ function handleVirtualFunds(
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
-  if (route === "/orm/api/assets/virtualfund/" && method === "POST") {
+  if (route === "/api/v1/virtualfund/" && method === "POST") {
     const body = parseBody(init);
     const record = {
       uid: readOptionalString(body?.uid) || `virtual-fund-${Date.now()}`,
@@ -1970,7 +2034,7 @@ function handleVirtualFunds(
     return record;
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/assets\/virtualfund\/([^/]+)\/$/);
+  const detailMatch = route.match(/^\/api\/v1\/virtualfund\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
     const fundUid = decodeURIComponent(detailMatch[1]);
     return state.virtualFunds.find((fund) => readOptionalString(fund.uid) === fundUid);
@@ -2003,7 +2067,7 @@ function findAssetByUniqueIdentifier(uniqueIdentifier: string) {
 }
 
 function handleManagedAccounts(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
-  if (route === "/orm/api/assets/account/" && method === "GET") {
+  if (route === "/api/v1/account/" && method === "GET") {
     const filtered = state.managedAccounts.filter((account) =>
       matchesSearch(
         [
@@ -2019,7 +2083,7 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
-  const detailMatch = route.match(/^\/orm\/api\/assets\/account\/([^/]+)\/$/);
+  const detailMatch = route.match(/^\/api\/v1\/account\/([^/]+)\/$/);
 
   if (detailMatch && method === "GET") {
     return findManagedAccountByUid(decodeURIComponent(detailMatch[1]));
@@ -2036,7 +2100,7 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     };
   }
 
-  const summaryMatch = route.match(/^\/orm\/api\/assets\/account\/([^/]+)\/summary\/$/);
+  const summaryMatch = route.match(/^\/api\/v1\/account\/([^/]+)\/summary\/$/);
 
   if (summaryMatch && method === "GET") {
     const accountUid = decodeURIComponent(summaryMatch[1]);
@@ -2111,7 +2175,7 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     };
   }
 
-  const holdingsMatch = route.match(/^\/orm\/api\/assets\/account\/([^/]+)\/holdings\/$/);
+  const holdingsMatch = route.match(/^\/api\/v1\/account\/([^/]+)\/holdings\/$/);
 
   if (holdingsMatch && method === "GET") {
     const accountUid = decodeURIComponent(holdingsMatch[1]);
@@ -2150,7 +2214,7 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     ];
   }
 
-  const addHoldingsMatch = route.match(/^\/orm\/api\/assets\/account\/([^/]+)\/add-holdings\/$/);
+  const addHoldingsMatch = route.match(/^\/api\/v1\/account\/([^/]+)\/add-holdings\/$/);
 
   if (addHoldingsMatch && method === "POST") {
     const accountUid = decodeURIComponent(addHoldingsMatch[1]);
@@ -2181,11 +2245,11 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
   }
 
   const addTargetPositionsMatch = route.match(
-    /^\/orm\/api\/assets\/account\/([^/]+)\/add-target-positions\/$/,
+    /^\/api\/v1\/account\/([^/]+)\/add-target-positions\/$/,
   );
 
   const targetPositionsMatch = route.match(
-    /^\/orm\/api\/assets\/account\/([^/]+)\/target-positions\/$/,
+    /^\/api\/v1\/account\/([^/]+)\/target-positions\/$/,
   );
 
   if (targetPositionsMatch && method === "GET") {
@@ -2827,8 +2891,55 @@ function handleBuckets(route: string, method: string, searchParams: URLSearchPar
 }
 
 function handleSimpleTables(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
+  if (route === "/orm/api/ts_manager/namespace/" && method === "GET") {
+    return buildMockNamespaceRows([...state.simpleTables, ...state.dataNodes]);
+  }
+
+  if (route === "/orm/api/ts_manager/meta_table/namespaces/" && method === "GET") {
+    return buildMockNamespaceRows(state.simpleTables);
+  }
+
+  const namespaceDetailMatch = route.match(/^\/orm\/api\/ts_manager\/namespace\/([^/]+)\/$/);
+  if (namespaceDetailMatch && method === "GET") {
+    const namespace = findMockNamespaceByUid(namespaceDetailMatch[1] ?? "");
+
+    return namespace
+      ? {
+          ...namespace,
+          description: `Mock namespace detail for ${namespace.namespace}.`,
+        }
+      : undefined;
+  }
+
+  const namespaceTablesMatch = route.match(/^\/orm\/api\/ts_manager\/namespace\/([^/]+)\/tables\/$/);
+  if (namespaceTablesMatch && method === "GET") {
+    return buildMockNamespaceTableRows(namespaceTablesMatch[1] ?? "");
+  }
+
+  const namespaceSetPermissionsMatch = route.match(
+    /^\/orm\/api\/ts_manager\/namespace\/([^/]+)\/set-permissions\/$/,
+  );
+  if (namespaceSetPermissionsMatch && method === "POST") {
+    parseBody(init);
+    return detailMessage("Namespace permissions updated in mock mode.");
+  }
+
+  const namespacePropagatePermissionsMatch = route.match(
+    /^\/orm\/api\/ts_manager\/namespace\/([^/]+)\/propagate-permissions\/$/,
+  );
+  if (namespacePropagatePermissionsMatch && method === "POST") {
+    parseBody(init);
+    return detailMessage("Namespace permissions propagated in mock mode.");
+  }
+
   if (route === "/orm/api/ts_manager/meta_table/" && method === "GET") {
-    return paginate(sortDescendingById(state.simpleTables), searchParams.get("limit"), searchParams.get("offset"));
+    const namespace = readString(searchParams.get("namespace")).trim();
+    const filtered = sortDescendingById(
+      state.simpleTables.filter((table) =>
+        namespace ? readOptionalString(table.namespace)?.trim() === namespace : true,
+      ),
+    );
+    return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
   if (route === "/orm/api/ts_manager/meta_table/bulk-delete/" && method === "POST") {
@@ -2838,6 +2949,60 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
     state.simpleTables = state.simpleTables.filter((table) => !uids.has(readString(table.uid)));
     return {
       deleted_count: before - state.simpleTables.length,
+    };
+  }
+
+  if (route === "/orm/api/ts_manager/meta_table/bulk-delete-with-cascade/" && method === "POST") {
+    const body = parseBody(init);
+
+    if (body?.confirm_cascade_delete !== true) {
+      throw new Error("confirm_cascade_delete must be true.");
+    }
+
+    const deletedMetaTableUids = new Set(readArray<string>(body?.uids));
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+
+      for (const table of state.simpleTables) {
+        const tableUid = readString(table.uid);
+        if (!tableUid || deletedMetaTableUids.has(tableUid)) {
+          continue;
+        }
+
+        const referencesDeletedTable = readArray<Record<string, unknown>>(table.foreign_keys).some(
+          (foreignKey) =>
+            deletedMetaTableUids.has(
+              readOptionalString(foreignKey.target_table_uid)?.trim() ?? "",
+            ),
+        );
+
+        if (referencesDeletedTable) {
+          deletedMetaTableUids.add(tableUid);
+          changed = true;
+        }
+      }
+    }
+
+    const deletedMetaTables = state.simpleTables
+      .filter((table) => deletedMetaTableUids.has(readString(table.uid)))
+      .map((table) => readString(table.uid))
+      .filter(Boolean);
+
+    state.simpleTables = state.simpleTables.filter(
+      (table) => !deletedMetaTableUids.has(readString(table.uid)),
+    );
+
+    return {
+      ok: true,
+      action: "bulk_delete_with_cascade",
+      root_meta_table_uids: readArray<string>(body?.uids),
+      deleted_meta_tables: deletedMetaTables,
+      deleted_dynamic_tables: [],
+      deleted_meta_table_count: deletedMetaTables.length,
+      deleted_dynamic_table_count: 0,
+      blocking_edges: [],
     };
   }
 
@@ -2853,8 +3018,84 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
   }
 
   const detailMatch = route.match(/^\/orm\/api\/ts_manager\/meta_table\/([^/]+)\/$/);
+  if (detailMatch && method === "DELETE") {
+    const targetUid = detailMatch[1] ?? "";
+    const blockingMetaTables = state.simpleTables.filter((table) =>
+      readArray<Record<string, unknown>>(table.foreign_keys).some(
+        (foreignKey) => readOptionalString(foreignKey.target_table_uid)?.trim() === targetUid,
+      ),
+    );
+
+    if (blockingMetaTables.length > 0) {
+      throw new Error(
+        "MetaTable has inbound foreign-key references and cannot be deleted without cascade.",
+      );
+    }
+
+    state.simpleTables = state.simpleTables.filter((table) => readString(table.uid) !== targetUid);
+    return null;
+  }
+
   if (detailMatch && method === "GET") {
     return findByUid(state.simpleTables, detailMatch[1] ?? "");
+  }
+
+  const cascadeDeleteMatch = route.match(
+    /^\/orm\/api\/ts_manager\/meta_table\/([^/]+)\/delete-with-cascade\/$/,
+  );
+  if (cascadeDeleteMatch && method === "POST") {
+    const targetUid = cascadeDeleteMatch[1] ?? "";
+    const body = parseBody(init);
+
+    if (body?.confirm_cascade_delete !== true) {
+      throw new Error("confirm_cascade_delete must be true.");
+    }
+
+    const deletedMetaTableUids = new Set<string>([targetUid]);
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+
+      for (const table of state.simpleTables) {
+        const tableUid = readString(table.uid);
+        if (!tableUid || deletedMetaTableUids.has(tableUid)) {
+          continue;
+        }
+
+        const referencesDeletedTable = readArray<Record<string, unknown>>(table.foreign_keys).some(
+          (foreignKey) =>
+            deletedMetaTableUids.has(
+              readOptionalString(foreignKey.target_table_uid)?.trim() ?? "",
+            ),
+        );
+
+        if (referencesDeletedTable) {
+          deletedMetaTableUids.add(tableUid);
+          changed = true;
+        }
+      }
+    }
+
+    const deletedMetaTables = state.simpleTables
+      .filter((table) => deletedMetaTableUids.has(readString(table.uid)))
+      .map((table) => readString(table.uid))
+      .filter(Boolean);
+
+    state.simpleTables = state.simpleTables.filter(
+      (table) => !deletedMetaTableUids.has(readString(table.uid)),
+    );
+
+    return {
+      ok: true,
+      action: "delete_with_cascade",
+      root_meta_table_uid: targetUid,
+      deleted_meta_tables: deletedMetaTables,
+      deleted_dynamic_tables: [],
+      deleted_meta_table_count: deletedMetaTables.length,
+      deleted_dynamic_table_count: 0,
+      blocking_edges: [],
+    };
   }
 
   const summaryMatch = route.match(/^\/orm\/api\/ts_manager\/meta_table\/([^/]+)\/summary\/$/);
@@ -2869,17 +3110,63 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
   if (schemaMatch && method === "GET") {
     const table = findByUid(state.simpleTables, schemaMatch[1] ?? "");
     return {
+      root_uid: readString(table?.uid) || schemaMatch[1] || "",
+      depth: Number(searchParams.get("depth") ?? 1) || 1,
+      include_incoming: ["1", "true", "yes", "on"].includes(
+        readString(searchParams.get("include_incoming")).toLowerCase(),
+      ),
       nodes: [
         {
-          id: `table-${schemaMatch[1]}`,
-          label: readString(table?.storage_hash) || `table_${schemaMatch[1]}`,
-          kind: "table",
+          uid: readString(table?.uid) || schemaMatch[1] || "",
+          identifier: readString(table?.identifier) || `table_${schemaMatch[1]}`,
+          namespace: readOptionalString(table?.namespace),
+          physical_table_name: readString(table?.storage_hash) || `table_${schemaMatch[1]}`,
+          storage_hash: readString(table?.storage_hash) || `table_${schemaMatch[1]}`,
+          columns: [],
         },
       ],
       edges: [],
-      metadata: {
-        depth: Number(searchParams.get("depth") ?? 2),
-      },
+    };
+  }
+
+  const dynamicTableSchemaMatch = route.match(
+    /^\/orm\/api\/ts_manager\/dynamic_table\/([^/]+)\/schema-graph\/$/,
+  );
+  if (dynamicTableSchemaMatch && method === "GET") {
+    const table = findByUid(state.dataNodes, dynamicTableSchemaMatch[1] ?? "");
+    const columnsMetadata = readArray<Record<string, unknown>>(
+      isRecord(table?.sourcetableconfiguration)
+        ? table.sourcetableconfiguration.columns_metadata
+        : [],
+    );
+
+    return {
+      root_uid: readString(table?.uid) || dynamicTableSchemaMatch[1] || "",
+      depth: Number(searchParams.get("depth") ?? 1) || 1,
+      include_incoming: ["1", "true", "yes", "on"].includes(
+        readString(searchParams.get("include_incoming")).toLowerCase(),
+      ),
+      nodes: [
+        {
+          uid: readString(table?.uid) || dynamicTableSchemaMatch[1] || "",
+          identifier:
+            readOptionalString(table?.identifier)?.trim() ||
+            readString(table?.storage_hash) ||
+            `dynamic_table_${dynamicTableSchemaMatch[1]}`,
+          namespace: readOptionalString(table?.namespace),
+          physical_table_name:
+            readString(table?.storage_hash) || `dynamic_table_${dynamicTableSchemaMatch[1]}`,
+          storage_hash:
+            readString(table?.storage_hash) || `dynamic_table_${dynamicTableSchemaMatch[1]}`,
+          columns: columnsMetadata.map((column) => ({
+            name: readString(column.column_name),
+            data_type: readOptionalString(column.dtype) ?? "unknown",
+            nullable: true,
+            primary_key: false,
+          })),
+        },
+      ],
+      edges: [],
     };
   }
 
@@ -2894,12 +3181,21 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
     return resolveMockSourceTableConfigStats(sourceTableConfigStatsMatch[1] ?? "");
   }
 
+  if (route === "/orm/api/ts_manager/dynamic_table/namespaces/" && method === "GET") {
+    return buildMockNamespaceRows(state.dataNodes);
+  }
+
   if (route === "/orm/api/ts_manager/dynamic_table/" && method === "GET") {
     const query = searchParams.get("q");
+    const namespace = readString(searchParams.get("namespace")).trim();
     const filtered = sortDescendingById(
-      state.dataNodes.filter((node) =>
-        matchesSearch([node.id, node.storage_hash, node.identifier, node.description], query),
-      ),
+      state.dataNodes.filter((node) => {
+        if (namespace && readOptionalString(node.namespace)?.trim() !== namespace) {
+          return false;
+        }
+
+        return matchesSearch([node.id, node.storage_hash, node.identifier, node.description], query);
+      }),
     );
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
@@ -3672,11 +3968,16 @@ function handlePermissions(route: string, method: string, init?: RequestInit) {
   }
 
   const last = segments.at(-1) ?? "";
-  const objectId = Number(segments.at(-2) ?? "");
+  const rawObjectId = (segments.at(-2) ?? "").trim();
 
-  if (!Number.isFinite(objectId) || objectId <= 0) {
+  if (!rawObjectId) {
     return undefined;
   }
+
+  const objectId =
+    /^-?\d+$/.test(rawObjectId) && Number.isSafeInteger(Number(rawObjectId))
+      ? Number(rawObjectId)
+      : rawObjectId;
 
   if (method === "GET" && last === normalizedSuffixes.candidateUsers) {
     return state.permissionCandidateUsers;

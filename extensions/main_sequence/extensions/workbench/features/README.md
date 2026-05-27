@@ -9,6 +9,7 @@ Feature folders group screens and supporting components by domain instead of by 
 - `constants/`: read-only constant and configuration explorer surfaces.
 - `data-nodes/`: dynamic-table and local-update flows.
 - `jobs/`: jobs, runs, and execution summaries.
+- `namespaces/`: namespace registry with nested Meta Tables and Data Nodes lists.
 - `physical-data-sources/`: physical data source registry and editor workflows.
 - `project-data-sources/`: project data source registry and editor workflows.
 - `projects/`: project registry, repository browsing, images, jobs, and related tabs.

@@ -12,6 +12,7 @@ import { MainSequenceClustersPage } from "./features/clusters/MainSequenceCluste
 import { MainSequenceConstantsPage } from "./features/constants/MainSequenceConstantsPage";
 import { MainSequenceDataNodesPage } from "./features/data-nodes/MainSequenceDataNodesPage";
 import { MainSequenceJobsPage } from "./features/jobs/MainSequenceJobsPage";
+import { MainSequenceNamespacesPage } from "./features/namespaces/MainSequenceNamespacesPage";
 import { MainSequencePhysicalDataSourcesPage } from "./features/physical-data-sources/MainSequencePhysicalDataSourcesPage";
 import { MainSequenceProjectDataSourcesPage } from "./features/project-data-sources/MainSequenceProjectDataSourcesPage";
 import { MainSequenceProjectsPage } from "./features/projects/MainSequenceProjectsPage";
@@ -311,6 +312,26 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceDataNodesPage,
+    },
+    {
+      id: "namespaces",
+      title: "Namespaces",
+      navLabel: "Namespaces",
+      description: "Browse ts_manager namespaces and inspect related Meta Tables and Data Nodes.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Foundry Namespaces. This page lists ts_manager namespaces and opens the Meta Tables and Data Nodes registered under a selected namespace.",
+        availableActions: [
+          "Browse namespaces",
+          "Open namespace detail",
+          "Inspect related meta tables",
+          "Inspect related data nodes",
+        ],
+      }),
+      navigationSection: dataSection,
+      kind: "page",
+      requiredPermissions: ["main_sequence_foundry:view"],
+      component: MainSequenceNamespacesPage,
     },
     {
       id: "meta-tables",
