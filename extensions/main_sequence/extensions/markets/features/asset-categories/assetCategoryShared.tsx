@@ -85,7 +85,6 @@ export function buildCategoryListRowFromDetail(
   detail: AssetCategoryDetailResponse,
 ): AssetCategoryListRow {
   return {
-    id: detail.id,
     uid: detail.uid,
     unique_identifier: detail.selected_category.sub_text,
     display_name: detail.selected_category.text || detail.title,
@@ -98,14 +97,14 @@ export function buildCategorySummary(detail: AssetCategoryDetailResponse): Entit
   const title =
     detail.title.trim() ||
     detail.selected_category.text.trim() ||
-    `Asset Category ${detail.id}`;
+    `Asset Category ${detail.uid}`;
   const uniqueIdentifier = detail.selected_category.sub_text.trim();
   const description = readCategoryDetailString(detail, "description");
   const assetCount = readCategoryDetailNumber(detail, "number_of_assets");
 
   return {
     entity: {
-      id: detail.id,
+      id: detail.uid,
       type: "asset_category",
       title,
     },
@@ -118,14 +117,14 @@ export function buildCategorySummary(detail: AssetCategoryDetailResponse): Entit
     ],
     inline_fields: [
       {
-        key: "category_id",
-        label: "ID",
-        value: detail.id,
+        key: "category_uid",
+        label: "UID",
+        value: detail.uid,
         kind: "code",
       },
       {
         key: "unique_identifier",
-        label: "UID",
+        label: "Identifier",
         value: uniqueIdentifier || "Generated from display name",
         kind: "code",
         icon: "fingerprint",
@@ -203,25 +202,12 @@ function parseAssetUidsInput(rawValue: string) {
 }
 
 export function buildCreatePayload(values: AssetCategoryEditorValues): CreateAssetCategoryInput {
-  const payload: CreateAssetCategoryInput = {
+  return {
     display_name: values.displayName.trim(),
+    description: values.description.trim(),
+    unique_identifier: values.uniqueIdentifier.trim(),
+    assets: parseAssetUidsInput(values.assetIdsText),
   };
-  const description = values.description.trim();
-  const uniqueIdentifier = values.uniqueIdentifier.trim();
-
-  if (description) {
-    payload.description = description;
-  }
-
-  if (uniqueIdentifier) {
-    payload.unique_identifier = uniqueIdentifier;
-  }
-
-  if (values.assetIdsText.trim()) {
-    payload.assets = parseAssetUidsInput(values.assetIdsText);
-  }
-
-  return payload;
 }
 
 export function buildUpdatePayload(values: AssetCategoryEditorValues): UpdateAssetCategoryInput {

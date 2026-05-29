@@ -23,6 +23,8 @@ const mainSequenceConnectionDataSourceEndpoint = "/orm/api/connections/data_sour
 const mainSequenceAssetsRoot = buildMainSequenceAssetsRoot(env.debugMainSequence);
 const debugMainSequenceOrigin = readUrlOrigin(env.debugMainSequence);
 const assetEndpoint = buildMainSequenceAssetEndpoint("asset/");
+const catalogEndpoint = buildMainSequenceAssetEndpoint("catalog/");
+const indexEndpoint = buildMainSequenceAssetEndpoint("index/");
 const assetCategoryEndpoint = buildMainSequenceAssetEndpoint("asset-category/");
 const instrumentsConfigurationEndpoint = buildMainSequenceAssetEndpoint(
   "instruments-configuration/",
@@ -31,9 +33,6 @@ const virtualFundEndpoint = buildMainSequenceAssetEndpoint("virtualfund/");
 const managedAccountEndpoint = buildMainSequenceAssetEndpoint("account/");
 const portfolioGroupEndpoint = buildMainSequenceAssetEndpoint("portfolio_group/");
 const targetPortfolioEndpoint = buildMainSequenceAssetEndpoint("target_portfolio/");
-const assetTranslationTableEndpoint = buildMainSequenceAssetEndpoint(
-  "asset-translation-tables/",
-);
 export const mainSequenceRegistryPageSize = 25;
 const DATA_NODE_DETAIL_CACHE_TTL_MS = 300_000;
 
@@ -432,7 +431,6 @@ export interface AssetBulkDeleteResponse {
 }
 
 export interface AssetCategoryListRow {
-  id: number;
   uid: string;
   unique_identifier: string;
   display_name: string;
@@ -443,7 +441,7 @@ export interface AssetCategoryListRow {
 export interface AssetCategoryListResponse extends FrontendRowsResponse<AssetCategoryListRow> {}
 
 export interface AssetCategoryDetailSelectedCategory {
-  id: number;
+  uid: string;
   text: string;
   sub_text: string;
 }
@@ -470,7 +468,6 @@ export interface AssetCategoryDetailAssetsListConfig {
 }
 
 export interface AssetCategoryDetailResponse {
-  id: number;
   uid: string;
   title: string;
   selected_category: AssetCategoryDetailSelectedCategory;
@@ -480,7 +477,6 @@ export interface AssetCategoryDetailResponse {
 }
 
 export interface AssetCategoryRecord {
-  id: number;
   uid: string;
   unique_identifier: string;
   display_name: string;
@@ -490,9 +486,9 @@ export interface AssetCategoryRecord {
 
 export interface CreateAssetCategoryInput {
   display_name: string;
-  description?: string;
-  unique_identifier?: string;
-  assets?: string[];
+  description: string;
+  unique_identifier: string;
+  assets: string[];
 }
 
 export interface UpdateAssetCategoryInput {
@@ -846,111 +842,6 @@ function resolveTsManagerPath(identifier: TsManagerPathIdentifier | TsManagerIde
   return encodePathSegment(resolved);
 }
 
-export interface AssetTranslationTableListRow {
-  id: number;
-  uid: string;
-  unique_identifier: string;
-  rules_number: number;
-  creation_date: string | null;
-}
-
-export interface AssetTranslationTableListResponse
-  extends FrontendRowsResponse<AssetTranslationTableListRow> {}
-
-export interface AssetTranslationTableRecord {
-  id: number;
-  uid: string;
-  unique_identifier: string;
-}
-
-export interface CreateAssetTranslationTableInput {
-  unique_identifier: string;
-}
-
-export interface UpdateAssetTranslationTableInput {
-  unique_identifier: string;
-}
-
-export interface AssetTranslationTableBulkDeleteInput {
-  uids?: string[];
-  selectAll?: boolean;
-  search?: string;
-}
-
-export interface AssetTranslationTableBulkDeleteResponse {
-  detail: string;
-  deleted_count: number;
-}
-
-export interface AssetTranslationTableDetailSelectedTable {
-  id: number;
-  text: string;
-  sub_text: string;
-}
-
-export interface AssetTranslationTableDetailField {
-  name: string;
-  label: string;
-  value_type: "text" | "number" | "boolean" | "datetime";
-  value: string | number | boolean | null;
-}
-
-export interface AssetTranslationTableDetailActions {
-  can_edit: boolean;
-  can_delete: boolean;
-  update_endpoint: string;
-  delete_endpoint: string;
-}
-
-export interface AssetTranslationTableRulesListConfig {
-  list_endpoint: string;
-  response_format: string;
-  create_endpoint: string;
-}
-
-export interface AssetTranslationTableDetailResponse {
-  id: number;
-  uid: string;
-  title: string;
-  selected_table: AssetTranslationTableDetailSelectedTable;
-  details: AssetTranslationTableDetailField[];
-  actions: AssetTranslationTableDetailActions;
-  rules_list: AssetTranslationTableRulesListConfig;
-}
-
-export interface AssetTranslationTableRuleListRow {
-  id: number;
-  uid: string;
-  security_type: string | null;
-  security_market_sector: string | null;
-  markets_time_serie_unique_identifier: string;
-  target_exchange_code: string | null;
-  default_column_name: string | null;
-  creation_date: string | null;
-  detail_endpoint: string;
-  update_endpoint: string;
-  delete_endpoint: string;
-}
-
-export interface AssetTranslationTableRuleListResponse
-  extends FrontendRowsResponse<AssetTranslationTableRuleListRow> {}
-
-export interface AssetTranslationTableRuleInput {
-  asset_filter: {
-    security_type?: string;
-    security_market_sector?: string;
-  };
-  markets_time_serie_unique_identifier: string;
-  target_exchange_code?: string;
-  default_column_name?: string;
-}
-
-export interface AssetTranslationTableRuleDeleteResponse {
-  detail: string;
-  deleted_rule?: boolean;
-  detached_only?: boolean;
-}
-
 export interface AssetDetailField {
   key?: string | null;
   label: string;
@@ -997,6 +888,17 @@ export interface AssetDetailResponse {
   trading_view?: AssetTradingViewConfig | null;
   order_form?: AssetOrderFormConfig | null;
   [key: string]: unknown;
+}
+
+export interface AssetPricingDetailsResponse {
+  asset_uid: string;
+  instrument_type: string;
+  instrument_dump: Record<string, unknown>;
+  pricing_details_date: string;
+  serialization_format: string;
+  pricing_package_version: string | null;
+  source: string | null;
+  metadata_json: Record<string, unknown> | null;
 }
 
 export interface AssetOrderFormFieldChoice {
@@ -3460,18 +3362,6 @@ export interface TargetPortfolioSearchFilters {
   offset?: number;
 }
 
-export interface AssetTranslationTableListFilters {
-  search?: string;
-  page?: number;
-  pageSize?: number;
-  usePostQuery?: boolean;
-}
-
-export interface AssetTranslationTableRuleListFilters {
-  search?: string;
-  page?: number;
-  pageSize?: number;
-}
 export type ShareableAccessLevel = "view" | "edit";
 export type ShareablePrincipalType = "user" | "team";
 export type ShareableObjectId = number | string;
@@ -4038,38 +3928,6 @@ function buildTargetPortfolioListSearch(filters: TargetPortfolioListFilters) {
   } satisfies Record<string, QueryValue>;
 }
 
-function buildAssetTranslationTableListSearch(
-  filters: AssetTranslationTableListFilters,
-  includeResponseFormat = true,
-) {
-  return {
-    ...(includeResponseFormat ? { response_format: "frontend_list" } : {}),
-    search: filters.search?.trim() || undefined,
-    page: filters.page,
-    page_size: filters.pageSize,
-  } satisfies Record<string, QueryValue>;
-}
-
-function buildAssetTranslationTableQueryBody(filters: AssetTranslationTableListFilters) {
-  return {
-    search: filters.search?.trim() || undefined,
-    page: filters.page,
-    page_size: filters.pageSize,
-  };
-}
-
-function buildAssetTranslationTableRulesListSearch(
-  filters: AssetTranslationTableRuleListFilters,
-  includeResponseFormat = true,
-) {
-  return {
-    ...(includeResponseFormat ? { response_format: "frontend_list" } : {}),
-    search: filters.search?.trim() || undefined,
-    page: filters.page,
-    page_size: filters.pageSize,
-  } satisfies Record<string, QueryValue>;
-}
-
 export async function listProjects({
   limit = mainSequenceRegistryPageSize,
   offset = 0,
@@ -4158,6 +4016,52 @@ export async function listAssets({
     "",
     undefined,
     buildAssetListSearch(filters),
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export interface IndexListRow {
+  uid: string;
+  unique_identifier: string;
+  display_name: string;
+  description: string | null;
+  provider: string | null;
+}
+
+export interface IndexDetailResponse extends IndexListRow {
+  metadata_json: Record<string, unknown> | null;
+}
+
+export interface IndexListFilters {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+  limit?: number;
+  offset?: number;
+}
+
+function buildIndexListSearch({ search, limit, offset }: Pick<IndexListFilters, "search" | "limit" | "offset">) {
+  return {
+    response_format: "frontend_list",
+    search: search?.trim() || "",
+    limit: String(limit ?? mainSequenceRegistryPageSize),
+    offset: String(offset ?? 0),
+  };
+}
+
+export async function listIndices({
+  search,
+  page = 1,
+  pageSize = mainSequenceRegistryPageSize,
+  limit = pageSize,
+  offset = (page - 1) * pageSize,
+}: IndexListFilters = {}) {
+  const payload = await requestJson<PaginatedResponse<IndexListRow> | IndexListRow[]>(
+    indexEndpoint,
+    "",
+    undefined,
+    buildIndexListSearch({ search, limit, offset }),
   );
 
   return normalizeOffsetPaginatedResponse(payload, limit, offset);
@@ -4723,184 +4627,34 @@ export async function saveManagedAccountTargetPositions(
   );
 }
 
-export async function listAssetTranslationTables({
-  search,
-  page = 1,
-  pageSize = 40,
-  usePostQuery = false,
-}: AssetTranslationTableListFilters = {}) {
-  const filters = {
-    search,
-    page,
-    pageSize,
-    usePostQuery,
-  } satisfies AssetTranslationTableListFilters;
-  const offset = Math.max(0, (page - 1) * pageSize);
-
-  const payload = usePostQuery
-    ? await requestJson<
-        | AssetTranslationTableListResponse
-        | PaginatedResponse<AssetTranslationTableListRow>
-        | AssetTranslationTableListRow[]
-      >(
-        assetTranslationTableEndpoint,
-        "query/",
-        {
-          method: "POST",
-          body: JSON.stringify(buildAssetTranslationTableQueryBody(filters)),
-        },
-        { response_format: "frontend_list" },
-      )
-    : await requestJson<
-        | AssetTranslationTableListResponse
-        | PaginatedResponse<AssetTranslationTableListRow>
-        | AssetTranslationTableListRow[]
-      >(
-        assetTranslationTableEndpoint,
-        "",
-        undefined,
-        buildAssetTranslationTableListSearch(filters),
-      );
-
-  return normalizeFrontendRowsResponse(payload, {
-    search,
-    limit: pageSize,
-    offset,
-  });
-}
-
-export function createAssetTranslationTable(input: CreateAssetTranslationTableInput) {
-  return requestJson<AssetTranslationTableRecord>(assetTranslationTableEndpoint, "", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-}
-
-export function bulkDeleteAssetTranslationTables(input: AssetTranslationTableBulkDeleteInput) {
-  return requestJson<AssetTranslationTableBulkDeleteResponse>(
-    assetTranslationTableEndpoint,
-    "bulk-delete/",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        uids: input.uids,
-        select_all: input.selectAll,
-        search: input.search?.trim() || undefined,
-      }),
-    },
-  );
-}
-
-export function fetchAssetTranslationTableDetail(assetTranslationTableUid: string) {
-  return requestJson<AssetTranslationTableDetailResponse>(
-    assetTranslationTableEndpoint,
-    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/`,
-    undefined,
-    { response_format: "frontend_detail" },
-  );
-}
-
-export function updateAssetTranslationTable(
-  assetTranslationTableUid: string,
-  input: UpdateAssetTranslationTableInput,
-) {
-  return requestJson<AssetTranslationTableRecord>(
-    assetTranslationTableEndpoint,
-    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(input),
-    },
-  );
-}
-
-export function deleteAssetTranslationTable(assetTranslationTableUid: string) {
-  return requestJson<Record<string, unknown> | null>(
-    assetTranslationTableEndpoint,
-    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/`,
-    {
-      method: "DELETE",
-    },
-  );
-}
-
-export async function listAssetTranslationTableRules(
-  assetTranslationTableUid: string,
-  {
-    search,
-    page = 1,
-    pageSize = 20,
-  }: AssetTranslationTableRuleListFilters = {},
-) {
-  const filters = {
-    search,
-    page,
-    pageSize,
-  } satisfies AssetTranslationTableRuleListFilters;
-
-  const payload = await requestJson<
-    | AssetTranslationTableRuleListResponse
-    | PaginatedResponse<AssetTranslationTableRuleListRow>
-    | AssetTranslationTableRuleListRow[]
-  >(
-    assetTranslationTableEndpoint,
-    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/rules/`,
-    undefined,
-    buildAssetTranslationTableRulesListSearch(filters),
-  );
-
-  return normalizeFrontendRowsResponse(payload, {
-    search,
-    limit: pageSize,
-    offset: Math.max(0, (page - 1) * pageSize),
-  });
-}
-
-export function createAssetTranslationTableRule(
-  assetTranslationTableUid: string,
-  input: AssetTranslationTableRuleInput,
-) {
-  return requestJson<AssetTranslationTableRuleListRow>(
-    assetTranslationTableEndpoint,
-    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/rules/`,
-    {
-      method: "POST",
-      body: JSON.stringify(input),
-    },
-  );
-}
-
-export function updateAssetTranslationTableRule(
-  assetTranslationTableUid: string,
-  ruleUid: string,
-  input: AssetTranslationTableRuleInput,
-) {
-  return requestJson<AssetTranslationTableRuleListRow>(
-    assetTranslationTableEndpoint,
-    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/rules/${resolveMainSequenceUidPath(ruleUid, "asset translation table rule")}/`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(input),
-    },
-  );
-}
-
-export function deleteAssetTranslationTableRule(assetTranslationTableUid: string, ruleUid: string) {
-  return requestJson<AssetTranslationTableRuleDeleteResponse>(
-    assetTranslationTableEndpoint,
-    `${resolveMainSequenceUidPath(assetTranslationTableUid, "asset translation table")}/rules/${resolveMainSequenceUidPath(ruleUid, "asset translation table rule")}/`,
-    {
-      method: "DELETE",
-    },
-  );
-}
-
 export function fetchAssetDetail(assetUid: string) {
   return requestJson<AssetDetailResponse>(
     assetEndpoint,
     `${resolveMainSequenceUidPath(assetUid, "asset")}/`,
     undefined,
     { response_format: "frontend_detail" },
+  );
+}
+
+export function fetchAssetPricingDetails(assetUid: string) {
+  return requestJson<AssetPricingDetailsResponse>(
+    assetEndpoint,
+    `${resolveMainSequenceUidPath(assetUid, "asset")}/get_pricing_details/`,
+  );
+}
+
+export function fetchIndexDetail(indexUid: string) {
+  return requestJson<IndexDetailResponse>(
+    indexEndpoint,
+    `${resolveMainSequenceUidPath(indexUid, "index")}/`,
+  );
+}
+
+export function deleteIndex(indexUid: string) {
+  return requestJson<null>(
+    indexEndpoint,
+    `${resolveMainSequenceUidPath(indexUid, "index")}/`,
+    { method: "DELETE" },
   );
 }
 
@@ -8201,4 +7955,119 @@ export function formatMainSequenceError(error: unknown) {
   }
 
   return "The request failed.";
+}
+
+export interface CatalogueRecord {
+  uid: string;
+  namespace: string;
+  identifier: string;
+  description: string | null;
+  model_name: string;
+  resource_type: string | null;
+  meta_table_uid: string;
+  storage_hash: string;
+  contract_hash: string;
+  sdk_version: string | null;
+  created_at: string;
+  updated_at: string;
+  supports_row_listing: boolean;
+  supports_row_delete: boolean;
+  rows_endpoint: string;
+  delete_endpoint_template: string;
+}
+
+export interface CatalogueListResponse {
+  results: CatalogueRecord[];
+  limit: number;
+  offset: number;
+}
+
+export interface CatalogueListFilters {
+  limit?: number;
+  offset?: number;
+}
+
+export interface CatalogueRowsCatalogSummary {
+  uid: string;
+  identifier: string;
+  model_name: string;
+  meta_table_uid: string;
+  storage_hash: string;
+}
+
+export interface CatalogueColumnDefinition {
+  name: string;
+  type: string;
+  nullable: boolean;
+  primary_key: boolean;
+}
+
+export interface CatalogueRowRecord {
+  uid: string;
+  values: Record<string, unknown>;
+}
+
+export interface CatalogueRowsResponse {
+  catalog: CatalogueRowsCatalogSummary;
+  columns: CatalogueColumnDefinition[];
+  results: CatalogueRowRecord[];
+  limit: number;
+  offset: number;
+}
+
+export interface CatalogueRowsFilters {
+  limit?: number;
+  offset?: number;
+}
+
+export interface DeleteCatalogueRowResponse {
+  detail: string;
+  catalog_uid: string;
+  meta_table_uid: string;
+  uid: string;
+  deleted_count: number;
+  cascade: boolean;
+}
+
+export function listCatalogue({
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+}: CatalogueListFilters = {}) {
+  return requestJson<CatalogueListResponse>(
+    catalogEndpoint,
+    "",
+    undefined,
+    {
+      limit: String(limit),
+      offset: String(offset),
+    },
+  );
+}
+
+export function fetchCatalogueRows(
+  catalogueUid: string,
+  {
+    limit = mainSequenceRegistryPageSize,
+    offset = 0,
+  }: CatalogueRowsFilters = {},
+) {
+  return requestJson<CatalogueRowsResponse>(
+    catalogEndpoint,
+    `${resolveMainSequenceUidPath(catalogueUid, "catalogue")}/rows/`,
+    undefined,
+    {
+      limit: String(limit),
+      offset: String(offset),
+    },
+  );
+}
+
+export function deleteCatalogueRow(catalogueUid: string, rowUid: string) {
+  return requestJson<DeleteCatalogueRowResponse>(
+    catalogEndpoint,
+    `${resolveMainSequenceUidPath(catalogueUid, "catalogue")}/rows/${resolveMainSequenceUidPath(rowUid, "catalogue row")}/`,
+    {
+      method: "DELETE",
+    },
+  );
 }

@@ -30,9 +30,11 @@ function normalizeWorkspaceId(value: unknown) {
 
 function readWorkspaceId(source: Record<string, unknown>) {
   return normalizeWorkspaceId(
-    source.id ??
-      source.pk ??
-      source.uuid ??
+    source.uid ??
+      source.workspace_uid ??
+      source.workspaceUid ??
+      source.dashboard_uid ??
+      source.dashboardUid ??
       source.workspace_id ??
       source.workspaceId ??
       source.dashboard_id ??

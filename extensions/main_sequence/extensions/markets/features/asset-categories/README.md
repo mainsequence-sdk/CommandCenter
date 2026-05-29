@@ -9,13 +9,13 @@ This feature owns the Main Sequence Markets asset-category registry, dedicated d
 
 ## API Dependencies
 
-- `GET /api/v1/asset-category/?response_format=frontend_list` for the default list flow.
-- `GET /api/v1/asset-category/{uid}/?response_format=frontend_detail` for the detail dialog payload.
-- `POST /api/v1/asset-category/` for category creation.
-- `PATCH /api/v1/asset-category/{uid}/` for category metadata updates.
-- `DELETE /api/v1/asset-category/{uid}/` for single-category deletion from detail.
-- `POST /api/v1/asset-category/bulk-delete/` for row and bulk delete flows.
-- `GET /api/v1/asset/?response_format=frontend_list&categories__uid={uid}&limit={limit}&offset={offset}` for the nested assets table.
+- `GET /api/v1/asset-category/?response_format=frontend_list&search=&limit=&offset=` for the default list flow. Rows are uid-only and include `uid`, `unique_identifier`, `display_name`, `description`, and `number_of_assets`; no numeric `id` is expected.
+- `GET /api/v1/asset-category/{uid}/?response_format=frontend_detail` for the detail payload. The response is uid-only, includes `selected_category.uid`, `details` for display name, identifier, description, and asset count, plus backend-provided `actions` and `assets_list`.
+- `POST /api/v1/asset-category/` for category creation with `display_name`, `description`, `unique_identifier`, and `assets`; the response returns `uid`, metadata fields, and `assets`.
+- `PATCH /api/v1/asset-category/{uid}/` for category metadata updates with `display_name`, `description`, and optionally `assets` when replacing membership; the response returns `uid`, metadata fields, and `assets`.
+- `DELETE /api/v1/asset-category/{uid}/` for single-category deletion from detail and returns `null`.
+- `POST /api/v1/asset-category/bulk-delete/` for row and bulk delete flows. The request supports `uids`, `select_all`, `current_url`, `search`, display-name, identifier, description filters, and `organization_owner__uid`; the response returns `detail` and `deleted_count`, while errors use `{ detail }`.
+- `GET /api/v1/asset/?response_format=frontend_list&categories__uid={uid}` for the nested assets table, with standard list pagination as needed.
 
 ## Rules
 

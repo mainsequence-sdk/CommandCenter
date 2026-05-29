@@ -7,8 +7,7 @@ and related operational reference data.
 
 - `Assets` for master asset lists and asset categories.
 - `Portfolios` for virtual funds, portfolios, and portfolio groups.
-- `Settings` for supporting registries such as translation tables, instruments, and execution
-  venues.
+- `Settings` for supporting configuration surfaces such as instruments and execution venues.
 
 ## Typical Use
 

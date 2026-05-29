@@ -207,28 +207,6 @@ function resolveSpecialRouteContext(
     );
   }
 
-  const translationTableDetailMatch = matchPath(
-    "/app/main_sequence_markets/asset-translation-tables/:tableId",
-    input.pathname,
-  );
-
-  if (translationTableDetailMatch) {
-    return resolveLinkedSurfaceContext(
-      input,
-      "main_sequence_markets",
-      "asset-translation-tables",
-      {
-        summary:
-          "User is viewing one asset translation table and its rule set.",
-        details: {
-          "Table ID": translationTableDetailMatch.params.tableId,
-          View: "Translation table detail",
-        },
-      },
-      "route",
-    );
-  }
-
   const portfolioGroupDetailMatch = matchPath(
     "/app/main_sequence_markets/portfolio-groups/:groupId",
     input.pathname,

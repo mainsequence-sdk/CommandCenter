@@ -18,14 +18,14 @@ This nested extension is the separate application shell for market-facing Main S
 - `Assets`
 - `asset-categories/`: category registry with create/edit/delete flows, a dedicated detail page, and nested asset loading.
 - `assets/`: read-only asset registry list with dedicated detail loading.
+- `indices/`: index registry with shared list search, embedded detail loading, and single-record delete support.
 - `managed-accounts/`: managed-account registry with a dedicated list/detail surface under the `Managed Accounts` navigation section.
+- `Platform`
+- `catalogue/`: catalogue registry with backend row-listing and row-delete detail flows.
 - `Portfolios`
 - `funds/`: read-only virtual-fund registry showing linked portfolios and accounts.
 - `portfolio-groups/`: portfolio-group registry with bulk delete from the list and a dedicated direct-detail page.
 - `portfolios/`: target-portfolio registry with shared list search, fixed pagination, and bulk-delete support.
-- `Settings`
-- `asset-translation-tables/`: translation table registry with a dedicated detail page and embedded rules manager.
-- `instruments/`: quick editor for the org-scoped instrument storage-node configuration.
 
 ## Dependencies
 

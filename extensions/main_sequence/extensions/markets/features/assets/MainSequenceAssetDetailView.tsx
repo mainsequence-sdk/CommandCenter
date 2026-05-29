@@ -8,25 +8,31 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { Textarea } from "@/components/ui/textarea";
 
 import {
   fetchAssetDetail,
   fetchAssetOrderFormFields,
+  fetchAssetPricingDetails,
   formatMainSequenceError,
   type AssetDetailField,
   type AssetDetailResponse,
   type AssetListRow,
+  type AssetPricingDetailsResponse,
   type AssetOrderFormConfig,
   type AssetOrderFormField,
   type AssetOrderFormFieldChoice,
   type AssetTradingViewAlert,
   type AssetTradingViewConfig,
+  type EntitySummaryHeader,
 } from "../../../../common/api";
+import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 
 export const assetDetailTabs = [
   { id: "metadata", label: "Metadata" },
   { id: "trading-view", label: "TradingView" },
+  { id: "pricing-details", label: "Pricing Details" },
 ] as const;
 
 export type AssetDetailTabId = (typeof assetDetailTabs)[number]["id"];
@@ -103,6 +109,127 @@ function getAssetTitle(detail: AssetDetailResponse | null, initialAsset: AssetLi
     initialAsset?.figi?.trim() ||
     `Asset ${detail?.id ?? initialAsset?.id ?? ""}`.trim()
   );
+}
+
+function buildAssetSummary(
+  assetUid: string,
+  detail: AssetDetailResponse | null,
+  initialAsset: AssetListRow | null,
+): EntitySummaryHeader | null {
+  if (!detail && !initialAsset) {
+    return null;
+  }
+
+  const title = getAssetTitle(detail, initialAsset);
+  const ticker = detail?.ticker?.trim() || initialAsset?.ticker?.trim() || "";
+  const exchangeCode = detail?.exchange_code?.trim() || initialAsset?.exchange_code?.trim() || "";
+  const securityType =
+    detail?.security_type?.trim() || initialAsset?.security_type?.trim() || "";
+  const marketSector =
+    detail?.security_market_sector?.trim() || initialAsset?.security_market_sector?.trim() || "";
+  const uniqueIdentifier =
+    detail?.unique_identifier?.trim() || initialAsset?.unique_identifier?.trim() || "";
+  const figi = detail?.figi?.trim() || initialAsset?.figi?.trim() || "";
+  const isCustom =
+    detail?.is_custom_by_organization ?? initialAsset?.is_custom_by_organization ?? false;
+  const tradingView = getAssetTradingView(detail);
+  const orderForm = getAssetOrderForm(detail);
+  const orderTypes = getAssetOrderTypes(orderForm);
+
+  return {
+    entity: {
+      id: assetUid,
+      type: "asset",
+      title,
+    },
+    badges: [
+      {
+        key: "asset-scope",
+        label: isCustom ? "Custom" : "Standard",
+        tone: isCustom ? "warning" : "neutral",
+      },
+      {
+        key: "trading-view",
+        label: tradingView?.enabled ? "TradingView enabled" : "TradingView unavailable",
+        tone: tradingView?.enabled ? "success" : "neutral",
+      },
+    ],
+    inline_fields: [
+      {
+        key: "asset_uid",
+        label: "UID",
+        value: assetUid,
+        kind: "code",
+      },
+      ...(uniqueIdentifier
+        ? [
+            {
+              key: "unique_identifier",
+              label: "Identifier",
+              value: uniqueIdentifier,
+              kind: "code" as const,
+              icon: "fingerprint",
+            },
+          ]
+        : []),
+      ...(figi
+        ? [
+            {
+              key: "figi",
+              label: "FIGI",
+              value: figi,
+              kind: "code" as const,
+            },
+          ]
+        : []),
+    ],
+    highlight_fields: [
+      {
+        key: "ticker",
+        label: "Ticker",
+        value: ticker || "Not available",
+        kind: "text",
+        icon: "tags",
+      },
+      {
+        key: "exchange_code",
+        label: "Exchange",
+        value: exchangeCode || "Not available",
+        kind: "text",
+        icon: "globe",
+      },
+      {
+        key: "security_type",
+        label: "Security Type",
+        value: securityType || "Not available",
+        kind: "text",
+        icon: "boxes",
+      },
+      {
+        key: "market_sector",
+        label: "Market Sector",
+        value: marketSector || "Not available",
+        kind: "text",
+        icon: "database",
+      },
+    ],
+    stats: [
+      {
+        key: "metadata_fields",
+        label: "Metadata Fields",
+        display: String(getAssetMetadataRows(detail).length),
+        value: getAssetMetadataRows(detail).length,
+        kind: "number",
+      },
+      {
+        key: "order_types",
+        label: "Order Types",
+        display: String(orderTypes.length),
+        value: orderTypes.length,
+        kind: "number",
+      },
+    ],
+  };
 }
 
 function getAssetMetadataRows(detail: AssetDetailResponse | null) {
@@ -473,6 +600,118 @@ function TradingViewSection({
   );
 }
 
+function PricingDetailsSection({
+  error,
+  isLoading,
+  pricingDetails,
+}: {
+  error: unknown;
+  isLoading: boolean;
+  pricingDetails: AssetPricingDetailsResponse | null;
+}) {
+  return (
+    <Card variant="nested">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Pricing Details</CardTitle>
+        <CardDescription>
+          Serialized pricing instrument payload returned by the pricing-details endpoint.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-0">
+        {isLoading ? (
+          <div className="flex min-h-40 items-center justify-center">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading pricing details
+            </div>
+          </div>
+        ) : null}
+
+        {!isLoading && error ? (
+          <div className="rounded-[calc(var(--radius)-8px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+            {formatMainSequenceError(error)}
+          </div>
+        ) : null}
+
+        {!isLoading && !error && pricingDetails ? (
+          <>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                  Asset UID
+                </div>
+                <div className="mt-3 font-mono text-sm text-foreground">
+                  {formatAssetValue(pricingDetails.asset_uid)}
+                </div>
+              </div>
+              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                  Instrument Type
+                </div>
+                <div className="mt-3 text-sm text-foreground">
+                  {formatAssetValue(pricingDetails.instrument_type)}
+                </div>
+              </div>
+              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                  Pricing Details Date
+                </div>
+                <div className="mt-3 text-sm text-foreground">
+                  {formatAssetValue(pricingDetails.pricing_details_date)}
+                </div>
+              </div>
+              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                  Serialization Format
+                </div>
+                <div className="mt-3 text-sm text-foreground">
+                  {formatAssetValue(pricingDetails.serialization_format)}
+                </div>
+              </div>
+              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                  Pricing Package Version
+                </div>
+                <div className="mt-3 text-sm text-foreground">
+                  {formatAssetValue(pricingDetails.pricing_package_version)}
+                </div>
+              </div>
+              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                  Source
+                </div>
+                <div className="mt-3 text-sm text-foreground">
+                  {formatAssetValue(pricingDetails.source)}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="text-sm font-medium text-foreground">Instrument Dump</div>
+              <pre className="overflow-x-auto rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4 text-xs text-foreground">
+                {safeJsonStringify(pricingDetails.instrument_dump)}
+              </pre>
+            </div>
+
+            <div className="space-y-3">
+              <div className="text-sm font-medium text-foreground">Metadata JSON</div>
+              {pricingDetails.metadata_json ? (
+                <pre className="overflow-x-auto rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4 text-xs text-foreground">
+                  {safeJsonStringify(pricingDetails.metadata_json)}
+                </pre>
+              ) : (
+                <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4 text-sm text-muted-foreground">
+                  No metadata JSON was returned for this pricing row.
+                </div>
+              )}
+            </div>
+          </>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 function renderOrderFieldControl(
   field: AssetOrderFormField,
   fieldKey: string,
@@ -724,6 +963,11 @@ export function MainSequenceAssetDetailView({
     queryFn: () => fetchAssetDetail(assetUid),
     enabled: Boolean(assetUid),
   });
+  const assetPricingDetailsQuery = useQuery({
+    queryKey: ["main_sequence", "assets", "pricing_details", assetUid],
+    queryFn: () => fetchAssetPricingDetails(assetUid),
+    enabled: Boolean(assetUid) && activeTabId === "pricing-details",
+  });
 
   useEffect(() => {
     setOrderDialogOpen(false);
@@ -735,6 +979,10 @@ export function MainSequenceAssetDetailView({
   const orderForm = useMemo(() => getAssetOrderForm(assetDetail), [assetDetail]);
   const orderTypes = useMemo(() => getAssetOrderTypes(orderForm), [orderForm]);
   const assetTitle = getAssetTitle(assetDetail, initialAsset);
+  const assetSummary = useMemo(
+    () => buildAssetSummary(assetUid, assetDetail, initialAsset),
+    [assetDetail, assetUid, initialAsset],
+  );
   const subtitleParts = [
     assetDetail?.ticker?.trim() || initialAsset?.ticker?.trim() || null,
     assetDetail?.exchange_code?.trim() || initialAsset?.exchange_code?.trim() || null,
@@ -742,32 +990,26 @@ export function MainSequenceAssetDetailView({
   ].filter(Boolean);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <button
-            type="button"
-            className="transition-colors hover:text-foreground"
-            onClick={onBack}
-          >
-            Master List
-          </button>
-          <span>/</span>
-          <span className="text-foreground">{assetTitle}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {orderTypes.length > 0 ? (
-            <Button type="button" size="sm" onClick={() => setOrderDialogOpen(true)}>
-              <ShoppingCart className="h-4 w-4" />
-              Order ticket
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Main Sequence Markets"
+        title={assetTitle}
+        description={`UID ${assetUid}`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {orderTypes.length > 0 ? (
+              <Button type="button" onClick={() => setOrderDialogOpen(true)}>
+                <ShoppingCart className="h-4 w-4" />
+                Order ticket
+              </Button>
+            ) : null}
+            <Button variant="outline" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4" />
+              Back to master list
             </Button>
-          ) : null}
-          <Button variant="outline" size="sm" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
-            Back to master list
-          </Button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {assetDetailQuery.isLoading && !assetDetail ? (
         <Card>
@@ -790,26 +1032,28 @@ export function MainSequenceAssetDetailView({
         </Card>
       ) : null}
 
+      {assetSummary ? <MainSequenceEntitySummaryCard summary={assetSummary} /> : null}
+
       {assetDetail ? (
         <>
           <Card>
             <CardHeader className="border-b border-border/70">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <CardTitle>{assetTitle}</CardTitle>
+                  <CardTitle>Asset detail</CardTitle>
                   <CardDescription>
                     {subtitleParts.length > 0
                       ? subtitleParts.join(" · ")
-                      : "Asset detail screen backed by the frontend detail serializer."}
+                      : "Review asset metadata, TradingView state, and order-form helpers."}
                   </CardDescription>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="neutral">{`UID ${assetUid}`}</Badge>
                   {(assetDetail.unique_identifier ?? initialAsset?.unique_identifier)?.trim() ? (
                     <Badge variant="neutral">
-                      {formatAssetValue(
-                        assetDetail.unique_identifier ?? initialAsset?.unique_identifier,
-                      )}
+                          {formatAssetValue(
+                            assetDetail.unique_identifier ?? initialAsset?.unique_identifier,
+                          )}
                     </Badge>
                   ) : null}
                   <Badge
@@ -846,6 +1090,12 @@ export function MainSequenceAssetDetailView({
             <CardContent className="pt-5">
               {activeTabId === "metadata" ? (
                 <AssetMetadataSection rows={metadataRows} />
+              ) : activeTabId === "pricing-details" ? (
+                <PricingDetailsSection
+                  error={assetPricingDetailsQuery.error}
+                  isLoading={assetPricingDetailsQuery.isLoading}
+                  pricingDetails={assetPricingDetailsQuery.data ?? null}
+                />
               ) : (
                 <TradingViewSection tradingView={tradingView} />
               )}

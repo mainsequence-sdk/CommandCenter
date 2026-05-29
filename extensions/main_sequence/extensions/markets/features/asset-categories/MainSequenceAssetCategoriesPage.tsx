@@ -194,7 +194,7 @@ export function MainSequenceAssetCategoriesPage() {
       toast({
         variant: "success",
         title: "Category created",
-        description: `${category.display_name || `Category ${category.id}`} is now available.`,
+        description: `${category.display_name || `Category ${category.uid}`} is now available.`,
       });
 
       setCreateDialogOpen(false);
@@ -442,7 +442,7 @@ export function MainSequenceAssetCategoriesPage() {
                           >
                             <div className="inline-flex items-center gap-1.5 font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary">
                               <span className="truncate">
-                                {formatCategoryValue(category.display_name, `Category ${category.id}`)}
+                                {formatCategoryValue(category.display_name, `Category ${category.uid}`)}
                               </span>
                               <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
                             </div>
@@ -559,7 +559,7 @@ export function MainSequenceAssetCategoriesPage() {
             deleteSelectionCategories.length === 1
               ? `${formatCategoryValue(
                   deleteSelectionCategories[0]?.display_name,
-                  `Category ${deleteSelectionCategories[0]?.id ?? ""}`,
+                  `Category ${deleteSelectionCategories[0]?.uid ?? ""}`,
                 )} was deleted.`
               : `${resolveDeletedCount(result, deleteSelectionCategories.length)} categories were deleted.`,
         }}

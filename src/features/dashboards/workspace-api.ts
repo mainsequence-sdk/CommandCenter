@@ -320,7 +320,14 @@ function coerceDashboardDefinition(value: unknown): DashboardDefinition | null {
     return null;
   }
 
-  const normalizedId = normalizeWorkspaceId(value.id);
+  const normalizedId = normalizeWorkspaceId(
+    value.uid ??
+      value.workspace_uid ??
+      value.workspaceUid ??
+      value.dashboard_uid ??
+      value.dashboardUid ??
+      value.id,
+  );
 
   if (normalizedId && Array.isArray(value.widgets)) {
     return normalizeDashboardDefinition({
@@ -370,12 +377,12 @@ function resolveWorkspaceDetailPath(workspaceId: string) {
   const template = commandCenterConfig.workspaces.detailUrl.trim();
   const encodedId = encodeURIComponent(workspaceId);
 
-  if (template.includes("{id}")) {
-    return template.replace(/\{id\}/g, encodedId);
+  if (template.includes("{uid}")) {
+    return template.replace(/\{uid\}/g, encodedId);
   }
 
-  if (template.includes(":id")) {
-    return template.replace(/:id/g, encodedId);
+  if (template.includes(":uid")) {
+    return template.replace(/:uid/g, encodedId);
   }
 
   return template.endsWith("/") ? `${template}${encodedId}/` : `${template}/${encodedId}/`;
@@ -389,7 +396,7 @@ function resolveWorkspaceUserStateListPath(workspaceId: string) {
   }
 
   const url = new URL(template, env.apiBaseUrl);
-  url.searchParams.set("workspace", workspaceId);
+  url.searchParams.set("workspace_uid", workspaceId);
   return `${url.pathname}${url.search}`;
 }
 
@@ -534,7 +541,14 @@ function coerceWorkspacePublicLinkState(value: unknown): WorkspacePublicLinkStat
     return null;
   }
 
-  const workspaceId = normalizeWorkspaceId(value.workspaceId ?? value.workspace_id ?? value.workspace);
+  const workspaceId = normalizeWorkspaceId(
+    value.workspace_uid ??
+      value.workspaceUid ??
+      value.workspaceId ??
+      value.workspace_id ??
+      value.workspace ??
+      value.uid,
+  );
   if (!workspaceId) {
     return null;
   }
@@ -592,7 +606,9 @@ function coerceWorkspacePublicLinkState(value: unknown): WorkspacePublicLinkStat
 
 function buildMockWorkspaceFromPayload(payload: unknown): DashboardDefinition {
   const source = isRecord(payload) ? payload : {};
-  const normalizedId = normalizeWorkspaceId(source.id) ?? createMockWorkspaceId();
+  const normalizedId =
+    normalizeWorkspaceId(source.uid ?? source.workspace_uid ?? source.workspaceUid ?? source.id) ??
+    createMockWorkspaceId();
 
   return sanitizeDashboardDefinition({
     id: normalizedId,
@@ -1182,7 +1198,7 @@ function serializeWorkspaceUserStateMutationPayload(
   userState: WorkspaceUserStateSnapshot,
 ) {
   return JSON.stringify({
-    workspace: workspaceId,
+    workspace_uid: workspaceId,
     selectedControls: cloneJson(userState.selectedControls),
     widgetRuntimeState: cloneJson(userState.widgetRuntimeState),
   });

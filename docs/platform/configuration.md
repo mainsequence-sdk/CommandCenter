@@ -163,7 +163,7 @@ notifications:
 - `preferences.favorites_reorder_url`: optional authenticated `POST` endpoint for reordering favorites.
 - `preferences.favorites_delete_url`: optional authenticated `DELETE` endpoint for removing one favorite entry. The current backend contract uses `{kind}` and `{target_key}` path placeholders.
 - `workspaces.list_url`: optional authenticated list/create endpoint for workspace documents. When this and `workspaces.detail_url` are configured, Workspaces stops using browser-local storage.
-- `workspaces.detail_url`: optional authenticated detail/update/delete endpoint for one workspace document. The frontend supports `{id}` or `:id` placeholders and also falls back to appending the workspace id if the placeholder is omitted.
+- `workspaces.detail_url`: optional authenticated detail/update/delete endpoint for one workspace document. The frontend supports `{uid}` or `:uid` placeholders and otherwise appends the workspace uid if the placeholder is omitted.
 - `widget_types.sync_url`: authenticated endpoint used to sync the frontend widget registry into the backend widget-type catalog during login/session bootstrap.
 - `auth.identifier_label`: label shown on the login form for the primary credential field
 - `auth.identifier_placeholder`: placeholder shown on that field

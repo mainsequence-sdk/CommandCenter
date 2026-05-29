@@ -225,13 +225,13 @@ These flows are all part of one app surface, with instance state selected throug
 - The workspace index intentionally shows only lightweight user-facing metadata from the backend
   summary rows, such as title, description, labels, and updated time. It should not expose fields
   that are not returned by the summary serializer, persistence mode, user ids, source/origin values,
-  raw workspace ids, or internal layout-density details that users do not directly manage from the
+  raw workspace uids, or internal layout-density details that users do not directly manage from the
   list.
 - Collection-level transport metadata such as the draft wrapper `savedAt` is internal store state.
   It must not be presented as workspace metadata in the workspace index or workspace settings UI.
 - In backend mode, the editor keeps a local draft and only persists changes when the user explicitly saves.
 - Normal `Save workspace` is resource-scoped. When a specific workspace is open, save sends only
-  that workspace to the backend detail endpoint (`PUT /workspaces/:id/`) instead of diffing the
+  that workspace to the backend detail endpoint (`PUT /workspaces/:uid/`) instead of diffing the
   entire workspace collection first.
 - Widget settings saves are workspace-resource saves, not draft-only commits. The settings page
   applies the active form draft to the latest workspace draft and persists that same snapshot
@@ -555,10 +555,11 @@ These flows are all part of one app surface, with instance state selected throug
   exist.
 - In backend mode, the shared workspace document and the current user's runtime/view state are now
   loaded separately. `GET workspaces.detail_url` returns only shared workspace structure, while
-  `GET workspaces.user_state_list_url?workspace=<id>` hydrates selected controls and widget
-  `runtimeState` locally after the shared canvas structure is available. Workspace save now also
-  persists that current-user slice through `workspaces.user_state_list_url`, while shared workspace
-  mutations continue to strip current-user controls/runtime state from the main workspace payload.
+  `GET workspaces.user_state_list_url?workspace_uid=<id>` hydrates selected controls and widget
+  `runtimeState` locally after the shared canvas structure is available. Workspace user-state
+  writes to `workspaces.user_state_list_url` must post `workspace_uid` in the mutation body;
+  shared workspace mutations continue to strip current-user controls/runtime state from the main
+  workspace payload.
 - Current-user control changes such as time range and refresh interval now count as unsaved
   workspace state in the shared studio shell, so the normal workspace save affordance reflects both
   shared document edits and current-user state edits.

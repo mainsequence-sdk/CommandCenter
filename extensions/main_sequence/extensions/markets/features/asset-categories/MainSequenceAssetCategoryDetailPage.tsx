@@ -122,7 +122,7 @@ export function MainSequenceAssetCategoryDetailPage() {
       toast({
         variant: "success",
         title: "Category updated",
-        description: `${category.display_name || `Category ${category.id}`} was updated.`,
+        description: `${category.display_name || `Category ${category.uid}`} was updated.`,
       });
 
       setEditDialogOpen(false);
@@ -152,7 +152,7 @@ export function MainSequenceAssetCategoryDetailPage() {
         selectedCategoryRow !== null
           ? `${formatCategoryValue(
               selectedCategoryRow.display_name,
-              `Category ${selectedCategoryRow.id}`,
+              `Category ${selectedCategoryRow.uid}`,
             )} was deleted.`
           : `${resolveDeletedCount(result, 1)} category was deleted.`,
     });

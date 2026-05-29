@@ -21,7 +21,6 @@ import { PublicWorkspacePage } from "@/features/dashboards/PublicWorkspacePage";
 import { AccessRbacTeamDetailPage } from "@/extensions/core/apps/access-rbac/AccessRbacTeamDetailPage";
 import { LegacyDemoRedirect } from "../../extensions/demo/LegacyDemoRedirect";
 import { MainSequenceAssetCategoryDetailPage } from "../../extensions/main_sequence/extensions/markets/features/asset-categories/MainSequenceAssetCategoryDetailPage";
-import { MainSequenceAssetTranslationTableDetailPage } from "../../extensions/main_sequence/extensions/markets/features/asset-translation-tables/MainSequenceAssetTranslationTableDetailPage";
 import { MainSequenceManagedAccountDetailPage } from "../../extensions/main_sequence/extensions/markets/features/managed-accounts/MainSequenceManagedAccountDetailPage";
 import { MainSequencePortfolioGroupDetailPage } from "../../extensions/main_sequence/extensions/markets/features/portfolio-groups/MainSequencePortfolioGroupDetailPage";
 import { MainSequenceClusterDetailPage } from "../../extensions/main_sequence/extensions/workbench/features/clusters/MainSequenceClusterDetailPage";
@@ -180,14 +179,6 @@ export const router = createBrowserRouter([
         element: (
           <PermissionRoute anyOf={["main_sequence_markets:view"]}>
             <MainSequenceAssetCategoryDetailPage />
-          </PermissionRoute>
-        ),
-      },
-      {
-        path: "main_sequence_markets/asset-translation-tables/:tableUid",
-        element: (
-          <PermissionRoute anyOf={["main_sequence_markets:view"]}>
-            <MainSequenceAssetTranslationTableDetailPage />
           </PermissionRoute>
         ),
       },

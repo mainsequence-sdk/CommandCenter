@@ -98,6 +98,24 @@ function assertConnectionId(value: unknown) {
   }
 }
 
+function readConnectionStreamMessageConnectionId(
+  payload: Record<string, unknown>,
+  options?: {
+    allowMissingConnectionId?: boolean;
+  },
+) {
+  const connectionId = isConnectionId(payload.connectionId)
+    ? payload.connectionId
+    : isConnectionId(payload.connectionUid)
+      ? payload.connectionUid
+      : options?.allowMissingConnectionId
+        ? "public"
+        : payload.connectionId;
+
+  assertConnectionId(connectionId);
+  return connectionId;
+}
+
 function assertConnectionQueryResponse(value: unknown) {
   if (!isRecord(value) || !Array.isArray(value.frames)) {
     throw new Error("Connection stream data message is missing response frames.");
@@ -142,9 +160,7 @@ export function buildConnectionQueryWebSocketUrl(
 
   const url = new URL(
     buildWebSocketEndpointUrl(
-      applyTemplate(template, {
-        id: connectionId,
-      }),
+      applyTemplate(template, createConnectionEndpointTemplateValues(connectionId)),
       options,
     ),
   );
@@ -169,9 +185,7 @@ export function buildConnectionQueryUrl(
   }
 
   return buildEndpointUrl(
-    applyTemplate(template, {
-      id: connectionId,
-    }),
+    applyTemplate(template, createConnectionEndpointTemplateValues(connectionId)),
   );
 }
 
@@ -366,7 +380,7 @@ export function buildConnectionStreamSubscribeMessage<TQuery = Record<string, un
 ): ConnectionStreamSubscribeMessage<TQuery> {
   return {
     type: "subscribe",
-    request,
+    request: serializeConnectionStreamQueryRequest(request) as unknown as ConnectionStreamQueryRequest<TQuery>,
   };
 }
 
@@ -384,12 +398,7 @@ export function parseConnectionStreamServerMessage(
 
   switch (payload.type) {
     case "ack": {
-      const connectionId = isConnectionId(payload.connectionId)
-        ? payload.connectionId
-        : options?.allowMissingConnectionId
-          ? "public"
-          : payload.connectionId;
-      assertConnectionId(connectionId);
+      const connectionId = readConnectionStreamMessageConnectionId(payload, options);
       assertString(payload.queryKind, "queryKind");
       assertSequence(payload.sequence);
       assertString(payload.acceptedAt, "acceptedAt");
@@ -397,12 +406,7 @@ export function parseConnectionStreamServerMessage(
     }
     case "snapshot":
     case "delta": {
-      const connectionId = isConnectionId(payload.connectionId)
-        ? payload.connectionId
-        : options?.allowMissingConnectionId
-          ? "public"
-          : payload.connectionId;
-      assertConnectionId(connectionId);
+      const connectionId = readConnectionStreamMessageConnectionId(payload, options);
       assertString(payload.queryKind, "queryKind");
       assertSequence(payload.sequence);
       assertString(payload.emittedAt, "emittedAt");
@@ -899,7 +903,7 @@ function normalizeIdentifier(value: unknown): ConnectionId | undefined {
 
 function normalizeConnectionInstancePayload(instance: ConnectionInstance): ConnectionInstance | null {
   const record = instance as unknown as Record<string, unknown>;
-  const id = normalizeIdentifier(record.id);
+  const id = normalizeIdentifier(record.id) ?? normalizeIdentifier(record.uid);
 
   if (!id) {
     return null;
@@ -920,6 +924,41 @@ function normalizeConnectionInstanceList(payload: unknown) {
 
 export function createConnectionRef(id: ConnectionId, typeId: string): ConnectionRef {
   return { id, typeId };
+}
+
+function createConnectionInstanceTemplateValues(id: ConnectionId) {
+  return {
+    uid: id,
+  };
+}
+
+function createConnectionEndpointTemplateValues(connectionId: ConnectionId) {
+  return {
+    uid: connectionId,
+    connectionUid: connectionId,
+  };
+}
+
+function serializeConnectionQueryRequest<TQuery = Record<string, unknown>>(
+  request: ConnectionQueryRequest<TQuery>,
+) {
+  const { connectionId, ...rest } = request;
+
+  return {
+    ...rest,
+    connectionUid: connectionId,
+  };
+}
+
+function serializeConnectionStreamQueryRequest<TQuery = Record<string, unknown>>(
+  request: ConnectionStreamQueryRequest<TQuery>,
+) {
+  const { connectionId, ...rest } = request;
+
+  return {
+    ...rest,
+    connectionUid: connectionId,
+  };
 }
 
 export function normalizeConnectionRef(
@@ -1000,7 +1039,9 @@ export async function resolveConnectionRefFromInstances(
 
 export async function fetchConnectionInstance(id: ConnectionId) {
   const template = commandCenterConfig.connections.instances.detailUrl.trim();
-  const payload = await requestJson<ConnectionInstance>(applyTemplate(template, { id }));
+  const payload = await requestJson<ConnectionInstance>(
+    applyTemplate(template, createConnectionInstanceTemplateValues(id)),
+  );
   const normalizedPayload = normalizeConnectionInstancePayload(payload);
 
   if (!normalizedPayload) {
@@ -1037,10 +1078,13 @@ export function updateConnectionInstance(
   input: Partial<ConnectionInstance> & { secureConfig?: Record<string, unknown> },
 ) {
   const template = commandCenterConfig.connections.instances.detailUrl.trim();
-  return requestJson<ConnectionInstance>(applyTemplate(template, { id }), {
-    method: "PATCH",
-    body: JSON.stringify(input),
-  }).then((payload) => {
+  return requestJson<ConnectionInstance>(
+    applyTemplate(template, createConnectionInstanceTemplateValues(id)),
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  ).then((payload) => {
     const normalizedPayload = normalizeConnectionInstancePayload(payload);
 
     if (!normalizedPayload) {
@@ -1053,7 +1097,7 @@ export function updateConnectionInstance(
 
 export function deleteConnectionInstance(id: ConnectionId) {
   const template = commandCenterConfig.connections.instances.detailUrl.trim();
-  return requestJson<void>(applyTemplate(template, { id }), {
+  return requestJson<void>(applyTemplate(template, createConnectionInstanceTemplateValues(id)), {
     method: "DELETE",
   });
 }
@@ -1064,10 +1108,13 @@ export function testConnection(id: ConnectionId) {
   }
 
   const template = commandCenterConfig.connections.instances.testUrl.trim();
-  return requestJson<ConnectionHealthResult>(applyTemplate(template, { id }), {
-    method: "POST",
-    body: JSON.stringify({}),
-  });
+  return requestJson<ConnectionHealthResult>(
+    applyTemplate(template, createConnectionInstanceTemplateValues(id)),
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+    },
+  );
 }
 
 export function queryConnection<
@@ -1088,10 +1135,10 @@ export function queryConnection<
 
   const template = commandCenterConfig.connections.instances.queryUrl.trim();
   return requestJson<TResponse>(
-    applyTemplate(template, { id: request.connectionId }),
+    applyTemplate(template, createConnectionEndpointTemplateValues(request.connectionId)),
     {
       method: "POST",
-      body: JSON.stringify(request),
+      body: JSON.stringify(serializeConnectionQueryRequest(request)),
       signal: options?.signal,
     },
     traceMeta,
@@ -1126,7 +1173,7 @@ export function fetchConnectionResource<TResponse = unknown>(
   const template = commandCenterConfig.connections.instances.resourceUrl.trim();
   return requestJson<TResponse>(
     applyTemplate(template, {
-      id: request.connectionId,
+      ...createConnectionEndpointTemplateValues(request.connectionId),
       resource: request.resource,
     }),
     {
@@ -1139,7 +1186,7 @@ export function fetchConnectionResource<TResponse = unknown>(
 export function openConnectionStream(request: ConnectionStreamRequest) {
   const template = commandCenterConfig.connections.instances.streamUrl.trim();
   const endpoint = applyTemplate(template, {
-    id: request.connectionId,
+    ...createConnectionEndpointTemplateValues(request.connectionId),
   });
   const url = new URL(buildEndpointUrl(endpoint), window.location.origin);
   url.searchParams.set("channel", request.channel);

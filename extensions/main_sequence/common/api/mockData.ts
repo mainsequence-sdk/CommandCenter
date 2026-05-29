@@ -62,14 +62,13 @@ function readCollectionDataset(name: string): Array<Record<string, unknown>> {
 
 type MockState = {
   assets: Array<Record<string, unknown>>;
+  indexes: Array<Record<string, unknown>>;
   assetCategories: Array<Record<string, unknown>>;
   virtualFunds: Array<Record<string, unknown>>;
   managedAccounts: Array<Record<string, unknown>>;
   managedAccountTargetPositionsByAccountUid: Record<string, Record<string, unknown>>;
   portfolioGroups: Array<Record<string, unknown>>;
   targetPortfolios: Array<Record<string, unknown>>;
-  assetTranslationTables: Array<Record<string, unknown>>;
-  assetTranslationTableRules: Array<Record<string, unknown>>;
   instrumentsConfiguration: Record<string, unknown>;
   projects: Array<Record<string, unknown>>;
   projectBaseImages: Array<Record<string, unknown>>;
@@ -104,14 +103,13 @@ type MockState = {
 function createMockState(): MockState {
   return {
     assets: readDataset("assets"),
+    indexes: readOptionalDataset<Array<Record<string, unknown>>>("indexes") ?? [],
     assetCategories: readDataset("asset_categories"),
     virtualFunds: readDataset("virtual_funds"),
     managedAccounts: readDataset("managed_accounts"),
     managedAccountTargetPositionsByAccountUid: {},
     portfolioGroups: readDataset("portfolio_groups"),
     targetPortfolios: readDataset("target_portfolios"),
-    assetTranslationTables: readDataset("asset_translation_tables"),
-    assetTranslationTableRules: readDataset("asset_translation_table_rules"),
     instrumentsConfiguration: readDataset("instruments_configuration"),
     projects: readDataset("projects"),
     projectBaseImages: readDataset("project_base_images"),
@@ -1571,49 +1569,145 @@ function handleAssets(route: string, method: string, searchParams: URLSearchPara
   return undefined;
 }
 
+function handleIndexes(route: string, method: string, searchParams: URLSearchParams) {
+  if (route === "/api/v1/index/" && method === "GET") {
+    const normalizedSearch = (searchParams.get("search") ?? "").trim().toLowerCase();
+    const filtered = !normalizedSearch
+      ? state.indexes
+      : state.indexes.filter((indexRecord) =>
+          [
+            readString(indexRecord.uid),
+            readString(indexRecord.unique_identifier),
+            readString(indexRecord.display_name),
+            readString(indexRecord.description),
+            readString(indexRecord.provider),
+          ].some((value) => value.toLowerCase().includes(normalizedSearch)),
+        );
+
+    return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
+  }
+
+  const detailMatch = route.match(/^\/api\/v1\/index\/([^/]+)\/$/);
+  if (detailMatch && method === "GET") {
+    return findByUid(state.indexes, detailMatch[1] ?? "");
+  }
+
+  if (detailMatch && method === "DELETE") {
+    const normalizedUid = (detailMatch[1] ?? "").trim();
+    const before = state.indexes.length;
+
+    state.indexes = state.indexes.filter((indexRecord) => readString(indexRecord.uid) !== normalizedUid);
+
+    return before === state.indexes.length ? detailMessage("Index not found.") : null;
+  }
+
+  return undefined;
+}
+
 function handleAssetCategories(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
+  function serializeCategory(category: Record<string, unknown> | null | undefined) {
+    return {
+      uid: readString(category?.uid),
+      unique_identifier: readString(category?.unique_identifier),
+      display_name: readString(category?.display_name),
+      description: readString(category?.description),
+      assets: readArray<string>(category?.assets),
+    };
+  }
+
+  function serializeCategoryListRow(category: Record<string, unknown>) {
+    const serialized = serializeCategory(category);
+
+    return {
+      uid: serialized.uid,
+      unique_identifier: serialized.unique_identifier,
+      display_name: serialized.display_name,
+      description: serialized.description,
+      number_of_assets: serialized.assets.length,
+    };
+  }
+
+  function frontendRowsResponseFromLimitOffset<T>(
+    rows: T[],
+    search: string | null,
+    limitValue: string | null,
+    offsetValue: string | null,
+  ) {
+    const pageSize = Math.max(1, Number(limitValue ?? defaultPageSize) || defaultPageSize);
+    const offset = Math.max(0, Number(offsetValue ?? 0) || 0);
+    const page = Math.floor(offset / pageSize) + 1;
+
+    return frontendRowsResponse(rows, search, String(page), String(pageSize));
+  }
+
+  function matchesOptionalExact(value: unknown, filter: unknown) {
+    const normalized = readString(filter).trim();
+
+    return !normalized || readString(value) === normalized;
+  }
+
+  function matchesOptionalContains(value: unknown, filter: unknown) {
+    const needle = readString(filter).trim().toLowerCase();
+
+    return !needle || readString(value).toLowerCase().includes(needle);
+  }
+
+  function matchesBulkDeleteFilters(category: Record<string, unknown>, body: Record<string, unknown> | null) {
+    return (
+      matchesSearch(
+        [category.uid, category.unique_identifier, category.display_name, category.description],
+        readString(body?.search),
+      ) &&
+      matchesOptionalExact(category.display_name, body?.display_name) &&
+      matchesOptionalContains(category.display_name, body?.display_name__contains) &&
+      matchesOptionalExact(category.unique_identifier, body?.unique_identifier) &&
+      matchesOptionalContains(category.unique_identifier, body?.unique_identifier__contains) &&
+      matchesOptionalExact(category.description, body?.description) &&
+      matchesOptionalContains(category.description, body?.description__contains)
+    );
+  }
+
   if (route === "/api/v1/asset-category/" && method === "GET") {
     const filtered = state.assetCategories.filter((category) =>
       matchesSearch(
-        [category.id, category.unique_identifier, category.display_name, category.description],
+        [category.uid, category.unique_identifier, category.display_name, category.description],
         searchParams.get("search"),
       ),
     );
-    return frontendRowsResponse(
-      filtered.map((category) => ({
-        id: readNumber(category.id),
-        uid: readString(category.uid),
-        unique_identifier: readString(category.unique_identifier),
-        display_name: readString(category.display_name),
-        description: readString(category.description),
-        number_of_assets: readArray<number>(category.assets).length,
-      })),
+    return frontendRowsResponseFromLimitOffset(
+      filtered.map(serializeCategoryListRow),
       searchParams.get("search"),
-      searchParams.get("page"),
-      searchParams.get("page_size"),
+      searchParams.get("limit"),
+      searchParams.get("offset"),
     );
   }
 
   if (route === "/api/v1/asset-category/" && method === "POST") {
     const body = parseBody(init);
-    const id = nextId(state.assetCategories);
+    const fallbackUid = `mock-asset-category-${Date.now()}`;
     const record = {
-      id,
-      uid: `mock-asset-category-${id}`,
+      uid: fallbackUid,
       unique_identifier: readString(body?.unique_identifier) || `category_${Date.now()}`,
       display_name: readString(body?.display_name) || "New Category",
       description: readString(body?.description),
       assets: readArray<string>(body?.assets),
     };
     state.assetCategories.unshift(record);
-    return record;
+    return serializeCategory(record);
   }
 
   if (route === "/api/v1/asset-category/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
     const uids = new Set(readArray<string>(body?.uids));
+    const selectAll = readBoolean(body?.select_all);
     const before = state.assetCategories.length;
-    state.assetCategories = state.assetCategories.filter((category) => !uids.has(readString(category.uid)));
+    state.assetCategories = state.assetCategories.filter((category) => {
+      if (selectAll) {
+        return !matchesBulkDeleteFilters(category, body);
+      }
+
+      return !uids.has(readString(category.uid));
+    });
     return {
       detail: "Asset categories removed from mock state.",
       deleted_count: before - state.assetCategories.length,
@@ -1628,11 +1722,17 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
       uid: categoryUid,
       title: readString(category?.display_name) || `Category ${categoryUid}`,
       selected_category: {
-        id: categoryUid,
+        uid: categoryUid,
         text: readString(category?.display_name),
         sub_text: readString(category?.unique_identifier),
       },
       details: [
+        {
+          name: "display_name",
+          label: "Display name",
+          value_type: "text",
+          value: readString(category?.display_name),
+        },
         {
           name: "unique_identifier",
           label: "Identifier",
@@ -1677,7 +1777,7 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
       Object.assign(category, body ?? {});
     }
 
-    return category;
+    return serializeCategory(category);
   }
 
   if (detailMatch && method === "DELETE") {
@@ -1806,183 +1906,6 @@ function handleTargetPortfolios(route: string, method: string, searchParams: URL
       ],
       position_map: null,
       weights_date: readString(portfolio?.weights_date) || new Date().toISOString(),
-    };
-  }
-
-  return undefined;
-}
-
-function handleTranslationTables(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
-  if (
-    (route === "/api/v1/asset-translation-tables/" && method === "GET") ||
-    (route === "/api/v1/asset-translation-tables/query/" && method === "POST")
-  ) {
-    const body = parseBody(init);
-    const search = searchParams.get("search") ?? readOptionalString(body?.search);
-    const filtered = state.assetTranslationTables.filter((table) =>
-      matchesSearch([table.id, table.unique_identifier], search),
-    );
-    return frontendRowsResponse(
-      filtered.map((table) => ({
-        id: readNumber(table.id),
-        uid: readString(table.uid),
-        unique_identifier: readString(table.unique_identifier),
-        rules_number: state.assetTranslationTableRules.filter(
-          (rule) => readString(rule.table_uid) === readString(table.uid),
-        ).length,
-        creation_date: readString(table.creation_date),
-      })),
-      search,
-      searchParams.get("page") ?? String(body?.page ?? 1),
-      searchParams.get("page_size") ?? String(body?.page_size ?? defaultPageSize),
-    );
-  }
-
-  if (route === "/api/v1/asset-translation-tables/" && method === "POST") {
-    const body = parseBody(init);
-    const id = nextId(state.assetTranslationTables);
-    const record = {
-      id,
-      uid: `mock-asset-translation-table-${id}`,
-      unique_identifier: readString(body?.unique_identifier) || `translation_${Date.now()}`,
-      creation_date: new Date().toISOString(),
-    };
-    state.assetTranslationTables.unshift(record);
-    return record;
-  }
-
-  if (route === "/api/v1/asset-translation-tables/bulk-delete/" && method === "POST") {
-    const body = parseBody(init);
-    const uids = new Set(readArray<string>(body?.uids));
-    const before = state.assetTranslationTables.length;
-    state.assetTranslationTables = state.assetTranslationTables.filter((table) => !uids.has(readString(table.uid)));
-    state.assetTranslationTableRules = state.assetTranslationTableRules.filter((rule) => !uids.has(readString(rule.table_uid)));
-    return {
-      detail: "Asset translation tables removed from mock state.",
-      deleted_count: before - state.assetTranslationTables.length,
-    };
-  }
-
-  const detailMatch = route.match(/^\/api\/v1\/asset-translation-tables\/([^/]+)\/$/);
-  if (detailMatch && method === "GET") {
-    const tableUid = detailMatch[1] ?? "";
-    const table = findByUid(state.assetTranslationTables, tableUid);
-    return {
-      uid: tableUid,
-      title: readString(table?.unique_identifier) || `Table ${tableUid}`,
-      selected_table: {
-        id: tableUid,
-        text: readString(table?.unique_identifier),
-        sub_text: `Rules: ${state.assetTranslationTableRules.filter((rule) => readString(rule.table_uid) === tableUid).length}`,
-      },
-      details: [
-        {
-          name: "unique_identifier",
-          label: "Identifier",
-          value_type: "text",
-          value: readString(table?.unique_identifier),
-        },
-        {
-          name: "creation_date",
-          label: "Created",
-          value_type: "datetime",
-          value: readString(table?.creation_date),
-        },
-      ],
-      actions: {
-        can_edit: true,
-        can_delete: true,
-        update_endpoint: `/api/v1/asset-translation-tables/${tableUid}/`,
-        delete_endpoint: `/api/v1/asset-translation-tables/${tableUid}/`,
-      },
-      rules_list: {
-        list_endpoint: `/api/v1/asset-translation-tables/${tableUid}/rules/`,
-        response_format: "frontend_list",
-        create_endpoint: `/api/v1/asset-translation-tables/${tableUid}/rules/`,
-      },
-    };
-  }
-
-  if (detailMatch && method === "PATCH") {
-    const table = findByUid(state.assetTranslationTables, detailMatch[1] ?? "");
-    Object.assign(table ?? {}, parseBody(init) ?? {});
-    return table;
-  }
-
-  if (detailMatch && method === "DELETE") {
-    const tableUid = detailMatch[1] ?? "";
-    state.assetTranslationTables = state.assetTranslationTables.filter((table) => readString(table.uid) !== tableUid);
-    state.assetTranslationTableRules = state.assetTranslationTableRules.filter((rule) => readString(rule.table_uid) !== tableUid);
-    return null;
-  }
-
-  const rulesMatch = route.match(/^\/api\/v1\/asset-translation-tables\/([^/]+)\/rules\/$/);
-  if (rulesMatch && method === "GET") {
-    const tableUid = rulesMatch[1] ?? "";
-    const filtered = state.assetTranslationTableRules.filter(
-      (rule) =>
-        readString(rule.table_uid) === tableUid &&
-        matchesSearch(
-          [
-            rule.id,
-            rule.security_type,
-            rule.security_market_sector,
-            rule.markets_time_serie_unique_identifier,
-            rule.target_exchange_code,
-            rule.default_column_name,
-          ],
-          searchParams.get("search"),
-        ),
-    );
-    return frontendRowsResponse(filtered, searchParams.get("search"), searchParams.get("page"), searchParams.get("page_size"));
-  }
-
-  if (rulesMatch && method === "POST") {
-    const tableUid = rulesMatch[1] ?? "";
-    const body = parseBody(init);
-    const assetFilter = (body?.asset_filter ?? {}) as Record<string, unknown>;
-    const ruleUid = `mock-asset-translation-rule-${Date.now()}`;
-    const record = {
-      id: nextId(state.assetTranslationTableRules),
-      uid: ruleUid,
-      table_uid: tableUid,
-      security_type: readOptionalString(assetFilter.security_type),
-      security_market_sector: readOptionalString(assetFilter.security_market_sector),
-      markets_time_serie_unique_identifier: readString(body?.markets_time_serie_unique_identifier),
-      target_exchange_code: readOptionalString(body?.target_exchange_code),
-      default_column_name: readOptionalString(body?.default_column_name),
-      creation_date: new Date().toISOString(),
-      detail_endpoint: `/api/v1/asset-translation-tables/${tableUid}/rules/${ruleUid}/`,
-      update_endpoint: `/api/v1/asset-translation-tables/${tableUid}/rules/${ruleUid}/`,
-      delete_endpoint: `/api/v1/asset-translation-tables/${tableUid}/rules/${ruleUid}/`,
-    };
-    state.assetTranslationTableRules.unshift(record);
-    return record;
-  }
-
-  const ruleDetailMatch = route.match(/^\/api\/v1\/asset-translation-tables\/([^/]+)\/rules\/([^/]+)\/$/);
-  if (ruleDetailMatch && method === "PATCH") {
-    const rule = findByUid(state.assetTranslationTableRules, ruleDetailMatch[2] ?? "");
-    const body = parseBody(init);
-    const assetFilter = (body?.asset_filter ?? {}) as Record<string, unknown>;
-
-    if (rule) {
-      rule.security_type = readOptionalString(assetFilter.security_type);
-      rule.security_market_sector = readOptionalString(assetFilter.security_market_sector);
-      rule.markets_time_serie_unique_identifier = readString(body?.markets_time_serie_unique_identifier);
-      rule.target_exchange_code = readOptionalString(body?.target_exchange_code);
-      rule.default_column_name = readOptionalString(body?.default_column_name);
-    }
-
-    return rule;
-  }
-
-  if (ruleDetailMatch && method === "DELETE") {
-    const ruleUid = ruleDetailMatch[2] ?? "";
-    state.assetTranslationTableRules = state.assetTranslationTableRules.filter((rule) => readString(rule.uid) !== ruleUid);
-    return {
-      detail: "Translation rule deleted from mock state.",
-      deleted_rule: true,
     };
   }
 
@@ -4096,10 +4019,10 @@ export function getMainSequenceMockResponse<T>({
   return (
     handleProjects(route, method, url.searchParams, init) ??
     handleAssets(route, method, url.searchParams, init) ??
+    handleIndexes(route, method, url.searchParams) ??
     handleAssetCategories(route, method, url.searchParams, init) ??
     handlePortfolioGroups(route, method, url.searchParams, init) ??
     handleTargetPortfolios(route, method, url.searchParams) ??
-    handleTranslationTables(route, method, url.searchParams, init) ??
     handleInstrumentsConfiguration(route, method, init) ??
     handleVirtualFunds(route, method, url.searchParams, init) ??
     handleManagedAccounts(route, method, url.searchParams, init) ??

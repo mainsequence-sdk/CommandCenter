@@ -29,7 +29,7 @@ preferences:
 
 workspaces:
   list_url: /api/v1/command_center/workspaces/
-  detail_url: /api/v1/command_center/workspaces/{id}/
+  detail_url: /api/v1/command_center/workspaces/{uid}/
   user_state_list_url: /api/v1/command_center/workspace-user-states/
 
 saved_widgets:
@@ -52,12 +52,12 @@ connections:
     sync_url: /api/v1/command_center/connection-types/sync/
   instances:
     list_url: /api/v1/command_center/connections/
-    detail_url: /api/v1/command_center/connections/{id}/
-    test_url: /api/v1/command_center/connections/{id}/test/
-    query_url: /api/v1/command_center/connections/{id}/query/
-    resource_url: /api/v1/command_center/connections/{id}/resources/{resource}/
-    stream_url: /api/v1/command_center/connections/{id}/stream/
-    stream_query_url: /api/v1/command_center/connections/{id}/stream-query/
+    detail_url: /api/v1/command_center/connections/{uid}/
+    test_url: /api/v1/command_center/connections/{uid}/test/
+    query_url: /api/v1/command_center/connections/{uid}/query/
+    resource_url: /api/v1/command_center/connections/{uid}/resources/{resource}/
+    stream_url: /api/v1/command_center/connections/{uid}/stream/
+    stream_query_url: /api/v1/command_center/connections/{uid}/stream-query/
 
 auth:
   identifier_label: Email

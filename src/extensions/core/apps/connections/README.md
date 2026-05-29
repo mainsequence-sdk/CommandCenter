@@ -19,9 +19,21 @@ registered by `src/extensions/connections/index.ts` as a standalone extension ga
   operator-facing table instead of leaving the user on the creation form.
 - The Data Sources and Explore surfaces read backend-owned connection instances through
   `src/connections/api.ts`. If the backend returns no instances, the UI shows no data sources.
-- New connection instances rely on backend-assigned `id` values. The create form must not ask the
-  user for a custom identifier. Creates send `isActive: true` so a newly configured connection can
-  be tested and projected by backend lifecycle hooks immediately.
+- New connection instances rely on backend-assigned identifiers. Backend payloads and route
+  templates may expose that identifier as `id` or `uid`; the frontend normalizes either form into
+  `ConnectionInstance.id` and reuses that normalized value for detail, update, delete, and
+  health-test requests. The create form must not ask the user for a custom identifier. Creates
+  send `isActive: true` so a newly configured connection can be tested and projected by backend
+  lifecycle hooks immediately.
+- Backend query and stream payloads now expect `connectionUid` instead of the legacy
+  `connectionId`. The frontend still uses `connectionId` in its shared internal request types, but
+  `src/connections/api.ts` must rewrite outgoing backend query/stream payloads to
+  `connectionUid`. Incoming stream server messages may also use `connectionUid`; the shared stream
+  parser in `src/connections/api.ts` must normalize that field back into internal
+  `connectionId`.
+- The default connection-instance route templates are uid-based:
+  `/api/v1/command_center/connections/{uid}/...`. Do not reintroduce `{id}` in the local default
+  config or the shared connections transport.
 - The Data Sources list keeps backend `id` values out of the main operator-facing table. IDs stay
   available in edit/detail flows, but the list should emphasize the user-facing name, type, health,
   and secret metadata.

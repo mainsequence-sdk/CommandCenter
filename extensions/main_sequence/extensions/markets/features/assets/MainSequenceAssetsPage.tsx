@@ -168,6 +168,13 @@ export function MainSequenceAssetsPage() {
     });
   }
 
+  function openAssetDetail(asset: AssetListRow) {
+    updateSearchParams((nextParams) => {
+      nextParams.set(mainSequenceAssetUidParam, asset.uid);
+      nextParams.set(mainSequenceAssetTabParam, defaultAssetDetailTabId);
+    });
+  }
+
   function closeAssetDetail() {
     updateSearchParams((nextParams) => {
       nextParams.delete(mainSequenceAssetUidParam);
@@ -228,7 +235,7 @@ export function MainSequenceAssetsPage() {
               accessory={<Badge variant="neutral">{`${totalCount} rows`}</Badge>}
               value={searchValue}
               onChange={(event) => updateFilter("search", event.target.value)}
-              placeholder="Search by id, unique identifier, FIGI, name, ticker, exchange, sector, or type"
+              placeholder="Search by id, unique identifier, FIGI, name, or type"
               searchClassName="max-w-xl"
             />
           </div>
@@ -264,21 +271,22 @@ export function MainSequenceAssetsPage() {
 
           {!assetsQuery.isLoading && !assetsQuery.isError && pageRows.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1180px] border-separate border-spacing-y-2 text-sm">
+              <table className="w-full min-w-[760px] border-separate border-spacing-y-2 text-sm">
                 <thead>
                   <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                     <th className="px-4 pb-2">Asset</th>
-                    <th className="px-4 pb-2">Ticker</th>
-                    <th className="px-4 pb-2">Exchange</th>
-                    <th className="px-4 pb-2">Sector</th>
                     <th className="px-4 pb-2">Type</th>
-                    <th className="px-4 pb-2">is_custom_by_organization</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pageRows.map((asset) => (
                     <tr key={asset.id}>
                       <td className={getRegistryTableCellClassName(false, "left")}>
+                        <button
+                          type="button"
+                          className="min-w-0 text-left transition-opacity hover:opacity-80"
+                          onClick={() => openAssetDetail(asset)}
+                        >
                           <div className="min-w-0">
                             <div className="truncate font-medium text-foreground">
                               {formatAssetValue(
@@ -296,25 +304,10 @@ export function MainSequenceAssetsPage() {
                                 .join(" · ")}
                             </div>
                           </div>
+                        </button>
                       </td>
                       <td className={getRegistryTableCellClassName(false)}>
-                          <div className="font-medium text-foreground">
-                            {formatAssetValue(asset.ticker)}
-                          </div>
-                      </td>
-                      <td className={getRegistryTableCellClassName(false)}>
-                          {formatAssetValue(asset.exchange_code)}
-                      </td>
-                      <td className={getRegistryTableCellClassName(false)}>
-                          {formatAssetValue(asset.security_market_sector)}
-                      </td>
-                      <td className={getRegistryTableCellClassName(false)}>
-                          {formatAssetValue(asset.security_type)}
-                      </td>
-                      <td className={getRegistryTableCellClassName(false)}>
-                          <span className="font-mono text-xs text-foreground">
-                            {String(asset.is_custom_by_organization)}
-                          </span>
+                        {formatAssetValue(asset.security_type)}
                       </td>
                     </tr>
                   ))}

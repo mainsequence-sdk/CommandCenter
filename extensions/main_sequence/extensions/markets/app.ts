@@ -7,11 +7,11 @@ import {
 } from "@/apps/types";
 
 import { MainSequenceAssetCategoriesPage } from "./features/asset-categories/MainSequenceAssetCategoriesPage";
-import { MainSequenceAssetTranslationTablesPage } from "./features/asset-translation-tables/MainSequenceAssetTranslationTablesPage";
 import { MainSequenceAssetsPage } from "./features/assets/MainSequenceAssetsPage";
+import { MainSequenceCataloguePage } from "./features/catalogue/MainSequenceCataloguePage";
 import { MainSequenceManagedAccountsPage } from "./features/managed-accounts/MainSequenceManagedAccountsPage";
 import { MainSequenceFundsPage } from "./features/funds/MainSequenceFundsPage";
-import { MainSequenceInstrumentsPage } from "./features/instruments/MainSequenceInstrumentsPage";
+import { MainSequenceIndicesPage } from "./features/indices/MainSequenceIndicesPage";
 import { MainSequencePortfolioGroupsPage } from "./features/portfolio-groups/MainSequencePortfolioGroupsPage";
 import { MainSequenceTargetPortfoliosPage } from "./features/portfolios/MainSequenceTargetPortfoliosPage";
 
@@ -33,9 +33,9 @@ const managedAccountsSection: AppSurfaceNavigationSection = {
   order: 25,
 };
 
-const settingsSection: AppSurfaceNavigationSection = {
-  id: "settings",
-  label: "Settings",
+const platformSection: AppSurfaceNavigationSection = {
+  id: "platform",
+  label: "Platform",
   order: 30,
 };
 
@@ -57,25 +57,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
   ],
   defaultSurfaceId: "assets",
   surfaces: [
-    {
-      id: "asset-translation-tables",
-      title: "Asset Translation Tables",
-      navLabel: "Translation Tables",
-      description: "Manage asset translation tables and the translation rules embedded inside each table.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Asset Translation Tables. This page shows translation tables and their rule-management workflows.",
-        availableActions: [
-          "Browse translation tables",
-          "Open a translation table",
-          "Create or update a table",
-        ],
-      }),
-      navigationSection: settingsSection,
-      kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
-      component: MainSequenceAssetTranslationTablesPage,
-    },
     {
       id: "asset-categories",
       title: "Asset Categories",
@@ -114,6 +95,46 @@ export const mainSequenceMarketsApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceAssetsPage,
+    },
+    {
+      id: "indices",
+      title: "Indices",
+      navLabel: "Indices",
+      description: "Browse market indices, inspect the canonical metadata payload, and delete registry records.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Indices. This page shows market index records with API-backed search, detail loading, and delete access.",
+        availableActions: [
+          "Browse indices",
+          "Search indices",
+          "Open index detail",
+          "Delete an index",
+        ],
+      }),
+      navigationSection: assetsSection,
+      kind: "page",
+      requiredPermissions: ["main_sequence_markets:view"],
+      component: MainSequenceIndicesPage,
+    },
+    {
+      id: "catalogue",
+      title: "Catalogue",
+      navLabel: "Catalogue",
+      description: "Browse catalogue-backed model registries and inspect or delete exposed rows.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Catalogue. This page shows backend catalog records and the rows each record exposes for listing or deletion.",
+        availableActions: [
+          "Browse catalogue records",
+          "Inspect catalogue columns",
+          "Browse catalogue rows",
+          "Delete catalogue rows",
+        ],
+      }),
+      navigationSection: platformSection,
+      kind: "page",
+      requiredPermissions: ["main_sequence_markets:view"],
+      component: MainSequenceCataloguePage,
     },
     {
       id: "funds",
@@ -190,23 +211,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceManagedAccountsPage,
-    },
-    {
-      id: "instruments",
-      title: "Instruments",
-      navLabel: "Instruments",
-      description: "Placeholder surface for upcoming instrument registry and detail workflows.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Instruments. This surface is intended for instrument registry and detail workflows.",
-        availableActions: [
-          "Review the instrument registry surface",
-        ],
-      }),
-      navigationSection: settingsSection,
-      kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
-      component: MainSequenceInstrumentsPage,
     },
   ],
 };
