@@ -28,7 +28,6 @@ where to start.
 
 - Read [Workspaces](../workspaces/workspaces.md) for general-purpose operational canvases.
 - Read [Foundry](../foundry/foundry.md) for backend resource operations.
-- Read [Markets](../markets/markets.md) for asset and portfolio workflows.
 - Read [Main Sequence AI](../main-sequence-ai/main-sequence-ai.md) for assistant and agent-owned flows.
 - Read [Slide Studio](../workspaces/slide-studio.md) for presentation decks.
 - Read [Agents Monitor](../main-sequence-ai/agents-monitor.md) for session-driven AI workspaces.

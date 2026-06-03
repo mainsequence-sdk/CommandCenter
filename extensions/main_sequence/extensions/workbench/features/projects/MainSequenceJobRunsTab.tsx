@@ -283,11 +283,12 @@ export function MainSequenceJobRunsTab({
   const deferredFilterValue = useDeferredValue(filterValue);
 
   const runsQuery = useQuery({
-    queryKey: ["main_sequence", "jobs", "runs", jobUid, pageIndex],
+    queryKey: ["main_sequence", "jobs", "runs", jobUid, pageIndex, deferredFilterValue.trim()],
     queryFn: () =>
       listJobRuns(jobUid, {
         limit: mainSequenceRegistryPageSize,
         offset: pageIndex * mainSequenceRegistryPageSize,
+        search: deferredFilterValue.trim() || undefined,
       }),
     enabled: Boolean(jobUid),
   });
@@ -318,29 +319,7 @@ export function MainSequenceJobRunsTab({
     }
   }, [pageIndex, runsQuery.data?.count]);
 
-  const filteredRuns = useMemo(() => {
-    const needle = deferredFilterValue.trim().toLowerCase();
-
-    return (runsQuery.data?.results ?? []).filter((jobRun) => {
-      if (!needle) {
-        return true;
-      }
-
-      return [
-        jobRun.name,
-        jobRun.unique_identifier,
-        jobRun.uid,
-        jobRun.status,
-        jobRun.response_status ?? "",
-        jobRun.triggered_by ?? "",
-        jobRun.commit_hash ?? "",
-        formatCommandArgs(jobRun.command_args),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
-    });
-  }, [deferredFilterValue, runsQuery.data?.results]);
+  const filteredRuns = runsQuery.data?.results ?? [];
 
   const jobRunSummary =
     jobRunSummaryQuery.data

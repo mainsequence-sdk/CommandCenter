@@ -4,7 +4,11 @@ import type {
   AgentSessionApiRecord,
   AgentSessionSerializedRecord,
 } from "../runtime/agent-sessions-api";
-import { getAgentSessionRecordAgentId } from "../runtime/agent-sessions-api";
+import {
+  getAgentSessionRecordAgentId,
+  getAgentSessionRecordSessionId,
+  normalizeAgentSessionLookupId,
+} from "../runtime/agent-sessions-api";
 
 export type AgentSessionDetailStatus = "idle" | "loading" | "ready" | "not_found" | "error";
 
@@ -168,11 +172,14 @@ export function resolveAgentSessionDisplayId(session: AgentSessionContextInput |
     return null;
   }
 
-  if (typeof session.runtimeSessionId === "string" && session.runtimeSessionId.trim()) {
-    return session.runtimeSessionId.trim();
+  const runtimeSessionId = normalizeAgentSessionLookupId(session.runtimeSessionId);
+
+  if (runtimeSessionId) {
+    return runtimeSessionId;
   }
 
-  return /^\d+$/.test(session.id) ? session.id : null;
+  const sessionId = normalizeAgentSessionLookupId(session.id);
+  return sessionId;
 }
 
 export function resolveAgentSessionLookupId(session: AgentSessionContextInput | null) {
@@ -180,15 +187,14 @@ export function resolveAgentSessionLookupId(session: AgentSessionContextInput | 
     return null;
   }
 
-  if (/^\d+$/.test(session.id)) {
-    return session.id;
+  const runtimeSessionId = normalizeAgentSessionLookupId(session.runtimeSessionId);
+
+  if (runtimeSessionId) {
+    return runtimeSessionId;
   }
 
-  if (typeof session.runtimeSessionId === "string" && session.runtimeSessionId.trim()) {
-    return session.runtimeSessionId.trim();
-  }
-
-  return null;
+  const sessionId = normalizeAgentSessionLookupId(session.id);
+  return sessionId;
 }
 
 export function buildAgentSessionDetailContext(
@@ -223,7 +229,7 @@ export function buildAgentSessionDetailContext(
 }
 
 export function normalizeAgentSessionCoreDetail(record: AgentSessionApiRecord): AgentSessionCoreDetail {
-  const sessionId = String(record.agent_session || record.id);
+  const sessionId = getAgentSessionRecordSessionId(record);
   const agentId = getAgentSessionRecordAgentId(record);
 
   return {
@@ -260,8 +266,12 @@ export function normalizeAgentSessionCoreDetail(record: AgentSessionApiRecord): 
     stepType: normalizeOptionalString(record.step_type),
     actorType: normalizeOptionalString(record.actor_type),
     createdByUserId:
-      record.created_by_user !== null && record.created_by_user !== undefined
-        ? String(record.created_by_user)
+      record.created_by_user_uid !== null &&
+      record.created_by_user_uid !== undefined &&
+      `${record.created_by_user_uid}`.trim()
+        ? String(record.created_by_user_uid).trim()
+        : record.created_by_user !== null && record.created_by_user !== undefined
+          ? String(record.created_by_user)
         : null,
     boundHandles: Array.isArray(record.bound_handles)
       ? record.bound_handles.flatMap((handle) => {

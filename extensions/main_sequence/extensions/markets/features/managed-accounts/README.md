@@ -45,6 +45,9 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
   - `GET /api/v1/account/{uid}/target-positions/`
   - latest assignment semantics: `order=desc&limit=1`
   and, when `targetPositionsDate` is set, requests that exact assignment timestamp.
+  The read contract is uid-only: `positions[].asset` exposes `uid`, `unique_identifier`, and
+  `current_snapshot.{name,ticker}`. Do not expect numeric asset ids or `figi` in this GET
+  response.
   The same surface now persists through:
   - `POST /api/v1/account/{uid}/add-target-positions/`
   and stores the assignment datetime at the widget level as `targetPositionsDate`.

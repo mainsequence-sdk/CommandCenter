@@ -281,11 +281,12 @@ export function MainSequenceProjectsPage() {
     projectDetailTabs[0];
 
   const projectsQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "list", projectsPageIndex],
+    queryKey: ["main_sequence", "projects", "list", projectsPageIndex, deferredFilterValue.trim()],
     queryFn: () =>
       listProjects({
         limit: mainSequenceRegistryPageSize,
         offset: projectsPageIndex * mainSequenceRegistryPageSize,
+        search: deferredFilterValue.trim() || undefined,
       }),
     refetchInterval: (query) =>
       hasUninitializedProjects(query.state.data?.results) ? 60_000 : false,
@@ -415,25 +416,7 @@ export function MainSequenceProjectsPage() {
     }
   }, [projectsPageIndex, projectsQuery.data?.count]);
 
-  const filteredProjects = useMemo(() => {
-    const needle = deferredFilterValue.trim().toLowerCase();
-
-    return (projectsQuery.data?.results ?? []).filter((project) => {
-      if (!needle) {
-        return true;
-      }
-
-      return [
-        project.project_name,
-        project.uid,
-        project.git_ssh_url ?? "",
-        projectDataSourceLabel(project),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
-    });
-  }, [deferredFilterValue, projectsQuery.data?.results]);
+  const filteredProjects = projectsQuery.data?.results ?? [];
   const projectSelection = useRegistrySelection(filteredProjects, (project) => project.uid);
   const deleteProjectMutation = useMutation({
     mutationFn: async ({ deleteRepositories, projects }: ProjectDeleteRequest) =>

@@ -13,7 +13,7 @@ export interface ResolveChatSurfaceContextInput {
   routeSurfaceId?: string;
   role?: string;
   searchParams: URLSearchParams;
-  userId?: string;
+  userUid?: string;
 }
 
 export interface ResolvedChatSurfaceContext {
@@ -58,7 +58,7 @@ function buildSurfaceAssistantInput(
     role: input.role,
     searchParams: input.searchParams,
     surfaceId,
-    userId: input.userId,
+    userId: input.userUid,
   };
 }
 

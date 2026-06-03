@@ -8,6 +8,8 @@ import type {
 import {
   getAgentSessionRecordAgentId,
   getAgentSessionRecordAgentName,
+  getAgentSessionRecordSessionId,
+  normalizeAgentSessionLookupId,
 } from "../runtime/agent-sessions-api";
 import type { CommandCenterBaseSessionHandle } from "../runtime/command-center-base-session-api";
 
@@ -62,7 +64,7 @@ function buildStorageKey(userId: string | null) {
 }
 
 function inferRuntimeSessionId(id: string) {
-  return /^\d+$/.test(id) ? id : null;
+  return normalizeAgentSessionLookupId(id);
 }
 
 function cloneJson<T>(value: T): T {
@@ -134,13 +136,24 @@ export function toAgentSessionRecordFromApi(
   record: AgentSessionApiRecord,
   existing?: AgentSessionRecord,
 ): AgentSessionRecord {
-  const sessionId = String(record.agent_session || record.id);
+  const sessionId = getAgentSessionRecordSessionId(record);
+  if (!sessionId) {
+    throw new Error(
+      "AgentSession response did not include uid, agent_session_uid, session_uid, or runtime_session_uid.",
+    );
+  }
   const updatedAt = record.ended_at || record.started_at || new Date().toISOString();
   const title = record.title?.trim() || record.summary?.trim() || `Agent session ${sessionId}`;
   const preview = record.summary?.trim() || null;
   const requestAgentType = record.agent_type?.trim() || "";
   const recordAgentId = getAgentSessionRecordAgentId(record);
   const recordAgentName = getAgentSessionRecordAgentName(record);
+  const hasCanonicalSessionUid = Boolean(
+    normalizeAgentSessionLookupId(record.uid) ||
+      normalizeAgentSessionLookupId(record.agent_session_uid) ||
+      normalizeAgentSessionLookupId(record.session_uid) ||
+      normalizeAgentSessionLookupId(record.runtime_session_uid),
+  );
   const handleUniqueId =
     (Array.isArray(record.bound_handles) ? record.bound_handles[0]?.handle_unique_id : null) ??
     existing?.handleUniqueId ??
@@ -160,7 +173,10 @@ export function toAgentSessionRecordFromApi(
     id: sessionId,
     title,
     preview,
-    runtimeSessionId: existing?.runtimeSessionId ?? sessionId,
+    runtimeSessionId:
+      hasCanonicalSessionUid
+        ? sessionId
+        : normalizeAgentSessionLookupId(existing?.runtimeSessionId) ?? sessionId,
     sessionKey: existing?.sessionKey ?? null,
     handleUniqueId,
     threadId: existing?.threadId ?? null,
@@ -425,22 +441,24 @@ export function readAgentSessions(userId: string | null) {
 
       const candidate = entry as Partial<AgentSessionRecord>;
 
-      if (typeof candidate.id !== "string") {
+      const storedSessionId = normalizeAgentSessionLookupId(candidate.id);
+
+      if (!storedSessionId) {
         return [];
       }
 
       return [
         {
-          id: candidate.id,
+          id: storedSessionId,
           title:
             typeof candidate.title === "string" && candidate.title.trim()
               ? candidate.title
               : "New agent session",
           preview: typeof candidate.preview === "string" ? candidate.preview : null,
           runtimeSessionId:
-            typeof candidate.runtimeSessionId === "string" && candidate.runtimeSessionId
-              ? candidate.runtimeSessionId
-              : inferRuntimeSessionId(candidate.id),
+            normalizeAgentSessionLookupId(candidate.runtimeSessionId)
+              ? normalizeAgentSessionLookupId(candidate.runtimeSessionId)
+              : inferRuntimeSessionId(storedSessionId),
           sessionKey:
             typeof candidate.sessionKey === "string" && candidate.sessionKey
               ? candidate.sessionKey

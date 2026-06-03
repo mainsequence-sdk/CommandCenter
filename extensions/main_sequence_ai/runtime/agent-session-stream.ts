@@ -159,12 +159,9 @@ export async function streamAgentSessionResponse({
     );
   }
   const currentSessionId =
-    typeof body.sessionId === "string" || typeof body.sessionId === "number"
-      ? body.sessionId
-      : typeof body.runtime_session_id === "string" ||
-          typeof body.runtime_session_id === "number"
-        ? body.runtime_session_id
-        : null;
+    typeof body.runtime_session_uid === "string" || typeof body.runtime_session_uid === "number"
+      ? body.runtime_session_uid
+      : null;
 
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "text/event-stream",

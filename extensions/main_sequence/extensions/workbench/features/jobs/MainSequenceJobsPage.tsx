@@ -98,11 +98,12 @@ export function MainSequenceJobsPage() {
   const isJobDetailOpen = selectedJobUid.length > 0;
 
   const jobsQuery = useQuery({
-    queryKey: ["main_sequence", "jobs", "list", jobsPageIndex],
+    queryKey: ["main_sequence", "jobs", "list", jobsPageIndex, deferredFilterValue.trim()],
     queryFn: () =>
       listJobs({
         limit: mainSequenceRegistryPageSize,
         offset: jobsPageIndex * mainSequenceRegistryPageSize,
+        search: deferredFilterValue.trim() || undefined,
       }),
   });
 
@@ -132,31 +133,7 @@ export function MainSequenceJobsPage() {
     }
   }, [jobsPageIndex, jobsQuery.data?.count]);
 
-  const filteredJobs = useMemo(() => {
-    const needle = deferredFilterValue.trim().toLowerCase();
-
-    return (jobsQuery.data?.results ?? []).filter((job) => {
-      if (!needle) {
-        return true;
-      }
-
-      return [
-        job.name,
-        job.uid,
-        String(job.project),
-        job.execution_path ?? "",
-        job.app_name ?? "",
-        job.cpu_request ?? "",
-        job.memory_request ?? "",
-        job.gpu_request ?? "",
-        job.gpu_type ?? "",
-        formatSchedule(job),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
-    });
-  }, [deferredFilterValue, jobsQuery.data?.results]);
+  const filteredJobs = jobsQuery.data?.results ?? [];
 
   const jobSelection = useRegistrySelection(filteredJobs, (job) => job.uid);
   const jobBulkActions =

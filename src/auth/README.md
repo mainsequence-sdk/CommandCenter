@@ -32,3 +32,6 @@ Shared authentication client code for Command Center.
 - Self-service account deletion uses `DELETE /user/api/user/delete-account/`. Only a `200` with
   `code=account_deleted` should clear local auth state; `409` blockers must keep the user signed in
   and surface the backend reason/CTA.
+- JWT session bootstrap no longer requires `get_user_details()` to expose a backend numeric `id`.
+  The shell-access lookup is keyed by `uid`, and `session.user.id` now falls back to the token
+  claim mapping or `uid` when `user_details.response_mapping.user_id` is omitted.

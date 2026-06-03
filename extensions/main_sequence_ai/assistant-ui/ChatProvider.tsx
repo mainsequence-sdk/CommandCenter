@@ -88,6 +88,8 @@ import {
 import {
   deleteAgentSessionRequest,
   fetchLatestAgentSessions,
+  getAgentSessionRecordSessionId,
+  normalizeAgentSessionLookupId,
   patchAgentSessionModelConfig,
   startNewAgentSessionRequest,
   type AgentSessionApiRecord,
@@ -220,12 +222,13 @@ function extractNewSessionChunk(data: Record<string, unknown>): StreamCreatedAge
   }
 
   const candidate = payload as Record<string, unknown>;
-  const rawAgentSessionId = candidate.agent_session_id;
+  const normalizedAgentSessionId =
+    normalizeAgentSessionLookupId(candidate.runtime_session_uid) ??
+    normalizeAgentSessionLookupId(candidate.agent_session_uid) ??
+    normalizeAgentSessionLookupId(candidate.session_uid) ??
+    normalizeAgentSessionLookupId(candidate.uid);
 
-  if (
-    typeof rawAgentSessionId !== "string" &&
-    !(typeof rawAgentSessionId === "number" && Number.isFinite(rawAgentSessionId))
-  ) {
+  if (!normalizedAgentSessionId) {
     return null;
   }
 
@@ -239,7 +242,7 @@ function extractNewSessionChunk(data: Record<string, unknown>): StreamCreatedAge
 
   return {
     agentId: parsedAgentId !== null && Number.isFinite(parsedAgentId) ? parsedAgentId : null,
-    agentSessionId: String(rawAgentSessionId),
+    agentSessionId: normalizedAgentSessionId,
     agentUniqueId:
       typeof candidate.agent_unique_id === "string" && candidate.agent_unique_id.trim()
         ? candidate.agent_unique_id.trim()
@@ -592,6 +595,7 @@ export function ChatProvider({
     isEmbeddedProjectAgent ||
     (location.pathname === CHAT_PAGE_PATH && !requestedChatSessionId);
   const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
+  const sessionUserUid = useAuthStore((state) => state.session?.user.uid ?? null);
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
   const globalRailOpen = useChatUiStore((state) => state.railOpen);
@@ -902,7 +906,8 @@ export function ChatProvider({
     () => resolveAgentSessionLabel(selectedSession),
     [selectedSession],
   );
-  const availableModelsSessionId = activeSession?.id ?? null;
+  const availableModelsSessionKey = activeSession?.id ?? null;
+  const availableModelsSessionId = resolveAgentSessionLookupId(activeSession);
   const shouldDeferSessionBoundModelLoading =
     shouldAvoidImplicitSessionSelection && !availableModelsSessionId;
   const availableModelsAgentType = useMemo(
@@ -1156,7 +1161,7 @@ export function ChatProvider({
   }, [
     cancelCommandCenterBootstrapRequest,
     requestedChatSessionId,
-    sessionUserId,
+    sessionUserUid,
     shouldAvoidImplicitSessionSelection,
   ]);
 
@@ -1273,7 +1278,7 @@ export function ChatProvider({
           onResolvedAccess: (resolvedAccess) => {
             updateSessionRuntimeAccessMeta({
               imageDrift: resolvedAccess.imageDrift,
-              sessionId: availableModelsSessionId,
+              sessionId: availableModelsSessionKey,
             });
           },
           sessionId: availableModelsSessionId,
@@ -1316,6 +1321,7 @@ export function ChatProvider({
     availableModelsCacheKey,
     hasAvailableModelsSessionId,
     availableModelsSessionId,
+    availableModelsSessionKey,
     sessionToken,
     sessionTokenType,
     shouldDeferSessionBoundModelLoading,
@@ -1327,12 +1333,14 @@ export function ChatProvider({
 
   useEffect(() => {
     sessionRuntimeAccessMetaRequestRef.current?.abort();
+    const activeSessionLookupId = resolveAgentSessionLookupId(activeSession);
 
     if (
       env.useMockData ||
       !shouldHydrateChatRuntime ||
       !sessionToken ||
-      !activeSession?.id
+      !activeSession?.id ||
+      !activeSessionLookupId
     ) {
       return;
     }
@@ -1347,7 +1355,7 @@ export function ChatProvider({
     void (async () => {
       try {
         const handle = await fetchAgentSessionRuntimeAccess({
-          sessionId: activeSession.id,
+          sessionId: activeSessionLookupId,
           signal: controller.signal,
           token: sessionToken,
           tokenType: sessionTokenType,
@@ -1377,6 +1385,7 @@ export function ChatProvider({
     };
   }, [
     activeSession?.id,
+    activeSession?.runtimeSessionId,
     sessionRuntimeAccessMetaBySessionId,
     sessionToken,
     sessionTokenType,
@@ -1405,7 +1414,7 @@ export function ChatProvider({
 
         const remoteRecords = await fetchLatestAgentSessions({
           agentId: latestSessionsAgentFilterId,
-          createdByUser: sessionUserId,
+          createdByUserUid: sessionUserUid,
           signal: controller.signal,
           token: sessionToken,
           tokenType: sessionTokenType,
@@ -1416,9 +1425,23 @@ export function ChatProvider({
         }
 
         setAgentSessions((currentSessions) => {
-          const currentById = new Map(currentSessions.map((session) => [session.id, session]));
+          const currentById = new Map<string, AgentSessionRecord>();
+
+          currentSessions.forEach((session) => {
+            currentById.set(session.id, session);
+
+            const lookupSessionId = resolveAgentSessionLookupId(session);
+
+            if (lookupSessionId) {
+              currentById.set(lookupSessionId, session);
+            }
+          });
+
           const remoteSessions = remoteRecords.map((record) =>
-            toAgentSessionRecordFromApi(record, currentById.get(String(record.agent_session || record.id))),
+            toAgentSessionRecordFromApi(
+              record,
+              currentById.get(getAgentSessionRecordSessionId(record)),
+            ),
           );
           const currentSession = currentSessions.find(
             (session) => session.id === currentSessionIdRef.current,
@@ -1488,7 +1511,7 @@ export function ChatProvider({
     latestSessionsRefreshNonce,
     sessionToken,
     sessionTokenType,
-    sessionUserId,
+    sessionUserUid,
     shouldHydrateChatRuntime,
     shouldSuppressDirectLaunchRuntimePrefetch,
     shouldAvoidImplicitSessionSelection,
@@ -1582,7 +1605,7 @@ export function ChatProvider({
     latestSessionsError,
     sessionToken,
     sessionTokenType,
-    sessionUserId,
+    sessionUserUid,
     shouldHydrateChatRuntime,
     shouldSuppressDirectLaunchRuntimePrefetch,
   ]);
@@ -2382,7 +2405,7 @@ export function ChatProvider({
     try {
       const { record, sessionId } = await startNewAgentSessionRequest({
         agentId: launchAgentId,
-        createdByUser: sessionUserId ?? "",
+        createdByUserUid: sessionUserUid ?? "",
         token: sessionToken,
         tokenType: sessionTokenType,
       });
@@ -2510,7 +2533,7 @@ export function ChatProvider({
       try {
         const { record, sessionId } = await startNewAgentSessionRequest({
           agentId: agent.id,
-          createdByUser: sessionUserId ?? "",
+          createdByUserUid: sessionUserUid ?? "",
           token: sessionToken,
           tokenType: sessionTokenType,
         });
@@ -2545,7 +2568,7 @@ export function ChatProvider({
       persistSessionMessages,
       sessionToken,
       sessionTokenType,
-      sessionUserId,
+      sessionUserUid,
       toast,
     ],
   );
@@ -2583,7 +2606,7 @@ export function ChatProvider({
       try {
         const { record, sessionId } = await startNewAgentSessionRequest({
           agentId: normalizedAgentId,
-          createdByUser: sessionUserId ?? "",
+          createdByUserUid: sessionUserUid ?? "",
           token: sessionToken,
           tokenType: sessionTokenType,
         });
@@ -2627,7 +2650,7 @@ export function ChatProvider({
       scheduleOpenPreferredRail,
       sessionToken,
       sessionTokenType,
-      sessionUserId,
+      sessionUserUid,
       toast,
     ],
   );
@@ -2665,7 +2688,7 @@ export function ChatProvider({
       try {
         const latestAgentSessions = await fetchLatestAgentSessions({
           agentId: normalizedAgentId,
-          createdByUser: sessionUserId ?? "",
+          createdByUserUid: sessionUserUid ?? "",
           token: sessionToken,
           tokenType: sessionTokenType,
         });
@@ -2678,10 +2701,10 @@ export function ChatProvider({
               label,
             }),
           );
+          const latestSessionId = getAgentSessionRecordSessionId(latestSessionRecord);
           const existingSession =
             agentSessions.find(
-              (session) =>
-                session.id === String(latestSessionRecord.agent_session || latestSessionRecord.id),
+              (session) => session.id === latestSessionId,
             ) ?? fallbackSession;
           const nextSession = attachSerializedSessionToSession(
             existingSession,
@@ -2703,7 +2726,7 @@ export function ChatProvider({
 
         const { record, sessionId } = await startNewAgentSessionRequest({
           agentId: normalizedAgentId,
-          createdByUser: sessionUserId ?? "",
+          createdByUserUid: sessionUserUid ?? "",
           token: sessionToken,
           tokenType: sessionTokenType,
         });
@@ -2748,7 +2771,7 @@ export function ChatProvider({
       scheduleOpenPreferredRail,
       sessionToken,
       sessionTokenType,
-      sessionUserId,
+      sessionUserUid,
       toast,
     ],
   );
@@ -2853,7 +2876,7 @@ export function ChatProvider({
       void (async () => {
         try {
           const snapshot = await fetchSessionHistory({
-            sessionId,
+            sessionId: lookupSessionId,
             signal: controller.signal,
             token: sessionToken,
             tokenType: sessionTokenType,
@@ -3101,7 +3124,7 @@ export function ChatProvider({
       }
       updateSessionRuntimeAccessMeta({
         imageDrift: resolvedAccess.imageDrift,
-        sessionId: currentSessionId,
+        sessionId: activeSession?.id ?? currentSessionId,
       });
       return response;
     },
@@ -3170,10 +3193,10 @@ export function ChatProvider({
               }
             : undefined,
           session: !isNewChatRequest ? serializedSession : null,
-          sessionId: !isNewChatRequest ? selectedSessionId : null,
+          runtimeSessionUid: !isNewChatRequest ? selectedSessionId : null,
           threadId:
             !isNewChatRequest ? activeSession?.threadId ?? currentSessionIdRef.current : null,
-          userId: sessionUserId,
+          userUid: sessionUserUid,
           workflowKey: activeRequestAgentType,
         }),
       };
@@ -3394,9 +3417,9 @@ export function ChatProvider({
           resolveAgentSessionRequestAgentType(activeSession),
         ),
         body: {
-          runtimeSessionId,
+          runtimeSessionUid: runtimeSessionId,
           threadId,
-          userId: sessionUserId,
+          userUid: sessionUserUid,
           reason: "user_requested",
           message: "User pressed stop.",
         },
@@ -3436,7 +3459,7 @@ export function ChatProvider({
     clearActiveChatStream,
     sessionToken,
     sessionTokenType,
-    sessionUserId,
+    sessionUserUid,
     setAgentSessionWorkingState,
     toast,
   ]);

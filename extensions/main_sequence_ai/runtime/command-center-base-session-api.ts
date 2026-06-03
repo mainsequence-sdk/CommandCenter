@@ -1,6 +1,7 @@
 import { env } from "@/config/env";
 import type { AgentImageDriftRecord } from "../agent-search";
 import { normalizeAgentImageDriftRecord } from "../image-drift";
+import { requireAgentSessionLookupId, normalizeAgentSessionLookupId } from "./agent-sessions-api";
 
 const rawEnv = import.meta.env as Record<string, string | undefined>;
 
@@ -129,29 +130,28 @@ function normalizeCommandCenterBaseSessionHandle(
       ? asRecord(candidate.bound_handles[0])
       : null;
   const sessionId =
-    normalizeIdentifier(candidate.sessionId) ??
-    normalizeIdentifier(candidate.session_id) ??
-    normalizeIdentifier(candidate.runtime_session_id) ??
-    normalizeIdentifier(candidate.runtimeSessionId) ??
-    normalizeIdentifier(candidate.agent_session_id) ??
-    normalizeIdentifier(candidate.agentSessionId) ??
-    normalizeIdentifier(candidate.agent_session) ??
-    normalizeIdentifier(candidate.id) ??
-    normalizeIdentifier(options.fallbackSessionId);
+    normalizeAgentSessionLookupId(candidate.uid) ??
+    normalizeAgentSessionLookupId(candidate.agent_session_uid) ??
+    normalizeAgentSessionLookupId(candidate.session_uid) ??
+    normalizeAgentSessionLookupId(candidate.sessionUid) ??
+    normalizeAgentSessionLookupId(candidate.runtime_session_uid) ??
+    normalizeAgentSessionLookupId(candidate.runtimeSessionUid) ??
+    normalizeAgentSessionLookupId(options.fallbackSessionId);
 
   if (!sessionId) {
     throw new Error(
-      `${options.sourceLabel ?? "Runtime access"} response did not include a valid session id.`,
+      `${options.sourceLabel ?? "Runtime access"} response did not include a valid session uid.`,
     );
   }
 
   return {
     sessionId,
     runtimeSessionId:
-      normalizeIdentifier(candidate.runtime_session_id) ??
-      normalizeIdentifier(candidate.runtimeSessionId) ??
-      normalizeIdentifier(candidate.sessionId) ??
-      normalizeIdentifier(candidate.session_id) ??
+      normalizeAgentSessionLookupId(candidate.runtime_session_uid) ??
+      normalizeAgentSessionLookupId(candidate.runtimeSessionUid) ??
+      normalizeAgentSessionLookupId(candidate.agent_session_uid) ??
+      normalizeAgentSessionLookupId(candidate.session_uid) ??
+      normalizeAgentSessionLookupId(candidate.sessionUid) ??
       sessionId,
     threadId: normalizeString(candidate.thread_id) ?? normalizeString(candidate.threadId),
     sessionKey: normalizeString(candidate.session_key) ?? normalizeString(candidate.sessionKey),
@@ -235,8 +235,12 @@ function normalizeCommandCenterBaseSessionHandle(
 }
 
 function buildAgentSessionRuntimeAccessUrl(sessionId: string | number) {
+  const normalizedSessionId = requireAgentSessionLookupId(
+    sessionId,
+    "AgentSession runtime access",
+  );
   return new URL(
-    `/orm/api/agents/v1/sessions/${sessionId}/resolve_runtime_access/`,
+    `/orm/api/agents/v1/sessions/${encodeURIComponent(normalizedSessionId)}/resolve_runtime_access/`,
     env.apiBaseUrl,
   ).toString();
 }

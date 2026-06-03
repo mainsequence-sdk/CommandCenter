@@ -448,7 +448,7 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
       user_details: {
         url: "/user/api/user/get_user_details/",
         response_mapping: {
-          user_id: "id",
+          user_id: "",
           name: "name",
           email: "email",
           team: "team",

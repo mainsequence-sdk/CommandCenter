@@ -19,7 +19,7 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   for the Agents settings diagnostics panel.
 - `command-center-base-session-api.ts`
   Shared transport for both per-session runtime access at
-  `POST /orm/api/agents/v1/sessions/{agent_session_id}/resolve_runtime_access/` and the Astro
+  `POST /orm/api/agents/v1/sessions/{session_uid}/resolve_runtime_access/` and the Astro
   operational handle bootstrap at
   `POST /orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`.
 - `agent-session-request.ts`
@@ -33,7 +33,7 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - `agent-sessions-api.ts`
   Shared backend AgentSession list/detail/delete transport used by assistant-ui, workspace
   launchers, and widget settings. Detail reads use
-  `GET /orm/api/agents/v1/sessions/{agent_session_id}/` and expose a typed `404` not-found
+  `GET /orm/api/agents/v1/sessions/{session_uid}/` and expose a typed `404` not-found
   error so callers can invalidate stale session-bound UI before touching the assistant runtime. It
   also owns managed session creation through
   `POST /orm/api/agents/v1/agents/{agent_id}/start_new_session/` plus the AgentSession
@@ -50,9 +50,9 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   Shared assistant-backend global provider transport used by the Main Sequence AI user settings
   section for provider sign-in/sign-off and generic sign-in attempt polling.
 - `session-history-api.ts`
-  Shared backend session-history fetch helper for an existing AgentSession id.
+  Shared backend session-history fetch helper for an existing AgentSession uid.
 - `session-insights-api.ts`
-  Shared ORM session insights fetch helper for an existing AgentSession id.
+  Shared ORM session insights fetch helper for an existing AgentSession uid.
 - `session-config-api.ts`
   Shared session-config patch helper for the writable subset of per-session config exposed through
   the session-insights contract.
@@ -83,7 +83,7 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   dynamic runtime service.
 - Requests that target a specific existing AgentSession should pass the session id through
   `currentSessionId`. Dynamic runtime resolution will then call
-  `POST /orm/api/agents/v1/sessions/{agent_session_id}/resolve_runtime_access/` before hitting
+  `POST /orm/api/agents/v1/sessions/{session_uid}/resolve_runtime_access/` before hitting
   runtime endpoints such as history, tools, or chat. Agent-runtime resolution no longer falls back
   to the Astro Command Center base-session endpoint when no concrete `AgentSession` id is selected;
   callers must provide a real backend session id.
@@ -100,7 +100,7 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   normalizer must fall back to the requested session id instead of treating that response as an
   invalid base-session payload.
 - `session-history-api.ts` reads
-  `GET /orm/api/agents/v1/sessions/{agent_session_id}/history/` directly and treats a `404`
+  `GET /orm/api/agents/v1/sessions/{session_uid}/history/` directly and treats a `404`
   history read as a valid empty session transcript. Fresh `start_new_session` records should not
   block chat readiness just because no runtime messages have been persisted yet.
 - Interaction surfaces should use `agent-session-readiness.ts` semantics: a backend AgentSession
@@ -111,19 +111,21 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   `401` / `403` can reacquire runtime access once and retry consistently.
 - Session catalog transport shared by widgets or workspace surfaces belongs here, not under
   `assistant-ui/`.
+- Shared AgentSession list reads filter by `created_by_user_uid` when a signed-in user-scoped
+  session catalog is requested from chat, pickers, or widget surfaces.
 - Managed Agent Terminal session creation also belongs here. Settings and launchers should not hand
   roll `start_new_session` fetches or parse response payloads themselves.
-- `start_new_session` currently sends a minimal JSON body with `created_by_user` plus a generated
+- `start_new_session` sends a minimal JSON body with `created_by_user_uid` plus a generated
   `thread_id`, because the backend contract requires both fields even for a fresh session.
 - If the backend assistant request shape changes, update `agent-session-request.ts` first so the
   page chat and terminal widget stay aligned.
 - Chat picker provider/model changes are persisted through
-  `PATCH /orm/api/agents/v1/sessions/{agent_session_id}/` with `llm_provider`, `llm_model`, and
+  `PATCH /orm/api/agents/v1/sessions/{session_uid}/` with `llm_provider`, `llm_model`, and
   `llm_thinking` as the third-picker string value. Provider-only picker changes stay local until a
   concrete model or thinking selection is persisted. This is ORM session metadata, not an
   assistant-runtime request.
 - `agent-session-request.ts` now injects the canonical
-  `GET /orm/api/agents/v1/sessions/{agent_session_id}/` serializer payload as top-level `session`
+  `GET /orm/api/agents/v1/sessions/{session_uid}/` serializer payload as top-level `session`
   on live `/api/chat` requests for existing sessions.
 - Session-bound live requests no longer rely on a parallel top-level `model` object. Provider and
   model live on the injected session serializer, while optional per-run overrides such as
@@ -158,7 +160,7 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   `working=true` as a backend-owned busy state and avoid sending another chat request for that
   session; stop actions should use `session-cancel-api.ts`.
 - `session-insights-api.ts` reads
-  `GET /orm/api/agents/v1/sessions/{agent_session_id}/insights/` and does not call the assistant
+  `GET /orm/api/agents/v1/sessions/{session_uid}/insights/` and does not call the assistant
   runtime URL. It remains the canonical read contract for session config values and editable
   constraints. The transport treats a `200` payload with `has_insights=false` and `insights={}` as
   a valid empty snapshot, and it also downgrades a legacy `404` response into that same empty

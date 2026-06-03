@@ -34,7 +34,7 @@ export function AgentTerminalWorkspaceLauncher({
     setSelectedWorkspaceEditing,
     updateSelectedWorkspace,
   } = useCustomWorkspaceStudio();
-  const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
+  const sessionUserUid = useAuthStore((state) => state.session?.user.uid ?? null);
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
   const [open, setOpen] = useState(false);
@@ -52,7 +52,7 @@ export function AgentTerminalWorkspaceLauncher({
     try {
       const { sessionId } = await startNewAgentSessionRequest({
         agentId: agent.id,
-        createdByUser: sessionUserId ?? "",
+        createdByUserUid: sessionUserUid ?? "",
         token: sessionToken,
         tokenType: sessionTokenType,
       });

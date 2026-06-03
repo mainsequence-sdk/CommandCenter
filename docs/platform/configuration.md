@@ -104,7 +104,6 @@ auth:
     user_details:
       url: /user/api/user/get_user_details/
       response_mapping:
-        user_id: id
         name: name
         email: email
         team: team
@@ -174,6 +173,7 @@ notifications:
 - `auth.jwt.claim_mapping.*`: token-claim or response-field paths used to build the frontend session and RBAC permissions
 - `auth.jwt.user_details.url`: authenticated endpoint fetched immediately after successful login and refresh
 - `auth.jwt.user_details.response_mapping.*`: field paths used to map the user-details payload into the frontend session user
+- `auth.jwt.user_details.response_mapping.user_id` is optional. The frontend prefers `claim_mapping.user_id` and otherwise falls back to `uid`, so `/user/api/user/get_user_details/` does not need to expose a backend numeric `id`.
 - `auth.jwt.claim_mapping.platform_permissions` and `auth.jwt.user_details.response_mapping.platform_permissions`: field paths used to resolve platform-only permissions such as `platform_admin:access`
 - `auth.jwt.claim_mapping.is_platform_admin` and `auth.jwt.user_details.response_mapping.is_platform_admin`: optional boolean field paths used to mark a session as platform-admin
 - `access_rbac.users.list_url`: authenticated endpoint used by the Access & RBAC app user inspector to search the user directory

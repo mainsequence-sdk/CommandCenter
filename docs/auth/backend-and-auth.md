@@ -113,7 +113,6 @@ auth:
     user_details:
       url: /user/api/user/get_user_details/
       response_mapping:
-        user_id: id
         name: name
         email: email
         team: team
@@ -128,6 +127,8 @@ Important behavior:
 
 - `token_url` and `refresh_url` accept relative or absolute URLs
 - `user_details.url` is fetched with the bearer access token immediately after login and refresh
+- the frontend no longer requires `user_details` to return a backend numeric `id`; session identity
+  prefers `claim_mapping.user_id` and falls back to `uid`
 - `/api/v1/command_center/users/<user_uid>/shell-access/` is then fetched and its
   `effective_permissions` become the shell source of truth
 - stored JWT sessions are rehydrated against shell-access on app boot

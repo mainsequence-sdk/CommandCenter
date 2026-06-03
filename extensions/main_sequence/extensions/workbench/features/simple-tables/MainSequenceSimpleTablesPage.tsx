@@ -173,7 +173,11 @@ function formatMetaTableListValue(values: string[]) {
 }
 
 function getNamespaceOptionLabel(namespace: MainSequenceNamespaceOptionRecord) {
-  return `${namespace.display_name} (${namespace.table_count})`;
+  return namespace.display_name;
+}
+
+function getNamespaceOptionDescription(namespace: MainSequenceNamespaceOptionRecord) {
+  return `Meta tables: ${namespace.table_count}`;
 }
 
 function getNamespaceOptionValue(namespace: MainSequenceNamespaceOptionRecord) {
@@ -392,12 +396,14 @@ export function MainSequenceMetaTablesPage() {
       "list",
       metaTablesPageIndex,
       effectiveSelectedNamespace,
+      deferredFilterValue,
     ],
     queryFn: () =>
       listMetaTables({
         limit: mainSequenceRegistryPageSize,
         offset: metaTablesPageIndex * mainSequenceRegistryPageSize,
         namespace: effectiveSelectedNamespace ?? undefined,
+        search: deferredFilterValue || undefined,
       }),
     enabled: isMetaTableNamespaceBootstrapReady && !metaTableNamespacesQuery.isError,
   });
@@ -434,11 +440,18 @@ export function MainSequenceMetaTablesPage() {
       1,
       Math.ceil((metaTablesQuery.data?.count ?? 0) / mainSequenceRegistryPageSize),
     );
+    const hasBackendPageBoundary =
+      Boolean(metaTablesQuery.data?.next) || Boolean(metaTablesQuery.data?.previous);
 
-    if (metaTablesPageIndex > totalPages - 1) {
+    if (!hasBackendPageBoundary && metaTablesPageIndex > totalPages - 1) {
       setMetaTablesPageIndex(totalPages - 1);
     }
-  }, [metaTablesPageIndex, metaTablesQuery.data?.count]);
+  }, [
+    metaTablesPageIndex,
+    metaTablesQuery.data?.count,
+    metaTablesQuery.data?.next,
+    metaTablesQuery.data?.previous,
+  ]);
 
   const metaTableSummaryQuery = useQuery({
     queryKey: ["main_sequence", "meta_tables", "summary", selectedMetaTableIdentifier],
@@ -451,17 +464,7 @@ export function MainSequenceMetaTablesPage() {
     enabled: isMetaTableDetailOpen,
   });
 
-  const filteredTables = useMemo(() => {
-    const needle = deferredFilterValue.trim().toLowerCase();
-
-    return (metaTablesQuery.data?.results ?? []).filter((table) => {
-      if (!needle) {
-        return true;
-      }
-
-      return buildSearchText(table).includes(needle);
-    });
-  }, [deferredFilterValue, metaTablesQuery.data?.results]);
+  const filteredTables = metaTablesQuery.data?.results ?? [];
 
   const selectedMetaTableFromList = useMemo(
     () =>
@@ -1303,7 +1306,11 @@ export function MainSequenceMetaTablesPage() {
                         >
                           <option value={allNamespacesOptionValue}>All namespaces</option>
                           {metaTableNamespaceOptions.map((namespace) => (
-                            <option key={namespace.namespace_uid} value={getNamespaceOptionValue(namespace)}>
+                            <option
+                              key={namespace.namespace_uid}
+                              value={getNamespaceOptionValue(namespace)}
+                              data-description={getNamespaceOptionDescription(namespace)}
+                            >
                               {getNamespaceOptionLabel(namespace)}
                             </option>
                           ))}
@@ -1389,6 +1396,7 @@ export function MainSequenceMetaTablesPage() {
                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">Identifier</th>
                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">Data source</th>
                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">Namespace</th>
+                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">Provisioning</th>
                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">Created</th>
                       </tr>
                     </thead>
@@ -1456,6 +1464,14 @@ export function MainSequenceMetaTablesPage() {
                                 Frequency: {table.data_frequency_id ?? "Not set"}
                               </div>
                             </td>
+                            <td className={getRegistryTableCellClassName(selected)}>
+                              <div className="text-foreground">
+                                {typeof table.provisioning_status === "string" &&
+                                table.provisioning_status.trim()
+                                  ? table.provisioning_status.trim()
+                                  : "Not set"}
+                              </div>
+                            </td>
                             <td className={getRegistryTableCellClassName(selected, "right")}>
                               <div className="text-foreground">{formatCreationDate(table.creation_date)}</div>
                             </td>
@@ -1474,9 +1490,11 @@ export function MainSequenceMetaTablesPage() {
           (metaTablesQuery.data?.count ?? 0) > 0 ? (
             <MainSequenceRegistryPagination
               count={metaTablesQuery.data?.count ?? 0}
+              hasNextPage={Boolean(metaTablesQuery.data?.next)}
+              hasPreviousPage={Boolean(metaTablesQuery.data?.previous)}
               itemLabel="meta tables"
               pageIndex={metaTablesPageIndex}
-              pageSize={mainSequenceRegistryPageSize}
+              pageSize={metaTablesQuery.data?.limit ?? mainSequenceRegistryPageSize}
               onPageChange={setMetaTablesPageIndex}
             />
           ) : null}

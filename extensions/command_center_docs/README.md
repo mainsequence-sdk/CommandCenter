@@ -25,20 +25,20 @@ This extension is part of the signed-in Command Center experience.
 - Keep architecture, implementation contracts, ADRs, deployment notes, and maintainer guides in
   `docs/` or the nearest module `README.md`.
 - Put product-specific user guidance inside the owning product extension when it is not generally
-  applicable to Command Center. For example, Main Sequence Foundry or Markets usage notes should
-  live under `extensions/main_sequence/`.
+  applicable to Command Center. For example, Main Sequence Foundry usage notes should live under
+  `extensions/main_sequence/`.
 
 ## Ownership Model
 
 The navigation model for this extension is application-first.
 
 - The left documentation rail is limited to the approved top-level sections:
-  `Getting Started`, `Workspaces`, `Foundry`, `Markets`, `Main Sequence AI`, and
+  `Getting Started`, `Workspaces`, `Foundry`, `Main Sequence AI`, and
   `Organization Admin`.
 - Each top-level section opens its own ordered submenu.
 - Nested pages should be ordered inside the owning application section.
-- Foundry, Markets, and Main Sequence AI child pages should stay aligned with the real application
-  surface inventory whenever possible.
+- Foundry and Main Sequence AI child pages should stay aligned with the real application surface
+  inventory whenever possible.
 - Avoid introducing generic documentation-only categories when the content really belongs to one
   application or extension.
 - The in-page docs layout should render only one internal navigation rail at a time. Multi-page

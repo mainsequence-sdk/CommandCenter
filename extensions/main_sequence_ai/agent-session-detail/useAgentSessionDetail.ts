@@ -10,6 +10,7 @@ import { fetchSessionInsights } from "../runtime/session-insights-api";
 import {
   buildAgentSessionDetailSnapshot,
   normalizeAgentSessionCoreDetail,
+  resolveAgentSessionLookupId,
   type AgentSessionContextInput,
   type AgentSessionCoreDetail,
   type AgentSessionDetailSnapshot,
@@ -92,6 +93,7 @@ export function useAgentSessionDetail({
   const detailRequestRef = useRef<AbortController | null>(null);
   const insightsRequestRef = useRef<AbortController | null>(null);
   const sessionId = session?.id ?? null;
+  const lookupSessionId = resolveAgentSessionLookupId(session);
   const activeDetailStatus =
     sessionId && detailStatusBySessionId[sessionId]
       ? detailStatusBySessionId[sessionId]
@@ -108,7 +110,7 @@ export function useAgentSessionDetail({
   useEffect(() => {
     detailRequestRef.current?.abort();
 
-    if (env.useMockData || !enabled || !sessionId) {
+    if (env.useMockData || !enabled || !sessionId || !lookupSessionId) {
       return;
     }
 
@@ -123,7 +125,7 @@ export function useAgentSessionDetail({
     void (async () => {
       try {
         const record = await fetchAgentSessionDetail({
-          sessionId,
+          sessionId: lookupSessionId,
           signal: controller.signal,
           token,
           tokenType,
@@ -171,12 +173,18 @@ export function useAgentSessionDetail({
     return () => {
       controller.abort();
     };
-  }, [detailRefreshNonce, enabled, sessionId, token, tokenType]);
+  }, [detailRefreshNonce, enabled, lookupSessionId, sessionId, token, tokenType]);
 
   useEffect(() => {
     insightsRequestRef.current?.abort();
 
-    if (env.useMockData || !enabled || !sessionId || activeDetailStatus !== "ready") {
+    if (
+      env.useMockData ||
+      !enabled ||
+      !sessionId ||
+      !lookupSessionId ||
+      activeDetailStatus !== "ready"
+    ) {
       return;
     }
 
@@ -188,7 +196,7 @@ export function useAgentSessionDetail({
     void (async () => {
       try {
         const snapshot = await fetchSessionInsights({
-          sessionId,
+          sessionId: lookupSessionId,
           signal: controller.signal,
           token,
           tokenType,
@@ -229,6 +237,7 @@ export function useAgentSessionDetail({
     activeDetailStatus,
     enabled,
     insightsRefreshNonce,
+    lookupSessionId,
     sessionId,
     token,
     tokenType,

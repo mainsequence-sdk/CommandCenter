@@ -57,6 +57,9 @@ This folder contains the reusable `Position Detail` widget and the shared table 
 - `account` edit mode saves through `POST /api/v1/account/<account_uid>/add-holdings/` with `overwrite: true`, maps blank prices to `missing_price: true`, injects `target_trade_time` from `holdingsDate`, always writes `position_type: "units"`, and always sends `extra_details: {}` because that field is not authored in the widget.
 - `account` read mode hydrates through `GET /api/v1/account/<account_uid>/holdings/` with `include_asset_detail=true`. Without `holdingsDate`, it requests the latest snapshot using `order=desc&limit=1`; when `holdingsDate` is set, it requests that exact timestamp.
 - `target_positions_account` read mode hydrates through `GET /api/v1/account/<account_uid>/target-positions/` with `include_asset_detail=true`. Without `targetPositionsDate`, it requests the latest assignment using `order=desc&limit=1`; when `targetPositionsDate` is set, it requests that exact timestamp.
+- That target-positions GET response is uid-only for nested assets. `positions[].asset` should
+  expose `uid`, `unique_identifier`, and `current_snapshot.{name,ticker}`; the frontend must not
+  require numeric asset ids or `figi` there.
 - `target_positions_account` edit mode saves through `POST /api/v1/account/<account_uid>/add-target-positions/` with the top-level `target_positions_date` and one row-level target position selector field per asset:
   - `weight_notional_exposure`
   - `constant_notional_exposure`

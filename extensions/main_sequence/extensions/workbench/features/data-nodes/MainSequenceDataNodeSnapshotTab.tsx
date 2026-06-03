@@ -7,14 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 import {
-  fetchDataNodeDetail,
   fetchDataNodeTailObservations,
   formatMainSequenceError,
-  type DataNodeDetail,
 } from "../../../../common/api";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { DataNodePreviewTable } from "../../widgets/data-node-shared/DataNodePreviewTable";
-import { buildDataNodeFieldOptions } from "../../widgets/data-node-shared/dataNodeShared";
 
 const snapshotRowLimit = 100;
 
@@ -41,16 +38,7 @@ function buildSnapshotSearchText(row: Record<string, unknown>, columns: string[]
     .toLowerCase();
 }
 
-function getSnapshotColumns(
-  detail?: DataNodeDetail | null,
-  snapshotRows?: ReadonlyArray<Record<string, unknown>>,
-) {
-  const metadataColumns = buildDataNodeFieldOptions(detail).map((field) => field.key);
-
-  if (metadataColumns.length > 0) {
-    return metadataColumns;
-  }
-
+function getSnapshotColumns(snapshotRows?: ReadonlyArray<Record<string, unknown>>) {
   const firstRow = snapshotRows?.[0];
 
   if (firstRow && typeof firstRow === "object") {
@@ -67,12 +55,6 @@ export function MainSequenceDataNodeSnapshotTab({
 }) {
   const [filterValue, setFilterValue] = useState("");
   const deferredFilterValue = useDeferredValue(filterValue);
-  const detailQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "detail", dataNodeUid],
-    queryFn: () => fetchDataNodeDetail(dataNodeUid),
-    enabled: Boolean(String(dataNodeUid).trim()),
-    staleTime: 300_000,
-  });
   const snapshotQuery = useQuery({
     queryKey: [
       "main_sequence",
@@ -86,15 +68,10 @@ export function MainSequenceDataNodeSnapshotTab({
         n: snapshotRowLimit,
         order: "desc",
       }),
-    enabled:
-      Boolean(String(dataNodeUid).trim()) &&
-      detailQuery.data?.sourcetableconfiguration != null,
+    enabled: Boolean(String(dataNodeUid).trim()),
     staleTime: 60_000,
   });
-  const snapshotColumns = useMemo(
-    () => getSnapshotColumns(detailQuery.data, snapshotQuery.data),
-    [detailQuery.data, snapshotQuery.data],
-  );
+  const snapshotColumns = useMemo(() => getSnapshotColumns(snapshotQuery.data), [snapshotQuery.data]);
   const filteredRows = useMemo(() => {
     const rows = snapshotQuery.data ?? [];
     const needle = deferredFilterValue.trim().toLowerCase();
@@ -105,9 +82,7 @@ export function MainSequenceDataNodeSnapshotTab({
 
     return rows.filter((row) => buildSnapshotSearchText(row, snapshotColumns).includes(needle));
   }, [deferredFilterValue, snapshotColumns, snapshotQuery.data]);
-  const isLoading =
-    detailQuery.isLoading ||
-    (snapshotQuery.isLoading && snapshotQuery.fetchStatus !== "idle");
+  const isLoading = snapshotQuery.isLoading && snapshotQuery.fetchStatus !== "idle";
 
   return (
     <Card variant="nested">
@@ -138,41 +113,19 @@ export function MainSequenceDataNodeSnapshotTab({
           </div>
         ) : null}
 
-        {detailQuery.isError ? (
-          <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {formatMainSequenceError(detailQuery.error)}
-          </div>
-        ) : null}
-
-        {!detailQuery.isError && snapshotQuery.isError ? (
+        {snapshotQuery.isError ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
             {formatMainSequenceError(snapshotQuery.error)}
           </div>
         ) : null}
 
-        {!isLoading && !detailQuery.isError && !snapshotQuery.isError ? (
-          detailQuery.data?.sourcetableconfiguration == null ? (
-            <DataNodePreviewTable
-              columns={[]}
-              rows={[]}
-              maxRows={snapshotRowLimit}
-              emptyMessage="No source-table configuration is available for this data node."
-            />
-          ) : snapshotColumns.length === 0 ? (
-            <DataNodePreviewTable
-              columns={[]}
-              rows={[]}
-              maxRows={snapshotRowLimit}
-              emptyMessage="No snapshot columns could be resolved for this data node."
-            />
-          ) : (
-            <DataNodePreviewTable
-              columns={snapshotColumns}
-              rows={filteredRows}
-              maxRows={snapshotRowLimit}
-              emptyMessage="No snapshot rows are available for this data node."
-            />
-          )
+        {!isLoading && !snapshotQuery.isError ? (
+          <DataNodePreviewTable
+            columns={snapshotColumns}
+            rows={filteredRows}
+            maxRows={snapshotRowLimit}
+            emptyMessage="No snapshot rows are available for this data node."
+          />
         ) : null}
       </CardContent>
     </Card>

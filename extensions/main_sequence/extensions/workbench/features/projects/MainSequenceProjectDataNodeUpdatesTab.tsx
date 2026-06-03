@@ -129,11 +129,20 @@ export function MainSequenceProjectDataNodeUpdatesTab({
   const deferredFilterValue = useDeferredValue(filterValue);
 
   const localTimeSeriesQuery = useQuery({
-    queryKey: ["main_sequence", "data_nodes", "local_time_series", "project", projectUid, pageIndex],
+    queryKey: [
+      "main_sequence",
+      "data_nodes",
+      "local_time_series",
+      "project",
+      projectUid,
+      pageIndex,
+      deferredFilterValue.trim(),
+    ],
     queryFn: () =>
       listProjectLocalTimeSeries(projectUid, {
         limit: mainSequenceRegistryPageSize,
         offset: pageIndex * mainSequenceRegistryPageSize,
+        q: deferredFilterValue.trim() || undefined,
       }),
     enabled: Boolean(projectUid),
   });
@@ -153,34 +162,7 @@ export function MainSequenceProjectDataNodeUpdatesTab({
     }
   }, [localTimeSeriesQuery.data?.count, pageIndex]);
 
-  const filteredLocalTimeSeries = useMemo(() => {
-    const needle = deferredFilterValue.trim().toLowerCase();
-
-    return (localTimeSeriesQuery.data?.results ?? []).filter((localTimeSerie) => {
-      if (!needle) {
-        return true;
-      }
-
-      const runConfiguration =
-        localTimeSerie.run_configuration ?? localTimeSerie.update_details?.run_configuration ?? null;
-
-      return [
-        String(localTimeSerie.id),
-        localTimeSerie.uid ?? "",
-        localTimeSerie.update_hash,
-        formatStatus(
-          localTimeSerie.update_details?.active_update_status,
-          localTimeSerie.update_details?.active_update,
-        ),
-        getSchedulerValue(localTimeSerie),
-        formatComputeValue(localTimeSerie),
-        formatScheduleValue(runConfiguration?.update_schedule),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
-    });
-  }, [deferredFilterValue, localTimeSeriesQuery.data?.results]);
+  const filteredLocalTimeSeries = localTimeSeriesQuery.data?.results ?? [];
 
   const selectedLocalTimeSerieFromList = useMemo(
     () =>

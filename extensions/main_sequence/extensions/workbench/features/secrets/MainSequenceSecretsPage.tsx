@@ -49,11 +49,12 @@ export function MainSequenceSecretsPage() {
   const isSecretDetailOpen = selectedSecretUid.length > 0;
 
   const secretsQuery = useQuery({
-    queryKey: ["main_sequence", "secrets", "list", secretsPageIndex],
+    queryKey: ["main_sequence", "secrets", "list", secretsPageIndex, deferredFilterValue.trim()],
     queryFn: () =>
       listSecrets({
         limit: mainSequenceRegistryPageSize,
         offset: secretsPageIndex * mainSequenceRegistryPageSize,
+        search: deferredFilterValue.trim() || undefined,
       }),
   });
 
@@ -78,17 +79,7 @@ export function MainSequenceSecretsPage() {
     }
   }, [secretsPageIndex, secretsQuery.data?.count]);
 
-  const filteredSecrets = useMemo(() => {
-    const needle = deferredFilterValue.trim().toLowerCase();
-
-    return (secretsQuery.data?.results ?? []).filter((secret) => {
-      if (!needle) {
-        return true;
-      }
-
-      return [secret.uid, secret.name].join(" ").toLowerCase().includes(needle);
-    });
-  }, [deferredFilterValue, secretsQuery.data?.results]);
+  const filteredSecrets = secretsQuery.data?.results ?? [];
 
   const selectedSecretFromList = useMemo(
     () => filteredSecrets.find((secret) => secret.uid === selectedSecretUid) ?? null,

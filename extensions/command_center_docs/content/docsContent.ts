@@ -1,6 +1,5 @@
 import type { AppDefinition, AppSurfaceDefinition } from "@/apps/types";
 import { adminApp, workspaceStudioApp } from "@/extensions/core";
-import { mainSequenceMarketsApp } from "../../main_sequence/extensions/markets/app";
 import { mainSequenceWorkbenchApp } from "../../main_sequence/extensions/workbench/app";
 import { mainSequenceAiApp } from "../../main_sequence_ai/app";
 
@@ -10,7 +9,6 @@ import agentsMonitorContent from "./main-sequence-ai/agents-monitor.md?raw";
 import communicationContent from "./main-sequence-ai/communication.md?raw";
 import mainSequenceAiContent from "./main-sequence-ai/main-sequence-ai.md?raw";
 import projectAgentsContent from "./main-sequence-ai/project-agents.md?raw";
-import mainSequenceMarketsContent from "./markets/markets.md?raw";
 import organizationAdminContent from "./organization-admin/organization-admin.md?raw";
 import rbacContent from "./organization-admin/rbac.md?raw";
 import organizationAdminTbdContent from "./organization-admin/tbd.md?raw";
@@ -279,14 +277,6 @@ const staticPages: DocumentationPageContent[] = [
     sectionId: "foundry",
   },
   {
-    id: "markets",
-    title: "Markets",
-    navLabel: "Markets",
-    description: "Overview of the Markets application and its major functional areas.",
-    content: mainSequenceMarketsContent,
-    sectionId: "markets",
-  },
-  {
     id: "main-sequence-ai",
     title: "Main Sequence AI",
     navLabel: "Main Sequence AI",
@@ -332,7 +322,6 @@ const staticPages: DocumentationPageContent[] = [
 ];
 
 const foundrySurfacePages = createGeneratedSurfacePages("foundry", mainSequenceWorkbenchApp);
-const marketsSurfacePages = createGeneratedSurfacePages("markets", mainSequenceMarketsApp);
 const aiSurfacePages = createGeneratedSurfacePages("main-sequence-ai", mainSequenceAiApp, {
   excludeSurfaceIds: ["monitor"],
   contentOverrides: {
@@ -351,7 +340,6 @@ const aiSurfacePages = createGeneratedSurfacePages("main-sequence-ai", mainSeque
 export const documentationPages = [
   ...staticPages,
   ...foundrySurfacePages,
-  ...marketsSurfacePages,
   ...aiSurfacePages,
 ] satisfies DocumentationPageContent[];
 
@@ -361,7 +349,6 @@ export const documentationPageMap: ReadonlyMap<string, DocumentationPageContent>
 
 export const documentationPageAliases: ReadonlyMap<string, string> = new Map([
   ["main-sequence-foundry", "foundry"],
-  ["main-sequence-markets", "markets"],
   ["organization-admin-overview", "organization-admin"],
 ]);
 
@@ -399,21 +386,10 @@ export const documentationNavSections: readonly DocumentationNavSection[] = [
     ],
   },
   {
-    id: "markets",
-    title: "Markets",
-    description: "Market-facing registries, asset workflows, and portfolio structures.",
-    order: 40,
-    landingPageId: "markets",
-    items: [
-      { type: "page", pageId: "markets" },
-      ...buildGeneratedSurfaceItems("markets", mainSequenceMarketsApp),
-    ],
-  },
-  {
     id: "main-sequence-ai",
     title: "Main Sequence AI",
     description: "Assistant, agent, and session-owned AI workflows.",
-    order: 50,
+    order: 40,
     landingPageId: "main-sequence-ai",
     items: [
       { type: "page", pageId: "main-sequence-ai" },
@@ -427,7 +403,7 @@ export const documentationNavSections: readonly DocumentationNavSection[] = [
     id: "organization-admin",
     title: "Organization Admin",
     description: "Organization-scoped billing, user, widget, and governance administration.",
-    order: 60,
+    order: 50,
     landingPageId: "organization-admin",
     items: [
       { type: "page", pageId: "organization-admin" },
@@ -491,7 +467,6 @@ export function getDocumentationPageLocation(pageId: string): DocumentationPageL
 export const documentationSourceApps = {
   workspaces: workspaceStudioApp.id,
   foundry: mainSequenceWorkbenchApp.id,
-  markets: mainSequenceMarketsApp.id,
   "main-sequence-ai": mainSequenceAiApp.id,
   "organization-admin": adminApp.id,
 } as const;

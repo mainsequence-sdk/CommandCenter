@@ -5,6 +5,7 @@ import {
   fetchCommandCenterBaseSessionHandle,
   type CommandCenterBaseSessionHandle,
 } from "./command-center-base-session-api";
+import { normalizeAgentSessionLookupId } from "./agent-sessions-api";
 import { MainSequenceAiError } from "./error-source";
 
 const rawEnv = import.meta.env as Record<string, string | undefined>;
@@ -217,12 +218,7 @@ export function clearMainSequenceAiResolvedRuntimeAccess() {
 }
 
 function normalizeRuntimeSessionId(value: string | number | null | undefined) {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  const normalized = String(value).trim();
-  return normalized || null;
+  return normalizeAgentSessionLookupId(value);
 }
 
 export async function fetchMainSequenceAiCommandCenterRuntimeHandle({

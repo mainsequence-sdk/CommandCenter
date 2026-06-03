@@ -104,11 +104,12 @@ export function MainSequenceConstantsPage() {
   const isConstantDetailOpen = selectedConstantUid.length > 0;
 
   const constantsQuery = useQuery({
-    queryKey: ["main_sequence", "constants", "list", constantsPageIndex],
+    queryKey: ["main_sequence", "constants", "list", constantsPageIndex, deferredFilterValue.trim()],
     queryFn: () =>
       listConstants({
         limit: mainSequenceRegistryPageSize,
         offset: constantsPageIndex * mainSequenceRegistryPageSize,
+        search: deferredFilterValue.trim() || undefined,
       }),
   });
 
@@ -133,25 +134,7 @@ export function MainSequenceConstantsPage() {
     }
   }, [constantsPageIndex, constantsQuery.data?.count]);
 
-  const filteredConstants = useMemo(() => {
-    const needle = deferredFilterValue.trim().toLowerCase();
-
-    return (constantsQuery.data?.results ?? []).filter((constant) => {
-      if (!needle) {
-        return true;
-      }
-
-      return [
-        constant.uid,
-        constant.name,
-        constant.category ?? "",
-        formatConstantValuePreview(constant.value, 160),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
-    });
-  }, [constantsQuery.data?.results, deferredFilterValue]);
+  const filteredConstants = constantsQuery.data?.results ?? [];
 
   const constantSelection = useRegistrySelection(filteredConstants, (constant) => constant.uid);
   const selectedConstantFromList = useMemo(

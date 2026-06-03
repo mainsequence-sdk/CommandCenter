@@ -17,6 +17,7 @@ This feature owns the Main Sequence Foundry namespace registry surface.
 - `GET /orm/api/ts_manager/namespace/<uid>/` for namespace-level details.
 - `GET /orm/api/ts_manager/namespace/<uid>/tables/` for the combined Meta Table and
   DynamicTableMetaData inventory shown in the detail panel.
+- `POST /orm/api/ts_manager/namespace/bulk-delete/` for multi-select registry delete.
 - `GET /orm/api/ts_manager/namespace/<uid>/can-view/` and
   `GET /orm/api/ts_manager/namespace/<uid>/can-edit/` for the current share assignments.
 - `POST /orm/api/ts_manager/namespace/<uid>/set-permissions/` to persist the full namespace
@@ -28,6 +29,8 @@ This feature owns the Main Sequence Foundry namespace registry surface.
 
 - The top-level registry uses client-side search and pagination because the namespace endpoint is a
   simple collection response.
+- The registry owns namespace bulk delete from the list surface. It posts the selected namespace
+  UID list to `/orm/api/ts_manager/namespace/bulk-delete/` and then refreshes the namespace query.
 - The namespace detail is a dedicated view, not an in-page expansion. The list hides completely
   while a namespace detail is open.
 - Namespace table rows deep-link into the existing Foundry Meta Table and Data Node detail routes.

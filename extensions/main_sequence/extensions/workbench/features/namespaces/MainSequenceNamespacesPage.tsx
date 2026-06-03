@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowUpRight, Braces, Database, Loader2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PageHeader } from "@/components/ui/page-header";
 
 import {
+  bulkDeleteNamespaces,
   fetchNamespaceDetail,
   fetchNamespaceTables,
   formatMainSequenceError,
@@ -87,9 +88,11 @@ function isNamespaceDetailTabId(value: string | null): value is NamespaceDetailT
 export function MainSequenceNamespacesPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchValue, setSearchValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const [namespaceTablesPageIndex, setNamespaceTablesPageIndex] = useState(0);
+  const [selectedNamespaceUids, setSelectedNamespaceUids] = useState<string[]>([]);
   const deferredSearchValue = useDeferredValue(searchValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const selectedNamespaceUid = searchParams.get(mainSequenceNamespaceUidParam)?.trim() ?? "";
@@ -102,6 +105,13 @@ export function MainSequenceNamespacesPage() {
   const namespacesQuery = useQuery({
     queryKey: ["main_sequence", "namespaces", "list"],
     queryFn: () => listNamespaces(),
+  });
+  const bulkDeleteNamespacesMutation = useMutation({
+    mutationFn: (uids: string[]) => bulkDeleteNamespaces(uids),
+    onSuccess: async () => {
+      setSelectedNamespaceUids([]);
+      await queryClient.invalidateQueries({ queryKey: ["main_sequence", "namespaces"] });
+    },
   });
 
   const filteredNamespaces = useMemo(() => {
@@ -129,6 +139,9 @@ export function MainSequenceNamespacesPage() {
     const start = pageIndex * mainSequenceRegistryPageSize;
     return filteredNamespaces.slice(start, start + mainSequenceRegistryPageSize);
   }, [filteredNamespaces, pageIndex]);
+  const selectedNamespaceUidSet = useMemo(() => new Set(selectedNamespaceUids), [selectedNamespaceUids]);
+  const allPageRowsSelected =
+    pageRows.length > 0 && pageRows.every((namespace) => selectedNamespaceUidSet.has(namespace.uid));
 
   const selectedNamespace = useMemo(
     () =>
@@ -248,6 +261,44 @@ export function MainSequenceNamespacesPage() {
     if (table.kind === "dynamic_table") {
       openDataNodeDetail(table.uid);
     }
+  }
+
+  function toggleNamespaceSelection(namespaceUid: string) {
+    setSelectedNamespaceUids((current) =>
+      current.includes(namespaceUid)
+        ? current.filter((uid) => uid !== namespaceUid)
+        : [...current, namespaceUid],
+    );
+  }
+
+  function toggleVisibleNamespaceSelection() {
+    setSelectedNamespaceUids((current) => {
+      const nextSelection = new Set(current);
+
+      if (allPageRowsSelected) {
+        pageRows.forEach((namespace) => nextSelection.delete(namespace.uid));
+      } else {
+        pageRows.forEach((namespace) => nextSelection.add(namespace.uid));
+      }
+
+      return Array.from(nextSelection);
+    });
+  }
+
+  function deleteSelectedNamespaces() {
+    if (selectedNamespaceUids.length === 0 || bulkDeleteNamespacesMutation.isPending) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${selectedNamespaceUids.length} selected namespace${selectedNamespaceUids.length === 1 ? "" : "s"}?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    bulkDeleteNamespacesMutation.mutate(selectedNamespaceUids);
   }
 
   if (isNamespaceDetailOpen) {
@@ -499,7 +550,21 @@ export function MainSequenceNamespacesPage() {
         eyebrow="Main Sequence"
         title="Namespaces"
         description="Browse ts_manager namespaces and inspect the Meta Tables and Data Nodes registered under each namespace."
-        actions={<Badge variant="neutral">{`${totalNamespaces} namespaces`}</Badge>}
+        actions={
+          <div className="flex items-center gap-2">
+            <Badge variant="neutral">{`${totalNamespaces} namespaces`}</Badge>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={deleteSelectedNamespaces}
+              disabled={selectedNamespaceUids.length === 0 || bulkDeleteNamespacesMutation.isPending}
+            >
+              {bulkDeleteNamespacesMutation.isPending
+                ? "Deleting..."
+                : `Delete selected${selectedNamespaceUids.length > 0 ? ` (${selectedNamespaceUids.length})` : ""}`}
+            </Button>
+          </div>
+        }
       />
 
       <Card>
@@ -522,6 +587,14 @@ export function MainSequenceNamespacesPage() {
         </CardHeader>
 
         <CardContent className="p-0">
+          {bulkDeleteNamespacesMutation.isError ? (
+            <div className="p-5">
+              <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                {formatMainSequenceError(bulkDeleteNamespacesMutation.error)}
+              </div>
+            </div>
+          ) : null}
+
           {namespacesQuery.isLoading ? (
             <div className="flex min-h-64 items-center justify-center">
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -563,6 +636,15 @@ export function MainSequenceNamespacesPage() {
                       className="text-left uppercase tracking-[0.18em] text-muted-foreground"
                       style={{ fontSize: "var(--table-meta-font-size)" }}
                     >
+                      <th className="w-12 px-4 py-[var(--table-standard-header-padding-y)]">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-border/70 bg-background/60"
+                          checked={allPageRowsSelected}
+                          onChange={toggleVisibleNamespaceSelection}
+                          aria-label="Select visible namespaces"
+                        />
+                      </th>
                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">Name</th>
                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">Namespace UID</th>
                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">Meta Tables</th>
@@ -572,6 +654,15 @@ export function MainSequenceNamespacesPage() {
                   <tbody>
                     {pageRows.map((namespace) => (
                       <tr key={namespace.uid}>
+                        <td className={getRegistryTableCellClassName(false, "left")}>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-border/70 bg-background/60"
+                            checked={selectedNamespaceUidSet.has(namespace.uid)}
+                            onChange={() => toggleNamespaceSelection(namespace.uid)}
+                            aria-label={`Select namespace ${getNamespaceTitle(namespace)}`}
+                          />
+                        </td>
                         <td className={getRegistryTableCellClassName(false, "left")}>
                           <button
                             type="button"

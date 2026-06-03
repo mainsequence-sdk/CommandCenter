@@ -28,9 +28,9 @@ This module owns the shared AgentSession detail capability for the `Main Sequenc
 ## Transport Boundaries
 
 - Core detail:
-  `GET /orm/api/agents/v1/sessions/{agent_session_id}/`
+  `GET /orm/api/agents/v1/sessions/{session_uid}/`
 - Insights:
-  `GET /orm/api/agents/v1/sessions/{agent_session_id}/insights/`
+  `GET /orm/api/agents/v1/sessions/{session_uid}/insights/`
 
 This module composes those contracts into one shared detail snapshot, but it does not collapse the
 transport boundaries into one fake endpoint.

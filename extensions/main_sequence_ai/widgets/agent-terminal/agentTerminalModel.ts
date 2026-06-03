@@ -4,7 +4,10 @@ import type {
   ResolvedWidgetInput,
   ResolvedWidgetInputs,
 } from "@/widgets/types";
-import type { AgentSessionSerializedRecord } from "../../runtime/agent-sessions-api";
+import {
+  normalizeAgentSessionLookupId,
+  type AgentSessionSerializedRecord,
+} from "../../runtime/agent-sessions-api";
 
 import {
   isWorkspaceReferenceValue,
@@ -216,8 +219,7 @@ export function normalizeAgentTerminalWidgetProps(
   props: AgentTerminalWidgetProps,
 ): AgentTerminalWidgetProps {
   const agentId = normalizeOptionalIdentifier(props.agentId);
-  const normalizedSessionId =
-    typeof props.agentSessionId === "string" ? props.agentSessionId.trim() : "";
+  const normalizedSessionId = normalizeAgentSessionLookupId(props.agentSessionId) ?? "";
   const agentType = normalizeOptionalTrimmedString(props.agentType);
   const agentLabel = normalizeOptionalTrimmedString(props.agentLabel);
   const loadInitialHistory = props.loadInitialHistory === true;

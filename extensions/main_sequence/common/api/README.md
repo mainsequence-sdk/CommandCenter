@@ -38,7 +38,11 @@
 - Foundry registry pages for Meta Tables and Data Nodes now bootstrap namespace options from the
   resource-specific `.../namespaces/` endpoints before issuing the heavier list queries. The shared
   API layer exposes those namespace list helpers and forwards the selected `namespace` query param
-  into the registry list endpoints.
+  into the registry list endpoints. `listMetaTables(...)`, `listDataNodes(...)`,
+  `listProjects(...)`, `listJobs(...)`, `listProjectJobs(...)`, `listJobRuns(...)`,
+  `listConstants(...)`, `listSecrets(...)`, `listProjectImages(...)`, `listLocalTimeSeries(...)`,
+  and `listProjectLocalTimeSeries(...)` also forward page search strings to backend list
+  endpoints so registry search is not limited to the currently loaded page.
 - Markets positions helpers also live here. `fetchManagedAccountHoldingsPositionDetails(...)`
   adapts the canonical managed-account holdings collection endpoint
   `/api/v1/account/{uid}/holdings/` into the shared position-detail payload shape used by
@@ -55,7 +59,10 @@
   `/api/v1/account/{uid}/target-positions/` into the same reusable position-detail payload,
   requests the latest assignment with `order=desc&limit=1` when no exact
   `target_positions_date` filter is provided, preserves `include_asset_detail=true`, and normalizes
-  empty collection responses to an empty positions payload.
+  empty collection responses to an empty positions payload. The GET response now treats
+  `positions[].asset.uid` and `positions[].asset.unique_identifier` as canonical asset identity;
+  it must not depend on numeric asset ids or `figi`, and display labels come from
+  `positions[].asset.current_snapshot`.
 - Shareable-object permission helpers also live here. They all use the same suffix-based contract:
   the caller provides an object root plus object uid, and the API layer appends the configured
   `candidate-users`, `can-view`, `can-edit`, and add/remove permission suffixes from
@@ -67,3 +74,6 @@
 - `dynamic_table/{uid}/get-tail-observations/`, `dynamic_table/{uid}/get_data_between_dates_from_remote/`, and `dynamic_table/{uid}/get_last_observation/` only use mock payloads that are explicitly keyed to the requested data-node identifier. Unkeyed endpoint dumps are not treated as valid per-node responses because they can mix multiple series and break widget assumptions.
 - Shared ts_manager detail helpers resolve resource paths by `uid`. Frontend callers and mock fixtures must provide the backend `uid`; numeric ids are not accepted for these detail-style routes.
 - Collection-style Main Sequence mock datasets may be stored either as a raw JSON array or as a paginated object with a `results` array. The mock loader normalizes both shapes for list-backed resources such as `local_time_series`.
+- Shared list normalizers also apply client-side `limit` / `offset` slicing when a backend list
+  endpoint falls back to returning a raw array or an unsliced `rows` payload. That keeps registry
+  pagination controls working even when older endpoints do not emit paginated envelopes yet.

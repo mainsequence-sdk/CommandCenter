@@ -114,12 +114,12 @@ function buildWidgetContext({
   instanceId,
   sessionId,
   title,
-  userId,
+  userUid,
 }: {
   instanceId?: string;
   sessionId: string;
   title: string;
-  userId: string | null;
+  userUid: string | null;
 }) {
   const currentPath = `/widgets/main_sequence_ai/agent-terminal/${instanceId ?? "preview"}`;
 
@@ -136,7 +136,7 @@ function buildWidgetContext({
     surfaceId: "agent-terminal-widget",
     surfaceSummary: "Agent session terminal widget mounted inside a workspace canvas.",
     surfaceTitle: title,
-    ...(userId ? { userId } : {}),
+    ...(userUid ? { user_uid: userUid } : {}),
   };
 }
 
@@ -205,7 +205,7 @@ export function AgentTerminalWidget({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
-  const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
+  const sessionUserUid = useAuthStore((state) => state.session?.user.uid ?? null);
   const widgetExecution = useDashboardWidgetExecution();
   const assistantProtocol = useMemo(() => resolveMainSequenceAiAssistantProtocol(), []);
   const [lines, setLines] = useState<AgentTerminalLine[]>(() => buildAgentTerminalPlaceholderLines());
@@ -847,13 +847,13 @@ export function AgentTerminalWidget({
               instanceId,
               sessionId,
               title: terminalTitle,
-              userId: sessionUserId,
+              userUid: sessionUserUid,
             }),
             input,
             session: activeSession.serializedSession,
-            sessionId,
+            runtimeSessionUid: sessionId,
             threadId: activeSession.threadId ?? sessionId,
-            userId: sessionUserId,
+            userUid: sessionUserUid,
             workflowKey: activeSession.requestAgentType,
           }),
           onChunk: (chunk) => {
@@ -954,7 +954,7 @@ export function AgentTerminalWidget({
       sessionReady,
       sessionToken,
       sessionTokenType,
-      sessionUserId,
+      sessionUserUid,
       terminalTitle,
     ],
   );

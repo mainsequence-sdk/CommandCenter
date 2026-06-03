@@ -13,21 +13,40 @@ function getVisiblePages(pageIndex: number, totalPages: number) {
 
 export function MainSequenceRegistryPagination({
   count,
+  hasNextPage,
+  hasPreviousPage,
   itemLabel = "results",
   pageIndex,
   pageSize,
   onPageChange,
 }: {
   count: number;
+  hasNextPage?: boolean;
+  hasPreviousPage?: boolean;
   itemLabel?: string;
   pageIndex: number;
   pageSize: number;
   onPageChange: (pageIndex: number) => void;
 }) {
-  const totalPages = Math.max(1, Math.ceil(count / pageSize));
+  const exactTotalPages = Math.max(1, Math.ceil(count / pageSize));
+  const totalPages = Math.max(
+    exactTotalPages,
+    hasNextPage ? pageIndex + 2 : pageIndex + 1,
+  );
   const visiblePages = getVisiblePages(pageIndex, totalPages);
   const start = count === 0 ? 0 : pageIndex * pageSize + 1;
   const end = count === 0 ? 0 : Math.min(count, (pageIndex + 1) * pageSize);
+  const canGoPrevious = hasPreviousPage ?? pageIndex > 0;
+  const canGoNext = hasNextPage ?? pageIndex < totalPages - 1;
+  const goToPage = (targetPageIndex: number) => {
+    const normalizedTargetPageIndex = Math.max(0, Math.min(targetPageIndex, totalPages - 1));
+
+    if (normalizedTargetPageIndex === pageIndex) {
+      return;
+    }
+
+    onPageChange(normalizedTargetPageIndex);
+  };
 
   return (
     <div className="flex flex-col gap-3 border-t border-border/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -39,8 +58,8 @@ export function MainSequenceRegistryPagination({
           type="button"
           variant="outline"
           size="sm"
-          disabled={pageIndex === 0}
-          onClick={() => onPageChange(pageIndex - 1)}
+          disabled={!canGoPrevious}
+          onClick={() => goToPage(pageIndex - 1)}
         >
           <ChevronLeft className="h-4 w-4" />
           Previous
@@ -51,7 +70,15 @@ export function MainSequenceRegistryPagination({
             type="button"
             variant={visiblePageIndex === pageIndex ? "default" : "outline"}
             size="sm"
-            onClick={() => onPageChange(visiblePageIndex)}
+            aria-current={visiblePageIndex === pageIndex ? "page" : undefined}
+            onMouseDown={(event) => {
+              event.preventDefault();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              goToPage(visiblePageIndex);
+            }}
           >
             {visiblePageIndex + 1}
           </Button>
@@ -60,8 +87,8 @@ export function MainSequenceRegistryPagination({
           type="button"
           variant="outline"
           size="sm"
-          disabled={pageIndex >= totalPages - 1}
-          onClick={() => onPageChange(pageIndex + 1)}
+          disabled={!canGoNext}
+          onClick={() => goToPage(pageIndex + 1)}
         >
           Next
           <ChevronRight className="h-4 w-4" />

@@ -14,7 +14,7 @@ export interface ChatViewContext {
   surfaceContextSource: "fallback" | "route" | "surface";
   surfaceDetails: Record<string, string>;
   surfaceSummary: string;
-  userId?: string;
+  user_uid?: string;
   surfaceTitle?: string;
 }
 
@@ -34,7 +34,7 @@ export function useChatViewContext(): ChatViewContext {
         routeAppId: params.appId,
         routeSurfaceId: params.surfaceId,
         searchParams: new URLSearchParams(location.search),
-        userId: user?.id,
+        userUid: user?.uid,
       });
 
       return {
@@ -47,7 +47,7 @@ export function useChatViewContext(): ChatViewContext {
         surfaceId: resolvedSurfaceContext.surfaceId ?? params.surfaceId,
         surfaceSummary: resolvedSurfaceContext.summary,
         surfaceTitle: resolvedSurfaceContext.surfaceTitle,
-        userId: user?.id,
+        user_uid: user?.uid,
       };
     },
     [
@@ -57,7 +57,7 @@ export function useChatViewContext(): ChatViewContext {
       location.search,
       params.appId,
       params.surfaceId,
-      user?.id,
+      user?.uid,
       user?.permissions.length,
       user?.role,
     ],

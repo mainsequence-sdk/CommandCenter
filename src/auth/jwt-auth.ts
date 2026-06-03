@@ -853,6 +853,29 @@ async function hydrateUserShellAccess(
   return applyShellAccessPermissions(user, shellPermissions);
 }
 
+export function resolveSessionUserId({
+  claimUserId,
+  userDetailsUserId,
+  uid,
+  email,
+  name,
+}: {
+  claimUserId?: string | null;
+  userDetailsUserId?: string | null;
+  uid?: string | null;
+  email?: string | null;
+  name?: string | null;
+}) {
+  return (
+    readStringish(claimUserId) ||
+    readStringish(userDetailsUserId) ||
+    readStringish(uid) ||
+    readString(email) ||
+    readString(name) ||
+    "current-user"
+  );
+}
+
 function buildUserProfileFromSources({
   tokenSources = [],
   userDetails = null,
@@ -979,12 +1002,6 @@ function buildUserProfileFromSources({
       resolveMappedValue(claimMapping.team, tokenSources),
     "Unknown",
   );
-  const id = userDetails
-    ? readStringish(
-        resolveMappedValue(userDetailsMapping.userId, [userDetails]) ??
-          readPathValue(userDetails, "id"),
-      )
-    : readStringish(resolveMappedValue(claimMapping.userId, tokenSources));
   const uid = readStringish(
     (userDetails &&
       (readPathValue(userDetails, "uid") ??
@@ -997,6 +1014,16 @@ function buildUserProfileFromSources({
       resolveMappedValue("user.user_uid", allSources) ??
       resolveMappedValue("user.userUid", allSources),
   );
+  const id = resolveSessionUserId({
+    claimUserId: readStringish(resolveMappedValue(claimMapping.userId, tokenSources)),
+    userDetailsUserId:
+      userDetails && userDetailsMapping.userId.trim()
+        ? readStringish(resolveMappedValue(userDetailsMapping.userId, [userDetails]))
+        : "",
+    uid,
+    email,
+    name,
+  });
 
   return {
     id,

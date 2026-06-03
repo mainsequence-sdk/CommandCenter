@@ -37,6 +37,12 @@ The directory name is still `simple-tables` only because older local imports use
 - Top-level detail navigation is URL-backed with `msMetaTableUid` and `msMetaTableTab`.
 - The list view is namespace-first on purpose. It narrows the heavier Meta Table registry before
   applying the page-local text filter.
+- Meta Table search must be backend-driven. The page forwards the current search string to
+  `/orm/api/ts_manager/meta_table/` with the selected namespace and pagination params so matches
+  can be found across the full registry, not only inside the currently loaded page.
+- The namespace picker uses the shared custom `Select` secondary-line support. Keep the primary
+  label as the namespace name and put the row count on a supporting line as `Meta tables: <count>`
+  instead of appending a bare number in parentheses.
 - The `Data Snapshot` tab intentionally uses the lightweight preview endpoint instead of the heavier Data Node widget pipeline.
 - The `ULM diagram` tab calls `/{uid}/schema-graph/` and exposes `depth` and `include_incoming`.
   The backend payload is a custom graph contract (`root_uid`, `depth`, `include_incoming`,
@@ -44,6 +50,9 @@ The directory name is still `simple-tables` only because older local imports use
   the explorer.
 - UML cards start with columns collapsed. Expanding a card changes the layout geometry and triggers
   a fit pass so long column sets reflow instead of overflowing the initial viewport.
+- The selected-table detail rail is intentionally single-column for top metadata fields. Namespace
+  and physical table values can be long hashes or dotted identifiers, so they must wrap within one
+  card instead of sharing a narrow two-column row.
 - The UML toolbar includes an explicit edge legend. Color indicates whether a relationship touches
   the root table or is indirect in the current traversal, while stroke style indicates delete
   behavior (`cascade` vs any other policy).

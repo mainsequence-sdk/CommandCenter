@@ -8,7 +8,6 @@ import {
   Rows3,
   Puzzle,
   Sparkles,
-  LineChart,
 } from "lucide-react";
 
 import { defineSurfaceAssistantContext, type AppDefinition } from "@/apps/types";
@@ -23,7 +22,6 @@ const pageIcons = {
   "agents-monitor": Bot,
   widgets: Puzzle,
   foundry: Command,
-  markets: LineChart,
   "main-sequence-ai": Sparkles,
   "organization-admin": ShieldCheck,
 } as const;

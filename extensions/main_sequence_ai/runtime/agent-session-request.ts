@@ -17,10 +17,10 @@ interface AgentSessionRequestBodyFragmentOptions {
   model?: AgentSessionModelRequestBody | null;
   newChat?: boolean;
   runConfig?: AgentSessionRunConfigRequestBody | null;
-  sessionId?: string | number | null;
+  runtimeSessionUid?: string | number | null;
   session?: Record<string, unknown> | null;
   threadId?: string | null;
-  userId?: string | number | null;
+  userUid?: string | number | null;
   workflowKey?: string | null;
 }
 
@@ -51,10 +51,10 @@ export function buildAgentSessionRequestBodyFragment({
   model,
   newChat = false,
   runConfig,
-  sessionId,
+  runtimeSessionUid,
   session,
   threadId,
-  userId,
+  userUid,
   workflowKey,
 }: AgentSessionRequestBodyFragmentOptions) {
   const normalizedAgentType = normalizeNonEmptyString(agentType);
@@ -63,9 +63,9 @@ export function buildAgentSessionRequestBodyFragment({
     throw new Error("Agent session requests require a non-empty agent type.");
   }
 
-  const normalizedSessionId = normalizeNonEmptyString(sessionId);
+  const normalizedRuntimeSessionUid = normalizeNonEmptyString(runtimeSessionUid);
   const normalizedThreadId = normalizeNonEmptyString(threadId);
-  const normalizedUserId = normalizeNonEmptyString(userId);
+  const normalizedUserUid = normalizeNonEmptyString(userUid);
   const normalizedWorkflowKey = normalizeNonEmptyString(workflowKey) ?? normalizedAgentType;
   const normalizedModelSource =
     model === null ? null : normalizeNonEmptyString(model?.source);
@@ -108,12 +108,11 @@ export function buildAgentSessionRequestBodyFragment({
           },
         }
       : {}),
-    ...(normalizedUserId ? { userId: normalizedUserId } : {}),
+    ...(normalizedUserUid ? { user_uid: normalizedUserUid } : {}),
     ...(normalizedThreadId ? { threadId: normalizedThreadId } : {}),
-    ...(normalizedSessionId
+    ...(normalizedRuntimeSessionUid
       ? {
-          sessionId: normalizedSessionId,
-          runtime_session_id: normalizedSessionId,
+          runtime_session_uid: normalizedRuntimeSessionUid,
         }
       : {}),
     ...(normalizedSession ? { session: normalizedSession } : {}),

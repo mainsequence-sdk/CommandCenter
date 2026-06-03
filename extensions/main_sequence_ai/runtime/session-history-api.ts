@@ -4,6 +4,7 @@ import type {
 } from "../assistant-ui/session-history";
 import { normalizeSessionHistorySnapshot } from "../assistant-ui/session-history";
 import { env } from "@/config/env";
+import { requireAgentSessionLookupId } from "./agent-sessions-api";
 import { MainSequenceAiError } from "./error-source";
 
 function createEmptySessionHistorySnapshot(sessionId: string): SessionHistorySnapshot {
@@ -27,8 +28,12 @@ function createEmptySessionHistorySnapshot(sessionId: string): SessionHistorySna
 }
 
 function buildSessionHistoryUrl(sessionId: string | number) {
+  const normalizedSessionId = requireAgentSessionLookupId(
+    sessionId,
+    "AgentSession history",
+  );
   return new URL(
-    `/orm/api/agents/v1/sessions/${encodeURIComponent(String(sessionId))}/history/`,
+    `/orm/api/agents/v1/sessions/${encodeURIComponent(normalizedSessionId)}/history/`,
     env.apiBaseUrl,
   ).toString();
 }

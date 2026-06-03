@@ -71,7 +71,7 @@ export function AgentSessionCatalogPicker({
 }) {
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
-  const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
+  const sessionUserUid = useAuthStore((state) => state.session?.user.uid ?? null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [agentQuery, setAgentQuery] = useState("");
   const [agentResults, setAgentResults] = useState<AgentSearchResult[]>([]);
@@ -138,7 +138,7 @@ export function AgentSessionCatalogPicker({
   }, [editable, sessionToken, sessionTokenType, trimmedAgentQuery]);
 
   useEffect(() => {
-    if (!selectedAgent?.id || !sessionUserId) {
+    if (!selectedAgent?.id || !sessionUserUid) {
       setAgentSessions([]);
       setSessionError(null);
       setIsLoadingSessions(false);
@@ -154,7 +154,7 @@ export function AgentSessionCatalogPicker({
 
         const payload = await fetchLatestAgentSessions({
           agentId: selectedAgent.id,
-          createdByUser: sessionUserId,
+          createdByUserUid: sessionUserUid,
           signal: controller.signal,
           token: sessionToken,
           tokenType: sessionTokenType,
@@ -184,7 +184,7 @@ export function AgentSessionCatalogPicker({
     return () => {
       controller.abort();
     };
-  }, [selectedAgent, sessionToken, sessionTokenType, sessionUserId]);
+  }, [selectedAgent, sessionToken, sessionTokenType, sessionUserUid]);
 
   return (
     <div className={cn("space-y-4", className)}>

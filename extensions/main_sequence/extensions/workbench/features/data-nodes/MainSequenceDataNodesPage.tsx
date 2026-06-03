@@ -109,7 +109,6 @@ type DataNodeSortKey =
   | "identifier"
   | "namespace"
   | "data_source"
-  | "source_class_name"
   | "creation_date";
 type DataNodeSortDirection = "asc" | "desc";
 
@@ -214,8 +213,6 @@ function getDataNodeSortValue(dataNode: DataNodeSummary, key: DataNodeSortKey) {
       return normalizeDataNodeSortValue(dataNode.namespace);
     case "data_source":
       return normalizeDataNodeSortValue(getDataSourceLabel(dataNode));
-    case "source_class_name":
-      return normalizeDataNodeSortValue(dataNode.source_class_name);
     case "creation_date":
       return normalizeDataNodeSortValue(dataNode.creation_date);
   }
@@ -458,6 +455,7 @@ export function MainSequenceDataNodesPage() {
       "list",
       dataNodesPageIndex,
       effectiveSelectedNamespace,
+      deferredFilterValue.trim(),
     ],
     queryFn: () =>
       listDataNodes({
@@ -465,6 +463,7 @@ export function MainSequenceDataNodesPage() {
         light: false,
         offset: dataNodesPageIndex * mainSequenceRegistryPageSize,
         namespace: effectiveSelectedNamespace ?? undefined,
+        q: deferredFilterValue.trim() || undefined,
       }),
     enabled: isDataNodeNamespaceBootstrapReady && !dataNodeNamespacesQuery.isError,
   });
@@ -503,32 +502,7 @@ export function MainSequenceDataNodesPage() {
     enabled: isDataNodeDetailOpen,
   });
 
-  const filteredDataNodes = useMemo(() => {
-    const needle = deferredFilterValue.trim().toLowerCase();
-
-    return (dataNodesQuery.data?.results ?? []).filter((dataNode) => {
-      if (!needle) {
-        return true;
-      }
-
-      return [
-        getDataNodeTitle(dataNode),
-        String(dataNode.id),
-        dataNode.identifier ?? "",
-        dataNode.namespace ?? "",
-        dataNode.storage_hash,
-        dataNode.source_class_name ?? "",
-        dataNode.description ?? "",
-        getDataSourceLabel(dataNode),
-        dataNode.data_source?.related_resource_class_type ?? "",
-        dataNode.data_frequency_id ?? "",
-        ...getTableIndexNames(dataNode),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
-    });
-  }, [dataNodesQuery.data?.results, deferredFilterValue]);
+  const filteredDataNodes = dataNodesQuery.data?.results ?? [];
   const sortedDataNodes = useMemo(() => {
     if (!sortState.key) {
       return filteredDataNodes;
@@ -1659,18 +1633,6 @@ export function MainSequenceDataNodesPage() {
                     <th
                       className="px-4 py-[var(--table-standard-header-padding-y)]"
                       aria-sort={
-                        sortState.key === "source_class_name"
-                          ? sortState.direction === "asc"
-                            ? "ascending"
-                            : "descending"
-                          : "none"
-                      }
-                    >
-                      {renderSortableHeader("Source class", "source_class_name")}
-                    </th>
-                    <th
-                      className="px-4 py-[var(--table-standard-header-padding-y)]"
-                      aria-sort={
                         sortState.key === "creation_date"
                           ? sortState.direction === "asc"
                             ? "ascending"
@@ -1739,15 +1701,6 @@ export function MainSequenceDataNodesPage() {
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           <div className="text-foreground">{getDataSourceLabel(dataNode)}</div>
-                        </td>
-                        <td className={getRegistryTableCellClassName(selected)}>
-                          <div className="text-foreground">{dataNode.source_class_name ?? "Unknown"}</div>
-                          <div
-                            className="mt-0.5 text-muted-foreground"
-                            style={{ fontSize: "var(--table-meta-font-size)" }}
-                          >
-                            Frequency: {dataNode.data_frequency_id ?? "Not set"}
-                          </div>
                         </td>
                         <td className={getRegistryTableCellClassName(selected, "right")}>
                           <div className="text-foreground">{formatCreationDate(dataNode.creation_date)}</div>

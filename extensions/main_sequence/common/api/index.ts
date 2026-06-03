@@ -2228,20 +2228,26 @@ function adaptManagedAccountTargetPositionsResponseToPositionDetails(
         !Array.isArray(assetDetail.current_snapshot)
           ? (assetDetail.current_snapshot as Record<string, unknown>)
           : null;
-      const assetId =
-        assetDetail && typeof assetDetail.id === "number" ? assetDetail.id : null;
+      const assetUid =
+        assetDetail && typeof assetDetail.uid === "string" && assetDetail.uid.trim()
+          ? assetDetail.uid.trim()
+          : null;
+      const assetUniqueIdentifier =
+        assetDetail &&
+        typeof assetDetail.unique_identifier === "string" &&
+        assetDetail.unique_identifier.trim()
+          ? assetDetail.unique_identifier.trim()
+          : null;
       const assetName =
         typeof currentSnapshot?.name === "string" && currentSnapshot.name.trim()
           ? currentSnapshot.name.trim()
-          : position.unique_identifier;
+          : assetUniqueIdentifier ?? position.unique_identifier;
       const assetTicker =
         typeof currentSnapshot?.ticker === "string" && currentSnapshot.ticker.trim()
           ? currentSnapshot.ticker.trim()
           : null;
-      const figi =
-        assetDetail && typeof assetDetail.figi === "string" && assetDetail.figi.trim()
-          ? assetDetail.figi.trim()
-          : position.unique_identifier;
+      const resolvedUniqueIdentifier = assetUniqueIdentifier ?? position.unique_identifier;
+      const figi = resolvedUniqueIdentifier;
 
       const resolvedPosition = (() => {
         if (position.weight_notional_exposure !== null) {
@@ -2274,10 +2280,10 @@ function adaptManagedAccountTargetPositionsResponseToPositionDetails(
       })();
 
       return {
-        ...(assetId !== null ? { asset_id: assetId } : {}),
+        ...(assetUid !== null ? { asset_uid: assetUid } : {}),
         asset_name: assetName,
         asset_ticker: assetTicker,
-        unique_identifier: position.unique_identifier,
+        unique_identifier: resolvedUniqueIdentifier,
         figi,
         ...resolvedPosition,
         ...(assetDetail ? { asset: assetDetail } : {}),
@@ -3521,13 +3527,23 @@ function normalizeOffsetPaginatedResponse<T>(
   offset: number,
 ): OffsetPaginatedList<T> {
   if (Array.isArray(payload)) {
+    const safeOffset = Math.max(0, offset);
+    const safeLimit = Math.max(1, limit);
+    const pagedResults = payload.slice(safeOffset, safeOffset + safeLimit);
+
     return {
       count: payload.length,
-      next: null,
-      previous: null,
+      next:
+        safeOffset + safeLimit < payload.length
+          ? `offset=${safeOffset + safeLimit}&limit=${safeLimit}`
+          : null,
+      previous:
+        safeOffset > 0
+          ? `offset=${Math.max(0, safeOffset - safeLimit)}&limit=${safeLimit}`
+          : null,
       limit,
       offset,
-      results: payload,
+      results: pagedResults,
     };
   }
 
@@ -3576,16 +3592,20 @@ function normalizeFrontendRowsResponse<T>(
   },
 ): FrontendRowsResponse<T> {
   if (!Array.isArray(payload) && "rows" in payload && Array.isArray(payload.rows)) {
+    const rows = payload.rows;
+    const safeOffset = Math.max(0, offset);
+    const safeLimit = Math.max(1, limit);
+    const hasBackendPagination = "pagination" in payload && Boolean(payload.pagination);
+
     return {
       search:
         "search" in payload && typeof payload.search === "string"
           ? payload.search
           : search?.trim() || "",
-      rows: payload.rows,
-      pagination:
-        "pagination" in payload && payload.pagination
-          ? payload.pagination
-          : buildFrontendListPagination(payload.rows.length, limit, offset),
+      rows: hasBackendPagination ? rows : rows.slice(safeOffset, safeOffset + safeLimit),
+      pagination: hasBackendPagination
+        ? payload.pagination
+        : buildFrontendListPagination(rows.length, limit, offset),
     };
   }
 
@@ -3598,10 +3618,12 @@ function normalizeFrontendRowsResponse<T>(
   }
 
   const rows = Array.isArray(payload) ? payload : [];
+  const safeOffset = Math.max(0, offset);
+  const safeLimit = Math.max(1, limit);
 
   return {
     search: search?.trim() || "",
-    rows,
+    rows: rows.slice(safeOffset, safeOffset + safeLimit),
     pagination: buildFrontendListPagination(rows.length, limit, offset),
   };
 }
@@ -3931,15 +3953,22 @@ function buildTargetPortfolioListSearch(filters: TargetPortfolioListFilters) {
 export async function listProjects({
   limit = mainSequenceRegistryPageSize,
   offset = 0,
+  search,
 }: {
   limit?: number;
   offset?: number;
+  search?: string;
 } = {}) {
   const payload = await requestJson<PaginatedResponse<ProjectSummary> | ProjectSummary[]>(
     commandCenterConfig.mainSequence.endpoint,
     "projects/",
     undefined,
-    { limit, offset, include: "created_by" },
+    {
+      limit,
+      offset,
+      include: "created_by",
+      search: search?.trim() || undefined,
+    },
   );
 
   const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
@@ -4554,9 +4583,8 @@ export async function fetchManagedAccountTargetPositionsPositionDetails(
             constant_notional_exposure: null,
             single_asset_quantity: null,
             asset: {
-              id: 101,
+              uid: "preview-asset-btc",
               unique_identifier: "btc_spot",
-              figi: "btc_spot",
               current_snapshot: {
                 name: "Bitcoin spot",
                 ticker: "BTC",
@@ -4569,9 +4597,8 @@ export async function fetchManagedAccountTargetPositionsPositionDetails(
             constant_notional_exposure: null,
             single_asset_quantity: "3.000000000000000000",
             asset: {
-              id: 102,
+              uid: "preview-asset-eth",
               unique_identifier: "eth_spot",
-              figi: "eth_spot",
               current_snapshot: {
                 name: "Ethereum spot",
                 ticker: "ETH",
@@ -5261,15 +5288,21 @@ export function scaleCluster(
 export async function listConstants({
   limit = mainSequenceRegistryPageSize,
   offset = 0,
+  search,
 }: {
   limit?: number;
   offset?: number;
+  search?: string;
 } = {}) {
   const payload = await requestJson<PaginatedResponse<ConstantRecord> | ConstantRecord[]>(
     commandCenterConfig.mainSequence.endpoint,
     "constant/",
     undefined,
-    { limit, offset },
+    {
+      limit,
+      offset,
+      search: search?.trim() || undefined,
+    },
   );
 
   const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
@@ -5499,11 +5532,13 @@ export async function listMetaTables({
   offset = 0,
   namespace,
   namespaceUid,
+  search,
 }: {
   limit?: number;
   offset?: number;
   namespace?: string;
   namespaceUid?: string;
+  search?: string;
 } = {}) {
   const payload = await requestJson<PaginatedResponse<MetaTableRecord> | MetaTableRecord[]>(
     metaTableEndpoint,
@@ -5514,6 +5549,7 @@ export async function listMetaTables({
       offset,
       namespace: namespace?.trim() || undefined,
       namespace_uid: namespaceUid?.trim() || undefined,
+      search: search?.trim() || undefined,
     },
   );
 
@@ -5583,6 +5619,10 @@ export function propagateNamespacePermissions(namespaceUid: string) {
       body: JSON.stringify({}),
     },
   );
+}
+
+export function bulkDeleteNamespaces(uids: string[]) {
+  return postMainSequenceBulkDelete("namespace/bulk-delete/", uids);
 }
 
 export async function listMetaTableNamespaces() {
@@ -6552,10 +6592,12 @@ export async function listLocalTimeSeries(
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
+    q,
     traceMeta,
   }: {
     limit?: number;
     offset?: number;
+    q?: string;
     traceMeta?: DashboardRequestTraceMeta;
   } = {},
 ) {
@@ -6565,6 +6607,7 @@ export async function listLocalTimeSeries(
     limit,
     offset,
     remote_table__uid: remoteTableUid,
+    q: q?.trim() || undefined,
   }, traceMeta);
 
   const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
@@ -6580,9 +6623,11 @@ export async function listProjectLocalTimeSeries(
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
+    q,
   }: {
     limit?: number;
     offset?: number;
+    q?: string;
   } = {},
 ) {
   const payload = await requestJson<
@@ -6591,6 +6636,7 @@ export async function listProjectLocalTimeSeries(
     limit,
     offset,
     "project__uid": projectUid,
+    q: q?.trim() || undefined,
   });
 
   const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
@@ -6803,9 +6849,11 @@ export async function listProjectImages(
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
+    search,
   }: {
     limit?: number;
     offset?: number;
+    search?: string;
   } = {},
 ) {
   const payload = await requestJson<PaginatedResponse<ProjectImageOption> | ProjectImageOption[]>(
@@ -6816,6 +6864,7 @@ export async function listProjectImages(
       limit,
       offset,
       "related_project__uid__in": projectUid,
+      search: search?.trim() || undefined,
     },
   );
 
@@ -7074,9 +7123,11 @@ export async function listProjectJobs(
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
+    search,
   }: {
     limit?: number;
     offset?: number;
+    search?: string;
   } = {},
 ) {
   const payload = await requestJson<PaginatedResponse<JobRecord> | JobRecord[]>(
@@ -7087,6 +7138,7 @@ export async function listProjectJobs(
       limit,
       offset,
       "project__uid": projectUid,
+      search: search?.trim() || undefined,
     },
   );
 
@@ -7102,9 +7154,11 @@ export async function listJobs(
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
+    search,
   }: {
     limit?: number;
     offset?: number;
+    search?: string;
   } = {},
 ) {
   const payload = await requestJson<PaginatedResponse<JobRecord> | JobRecord[]>(
@@ -7114,6 +7168,7 @@ export async function listJobs(
     {
       limit,
       offset,
+      search: search?.trim() || undefined,
     },
   );
 
@@ -7130,9 +7185,11 @@ export async function listJobRuns(
   {
     limit = mainSequenceRegistryPageSize,
     offset = 0,
+    search,
   }: {
     limit?: number;
     offset?: number;
+    search?: string;
   } = {},
 ) {
   const payload = await requestJson<PaginatedResponse<JobRunRecord> | JobRunRecord[]>(
@@ -7143,6 +7200,7 @@ export async function listJobRuns(
       limit,
       offset,
       "job__uid": jobUid,
+      search: search?.trim() || undefined,
     },
   );
 

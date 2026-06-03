@@ -1173,16 +1173,16 @@ export function MainSequenceMetaTableUmlExplorer({
 
                 <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
                   <div className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/45 px-3 py-3">
+                    <div className="grid gap-3">
+                      <div className="min-w-0 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/45 px-3 py-3">
                         <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                           Namespace
                         </div>
-                        <div className="mt-1 text-sm text-foreground">
+                        <div className="mt-1 break-all font-mono text-sm text-foreground">
                           {selectedTable.namespace?.trim() || "Not set"}
                         </div>
                       </div>
-                      <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/45 px-3 py-3">
+                      <div className="min-w-0 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/45 px-3 py-3">
                         <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                           Physical Table
                         </div>

@@ -485,7 +485,7 @@ function AgentSessionsTable({
   selection,
   records,
 }: {
-  selection: ReturnType<typeof useRegistrySelection<AgentSessionApiRecord>>;
+  selection: ReturnType<typeof useRegistrySelection<AgentSessionApiRecord, string>>;
   records: AgentSessionApiRecord[];
 }) {
   return (
@@ -512,7 +512,7 @@ function AgentSessionsTable({
           {records.map((record) => {
             const sessionId = getAgentSessionRecordSessionId(record);
             const detailPath = getAgentSessionDetailPath(sessionId);
-            const selected = selection.isSelected(record.id);
+            const selected = selection.isSelected(sessionId);
             const modelSummary =
               record.llm_provider?.trim() && record.llm_model?.trim()
                 ? `${record.llm_provider} / ${record.llm_model}`
@@ -524,7 +524,7 @@ function AgentSessionsTable({
                   <MainSequenceSelectionCheckbox
                     ariaLabel={`Select ${getAgentSessionRecordTitle(record)}`}
                     checked={selected}
-                    onChange={() => selection.toggleSelection(record.id)}
+                    onChange={() => selection.toggleSelection(sessionId)}
                   />
                 </td>
                 <td className={getRegistryTableCellClassName(selected)}>
@@ -696,7 +696,10 @@ export function AgentDetailView({
         .includes(needle);
     });
   }, [deferredSessionFilterValue, sessionRecords]);
-  const sessionSelection = useRegistrySelection(filteredSessionRecords);
+  const sessionSelection = useRegistrySelection<AgentSessionApiRecord, string>(
+    filteredSessionRecords,
+    getAgentSessionRecordSessionId,
+  );
   const activeSessionsCount = sessionRecords.filter((record) => record.working).length;
   const summary = useMemo(
     () => {

@@ -4,9 +4,9 @@ import {
 } from "./assistant-endpoint";
 
 export interface CancelChatSessionRequest {
-  runtimeSessionId: string;
+  runtimeSessionUid: string;
   threadId: string;
-  userId: string | number | null;
+  userUid: string | number | null;
   reason?: "user_requested" | string;
   message?: string;
 }
@@ -27,16 +27,16 @@ export async function cancelChatSession({
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
-    currentSessionId: body.runtimeSessionId,
+    currentSessionId: body.runtimeSessionUid,
     requestPath: "/api/chat/session/cancel",
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      runtime_session_id: body.runtimeSessionId,
+      runtime_session_uid: body.runtimeSessionUid,
       thread_id: body.threadId,
-      userId: body.userId !== null && body.userId !== undefined ? String(body.userId) : null,
+      user_uid: body.userUid !== null && body.userUid !== undefined ? String(body.userUid) : null,
       reason: body.reason ?? "user_requested",
       message: body.message ?? "User pressed stop.",
     }),

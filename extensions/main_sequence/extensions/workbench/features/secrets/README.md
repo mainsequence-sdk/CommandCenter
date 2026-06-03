@@ -9,3 +9,5 @@ This feature contains Main Sequence secret-management screens.
 ## Notes
 
 - Keep secret-specific forms and tables in this folder unless they become shared with other features.
+- The secrets registry uses backend search on the paginated list endpoint. The page should render
+  `query.data.results` directly instead of filtering only the currently loaded page in the browser.

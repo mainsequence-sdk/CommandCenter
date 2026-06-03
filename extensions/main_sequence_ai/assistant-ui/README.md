@@ -20,7 +20,7 @@ It owns:
 It currently powers two presentation modes that share one runtime:
 
 - a full-page chat route at `/app/main_sequence_ai/chat`
-- a session-pinned variant of that route at `/app/main_sequence_ai/chat?session=<AgentSession.id>`
+- a session-pinned variant of that route at `/app/main_sequence_ai/chat?session=<session_uid>`
   when the user opens a recent session into its own browser tab
 - a full-height frosted shell rail that can either dock into `AppShell` and push content left or
   fall back to a fixed overlay on narrower layouts
@@ -62,7 +62,7 @@ remaining height. The two shells still differ intentionally:
   (`user -> agent request name`), not by whole session object identity, so transcript or metadata
   rewrites do not restart the same request
 - once that scope is established, switching between sessions for the same agent does not restart
-  model discovery just because the concrete `AgentSession.id` changed
+  model discovery just because the concrete session UID changed
 - the picker now understands the grouped provider response from that endpoint and renders the
   workflow as `Provider -> Model -> Thinking`
 - reasoning-effort options are derived from the currently selected model rather than a single
@@ -196,7 +196,7 @@ Responsibilities:
 - own the selected AgentSession and its cached local transcript
 - require a concrete backend `AgentSession` before resolving dynamic assistant-runtime access
 - bind dynamic assistant-runtime access from the selected session's
-  `/orm/api/agents/v1/sessions/{agent_session_id}/resolve_runtime_access/` contract
+  `/orm/api/agents/v1/sessions/{session_uid}/resolve_runtime_access/` contract
 - consume the shared `agent-session-detail/` controller instead of owning full AgentSession detail
   composition inline
 - treat `activeSession` as a real backend-attached session only; local drafts/placeholders are
@@ -226,7 +226,7 @@ The page chat now treats conversations as `AgentSessions`, not generic chat-hist
 This boundary owns a feature-local session layer that:
 
 - bootstraps the visible session list from `/orm/api/agents/v1/sessions/`, filtered to
-  `created_by_user=<signed-in user id>`, newest first, limited to 20
+  `created_by_user_uid=<signed-in user uid>`, newest first, limited to 20
 - persists local session snapshots in browser localStorage, scoped by signed-in user id
 - keeps the selected session shared between the page and overlay runtime
 - exposes the selected session summary to the page shell so static session metadata can live in a
@@ -234,7 +234,7 @@ This boundary owns a feature-local session layer that:
 - exposes the active shared AgentSession detail snapshot so chat chrome can render core detail
   without duplicating fetch state
 - restores cached messages when the user switches sessions through the shared page explorer
-- rehydrates the selected session from `/orm/api/agents/v1/sessions/<AgentSession.id>/history/` when the
+- rehydrates the selected session from `/orm/api/agents/v1/sessions/<session_uid>/history/` when the
   user selects a backend session, then replaces the local cached transcript with the backend
   history payload
 - preserves backend message `provenance` from that history payload in assistant-ui message
@@ -256,10 +256,10 @@ This boundary owns a feature-local session layer that:
   rail from the created session record first so the canonical Astro orchestrator transport does not
   mix into the first-open experience
 - direct-launched sessions no longer mark history as ready from local placeholder state;
-  they stay loading until a real `/orm/api/agents/v1/sessions/<AgentSession.id>/history/` read
+  they stay loading until a real `/orm/api/agents/v1/sessions/<session_uid>/history/` read
   succeeds
 - session-bound runtime calls now resolve runtime access from
-  `/orm/api/agents/v1/sessions/{agent_session_id}/resolve_runtime_access/` instead of routing
+  `/orm/api/agents/v1/sessions/{session_uid}/resolve_runtime_access/` instead of routing
   every selected session through a separate Astro Command Center bootstrap endpoint
 - a fresh backend `start_new_session` with no persisted transcript is treated as a valid empty
   history state; a `404` history response is normalized to an empty thread instead of surfacing a
@@ -271,7 +271,7 @@ This boundary owns a feature-local session layer that:
 - replaces the visible latest-session list on every backend refresh instead of appending stale
   sessions from previous queries, while still preserving the active unsynced local draft session
 - refreshes backend session insights from
-  `/orm/api/agents/v1/sessions/{agent_session_id}/insights/` every time the effective backend
+  `/orm/api/agents/v1/sessions/{session_uid}/insights/` every time the effective backend
   session changes
 - once a session already has an insights snapshot, later background insights refreshes must patch
   that snapshot in place instead of reverting the rail/footer UI to loading placeholders
@@ -335,7 +335,7 @@ router should need chat-local route resolvers.
 
 The backend exposes per-session runtime/model/usage metadata through:
 
-- `/api/chat/session-insights?sessionId=<runtime_session_id>`
+- `/api/chat/session-insights?sessionId=<runtime_session_uid>`
 
 `ChatProvider.tsx` owns this lifecycle.
 
@@ -421,16 +421,16 @@ If you do those steps, the main project should return to its pre-chat shape beca
   chunk, the runtime sends the backend-provided `thread_id`; otherwise it falls back to the local
   session id.
 - The local AgentSession cache now stores a separate `runtimeSessionId`. This is the backend
-  `agent_session_id` used for live request continuity and is distinct from any temporary local id
-  used before the first session assignment arrives.
-- The live request also includes root `userId`, runtime `agentType` identity, and
+  session lookup uid used for ORM session detail/history/runtime-access reads and is distinct from
+  any temporary local id used before the first session assignment arrives.
+- The live request also includes root `user_uid`, runtime `agentType` identity, and
   `sessionMetadata.workflow_key`.
-- For any selected existing session, the live request now includes both `sessionId` and
-  `runtime_session_id`, using the selected backend session id.
+- For any selected existing session, the live request includes `runtime_session_uid`, using the
+  selected backend session uid.
 - The live request emits `agentType` as the runtime identity.
 - The first live request after a fresh/reset conversation includes `newChat: true`.
-- Every live request after that must include `runtime_session_id`.
-- `newChat` requests are the only live requests allowed to omit `runtime_session_id`.
+- Every live request after that must include `runtime_session_uid`.
+- `newChat` requests are the only live requests allowed to omit `runtime_session_uid`.
 - `newChat` requests also omit `threadId`. They do not send any session identifier at all.
 - After a `newChat` request, the very next streamed response is expected to include a
   `new_session` chunk. If that chunk never arrives before the response finishes, the frontend marks
@@ -443,8 +443,8 @@ If you do those steps, the main project should return to its pre-chat shape beca
   String and numeric agent ids are both accepted.
 - If the backend emits a `new_session` chunk for the currently streaming agent, the active local
   AgentSession is promoted in place to the backend session identity:
-  - local session `id` becomes `new_session.agent_session_id`
-  - local `runtimeSessionId` becomes `new_session.agent_session_id`
+  - local session `id` becomes `new_session.runtime_session_uid` or another canonical session UID
+  - local `runtimeSessionId` becomes `new_session.runtime_session_uid` or another canonical session UID
   - local `threadId` becomes `new_session.thread_id`
   - local `sessionKey` becomes `new_session.session_key`
   - local agent metadata adopts `new_session.agent_id` and `new_session.agent_unique_id`

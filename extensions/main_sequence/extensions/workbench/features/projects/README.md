@@ -84,6 +84,10 @@ This feature owns the Main Sequence project registry and project detail experien
 - The project registry polls every 60 seconds only while the current page still contains an uninitialized project, and those rows render a spinner instead of a warning pill.
 - The project images tab polls every 60 seconds only while the current page still contains a building image, and those rows render a spinner instead of a warning pill.
 - The project images tab displays backend-provided image `tags` in the list view and includes those tags in the local filter.
+- The project registry, project jobs tab, project images tab, job-runs tab, and project data-node
+  updates tab now forward their search text to backend paginated endpoints. Those surfaces should
+  render `query.data.results` as the already-filtered page instead of filtering only the loaded
+  page in the browser.
 - Job creation and resource release creation share the same project-image picker formatting, including backend-provided image tags in picker descriptions and search keywords.
 - Job creation, resource release creation, and project-agent release creation use the shared Main
   Sequence resource-requirements block so CPU, memory, GPU, and capacity controls stay

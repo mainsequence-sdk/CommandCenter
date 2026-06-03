@@ -102,11 +102,19 @@ export function MainSequenceProjectImagesTab({
   const deferredFilterValue = useDeferredValue(filterValue);
 
   const imagesQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "images", projectUid, imagesPageIndex],
+    queryKey: [
+      "main_sequence",
+      "projects",
+      "images",
+      projectUid,
+      imagesPageIndex,
+      deferredFilterValue.trim(),
+    ],
     queryFn: () =>
       listProjectImages(projectUid, {
         limit: mainSequenceRegistryPageSize,
         offset: imagesPageIndex * mainSequenceRegistryPageSize,
+        search: deferredFilterValue.trim() || undefined,
       }),
     enabled: Boolean(projectUid),
     refetchInterval: (query) =>
@@ -129,29 +137,7 @@ export function MainSequenceProjectImagesTab({
     }
   }, [imagesPageIndex, imagesQuery.data?.count]);
 
-  const filteredImages = useMemo(() => {
-    const needle = deferredFilterValue.trim().toLowerCase();
-
-    return (imagesQuery.data?.results ?? []).filter((image) => {
-      if (!needle) {
-        return true;
-      }
-
-      return [
-        image.uid,
-        image.title ?? "",
-        image.project_repo_hash ?? "",
-        image.base_image?.title ?? "",
-        image.base_image?.description ?? "",
-        image.base_image?.latest_digest ?? "",
-        ...getProjectImageTags(image),
-        formatProjectImageStatus(image),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
-    });
-  }, [deferredFilterValue, imagesQuery.data?.results]);
+  const filteredImages = imagesQuery.data?.results ?? [];
 
   const imageSelection = useRegistrySelection(filteredImages, (image) => image.uid);
   const commitHashesQuery = useQuery({

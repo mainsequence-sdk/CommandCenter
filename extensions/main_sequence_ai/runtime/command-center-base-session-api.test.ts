@@ -52,14 +52,16 @@ describe("command center runtime access contract", () => {
     );
 
     const handle = await fetchAgentSessionRuntimeAccess({
-      sessionId: 91,
+      sessionId: "session-uid-91",
     });
 
-    expect(handle.sessionId).toBe("91");
+    expect(handle.sessionId).toBe("session-uid-91");
     expect(handle.runtimeAccess?.isReady).toBe(true);
     expect(handle.runtimeAccess?.knativeServiceRuntimeId).toBe("123");
     expect(handle.runtimeAccess?.imageDrift).toEqual({
       agent_kind: "project_executor",
+      autoheal_available: null,
+      autoheal_message: null,
       available: true,
       has_drift: true,
       checks: [
@@ -70,11 +72,29 @@ describe("command center runtime access contract", () => {
           has_drift: true,
           matches: false,
           reason: "catalog_pointer_moved",
+          message: null,
+          autoheal_supported: null,
+          autoheal_mode: null,
+          autoheal_message: null,
           expected_image_uri: null,
           actual_image_uri: null,
         },
       ],
       detail: null,
     });
+  });
+
+  it("rejects invalid runtime-access lookups before calling fetch", async () => {
+    await expect(fetchAgentSessionRuntimeAccess({ sessionId: "undefined" })).rejects.toThrow(
+      "valid session uid",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects numeric runtime-access lookups before calling fetch", async () => {
+    await expect(fetchAgentSessionRuntimeAccess({ sessionId: 91 })).rejects.toThrow(
+      "valid session uid",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

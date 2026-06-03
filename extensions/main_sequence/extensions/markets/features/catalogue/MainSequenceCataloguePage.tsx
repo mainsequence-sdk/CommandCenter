@@ -576,7 +576,6 @@ export function MainSequenceCataloguePage() {
                   <thead className="bg-muted/35 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3 font-medium">Catalogue</th>
-                      <th className="px-4 py-3 font-medium">Resource Type</th>
                       <th className="px-4 py-3 font-medium">Model</th>
                       <th className="px-4 py-3 font-medium">Meta table uid</th>
                       <th className="px-4 py-3 font-medium">Storage hash</th>
@@ -599,9 +598,6 @@ export function MainSequenceCataloguePage() {
                               {formatText(record.description, "No description provided.")}
                             </div>
                           </button>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {formatText(record.resource_type, "Unknown")}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{formatText(record.model_name)}</td>
                         <td className="px-4 py-3 font-mono text-xs text-muted-foreground">

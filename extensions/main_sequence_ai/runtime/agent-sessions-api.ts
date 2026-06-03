@@ -2,8 +2,12 @@ import { env } from "@/config/env";
 import { MainSequenceAiError, withMainSequenceAiErrorSource } from "./error-source";
 
 export interface AgentSessionApiRecord {
-  id: number;
-  agent_session?: number;
+  id?: number | string | null;
+  uid?: string | null;
+  agent_session?: number | string | null;
+  agent_session_uid?: string | null;
+  session_uid?: string | null;
+  runtime_session_uid?: string | null;
   agent?: number | AgentSessionApiAgent;
   agent_type: string;
   agent_name: string;
@@ -31,6 +35,7 @@ export interface AgentSessionApiRecord {
   external_step_id?: string;
   metadata?: Record<string, unknown>;
   created_by_user?: number;
+  created_by_user_uid?: string | null;
   bound_handles?: Array<{
     id: number;
     handle_unique_id: string;
@@ -75,10 +80,10 @@ export function isAgentSessionNotFoundError(error: unknown): error is AgentSessi
 }
 
 function buildLatestAgentSessionsUrl({
-  createdByUser,
+  createdByUserUid,
   agentId,
 }: {
-  createdByUser: string | number | null | undefined;
+  createdByUserUid: string | number | null | undefined;
   agentId?: number | string | null;
 }) {
   const url = new URL("/orm/api/agents/v1/sessions/", env.apiBaseUrl);
@@ -87,8 +92,12 @@ function buildLatestAgentSessionsUrl({
     url.searchParams.set("agent_id", String(agentId));
   }
 
-  if (createdByUser !== null && createdByUser !== undefined && `${createdByUser}`.trim()) {
-    url.searchParams.set("created_by_user", String(createdByUser));
+  if (
+    createdByUserUid !== null &&
+    createdByUserUid !== undefined &&
+    `${createdByUserUid}`.trim()
+  ) {
+    url.searchParams.set("created_by_user_uid", String(createdByUserUid));
   }
 
   url.searchParams.set("ordering", "-started_at");
@@ -98,15 +107,30 @@ function buildLatestAgentSessionsUrl({
 }
 
 function buildDeleteAgentSessionUrl(sessionId: string | number) {
-  return new URL(`/orm/api/agents/v1/sessions/${sessionId}/`, env.apiBaseUrl).toString();
+  const normalizedSessionId = requireAgentSessionLookupId(sessionId, "AgentSession delete");
+  return new URL(
+    `/orm/api/agents/v1/sessions/${encodeURIComponent(normalizedSessionId)}/`,
+    env.apiBaseUrl,
+  ).toString();
 }
 
 function buildAgentSessionDetailUrl(sessionId: string | number) {
-  return new URL(`/orm/api/agents/v1/sessions/${sessionId}/`, env.apiBaseUrl).toString();
+  const normalizedSessionId = requireAgentSessionLookupId(sessionId, "AgentSession detail");
+  return new URL(
+    `/orm/api/agents/v1/sessions/${encodeURIComponent(normalizedSessionId)}/`,
+    env.apiBaseUrl,
+  ).toString();
 }
 
 function buildAgentSessionModelConfigUrl(sessionId: string | number) {
-  return new URL(`/orm/api/agents/v1/sessions/${sessionId}/`, env.apiBaseUrl).toString();
+  const normalizedSessionId = requireAgentSessionLookupId(
+    sessionId,
+    "AgentSession model config",
+  );
+  return new URL(
+    `/orm/api/agents/v1/sessions/${encodeURIComponent(normalizedSessionId)}/`,
+    env.apiBaseUrl,
+  ).toString();
 }
 
 function buildStartNewAgentSessionUrl(agentId: string | number) {
@@ -126,6 +150,41 @@ function normalizeIdentifier(value: unknown) {
   return null;
 }
 
+export function normalizeAgentSessionLookupId(value: unknown) {
+  const normalized = normalizeIdentifier(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const lowered = normalized.toLowerCase();
+
+  if (lowered === "undefined" || lowered === "null") {
+    return null;
+  }
+
+  if (/^\d+$/.test(normalized)) {
+    return null;
+  }
+
+  return normalized;
+}
+
+export function requireAgentSessionLookupId(
+  value: unknown,
+  contextLabel = "AgentSession",
+) {
+  const normalized = normalizeAgentSessionLookupId(value);
+
+  if (!normalized) {
+    throw new MainSequenceAiError(`${contextLabel} requires a valid session uid.`, {
+      source: "frontend_runtime_guard",
+    });
+  }
+
+  return normalized;
+}
+
 function isAgentSessionApiRecord(value: unknown): value is AgentSessionApiRecord {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return false;
@@ -134,7 +193,12 @@ function isAgentSessionApiRecord(value: unknown): value is AgentSessionApiRecord
   const candidate = value as Record<string, unknown>;
 
   return (
-    normalizeIdentifier(candidate.id) !== null &&
+    (
+      normalizeAgentSessionLookupId(candidate.uid) !== null ||
+      normalizeAgentSessionLookupId(candidate.agent_session_uid) !== null ||
+      normalizeAgentSessionLookupId(candidate.session_uid) !== null ||
+      normalizeAgentSessionLookupId(candidate.runtime_session_uid) !== null
+    ) &&
     (
       normalizeIdentifier(candidate.agent_session) !== null ||
       typeof candidate.status === "string" ||
@@ -175,8 +239,11 @@ function extractStartedAgentSessionId(value: unknown): string | null {
   const candidate = value as Record<string, unknown>;
 
   return (
-    normalizeIdentifier(candidate.agent_session_id) ??
-    normalizeIdentifier(candidate.session_id) ??
+    normalizeAgentSessionLookupId(candidate.uid) ??
+    normalizeAgentSessionLookupId(candidate.agent_session_uid) ??
+    normalizeAgentSessionLookupId(candidate.session_uid) ??
+    normalizeAgentSessionLookupId(candidate.runtime_session_uid) ??
+    extractStartedAgentSessionId(candidate.agent_session) ??
     extractStartedAgentSessionId(candidate.session) ??
     extractStartedAgentSessionId(candidate.result) ??
     extractStartedAgentSessionId(candidate.data)
@@ -229,7 +296,13 @@ function buildAgentSessionCreationErrorMessage(payload: unknown) {
 }
 
 export function getAgentSessionRecordSessionId(record: AgentSessionApiRecord) {
-  return String(record.agent_session || record.id);
+  return (
+    normalizeAgentSessionLookupId(record.uid) ??
+    normalizeAgentSessionLookupId(record.agent_session_uid) ??
+    normalizeAgentSessionLookupId(record.session_uid) ??
+    normalizeAgentSessionLookupId(record.runtime_session_uid) ??
+    ""
+  );
 }
 
 export function getAgentSessionRecordAgentId(record: AgentSessionApiRecord) {
@@ -281,13 +354,13 @@ export function getAgentSessionRecordUpdatedAt(record: AgentSessionApiRecord) {
 
 export async function fetchLatestAgentSessions({
   agentId,
-  createdByUser,
+  createdByUserUid,
   signal,
   token,
   tokenType = "Bearer",
 }: {
   agentId?: string | number | null;
-  createdByUser?: string | number | null;
+  createdByUserUid?: string | number | null;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
@@ -300,7 +373,7 @@ export async function fetchLatestAgentSessions({
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  const response = await fetch(buildLatestAgentSessionsUrl({ createdByUser, agentId }), {
+  const response = await fetch(buildLatestAgentSessionsUrl({ createdByUserUid, agentId }), {
     method: "GET",
     headers,
     signal,
@@ -418,14 +491,14 @@ export async function fetchAgentSessionDetail({
 
 export async function startNewAgentSessionRequest({
   agentId,
-  createdByUser,
+  createdByUserUid,
   signal,
   threadId,
   token,
   tokenType = "Bearer",
 }: {
   agentId: string | number;
-  createdByUser: string | number;
+  createdByUserUid: string | number;
   signal?: AbortSignal;
   threadId?: string | null;
   token?: string | null;
@@ -440,17 +513,17 @@ export async function startNewAgentSessionRequest({
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  const normalizedCreatedByUser = normalizeIdentifier(createdByUser);
+  const normalizedCreatedByUserUid = normalizeIdentifier(createdByUserUid);
   const normalizedThreadId = normalizeIdentifier(threadId) ?? createClientThreadId();
 
-  if (!normalizedCreatedByUser) {
-    throw new Error("Unable to create a session because no signed-in user id is available.");
+  if (!normalizedCreatedByUserUid) {
+    throw new Error("Unable to create a session because no signed-in user uid is available.");
   }
 
   const response = await fetch(buildStartNewAgentSessionUrl(agentId), {
     method: "POST",
     body: JSON.stringify({
-      created_by_user: normalizedCreatedByUser,
+      created_by_user_uid: normalizedCreatedByUserUid,
       thread_id: normalizedThreadId,
     }),
     headers,
@@ -476,7 +549,7 @@ export async function startNewAgentSessionRequest({
   const sessionId = extractStartedAgentSessionId(payload);
 
   if (!sessionId) {
-    throw new Error("Session creation succeeded but no AgentSession id was returned.");
+    throw new Error("Session creation succeeded but no AgentSession uid was returned.");
   }
 
   return {

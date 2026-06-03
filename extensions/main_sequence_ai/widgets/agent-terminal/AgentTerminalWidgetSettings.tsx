@@ -46,7 +46,7 @@ export function AgentTerminalWidgetSettings({
   controllerContext,
 }: WidgetSettingsComponentProps<AgentTerminalWidgetProps>) {
   const { toast } = useToast();
-  const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
+  const sessionUserUid = useAuthStore((state) => state.session?.user.uid ?? null);
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
   const normalizedProps = normalizeAgentTerminalWidgetProps(draftProps);
@@ -122,7 +122,7 @@ export function AgentTerminalWidgetSettings({
     try {
       const { sessionId: nextSessionId } = await startNewAgentSessionRequest({
         agentId: nextAgentId,
-        createdByUser: sessionUserId ?? "",
+        createdByUserUid: sessionUserUid ?? "",
         token: sessionToken,
         tokenType: sessionTokenType,
       });

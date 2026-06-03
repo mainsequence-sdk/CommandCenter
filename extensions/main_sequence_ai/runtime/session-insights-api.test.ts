@@ -21,7 +21,7 @@ describe("session insights contract", () => {
   it("normalizes the empty persisted-insights payload shape", () => {
     const snapshot = normalizeSessionInsightsSnapshot({
       has_insights: false,
-      agent_session_id: "73",
+      agent_session_id: "session-uid-73",
       checkpoint_version: 4,
       bundle_hash: "bundle-123",
       computed_at: null,
@@ -32,7 +32,7 @@ describe("session insights contract", () => {
     });
 
     expect(snapshot.hasInsights).toBe(false);
-    expect(snapshot.agentSessionId).toBe("73");
+    expect(snapshot.agentSessionId).toBe("session-uid-73");
     expect(snapshot.checkpointVersion).toBe(4);
     expect(snapshot.bundleHash).toBe("bundle-123");
     expect(snapshot.computedAt).toBeNull();
@@ -44,7 +44,7 @@ describe("session insights contract", () => {
     expect(snapshot.model).toBeNull();
     expect(snapshot.usage).toBeNull();
     expect(snapshot.lastTurn).toBeNull();
-    expect(snapshot.session.agentSessionId).toBe("73");
+    expect(snapshot.session.agentSessionId).toBe("session-uid-73");
   });
 
   it("maps a legacy 404 insights lookup to the empty snapshot contract", async () => {
@@ -57,10 +57,15 @@ describe("session insights contract", () => {
       }),
     );
 
-    await expect(fetchSessionInsights({ sessionId: 73 })).resolves.toEqual(
+    await expect(fetchSessionInsights({ sessionId: "session-uid-73" })).resolves.toEqual(
       createEmptySessionInsightsSnapshot({
-        sessionId: 73,
+        sessionId: "session-uid-73",
       }),
     );
+  });
+
+  it("rejects numeric insights lookups before calling fetch", async () => {
+    await expect(fetchSessionInsights({ sessionId: 73 })).rejects.toThrow("valid session uid");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

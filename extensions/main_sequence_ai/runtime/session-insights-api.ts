@@ -4,11 +4,16 @@ import {
   normalizeSessionInsightsSnapshot,
 } from "../assistant-ui/session-insights";
 import { env } from "@/config/env";
+import { requireAgentSessionLookupId } from "./agent-sessions-api";
 import { MainSequenceAiError } from "./error-source";
 
 function buildSessionInsightsUrl(sessionId: string | number) {
+  const normalizedSessionId = requireAgentSessionLookupId(
+    sessionId,
+    "AgentSession insights",
+  );
   return new URL(
-    `/orm/api/agents/v1/sessions/${encodeURIComponent(String(sessionId))}/insights/`,
+    `/orm/api/agents/v1/sessions/${encodeURIComponent(normalizedSessionId)}/insights/`,
     env.apiBaseUrl,
   ).toString();
 }

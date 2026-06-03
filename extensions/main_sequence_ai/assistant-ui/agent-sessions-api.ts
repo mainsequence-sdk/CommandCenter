@@ -2,6 +2,7 @@ export {
   deleteAgentSessionRequest,
   fetchAgentSessionDetail,
   fetchLatestAgentSessions,
+  normalizeAgentSessionLookupId,
   getAgentSessionRecordSessionId,
   getAgentSessionRecordSummary,
   getAgentSessionRecordTitle,

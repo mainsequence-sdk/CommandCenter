@@ -19,13 +19,19 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
   Users can switch to `All namespaces` to remove the namespace filter.
 - Keep reusable graph and inspector subcomponents here if they are specific to data nodes. Shared dependency-graph rendering now lives under `../../widgets/dependency-graph/`.
 - The data-snapshot tab intentionally uses the lightweight tail-observations preview endpoint (`dynamic_table/{uid}/get-tail-observations/?n=100&order=desc`) instead of the older latest-observation plus point-range query chain, because the registry detail surface does not have a canonical upstream `Data Node` widget runtime to bind against.
+- The data-snapshot tab must not require `sourcetableconfiguration`. It mirrors the MetaTable
+  snapshot behavior: load the tail endpoint directly and infer preview columns from the returned
+  rows.
 - The `ULM diagram` tab calls `dynamic_table/{uid}/schema-graph/` with `depth` and `include_incoming`, and it uses the same normalized graph contract and explorer as Meta Tables.
 - The `Details` tab renders both source-table column metadata and `foreign_keys` returned by `GET /orm/api/ts_manager/dynamic_table/{uid}/`.
 - Data-node permissions use the shared `MainSequencePermissionsTab`, but they target the absolute `ts_manager/dynamic_table` object root instead of the default pods-scoped permission paths used by projects, constants, and secrets.
 - If a piece becomes useful outside this feature, move it to `../../components` and update this README.
 - Data-node detail navigation is URL-backed: `msDataNodeTab` selects the top-level detail tab, while `msLocalUpdateUid` and `msLocalUpdateTab` drive the nested local-update detail view.
 - The list view is namespace-first on purpose. It narrows the heavier DynamicTableMetaData registry
-  before applying the page-local text filter.
+  before sending the text search upstream through the backend `q` parameter.
+- The registry list no longer renders `source_class_name` as its own column. The list focuses on
+  identifier, namespace, source, and creation time; source-class detail remains in the
+  detail surface and summary metadata.
 - The surface also accepts standalone local-update deep links with `msLocalUpdateUid` even when `msDataNodeUid` is absent; this is used by cross-app links from Markets portfolio summaries.
 - The detail header exposes a `Delete Tail Data` action. It loads SourceTableConfiguration stats for multi-index tables, lets the user scope the delete to selected identifiers, and sends the suffix delete through `dynamic_table/<uid>/delete_after_date/`.
 - URL-backed detail navigation stores the backend ts_manager `uid` for both Data Nodes and nested local updates.
@@ -33,6 +39,9 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
   CPU/GPU requirements, keeping resource controls separate from retry, timeout, and schedule
   controls. The same block exposes the shared billing estimate action with zero memory and standard
   capacity because this backend contract only exposes CPU/GPU requirements for local updates.
+- The top-level data-node registry and both local-update list tabs now rely on backend search for
+  paginated queries. Those surfaces should treat `query.data.results` as the already-filtered
+  current page instead of applying another page-local filter in the browser.
 - The data-node summary header decorates the summary `engine` field with the canonical source icon
   from the detail payload (`data_source.related_resource_class_type`). The summary endpoint still
   provides the display label, while the detail endpoint supplies the stable class type used for the
