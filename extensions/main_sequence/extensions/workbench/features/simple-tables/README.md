@@ -22,6 +22,7 @@ The directory name is still `simple-tables` only because older local imports use
   - `POST /orm/api/ts_manager/meta_table/bulk-delete-with-cascade/` for recursive cascade delete across one or more selected MetaTables
   - `/bulk-delete/` only for multi-select registry delete
   - `/bulk-refresh-table-search-index/` for search-index refresh
+  - `POST /orm/api/ts_manager/meta_table/{uid}/heal-from-physical/` to introspect the physical table and sync projection details
 - Shared registry controls come from `extensions/main_sequence/common/components/` and `extensions/main_sequence/common/hooks/`.
 
 ## Notes

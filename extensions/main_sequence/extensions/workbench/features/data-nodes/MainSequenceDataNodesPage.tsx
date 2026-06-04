@@ -105,10 +105,11 @@ type DataNodeDeleteOptions = {
 };
 
 type DataNodeSortKey =
-  | "storage_hash"
+  | "table_name"
   | "identifier"
   | "namespace"
   | "data_source"
+  | "provisioning"
   | "creation_date";
 type DataNodeSortDirection = "asc" | "desc";
 
@@ -148,6 +149,12 @@ function formatDateTimeLocalValue(value?: string | null) {
 }
 
 function getDataNodeTitle(dataNode: DataNodeSummary) {
+  const tableName = getDataNodeTableName(dataNode);
+
+  if (tableName) {
+    return tableName;
+  }
+
   const identifier = dataNode.identifier?.trim();
 
   if (identifier) {
@@ -155,6 +162,27 @@ function getDataNodeTitle(dataNode: DataNodeSummary) {
   }
 
   return `Dynamic table ${dataNode.id}`;
+}
+
+function getDataNodeTableName(dataNode: DataNodeSummary) {
+  const candidates = [
+    dataNode.table_name,
+    dataNode.meta_table_name,
+    dataNode.physical_table_name,
+    dataNode.identifier,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return dataNode.storage_hash?.trim() || "";
+}
+
+function getDataNodeProvisioningStatus(dataNode: DataNodeSummary) {
+  return dataNode.provisioning_status?.trim() || "Not set";
 }
 
 function getDataSourceLabel(dataNode: DataNodeSummary) {
@@ -205,14 +233,16 @@ function normalizeDataNodeSortValue(value?: string | null) {
 
 function getDataNodeSortValue(dataNode: DataNodeSummary, key: DataNodeSortKey) {
   switch (key) {
-    case "storage_hash":
-      return normalizeDataNodeSortValue(dataNode.storage_hash);
+    case "table_name":
+      return normalizeDataNodeSortValue(getDataNodeTableName(dataNode));
     case "identifier":
       return normalizeDataNodeSortValue(dataNode.identifier);
     case "namespace":
       return normalizeDataNodeSortValue(dataNode.namespace);
     case "data_source":
       return normalizeDataNodeSortValue(getDataSourceLabel(dataNode));
+    case "provisioning":
+      return normalizeDataNodeSortValue(getDataNodeProvisioningStatus(dataNode));
     case "creation_date":
       return normalizeDataNodeSortValue(dataNode.creation_date);
   }
@@ -523,11 +553,18 @@ export function MainSequenceDataNodesPage() {
       1,
       Math.ceil(dataNodesQuery.data.count / mainSequenceRegistryPageSize),
     );
+    const hasBackendPageBoundary =
+      Boolean(dataNodesQuery.data.next) || Boolean(dataNodesQuery.data.previous);
 
-    if (dataNodesPageIndex > totalPages - 1) {
+    if (!hasBackendPageBoundary && dataNodesPageIndex > totalPages - 1) {
       setDataNodesPageIndex(totalPages - 1);
     }
-  }, [dataNodesPageIndex, dataNodesQuery.data?.count]);
+  }, [
+    dataNodesPageIndex,
+    dataNodesQuery.data?.count,
+    dataNodesQuery.data?.next,
+    dataNodesQuery.data?.previous,
+  ]);
   const toggleSort = useEffectEvent((key: DataNodeSortKey) => {
     setSortState((current) => {
       if (current.key !== key) {
@@ -588,8 +625,10 @@ export function MainSequenceDataNodesPage() {
     dataNodeSummary?.entity.title ??
     selectedDataNodeFromList?.storage_hash ??
     (isDataNodeDetailOpen ? `Data node ${selectedDataNodeIdentifier}` : "Data node");
-  const dataNodeColumnDetails = dataNodeDetailQuery.data?.sourcetableconfiguration?.columns_metadata ?? [];
+  const dataNodeColumnDetails = dataNodeDetailQuery.data?.columns ?? [];
+  const dataNodeIndexDetails = dataNodeDetailQuery.data?.indexes_meta ?? [];
   const dataNodeForeignKeys = dataNodeDetailQuery.data?.foreign_keys ?? [];
+  const dataNodeIncomingForeignKeys = dataNodeDetailQuery.data?.incoming_fks ?? [];
   const selectedSourceTableConfiguration = dataNodeDetailQuery.data?.sourcetableconfiguration ?? null;
   const sourceTableConfigurationUid = useMemo(
     () => getSourceTableConfigurationUid(dataNodeDetailQuery.data),
@@ -1259,13 +1298,15 @@ export function MainSequenceDataNodesPage() {
                           <Card variant="nested">
                             <CardHeader className="pb-3">
                               <CardTitle className="text-base">Column details</CardTitle>
-                              <CardDescription>Column metadata from the source table configuration.</CardDescription>
+                              <CardDescription>
+                                Normalized column metadata returned by the Data Node detail endpoint.
+                              </CardDescription>
                             </CardHeader>
                             <CardContent className="pt-0">
                               {dataNodeColumnDetails.length > 0 ? (
                                 <div className="overflow-x-auto">
                                   <table
-                                    className="w-full min-w-[920px] border-separate"
+                                    className="w-full min-w-[1120px] border-separate"
                                     style={{
                                       borderSpacing: "0 var(--table-row-gap-y)",
                                       fontSize: "var(--table-font-size)",
@@ -1277,13 +1318,22 @@ export function MainSequenceDataNodesPage() {
                                         style={{ fontSize: "var(--table-meta-font-size)" }}
                                       >
                                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Ord
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
                                           Column
                                         </th>
                                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">
-                                          Dtype
+                                          Label
                                         </th>
                                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">
-                                          Label
+                                          Data Type
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Backend
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Flags
                                         </th>
                                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">
                                           Description
@@ -1292,18 +1342,37 @@ export function MainSequenceDataNodesPage() {
                                     </thead>
                                     <tbody>
                                       {dataNodeColumnDetails.map((column) => (
-                                        <tr key={`${column.source_config_id ?? "none"}-${column.column_name}`}>
+                                        <tr key={`${column.id ?? "none"}-${column.name}`}>
+                                          <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {column.ordinal_position ?? "?"}
+                                          </td>
                                           <td
-                                            className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground"
+                                            className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground"
                                             style={{ fontSize: "var(--table-meta-font-size)" }}
                                           >
-                                            {column.column_name}
-                                          </td>
-                                          <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
-                                            {column.dtype?.trim() || "Not set"}
+                                            {column.name}
                                           </td>
                                           <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                             {column.label?.trim() || "Not set"}
+                                          </td>
+                                          <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {column.data_type?.trim() || "Not set"}
+                                          </td>
+                                          <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {column.backend_type?.trim() || "Not set"}
+                                          </td>
+                                          <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            <div className="flex flex-wrap gap-1.5">
+                                              <Badge variant={column.nullable ? "neutral" : "warning"}>
+                                                {column.nullable ? "Nullable" : "Required"}
+                                              </Badge>
+                                              {column.primary_key ? (
+                                                <Badge variant="primary">PK</Badge>
+                                              ) : null}
+                                              {column.unique ? (
+                                                <Badge variant="success">Unique</Badge>
+                                              ) : null}
+                                            </div>
                                           </td>
                                           <td className="rounded-r-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                             {column.description?.trim() || "Not set"}
@@ -1316,6 +1385,76 @@ export function MainSequenceDataNodesPage() {
                               ) : (
                                 <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
                                   No column metadata is available for this data node.
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+
+                          <Card variant="nested">
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-base">Indexes</CardTitle>
+                              <CardDescription>
+                                Index metadata returned by the Data Node detail endpoint.
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              {dataNodeIndexDetails.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                  <table
+                                    className="w-full min-w-[860px] border-separate"
+                                    style={{
+                                      borderSpacing: "0 var(--table-row-gap-y)",
+                                      fontSize: "var(--table-font-size)",
+                                    }}
+                                  >
+                                    <thead>
+                                      <tr
+                                        className="text-left uppercase tracking-[0.18em] text-muted-foreground"
+                                        style={{ fontSize: "var(--table-meta-font-size)" }}
+                                      >
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Name
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Columns
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Unique
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Method
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Expression
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {dataNodeIndexDetails.map((index, position) => (
+                                        <tr key={`${index.name}-${position}`}>
+                                          <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground">
+                                            {index.name}
+                                          </td>
+                                          <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {formatJoinedValues(index.columns)}
+                                          </td>
+                                          <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {typeof index.unique === "boolean" ? (index.unique ? "Yes" : "No") : "Not set"}
+                                          </td>
+                                          <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {index.method?.trim() || "Not set"}
+                                          </td>
+                                          <td className="rounded-r-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {index.expression?.trim() || "Not set"}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                                  No index metadata is available for this data node.
                                 </div>
                               )}
                             </CardContent>
@@ -1344,10 +1483,13 @@ export function MainSequenceDataNodesPage() {
                                         style={{ fontSize: "var(--table-meta-font-size)" }}
                                       >
                                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Name
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
                                           Source Columns
                                         </th>
                                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">
-                                          Target MetaTable UID
+                                          Target Table
                                         </th>
                                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">
                                           Target Columns
@@ -1360,16 +1502,29 @@ export function MainSequenceDataNodesPage() {
                                     <tbody>
                                       {dataNodeForeignKeys.map((foreignKey, index) => (
                                         <tr
-                                          key={`${foreignKey.target_meta_table_uid ?? "none"}-${index}`}
+                                          key={`${foreignKey.name}-${index}`}
                                         >
-                                          <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                          <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground">
+                                            {foreignKey.name}
+                                          </td>
+                                          <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                             {formatJoinedValues(foreignKey.source_columns)}
                                           </td>
                                           <td
                                             className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground"
                                             style={{ fontSize: "var(--table-meta-font-size)" }}
                                           >
-                                            {foreignKey.target_meta_table_uid?.trim() || "Not set"}
+                                            <div>
+                                              {foreignKey.target_table_storage_hash?.trim() ||
+                                                foreignKey.target_table_uid?.trim() ||
+                                                "Not set"}
+                                            </div>
+                                            {foreignKey.target_table_storage_hash?.trim() &&
+                                            foreignKey.target_table_uid?.trim() ? (
+                                              <div className="mt-1 text-xs text-muted-foreground">
+                                                {foreignKey.target_table_uid.trim()}
+                                              </div>
+                                            ) : null}
                                           </td>
                                           <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                             {formatJoinedValues(foreignKey.target_columns)}
@@ -1385,6 +1540,88 @@ export function MainSequenceDataNodesPage() {
                               ) : (
                                 <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
                                   No foreign-key metadata is available for this data node.
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+
+                          <Card variant="nested">
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-base">Incoming references</CardTitle>
+                              <CardDescription>
+                                Foreign keys from other tables that target this Data Node.
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent className="pt-0">
+                              {dataNodeIncomingForeignKeys.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                  <table
+                                    className="w-full min-w-[980px] border-separate"
+                                    style={{
+                                      borderSpacing: "0 var(--table-row-gap-y)",
+                                      fontSize: "var(--table-font-size)",
+                                    }}
+                                  >
+                                    <thead>
+                                      <tr
+                                        className="text-left uppercase tracking-[0.18em] text-muted-foreground"
+                                        style={{ fontSize: "var(--table-meta-font-size)" }}
+                                      >
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Name
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Source Columns
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Current Table
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          Target Columns
+                                        </th>
+                                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">
+                                          On Delete
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {dataNodeIncomingForeignKeys.map((foreignKey, index) => (
+                                        <tr key={`${foreignKey.name}-${index}`}>
+                                          <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground">
+                                            {foreignKey.name}
+                                          </td>
+                                          <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {formatJoinedValues(foreignKey.source_columns)}
+                                          </td>
+                                          <td
+                                            className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-foreground"
+                                            style={{ fontSize: "var(--table-meta-font-size)" }}
+                                          >
+                                            <div>
+                                              {foreignKey.target_table_storage_hash?.trim() ||
+                                                dataNodeDetailQuery.data?.storage_hash?.trim() ||
+                                                "Not set"}
+                                            </div>
+                                            {foreignKey.target_table_uid?.trim() ? (
+                                              <div className="mt-1 text-xs text-muted-foreground">
+                                                {foreignKey.target_table_uid.trim()}
+                                              </div>
+                                            ) : null}
+                                          </td>
+                                          <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {formatJoinedValues(foreignKey.target_columns)}
+                                          </td>
+                                          <td className="rounded-r-[calc(var(--radius)-2px)] border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
+                                            {foreignKey.on_delete?.trim() || "Not set"}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3 text-sm text-muted-foreground">
+                                  No incoming foreign keys are available for this data node.
                                 </div>
                               )}
                             </CardContent>
@@ -1585,14 +1822,14 @@ export function MainSequenceDataNodesPage() {
                     <th
                       className="px-4 py-[var(--table-standard-header-padding-y)]"
                       aria-sort={
-                        sortState.key === "storage_hash"
+                        sortState.key === "table_name"
                           ? sortState.direction === "asc"
                             ? "ascending"
                             : "descending"
                           : "none"
                       }
                     >
-                      {renderSortableHeader("Storage hash", "storage_hash")}
+                      {renderSortableHeader("Table name", "table_name")}
                     </th>
                     <th
                       className="px-4 py-[var(--table-standard-header-padding-y)]"
@@ -1609,6 +1846,18 @@ export function MainSequenceDataNodesPage() {
                     <th
                       className="px-4 py-[var(--table-standard-header-padding-y)]"
                       aria-sort={
+                        sortState.key === "data_source"
+                          ? sortState.direction === "asc"
+                            ? "ascending"
+                            : "descending"
+                          : "none"
+                      }
+                    >
+                      {renderSortableHeader("Data source", "data_source")}
+                    </th>
+                    <th
+                      className="px-4 py-[var(--table-standard-header-padding-y)]"
+                      aria-sort={
                         sortState.key === "namespace"
                           ? sortState.direction === "asc"
                             ? "ascending"
@@ -1621,14 +1870,14 @@ export function MainSequenceDataNodesPage() {
                     <th
                       className="px-4 py-[var(--table-standard-header-padding-y)]"
                       aria-sort={
-                        sortState.key === "data_source"
+                        sortState.key === "provisioning"
                           ? sortState.direction === "asc"
                             ? "ascending"
                             : "descending"
                           : "none"
                       }
                     >
-                      {renderSortableHeader("Data source", "data_source")}
+                      {renderSortableHeader("Provisioning", "provisioning")}
                     </th>
                     <th
                       className="px-4 py-[var(--table-standard-header-padding-y)]"
@@ -1660,22 +1909,30 @@ export function MainSequenceDataNodesPage() {
                         <td className={getRegistryTableCellClassName(selected)}>
                           <div className="flex items-start gap-2">
                             <HardDrive className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                            <button
-                              type="button"
-                              className="group inline-flex max-w-[240px] items-center gap-1 rounded-sm text-left font-mono text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
-                              style={{ fontSize: "var(--table-meta-font-size)" }}
-                              onClick={() => {
-                                const dataNodeIdentifier = getTsManagerRecordIdentifier(dataNode);
-                                if (!dataNodeIdentifier) {
-                                  return;
-                                }
-                                openDataNodeDetail(dataNodeIdentifier);
-                              }}
-                              title={dataNode.storage_hash}
-                            >
-                              <span className="truncate">{dataNode.storage_hash}</span>
-                              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
-                            </button>
+                            <div className="min-w-0">
+                              <button
+                                type="button"
+                                className="group inline-flex max-w-[260px] items-center gap-1 rounded-sm text-left font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
+                                onClick={() => {
+                                  const dataNodeIdentifier = getTsManagerRecordIdentifier(dataNode);
+                                  if (!dataNodeIdentifier) {
+                                    return;
+                                  }
+                                  openDataNodeDetail(dataNodeIdentifier);
+                                }}
+                                title={getDataNodeTableName(dataNode)}
+                              >
+                                <span className="truncate">{getDataNodeTableName(dataNode)}</span>
+                                <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
+                              </button>
+                              <div
+                                className="mt-0.5 max-w-[260px] truncate font-mono text-muted-foreground"
+                                style={{ fontSize: "var(--table-meta-font-size)" }}
+                                title={dataNode.storage_hash}
+                              >
+                                {dataNode.storage_hash}
+                              </div>
+                            </div>
                           </div>
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
@@ -1697,10 +1954,19 @@ export function MainSequenceDataNodesPage() {
                           </div>
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
-                          <div className="text-foreground">{getDataNodeNamespaceLabel(dataNode)}</div>
+                          <div className="text-foreground">{getDataSourceLabel(dataNode)}</div>
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
-                          <div className="text-foreground">{getDataSourceLabel(dataNode)}</div>
+                          <div className="text-foreground">{getDataNodeNamespaceLabel(dataNode)}</div>
+                          <div
+                            className="mt-0.5 text-muted-foreground"
+                            style={{ fontSize: "var(--table-meta-font-size)" }}
+                          >
+                            Frequency: {dataNode.data_frequency_id ?? "Not set"}
+                          </div>
+                        </td>
+                        <td className={getRegistryTableCellClassName(selected)}>
+                          <div className="text-foreground">{getDataNodeProvisioningStatus(dataNode)}</div>
                         </td>
                         <td className={getRegistryTableCellClassName(selected, "right")}>
                           <div className="text-foreground">{formatCreationDate(dataNode.creation_date)}</div>
@@ -1717,9 +1983,11 @@ export function MainSequenceDataNodesPage() {
                   (dataNodesQuery.data?.count ?? 0) > 0 ? (
                     <MainSequenceRegistryPagination
                       count={dataNodesQuery.data?.count ?? 0}
+                      hasNextPage={Boolean(dataNodesQuery.data?.next)}
+                      hasPreviousPage={Boolean(dataNodesQuery.data?.previous)}
                       itemLabel="data nodes"
                       pageIndex={dataNodesPageIndex}
-                      pageSize={mainSequenceRegistryPageSize}
+                      pageSize={dataNodesQuery.data?.limit ?? mainSequenceRegistryPageSize}
                       onPageChange={setDataNodesPageIndex}
                     />
                   ) : null}

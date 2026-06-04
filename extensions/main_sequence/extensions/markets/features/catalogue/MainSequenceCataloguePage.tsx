@@ -576,6 +576,7 @@ export function MainSequenceCataloguePage() {
                   <thead className="bg-muted/35 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                     <tr>
                       <th className="px-4 py-3 font-medium">Catalogue</th>
+                      <th className="px-4 py-3 font-medium">Namespace</th>
                       <th className="px-4 py-3 font-medium">Model</th>
                       <th className="px-4 py-3 font-medium">Meta table uid</th>
                       <th className="px-4 py-3 font-medium">Storage hash</th>
@@ -592,12 +593,17 @@ export function MainSequenceCataloguePage() {
                             className="space-y-1 text-left transition-opacity hover:opacity-80"
                             onClick={() => openCatalogueRecord(record)}
                           >
-                            <div className="font-medium text-foreground">{buildCatalogueTitle(record)}</div>
+                            <div className="font-medium text-foreground">
+                              {formatText(record.identifier, `Catalogue ${record.uid}`)}
+                            </div>
                             <div className="font-mono text-xs text-muted-foreground">{record.uid}</div>
                             <div className="text-sm text-muted-foreground">
                               {formatText(record.description, "No description provided.")}
                             </div>
                           </button>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {formatText(record.namespace)}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{formatText(record.model_name)}</td>
                         <td className="px-4 py-3 font-mono text-xs text-muted-foreground">

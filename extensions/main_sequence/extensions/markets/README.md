@@ -26,6 +26,8 @@ This nested extension is the separate application shell for market-facing Main S
 - `funds/`: read-only virtual-fund registry showing linked portfolios and accounts.
 - `portfolio-groups/`: portfolio-group registry with bulk delete from the list and a dedicated direct-detail page.
 - `portfolios/`: target-portfolio registry with shared list search, fixed pagination, and bulk-delete support.
+- `Pricing`
+- `pricing-market-data/`: pricing-oriented market data surface reserved for curves, fixings, and inspection workflows.
 
 ## Dependencies
 

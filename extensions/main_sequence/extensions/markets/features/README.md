@@ -12,6 +12,7 @@ Feature folders in this extension should contain market-facing Main Sequence scr
 - `indices/`: index registry with shared list search, embedded detail loading, and delete support.
 - `portfolio-groups/`: portfolio-group registry with shared list behavior and a dedicated read-only detail page.
 - `portfolios/`: target-portfolio registry with shared list search, offset pagination, and bulk delete.
+- `pricing-market-data/`: pricing-oriented market data surface reserved for curves, fixings, and inspection workflows.
 
 ## Rules
 

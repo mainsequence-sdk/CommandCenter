@@ -23,7 +23,9 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
   snapshot behavior: load the tail endpoint directly and infer preview columns from the returned
   rows.
 - The `ULM diagram` tab calls `dynamic_table/{uid}/schema-graph/` with `depth` and `include_incoming`, and it uses the same normalized graph contract and explorer as Meta Tables.
-- The `Details` tab renders both source-table column metadata and `foreign_keys` returned by `GET /orm/api/ts_manager/dynamic_table/{uid}/`.
+- The `Details` tab uses the same normalized table-detail contract as MetaTables from
+  `GET /orm/api/ts_manager/dynamic_table/{uid}/`: `columns`, `indexes_meta`, `foreign_keys`,
+  and `incoming_fks`.
 - Data-node permissions use the shared `MainSequencePermissionsTab`, but they target the absolute `ts_manager/dynamic_table` object root instead of the default pods-scoped permission paths used by projects, constants, and secrets.
 - If a piece becomes useful outside this feature, move it to `../../components` and update this README.
 - Data-node detail navigation is URL-backed: `msDataNodeTab` selects the top-level detail tab, while `msLocalUpdateUid` and `msLocalUpdateTab` drive the nested local-update detail view.

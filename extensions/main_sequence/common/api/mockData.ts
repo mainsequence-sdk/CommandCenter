@@ -2940,6 +2940,24 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
     };
   }
 
+  const healFromPhysicalMatch = route.match(
+    /^\/orm\/api\/ts_manager\/meta_table\/([^/]+)\/heal-from-physical\/$/,
+  );
+  if (healFromPhysicalMatch && method === "POST") {
+    const targetUid = healFromPhysicalMatch[1] ?? "";
+    const table = findByUid(state.simpleTables, targetUid);
+
+    if (!table) {
+      throw new Error("MetaTable not found.");
+    }
+
+    return {
+      ok: true,
+      meta_table_uid: targetUid,
+      detail: "MetaTable projection details synced from the physical table in mock mode.",
+    };
+  }
+
   const detailMatch = route.match(/^\/orm\/api\/ts_manager\/meta_table\/([^/]+)\/$/);
   if (detailMatch && method === "DELETE") {
     const targetUid = detailMatch[1] ?? "";

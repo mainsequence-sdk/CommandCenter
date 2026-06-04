@@ -1,7 +1,16 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowUpRight, Database, HardDrive, Loader2, Table2, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Database,
+  HardDrive,
+  Loader2,
+  Table2,
+  Trash2,
+  Wrench,
+} from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
@@ -26,10 +35,12 @@ import {
   listMetaTables,
   MainSequenceApiError,
   mainSequenceRegistryPageSize,
+  syncMetaTableFromPhysical,
   type EntitySummaryHeader,
   type MainSequenceNamespaceOptionRecord,
   type MetaTableDetail,
   type MetaTableDeleteWithCascadeResponse,
+  type MetaTableSyncFromPhysicalResponse,
   type MetaTableRecord,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
@@ -53,7 +64,11 @@ type MetaTableDetailTabId = (typeof metaTableDetailTabs)[number]["id"];
 const defaultMetaTableDetailTabId: MetaTableDetailTabId = "details";
 const allNamespacesOptionValue = "__all__";
 
-type MetaTableActionKind = "delete" | "delete-with-cascade" | "refresh-search-index";
+type MetaTableActionKind =
+  | "delete"
+  | "delete-with-cascade"
+  | "refresh-search-index"
+  | "sync-from-physical";
 
 type MetaTableActionRequest = {
   kind: MetaTableActionKind;
@@ -95,13 +110,13 @@ type MetaTableForeignKeyDetailRow = {
 
 function getPrimaryLabel(table: MetaTableRecord) {
   const candidates = [
-    table.storage_hash,
-    table.display_name,
-    table.name,
     table.table_name,
     table.meta_table_name,
+    table.display_name,
+    table.name,
     table.title,
     table.identifier,
+    table.storage_hash,
   ];
 
   for (const candidate of candidates) {
@@ -111,6 +126,23 @@ function getPrimaryLabel(table: MetaTableRecord) {
   }
 
   return `Meta Table ${table.uid}`;
+}
+
+function getMetaTableListTableName(table: MetaTableRecord) {
+  const candidates = [
+    table.table_name,
+    table.meta_table_name,
+    table.physical_table_name,
+    table.identifier,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return getPrimaryLabel(table);
 }
 
 function getMetaTableUid(table: MetaTableRecord) {
@@ -523,6 +555,12 @@ export function MainSequenceMetaTablesPage() {
           });
         case "refresh-search-index":
           return bulkRefreshMetaTableSearchIndex(uids);
+        case "sync-from-physical":
+          if (uids.length !== 1) {
+            throw new Error("Sync from physical requires exactly one MetaTable.");
+          }
+
+          return syncMetaTableFromPhysical(uids[0]!);
         default:
           return null;
       }
@@ -551,6 +589,27 @@ export function MainSequenceMetaTablesPage() {
             refreshedCount === 1
               ? `${request.tables[0] ? getPrimaryLabel(request.tables[0]) : "Meta table"} was refreshed.`
               : `Search index refreshed for ${refreshedCount} meta tables.`,
+        });
+      } else if (request.kind === "sync-from-physical") {
+        const syncResult =
+          result && typeof result === "object"
+            ? (result as MetaTableSyncFromPhysicalResponse)
+            : null;
+
+        await queryClient.invalidateQueries({
+          queryKey: ["main_sequence", "meta_tables", "summary"],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["main_sequence", "meta_tables", "detail"],
+        });
+
+        toast({
+          variant: "success",
+          title: "MetaTable synced from physical",
+          description:
+            typeof syncResult?.detail === "string" && syncResult.detail.trim()
+              ? syncResult.detail.trim()
+              : `${request.tables[0] ? getPrimaryLabel(request.tables[0]) : "MetaTable"} was synced from the physical table.`,
         });
       } else if (request.kind === "delete-with-cascade") {
         const cascadeResult =
@@ -590,6 +649,7 @@ export function MainSequenceMetaTablesPage() {
       }
 
       if (
+        (request.kind === "delete" || request.kind === "delete-with-cascade") &&
         selectedMetaTableIdentifier &&
         request.tables.some((table) => table.uid === selectedMetaTableIdentifier)
       ) {
@@ -605,6 +665,8 @@ export function MainSequenceMetaTablesPage() {
         title:
           actionRequest?.kind === "refresh-search-index"
             ? "Search index refresh failed"
+            : actionRequest?.kind === "sync-from-physical"
+              ? "Sync from physical failed"
             : "Meta table action failed",
         description: getMetaTableActionErrorDescription(error, actionRequest?.kind ?? "delete"),
       });
@@ -729,6 +791,16 @@ export function MainSequenceMetaTablesPage() {
           specialText:
             "This will recursively delete referencing MetaTables and Data Nodes, and it will drop platform-managed physical tables.",
         };
+      case "sync-from-physical":
+        return {
+          title: "Sync from physical",
+          actionLabel: "sync from physical",
+          confirmButtonLabel: "Sync",
+          confirmWord: "SYNC",
+          tone: "primary" as const,
+          specialText:
+            "This command will introspect the physical table and recreate the MetaTable projection details from the latest state of the physical table.",
+        };
       default:
         return {
           title: "Refresh table search index",
@@ -794,6 +866,15 @@ export function MainSequenceMetaTablesPage() {
               <span className="text-foreground">{metaTableTitle}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openDetailAction("sync-from-physical")}
+                disabled={!metaTableDetailQuery.data && !selectedMetaTableFromList}
+              >
+                <Wrench className="h-4 w-4" />
+                Sync from physical
+              </Button>
               <Button
                 variant="danger"
                 size="sm"
@@ -1392,7 +1473,7 @@ export function MainSequenceMetaTablesPage() {
                             onChange={metaTableSelection.toggleAll}
                           />
                         </th>
-                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">Storage hash</th>
+                        <th className="px-4 py-[var(--table-standard-header-padding-y)]">Table name</th>
                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">Identifier</th>
                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">Data source</th>
                         <th className="px-4 py-[var(--table-standard-header-padding-y)]">Namespace</th>
@@ -1416,22 +1497,30 @@ export function MainSequenceMetaTablesPage() {
                             <td className={getRegistryTableCellClassName(selected)}>
                               <div className="flex items-start gap-2">
                                 <HardDrive className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                                <button
-                                  type="button"
-                                  className="group inline-flex max-w-[240px] items-center gap-1 rounded-sm text-left font-mono text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
-                                  style={{ fontSize: "var(--table-meta-font-size)" }}
-                                  onClick={() => {
-                                    const metaTableIdentifier = getTsManagerRecordIdentifier(table);
-                                    if (!metaTableIdentifier) {
-                                      return;
-                                    }
-                                    openMetaTableDetail(metaTableIdentifier);
-                                  }}
-                                  title={table.storage_hash ?? getPrimaryLabel(table)}
-                                >
-                                  <span className="truncate">{table.storage_hash ?? getPrimaryLabel(table)}</span>
-                                  <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
-                                </button>
+                                <div className="min-w-0">
+                                  <button
+                                    type="button"
+                                    className="group inline-flex max-w-[260px] items-center gap-1 rounded-sm text-left font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
+                                    onClick={() => {
+                                      const metaTableIdentifier = getTsManagerRecordIdentifier(table);
+                                      if (!metaTableIdentifier) {
+                                        return;
+                                      }
+                                      openMetaTableDetail(metaTableIdentifier);
+                                    }}
+                                    title={getMetaTableListTableName(table)}
+                                  >
+                                    <span className="truncate">{getMetaTableListTableName(table)}</span>
+                                    <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
+                                  </button>
+                                  <div
+                                    className="mt-0.5 max-w-[260px] truncate font-mono text-muted-foreground"
+                                    style={{ fontSize: "var(--table-meta-font-size)" }}
+                                    title={table.storage_hash?.trim() || undefined}
+                                  >
+                                    {table.storage_hash?.trim() || "No storage hash"}
+                                  </div>
+                                </div>
                               </div>
                             </td>
                             <td className={getRegistryTableCellClassName(selected)}>
@@ -1518,6 +1607,8 @@ export function MainSequenceMetaTablesPage() {
           description={
             actionRequest.kind === "refresh-search-index"
               ? "This action refreshes the search index for the selected meta tables."
+              : actionRequest.kind === "sync-from-physical"
+                ? "This action syncs the selected MetaTable projection from the backing physical table."
               : actionRequest.kind === "delete-with-cascade"
                 ? "This action recursively deletes the selected meta tables and everything that references them."
                 : "This action applies to the selected meta tables."

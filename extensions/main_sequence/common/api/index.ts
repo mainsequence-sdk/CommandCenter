@@ -1324,6 +1324,8 @@ export interface MetaTableRecord {
   creation_date?: string | null;
   source_class_name?: string | null;
   identifier?: string | null;
+  table_name?: string | null;
+  meta_table_name?: string | null;
   description?: string | null;
   namespace?: string | null;
   labels?: string[];
@@ -1521,6 +1523,12 @@ export interface MetaTableBulkRefreshResponse {
   results: MetaTableBulkRefreshResult[];
 }
 
+export interface MetaTableSyncFromPhysicalResponse {
+  ok?: boolean;
+  detail?: string;
+  [key: string]: unknown;
+}
+
 export interface ColumnarDataSnapshot {
   columns: string[];
   rows: DataNodeRemoteDataRow[];
@@ -1543,6 +1551,10 @@ export interface DataNodeSummary {
   sourcetableconfiguration?: Pick<DataNodeSourceTableConfiguration, "index_names"> | null;
   data_source_open_for_everyone: boolean;
   identifier: string | null;
+  table_name?: string | null;
+  meta_table_name?: string | null;
+  physical_table_name?: string | null;
+  provisioning_status?: string | null;
   description: string | null;
   data_frequency_id: string | number | null;
 }
@@ -1609,7 +1621,15 @@ export interface DataNodeDetail extends DataNodeSummary {
   build_configuration: unknown;
   build_meta_data: unknown;
   sourcetableconfiguration: DataNodeSourceTableConfiguration | null;
-  foreign_keys?: DataNodeForeignKeyRecord[];
+  table_contract?: unknown;
+  introspection_snapshot?: unknown;
+  columns?: MetaTableColumnRecord[];
+  indexes_meta?: MetaTableIndexRecord[];
+  foreign_keys?: MetaTableForeignKeyRecord[];
+  incoming_fks?: MetaTableForeignKeyRecord[];
+  labels?: string[];
+  management_mode?: string | null;
+  contract_version?: string | null;
 }
 
 export interface SourceTableConfigurationStatsResponse {
@@ -5695,6 +5715,17 @@ export function bulkRefreshMetaTableSearchIndex(uids: string[]) {
   );
 }
 
+export function syncMetaTableFromPhysical(metaTableIdentifier: TsManagerPathIdentifier) {
+  return requestJson<MetaTableSyncFromPhysicalResponse>(
+    metaTableEndpoint,
+    `${resolveTsManagerPath(metaTableIdentifier)}/heal-from-physical/`,
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+    },
+  );
+}
+
 export function fetchMetaTableSummary(metaTableIdentifier: TsManagerPathIdentifier) {
   return requestJson<SummaryResponse>(
     metaTableEndpoint,
@@ -7600,13 +7631,15 @@ export function fetchDataNodeDetail(
     return cachedEntry.promise;
   }
 
-  const requestPromise = requestJson<DataNodeDetail>(
+  const requestPromise = requestJson<unknown>(
     dynamicTableMetadataEndpoint,
     `${resolvedIdentifier}/`,
     undefined,
     undefined,
     traceMeta,
-  ).then((detail) => {
+  ).then((payload) => {
+    const detail = normalizeDataNodeDetailPayload(payload);
+
     dataNodeDetailCache.set(cacheKey, {
       value: detail,
       expiresAt: Date.now() + DATA_NODE_DETAIL_CACHE_TTL_MS,
@@ -7623,6 +7656,46 @@ export function fetchDataNodeDetail(
   });
 
   return requestPromise;
+}
+
+function normalizeDataNodeDetailPayload(payload: unknown): DataNodeDetail {
+  const metaTableDetail = normalizeMetaTableDetailPayload(payload);
+  const record = isObjectRecord(payload) ? payload : {};
+
+  return {
+    ...metaTableDetail,
+    id: readFiniteNumber(record.id) ?? 0,
+    uid: metaTableDetail.uid,
+    storage_hash:
+      metaTableDetail.storage_hash ??
+      readOptionalString(record.storage_hash)?.trim() ??
+      metaTableDetail.uid,
+    creation_date: metaTableDetail.creation_date ?? "",
+    source_class_name: metaTableDetail.source_class_name ?? null,
+    protect_from_deletion: metaTableDetail.protect_from_deletion === true,
+    time_serie_source_code_git_hash:
+      readOptionalString(record.time_serie_source_code_git_hash)?.trim() ?? null,
+    created_by_user: readFiniteNumber(record.created_by_user),
+    open_for_everyone: metaTableDetail.open_for_everyone === true,
+    data_source: metaTableDetail.data_source ?? null,
+    data_source_open_for_everyone: record.data_source_open_for_everyone === true,
+    identifier: metaTableDetail.identifier ?? null,
+    description: metaTableDetail.description ?? null,
+    data_frequency_id: metaTableDetail.data_frequency_id ?? null,
+    build_configuration: metaTableDetail.build_configuration ?? null,
+    build_meta_data: record.build_meta_data ?? null,
+    sourcetableconfiguration: metaTableDetail.sourcetableconfiguration ?? null,
+    table_contract: metaTableDetail.table_contract,
+    introspection_snapshot: metaTableDetail.introspection_snapshot,
+    columns: metaTableDetail.columns ?? [],
+    indexes_meta: metaTableDetail.indexes_meta ?? [],
+    foreign_keys: metaTableDetail.foreign_keys ?? [],
+    incoming_fks: metaTableDetail.incoming_fks ?? [],
+    labels: metaTableDetail.labels ?? [],
+    management_mode: metaTableDetail.management_mode ?? null,
+    physical_table_name: metaTableDetail.physical_table_name ?? null,
+    contract_version: metaTableDetail.contract_version ?? null,
+  };
 }
 
 export function fetchSourceTableConfigurationStats(sourceTableConfigurationUid: string) {

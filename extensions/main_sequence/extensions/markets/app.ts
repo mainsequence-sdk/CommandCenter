@@ -14,6 +14,7 @@ import { MainSequenceFundsPage } from "./features/funds/MainSequenceFundsPage";
 import { MainSequenceIndicesPage } from "./features/indices/MainSequenceIndicesPage";
 import { MainSequencePortfolioGroupsPage } from "./features/portfolio-groups/MainSequencePortfolioGroupsPage";
 import { MainSequenceTargetPortfoliosPage } from "./features/portfolios/MainSequenceTargetPortfoliosPage";
+import { MainSequencePricingMarketDataPage } from "./features/pricing-market-data/MainSequencePricingMarketDataPage";
 
 const assetsSection: AppSurfaceNavigationSection = {
   id: "assets",
@@ -31,6 +32,12 @@ const managedAccountsSection: AppSurfaceNavigationSection = {
   id: "managed-accounts",
   label: "Managed Accounts",
   order: 25,
+};
+
+const pricingSection: AppSurfaceNavigationSection = {
+  id: "pricing",
+  label: "Pricing",
+  order: 28,
 };
 
 const platformSection: AppSurfaceNavigationSection = {
@@ -115,6 +122,24 @@ export const mainSequenceMarketsApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceIndicesPage,
+    },
+    {
+      id: "pricing-market-data",
+      title: "Pricing Market Data",
+      navLabel: "Pricing Market Data",
+      description: "Pricing-oriented market data workflows for curves, fixings, and inspection.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Pricing Market Data. This page is the Markets pricing data workspace for pricing-oriented market data workflows.",
+        availableActions: [
+          "Open pricing market data",
+          "Inspect available pricing data workflows",
+        ],
+      }),
+      navigationSection: pricingSection,
+      kind: "page",
+      requiredPermissions: ["main_sequence_markets:view"],
+      component: MainSequencePricingMarketDataPage,
     },
     {
       id: "catalogue",
