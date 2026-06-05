@@ -61,20 +61,23 @@ Render portfolio, account, target-position, or account target-position rows with
 - `accountUid`: used for account holdings hydration and account target-position saves.
 - `holdingsDate`: persisted account-only holdings snapshot timestamp. It is stored as a timezone-aware ISO string.
 - `targetPositionsDate`: persisted account target-position assignment timestamp. It is stored as a timezone-aware ISO string.
-- `positionRows`: persisted authored position rows with asset identity, position type, and position value.
+- `positionRows`: persisted authored position rows with asset identity, optional `assetUid`, position type, and position value.
 - `variant`: `summary` or `positions` only for hydrated portfolio mode. Authored rows always render `positions`.
 
 ## backendContracts
 
 - Portfolio hydration uses the existing target-portfolio weights/positions endpoint through the shared Markets API layer.
 - Account hydration uses `GET /api/v1/account/<account_uid>/holdings/`. The widget requests `order=desc&limit=1` for the latest snapshot when `holdingsDate` is not set, or `holdings_date=<timestamp>&limit=1` when an exact timestamp is requested.
-- Account save uses `POST /api/v1/account/<account_uid>/add-holdings/` with `overwrite: true`. The widget injects `target_trade_time` from `holdingsDate`, maps blank prices to `missing_price: true`, always writes `position_type: "units"`, and always sends `extra_details: {}` because that field is API-only in the current frontend contract.
+- Account save uses `POST /api/v1/account/<account_uid>/add-holdings/` with `overwrite: true`. The widget injects `target_trade_time` from `holdingsDate`, always writes `position_type: "units"`, and always sends `extra_details: {}` because that field is API-only in the current frontend contract. The request sends mandatory `asset_uid`; it does not send `asset_id`, `price`, or `missing_price`. Signed UI quantities are split into absolute `quantity` plus `direction`, so `-10` becomes `quantity: "10"` and `direction: -1`.
 - Target positions account hydration uses `GET /api/v1/account/<account_uid>/target-positions/`. The widget always requests `include_asset_detail=true`, uses `order=desc&limit=1` when `targetPositionsDate` is not set, and when `targetPositionsDate` is set it sends `target_positions_date=<timestamp>&limit=1` to load the exact assignment for that timestamp.
 - Target positions account save uses `POST /api/v1/account/<account_uid>/add-target-positions/`. The widget writes the top-level `target_positions_date`, sends `unique_identifier` on every row, and maps the selected position type to exactly one of:
   - `weight_notional_exposure`
   - `constant_notional_exposure`
   - `single_asset_quantity`
-- Asset add/search for authored rows reuses the existing asset list endpoint.
+- Asset add/search for authored rows uses `GET /api/v1/asset/?response_format=frontend_list...` to
+  search and select the asset `uid`, then loads `GET /api/v1/asset/<asset_uid>/?response_format=frontend_detail`
+  before adding the row. The editor builds rows from the detail payload, not the lightweight list
+  item.
 - Persisted widget props now include optional additive fields:
   - `editableInPlace`
   - `sourceType`
@@ -82,6 +85,8 @@ Render portfolio, account, target-position, or account target-position rows with
   - `holdingsDate`
   - `targetPositionsDate`
   - `positionRows`
+- `positionRows[].assetUid` may be stored as an identity helper and is required for account holdings
+  saves.
 - Legacy persisted fields `dataMode` and `inlineRows` are still read for compatibility, but they are no longer the canonical contract.
 
 ## commonPitfalls
@@ -103,6 +108,8 @@ Render portfolio, account, target-position, or account target-position rows with
 - `portfolio` and `account` do not auto-open the editor just because inline editing is enabled. They keep the resolved positions table visible until the user explicitly enters edit mode.
 - `target_position` and `target_positions_account` are authoring-first modes and open directly in the inline editor when inline editing is enabled.
 - In `account` edit mode, the table shows `Quantity` and a blocked `Extra Details` cell. `Position Type` is hidden because the account holdings writer is units-only. `Extra Details` is not authored in the UI and can only be populated through the API.
+- Asset search results are UID-first. Do not assume authored assets have a numeric `id`; the editor
+  may use a synthetic local `assetId` only for React row identity and display bookkeeping.
 - In positions mode, expanding a row shows the full read-only position record as formatted JSON instead of a card-based inspector. Authored rows nest asset metadata under `asset` and keep the position fields separate. Account holdings read mode renders a canonical holdings-shaped JSON block there instead of the generic display-row aliases.
 - Target positions account read mode also renders a canonical target-position JSON block there instead of the generic display-row aliases.
 - The top positions summary separates totals by position type so notionals are not mixed with percentage-based exposure rows. Account mode hides that strip because raw holdings quantities are not meaningful as one aggregate total.

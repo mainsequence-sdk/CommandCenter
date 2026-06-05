@@ -11,7 +11,7 @@ import type { PositionDetailWidgetProps } from "./positionDetailRuntime";
 
 export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
   id: "position-detail",
-  widgetVersion: "4.1.0",
+  widgetVersion: "4.1.2",
   title: "Position Detail",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
@@ -33,6 +33,7 @@ export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
       {
         rowId: "mock-ust2y",
         assetId: 1,
+        assetUid: "asset-ust2y",
         assetName: "US 2Y Note",
         assetTicker: "UST2Y",
         uniqueIdentifier: "US91282CJR34",
@@ -44,6 +45,7 @@ export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
       {
         rowId: "mock-ust10y",
         assetId: 2,
+        assetUid: "asset-ust10y",
         assetName: "US 10Y Note",
         assetTicker: "UST10Y",
         uniqueIdentifier: "US91282CLM67",

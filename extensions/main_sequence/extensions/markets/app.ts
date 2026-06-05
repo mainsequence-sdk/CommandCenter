@@ -8,6 +8,7 @@ import {
 
 import { MainSequenceAssetCategoriesPage } from "./features/asset-categories/MainSequenceAssetCategoriesPage";
 import { MainSequenceAssetsPage } from "./features/assets/MainSequenceAssetsPage";
+import { MainSequenceCalendarsPage } from "./features/calendars/MainSequenceCalendarsPage";
 import { MainSequenceCataloguePage } from "./features/catalogue/MainSequenceCataloguePage";
 import { MainSequenceManagedAccountsPage } from "./features/managed-accounts/MainSequenceManagedAccountsPage";
 import { MainSequenceFundsPage } from "./features/funds/MainSequenceFundsPage";
@@ -130,16 +131,38 @@ export const mainSequenceMarketsApp: AppDefinition = {
       description: "Pricing-oriented market data workflows for curves, fixings, and inspection.",
       ...defineSurfaceAssistantContext({
         summary:
-          "User is on Pricing Market Data. This page is the Markets pricing data workspace for pricing-oriented market data workflows.",
+          "User is on Pricing Market Data. This page shows pricing market-data sets and bindings backed by the pricing market-data API.",
         availableActions: [
-          "Open pricing market data",
-          "Inspect available pricing data workflows",
+          "Inspect market data sets",
+          "Filter sets by exact set key or status",
+          "Inspect market data bindings",
+          "Filter bindings by exact set UID or concept key",
         ],
       }),
       navigationSection: pricingSection,
       kind: "page",
       requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequencePricingMarketDataPage,
+    },
+    {
+      id: "calendars",
+      title: "Calendars",
+      navLabel: "Calendars",
+      description: "Browse calendar records and inspect related dates, sessions, and events.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Calendars. This page lists calendar records and opens detail views with dates, sessions, and events tabs.",
+        availableActions: [
+          "Browse calendars",
+          "Search calendars",
+          "Open calendar detail",
+          "Inspect dates, sessions, and events",
+        ],
+      }),
+      navigationSection: platformSection,
+      kind: "page",
+      requiredPermissions: ["main_sequence_markets:view"],
+      component: MainSequenceCalendarsPage,
     },
     {
       id: "catalogue",

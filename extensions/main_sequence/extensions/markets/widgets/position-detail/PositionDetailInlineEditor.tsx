@@ -1,13 +1,16 @@
 import { Fragment, useDeferredValue, useMemo, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import {
+  fetchAssetDetail,
+  formatMainSequenceError,
   listAssets,
+  type AssetDetailResponse,
   type AssetListRow,
 } from "../../../../common/api";
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
@@ -19,6 +22,8 @@ import {
 import {
   buildPositionDetailInlineDisplayRows,
   getDefaultPositionDetailPositionType,
+  normalizePositionDetailPositionRows,
+  syntheticPositionDetailAssetIdBase,
   type PositionDetailCanonicalPositionType,
   type PositionDetailSourceType,
   type PositionDetailInlinePositionType,
@@ -31,17 +36,102 @@ const inlinePositionTypeOptions = [
   "constant_notional",
 ] as const satisfies readonly PositionDetailCanonicalPositionType[];
 const minimumAssetSearchLength = 3;
+const incompleteInlinePositionInputs = new Set(["", "-", ".", "-."]);
 
-function buildInlinePositionRowId(assetId: number) {
-  return `inline-position-${assetId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+interface InlineEditorAssetSource {
+  id?: number | null;
+  uid?: string | null;
+  unique_identifier?: string | null;
+  figi?: string | null;
+  name?: string | null;
+  ticker?: string | null;
+  current_snapshot?: unknown;
 }
 
-function resolveAssetLabel(asset: AssetListRow) {
-  return asset.name?.trim() || asset.ticker?.trim() || asset.unique_identifier?.trim() || `Asset ${asset.id}`;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function resolveAssetDescription(asset: AssetListRow) {
-  return [asset.ticker?.trim(), asset.unique_identifier?.trim()].filter(Boolean).join(" · ") || undefined;
+function readString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function readAssetNumericId(asset: InlineEditorAssetSource) {
+  if (typeof asset.id !== "number" || !Number.isFinite(asset.id) || asset.id <= 0) {
+    return null;
+  }
+
+  return Math.trunc(asset.id);
+}
+
+function readAssetSnapshot(asset: InlineEditorAssetSource) {
+  return isRecord(asset.current_snapshot) ? asset.current_snapshot : null;
+}
+
+function readAssetUid(asset: InlineEditorAssetSource) {
+  return readString(asset.uid);
+}
+
+function readAssetUniqueIdentifier(asset: InlineEditorAssetSource) {
+  return readString(asset.unique_identifier);
+}
+
+function readAssetName(asset: InlineEditorAssetSource) {
+  return readString(asset.name) ?? readString(readAssetSnapshot(asset)?.name);
+}
+
+function readAssetTicker(asset: InlineEditorAssetSource) {
+  return readString(asset.ticker) ?? readString(readAssetSnapshot(asset)?.ticker);
+}
+
+function readAssetFigi(asset: InlineEditorAssetSource) {
+  return readString(asset.figi) ?? readString(readAssetSnapshot(asset)?.figi);
+}
+
+function resolveAssetIdentity(asset: InlineEditorAssetSource) {
+  const numericId = readAssetNumericId(asset);
+  return (
+    readAssetUid(asset) ??
+    readAssetUniqueIdentifier(asset) ??
+    (numericId !== null ? String(numericId) : "")
+  );
+}
+
+function buildSyntheticAssetId(asset: InlineEditorAssetSource, index = 0) {
+  const identity = resolveAssetIdentity(asset);
+  let hash = 0;
+
+  for (let position = 0; position < identity.length; position += 1) {
+    hash = (hash * 31 + identity.charCodeAt(position)) % 999_999;
+  }
+
+  return syntheticPositionDetailAssetIdBase + hash + index + 1;
+}
+
+function isSyntheticInlineAssetId(assetId: number) {
+  return assetId >= syntheticPositionDetailAssetIdBase;
+}
+
+function buildInlinePositionRowId(assetIdentity: string | number) {
+  return `inline-position-${assetIdentity}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function resolveAssetLabel(asset: InlineEditorAssetSource) {
+  return (
+    readAssetName(asset) ??
+    readAssetTicker(asset) ??
+    readAssetUniqueIdentifier(asset) ??
+    readAssetUid(asset) ??
+    "Asset pending identity"
+  );
+}
+
+function resolveAssetDescription(asset: InlineEditorAssetSource) {
+  return [
+    readAssetTicker(asset),
+    readAssetUniqueIdentifier(asset),
+    readAssetUid(asset),
+  ].filter(Boolean).join(" · ") || undefined;
 }
 
 function safeFormatInlinePositionJson(value: unknown) {
@@ -65,7 +155,8 @@ function buildInlineExpandedPositionRecord(
           ? { constant_notional_exposure: row.positionValue }
           : { single_asset_quantity: row.positionValue }),
       asset: {
-        id: row.assetId,
+        ...(row.assetUid ? { uid: row.assetUid } : {}),
+        ...(!isSyntheticInlineAssetId(row.assetId) ? { id: row.assetId } : {}),
         name: row.assetName ?? null,
         ticker: row.assetTicker ?? null,
         uniqueIdentifier: row.uniqueIdentifier ?? null,
@@ -76,7 +167,8 @@ function buildInlineExpandedPositionRecord(
 
   return {
     asset: {
-      id: row.assetId,
+      ...(row.assetUid ? { uid: row.assetUid } : {}),
+      ...(!isSyntheticInlineAssetId(row.assetId) ? { id: row.assetId } : {}),
       name: row.assetName ?? null,
       ticker: row.assetTicker ?? null,
       uniqueIdentifier: row.uniqueIdentifier ?? null,
@@ -121,10 +213,15 @@ function parseInlinePositionValueInput(
   positionType: PositionDetailInlinePositionType,
 ) {
   const normalizedValue = value.replace(/[$,%\s]/g, "").replace(/,/g, "");
+
+  if (incompleteInlinePositionInputs.has(normalizedValue)) {
+    return null;
+  }
+
   const parsed = Number(normalizedValue);
 
   if (!Number.isFinite(parsed)) {
-    return 0;
+    return null;
   }
 
   if (positionType === "weight_notional_exposure") {
@@ -150,24 +247,50 @@ export function PositionDetailInlineEditor({
   onRowsChange?: (rows: PositionDetailInlineRow[]) => void;
 }) {
   const [assetSearchValue, setAssetSearchValue] = useState("");
+  const [positionValueDrafts, setPositionValueDrafts] = useState<Record<string, string>>({});
   const deferredAssetSearchValue = useDeferredValue(assetSearchValue);
   const normalizedAssetSearchValue = deferredAssetSearchValue.trim();
   const canSearchAssets = normalizedAssetSearchValue.length >= minimumAssetSearchLength;
-  const displayRows = useMemo(
-    () => buildPositionDetailInlineDisplayRows(rows, sourceType),
+  const normalizedRows = useMemo(
+    () => normalizePositionDetailPositionRows(rows, sourceType),
     [rows, sourceType],
   );
-  const selectedAssetIds = useMemo(() => new Set(rows.map((row) => row.assetId)), [rows]);
+  const displayRows = useMemo(
+    () => buildPositionDetailInlineDisplayRows(normalizedRows, sourceType),
+    [normalizedRows, sourceType],
+  );
+  const selectedAssetIds = useMemo(
+    () => new Set(normalizedRows.map((row) => row.assetId)),
+    [normalizedRows],
+  );
+  const selectedAssetUids = useMemo(
+    () =>
+      new Set(
+        normalizedRows
+          .map((row) => row.assetUid?.trim())
+          .filter((value): value is string => Boolean(value)),
+      ),
+    [normalizedRows],
+  );
+  const selectedAssetUniqueIdentifiers = useMemo(
+    () =>
+      new Set(
+        normalizedRows
+          .map((row) => row.uniqueIdentifier?.trim())
+          .filter((value): value is string => Boolean(value)),
+      ),
+    [normalizedRows],
+  );
   const hasUnitsRows = useMemo(
-    () => rows.some((row) => row.positionType === "units"),
-    [rows],
+    () => normalizedRows.some((row) => row.positionType === "units"),
+    [normalizedRows],
   );
   const hasMissingUnitPrices = useMemo(
     () =>
-      rows.some(
+      normalizedRows.some(
         (row) => row.positionType === "units" && (row.price === null || row.price === undefined),
       ),
-    [rows],
+    [normalizedRows],
   );
   const canChoosePositionType = sourceType !== "account" && allowedPositionTypes.length > 1;
   const [expandedRowIds, setExpandedRowIds] = useState<string[]>([]);
@@ -198,44 +321,76 @@ export function PositionDetailInlineEditor({
   const assetOptions = useMemo<PickerOption[]>(
     () =>
       assetSearchResults
-        .filter((asset) => !selectedAssetIds.has(asset.id))
+        .filter((asset) => {
+          const assetUid = readAssetUid(asset);
+          const assetUniqueIdentifier = readAssetUniqueIdentifier(asset);
+          const assetNumericId = readAssetNumericId(asset);
+
+          return (
+            assetUid !== undefined &&
+            !selectedAssetUids.has(assetUid) &&
+            (!assetUniqueIdentifier || !selectedAssetUniqueIdentifiers.has(assetUniqueIdentifier)) &&
+            (assetNumericId === null || !selectedAssetIds.has(assetNumericId))
+          );
+        })
         .map((asset) => ({
-          value: String(asset.id),
+          value: readAssetUid(asset) ?? "",
           label: resolveAssetLabel(asset),
           description: resolveAssetDescription(asset),
           keywords: [
             asset.name ?? "",
             asset.ticker ?? "",
             asset.unique_identifier ?? "",
+            asset.uid ?? "",
             asset.figi ?? "",
-            String(asset.id),
+            String(readAssetNumericId(asset) ?? ""),
           ],
         })),
-    [assetSearchResults, selectedAssetIds],
+    [assetSearchResults, selectedAssetIds, selectedAssetUids, selectedAssetUniqueIdentifiers],
   );
+
+  const addAssetMutation = useMutation({
+    mutationFn: (assetUid: string) => fetchAssetDetail(assetUid),
+    onSuccess: (assetDetail, assetUid) => {
+      addAsset(assetDetail, assetUid);
+    },
+  });
 
   function commitRows(nextRows: PositionDetailInlineRow[]) {
     onRowsChange?.(nextRows);
   }
 
-  function addAsset(asset: AssetListRow | null) {
+  function addAsset(asset: AssetDetailResponse | null, selectedAssetUid?: string) {
     if (!asset || !onRowsChange) {
       return;
     }
 
-    if (selectedAssetIds.has(asset.id)) {
+    const assetUid = readAssetUid(asset) ?? selectedAssetUid?.trim();
+    const assetUniqueIdentifier = readAssetUniqueIdentifier(asset);
+    const assetNumericId = readAssetNumericId(asset);
+
+    if (
+      (assetUid && selectedAssetUids.has(assetUid)) ||
+      (assetUniqueIdentifier && selectedAssetUniqueIdentifiers.has(assetUniqueIdentifier)) ||
+      (assetNumericId !== null && selectedAssetIds.has(assetNumericId))
+    ) {
       return;
     }
 
+    const assetId = assetNumericId ?? buildSyntheticAssetId(asset, normalizedRows.length);
+    const assetIdentity = assetUid ?? assetUniqueIdentifier ?? String(assetId);
+    const assetName = readAssetName(asset) ?? readAssetTicker(asset) ?? assetUniqueIdentifier ?? assetUid;
+
     commitRows([
-      ...rows,
+      ...normalizedRows,
       {
-        rowId: buildInlinePositionRowId(asset.id),
-        assetId: asset.id,
-        assetName: asset.name?.trim() || undefined,
-        assetTicker: asset.ticker?.trim() || undefined,
-        uniqueIdentifier: asset.unique_identifier?.trim() || undefined,
-        figi: asset.figi?.trim() || undefined,
+        rowId: buildInlinePositionRowId(assetIdentity),
+        assetId,
+        assetUid,
+        assetName,
+        assetTicker: readAssetTicker(asset),
+        uniqueIdentifier: assetUniqueIdentifier,
+        figi: readAssetFigi(asset),
         ...(showRowDateColumn
           ? {
               date: new Date().toISOString().slice(0, 10),
@@ -251,7 +406,7 @@ export function PositionDetailInlineEditor({
 
   function updateRow(rowId: string, patch: Partial<PositionDetailInlineRow>) {
     commitRows(
-      rows.map((row) =>
+      normalizedRows.map((row) =>
         row.rowId === rowId
           ? {
               ...row,
@@ -263,8 +418,13 @@ export function PositionDetailInlineEditor({
   }
 
   function removeRow(rowId: string) {
-    commitRows(rows.filter((row) => row.rowId !== rowId));
+    commitRows(normalizedRows.filter((row) => row.rowId !== rowId));
     setExpandedRowIds((current) => current.filter((entry) => entry !== rowId));
+    setPositionValueDrafts((current) => {
+      const next = { ...current };
+      delete next[rowId];
+      return next;
+    });
   }
 
   function toggleExpandedRow(rowId: string) {
@@ -303,8 +463,11 @@ export function PositionDetailInlineEditor({
           <PickerField
             value=""
             onChange={(value) => {
-              const matchedAsset = assetSearchResults.find((asset) => String(asset.id) === value) ?? null;
-              addAsset(matchedAsset);
+              if (!value || addAssetMutation.isPending) {
+                return;
+              }
+
+              addAssetMutation.mutate(value);
             }}
             options={assetOptions}
             placeholder="Search assets"
@@ -315,7 +478,7 @@ export function PositionDetailInlineEditor({
                 ? "No matching assets."
                 : `Type at least ${minimumAssetSearchLength} characters to search assets.`
             }
-            loading={assetSearchQuery.isLoading}
+            loading={assetSearchQuery.isLoading || addAssetMutation.isPending}
             searchValue={assetSearchValue}
             onSearchValueChange={setAssetSearchValue}
           />
@@ -323,6 +486,11 @@ export function PositionDetailInlineEditor({
         <div className="mt-2 text-xs text-muted-foreground">
           Type at least {minimumAssetSearchLength} characters, then select an asset to add a new row directly on the canvas.
         </div>
+        {addAssetMutation.isError ? (
+          <div className="mt-3 rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
+            {formatMainSequenceError(addAssetMutation.error)}
+          </div>
+        ) : null}
       </div>
 
       {sourceType !== "account" && hasUnitsRows ? (
@@ -362,8 +530,8 @@ export function PositionDetailInlineEditor({
               </tr>
             </thead>
             <tbody>
-              {rows.length > 0 ? (
-                rows.map((row) => {
+              {normalizedRows.length > 0 ? (
+                normalizedRows.map((row) => {
                   const expanded = expandedRowIds.includes(row.rowId);
 
                   return (
@@ -385,11 +553,21 @@ export function PositionDetailInlineEditor({
                             </button>
                             <div className="min-w-0 flex-1">
                               <div className="truncate text-sm font-medium text-foreground">
-                                {row.assetName || `Asset ${row.assetId}`}
+                                {row.assetName ||
+                                  row.uniqueIdentifier ||
+                                  row.assetUid ||
+                                  (isSyntheticInlineAssetId(row.assetId)
+                                    ? "Asset pending identity"
+                                    : `Asset ${row.assetId}`)}
                               </div>
                               {showAssetIdentitySubline ? (
                                 <div className="mt-0.5 truncate font-mono text-[12px] text-muted-foreground">
-                                  {row.figi || `ID ${row.assetId}`}
+                                  {row.figi ||
+                                    row.uniqueIdentifier ||
+                                    row.assetUid ||
+                                    (!isSyntheticInlineAssetId(row.assetId)
+                                      ? `ID ${row.assetId}`
+                                      : "Identity pending")}
                                 </div>
                               ) : null}
                             </div>
@@ -430,6 +608,11 @@ export function PositionDetailInlineEditor({
                                   updateRow(row.rowId, {
                                     positionType: event.target.value as PositionDetailInlinePositionType,
                                   });
+                                  setPositionValueDrafts((current) => {
+                                    const next = { ...current };
+                                    delete next[row.rowId];
+                                    return next;
+                                  });
                                 }}
                               >
                                 {inlinePositionTypeOptions
@@ -452,13 +635,32 @@ export function PositionDetailInlineEditor({
                             <Input
                               type="text"
                               inputMode="decimal"
-                              value={formatInlinePositionValueInput(row)}
+                              value={positionValueDrafts[row.rowId] ?? formatInlinePositionValueInput(row)}
                               onChange={(event) => {
+                                const nextValue = event.target.value;
+                                const parsedValue = parseInlinePositionValueInput(
+                                  nextValue,
+                                  row.positionType,
+                                );
+
+                                setPositionValueDrafts((current) => ({
+                                  ...current,
+                                  [row.rowId]: nextValue,
+                                }));
+
+                                if (parsedValue === null) {
+                                  return;
+                                }
+
                                 updateRow(row.rowId, {
-                                  positionValue: parseInlinePositionValueInput(
-                                    event.target.value,
-                                    row.positionType,
-                                  ),
+                                  positionValue: parsedValue,
+                                });
+                              }}
+                              onBlur={() => {
+                                setPositionValueDrafts((current) => {
+                                  const next = { ...current };
+                                  delete next[row.rowId];
+                                  return next;
                                 });
                               }}
                               className={

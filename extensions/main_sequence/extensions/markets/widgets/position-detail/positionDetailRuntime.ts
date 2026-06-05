@@ -17,6 +17,7 @@ export type PositionDetailInlinePositionType = string;
 export interface PositionDetailInlineRow extends Record<string, unknown> {
   rowId: string;
   assetId: number;
+  assetUid?: string;
   assetName?: string;
   assetTicker?: string;
   uniqueIdentifier?: string;
@@ -50,6 +51,12 @@ export interface PositionDetailWidgetRuntimeState extends Record<string, unknown
   variant?: "summary" | "positions";
   payload?: TargetPositionDetailPositionDetailsResponse;
   lastLoadedAtMs?: number;
+}
+
+export const syntheticPositionDetailAssetIdBase = 1_000_000_000;
+
+function isSyntheticPositionDetailAssetId(value: number) {
+  return value >= syntheticPositionDetailAssetIdBase;
 }
 
 const allPositionTypes = [
@@ -106,6 +113,41 @@ function normalizePositionDetailInlinePrice(value: unknown) {
   }
 
   return null;
+}
+
+function scorePositionDetailInlineRow(row: PositionDetailInlineRow) {
+  return [
+    row.assetName ? 8 : 0,
+    row.assetTicker ? 4 : 0,
+    row.uniqueIdentifier ? 2 : 0,
+    row.positionValue !== 0 ? 2 : 0,
+    !isSyntheticPositionDetailAssetId(row.assetId) ? 1 : 0,
+  ].reduce((score, value) => score + value, 0);
+}
+
+function dedupePositionDetailInlineRows(
+  rows: PositionDetailInlineRow[],
+  sourceType: PositionDetailSourceType,
+) {
+  if (sourceType !== "account") {
+    return rows;
+  }
+
+  const rowsByIdentity = new Map<string, PositionDetailInlineRow>();
+
+  rows.forEach((row) => {
+    const identity =
+      row.assetUid?.trim() ||
+      row.uniqueIdentifier?.trim() ||
+      (!isSyntheticPositionDetailAssetId(row.assetId) ? `asset:${row.assetId}` : row.rowId);
+    const current = rowsByIdentity.get(identity);
+
+    if (!current || scorePositionDetailInlineRow(row) > scorePositionDetailInlineRow(current)) {
+      rowsByIdentity.set(identity, row);
+    }
+  });
+
+  return [...rowsByIdentity.values()];
 }
 
 function getTodayIsoDate() {
@@ -227,14 +269,29 @@ export function normalizePositionDetailPositionRows(
     return [];
   }
 
-  return value.reduce<PositionDetailInlineRow[]>((rows, entry, index) => {
+  const rows = value.reduce<PositionDetailInlineRow[]>((normalizedRows, entry, index) => {
     if (!isPlainRecord(entry)) {
-      return rows;
+      return normalizedRows;
     }
 
-    const assetId = readPositiveInt(entry.assetId);
+    const asset = isPlainRecord(entry.asset) ? entry.asset : null;
+    const currentSnapshot =
+      asset && isPlainRecord(asset.current_snapshot) ? asset.current_snapshot : null;
+    const assetUid = readString(entry.assetUid ?? entry.asset_uid ?? asset?.uid);
+    const uniqueIdentifier = readString(
+      entry.uniqueIdentifier ?? entry.unique_identifier ?? asset?.unique_identifier,
+    );
+    const explicitAssetId = readPositiveInt(entry.assetId ?? entry.asset_id);
+    const assetId =
+      explicitAssetId > 0
+        ? explicitAssetId
+        : (sourceType === "account" || sourceType === "target_positions_account") &&
+            uniqueIdentifier
+          ? syntheticPositionDetailAssetIdBase + index + 1
+          : 0;
+
     if (assetId <= 0) {
-      return rows;
+      return normalizedRows;
     }
 
     const rowId =
@@ -242,13 +299,18 @@ export function normalizePositionDetailPositionRows(
         ? entry.rowId.trim()
         : `position-row-${assetId}-${index + 1}`;
 
-    rows.push({
+    normalizedRows.push({
       rowId,
       assetId,
-      assetName: readString(entry.assetName),
-      assetTicker: readString(entry.assetTicker),
-      uniqueIdentifier: readString(entry.uniqueIdentifier),
-      figi: readString(entry.figi),
+      assetUid,
+      assetName: readString(
+        entry.assetName ?? entry.asset_name ?? entry.name ?? currentSnapshot?.name,
+      ),
+      assetTicker: readString(
+        entry.assetTicker ?? entry.asset_ticker ?? entry.ticker ?? currentSnapshot?.ticker,
+      ),
+      uniqueIdentifier,
+      figi: readString(entry.figi ?? asset?.figi),
       ...(sourceType === "portfolio"
         ? {
             date: normalizePositionDetailInlineDate(
@@ -261,8 +323,10 @@ export function normalizePositionDetailPositionRows(
       positionValue: normalizePositionDetailInlinePositionValue(entry.positionValue),
     });
 
-    return rows;
+    return normalizedRows;
   }, []);
+
+  return dedupePositionDetailInlineRows(rows, sourceType);
 }
 
 export function normalizePositionDetailPersistedRows(
@@ -282,7 +346,13 @@ export function buildPositionDetailInlineDisplayRows(
   return rows.map((row) => ({
     id: row.assetId,
     asset_id: row.assetId,
-    asset_name: row.assetName || `Asset ${row.assetId}`,
+    ...(row.assetUid ? { asset_uid: row.assetUid } : {}),
+    asset_name:
+      row.assetName ||
+      row.uniqueIdentifier ||
+      (isSyntheticPositionDetailAssetId(row.assetId)
+        ? "Asset pending identity"
+        : `Asset ${row.assetId}`),
     asset_ticker: row.assetTicker || null,
     unique_identifier: row.uniqueIdentifier || null,
     figi: row.figi || row.uniqueIdentifier || null,
@@ -333,29 +403,36 @@ export function hydratePositionDetailRowsFromPayload(
   const fallbackDate = normalizePositionDetailInlineDate(payload.weights_date, getTodayIsoDate());
   const useSnapshotDate = sourceType === "portfolio" || sourceType === "account";
 
-  return payload.rows.reduce<PositionDetailInlineRow[]>((rows, entry, index) => {
+  const rows = payload.rows.reduce<PositionDetailInlineRow[]>((normalizedRows, entry, index) => {
     if (!isPlainRecord(entry)) {
-      return rows;
+      return normalizedRows;
     }
 
+    const asset = isPlainRecord(entry.asset) ? entry.asset : null;
+    const currentSnapshot =
+      asset && isPlainRecord(asset.current_snapshot) ? asset.current_snapshot : null;
+    const assetUid = readString(entry.asset_uid ?? entry.assetUid ?? asset?.uid);
+    const uniqueIdentifier = readString(entry.unique_identifier ?? asset?.unique_identifier);
     const explicitAssetId = readPositiveInt(entry.asset_id ?? entry.id);
     const assetId =
       explicitAssetId > 0
         ? explicitAssetId
-        : sourceType === "target_positions_account"
-          ? 1_000_000_000 + index + 1
+        : (sourceType === "target_positions_account" || sourceType === "account") &&
+            uniqueIdentifier
+          ? syntheticPositionDetailAssetIdBase + index + 1
           : 0;
     if (assetId <= 0) {
-      return rows;
+      return normalizedRows;
     }
 
-    rows.push({
+    normalizedRows.push({
       rowId: `hydrated-position-${assetId}-${index + 1}`,
       assetId,
-      assetName: readString(entry.asset_name),
-      assetTicker: readString(entry.asset_ticker),
-      uniqueIdentifier: readString(entry.unique_identifier),
-      figi: readString(entry.figi),
+      assetUid,
+      assetName: readString(entry.asset_name ?? currentSnapshot?.name),
+      assetTicker: readString(entry.asset_ticker ?? currentSnapshot?.ticker),
+      uniqueIdentifier,
+      figi: readString(entry.figi ?? asset?.figi),
       date: useSnapshotDate
         ? fallbackDate
         : normalizePositionDetailInlineDate(
@@ -377,8 +454,10 @@ export function hydratePositionDetailRowsFromPayload(
       positionValue: normalizePositionDetailInlinePositionValue(entry.position_value),
     });
 
-    return rows;
+    return normalizedRows;
   }, []);
+
+  return dedupePositionDetailInlineRows(rows, sourceType);
 }
 
 export function normalizePositionDetailDataMode(

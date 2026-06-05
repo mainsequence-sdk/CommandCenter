@@ -115,16 +115,20 @@ function buildManagedAccountHoldingsPayload(
         throw new Error(`Asset ${row.assetName ?? row.assetId} is missing a unique identifier.`);
       }
 
-      const missingPrice = row.price === null || row.price === undefined || !Number.isFinite(row.price);
-      const price = missingPrice ? "0" : String(row.price);
+      const assetUid = row.assetUid?.trim();
+      if (!assetUid) {
+        throw new Error(`Asset ${row.assetName ?? uniqueIdentifier} is missing an asset uid.`);
+      }
+
+      const direction: 1 | -1 =
+        row.positionValue < 0 || Object.is(row.positionValue, -0) ? -1 : 1;
 
       return {
         unique_identifier: uniqueIdentifier,
-        asset_id: row.assetId,
+        asset_uid: assetUid,
         position_type: "units",
-        price,
-        quantity: String(row.positionValue),
-        missing_price: missingPrice,
+        quantity: String(Math.abs(row.positionValue)),
+        direction,
         target_trade_time: holdingsDate,
         extra_details: {},
       };

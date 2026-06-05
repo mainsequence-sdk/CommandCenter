@@ -178,6 +178,45 @@ describe("positionDetailRuntime", () => {
     ]);
   });
 
+  it("normalizes account rows keyed only by unique identifier", () => {
+    const rows = normalizePositionDetailPersistedRows({
+      sourceType: "account",
+      positionRows: [
+        {
+          rowId: "uid-only-btc",
+          uniqueIdentifier: "example-asset-btc",
+          positionValue: "10",
+        },
+      ] as unknown as PositionDetailInlineRow[],
+    });
+
+    expect(rows).toEqual([
+      {
+        rowId: "uid-only-btc",
+        assetId: 1000000001,
+        assetName: undefined,
+        assetTicker: undefined,
+        uniqueIdentifier: "example-asset-btc",
+        figi: undefined,
+        price: null,
+        positionType: "units",
+        positionValue: 10,
+      },
+    ]);
+
+    expect(buildPositionDetailInlineDisplayRows(rows, "account")).toEqual([
+      {
+        id: 1000000001,
+        asset_id: 1000000001,
+        asset_name: "example-asset-btc",
+        asset_ticker: null,
+        unique_identifier: "example-asset-btc",
+        figi: "example-asset-btc",
+        position_value: 10,
+      },
+    ]);
+  });
+
   it("normalizes account holdings dates to timezone-aware ISO timestamps", () => {
     expect(normalizePositionDetailHoldingsDate("2026-05-18")).toBe("2026-05-18T00:00:00.000Z");
     expect(normalizePositionDetailHoldingsDate("2026-05-18T14:30:00Z")).toBe(
@@ -262,6 +301,98 @@ describe("positionDetailRuntime", () => {
         price: 100,
         positionType: "units",
         positionValue: 12,
+      },
+    ]);
+  });
+
+  it("deduplicates account holdings by unique identifier and keeps the richer row", () => {
+    expect(
+      hydratePositionDetailRowsFromPayload(
+        {
+          weights: null,
+          position_columns: [],
+          rows: [
+            {
+              asset_id: 101,
+              asset_name: "Bitcoin",
+              asset_ticker: "BTC",
+              unique_identifier: "example-asset-btc",
+              price: "100.000000000000000000",
+              position_value: "10",
+            },
+            {
+              unique_identifier: "example-asset-btc",
+              position_value: "0",
+            },
+          ],
+          columnDefs: [],
+          summaryColumnDefs: [],
+          position_map: null,
+          weights_date: "2026-05-18T09:30:00Z",
+        },
+        "account",
+      ),
+    ).toEqual([
+      {
+        rowId: "hydrated-position-101-1",
+        assetId: 101,
+        assetName: "Bitcoin",
+        assetTicker: "BTC",
+        uniqueIdentifier: "example-asset-btc",
+        figi: undefined,
+        date: "2026-05-18",
+        price: 100,
+        positionType: "units",
+        positionValue: 10,
+      },
+    ]);
+  });
+
+  it("deduplicates account holdings by asset uid when numeric ids are unavailable", () => {
+    expect(
+      hydratePositionDetailRowsFromPayload(
+        {
+          weights: null,
+          position_columns: [],
+          rows: [
+            {
+              unique_identifier: "example-asset-btc",
+              asset: {
+                uid: "asset-btc",
+                unique_identifier: "example-asset-btc",
+                current_snapshot: {
+                  name: "Bitcoin",
+                  ticker: "BTC",
+                },
+              },
+              position_value: "10",
+            },
+            {
+              asset_uid: "asset-btc",
+              unique_identifier: "example-asset-btc-duplicate",
+              position_value: "0",
+            },
+          ],
+          columnDefs: [],
+          summaryColumnDefs: [],
+          position_map: null,
+          weights_date: "2026-05-18T09:30:00Z",
+        },
+        "account",
+      ),
+    ).toEqual([
+      {
+        rowId: "hydrated-position-1000000001-1",
+        assetId: 1000000001,
+        assetUid: "asset-btc",
+        assetName: "Bitcoin",
+        assetTicker: "BTC",
+        uniqueIdentifier: "example-asset-btc",
+        figi: undefined,
+        date: "2026-05-18",
+        price: null,
+        positionType: "units",
+        positionValue: 10,
       },
     ]);
   });

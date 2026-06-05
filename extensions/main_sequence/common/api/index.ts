@@ -24,6 +24,8 @@ const mainSequenceAssetsRoot = buildMainSequenceAssetsRoot(env.debugMainSequence
 const debugMainSequenceOrigin = readUrlOrigin(env.debugMainSequence);
 const assetEndpoint = buildMainSequenceAssetEndpoint("asset/");
 const catalogEndpoint = buildMainSequenceAssetEndpoint("catalog/");
+const calendarEndpoint = buildMainSequenceAssetEndpoint("calendar/");
+const pricingMarketDataEndpoint = buildMainSequenceAssetEndpoint("pricing/market_data/");
 const indexEndpoint = buildMainSequenceAssetEndpoint("index/");
 const assetCategoryEndpoint = buildMainSequenceAssetEndpoint("asset-category/");
 const instrumentsConfigurationEndpoint = buildMainSequenceAssetEndpoint(
@@ -409,7 +411,7 @@ export interface ScalableServiceRevisionRecord extends Record<string, unknown> {
 }
 
 export interface AssetListRow {
-  id: number;
+  id?: number | null;
   uid: string;
   unique_identifier: string | null;
   figi: string | null;
@@ -428,6 +430,208 @@ export interface AssetBulkDeleteInput {
 export interface AssetBulkDeleteResponse {
   detail: string;
   deleted_count?: number;
+}
+
+export type CalendarType =
+  | "TRADING"
+  | "SETTLEMENT"
+  | "FIXING"
+  | "BUSINESS"
+  | "HOLIDAY"
+  | "EVENT"
+  | "CUSTOM";
+
+export interface CalendarRecord extends Record<string, unknown> {
+  uid: string;
+  unique_identifier: string;
+  display_name: string | null;
+  calendar_type: CalendarType | string;
+  timezone: string | null;
+  source: string | null;
+  source_identifier: string | null;
+  valid_from: string | null;
+  valid_to: string | null;
+  metadata_json: Record<string, unknown> | null;
+}
+
+export interface CalendarListFilters {
+  search?: string;
+  limit?: number;
+  offset?: number;
+  uniqueIdentifier?: string;
+  uniqueIdentifierContains?: string;
+  calendarType?: string;
+  source?: string;
+  sourceIdentifier?: string;
+}
+
+export interface CalendarDateRecord extends Record<string, unknown> {
+  uid: string;
+  calendar_uid: string;
+  local_date: string;
+  is_business_day: boolean;
+  is_holiday: boolean;
+  is_weekend: boolean;
+  is_early_close: boolean;
+  holiday_name: string | null;
+  metadata_json: Record<string, unknown> | null;
+}
+
+export interface CalendarDateListFilters {
+  startDate?: string;
+  endDate?: string;
+  isBusinessDay?: boolean;
+  isHoliday?: boolean;
+  isWeekend?: boolean;
+  isEarlyClose?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface CalendarSessionRecord extends Record<string, unknown> {
+  uid: string;
+  calendar_uid: string;
+  local_date: string;
+  session_label: string;
+  opens_at: string | null;
+  closes_at: string | null;
+  timezone: string | null;
+  is_primary: boolean;
+  metadata_json: Record<string, unknown> | null;
+}
+
+export interface CalendarSessionListFilters {
+  startDate?: string;
+  endDate?: string;
+  sessionLabel?: string;
+  isPrimary?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface CalendarEventRecord extends Record<string, unknown> {
+  uid: string;
+  calendar_uid: string;
+  event_date: string | null;
+  event_time: string | null;
+  event_type: string;
+  event_label: string;
+  target_type: string | null;
+  target_uid: string | null;
+  target_identifier: string | null;
+  metadata_json: Record<string, unknown> | null;
+}
+
+export interface CalendarEventListFilters {
+  startDate?: string;
+  endDate?: string;
+  eventType?: string;
+  eventLabel?: string;
+  targetType?: string;
+  targetUid?: string;
+  targetIdentifier?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface PricingMarketDataResourceLink {
+  key: "sets" | "bindings" | string;
+  model: string;
+  list_url: string;
+  create_url: string;
+  upsert_url: string;
+}
+
+export interface PricingMarketDataApiCard {
+  resource: string;
+  description: string;
+  resources: PricingMarketDataResourceLink[];
+}
+
+export interface PricingMarketDataSet extends Record<string, unknown> {
+  uid: string;
+  set_key: string;
+  display_name: string;
+  description: string | null;
+  status: string;
+  metadata_json: Record<string, unknown> | null;
+}
+
+export interface PricingMarketDataSetFilters {
+  limit?: number;
+  offset?: number;
+  status?: string;
+  setKey?: string;
+}
+
+export interface PricingMarketDataSetInput {
+  set_key: string;
+  display_name: string;
+  description?: string | null;
+  status?: string;
+  metadata_json?: Record<string, unknown> | null;
+}
+
+export interface PricingMarketDataSetUpdateInput {
+  display_name?: string;
+  description?: string | null;
+  status?: string;
+  metadata_json?: Record<string, unknown> | null;
+}
+
+export interface PricingMarketDataDeleteResponse {
+  detail: string;
+  uid: string;
+  deleted_count: number;
+}
+
+export interface PricingMarketDataSetBinding extends Record<string, unknown> {
+  uid: string;
+  market_data_set_uid: string;
+  concept_key: string;
+  data_node_uid: string;
+  storage_table_identifier: string;
+  source: string;
+  metadata_json: Record<string, unknown> | null;
+}
+
+export interface PricingMarketDataBindingFilters {
+  limit?: number;
+  offset?: number;
+  marketDataSetUid?: string;
+  conceptKey?: string;
+}
+
+export interface PricingMarketDataSetBindingFilters {
+  limit?: number;
+  offset?: number;
+}
+
+export interface PricingMarketDataBindingInput {
+  market_data_set_uid: string;
+  concept_key: string;
+  data_node_uid: string;
+  storage_table_identifier: string;
+  source: string;
+  metadata_json?: Record<string, unknown> | null;
+}
+
+export interface PricingMarketDataBindingUpdateInput {
+  data_node_uid?: string;
+  storage_table_identifier?: string;
+  source?: string;
+  metadata_json?: Record<string, unknown> | null;
+}
+
+export interface PricingMarketDataBindingResolveFilters {
+  conceptKey: string;
+  marketDataSet?: string;
+}
+
+export interface PricingMarketDataBindingResolveResponse {
+  market_data_set: string;
+  concept_key: string;
+  data_node_uid: string;
 }
 
 export interface AssetCategoryListRow {
@@ -703,9 +907,11 @@ export interface ManagedAccountHoldingRow {
   unique_identifier: string | null;
   asset: number | Record<string, unknown> | null;
   asset_id: number | null;
+  asset_uid: string | null;
   position_type: string | null;
   price: string | number | null;
   quantity: string | number | null;
+  direction: number | null;
   missing_price: boolean;
   target_trade_time: string | null;
   extra_details: Record<string, unknown>;
@@ -726,11 +932,10 @@ export interface ManagedAccountHoldingsSnapshotResponse {
 
 export interface ManagedAccountHoldingsWritePositionInput {
   unique_identifier: string;
-  asset_id: number;
+  asset_uid: string;
   position_type: string;
-  price: string;
   quantity: string;
-  missing_price: boolean;
+  direction: 1 | -1;
   target_trade_time: string;
   extra_details: Record<string, unknown>;
 }
@@ -744,9 +949,11 @@ export interface ManagedAccountHoldingsWriteInput {
 export interface ManagedAccountSavedHoldingRow {
   unique_identifier: string | null;
   asset_id: number | null;
+  asset_uid: string | null;
   position_type: string | null;
   price: string | number | null;
   quantity: string | number | null;
+  direction: number | null;
   missing_price: boolean;
   target_trade_time: string | null;
   extra_details: Record<string, unknown>;
@@ -875,7 +1082,8 @@ export interface AssetOrderFormConfig {
 }
 
 export interface AssetDetailResponse {
-  id: number;
+  id?: number | null;
+  uid?: string | null;
   name?: string | null;
   ticker?: string | null;
   unique_identifier?: string | null;
@@ -2010,6 +2218,13 @@ function normalizeManagedAccountHoldingsSnapshot(
             asset && typeof asset === "object" && typeof asset.id === "number"
               ? asset.id
               : null;
+          const assetUidFromAssetObject =
+            asset &&
+            typeof asset === "object" &&
+            typeof asset.uid === "string" &&
+            asset.uid.trim()
+              ? asset.uid.trim()
+              : null;
           return {
             time_index: typeof row.time_index === "string" ? row.time_index : null,
             unique_identifier:
@@ -2023,6 +2238,10 @@ function normalizeManagedAccountHoldingsSnapshot(
                   : assetIdFromAssetObject !== null
                     ? assetIdFromAssetObject
                   : null,
+            asset_uid:
+              typeof row.asset_uid === "string" && row.asset_uid.trim()
+                ? row.asset_uid.trim()
+                : assetUidFromAssetObject,
             position_type:
               typeof row.position_type === "string" ? row.position_type : null,
             price:
@@ -2031,6 +2250,12 @@ function normalizeManagedAccountHoldingsSnapshot(
               typeof row.quantity === "string" || typeof row.quantity === "number"
                 ? row.quantity
                 : null,
+            direction:
+              typeof row.direction === "number"
+                ? row.direction
+                : typeof row.direction === "string" && row.direction.trim()
+                  ? Number(row.direction)
+                  : null,
             missing_price: typeof row.missing_price === "boolean" ? row.missing_price : false,
             target_trade_time:
               typeof row.target_trade_time === "string" ? row.target_trade_time : null,
@@ -2060,6 +2285,24 @@ function normalizeManagedAccountHoldingsSnapshot(
       : [],
     holdings,
   };
+}
+
+function applyManagedAccountHoldingDirection(
+  quantity: string | number | null,
+  direction: number | null,
+) {
+  if (quantity === null) {
+    return null;
+  }
+
+  const parsedQuantity = Number(quantity);
+
+  if (!Number.isFinite(parsedQuantity)) {
+    return quantity;
+  }
+
+  const normalizedDirection = direction !== null && direction < 0 ? -1 : 1;
+  return Math.abs(parsedQuantity) * normalizedDirection;
 }
 
 function adaptManagedAccountHoldingsSnapshotToPositionDetails(
@@ -2103,9 +2346,14 @@ function adaptManagedAccountHoldingsSnapshotToPositionDetails(
         assetDetail && typeof assetDetail.figi === "string" && assetDetail.figi.trim()
           ? assetDetail.figi.trim()
           : holding.unique_identifier;
+      const signedQuantity = applyManagedAccountHoldingDirection(
+        holding.quantity,
+        holding.direction,
+      );
 
       return {
         asset_id: holding.asset_id,
+        ...(holding.asset_uid ? { asset_uid: holding.asset_uid } : {}),
         asset_name: assetName,
         asset_ticker: assetTicker,
         unique_identifier: holding.unique_identifier,
@@ -2114,7 +2362,8 @@ function adaptManagedAccountHoldingsSnapshotToPositionDetails(
         time_index: holding.time_index ?? snapshot.holdings_date,
         ...(holding.price !== null ? { price: holding.price } : {}),
         quantity: holding.quantity,
-        position_value: holding.quantity,
+        direction: holding.direction,
+        position_value: signedQuantity,
         ...(holding.target_trade_time ? { target_trade_time: holding.target_trade_time } : {}),
         extra_details: holding.extra_details,
         ...(assetDetail ? { asset: assetDetail } : {}),
@@ -2149,6 +2398,10 @@ function normalizeManagedAccountHoldingsWriteResponse(
             unique_identifier:
               typeof row.unique_identifier === "string" ? row.unique_identifier : null,
             asset_id: typeof row.asset_id === "number" ? row.asset_id : null,
+            asset_uid:
+              typeof row.asset_uid === "string" && row.asset_uid.trim()
+                ? row.asset_uid.trim()
+                : null,
             position_type:
               typeof row.position_type === "string" ? row.position_type : null,
             price:
@@ -2157,6 +2410,12 @@ function normalizeManagedAccountHoldingsWriteResponse(
               typeof row.quantity === "string" || typeof row.quantity === "number"
                 ? row.quantity
                 : null,
+            direction:
+              typeof row.direction === "number"
+                ? row.direction
+                : typeof row.direction === "string" && row.direction.trim()
+                  ? Number(row.direction)
+                  : null,
             missing_price: typeof row.missing_price === "boolean" ? row.missing_price : false,
             target_trade_time:
               typeof row.target_trade_time === "string" ? row.target_trade_time : null,
@@ -2332,13 +2591,19 @@ function adaptManagedAccountHoldingsWriteResponseToPositionDetails(
     position_columns: [],
     rows: snapshot.positions.map((position) => ({
       asset_id: position.asset_id,
+      ...(position.asset_uid ? { asset_uid: position.asset_uid } : {}),
       asset_name: position.unique_identifier,
       asset_ticker: null,
       unique_identifier: position.unique_identifier,
       figi: position.unique_identifier,
       date: snapshot.holdings_date,
       price: position.price,
-      position_value: position.quantity,
+      quantity: position.quantity,
+      direction: position.direction,
+      position_value: applyManagedAccountHoldingDirection(
+        position.quantity,
+        position.direction,
+      ),
       missing_price: position.missing_price,
       extra_details: position.extra_details,
       target_trade_time: position.target_trade_time,
@@ -4125,6 +4390,442 @@ export function bulkDeleteAssets(input: AssetBulkDeleteInput) {
       body: JSON.stringify({
         uids: input.uids,
       }),
+    },
+  );
+}
+
+function buildCalendarListSearch({
+  search,
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+  uniqueIdentifier,
+  uniqueIdentifierContains,
+  calendarType,
+  source,
+  sourceIdentifier,
+}: CalendarListFilters = {}) {
+  return {
+    response_format: "frontend_list",
+    search: search?.trim() || undefined,
+    limit,
+    offset,
+    unique_identifier: uniqueIdentifier?.trim() || undefined,
+    unique_identifier_contains: uniqueIdentifierContains?.trim() || undefined,
+    calendar_type: calendarType?.trim() || undefined,
+    source: source?.trim() || undefined,
+    source_identifier: sourceIdentifier?.trim() || undefined,
+  } satisfies Record<string, QueryValue>;
+}
+
+export async function listCalendars(filters: CalendarListFilters = {}) {
+  const limit = filters.limit ?? mainSequenceRegistryPageSize;
+  const offset = filters.offset ?? 0;
+  const payload = await requestJson<PaginatedResponse<CalendarRecord> | CalendarRecord[]>(
+    calendarEndpoint,
+    "",
+    undefined,
+    buildCalendarListSearch({ ...filters, limit, offset }),
+  );
+
+  if (Array.isArray(payload)) {
+    return {
+      count: offset + payload.length,
+      next: payload.length >= limit ? `offset=${offset + limit}&limit=${limit}` : null,
+      previous: offset > 0 ? `offset=${Math.max(0, offset - limit)}&limit=${limit}` : null,
+      limit,
+      offset,
+      results: payload,
+    } satisfies OffsetPaginatedList<CalendarRecord>;
+  }
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function fetchCalendarDetail(calendarUid: string) {
+  return requestJson<CalendarRecord>(
+    calendarEndpoint,
+    `${resolveMainSequenceUidPath(calendarUid, "calendar")}/`,
+    undefined,
+    { response_format: "frontend_detail" },
+  );
+}
+
+export function fetchCalendarSummary(calendarUid: string) {
+  return requestJson<SummaryResponse>(
+    calendarEndpoint,
+    `${resolveMainSequenceUidPath(calendarUid, "calendar")}/summary/`,
+  );
+}
+
+function buildCalendarDateListSearch({
+  startDate,
+  endDate,
+  isBusinessDay,
+  isHoliday,
+  isWeekend,
+  isEarlyClose,
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+}: CalendarDateListFilters = {}) {
+  return {
+    start_date: startDate?.trim() || undefined,
+    end_date: endDate?.trim() || undefined,
+    is_business_day: isBusinessDay,
+    is_holiday: isHoliday,
+    is_weekend: isWeekend,
+    is_early_close: isEarlyClose,
+    limit,
+    offset,
+  } satisfies Record<string, QueryValue>;
+}
+
+function normalizeRelationshipUrl(relationshipUrl: string | null | undefined) {
+  const normalized = relationshipUrl?.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return /^https?:\/\//.test(normalized) || normalized.startsWith("/") ? normalized : null;
+}
+
+function requestMainSequenceAssetRelationshipList<TRecord>(
+  relationshipUrl: string,
+  search: Record<string, QueryValue>,
+) {
+  if (relationshipUrl.startsWith("/api/v1/")) {
+    return requestJson<PaginatedResponse<TRecord> | TRecord[]>(
+      mainSequenceAssetsRoot,
+      relationshipUrl.slice("/api/v1/".length),
+      undefined,
+      search,
+    );
+  }
+
+  return requestJson<PaginatedResponse<TRecord> | TRecord[]>(
+    relationshipUrl,
+    "",
+    undefined,
+    search,
+  );
+}
+
+async function requestCalendarRelationshipList<TRecord>(
+  calendarUid: string,
+  fallbackPath: "dates" | "sessions" | "events",
+  relationshipUrl: string | null | undefined,
+  search: Record<string, QueryValue>,
+) {
+  const normalizedRelationshipUrl = normalizeRelationshipUrl(relationshipUrl);
+
+  if (normalizedRelationshipUrl) {
+    const payload = await requestMainSequenceAssetRelationshipList<TRecord>(
+      normalizedRelationshipUrl,
+      search,
+    );
+
+    return normalizeListResponse(payload);
+  }
+
+  const payload = await requestJson<PaginatedResponse<TRecord> | TRecord[]>(
+    calendarEndpoint,
+    `${resolveMainSequenceUidPath(calendarUid, "calendar")}/${fallbackPath}/`,
+    undefined,
+    search,
+  );
+
+  return normalizeListResponse(payload);
+}
+
+export function listCalendarDates(
+  calendarUid: string,
+  filters: CalendarDateListFilters = {},
+  relationshipUrl?: string | null,
+) {
+  return requestCalendarRelationshipList<CalendarDateRecord>(
+    calendarUid,
+    "dates",
+    relationshipUrl,
+    buildCalendarDateListSearch(filters),
+  );
+}
+
+function buildCalendarSessionListSearch({
+  startDate,
+  endDate,
+  sessionLabel,
+  isPrimary,
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+}: CalendarSessionListFilters = {}) {
+  return {
+    start_date: startDate?.trim() || undefined,
+    end_date: endDate?.trim() || undefined,
+    session_label: sessionLabel?.trim() || undefined,
+    is_primary: isPrimary,
+    limit,
+    offset,
+  } satisfies Record<string, QueryValue>;
+}
+
+export function listCalendarSessions(
+  calendarUid: string,
+  filters: CalendarSessionListFilters = {},
+  relationshipUrl?: string | null,
+) {
+  return requestCalendarRelationshipList<CalendarSessionRecord>(
+    calendarUid,
+    "sessions",
+    relationshipUrl,
+    buildCalendarSessionListSearch(filters),
+  );
+}
+
+function buildCalendarEventListSearch({
+  startDate,
+  endDate,
+  eventType,
+  eventLabel,
+  targetType,
+  targetUid,
+  targetIdentifier,
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+}: CalendarEventListFilters = {}) {
+  return {
+    start_date: startDate?.trim() || undefined,
+    end_date: endDate?.trim() || undefined,
+    event_type: eventType?.trim() || undefined,
+    event_label: eventLabel?.trim() || undefined,
+    target_type: targetType?.trim() || undefined,
+    target_uid: targetUid?.trim() || undefined,
+    target_identifier: targetIdentifier?.trim() || undefined,
+    limit,
+    offset,
+  } satisfies Record<string, QueryValue>;
+}
+
+export function listCalendarEvents(
+  calendarUid: string,
+  filters: CalendarEventListFilters = {},
+  relationshipUrl?: string | null,
+) {
+  return requestCalendarRelationshipList<CalendarEventRecord>(
+    calendarUid,
+    "events",
+    relationshipUrl,
+    buildCalendarEventListSearch(filters),
+  );
+}
+
+export function fetchPricingMarketDataApiCard() {
+  return requestJson<PricingMarketDataApiCard>(pricingMarketDataEndpoint);
+}
+
+function buildPricingMarketDataSetSearch({
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+  status,
+  setKey,
+}: PricingMarketDataSetFilters = {}) {
+  return {
+    limit,
+    offset,
+    status: status?.trim() || undefined,
+    set_key: setKey?.trim() || undefined,
+  } satisfies Record<string, QueryValue>;
+}
+
+export async function listPricingMarketDataSets(
+  filters: PricingMarketDataSetFilters = {},
+) {
+  const limit = filters.limit ?? mainSequenceRegistryPageSize;
+  const offset = filters.offset ?? 0;
+  const payload = await requestJson<PaginatedResponse<PricingMarketDataSet>>(
+    pricingMarketDataEndpoint,
+    "sets/",
+    undefined,
+    buildPricingMarketDataSetSearch({ ...filters, limit, offset }),
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function fetchPricingMarketDataSet(setUid: string) {
+  return requestJson<PricingMarketDataSet>(
+    pricingMarketDataEndpoint,
+    `sets/${resolveMainSequenceUidPath(setUid, "pricing market data set")}/`,
+  );
+}
+
+export function fetchPricingMarketDataSetByKey(setKey: string) {
+  const normalizedSetKey = setKey.trim();
+
+  if (!normalizedSetKey) {
+    throw new Error("Missing pricing market data set key.");
+  }
+
+  return requestJson<PricingMarketDataSet>(
+    pricingMarketDataEndpoint,
+    `sets/by-key/${encodePathSegment(normalizedSetKey)}/`,
+  );
+}
+
+export function createPricingMarketDataSet(input: PricingMarketDataSetInput) {
+  return requestJson<PricingMarketDataSet>(pricingMarketDataEndpoint, "sets/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function upsertPricingMarketDataSet(input: PricingMarketDataSetInput) {
+  return requestJson<PricingMarketDataSet>(pricingMarketDataEndpoint, "sets/upsert/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updatePricingMarketDataSet(
+  setUid: string,
+  input: PricingMarketDataSetUpdateInput,
+) {
+  return requestJson<PricingMarketDataSet>(
+    pricingMarketDataEndpoint,
+    `sets/${resolveMainSequenceUidPath(setUid, "pricing market data set")}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function deletePricingMarketDataSet(setUid: string) {
+  return requestJson<PricingMarketDataDeleteResponse>(
+    pricingMarketDataEndpoint,
+    `sets/${resolveMainSequenceUidPath(setUid, "pricing market data set")}/`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+function buildPricingMarketDataBindingSearch({
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+  marketDataSetUid,
+  conceptKey,
+}: PricingMarketDataBindingFilters = {}) {
+  return {
+    limit,
+    offset,
+    market_data_set_uid: marketDataSetUid?.trim() || undefined,
+    concept_key: conceptKey?.trim() || undefined,
+  } satisfies Record<string, QueryValue>;
+}
+
+export async function listPricingMarketDataBindings(
+  filters: PricingMarketDataBindingFilters = {},
+) {
+  const limit = filters.limit ?? mainSequenceRegistryPageSize;
+  const offset = filters.offset ?? 0;
+  const payload = await requestJson<PaginatedResponse<PricingMarketDataSetBinding>>(
+    pricingMarketDataEndpoint,
+    "bindings/",
+    undefined,
+    buildPricingMarketDataBindingSearch({ ...filters, limit, offset }),
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+function buildPricingMarketDataSetBindingSearch({
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+}: PricingMarketDataSetBindingFilters = {}) {
+  return {
+    limit,
+    offset,
+  } satisfies Record<string, QueryValue>;
+}
+
+export async function listPricingMarketDataSetBindings(
+  marketDataSetUid: string,
+  filters: PricingMarketDataSetBindingFilters = {},
+) {
+  const limit = filters.limit ?? mainSequenceRegistryPageSize;
+  const offset = filters.offset ?? 0;
+  const payload = await requestJson<PaginatedResponse<PricingMarketDataSetBinding>>(
+    pricingMarketDataEndpoint,
+    `sets/${resolveMainSequenceUidPath(marketDataSetUid, "pricing market data set")}/bindings/`,
+    undefined,
+    buildPricingMarketDataSetBindingSearch({ limit, offset }),
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function fetchPricingMarketDataBinding(bindingUid: string) {
+  return requestJson<PricingMarketDataSetBinding>(
+    pricingMarketDataEndpoint,
+    `bindings/${resolveMainSequenceUidPath(bindingUid, "pricing market data binding")}/`,
+  );
+}
+
+export function resolvePricingMarketDataBinding({
+  conceptKey,
+  marketDataSet,
+}: PricingMarketDataBindingResolveFilters) {
+  const normalizedConceptKey = conceptKey.trim();
+
+  if (!normalizedConceptKey) {
+    throw new Error("Missing pricing market data concept key.");
+  }
+
+  return requestJson<PricingMarketDataBindingResolveResponse>(
+    pricingMarketDataEndpoint,
+    "bindings/resolve/",
+    undefined,
+    {
+      concept_key: normalizedConceptKey,
+      market_data_set: marketDataSet?.trim() || undefined,
+    },
+  );
+}
+
+export function createPricingMarketDataBinding(input: PricingMarketDataBindingInput) {
+  return requestJson<PricingMarketDataSetBinding>(pricingMarketDataEndpoint, "bindings/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function upsertPricingMarketDataBinding(input: PricingMarketDataBindingInput) {
+  return requestJson<PricingMarketDataSetBinding>(pricingMarketDataEndpoint, "bindings/upsert/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updatePricingMarketDataBinding(
+  bindingUid: string,
+  input: PricingMarketDataBindingUpdateInput,
+) {
+  return requestJson<PricingMarketDataSetBinding>(
+    pricingMarketDataEndpoint,
+    `bindings/${resolveMainSequenceUidPath(bindingUid, "pricing market data binding")}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function deletePricingMarketDataBinding(bindingUid: string) {
+  return requestJson<PricingMarketDataDeleteResponse>(
+    pricingMarketDataEndpoint,
+    `bindings/${resolveMainSequenceUidPath(bindingUid, "pricing market data binding")}/`,
+    {
+      method: "DELETE",
     },
   );
 }

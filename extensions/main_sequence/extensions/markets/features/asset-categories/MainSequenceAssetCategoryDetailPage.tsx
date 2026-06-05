@@ -347,19 +347,19 @@ export function MainSequenceAssetCategoryDetailPage() {
                     </thead>
                     <tbody>
                       {nestedAssets.map((asset: AssetListRow) => (
-                        <tr key={asset.id}>
+                        <tr key={asset.uid}>
                           <td className={getRegistryTableCellClassName(false, "left")}>
                             <div className="min-w-0">
                               <div className="truncate font-medium text-foreground">
                                 {formatAssetValue(
                                   asset.name,
-                                  asset.unique_identifier || asset.figi || `Asset ${asset.id}`,
+                                  asset.unique_identifier || asset.figi || asset.uid,
                                 )}
                               </div>
                               <div className="mt-1 truncate text-xs text-muted-foreground">
                                 {[
-                                  `ID ${asset.id}`,
-                                  asset.unique_identifier ? `UID ${asset.unique_identifier}` : null,
+                                  asset.uid ? `UID ${asset.uid}` : null,
+                                  asset.unique_identifier ? `Identifier ${asset.unique_identifier}` : null,
                                   asset.figi ? `FIGI ${asset.figi}` : null,
                                 ]
                                   .filter(Boolean)

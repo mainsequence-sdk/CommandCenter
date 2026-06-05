@@ -36,6 +36,7 @@ This folder contains the reusable `Position Detail` widget and the shared table 
   - `positionRows`
 - `positionRows` persists locally authored or post-hydration-edited rows. Each row persists:
   - `assetId`
+  - `assetUid`
   - `assetName`
   - `assetTicker`
   - `uniqueIdentifier`
@@ -47,6 +48,13 @@ This folder contains the reusable `Position Detail` widget and the shared table 
 - In `positions` mode, the grid is intentionally narrowed to `Asset Name`, `Asset Ticker`, `UID`, `Date`, and the source-appropriate position fields. Account mode is units-only, hides `Position Type`, renames `Position Value` to `Quantity`, and exposes a blocked `Extra Details` cell because that field is API-only.
 - Editable-in-place mode always renders the positions view because rows are maintained as position entries directly on the canvas.
 - For `portfolio` and `account`, editable-in-place no longer drops the widget straight into the editor. Those sources render the normal positions table first and expose an in-widget `Edit positions` action. `target_position` still opens directly in inline edit mode because that source is authoring-first.
+- Account holdings edit mode must hydrate existing backend rows with canonical asset uid identity.
+  The write contract requires `asset_uid`; numeric `asset_id` is not sent to the holdings write
+  endpoint.
+- Asset search in edit mode uses `GET /api/v1/asset/?response_format=frontend_list...` only to select
+  the asset `uid`, then loads `GET /api/v1/asset/<uid>/?response_format=frontend_detail` before
+  adding the row. The editor must not build holdings rows from the lightweight list item or assume
+  the asset has a numeric `id`.
 - Row-level dates are now only part of the `portfolio` read contract:
   - hydrated `portfolio` rows use the portfolio snapshot `weights_date`
   - `account` keeps the canonical snapshot datetime at the top-level `holdingsDate` field instead of persisting per-row dates
@@ -54,7 +62,7 @@ This folder contains the reusable `Position Detail` widget and the shared table 
   - hydrated `account` rows still render the holdings snapshot timestamp on read surfaces so the date stays visible
 - When `account` enters edit mode, the widget shows a top-level `Holdings Date` `datetime-local` control seeded from the resolved account holdings timestamp, or now when the account has no holdings rows yet.
 - When `target_positions_account` enters edit mode, the widget shows a top-level `Target Positions Date` `datetime-local` control seeded from the exact assignment timestamp when loaded, the persisted widget prop when present, or the current time when nothing exists yet.
-- `account` edit mode saves through `POST /api/v1/account/<account_uid>/add-holdings/` with `overwrite: true`, maps blank prices to `missing_price: true`, injects `target_trade_time` from `holdingsDate`, always writes `position_type: "units"`, and always sends `extra_details: {}` because that field is not authored in the widget.
+- `account` edit mode saves through `POST /api/v1/account/<account_uid>/add-holdings/` with `overwrite: true`, injects `target_trade_time` from `holdingsDate`, always writes `position_type: "units"`, and always sends `extra_details: {}` because that field is not authored in the widget. Signed UI quantities are sent as absolute `quantity` plus `direction`, so `-10` becomes `quantity: "10"` and `direction: -1`. The request sends mandatory `asset_uid`; it does not send `asset_id`, `price`, or `missing_price`.
 - `account` read mode hydrates through `GET /api/v1/account/<account_uid>/holdings/` with `include_asset_detail=true`. Without `holdingsDate`, it requests the latest snapshot using `order=desc&limit=1`; when `holdingsDate` is set, it requests that exact timestamp.
 - `target_positions_account` read mode hydrates through `GET /api/v1/account/<account_uid>/target-positions/` with `include_asset_detail=true`. Without `targetPositionsDate`, it requests the latest assignment using `order=desc&limit=1`; when `targetPositionsDate` is set, it requests that exact timestamp.
 - That target-positions GET response is uid-only for nested assets. `positions[].asset` should
@@ -86,5 +94,10 @@ This folder contains the reusable `Position Detail` widget and the shared table 
   - target_positions_account may hydrate from backend until local rows are persisted, and can write an account-scoped target-position assignment
   - `positionRows` is still the local draft contract during edit mode; successful account holdings saves intentionally clear those draft rows so hydration resumes from the canonical backend snapshot, and successful target positions account saves now do the same so the widget returns to the canonical target-position assignment payload
 - Storage impact: `portfolioUid`, `targetPortfolioUid`, `holdingsDate`, and `targetPositionsDate` are persisted widget props. Portfolio references are UID-only; legacy `portfolioId` and `targetPortfolioId` props are not supported because backend numeric-ID lookups are deprecated. The date fields store timezone-aware ISO timestamps. This changes the frontend workspace storage shape for account-mode and portfolio-mode widgets but does not require a backend registry payload change because the added fields remain strings.
+- Storage impact: `positionRows[].assetUid` is an optional frontend workspace field used for duplicate
+  detection and display while editing, but it is mandatory for account holdings saves.
+- Backend contract impact: account holdings writes send mandatory `asset_uid`, do not send `asset_id`,
+  and no longer send row-level `price` or `missing_price`. They now send absolute `quantity` plus
+  `direction` for signed positions.
 - Bump `widgetVersion` when the configuration surface, runtime behavior, or agent-facing authoring
   guidance changes materially.

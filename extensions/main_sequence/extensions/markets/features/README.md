@@ -6,13 +6,14 @@ Feature folders in this extension should contain market-facing Main Sequence scr
 
 - `asset-categories/`: migrated asset-category registry, dedicated detail page, and nested assets table.
 - `assets/`: read-only asset registry list with dedicated detail loading.
+- `calendars/`: calendar registry list with summary-backed detail pages and dates, sessions, and events relationship tabs.
 - `catalogue/`: catalogue registry with backend row-listing and row-delete detail flows.
 - `managed-accounts/`: read-only managed-account registry with dedicated detail pages.
 - `funds/`: read-only virtual-fund registry with shared search and pagination.
 - `indices/`: index registry with shared list search, embedded detail loading, and delete support.
 - `portfolio-groups/`: portfolio-group registry with shared list behavior and a dedicated read-only detail page.
 - `portfolios/`: target-portfolio registry with shared list search, offset pagination, and bulk delete.
-- `pricing-market-data/`: pricing-oriented market data surface reserved for curves, fixings, and inspection workflows.
+- `pricing-market-data/`: pricing market-data sets and bindings registry backed by `/api/v1/pricing/market_data/`.
 
 ## Rules
 

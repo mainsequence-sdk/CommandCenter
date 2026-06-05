@@ -2155,11 +2155,10 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       holdings_set_uid: `mock-holdings-set-${accountUid}`,
       positions: positions.map((position) => ({
         unique_identifier: readString(position.unique_identifier) || null,
-        asset_id: readNumber(position.asset_id) || null,
+        asset_uid: readString(position.asset_uid) || null,
         position_type: readString(position.position_type) || "units",
-        price: readString(position.price) || "0",
         quantity: readString(position.quantity) || "0",
-        missing_price: readBoolean(position.missing_price),
+        direction: readNumber(position.direction) < 0 ? -1 : 1,
         target_trade_time: readString(position.target_trade_time) || null,
         extra_details:
           isRecord(position.extra_details) ? position.extra_details : {},
