@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { Database, Loader2 } from "lucide-react";
+import { ArrowUpRight, Database, Loader2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,7 @@ import {
 
 const mainSequenceAssetUidParam = "msAssetUid";
 const mainSequenceAssetTabParam = "msAssetTab";
-const defaultAssetDetailTabId: AssetDetailTabId = "metadata";
+const defaultAssetDetailTabId: AssetDetailTabId = "details";
 
 function readPositiveInt(value: string | null) {
   const parsed = Number(value ?? "");
@@ -54,6 +54,10 @@ function applyPaginationParams(nextParams: URLSearchParams, page: number, pageSi
 
 function formatAssetValue(value: string | null | undefined, fallback = "Not available") {
   return value?.trim() || fallback;
+}
+
+function formatAssetType(asset: AssetListRow) {
+  return formatAssetValue(asset.asset_type ?? asset.security_type);
 }
 
 export function MainSequenceAssetsPage() {
@@ -284,15 +288,18 @@ export function MainSequenceAssetsPage() {
                       <td className={getRegistryTableCellClassName(false, "left")}>
                         <button
                           type="button"
-                          className="min-w-0 text-left transition-opacity hover:opacity-80"
+                          className="block w-full min-w-0 text-left"
                           onClick={() => openAssetDetail(asset)}
                         >
                           <div className="min-w-0">
-                            <div className="truncate font-medium text-foreground">
-                              {formatAssetValue(
-                                asset.name,
-                                asset.unique_identifier || asset.figi || asset.uid,
-                              )}
+                            <div className="group inline-flex max-w-full items-center gap-1.5 font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary">
+                              <span className="truncate">
+                                {formatAssetValue(
+                                  asset.name,
+                                  asset.unique_identifier || asset.figi || asset.uid,
+                                )}
+                              </span>
+                              <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
                             </div>
                             <div className="mt-1 truncate text-xs text-muted-foreground">
                               {[
@@ -307,7 +314,7 @@ export function MainSequenceAssetsPage() {
                         </button>
                       </td>
                       <td className={getRegistryTableCellClassName(false)}>
-                        {formatAssetValue(asset.security_type)}
+                        {formatAssetType(asset)}
                       </td>
                     </tr>
                   ))}

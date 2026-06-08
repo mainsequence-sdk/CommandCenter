@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, ArrowUpRight, Database, Loader2 } from "lucide-react";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -13,16 +14,21 @@ import {
   fetchManagedAccountTargetPositionsPositionDetails,
   fetchManagedAccountSummary,
   formatMainSequenceError,
+  listVirtualFunds,
+  mainSequenceRegistryPageSize,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
+import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
 import { positionDetailWidget } from "../../widgets/position-detail/definition";
 import { PositionDetailWidget } from "../../widgets/position-detail/PositionDetailWidget";
 import type { PositionDetailWidgetProps } from "../../widgets/position-detail/positionDetailRuntime";
+import { getVirtualFundDetailPath } from "../funds/fundShared";
 import { getManagedAccountsListPath } from "./managedAccountShared";
 
 export const managedAccountDetailTabs = [
   { id: "holdings", label: "Holdings" },
-  { id: "target-position", label: "Target Position" },
+  { id: "target-allocation", label: "Target Allocation" },
+  { id: "virtual-funds", label: "Virtual Funds" },
 ] as const;
 
 export type ManagedAccountDetailTabId =
@@ -61,8 +67,8 @@ function isManagedAccountDetailTabId(
 }
 
 function normalizeManagedAccountDetailTabId(value: string | null): ManagedAccountDetailTabId | null {
-  if (value === "rebalance") {
-    return "target-position";
+  if (value === "rebalance" || value === "target-position") {
+    return "target-allocation";
   }
 
   return isManagedAccountDetailTabId(value) ? value : null;
@@ -71,6 +77,16 @@ function normalizeManagedAccountDetailTabId(value: string | null): ManagedAccoun
 function normalizeManagedAccountUid(value: string | null | undefined) {
   const normalized = value?.trim();
   return normalized ? normalized : null;
+}
+
+function formatVirtualFundUid(value: string | null | undefined) {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? trimmedValue : "UID unavailable";
+}
+
+function formatLinkedUid(value: string | null | undefined, label: string) {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? `${label} ${trimmedValue}` : `${label} not linked`;
 }
 
 export function MainSequenceManagedAccountDetailPage() {
@@ -136,6 +152,22 @@ export function MainSequenceManagedAccountDetailPage() {
     queryFn: () =>
       fetchManagedAccountTargetPositionsPositionDetails(managedAccountUid as string),
     enabled: managedAccountUid !== null,
+  });
+
+  const virtualFundsQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "virtual_funds",
+      "account_detail",
+      managedAccountUid,
+    ],
+    queryFn: () =>
+      listVirtualFunds({
+        accountUid: managedAccountUid as string,
+        limit: mainSequenceRegistryPageSize,
+        offset: 0,
+      }),
+    enabled: managedAccountUid !== null && selectedTabId === "virtual-funds",
   });
 
   function selectTab(tabId: ManagedAccountDetailTabId) {
@@ -273,12 +305,12 @@ export function MainSequenceManagedAccountDetailPage() {
                 />
               </CardContent>
             </Card>
-          ) : (
+          ) : selectedTabId === "target-allocation" ? (
             <Card variant="nested">
               <CardHeader className="border-b border-border/70 pb-4">
-                <CardTitle className="text-base">Target Position</CardTitle>
+                <CardTitle className="text-base">Target Allocation</CardTitle>
                 <CardDescription>
-                  Draft or review target-position rows directly in this account view and save them through the account target-position assignment endpoint.
+                  Draft or review target allocation rows directly in this account view and save them through the account target allocation assignment endpoint.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-5">
@@ -315,6 +347,107 @@ export function MainSequenceManagedAccountDetailPage() {
                           : undefined
                   }
                 />
+              </CardContent>
+            </Card>
+          ) : (
+            <Card variant="nested">
+              <CardHeader className="border-b border-border/70 pb-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">Virtual Funds</CardTitle>
+                    <CardDescription>
+                      Review virtual funds linked to this managed account.
+                    </CardDescription>
+                  </div>
+                  <Badge variant="neutral">
+                    {`${virtualFundsQuery.data?.count ?? 0} funds`}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-5">
+                {virtualFundsQuery.isLoading ? (
+                  <div className="flex min-h-48 items-center justify-center">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading virtual funds
+                    </div>
+                  </div>
+                ) : null}
+
+                {virtualFundsQuery.isError ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                    {formatMainSequenceError(virtualFundsQuery.error)}
+                  </div>
+                ) : null}
+
+                {!virtualFundsQuery.isLoading &&
+                !virtualFundsQuery.isError &&
+                (virtualFundsQuery.data?.results ?? []).length === 0 ? (
+                  <div className="px-5 py-12 text-center">
+                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-border/70 bg-background/35 text-primary">
+                      <Database className="h-6 w-6" />
+                    </div>
+                    <div className="mt-4 text-sm font-medium text-foreground">
+                      No virtual funds linked
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      This account does not have virtual funds in the current registry result.
+                    </p>
+                  </div>
+                ) : null}
+
+                {!virtualFundsQuery.isLoading &&
+                !virtualFundsQuery.isError &&
+                (virtualFundsQuery.data?.results ?? []).length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[760px] border-separate border-spacing-y-2 text-sm">
+                      <thead>
+                        <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                          <th className="px-4 pb-2">Virtual Fund</th>
+                          <th className="px-4 pb-2">Portfolio</th>
+                          <th className="px-4 pb-2">Account</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(virtualFundsQuery.data?.results ?? []).map((fund) => (
+                          <tr key={fund.uid}>
+                            <td className={getRegistryTableCellClassName(false, "left")}>
+                              <Link
+                                to={getVirtualFundDetailPath(fund.uid)}
+                                className="group inline-flex max-w-full items-center gap-1.5 font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary focus-visible:text-primary focus-visible:decoration-primary focus-visible:outline-none"
+                              >
+                                <span className="truncate">
+                                  {formatVirtualFundUid(fund.unique_identifier)}
+                                </span>
+                                <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+                              </Link>
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {formatVirtualFundUid(fund.uid)}
+                              </div>
+                            </td>
+                            <td className={getRegistryTableCellClassName(false)}>
+                              <div className="font-mono text-sm text-foreground">
+                                {formatLinkedUid(fund.target_portfolio_uid, "Portfolio UID")}
+                              </div>
+                            </td>
+                            <td className={getRegistryTableCellClassName(false, "right")}>
+                              <div className="font-mono text-sm text-foreground">
+                                {formatLinkedUid(fund.account_uid, "Account UID")}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {(virtualFundsQuery.data?.count ?? 0) >
+                    (virtualFundsQuery.data?.results ?? []).length ? (
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        Showing the first {virtualFundsQuery.data?.results.length ?? 0} linked
+                        virtual funds.
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           )}

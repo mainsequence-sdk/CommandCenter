@@ -11,7 +11,7 @@ import type { PositionDetailWidgetProps } from "./positionDetailRuntime";
 
 export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
   id: "position-detail",
-  widgetVersion: "4.1.2",
+  widgetVersion: "4.1.8",
   title: "Position Detail",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
@@ -86,7 +86,7 @@ export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
     configuration: {
       mode: "custom-settings",
       summary:
-        "Renders portfolio, account, target-position, or account-target-position rows. Account mode hydrates canonical holdings and can save a holdings snapshot back to the managed account. Target Positions Account mode hydrates the canonical account target-position assignment and can save it back through the managed-account endpoint.",
+        "Renders portfolio, account, target-allocation, or account target-allocation rows. Account mode hydrates canonical holdings, exposes a read-only by-fund allocation view, and can save a holdings snapshot back to the managed account. Target Allocation Account mode hydrates the canonical account target allocation assignment and can save it back through the managed-account endpoint.",
       fields: [
         {
           id: "sourceType",
@@ -104,7 +104,7 @@ export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
         },
         {
           id: "targetPortfolioUid",
-          label: "Target portfolio UID",
+          label: "Portfolio UID",
           type: "string",
           source: "custom-settings",
         },
@@ -146,19 +146,19 @@ export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
         },
       ],
       requiredSetupSteps: [
-        "Choose the source type first. Portfolio can hydrate from a portfolio uid. Account can hydrate holdings and save them back. Target position is authoring-first. Target Positions Account can hydrate the latest or exact account target-position assignment and write it back through the managed-account endpoint.",
+        "Choose the source type first. Portfolio can hydrate from a portfolio uid. Account can hydrate holdings and save them back. Target allocation is authoring-first. Target Allocation Account can hydrate the latest or exact account target allocation assignment and write it back through the managed-account endpoint.",
       ],
     },
     runtime: {
       refreshPolicy: "allow-refresh",
       executionTriggers: ["dashboard-refresh", "manual-recalculate"],
       executionSummary:
-        "Portfolio source can hydrate from the target portfolio weights endpoint. Account source can hydrate from the canonical holdings endpoint and, in edit mode, save a rewritten holdings snapshot through the managed-account holdings write endpoint. Target position remains local-authored, while Target Positions Account can hydrate the canonical account target-position assignment and save it back through the matching write endpoint.",
+        "Portfolio source can hydrate from the portfolio weights endpoint. Account source can hydrate from the canonical holdings endpoint, lazy-load the account holdings by-fund endpoint, and in edit mode save a rewritten holdings snapshot through the managed-account holdings write endpoint. Target allocation remains local-authored, while Target Allocation Account can hydrate the canonical account target allocation assignment and save it back through the matching write endpoint.",
     },
     io: {
       mode: "none",
       summary:
-        "This widget does not participate in typed widget bindings. Portfolio, account, and account target-position sources can hydrate from their own queries. Account and account target-position edit modes can also save back to the managed account. Target position renders local authored rows.",
+        "This widget does not participate in typed widget bindings. Portfolio, account, and account target-allocation sources can hydrate from their own queries. Account and account target-allocation edit modes can also save back to the managed account. Target allocation renders local authored rows.",
     },
     capabilities: {
       supportedSourceTypes: [

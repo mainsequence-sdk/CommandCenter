@@ -381,7 +381,7 @@ export function MainSequencePortfolioGroupDetailPage() {
 
       toast({
         title: "Portfolio added",
-        description: `${portfolioTitlesByUid.get(portfolioUid) || getPortfolioSearchOptionLabel(selectedPortfolioOption ?? { id: 0, uid: portfolioUid, portfolio_name: "" })} was added to ${getPortfolioGroupTitle(updatedPortfolioGroup)}.`,
+        description: `${portfolioTitlesByUid.get(portfolioUid) || getPortfolioSearchOptionLabel(selectedPortfolioOption ?? { uid: portfolioUid, unique_identifier: "" })} was added to ${getPortfolioGroupTitle(updatedPortfolioGroup)}.`,
       });
 
       setPortfolioSearchValue("");
@@ -507,7 +507,7 @@ export function MainSequencePortfolioGroupDetailPage() {
                   <div>
                     <CardTitle>Portfolio group settings</CardTitle>
                     <CardDescription>
-                      Search target portfolios, select one result, and add it to this group without
+                      Search portfolios, select one result, and add it to this group without
                       leaving the page.
                     </CardDescription>
                   </div>

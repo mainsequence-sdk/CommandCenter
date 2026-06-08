@@ -34,7 +34,7 @@ const instrumentsConfigurationEndpoint = buildMainSequenceAssetEndpoint(
 const virtualFundEndpoint = buildMainSequenceAssetEndpoint("virtualfund/");
 const managedAccountEndpoint = buildMainSequenceAssetEndpoint("account/");
 const portfolioGroupEndpoint = buildMainSequenceAssetEndpoint("portfolio_group/");
-const targetPortfolioEndpoint = buildMainSequenceAssetEndpoint("target_portfolio/");
+const targetPortfolioEndpoint = buildMainSequenceAssetEndpoint("portfolio/");
 export const mainSequenceRegistryPageSize = 25;
 const DATA_NODE_DETAIL_CACHE_TTL_MS = 300_000;
 
@@ -414,6 +414,7 @@ export interface AssetListRow {
   id?: number | null;
   uid: string;
   unique_identifier: string | null;
+  asset_type?: string | null;
   figi: string | null;
   name: string | null;
   ticker: string | null;
@@ -722,14 +723,39 @@ export interface AssetCategoryBulkDeleteResponse {
 
 export interface VirtualFundListRow extends Record<string, unknown> {
   uid: string;
-  id?: number | null;
-  target_portfolio_uid?: string | null;
-  target_portfolio_name?: string | null;
+  unique_identifier: string;
   account_uid?: string | null;
-  account_name?: string | null;
+  target_portfolio_uid?: string | null;
 }
 
 export interface VirtualFundRecord extends VirtualFundListRow {}
+
+export interface VirtualFundDetailResponse extends Record<string, unknown> {
+  virtual_fund: VirtualFundRecord | null;
+  tabs?: Array<{
+    key?: string | null;
+    label?: string | null;
+    url?: string | null;
+    [key: string]: unknown;
+  }>;
+  links?: {
+    summary?: string | null;
+    holdings?: string | null;
+    latest_holdings?: string | null;
+    account?: string | null;
+    portfolio?: string | null;
+    [key: string]: unknown;
+  } | null;
+}
+
+export interface VirtualFundHoldingsResponse extends Record<string, unknown> {
+  virtual_fund_uid: string | null;
+  virtual_fund_unique_identifier: string | null;
+  holdings_set_uid: string | null;
+  source_account_holdings_set_uid: string | null;
+  holdings_date: string | null;
+  holdings: Array<Record<string, unknown>>;
+}
 
 export interface CreateVirtualFundInput extends Record<string, unknown> {}
 
@@ -751,6 +777,27 @@ export type ManagedAccountSummaryResponse = SummaryResponse<MainSequenceSummaryE
 
 export interface ManagedAccountListFilters {
   search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export type ManagedAccountTargetAllocationTargetType = "all" | "asset" | "portfolio";
+
+export interface ManagedAccountTargetAllocationTargetRow extends Record<string, unknown> {
+  target_type: "asset" | "portfolio" | string;
+  target_uid: string;
+  asset_uid: string | null;
+  portfolio_uid: string | null;
+  identifier: string;
+  display_label: string;
+  secondary_label: string | null;
+  current_snapshot: Record<string, unknown> | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface ManagedAccountTargetAllocationTargetFilters {
+  search?: string;
+  targetType?: ManagedAccountTargetAllocationTargetType;
   limit?: number;
   offset?: number;
 }
@@ -811,52 +858,68 @@ export interface PortfolioGroupPortfolioMutationInput {
 }
 
 export interface TargetPortfolioListRow extends Record<string, unknown> {
-  id: number;
   uid: string;
-  portfolio_name?: string | null;
-  creation_date?: string | null;
-  index_asset?: {
-    id?: number | null;
-    uid?: string | null;
-    current_snapshot?: {
-      id?: number | null;
-      uid?: string | null;
-      name?: string | null;
-      ticker?: string | null;
-      [key: string]: unknown;
-    } | null;
-    [key: string]: unknown;
-  } | null;
-  portfolio_index_asset?: {
-    id?: number | null;
-    uid?: string | null;
-    current_snapshot?: {
-      id?: number | null;
-      uid?: string | null;
-      name?: string | null;
-      ticker?: string | null;
-      [key: string]: unknown;
-    } | null;
-    [key: string]: unknown;
-  } | null;
+  unique_identifier: string;
+  calendar_name?: string | null;
+  calendar_uid?: string | null;
+  portfolio_index_uid?: string | null;
+  portfolio_weights_data_node_uid?: string | null;
+  signal_weights_data_node_uid?: string | null;
+  portfolio_data_node_uid?: string | null;
+  backtest_table_price_column_name?: string | null;
 }
 
 export interface TargetPortfolioBulkDeleteInput {
   uids?: string[];
-  selectAll?: boolean;
-  currentUrl?: string;
 }
 
 export interface TargetPortfolioBulkDeleteResponse {
   detail: string;
   deleted_count?: number;
+  failed?: Array<{
+    uid?: string | null;
+    reason?: string | null;
+  }>;
 }
 
 export interface TargetPortfolioSearchOption {
-  id: number;
   uid: string;
-  portfolio_name: string;
-  creation_date?: string | null;
+  unique_identifier: string;
+  calendar_name?: string | null;
+  calendar_uid?: string | null;
+  portfolio_index_uid?: string | null;
+}
+
+export interface TargetPortfolioDetailResponse extends Record<string, unknown> {
+  portfolio: TargetPortfolioListRow | null;
+  metadata: {
+    uid?: string | null;
+    unique_identifier?: string | null;
+    description?: string | null;
+    [key: string]: unknown;
+  } | null;
+  tabs?: Array<{
+    key?: string | null;
+    label?: string | null;
+    url?: string | null;
+    [key: string]: unknown;
+  }>;
+  links?: {
+    summary?: string | null;
+    latest_weights?: string | null;
+    delete?: string | null;
+    [key: string]: unknown;
+  } | null;
+}
+
+export interface TargetPortfolioWeightsResponse extends Record<string, unknown> {
+  portfolio_uid: string | null;
+  portfolio_unique_identifier: string | null;
+  portfolio_index_uid: string | null;
+  portfolio_index_identifier: string | null;
+  weights_date: string | null;
+  resolution_warning: string | null;
+  weights: Array<Record<string, unknown>>;
 }
 
 export interface SummaryExtensions {
@@ -868,6 +931,8 @@ export interface MainSequenceSummaryExtensions extends SummaryExtensions {
   generated_search_document?: string;
   agent_capabilities?: boolean;
 }
+
+export type VirtualFundSummaryResponse = SummaryResponse<MainSequenceSummaryExtensions>;
 
 export interface TargetPortfolioSummaryExtensions extends MainSequenceSummaryExtensions {
   description?: string;
@@ -895,6 +960,7 @@ export interface PositionDetailResponse {
   summaryColumnDefs: PositionDetailColumnDef[];
   position_map: Record<string, unknown> | null;
   weights_date: string | null;
+  resolution_warning?: string | null;
 }
 
 export type TargetPortfolioWeightsPositionColumnDef = PositionDetailColumnDef;
@@ -904,34 +970,62 @@ export type TargetPositionDetailPositionDetailsResponse = PositionDetailResponse
 
 export interface ManagedAccountHoldingRow {
   time_index: string | null;
-  unique_identifier: string | null;
-  asset: number | Record<string, unknown> | null;
-  asset_id: number | null;
+  asset_identifier: string | null;
+  asset: Record<string, unknown> | null;
   asset_uid: string | null;
   position_type: string | null;
   price: string | number | null;
   quantity: string | number | null;
   direction: number | null;
+  signed_quantity: string | number | null;
   missing_price: boolean;
   target_trade_time: string | null;
   extra_details: Record<string, unknown>;
+  allocation?: Record<string, unknown> | null;
+  virtual_fund_holdings_set_uid?: string | null;
+  source_account_holdings_set_uid?: string | null;
 }
 
 export interface ManagedAccountHoldingsSnapshotResponse {
-  id: number | null;
-  snapshot_uid: string | null;
   holdings_set_uid: string | null;
   holdings_date: string | null;
-  nav: string | number | null;
-  related_account: number | null;
-  is_trade_snapshot: boolean;
-  target_trade_time: string | null;
-  related_expected_asset_exposure_df: unknown[];
   holdings: ManagedAccountHoldingRow[];
 }
 
+export interface ManagedAccountHoldingsByFundResidualRow {
+  asset_identifier: string | null;
+  source_signed_quantity: string | number | null;
+  allocated_signed_quantity: string | number | null;
+  residual_signed_quantity: string | number | null;
+  asset: Record<string, unknown> | null;
+}
+
+export interface ManagedAccountHoldingsByFundResponse {
+  account_uid: string | null;
+  source_account_holdings_set_uid: string | null;
+  holdings_date: string | null;
+  funds: Array<{
+    virtual_fund_uid: string | null;
+    virtual_fund_unique_identifier: string | null;
+    target_portfolio_uid: string | null;
+    holdings_set_uid: string | null;
+    holdings: ManagedAccountHoldingRow[];
+  }>;
+  residuals: ManagedAccountHoldingsByFundResidualRow[];
+  allocation_warnings: unknown[];
+}
+
+export interface ManagedAccountHoldingsByFundPositionDetailsResponse
+  extends Omit<ManagedAccountHoldingsByFundResponse, "funds"> {
+  funds: Array<
+    ManagedAccountHoldingsByFundResponse["funds"][number] & {
+      position_details: PositionDetailResponse;
+    }
+  >;
+}
+
 export interface ManagedAccountHoldingsWritePositionInput {
-  unique_identifier: string;
+  asset_identifier: string;
   asset_uid: string;
   position_type: string;
   quantity: string;
@@ -946,32 +1040,29 @@ export interface ManagedAccountHoldingsWriteInput {
   positions: ManagedAccountHoldingsWritePositionInput[];
 }
 
-export interface ManagedAccountSavedHoldingRow {
-  unique_identifier: string | null;
-  asset_id: number | null;
-  asset_uid: string | null;
-  position_type: string | null;
-  price: string | number | null;
-  quantity: string | number | null;
-  direction: number | null;
-  missing_price: boolean;
-  target_trade_time: string | null;
-  extra_details: Record<string, unknown>;
-}
+export type ManagedAccountHoldingsWriteResponse = ManagedAccountHoldingsSnapshotResponse;
 
-export interface ManagedAccountHoldingsWriteResponse {
-  related_account: number | null;
-  holdings_date: string | null;
-  holdings_set_uid: string | null;
-  positions: ManagedAccountSavedHoldingRow[];
-}
-
-export interface ManagedAccountTargetPositionsWritePositionInput {
-  unique_identifier: string;
+export type ManagedAccountTargetPositionsWritePositionInput = {
+  target_type: "asset" | "portfolio";
+  target_uid: string;
+  metadata_json: Record<string, unknown>;
+} & (
+  | {
+      target_type: "asset";
+      asset_uid: string;
+      portfolio_uid?: never;
+      single_asset_quantity?: string;
+    }
+  | {
+      target_type: "portfolio";
+      portfolio_uid: string;
+      asset_uid?: never;
+      single_asset_quantity?: never;
+    }
+) & {
   weight_notional_exposure?: string;
   constant_notional_exposure?: string;
-  single_asset_quantity?: string;
-}
+};
 
 export interface ManagedAccountTargetPositionsWriteInput {
   target_positions_date: string;
@@ -980,11 +1071,16 @@ export interface ManagedAccountTargetPositionsWriteInput {
 }
 
 export interface ManagedAccountSavedTargetPositionRow {
+  target_type: string | null;
+  target_uid: string | null;
+  asset_uid: string | null;
+  portfolio_uid: string | null;
   unique_identifier: string | null;
   weight_notional_exposure: string | number | null;
   constant_notional_exposure: string | number | null;
   single_asset_quantity: string | number | null;
   asset: Record<string, unknown> | null;
+  portfolio: Record<string, unknown> | null;
 }
 
 export interface ManagedAccountTargetPositionsWriteResponse {
@@ -1081,20 +1177,34 @@ export interface AssetOrderFormConfig {
   default_order_type?: string | null;
 }
 
-export interface AssetDetailResponse {
-  id?: number | null;
-  uid?: string | null;
+export interface AssetCurrentSnapshot {
+  time_index?: string | null;
+  asset_identifier?: string | null;
   name?: string | null;
   ticker?: string | null;
+  exchange_code?: string | null;
+  asset_ticker_group_id?: string | number | null;
+  [key: string]: unknown;
+}
+
+export interface AssetDetailResponse {
+  uid?: string | null;
   unique_identifier?: string | null;
+  asset_type?: string | null;
+  current_snapshot?: AssetCurrentSnapshot | null;
+  details?: AssetDetailField[] | null;
+  trading_view?: AssetTradingViewConfig | null;
+  order_form?: AssetOrderFormConfig | null;
+  // Legacy fields are kept for existing asset consumers while the backend
+  // finishes moving display fields under `current_snapshot`.
+  id?: number | null;
+  name?: string | null;
+  ticker?: string | null;
   figi?: string | null;
   exchange_code?: string | null;
   security_market_sector?: string | null;
   security_type?: string | null;
   is_custom_by_organization?: boolean;
-  details?: AssetDetailField[] | null;
-  trading_view?: AssetTradingViewConfig | null;
-  order_form?: AssetOrderFormConfig | null;
   [key: string]: unknown;
 }
 
@@ -2209,35 +2319,49 @@ function normalizeManagedAccountHoldingsSnapshot(
         .map((entry) => {
           const row = entry as Record<string, unknown>;
           const asset =
-            typeof row.asset === "number"
-              ? row.asset
-              : row.asset && typeof row.asset === "object" && !Array.isArray(row.asset)
+            row.asset && typeof row.asset === "object" && !Array.isArray(row.asset)
                 ? (row.asset as Record<string, unknown>)
                 : null;
-          const assetIdFromAssetObject =
-            asset && typeof asset === "object" && typeof asset.id === "number"
-              ? asset.id
-              : null;
           const assetUidFromAssetObject =
             asset &&
-            typeof asset === "object" &&
             typeof asset.uid === "string" &&
             asset.uid.trim()
               ? asset.uid.trim()
               : null;
+          const assetIdentifierFromAsset =
+            asset &&
+            typeof asset.asset_identifier === "string" &&
+            asset.asset_identifier.trim()
+              ? asset.asset_identifier.trim()
+              : asset &&
+                  typeof asset.unique_identifier === "string" &&
+                  asset.unique_identifier.trim()
+                ? asset.unique_identifier.trim()
+                : null;
+          const direction =
+            typeof row.direction === "number"
+              ? row.direction
+              : typeof row.direction === "string" && row.direction.trim()
+                ? Number(row.direction)
+                : null;
+          const quantity =
+            typeof row.quantity === "string" || typeof row.quantity === "number"
+              ? row.quantity
+              : null;
+          const signedQuantity =
+            typeof row.signed_quantity === "string" || typeof row.signed_quantity === "number"
+              ? row.signed_quantity
+              : applyManagedAccountHoldingDirection(quantity, direction);
+
           return {
             time_index: typeof row.time_index === "string" ? row.time_index : null,
-            unique_identifier:
-              typeof row.unique_identifier === "string" ? row.unique_identifier : null,
+            asset_identifier:
+              typeof row.asset_identifier === "string" && row.asset_identifier.trim()
+                ? row.asset_identifier.trim()
+                : typeof row.unique_identifier === "string" && row.unique_identifier.trim()
+                  ? row.unique_identifier.trim()
+                  : assetIdentifierFromAsset,
             asset,
-            asset_id:
-              typeof row.asset_id === "number"
-                ? row.asset_id
-                : typeof asset === "number"
-                  ? asset
-                  : assetIdFromAssetObject !== null
-                    ? assetIdFromAssetObject
-                  : null,
             asset_uid:
               typeof row.asset_uid === "string" && row.asset_uid.trim()
                 ? row.asset_uid.trim()
@@ -2246,16 +2370,9 @@ function normalizeManagedAccountHoldingsSnapshot(
               typeof row.position_type === "string" ? row.position_type : null,
             price:
               typeof row.price === "string" || typeof row.price === "number" ? row.price : null,
-            quantity:
-              typeof row.quantity === "string" || typeof row.quantity === "number"
-                ? row.quantity
-                : null,
-            direction:
-              typeof row.direction === "number"
-                ? row.direction
-                : typeof row.direction === "string" && row.direction.trim()
-                  ? Number(row.direction)
-                  : null,
+            quantity,
+            direction,
+            signed_quantity: signedQuantity,
             missing_price: typeof row.missing_price === "boolean" ? row.missing_price : false,
             target_trade_time:
               typeof row.target_trade_time === "string" ? row.target_trade_time : null,
@@ -2263,26 +2380,25 @@ function normalizeManagedAccountHoldingsSnapshot(
               row.extra_details && typeof row.extra_details === "object" && !Array.isArray(row.extra_details)
                 ? (row.extra_details as Record<string, unknown>)
                 : {},
+            allocation:
+              row.allocation && typeof row.allocation === "object" && !Array.isArray(row.allocation)
+                ? (row.allocation as Record<string, unknown>)
+                : null,
+            virtual_fund_holdings_set_uid:
+              typeof row.virtual_fund_holdings_set_uid === "string" && row.virtual_fund_holdings_set_uid.trim()
+                ? row.virtual_fund_holdings_set_uid.trim()
+                : null,
+            source_account_holdings_set_uid:
+              typeof row.source_account_holdings_set_uid === "string" && row.source_account_holdings_set_uid.trim()
+                ? row.source_account_holdings_set_uid.trim()
+                : null,
           } satisfies ManagedAccountHoldingRow;
         })
     : [];
 
   return {
-    id: typeof record.id === "number" ? record.id : null,
-    snapshot_uid: typeof record.snapshot_uid === "string" ? record.snapshot_uid : null,
     holdings_set_uid: typeof record.holdings_set_uid === "string" ? record.holdings_set_uid : null,
     holdings_date: typeof record.holdings_date === "string" ? record.holdings_date : null,
-    nav:
-      typeof record.nav === "string" || typeof record.nav === "number" ? record.nav : null,
-    related_account:
-      typeof record.related_account === "number" ? record.related_account : null,
-    is_trade_snapshot:
-      typeof record.is_trade_snapshot === "boolean" ? record.is_trade_snapshot : false,
-    target_trade_time:
-      typeof record.target_trade_time === "string" ? record.target_trade_time : null,
-    related_expected_asset_exposure_df: Array.isArray(record.related_expected_asset_exposure_df)
-      ? record.related_expected_asset_exposure_df
-      : [],
     holdings,
   };
 }
@@ -2314,13 +2430,7 @@ function adaptManagedAccountHoldingsSnapshotToPositionDetails(
 
   return {
     weights: {
-      nav: snapshot.nav,
-      snapshot_uid: snapshot.snapshot_uid,
       holdings_set_uid: snapshot.holdings_set_uid,
-      related_account: snapshot.related_account,
-      is_trade_snapshot: snapshot.is_trade_snapshot,
-      target_trade_time: snapshot.target_trade_time,
-      related_expected_asset_exposure_df: snapshot.related_expected_asset_exposure_df,
     },
     position_columns: [],
     rows: snapshot.holdings.map((holding) => {
@@ -2337,7 +2447,7 @@ function adaptManagedAccountHoldingsSnapshotToPositionDetails(
       const assetName =
         typeof currentSnapshot?.name === "string" && currentSnapshot.name.trim()
           ? currentSnapshot.name.trim()
-          : holding.unique_identifier;
+          : holding.asset_identifier;
       const assetTicker =
         typeof currentSnapshot?.ticker === "string" && currentSnapshot.ticker.trim()
           ? currentSnapshot.ticker.trim()
@@ -2345,27 +2455,36 @@ function adaptManagedAccountHoldingsSnapshotToPositionDetails(
       const figi =
         assetDetail && typeof assetDetail.figi === "string" && assetDetail.figi.trim()
           ? assetDetail.figi.trim()
-          : holding.unique_identifier;
-      const signedQuantity = applyManagedAccountHoldingDirection(
-        holding.quantity,
-        holding.direction,
-      );
+          : holding.asset_identifier;
+      const signedQuantity =
+        holding.signed_quantity ??
+        applyManagedAccountHoldingDirection(holding.quantity, holding.direction);
 
       return {
-        asset_id: holding.asset_id,
         ...(holding.asset_uid ? { asset_uid: holding.asset_uid } : {}),
+        asset_identifier: holding.asset_identifier,
         asset_name: assetName,
         asset_ticker: assetTicker,
-        unique_identifier: holding.unique_identifier,
+        unique_identifier: holding.asset_identifier,
         figi,
         date: snapshot.holdings_date,
         time_index: holding.time_index ?? snapshot.holdings_date,
         ...(holding.price !== null ? { price: holding.price } : {}),
+        missing_price: holding.missing_price,
         quantity: holding.quantity,
         direction: holding.direction,
+        signed_quantity: signedQuantity,
         position_value: signedQuantity,
+        position_type: holding.position_type ?? "units",
         ...(holding.target_trade_time ? { target_trade_time: holding.target_trade_time } : {}),
         extra_details: holding.extra_details,
+        ...(holding.allocation ? { allocation: holding.allocation } : {}),
+        ...(holding.virtual_fund_holdings_set_uid
+          ? { virtual_fund_holdings_set_uid: holding.virtual_fund_holdings_set_uid }
+          : {}),
+        ...(holding.source_account_holdings_set_uid
+          ? { source_account_holdings_set_uid: holding.source_account_holdings_set_uid }
+          : {}),
         ...(assetDetail ? { asset: assetDetail } : {}),
       };
     }),
@@ -2382,58 +2501,112 @@ function adaptManagedAccountHoldingsSnapshotToPositionDetails(
   };
 }
 
-function normalizeManagedAccountHoldingsWriteResponse(
+function normalizeManagedAccountHoldingsByFundScalar(value: unknown) {
+  return typeof value === "string" || typeof value === "number" ? value : null;
+}
+
+function normalizeManagedAccountHoldingsByFundResponse(
   value: unknown,
-): ManagedAccountHoldingsWriteResponse {
+): ManagedAccountHoldingsByFundResponse {
   const record = value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+  const sourceAccountHoldingsSetUid = readPortfolioString(record.source_account_holdings_set_uid);
+  const holdingsDate = readPortfolioString(record.holdings_date);
+  const funds = Array.isArray(record.funds)
+    ? record.funds
+        .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+        .map((entry) => {
+          const fund = entry as Record<string, unknown>;
+          const holdingsSetUid = readPortfolioString(fund.holdings_set_uid);
+          const holdings = Array.isArray(fund.holdings)
+            ? fund.holdings
+                .filter((holding) => holding && typeof holding === "object" && !Array.isArray(holding))
+                .map((holding) => {
+                  const row = holding as Record<string, unknown>;
+                  return {
+                    ...row,
+                    virtual_fund_holdings_set_uid:
+                      row.virtual_fund_holdings_set_uid ?? holdingsSetUid,
+                    source_account_holdings_set_uid:
+                      row.source_account_holdings_set_uid ?? sourceAccountHoldingsSetUid,
+                  };
+                })
+            : [];
 
-  const positions = Array.isArray(record.positions)
-    ? record.positions
+          return {
+            virtual_fund_uid: readPortfolioString(fund.virtual_fund_uid),
+            virtual_fund_unique_identifier: readPortfolioString(
+              fund.virtual_fund_unique_identifier,
+            ),
+            target_portfolio_uid: readPortfolioString(fund.target_portfolio_uid),
+            holdings_set_uid: holdingsSetUid,
+            holdings: normalizeManagedAccountHoldingsSnapshot({
+              holdings_set_uid: holdingsSetUid,
+              holdings_date: holdingsDate,
+              holdings,
+            }).holdings,
+          };
+        })
+    : [];
+  const residuals = Array.isArray(record.residuals)
+    ? record.residuals
         .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
         .map((entry) => {
           const row = entry as Record<string, unknown>;
+          const asset =
+            row.asset && typeof row.asset === "object" && !Array.isArray(row.asset)
+              ? (row.asset as Record<string, unknown>)
+              : null;
+
           return {
-            unique_identifier:
-              typeof row.unique_identifier === "string" ? row.unique_identifier : null,
-            asset_id: typeof row.asset_id === "number" ? row.asset_id : null,
-            asset_uid:
-              typeof row.asset_uid === "string" && row.asset_uid.trim()
-                ? row.asset_uid.trim()
-                : null,
-            position_type:
-              typeof row.position_type === "string" ? row.position_type : null,
-            price:
-              typeof row.price === "string" || typeof row.price === "number" ? row.price : null,
-            quantity:
-              typeof row.quantity === "string" || typeof row.quantity === "number"
-                ? row.quantity
-                : null,
-            direction:
-              typeof row.direction === "number"
-                ? row.direction
-                : typeof row.direction === "string" && row.direction.trim()
-                  ? Number(row.direction)
-                  : null,
-            missing_price: typeof row.missing_price === "boolean" ? row.missing_price : false,
-            target_trade_time:
-              typeof row.target_trade_time === "string" ? row.target_trade_time : null,
-            extra_details:
-              row.extra_details && typeof row.extra_details === "object" && !Array.isArray(row.extra_details)
-                ? (row.extra_details as Record<string, unknown>)
-                : {},
-          } satisfies ManagedAccountSavedHoldingRow;
+            asset_identifier: readPortfolioString(row.asset_identifier),
+            source_signed_quantity: normalizeManagedAccountHoldingsByFundScalar(
+              row.source_signed_quantity,
+            ),
+            allocated_signed_quantity: normalizeManagedAccountHoldingsByFundScalar(
+              row.allocated_signed_quantity,
+            ),
+            residual_signed_quantity: normalizeManagedAccountHoldingsByFundScalar(
+              row.residual_signed_quantity,
+            ),
+            asset,
+          } satisfies ManagedAccountHoldingsByFundResidualRow;
         })
     : [];
 
   return {
-    related_account:
-      typeof record.related_account === "number" ? record.related_account : null,
-    holdings_date: typeof record.holdings_date === "string" ? record.holdings_date : null,
-    holdings_set_uid: typeof record.holdings_set_uid === "string" ? record.holdings_set_uid : null,
-    positions,
+    account_uid: readPortfolioString(record.account_uid),
+    source_account_holdings_set_uid: sourceAccountHoldingsSetUid,
+    holdings_date: holdingsDate,
+    funds,
+    residuals,
+    allocation_warnings: Array.isArray(record.allocation_warnings)
+      ? record.allocation_warnings
+      : [],
   };
+}
+
+function adaptManagedAccountHoldingsByFundResponseToPositionDetails(
+  snapshot: ManagedAccountHoldingsByFundResponse,
+): ManagedAccountHoldingsByFundPositionDetailsResponse {
+  return {
+    ...snapshot,
+    funds: snapshot.funds.map((fund) => ({
+      ...fund,
+      position_details: adaptManagedAccountHoldingsSnapshotToPositionDetails({
+        holdings_set_uid: fund.holdings_set_uid,
+        holdings_date: snapshot.holdings_date,
+        holdings: fund.holdings,
+      }),
+    })),
+  };
+}
+
+function normalizeManagedAccountHoldingsWriteResponse(
+  value: unknown,
+): ManagedAccountHoldingsWriteResponse {
+  return normalizeManagedAccountHoldingsSnapshot(value);
 }
 
 function normalizeManagedAccountTargetPositionsWriteResponse(
@@ -2452,7 +2625,27 @@ function normalizeManagedAccountTargetPositionsWriteResponse(
             row.asset && typeof row.asset === "object" && !Array.isArray(row.asset)
               ? (row.asset as Record<string, unknown>)
               : null;
+          const portfolio =
+            row.portfolio && typeof row.portfolio === "object" && !Array.isArray(row.portfolio)
+              ? (row.portfolio as Record<string, unknown>)
+              : null;
           return {
+            target_type:
+              typeof row.target_type === "string" && row.target_type.trim()
+                ? row.target_type.trim()
+                : null,
+            target_uid:
+              typeof row.target_uid === "string" && row.target_uid.trim()
+                ? row.target_uid.trim()
+                : null,
+            asset_uid:
+              typeof row.asset_uid === "string" && row.asset_uid.trim()
+                ? row.asset_uid.trim()
+                : null,
+            portfolio_uid:
+              typeof row.portfolio_uid === "string" && row.portfolio_uid.trim()
+                ? row.portfolio_uid.trim()
+                : null,
             unique_identifier:
               typeof row.unique_identifier === "string" ? row.unique_identifier : null,
             weight_notional_exposure:
@@ -2471,6 +2664,7 @@ function normalizeManagedAccountTargetPositionsWriteResponse(
                 ? row.single_asset_quantity
                 : null,
             asset,
+            portfolio,
           } satisfies ManagedAccountSavedTargetPositionRow;
         })
     : [];
@@ -2508,9 +2702,21 @@ function adaptManagedAccountTargetPositionsResponseToPositionDetails(
           ? (assetDetail.current_snapshot as Record<string, unknown>)
           : null;
       const assetUid =
-        assetDetail && typeof assetDetail.uid === "string" && assetDetail.uid.trim()
+        position.asset_uid ??
+        (assetDetail && typeof assetDetail.uid === "string" && assetDetail.uid.trim()
           ? assetDetail.uid.trim()
-          : null;
+          : null);
+      const portfolioUid =
+        position.portfolio_uid ??
+        (position.portfolio &&
+        typeof position.portfolio.uid === "string" &&
+        position.portfolio.uid.trim()
+          ? position.portfolio.uid.trim()
+          : null);
+      const targetType =
+        position.target_type ?? (portfolioUid !== null ? "portfolio" : "asset");
+      const targetUid =
+        position.target_uid ?? (targetType === "portfolio" ? portfolioUid : assetUid);
       const assetUniqueIdentifier =
         assetDetail &&
         typeof assetDetail.unique_identifier === "string" &&
@@ -2559,16 +2765,21 @@ function adaptManagedAccountTargetPositionsResponseToPositionDetails(
       })();
 
       return {
+        target_type: targetType,
+        ...(targetUid !== null ? { target_uid: targetUid } : {}),
         ...(assetUid !== null ? { asset_uid: assetUid } : {}),
+        ...(portfolioUid !== null ? { portfolio_uid: portfolioUid } : {}),
         asset_name: assetName,
         asset_ticker: assetTicker,
         unique_identifier: resolvedUniqueIdentifier,
         figi,
         ...resolvedPosition,
         ...(assetDetail ? { asset: assetDetail } : {}),
+        ...(position.portfolio ? { portfolio: position.portfolio } : {}),
       };
     }),
     columnDefs: [
+      { field: "target_type", headerName: "Target Type" },
       { field: "asset_name", headerName: "Asset" },
       { field: "asset_ticker", headerName: "Ticker" },
       { field: "position_type", headerName: "Position Type" },
@@ -2583,41 +2794,7 @@ function adaptManagedAccountTargetPositionsResponseToPositionDetails(
 function adaptManagedAccountHoldingsWriteResponseToPositionDetails(
   snapshot: ManagedAccountHoldingsWriteResponse,
 ): PositionDetailResponse {
-  return {
-    weights: {
-      holdings_set_uid: snapshot.holdings_set_uid,
-      related_account: snapshot.related_account,
-    },
-    position_columns: [],
-    rows: snapshot.positions.map((position) => ({
-      asset_id: position.asset_id,
-      ...(position.asset_uid ? { asset_uid: position.asset_uid } : {}),
-      asset_name: position.unique_identifier,
-      asset_ticker: null,
-      unique_identifier: position.unique_identifier,
-      figi: position.unique_identifier,
-      date: snapshot.holdings_date,
-      price: position.price,
-      quantity: position.quantity,
-      direction: position.direction,
-      position_value: applyManagedAccountHoldingDirection(
-        position.quantity,
-        position.direction,
-      ),
-      missing_price: position.missing_price,
-      extra_details: position.extra_details,
-      target_trade_time: position.target_trade_time,
-    })),
-    columnDefs: [
-      { field: "asset_name", headerName: "Asset" },
-      { field: "unique_identifier", headerName: "UID" },
-      { field: "date", headerName: "Date" },
-      { field: "position_value", headerName: "Quantity" },
-    ],
-    summaryColumnDefs: [],
-    position_map: null,
-    weights_date: snapshot.holdings_date,
-  };
+  return adaptManagedAccountHoldingsSnapshotToPositionDetails(snapshot);
 }
 
 function buildWidgetPreviewDataNodeDetail(): DataNodeDetail {
@@ -3637,6 +3814,8 @@ export interface PortfolioGroupListFilters {
 
 export interface VirtualFundListFilters {
   search?: string;
+  accountUid?: string;
+  portfolioUid?: string;
   limit?: number;
   offset?: number;
 }
@@ -4228,10 +4407,10 @@ function buildPortfolioGroupListSearch(filters: PortfolioGroupListFilters) {
 
 function buildTargetPortfolioListSearch(filters: TargetPortfolioListFilters) {
   return {
+    response_format: "frontend_list",
     search: filters.search?.trim() || undefined,
     limit: filters.limit,
     offset: filters.offset,
-    fields: "id,creation_date,index_asset",
   } satisfies Record<string, QueryValue>;
 }
 
@@ -4919,6 +5098,8 @@ export function bulkDeleteAssetCategories(input: AssetCategoryBulkDeleteInput) {
 
 export async function listVirtualFunds({
   search,
+  accountUid,
+  portfolioUid,
   limit = mainSequenceRegistryPageSize,
   offset = 0,
 }: VirtualFundListFilters = {}) {
@@ -4929,6 +5110,8 @@ export async function listVirtualFunds({
     {
       response_format: "frontend_list",
       search,
+      account_uid: accountUid,
+      portfolio_uid: portfolioUid,
       limit,
       offset,
     },
@@ -4938,9 +5121,16 @@ export async function listVirtualFunds({
 }
 
 export function fetchVirtualFundDetail(fundUid: string) {
-  return requestJson<VirtualFundRecord>(
+  return requestJson<VirtualFundDetailResponse>(
     virtualFundEndpoint,
-    `${encodePathSegment(fundUid)}/`,
+    `${resolveMainSequenceUidPath(fundUid, "virtual fund")}/`,
+  );
+}
+
+export function fetchVirtualFundSummary(fundUid: string) {
+  return requestJson<VirtualFundSummaryResponse>(
+    virtualFundEndpoint,
+    `${resolveMainSequenceUidPath(fundUid, "virtual fund")}/summary/`,
   );
 }
 
@@ -5006,6 +5196,30 @@ export function deleteManagedAccount(managedAccountUid: string) {
       method: "DELETE",
     },
   );
+}
+
+export async function listManagedAccountTargetAllocationTargets({
+  search,
+  targetType = "all",
+  limit = 25,
+  offset = 0,
+}: ManagedAccountTargetAllocationTargetFilters = {}) {
+  const payload = await requestJson<
+    | PaginatedResponse<ManagedAccountTargetAllocationTargetRow>
+    | ManagedAccountTargetAllocationTargetRow[]
+  >(
+    managedAccountEndpoint,
+    "target-allocation/targets/",
+    undefined,
+    {
+      search,
+      target_type: targetType,
+      limit,
+      offset,
+    },
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
 }
 
 export function fetchCurrentInstrumentsConfiguration() {
@@ -5149,7 +5363,7 @@ export async function searchTargetPortfolioOptions({
     undefined,
     {
       response_format: "frontend_list",
-      index_asset__current_snapshot__name: normalizedSearch,
+      search: normalizedSearch,
       limit,
       offset,
     },
@@ -5166,18 +5380,119 @@ export function bulkDeleteTargetPortfolios(input: TargetPortfolioBulkDeleteInput
       method: "POST",
       body: JSON.stringify({
         uids: input.uids,
-        select_all: input.selectAll,
-        current_url: input.currentUrl,
       }),
     },
+  );
+}
+
+export function fetchTargetPortfolioDetail(targetPortfolioUid: string) {
+  return requestJson<TargetPortfolioDetailResponse>(
+    targetPortfolioEndpoint,
+    `${resolveMainSequenceUidPath(targetPortfolioUid, "portfolio")}/`,
   );
 }
 
 export function fetchTargetPortfolioSummary(targetPortfolioUid: string) {
   return requestJson<TargetPortfolioSummaryResponse>(
     targetPortfolioEndpoint,
-    `${resolveMainSequenceUidPath(targetPortfolioUid, "target portfolio")}/summary/`,
+    `${resolveMainSequenceUidPath(targetPortfolioUid, "portfolio")}/summary/`,
   );
+}
+
+function readPortfolioString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeTargetPortfolioWeightsResponse(
+  value: unknown,
+): TargetPortfolioWeightsResponse {
+  const record = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+  return {
+    ...record,
+    portfolio_uid: readPortfolioString(record.portfolio_uid),
+    portfolio_unique_identifier: readPortfolioString(record.portfolio_unique_identifier),
+    portfolio_index_uid: readPortfolioString(record.portfolio_index_uid),
+    portfolio_index_identifier: readPortfolioString(record.portfolio_index_identifier),
+    weights_date: readPortfolioString(record.weights_date),
+    resolution_warning: readPortfolioString(record.resolution_warning),
+    weights: Array.isArray(record.weights)
+      ? record.weights.filter(
+          (entry): entry is Record<string, unknown> =>
+            Boolean(entry) && typeof entry === "object" && !Array.isArray(entry),
+        )
+      : [],
+  };
+}
+
+function adaptTargetPortfolioWeightsResponseToPositionDetails(
+  snapshot: TargetPortfolioWeightsResponse,
+): PositionDetailResponse {
+  const rows = snapshot.weights.map((weightRow) => {
+    const asset =
+      weightRow.asset && typeof weightRow.asset === "object" && !Array.isArray(weightRow.asset)
+        ? (weightRow.asset as Record<string, unknown>)
+        : null;
+    const currentSnapshot =
+      asset?.current_snapshot &&
+      typeof asset.current_snapshot === "object" &&
+      !Array.isArray(asset.current_snapshot)
+        ? (asset.current_snapshot as Record<string, unknown>)
+        : null;
+    const uniqueIdentifier =
+      readPortfolioString(weightRow.asset_identifier) ??
+      readPortfolioString(asset?.unique_identifier);
+    const weight = weightRow.weight ?? null;
+
+    return {
+      time_index: weightRow.time_index ?? snapshot.weights_date,
+      portfolio_index_identifier:
+        weightRow.portfolio_index_identifier ?? snapshot.portfolio_index_identifier,
+      asset_identifier: uniqueIdentifier,
+      asset_uid: readPortfolioString(asset?.uid),
+      asset_name: readPortfolioString(currentSnapshot?.name) ?? uniqueIdentifier,
+      asset_ticker: readPortfolioString(currentSnapshot?.ticker),
+      unique_identifier: uniqueIdentifier,
+      figi: uniqueIdentifier,
+      position_type: "weight_notional_exposure",
+      position_value: weight,
+      weight_notional_exposure: weight,
+      weight,
+      weight_before: weightRow.weight_before ?? null,
+      price_current: weightRow.price_current ?? null,
+      price_before: weightRow.price_before ?? null,
+      volume_current: weightRow.volume_current ?? null,
+      volume_before: weightRow.volume_before ?? null,
+      asset,
+    };
+  });
+  const positionMap = rows.reduce<Record<string, unknown>>((map, row) => {
+    const key = readPortfolioString(row.unique_identifier) ?? readPortfolioString(row.asset_uid);
+
+    if (key) {
+      map[key] = row;
+    }
+
+    return map;
+  }, {});
+
+  return {
+    weights: rows,
+    position_columns: [],
+    rows,
+    columnDefs: [
+      { field: "asset_name", headerName: "Asset" },
+      { field: "asset_ticker", headerName: "Ticker" },
+      { field: "position_type", headerName: "Position Type" },
+      { field: "position_value", headerName: "Position Value" },
+    ],
+    summaryColumnDefs: [],
+    position_map: positionMap,
+    weights_date: snapshot.weights_date,
+    resolution_warning: snapshot.resolution_warning,
+  };
 }
 
 export function fetchTargetPositionDetailPositionDetails(
@@ -5188,12 +5503,20 @@ export function fetchTargetPositionDetailPositionDetails(
     return Promise.resolve(buildWidgetPreviewPositionDetailResponse(0));
   }
 
-  return requestJson<PositionDetailResponse>(
+  return requestJson<TargetPortfolioWeightsResponse>(
     targetPortfolioEndpoint,
-    `${resolveMainSequenceUidPath(targetPortfolioUid, "target portfolio")}/weights-position-details/`,
+    `${resolveMainSequenceUidPath(targetPortfolioUid, "portfolio")}/weights/`,
     undefined,
-    undefined,
+    {
+      order: "desc",
+      limit: "1",
+      include_asset_detail: "true",
+    },
     traceMeta,
+  ).then((payload) =>
+    adaptTargetPortfolioWeightsResponseToPositionDetails(
+      normalizeTargetPortfolioWeightsResponse(payload),
+    ),
   );
 }
 
@@ -5202,6 +5525,214 @@ export function fetchTargetPortfolioWeightsPositionDetails(
   traceMeta?: DashboardRequestTraceMeta,
 ) {
   return fetchTargetPositionDetailPositionDetails(targetPortfolioUid, traceMeta);
+}
+
+function readVirtualFundDirection(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value < 0 ? -1 : 1;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed < 0 ? -1 : 1;
+    }
+  }
+
+  return null;
+}
+
+function applyVirtualFundHoldingDirection(
+  quantity: unknown,
+  direction: number | null,
+) {
+  if (typeof quantity !== "string" && typeof quantity !== "number") {
+    return null;
+  }
+
+  const parsedQuantity = Number(quantity);
+
+  if (!Number.isFinite(parsedQuantity)) {
+    return quantity;
+  }
+
+  const normalizedDirection = direction !== null && direction < 0 ? -1 : 1;
+  return Math.abs(parsedQuantity) * normalizedDirection;
+}
+
+function normalizeVirtualFundHoldingsResponse(value: unknown): VirtualFundHoldingsResponse {
+  const record = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+  return {
+    ...record,
+    virtual_fund_uid: readPortfolioString(record.virtual_fund_uid),
+    virtual_fund_unique_identifier: readPortfolioString(record.virtual_fund_unique_identifier),
+    holdings_set_uid: readPortfolioString(record.holdings_set_uid),
+    source_account_holdings_set_uid: readPortfolioString(record.source_account_holdings_set_uid),
+    holdings_date: readPortfolioString(record.holdings_date),
+    holdings: Array.isArray(record.holdings)
+      ? record.holdings.filter(
+          (entry): entry is Record<string, unknown> =>
+            Boolean(entry) && typeof entry === "object" && !Array.isArray(entry),
+        )
+      : [],
+  };
+}
+
+function adaptVirtualFundHoldingsResponseToPositionDetails(
+  snapshot: VirtualFundHoldingsResponse,
+): PositionDetailResponse {
+  if (snapshot.holdings.length === 0) {
+    return buildEmptyPositionDetailResponse(snapshot.holdings_date);
+  }
+
+  const rows = snapshot.holdings.map((holding) => {
+    const asset =
+      holding.asset && typeof holding.asset === "object" && !Array.isArray(holding.asset)
+        ? (holding.asset as Record<string, unknown>)
+        : null;
+    const currentSnapshot =
+      asset?.current_snapshot &&
+      typeof asset.current_snapshot === "object" &&
+      !Array.isArray(asset.current_snapshot)
+        ? (asset.current_snapshot as Record<string, unknown>)
+        : null;
+    const assetIdentifier =
+      readPortfolioString(holding.asset_identifier) ??
+      readPortfolioString(asset?.asset_identifier) ??
+      readPortfolioString(asset?.unique_identifier);
+    const direction = readVirtualFundDirection(holding.direction);
+    const signedQuantity =
+      holding.signed_quantity ??
+      applyVirtualFundHoldingDirection(holding.quantity, direction);
+
+    return {
+      time_index: holding.time_index ?? snapshot.holdings_date,
+      asset_identifier: assetIdentifier,
+      virtual_fund_uid: snapshot.virtual_fund_uid,
+      virtual_fund_unique_identifier: snapshot.virtual_fund_unique_identifier,
+      virtual_fund_holdings_set_uid:
+        readPortfolioString(holding.virtual_fund_holdings_set_uid) ?? snapshot.holdings_set_uid,
+      source_account_holdings_set_uid:
+        readPortfolioString(holding.source_account_holdings_set_uid) ??
+        snapshot.source_account_holdings_set_uid,
+      asset_uid: readPortfolioString(asset?.uid),
+      asset_name: readPortfolioString(currentSnapshot?.name) ?? assetIdentifier,
+      asset_ticker: readPortfolioString(currentSnapshot?.ticker),
+      unique_identifier: assetIdentifier,
+      figi: assetIdentifier,
+      position_type: readPortfolioString(holding.position_type) ?? "units",
+      position_value: signedQuantity,
+      quantity: holding.quantity ?? signedQuantity,
+      direction,
+      signed_quantity: signedQuantity,
+      target_trade_time: holding.target_trade_time ?? null,
+      extra_details:
+        holding.extra_details &&
+        typeof holding.extra_details === "object" &&
+        !Array.isArray(holding.extra_details)
+          ? holding.extra_details
+          : {},
+      ...(asset ? { asset } : {}),
+    };
+  });
+  const positionMap = rows.reduce<Record<string, unknown>>((map, row) => {
+    const key =
+      readPortfolioString(row.unique_identifier) ??
+      readPortfolioString(row.asset_uid) ??
+      readPortfolioString(row.asset_identifier);
+
+    if (key) {
+      map[key] = row;
+    }
+
+    return map;
+  }, {});
+
+  return {
+    weights: {
+      virtual_fund_uid: snapshot.virtual_fund_uid,
+      virtual_fund_unique_identifier: snapshot.virtual_fund_unique_identifier,
+      holdings_set_uid: snapshot.holdings_set_uid,
+      source_account_holdings_set_uid: snapshot.source_account_holdings_set_uid,
+    },
+    position_columns: [],
+    rows,
+    columnDefs: [
+      { field: "asset_name", headerName: "Asset" },
+      { field: "asset_ticker", headerName: "Ticker" },
+      { field: "position_value", headerName: "Quantity" },
+    ],
+    summaryColumnDefs: [],
+    position_map: positionMap,
+    weights_date: snapshot.holdings_date,
+  };
+}
+
+export async function fetchVirtualFundHoldingsPositionDetails(
+  fundUid: string,
+  options: {
+    holdingsDate?: string;
+    traceMeta?: DashboardRequestTraceMeta;
+  } = {},
+) {
+  if (isWidgetPreviewMode()) {
+    return adaptVirtualFundHoldingsResponseToPositionDetails(
+      normalizeVirtualFundHoldingsResponse({
+        virtual_fund_uid: fundUid,
+        virtual_fund_unique_identifier: "preview-virtual-fund",
+        holdings_set_uid: "preview-virtual-fund-holdings",
+        source_account_holdings_set_uid: "preview-account-holdings",
+        holdings_date: buildWidgetPreviewIsoTimestamp(),
+        holdings: [
+          {
+            time_index: buildWidgetPreviewIsoTimestamp(),
+            asset_identifier: "btc_spot",
+            virtual_fund_holdings_set_uid: "preview-virtual-fund-holdings",
+            source_account_holdings_set_uid: "preview-account-holdings",
+            quantity: "5.0",
+            direction: -1,
+            signed_quantity: "-5.0",
+            target_trade_time: null,
+            extra_details: {},
+            asset: {
+              uid: "preview-asset-btc",
+              asset_identifier: "btc_spot",
+              current_snapshot: {
+                name: "Bitcoin spot",
+                ticker: "BTC",
+              },
+            },
+          },
+        ],
+      }),
+    );
+  }
+
+  const payload = await requestJson<VirtualFundHoldingsResponse | Record<string, unknown>>(
+    virtualFundEndpoint,
+    `${resolveMainSequenceUidPath(fundUid, "virtual fund")}/holdings/`,
+    undefined,
+    {
+      ...(options.holdingsDate
+        ? {
+            holdings_date: options.holdingsDate,
+            limit: "1",
+          }
+        : {
+            order: "desc",
+            limit: "1",
+          }),
+      include_asset_detail: "true",
+    },
+    options.traceMeta,
+  );
+
+  return adaptVirtualFundHoldingsResponseToPositionDetails(
+    normalizeVirtualFundHoldingsResponse(payload),
+  );
 }
 
 export async function fetchManagedAccountHoldingsPositionDetails(
@@ -5214,24 +5745,26 @@ export async function fetchManagedAccountHoldingsPositionDetails(
   if (isWidgetPreviewMode()) {
     return adaptManagedAccountHoldingsSnapshotToPositionDetails(
       normalizeManagedAccountHoldingsSnapshot({
-        id: 0,
-        snapshot_uid: "preview-managed-account-holdings",
         holdings_set_uid: "preview-managed-account-holdings",
         holdings_date: buildWidgetPreviewIsoTimestamp(),
-        nav: "1250.25000000",
-        related_account: 0,
-        is_trade_snapshot: false,
-        target_trade_time: null,
-        related_expected_asset_exposure_df: [],
         holdings: [
           {
             time_index: buildWidgetPreviewIsoTimestamp(),
-            unique_identifier: "btc_spot",
-            asset: 101,
-            asset_id: 101,
+            asset_identifier: "btc_spot",
+            asset: {
+              uid: "preview-asset-btc",
+              asset_identifier: "btc_spot",
+              current_snapshot: {
+                name: "Bitcoin spot",
+                ticker: "BTC",
+              },
+            },
             position_type: "units",
             price: "100.000000000000000000",
             quantity: "12.00000000",
+            direction: 1,
+            signed_quantity: "12.00000000",
+            target_trade_time: buildWidgetPreviewIsoTimestamp(),
             missing_price: false,
             extra_details: {},
           },
@@ -5263,6 +5796,89 @@ export async function fetchManagedAccountHoldingsPositionDetails(
 
   return adaptManagedAccountHoldingsSnapshotToPositionDetails(
     normalizeManagedAccountHoldingsSnapshot(extractFirstCollectionRecord(payload) ?? {}),
+  );
+}
+
+export async function fetchManagedAccountHoldingsByFundPositionDetails(
+  accountUid: string,
+  options: {
+    order?: "asc" | "desc";
+    holdingsDate?: string;
+    includeAssetDetail?: boolean;
+    traceMeta?: DashboardRequestTraceMeta;
+  } = {},
+) {
+  if (isWidgetPreviewMode()) {
+    return adaptManagedAccountHoldingsByFundResponseToPositionDetails(
+      normalizeManagedAccountHoldingsByFundResponse({
+        account_uid: accountUid,
+        source_account_holdings_set_uid: "preview-account-holdings",
+        holdings_date: buildWidgetPreviewIsoTimestamp(),
+        funds: [
+          {
+            virtual_fund_uid: "preview-fund-core",
+            virtual_fund_unique_identifier: "core-preview-fund",
+            target_portfolio_uid: "preview-portfolio-core",
+            holdings_set_uid: "preview-fund-holdings",
+            holdings: [
+              {
+                time_index: buildWidgetPreviewIsoTimestamp(),
+                asset_identifier: "btc_spot",
+                asset: {
+                  uid: "preview-asset-btc",
+                  asset_identifier: "btc_spot",
+                  current_snapshot: {
+                    name: "Bitcoin spot",
+                    ticker: "BTC",
+                  },
+                },
+                quantity: "8.00000000",
+                direction: 1,
+                signed_quantity: "8.00000000",
+                target_trade_time: null,
+                extra_details: {
+                  position_set_uid: "preview-target-position-set",
+                  target_row_key: "preview-row-btc",
+                  target_gap_signed_quantity: "0.0",
+                  scale: "1.0",
+                },
+                allocation: {
+                  position_set_uid: "preview-target-position-set",
+                  target_row_key: "preview-row-btc",
+                  target_gap_signed_quantity: "0.0",
+                  scale: "1.0",
+                },
+              },
+            ],
+          },
+        ],
+        residuals: [],
+        allocation_warnings: [],
+      }),
+    );
+  }
+
+  const payload = await requestJson<ManagedAccountHoldingsByFundResponse | Record<string, unknown>>(
+    managedAccountEndpoint,
+    `${encodePathSegment(accountUid)}/holdings/by-fund/`,
+    undefined,
+    {
+      ...(options.holdingsDate
+        ? {
+            holdings_date: options.holdingsDate,
+            limit: "1",
+          }
+        : {
+            order: options.order ?? "desc",
+            limit: "1",
+          }),
+      include_asset_detail: options.includeAssetDetail === false ? "false" : "true",
+    },
+    options.traceMeta,
+  );
+
+  return adaptManagedAccountHoldingsByFundResponseToPositionDetails(
+    normalizeManagedAccountHoldingsByFundResponse(payload),
   );
 }
 
@@ -5299,6 +5915,10 @@ export async function fetchManagedAccountTargetPositionsPositionDetails(
         position_set_uid: "preview-managed-account-target-positions",
         positions: [
           {
+            target_type: "asset",
+            target_uid: "preview-asset-btc",
+            asset_uid: "preview-asset-btc",
+            portfolio_uid: null,
             unique_identifier: "btc_spot",
             weight_notional_exposure: "0.550000000000000000",
             constant_notional_exposure: null,
@@ -5313,6 +5933,10 @@ export async function fetchManagedAccountTargetPositionsPositionDetails(
             },
           },
           {
+            target_type: "asset",
+            target_uid: "preview-asset-eth",
+            asset_uid: "preview-asset-eth",
+            portfolio_uid: null,
             unique_identifier: "eth_spot",
             weight_notional_exposure: null,
             constant_notional_exposure: null,
@@ -5381,6 +6005,13 @@ export function fetchAssetDetail(assetUid: string) {
     `${resolveMainSequenceUidPath(assetUid, "asset")}/`,
     undefined,
     { response_format: "frontend_detail" },
+  );
+}
+
+export function fetchAssetSummary(assetUid: string) {
+  return requestJson<EntitySummaryHeader>(
+    assetEndpoint,
+    `${resolveMainSequenceUidPath(assetUid, "asset")}/summary/`,
   );
 }
 

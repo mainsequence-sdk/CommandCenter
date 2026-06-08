@@ -561,7 +561,7 @@ export function WorkspaceComponentBrowser({
     <aside
       aria-hidden={!open}
       className={cn(
-        "absolute left-12 bottom-4 z-30 w-[420px] max-w-[calc(100%-4rem)] overflow-hidden rounded-[24px] border border-border/70 bg-card/92 shadow-[var(--shadow-panel)] backdrop-blur-xl transition-[top,transform,opacity] duration-200",
+        "absolute left-12 bottom-4 z-30 w-[420px] max-w-[calc(100%-4rem)] overflow-visible rounded-[24px] border border-border/70 bg-card/92 shadow-[var(--shadow-panel)] backdrop-blur-xl transition-[top,transform,opacity] duration-200",
         topOffsetClassName,
         open
           ? "translate-x-0 opacity-100"

@@ -246,7 +246,7 @@ export function buildCreatePortfolioGroupPayload(
 }
 
 export function getPortfolioSearchOptionLabel(option: TargetPortfolioSearchOption) {
-  const portfolioName = readTrimmedString(option.portfolio_name);
+  const portfolioName = readTrimmedString(option.unique_identifier);
   return portfolioName || `Portfolio ${option.uid}`;
 }
 

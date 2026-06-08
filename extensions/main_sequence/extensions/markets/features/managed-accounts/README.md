@@ -13,7 +13,7 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
 - `MainSequenceManagedAccountsPage.tsx`: registry list with shared search, offset pagination, and
   delete actions for selected accounts.
 - `MainSequenceManagedAccountDetailPage.tsx`: summary-driven detail page for one managed account,
-  with `Holdings` and `Target Position` tabs.
+  with `Holdings`, `Target Allocation`, and `Virtual Funds` tabs.
 - `managedAccountShared.ts`: route helpers and label/value formatting shared by list and detail.
 
 ## Maintenance Notes
@@ -39,7 +39,7 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
   - latest snapshot semantics: `order=desc&limit=1`
 - Holdings edits write back through:
   - `POST /api/v1/account/{uid}/add-holdings/`
-- `Target Position` now mounts the same positions widget with `sourceType: "target_positions_account"`
+- `Target Allocation` mounts the same positions widget with `sourceType: "target_positions_account"`
   directly inside the account detail page. That
   surface hydrates from:
   - `GET /api/v1/account/{uid}/target-positions/`
@@ -48,8 +48,20 @@ This feature folder owns the first `Managed Accounts` section surface inside `Ma
   The read contract is uid-only: `positions[].asset` exposes `uid`, `unique_identifier`, and
   `current_snapshot.{name,ticker}`. Do not expect numeric asset ids or `figi` in this GET
   response.
+  The editor search/add control uses:
+  - `GET /api/v1/account/target-allocation/targets/?search={query}&target_type={all|asset|portfolio}&limit=25&offset=0`
+  so target allocation rows can point to either assets or portfolios.
   The same surface now persists through:
   - `POST /api/v1/account/{uid}/add-target-positions/`
   and stores the assignment datetime at the widget level as `targetPositionsDate`.
+- `Virtual Funds` lists virtual funds linked to the current account through:
+  - `GET /api/v1/virtualfund/?response_format=frontend_list&account_uid={uid}`
+  This tab is read-only and should keep using the virtual-fund list contract fields:
+  - `uid`
+  - `unique_identifier`
+  - `account_uid`
+  - `target_portfolio_uid`
+  Do not infer account or portfolio display names from the virtual-fund list response; the current
+  contract only provides UID identity fields.
 - Keep the detail view generic enough to tolerate additive backend fields, but do not silently
   infer destructive actions or edit semantics from arbitrary payload keys.

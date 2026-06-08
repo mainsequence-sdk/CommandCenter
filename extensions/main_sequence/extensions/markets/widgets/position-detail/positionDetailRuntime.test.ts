@@ -130,6 +130,9 @@ describe("positionDetailRuntime", () => {
       positionRows: [
         {
           assetId: 9,
+          assetUid: "asset-uid-9",
+          targetType: "asset",
+          targetUid: "asset-uid-9",
           positionType: "constant_notional",
           date: "2026-05-17",
           positionValue: 2500,
@@ -141,6 +144,9 @@ describe("positionDetailRuntime", () => {
       {
         rowId: "position-row-9-1",
         assetId: 9,
+        assetUid: "asset-uid-9",
+        targetType: "asset",
+        targetUid: "asset-uid-9",
         assetName: undefined,
         assetTicker: undefined,
         uniqueIdentifier: undefined,
@@ -148,6 +154,80 @@ describe("positionDetailRuntime", () => {
         price: null,
         positionType: "constant_notional",
         positionValue: 2500,
+      },
+    ]);
+
+    expect(buildPositionDetailInlineDisplayRows(targetPositionsAccountRows, "target_positions_account")).toEqual([
+      {
+        id: 9,
+        asset_id: 9,
+        asset_uid: "asset-uid-9",
+        target_type: "asset",
+        target_uid: "asset-uid-9",
+        asset_name: "Asset 9",
+        asset_ticker: null,
+        unique_identifier: null,
+        figi: null,
+        position_type: "constant_notional",
+        position_value: 2500,
+      },
+    ]);
+
+    const targetAllocationPortfolioRows = normalizePositionDetailPersistedRows({
+      sourceType: "target_positions_account",
+      positionRows: [
+        {
+          assetId: 1000000042,
+          targetType: "portfolio",
+          targetUid: "portfolio-uid",
+          portfolioUid: "portfolio-uid",
+          targetMetadata: {
+            portfolio_index_uid: "index-uid",
+          },
+          assetName: "Core Portfolio",
+          uniqueIdentifier: "core_portfolio",
+          positionType: "weight_notional_exposure",
+          positionValue: 0.4,
+        },
+      ] as unknown as PositionDetailInlineRow[],
+    });
+
+    expect(targetAllocationPortfolioRows).toEqual([
+      {
+        rowId: "position-row-1000000042-1",
+        assetId: 1000000042,
+        targetType: "portfolio",
+        targetUid: "portfolio-uid",
+        portfolioUid: "portfolio-uid",
+        targetMetadata: {
+          portfolio_index_uid: "index-uid",
+        },
+        assetName: "Core Portfolio",
+        assetTicker: undefined,
+        uniqueIdentifier: "core_portfolio",
+        figi: undefined,
+        price: null,
+        positionType: "weight_notional_exposure",
+        positionValue: 0.4,
+      },
+    ]);
+
+    expect(buildPositionDetailInlineDisplayRows(targetAllocationPortfolioRows, "target_positions_account")).toEqual([
+      {
+        id: 1000000042,
+        asset_id: 1000000042,
+        target_type: "portfolio",
+        target_uid: "portfolio-uid",
+        portfolio_uid: "portfolio-uid",
+        target_metadata: {
+          portfolio_index_uid: "index-uid",
+        },
+        asset_name: "Core Portfolio",
+        asset_ticker: null,
+        unique_identifier: "core_portfolio",
+        figi: "core_portfolio",
+        position_type: "weight_notional_exposure",
+        position_value: 0.4,
       },
     ]);
   });
@@ -405,6 +485,9 @@ describe("positionDetailRuntime", () => {
           position_columns: [],
           rows: [
             {
+              target_type: "asset",
+              target_uid: "asset-btc",
+              asset_uid: "asset-btc",
               unique_identifier: "ASSET:BTC",
               asset_name: "Bitcoin spot",
               asset_ticker: "BTC",
@@ -412,6 +495,9 @@ describe("positionDetailRuntime", () => {
               position_value: "0.550000000000000000",
             },
             {
+              target_type: "asset",
+              target_uid: "asset-eth",
+              asset_uid: "asset-eth",
               unique_identifier: "ASSET:ETH",
               asset_name: "Ethereum spot",
               asset_ticker: "ETH",
@@ -430,6 +516,9 @@ describe("positionDetailRuntime", () => {
       {
         rowId: "hydrated-position-1000000001-1",
         assetId: 1000000001,
+        assetUid: "asset-btc",
+        targetType: "asset",
+        targetUid: "asset-btc",
         assetName: "Bitcoin spot",
         assetTicker: "BTC",
         uniqueIdentifier: "ASSET:BTC",
@@ -442,6 +531,9 @@ describe("positionDetailRuntime", () => {
       {
         rowId: "hydrated-position-1000000002-2",
         assetId: 1000000002,
+        assetUid: "asset-eth",
+        targetType: "asset",
+        targetUid: "asset-eth",
         assetName: "Ethereum spot",
         assetTicker: "ETH",
         uniqueIdentifier: "ASSET:ETH",

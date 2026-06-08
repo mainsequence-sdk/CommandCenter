@@ -10,8 +10,10 @@ import {
   fetchAssetDetail,
   formatMainSequenceError,
   listAssets,
+  listManagedAccountTargetAllocationTargets,
   type AssetDetailResponse,
-  type AssetListRow,
+  type ManagedAccountTargetAllocationTargetRow,
+  type ManagedAccountTargetAllocationTargetType,
 } from "../../../../common/api";
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
 import {
@@ -37,6 +39,14 @@ const inlinePositionTypeOptions = [
 ] as const satisfies readonly PositionDetailCanonicalPositionType[];
 const minimumAssetSearchLength = 3;
 const incompleteInlinePositionInputs = new Set(["", "-", ".", "-."]);
+const targetAllocationTargetTypeOptions = [
+  { value: "all", label: "All Targets" },
+  { value: "asset", label: "Assets" },
+  { value: "portfolio", label: "Portfolios" },
+] as const satisfies ReadonlyArray<{
+  value: ManagedAccountTargetAllocationTargetType;
+  label: string;
+}>;
 
 interface InlineEditorAssetSource {
   id?: number | null;
@@ -99,6 +109,10 @@ function resolveAssetIdentity(asset: InlineEditorAssetSource) {
 
 function buildSyntheticAssetId(asset: InlineEditorAssetSource, index = 0) {
   const identity = resolveAssetIdentity(asset);
+  return buildSyntheticIdentityId(identity, index);
+}
+
+function buildSyntheticIdentityId(identity: string, index = 0) {
   let hash = 0;
 
   for (let position = 0; position < identity.length; position += 1) {
@@ -134,6 +148,69 @@ function resolveAssetDescription(asset: InlineEditorAssetSource) {
   ].filter(Boolean).join(" · ") || undefined;
 }
 
+function isTargetAllocationSource(sourceType: PositionDetailSourceType) {
+  return sourceType === "target_position" || sourceType === "target_positions_account";
+}
+
+function normalizeTargetAllocationType(value: unknown): "asset" | "portfolio" {
+  return value === "portfolio" ? "portfolio" : "asset";
+}
+
+function buildTargetAllocationOptionValue(target: ManagedAccountTargetAllocationTargetRow) {
+  return `${normalizeTargetAllocationType(target.target_type)}:${target.target_uid}`;
+}
+
+function readTargetAllocationCurrentSnapshot(target: ManagedAccountTargetAllocationTargetRow) {
+  return isRecord(target.current_snapshot) ? target.current_snapshot : null;
+}
+
+function resolveTargetAllocationLabel(target: ManagedAccountTargetAllocationTargetRow) {
+  return (
+    readString(target.display_label) ??
+    readString(readTargetAllocationCurrentSnapshot(target)?.name) ??
+    readString(target.identifier) ??
+    readString(target.target_uid) ??
+    "Target pending identity"
+  );
+}
+
+function resolveTargetAllocationDescription(target: ManagedAccountTargetAllocationTargetRow) {
+  const targetType = normalizeTargetAllocationType(target.target_type);
+  const snapshot = readTargetAllocationCurrentSnapshot(target);
+  const secondaryLabel =
+    readString(target.secondary_label) ??
+    readString(snapshot?.ticker);
+  const identifier = readString(target.identifier);
+
+  return [
+    targetType === "asset" ? "Asset" : "Portfolio",
+    secondaryLabel,
+    identifier,
+    target.target_uid,
+  ].filter(Boolean).join(" · ") || undefined;
+}
+
+function readTargetAllocationIdentity(target: ManagedAccountTargetAllocationTargetRow) {
+  const targetType = normalizeTargetAllocationType(target.target_type);
+  return `${targetType}:${target.target_uid}`;
+}
+
+function getAllowedInlinePositionTypeOptions(
+  row: PositionDetailInlineRow,
+  allowedPositionTypes: readonly PositionDetailCanonicalPositionType[],
+  targetAllocationSource: boolean,
+) {
+  return inlinePositionTypeOptions.filter(
+    (option) =>
+      allowedPositionTypes.includes(option) &&
+      !(
+        targetAllocationSource &&
+        normalizeTargetAllocationType(row.targetType) === "portfolio" &&
+        option === "units"
+      ),
+  );
+}
+
 function safeFormatInlinePositionJson(value: unknown) {
   try {
     return JSON.stringify(value, null, 2);
@@ -146,23 +223,53 @@ function buildInlineExpandedPositionRecord(
   row: PositionDetailInlineRow,
   sourceType: PositionDetailSourceType,
 ) {
-  if (sourceType === "target_positions_account") {
-    return {
-      ...(row.uniqueIdentifier ? { unique_identifier: row.uniqueIdentifier } : {}),
-      ...(row.positionType === "weight_notional_exposure"
-        ? { weight_notional_exposure: row.positionValue }
-        : row.positionType === "constant_notional"
-          ? { constant_notional_exposure: row.positionValue }
-          : { single_asset_quantity: row.positionValue }),
-      asset: {
-        ...(row.assetUid ? { uid: row.assetUid } : {}),
-        ...(!isSyntheticInlineAssetId(row.assetId) ? { id: row.assetId } : {}),
-        name: row.assetName ?? null,
-        ticker: row.assetTicker ?? null,
-        uniqueIdentifier: row.uniqueIdentifier ?? null,
-        figi: row.figi ?? null,
-      },
-    };
+  if (isTargetAllocationSource(sourceType)) {
+    const targetType = normalizeTargetAllocationType(row.targetType);
+    const targetUid =
+      row.targetUid ??
+      (targetType === "portfolio" ? row.portfolioUid : row.assetUid) ??
+      row.uniqueIdentifier ??
+      null;
+    const assetUid = targetType === "asset" ? (row.assetUid ?? targetUid) : (row.assetUid ?? null);
+    const portfolioUid =
+      targetType === "portfolio" ? (row.portfolioUid ?? targetUid) : (row.portfolioUid ?? null);
+    const basePosition =
+      targetType === "portfolio"
+        ? {
+            target_type: "portfolio",
+            target_uid: targetUid,
+            portfolio_uid: portfolioUid,
+            metadata_json: row.targetMetadata ?? {},
+          }
+        : {
+            target_type: "asset",
+            target_uid: targetUid,
+            asset_uid: assetUid,
+            metadata_json: row.targetMetadata ?? {},
+          };
+
+    if (row.positionType === "weight_notional_exposure") {
+      return {
+        ...basePosition,
+        weight_notional_exposure: String(row.positionValue),
+      };
+    }
+
+    if (row.positionType === "constant_notional") {
+      return {
+        ...basePosition,
+        constant_notional_exposure: String(row.positionValue),
+      };
+    }
+
+    if (targetType === "asset" && row.positionType === "units") {
+      return {
+        ...basePosition,
+        single_asset_quantity: String(row.positionValue),
+      };
+    }
+
+    return basePosition;
   }
 
   return {
@@ -241,16 +348,19 @@ export function PositionDetailInlineEditor({
 }: {
   rows: PositionDetailInlineRow[];
   sourceType: PositionDetailSourceType;
-  allowedPositionTypes: readonly PositionDetailInlinePositionType[];
+  allowedPositionTypes: readonly PositionDetailCanonicalPositionType[];
   editable: boolean;
   holdingsDate?: string;
   onRowsChange?: (rows: PositionDetailInlineRow[]) => void;
 }) {
   const [assetSearchValue, setAssetSearchValue] = useState("");
+  const [targetAllocationTargetType, setTargetAllocationTargetType] =
+    useState<ManagedAccountTargetAllocationTargetType>("all");
   const [positionValueDrafts, setPositionValueDrafts] = useState<Record<string, string>>({});
   const deferredAssetSearchValue = useDeferredValue(assetSearchValue);
   const normalizedAssetSearchValue = deferredAssetSearchValue.trim();
   const canSearchAssets = normalizedAssetSearchValue.length >= minimumAssetSearchLength;
+  const targetAllocationSource = isTargetAllocationSource(sourceType);
   const normalizedRows = useMemo(
     () => normalizePositionDetailPositionRows(rows, sourceType),
     [rows, sourceType],
@@ -281,6 +391,29 @@ export function PositionDetailInlineEditor({
       ),
     [normalizedRows],
   );
+  const selectedTargetAllocationIdentities = useMemo(
+    () =>
+      new Set(
+        normalizedRows
+          .map((row) => {
+            if (row.targetType && row.targetUid) {
+              return `${normalizeTargetAllocationType(row.targetType)}:${row.targetUid}`;
+            }
+
+            if (row.portfolioUid) {
+              return `portfolio:${row.portfolioUid}`;
+            }
+
+            if (row.assetUid) {
+              return `asset:${row.assetUid}`;
+            }
+
+            return null;
+          })
+          .filter((value): value is string => Boolean(value)),
+      ),
+    [normalizedRows],
+  );
   const hasUnitsRows = useMemo(
     () => normalizedRows.some((row) => row.positionType === "units"),
     [normalizedRows],
@@ -298,7 +431,18 @@ export function PositionDetailInlineEditor({
   const showRowDateColumn = sourceType === "portfolio";
   const showPositionTypeColumn = sourceType !== "account";
   const showExtraDetailsColumn = sourceType === "account";
+  const showTargetTypeColumn = targetAllocationSource;
   const showAssetIdentitySubline = sourceType !== "account";
+  const inlineTableColumnCount =
+    1 +
+    (!targetAllocationSource ? 1 : 0) +
+    (showTargetTypeColumn ? 1 : 0) +
+    (showUidColumn ? 1 : 0) +
+    (showRowDateColumn ? 1 : 0) +
+    (showPositionTypeColumn ? 1 : 0) +
+    (showExtraDetailsColumn ? 1 : 0) +
+    1 +
+    1;
 
   const assetSearchQuery = useQuery({
     queryKey: [
@@ -313,11 +457,44 @@ export function PositionDetailInlineEditor({
         limit: 50,
         offset: 0,
       }),
-    enabled: editable && typeof onRowsChange === "function" && canSearchAssets,
+    enabled:
+      editable &&
+      typeof onRowsChange === "function" &&
+      !targetAllocationSource &&
+      canSearchAssets,
     staleTime: 60_000,
   });
 
-  const assetSearchResults = canSearchAssets ? (assetSearchQuery.data?.results ?? []) : [];
+  const targetAllocationSearchQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "account",
+      "target-allocation",
+      "targets",
+      normalizedAssetSearchValue,
+      targetAllocationTargetType,
+    ],
+    queryFn: () =>
+      listManagedAccountTargetAllocationTargets({
+        search: normalizedAssetSearchValue,
+        targetType: targetAllocationTargetType,
+        limit: 25,
+        offset: 0,
+      }),
+    enabled:
+      editable &&
+      typeof onRowsChange === "function" &&
+      targetAllocationSource &&
+      canSearchAssets,
+    staleTime: 60_000,
+  });
+
+  const assetSearchResults =
+    canSearchAssets && !targetAllocationSource ? (assetSearchQuery.data?.results ?? []) : [];
+  const targetAllocationSearchResults =
+    canSearchAssets && targetAllocationSource
+      ? (targetAllocationSearchQuery.data?.results ?? [])
+      : [];
   const assetOptions = useMemo<PickerOption[]>(
     () =>
       assetSearchResults
@@ -347,6 +524,32 @@ export function PositionDetailInlineEditor({
           ],
         })),
     [assetSearchResults, selectedAssetIds, selectedAssetUids, selectedAssetUniqueIdentifiers],
+  );
+  const targetAllocationOptions = useMemo<PickerOption[]>(
+    () =>
+      targetAllocationSearchResults
+        .filter((target) => !selectedTargetAllocationIdentities.has(readTargetAllocationIdentity(target)))
+        .map((target) => {
+          const targetType = normalizeTargetAllocationType(target.target_type);
+
+          return {
+            value: buildTargetAllocationOptionValue(target),
+            label: resolveTargetAllocationLabel(target),
+            description: resolveTargetAllocationDescription(target),
+            keywords: [
+              targetType,
+              target.target_uid,
+              target.asset_uid ?? "",
+              target.portfolio_uid ?? "",
+              target.identifier,
+              target.display_label,
+              target.secondary_label ?? "",
+              readString(readTargetAllocationCurrentSnapshot(target)?.name) ?? "",
+              readString(readTargetAllocationCurrentSnapshot(target)?.ticker) ?? "",
+            ],
+          };
+        }),
+    [targetAllocationSearchResults, selectedTargetAllocationIdentities],
   );
 
   const addAssetMutation = useMutation({
@@ -396,6 +599,61 @@ export function PositionDetailInlineEditor({
               date: new Date().toISOString().slice(0, 10),
             }
           : {}),
+        price: null,
+        positionType: getDefaultPositionDetailPositionType(sourceType),
+        positionValue: 0,
+      },
+    ]);
+    setAssetSearchValue("");
+  }
+
+  function addTargetAllocationTarget(target: ManagedAccountTargetAllocationTargetRow | undefined) {
+    if (!target || !onRowsChange) {
+      return;
+    }
+
+    const targetType = normalizeTargetAllocationType(target.target_type);
+    const targetUid = readString(target.target_uid);
+
+    if (!targetUid) {
+      return;
+    }
+
+    const targetIdentity = `${targetType}:${targetUid}`;
+    if (selectedTargetAllocationIdentities.has(targetIdentity)) {
+      return;
+    }
+
+    const snapshot = readTargetAllocationCurrentSnapshot(target);
+    const targetMetadata = isRecord(target.metadata) ? target.metadata : {};
+    const assetUid =
+      targetType === "asset"
+        ? readString(target.asset_uid) ?? targetUid
+        : readString(target.asset_uid);
+    const portfolioUid =
+      targetType === "portfolio"
+        ? readString(target.portfolio_uid) ?? targetUid
+        : readString(target.portfolio_uid);
+    const identifier = readString(target.identifier) ?? targetUid;
+    const assetName = resolveTargetAllocationLabel(target);
+    const assetTicker =
+      readString(target.secondary_label) ??
+      readString(snapshot?.ticker);
+
+    commitRows([
+      ...normalizedRows,
+      {
+        rowId: buildInlinePositionRowId(targetIdentity),
+        assetId: buildSyntheticIdentityId(targetIdentity, normalizedRows.length),
+        ...(assetUid ? { assetUid } : {}),
+        targetType,
+        targetUid,
+        ...(portfolioUid ? { portfolioUid } : {}),
+        targetMetadata,
+        assetName,
+        assetTicker,
+        uniqueIdentifier: identifier,
+        figi: targetType === "asset" ? identifier : undefined,
         price: null,
         positionType: getDefaultPositionDetailPositionType(sourceType),
         positionValue: 0,
@@ -458,8 +716,30 @@ export function PositionDetailInlineEditor({
       <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/60 p-3">
         <div className="space-y-2">
           <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-            Add Asset
+            {targetAllocationSource ? "Add Target" : "Add Asset"}
           </div>
+          {targetAllocationSource ? (
+            <label className="block space-y-1.5">
+              <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                Target Type
+              </span>
+              <select
+                value={targetAllocationTargetType}
+                className="flex h-10 w-full max-w-xs rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus:border-primary/70 focus:ring-2 focus:ring-ring/30"
+                onChange={(event) => {
+                  setTargetAllocationTargetType(
+                    event.target.value as ManagedAccountTargetAllocationTargetType,
+                  );
+                }}
+              >
+                {targetAllocationTargetTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <PickerField
             value=""
             onChange={(value) => {
@@ -467,28 +747,56 @@ export function PositionDetailInlineEditor({
                 return;
               }
 
+              if (targetAllocationSource) {
+                addTargetAllocationTarget(
+                  targetAllocationSearchResults.find(
+                    (target) => buildTargetAllocationOptionValue(target) === value,
+                  ),
+                );
+                return;
+              }
+
               addAssetMutation.mutate(value);
             }}
-            options={assetOptions}
-            placeholder="Search assets"
-            searchPlaceholder="Search assets"
+            options={targetAllocationSource ? targetAllocationOptions : assetOptions}
+            placeholder={targetAllocationSource ? "Search targets" : "Search assets"}
+            searchPlaceholder={
+              targetAllocationSource
+                ? "Search assets or portfolios"
+                : "Search assets"
+            }
             searchable
             emptyMessage={
               canSearchAssets
-                ? "No matching assets."
-                : `Type at least ${minimumAssetSearchLength} characters to search assets.`
+                ? targetAllocationSource
+                  ? "No matching targets."
+                  : "No matching assets."
+                : `Type at least ${minimumAssetSearchLength} characters to search ${
+                    targetAllocationSource ? "targets" : "assets"
+                  }.`
             }
-            loading={assetSearchQuery.isLoading || addAssetMutation.isPending}
+            loading={
+              targetAllocationSource
+                ? targetAllocationSearchQuery.isLoading
+                : assetSearchQuery.isLoading || addAssetMutation.isPending
+            }
             searchValue={assetSearchValue}
             onSearchValueChange={setAssetSearchValue}
           />
         </div>
         <div className="mt-2 text-xs text-muted-foreground">
-          Type at least {minimumAssetSearchLength} characters, then select an asset to add a new row directly on the canvas.
+          Type at least {minimumAssetSearchLength} characters, then select{" "}
+          {targetAllocationSource ? "a target allocation asset or portfolio" : "an asset"} to add
+          a new row directly on the canvas.
         </div>
         {addAssetMutation.isError ? (
           <div className="mt-3 rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
             {formatMainSequenceError(addAssetMutation.error)}
+          </div>
+        ) : null}
+        {targetAllocationSearchQuery.isError ? (
+          <div className="mt-3 rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
+            {formatMainSequenceError(targetAllocationSearchQuery.error)}
           </div>
         ) : null}
       </div>
@@ -511,8 +819,9 @@ export function PositionDetailInlineEditor({
             <thead className="sticky top-0 z-[1] bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/75">
               <tr>
                 {[
-                  "Asset Name",
-                  "Asset Ticker",
+                  ...(showTargetTypeColumn ? ["Target Type"] : []),
+                  targetAllocationSource ? "Target Name" : "Asset Name",
+                  ...(!targetAllocationSource ? ["Asset Ticker"] : []),
                   ...(showUidColumn ? ["UID"] : []),
                   ...(showRowDateColumn ? ["Date"] : []),
                   ...(showPositionTypeColumn ? ["Position Type"] : []),
@@ -533,10 +842,22 @@ export function PositionDetailInlineEditor({
               {normalizedRows.length > 0 ? (
                 normalizedRows.map((row) => {
                   const expanded = expandedRowIds.includes(row.rowId);
+                  const rowPositionTypeOptions = getAllowedInlinePositionTypeOptions(
+                    row,
+                    allowedPositionTypes,
+                    targetAllocationSource,
+                  );
 
                   return (
                     <Fragment key={row.rowId}>
                       <tr className="border-b border-border/50">
+                        {showTargetTypeColumn ? (
+                          <td className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)] align-top">
+                            <div className="inline-flex rounded-full border border-border/70 bg-background/50 px-2.5 py-1 text-xs font-medium capitalize text-muted-foreground">
+                              {normalizeTargetAllocationType(row.targetType)}
+                            </div>
+                          </td>
+                        ) : null}
                         <td className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)] align-top">
                           <div className="flex min-w-0 items-start gap-2">
                             <button
@@ -557,8 +878,10 @@ export function PositionDetailInlineEditor({
                                   row.uniqueIdentifier ||
                                   row.assetUid ||
                                   (isSyntheticInlineAssetId(row.assetId)
-                                    ? "Asset pending identity"
-                                    : `Asset ${row.assetId}`)}
+                                    ? targetAllocationSource
+                                      ? "Target pending identity"
+                                      : "Asset pending identity"
+                                    : `${targetAllocationSource ? "Target" : "Asset"} ${row.assetId}`)}
                               </div>
                               {showAssetIdentitySubline ? (
                                 <div className="mt-0.5 truncate font-mono text-[12px] text-muted-foreground">
@@ -573,11 +896,13 @@ export function PositionDetailInlineEditor({
                             </div>
                           </div>
                         </td>
-                        <td className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)] align-top">
-                          <div className="font-mono text-sm text-foreground">
-                            {row.assetTicker || "Not available"}
-                          </div>
-                        </td>
+                        {!targetAllocationSource ? (
+                          <td className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)] align-top">
+                            <div className="font-mono text-sm text-foreground">
+                              {row.assetTicker || "Not available"}
+                            </div>
+                          </td>
+                        ) : null}
                         {showUidColumn ? (
                           <td className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)] align-top">
                             <div className="font-mono text-sm text-foreground">
@@ -615,13 +940,11 @@ export function PositionDetailInlineEditor({
                                   });
                                 }}
                               >
-                                {inlinePositionTypeOptions
-                                  .filter((option) => allowedPositionTypes.includes(option))
-                                  .map((option) => (
-                                    <option key={option} value={option}>
-                                      {formatPositionDetailPositionTypeLabel(option)}
-                                    </option>
-                                  ))}
+                                {rowPositionTypeOptions.map((option) => (
+                                  <option key={option} value={option}>
+                                    {formatPositionDetailPositionTypeLabel(option)}
+                                  </option>
+                                ))}
                               </select>
                             ) : (
                               <div className="flex h-10 items-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/50 px-3 text-sm text-foreground">
@@ -689,7 +1012,10 @@ export function PositionDetailInlineEditor({
                               type="button"
                               variant="ghost"
                               size="icon"
-                              aria-label={`Remove ${row.assetName || `asset ${row.assetId}`}`}
+                              aria-label={`Remove ${
+                                row.assetName ||
+                                `${targetAllocationSource ? "target" : "asset"} ${row.assetId}`
+                              }`}
                               onClick={() => removeRow(row.rowId)}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -700,15 +1026,7 @@ export function PositionDetailInlineEditor({
                       {expanded ? (
                         <tr className="bg-background/45">
                           <td
-                            colSpan={
-                              2 +
-                              (showUidColumn ? 1 : 0) +
-                              (showRowDateColumn ? 1 : 0) +
-                              (showPositionTypeColumn ? 1 : 0) +
-                              (showExtraDetailsColumn ? 1 : 0) +
-                              1 +
-                              1
-                            }
+                            colSpan={inlineTableColumnCount}
                             className="border-b border-border/50 px-3 py-[var(--table-compact-cell-padding-y)]"
                           >
                             <div
@@ -731,28 +1049,24 @@ export function PositionDetailInlineEditor({
               ) : (
                 <tr>
                   <td
-                    colSpan={
-                      2 +
-                      (showUidColumn ? 1 : 0) +
-                      (showRowDateColumn ? 1 : 0) +
-                      (showPositionTypeColumn ? 1 : 0) +
-                      (showExtraDetailsColumn ? 1 : 0) +
-                      1 +
-                      1
-                    }
+                    colSpan={inlineTableColumnCount}
                     className="px-4 py-10"
                   >
                     <div className="flex flex-col items-center justify-center gap-2 text-center">
-                      {assetSearchQuery.isLoading ? (
+                      {assetSearchQuery.isLoading || targetAllocationSearchQuery.isLoading ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                          <div className="text-sm text-muted-foreground">Loading asset search</div>
+                          <div className="text-sm text-muted-foreground">
+                            {targetAllocationSource
+                              ? "Loading target allocation search"
+                              : "Loading asset search"}
+                          </div>
                         </>
                       ) : (
                         <>
                           <div className="text-sm font-medium text-foreground">No inline positions</div>
                           <div className="max-w-[420px] text-sm text-muted-foreground">
-                            Search for an asset above and add it to start building inline positions.
+                            Search for {targetAllocationSource ? "a target" : "an asset"} above and add it to start building inline positions.
                           </div>
                         </>
                       )}

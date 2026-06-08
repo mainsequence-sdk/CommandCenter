@@ -1,27 +1,76 @@
 import { useDeferredValue, useEffect, useMemo } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { Database, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Database, Loader2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 
 import {
+  fetchVirtualFundDetail,
+  fetchVirtualFundHoldingsPositionDetails,
+  fetchVirtualFundSummary,
   formatMainSequenceError,
   listVirtualFunds,
   mainSequenceRegistryPageSize,
   type VirtualFundListFilters,
 } from "../../../../common/api";
+import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
+import { positionDetailWidget } from "../../widgets/position-detail/definition";
+import { PositionDetailWidget } from "../../widgets/position-detail/PositionDetailWidget";
+import type { PositionDetailWidgetProps } from "../../widgets/position-detail/positionDetailRuntime";
+import {
+  defaultVirtualFundDetailTabId,
+  mainSequenceVirtualFundTabParam,
+  mainSequenceVirtualFundUidParam,
+  virtualFundHoldingsTabId,
+} from "./fundShared";
+
+const legacyVirtualFundHoldingsTabId = "latest-holdings";
+
+const virtualFundDetailTabs = [
+  { id: defaultVirtualFundDetailTabId, label: "Details" },
+  { id: virtualFundHoldingsTabId, label: "Holdings" },
+] as const;
+
+type VirtualFundDetailTabId = (typeof virtualFundDetailTabs)[number]["id"];
 
 function readPositiveInt(value: string | null) {
   const parsed = Number(value ?? "");
 
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function normalizeUid(value: string | null | undefined) {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? trimmedValue : null;
+}
+
+function isVirtualFundDetailTabId(value: string | null): value is VirtualFundDetailTabId {
+  return virtualFundDetailTabs.some((tab) => tab.id === value);
+}
+
+function normalizeVirtualFundDetailTabId(value: string | null): VirtualFundDetailTabId {
+  if (value === legacyVirtualFundHoldingsTabId) {
+    return virtualFundHoldingsTabId;
+  }
+
+  return isVirtualFundDetailTabId(value) ? value : "details";
+}
+
+function buildVirtualFundHoldingsWidgetProps(): PositionDetailWidgetProps {
+  return {
+    editableInPlace: false,
+    sourceType: "account",
+    variant: "positions",
+    positionRows: [],
+  };
 }
 
 function setOrDeleteParam(nextParams: URLSearchParams, key: string, value: string) {
@@ -42,7 +91,7 @@ function applyPaginationParams(nextParams: URLSearchParams, page: number, pageSi
   nextParams.delete("page_size");
 }
 
-function formatFundName(value: string | null | undefined, fallback: string) {
+function formatFundTitle(value: string | null | undefined, fallback: string) {
   const trimmedValue = value?.trim();
   return trimmedValue ? trimmedValue : fallback;
 }
@@ -54,7 +103,7 @@ function formatFundUid(value: string | null | undefined) {
 
 function formatLinkedUid(value: string | null | undefined, label: string) {
   const trimmedValue = value?.trim();
-  return trimmedValue ? `${label} ${trimmedValue}` : `${label} not linked`;
+  return trimmedValue ? trimmedValue : `${label} not linked`;
 }
 
 export function MainSequenceFundsPage() {
@@ -62,6 +111,8 @@ export function MainSequenceFundsPage() {
   const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
+  const selectedFundUid = normalizeUid(searchParams.get(mainSequenceVirtualFundUidParam));
+  const selectedTabId = normalizeVirtualFundDetailTabId(searchParams.get(mainSequenceVirtualFundTabParam));
   const searchValue = searchParams.get("search") ?? "";
   const pageSize = mainSequenceRegistryPageSize;
   const offsetParam = readPositiveInt(searchParams.get("offset"));
@@ -80,6 +131,10 @@ export function MainSequenceFundsPage() {
   }, [pageParam, pageSize, searchParams]);
 
   const deferredSearchValue = useDeferredValue(searchValue);
+  const virtualFundHoldingsWidgetProps = useMemo(
+    () => buildVirtualFundHoldingsWidgetProps(),
+    [],
+  );
 
   const virtualFundFilters = useMemo(
     () =>
@@ -92,9 +147,27 @@ export function MainSequenceFundsPage() {
   );
 
   const virtualFundsQuery = useQuery({
-    enabled: !needsSearchParamNormalization,
+    enabled: !needsSearchParamNormalization && selectedFundUid === null,
     queryKey: ["main_sequence", "virtual_funds", "list", virtualFundFilters],
     queryFn: () => listVirtualFunds(virtualFundFilters),
+  });
+
+  const virtualFundSummaryQuery = useQuery({
+    enabled: selectedFundUid !== null,
+    queryKey: ["main_sequence", "virtual_funds", "summary", selectedFundUid],
+    queryFn: () => fetchVirtualFundSummary(selectedFundUid as string),
+  });
+
+  const virtualFundDetailQuery = useQuery({
+    enabled: selectedFundUid !== null && selectedTabId === "details",
+    queryKey: ["main_sequence", "virtual_funds", "detail", selectedFundUid],
+    queryFn: () => fetchVirtualFundDetail(selectedFundUid as string),
+  });
+
+  const virtualFundHoldingsQuery = useQuery({
+    enabled: selectedFundUid !== null && selectedTabId === virtualFundHoldingsTabId,
+    queryKey: ["main_sequence", "virtual_funds", "holdings", selectedFundUid],
+    queryFn: () => fetchVirtualFundHoldingsPositionDetails(selectedFundUid as string),
   });
 
   const pageRows = virtualFundsQuery.data?.results ?? [];
@@ -102,6 +175,30 @@ export function MainSequenceFundsPage() {
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   useEffect(() => {
+    if (
+      selectedFundUid === null ||
+      searchParams.get(mainSequenceVirtualFundTabParam) !== legacyVirtualFundHoldingsTabId
+    ) {
+      return;
+    }
+
+    const nextParams = new URLSearchParams(location.search);
+    nextParams.set(mainSequenceVirtualFundTabParam, virtualFundHoldingsTabId);
+
+    navigate(
+      {
+        pathname: location.pathname,
+        search: `?${nextParams.toString()}`,
+      },
+      { replace: true },
+    );
+  }, [location.pathname, location.search, navigate, searchParams, selectedFundUid]);
+
+  useEffect(() => {
+    if (selectedFundUid !== null) {
+      return;
+    }
+
     const nextParams = new URLSearchParams(location.search);
     let changed = false;
 
@@ -140,22 +237,24 @@ export function MainSequenceFundsPage() {
       },
       { replace: true },
     );
-  }, [location.pathname, location.search, navigate, offsetParam, pageParam, pageSize]);
+  }, [location.pathname, location.search, navigate, offsetParam, pageParam, pageSize, selectedFundUid]);
 
   useEffect(() => {
-    if (page > totalPages) {
-      const nextParams = new URLSearchParams(location.search);
-      applyPaginationParams(nextParams, totalPages, pageSize);
-
-      navigate(
-        {
-          pathname: location.pathname,
-          search: `?${nextParams.toString()}`,
-        },
-        { replace: true },
-      );
+    if (selectedFundUid !== null || page <= totalPages) {
+      return;
     }
-  }, [location.pathname, location.search, navigate, page, pageSize, totalPages]);
+
+    const nextParams = new URLSearchParams(location.search);
+    applyPaginationParams(nextParams, totalPages, pageSize);
+
+    navigate(
+      {
+        pathname: location.pathname,
+        search: `?${nextParams.toString()}`,
+      },
+      { replace: true },
+    );
+  }, [location.pathname, location.search, navigate, page, pageSize, selectedFundUid, totalPages]);
 
   function updateSearchParams(
     update: (nextParams: URLSearchParams) => void,
@@ -190,6 +289,201 @@ export function MainSequenceFundsPage() {
     });
   }
 
+  function openFundDetail(fundUid: string) {
+    updateSearchParams((nextParams) => {
+      nextParams.set(mainSequenceVirtualFundUidParam, fundUid);
+      nextParams.set(mainSequenceVirtualFundTabParam, defaultVirtualFundDetailTabId);
+    });
+  }
+
+  function closeFundDetail() {
+    updateSearchParams((nextParams) => {
+      nextParams.delete(mainSequenceVirtualFundUidParam);
+      nextParams.delete(mainSequenceVirtualFundTabParam);
+    });
+  }
+
+  function selectFundDetailTab(tabId: VirtualFundDetailTabId) {
+    updateSearchParams(
+      (nextParams) => {
+        nextParams.set(mainSequenceVirtualFundTabParam, tabId);
+      },
+      { replace: true },
+    );
+  }
+
+  if (selectedFundUid !== null) {
+    const detailFund = virtualFundDetailQuery.data?.virtual_fund ?? null;
+    const summaryTitle = virtualFundSummaryQuery.data?.entity.title?.trim();
+    const detailTitle = detailFund?.unique_identifier?.trim();
+    const pageTitle = summaryTitle || detailTitle || selectedFundUid;
+
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Main Sequence Markets"
+          title={pageTitle}
+          description={`Virtual Fund UID ${selectedFundUid}`}
+          actions={
+            <Button type="button" variant="outline" onClick={closeFundDetail}>
+              <ArrowLeft className="h-4 w-4" />
+              Back to funds
+            </Button>
+          }
+        />
+
+        {virtualFundSummaryQuery.isLoading ? (
+          <Card>
+            <CardContent className="flex min-h-32 items-center justify-center">
+              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading virtual fund summary
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {virtualFundSummaryQuery.isError ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+            {formatMainSequenceError(virtualFundSummaryQuery.error)}
+          </div>
+        ) : null}
+
+        {virtualFundSummaryQuery.data ? (
+          <MainSequenceEntitySummaryCard
+            summary={virtualFundSummaryQuery.data}
+            onSummaryUpdated={async () => {
+              await virtualFundSummaryQuery.refetch();
+            }}
+          />
+        ) : null}
+
+        <Card>
+          <CardHeader className="border-b border-border/70 pb-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {virtualFundDetailTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    selectedTabId === tab.id
+                      ? "border-primary/50 bg-primary/12 text-primary"
+                      : "border-border/70 bg-background/35 text-muted-foreground hover:border-primary/35 hover:text-foreground"
+                  }`}
+                  onClick={() => selectFundDetailTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-4 pt-5">
+            {selectedTabId === "details" ? (
+              <>
+                {virtualFundDetailQuery.isLoading ? (
+                  <div className="flex min-h-48 items-center justify-center">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading virtual fund detail
+                    </div>
+                  </div>
+                ) : null}
+
+                {virtualFundDetailQuery.isError ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                    {formatMainSequenceError(virtualFundDetailQuery.error)}
+                  </div>
+                ) : null}
+
+                {detailFund ? (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    {[
+                      {
+                        key: "unique_identifier",
+                        label: "Fund",
+                        value: detailFund.unique_identifier,
+                      },
+                      {
+                        key: "uid",
+                        label: "UID",
+                        value: detailFund.uid,
+                      },
+                      {
+                        key: "account_uid",
+                        label: "Account UID",
+                        value: detailFund.account_uid,
+                      },
+                      {
+                        key: "target_portfolio_uid",
+                        label: "Portfolio UID",
+                        value: detailFund.target_portfolio_uid,
+                      },
+                    ].map((field) => (
+                      <div
+                        key={field.key}
+                        className="rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/40 px-3 py-3"
+                      >
+                        <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                          {field.label}
+                        </div>
+                        <div className="mt-2 break-all font-mono text-sm text-foreground">
+                          {formatFundTitle(field.value ?? null, "Not available")}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+              </>
+            ) : null}
+
+            {selectedTabId === virtualFundHoldingsTabId ? (
+              <Card variant="nested">
+                <CardHeader className="border-b border-border/70 pb-4">
+                  <CardTitle className="text-base">Holdings</CardTitle>
+                  <CardDescription>
+                    Review the canonical holdings snapshot resolved directly from this virtual fund.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-5">
+                  <PositionDetailWidget
+                    widget={positionDetailWidget}
+                    props={virtualFundHoldingsWidgetProps}
+                    runtimeState={
+                      virtualFundHoldingsQuery.isError
+                        ? {
+                            status: "error",
+                            error: formatMainSequenceError(virtualFundHoldingsQuery.error),
+                            variant: "positions",
+                            payload: undefined,
+                          }
+                        : virtualFundHoldingsQuery.isLoading
+                          ? {
+                              status: "loading",
+                              error: undefined,
+                              variant: "positions",
+                              payload: undefined,
+                            }
+                          : virtualFundHoldingsQuery.data
+                            ? {
+                                status: "success",
+                                error: undefined,
+                                variant: "positions",
+                                payload: virtualFundHoldingsQuery.data,
+                              }
+                            : undefined
+                    }
+                  />
+                </CardContent>
+              </Card>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -205,7 +499,7 @@ export function MainSequenceFundsPage() {
             <div>
               <CardTitle>Virtual funds registry</CardTitle>
               <CardDescription>
-                Search the current funds list and review the portfolio and account each fund is linked to.
+                Search the current funds list and review each fund's account and target portfolio UIDs.
               </CardDescription>
             </div>
 
@@ -253,38 +547,52 @@ export function MainSequenceFundsPage() {
               <table className="w-full min-w-[860px] border-separate border-spacing-y-2 text-sm">
                 <thead>
                   <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                    <th className="px-4 pb-2">Portfolio</th>
-                    <th className="px-4 pb-2">Account</th>
                     <th className="px-4 pb-2">Fund</th>
+                    <th className="px-4 pb-2">Account</th>
+                    <th className="px-4 pb-2">Portfolio</th>
+                    <th className="px-4 pb-2 text-right">Details</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pageRows.map((fund) => (
                     <tr key={fund.uid}>
                       <td className={getRegistryTableCellClassName(false, "left")}>
-                        <div className="font-medium text-foreground">
-                          {formatFundName(
-                            fund.target_portfolio_name,
-                            `Portfolio ${fund.target_portfolio_uid ?? "-"}`,
-                          )}
-                        </div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {formatLinkedUid(fund.target_portfolio_uid, "Portfolio UID")}
-                        </div>
+                        <button
+                          type="button"
+                          className="block w-full min-w-0 text-left"
+                          onClick={() => openFundDetail(fund.uid)}
+                        >
+                          <div className="group inline-flex max-w-full items-center gap-1.5 font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary">
+                            <span className="truncate">
+                              {formatFundTitle(fund.unique_identifier, "Virtual fund")}
+                            </span>
+                            <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+                          </div>
+                          <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
+                            {formatFundUid(fund.uid)}
+                          </div>
+                        </button>
                       </td>
                       <td className={getRegistryTableCellClassName(false)}>
-                        <div className="font-medium text-foreground">
-                          {formatFundName(fund.account_name, `Account ${fund.account_uid ?? "-"}`)}
-                        </div>
-                        <div className="mt-1 text-xs text-muted-foreground">
+                        <div className="font-mono text-sm text-foreground">
                           {formatLinkedUid(fund.account_uid, "Account UID")}
                         </div>
                       </td>
-                      <td className={getRegistryTableCellClassName(false, "right")}>
-                        <div className="font-medium text-foreground">Virtual fund</div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {formatFundUid(fund.uid)}
+                      <td className={getRegistryTableCellClassName(false)}>
+                        <div className="font-mono text-sm text-foreground">
+                          {formatLinkedUid(fund.target_portfolio_uid, "Portfolio UID")}
                         </div>
+                      </td>
+                      <td className={getRegistryTableCellClassName(false, "right")}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openFundDetail(fund.uid)}
+                        >
+                          Details
+                          <ArrowUpRight className="h-3.5 w-3.5" />
+                        </Button>
                       </td>
                     </tr>
                   ))}

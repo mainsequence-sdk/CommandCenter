@@ -2,9 +2,8 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight, Database, Loader2, Trash2 } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
-import { getAppPath } from "@/apps/utils";
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,9 +30,7 @@ import {
   MainSequenceTargetPortfolioDetailView,
 } from "./MainSequenceTargetPortfolioDetailView";
 
-type PortfolioDeleteIntent =
-  | { mode: "selection"; portfolios: TargetPortfolioListRow[] }
-  | { mode: "filtered" };
+type PortfolioDeleteIntent = { mode: "selection"; portfolios: TargetPortfolioListRow[] };
 
 const mainSequenceTargetPortfolioUidParam = "msTargetPortfolioUid";
 const mainSequenceTargetPortfolioTabParam = "msTargetPortfolioTab";
@@ -71,16 +68,8 @@ function isBlankValue(value: unknown) {
   );
 }
 
-function getPortfolioIndexAsset(row: TargetPortfolioListRow) {
-  return row.index_asset ?? row.portfolio_index_asset ?? null;
-}
-
-function getPortfolioIndexSnapshot(row: TargetPortfolioListRow) {
-  return getPortfolioIndexAsset(row)?.current_snapshot ?? null;
-}
-
 function getPortfolioName(row: TargetPortfolioListRow) {
-  const value = getPortfolioIndexSnapshot(row)?.name;
+  const value = row.unique_identifier;
   return typeof value === "string" && value.trim() ? value.trim() : "—";
 }
 
@@ -137,35 +126,16 @@ function formatPortfolioValue(value: unknown, key?: string) {
   }
 }
 
-function getPortfolioIndexTicker(row: TargetPortfolioListRow) {
-  const ticker = getPortfolioIndexSnapshot(row)?.ticker;
-  return typeof ticker === "string" && ticker.trim() ? ticker.trim() : "—";
+function getPortfolioCalendarLabel(row: TargetPortfolioListRow) {
+  return formatPortfolioValue(row.calendar_name ?? row.calendar_uid);
 }
 
-function formatCreationDate(value: unknown) {
-  return formatPortfolioValue(value, "creation_date");
+function getPortfolioIndexUid(row: TargetPortfolioListRow) {
+  return formatPortfolioValue(row.portfolio_index_uid);
 }
 
-function getPortfolioIndexAssetUid(row: TargetPortfolioListRow) {
-  const nestedAsset = getPortfolioIndexAsset(row);
-  const directUid = nestedAsset?.uid;
-
-  if (typeof directUid === "string" && directUid.trim()) {
-    return directUid.trim();
-  }
-
-  const snapshotUid = nestedAsset?.current_snapshot?.uid;
-  return typeof snapshotUid === "string" && snapshotUid.trim()
-    ? snapshotUid.trim()
-    : null;
-}
-
-function getAssetDetailPath(assetUid: string) {
-  const searchParams = new URLSearchParams({
-    msAssetUid: assetUid,
-  });
-
-  return `${getAppPath("main_sequence_markets", "assets")}?${searchParams.toString()}`;
+function getPortfolioWeightsDataNodeUid(row: TargetPortfolioListRow) {
+  return formatPortfolioValue(row.portfolio_weights_data_node_uid);
 }
 
 function resolveDeletedCount(result: unknown, fallbackCount: number) {
@@ -208,7 +178,9 @@ function buildPortfolioDeleteSummary(portfolios: TargetPortfolioListRow[]) {
         <div key={portfolio.uid} className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate font-medium text-foreground">{getPortfolioName(portfolio)}</div>
-            <div className="truncate text-xs text-muted-foreground">{`Index ticker ${getPortfolioIndexTicker(portfolio)}`}</div>
+            <div className="truncate text-xs text-muted-foreground">
+              {`Index UID ${getPortfolioIndexUid(portfolio)}`}
+            </div>
           </div>
           <Badge variant="neutral">{`UID ${portfolio.uid}`}</Badge>
         </div>
@@ -218,26 +190,6 @@ function buildPortfolioDeleteSummary(portfolios: TargetPortfolioListRow[]) {
           {`…and ${portfolios.length - preview.length} more portfolio${portfolios.length - preview.length === 1 ? "" : "s"}.`}
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function buildFilteredDeleteSummary({
-  searchValue,
-  totalCount,
-}: {
-  searchValue: string;
-  totalCount: number;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="text-sm text-foreground">
-        {`This will delete every target portfolio matching the current search.`}
-      </div>
-      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <Badge variant="neutral">{`${totalCount} matching row${totalCount === 1 ? "" : "s"}`}</Badge>
-        <span>{`Search: "${searchValue}"`}</span>
-      </div>
     </div>
   );
 }
@@ -453,43 +405,24 @@ export function MainSequenceTargetPortfoliosPage() {
   const deleteSelectionPortfolios =
     deleteIntent?.mode === "selection" ? deleteIntent.portfolios : [];
   const deleteDialogTitle =
-    deleteIntent?.mode === "filtered"
-      ? "Delete filtered portfolios"
-      : deleteSelectionPortfolios.length === 1
+    deleteSelectionPortfolios.length === 1
         ? "Delete portfolio"
         : "Delete portfolios";
   const deleteActionLabel =
-    deleteIntent?.mode === "filtered"
-      ? "delete all portfolios matching the current search"
-      : deleteSelectionPortfolios.length === 1
+    deleteSelectionPortfolios.length === 1
         ? "delete the selected portfolio"
         : "delete the selected portfolios";
   const deleteConfirmButtonLabel =
-    deleteSelectionPortfolios.length === 1 && deleteIntent?.mode !== "filtered"
+    deleteSelectionPortfolios.length === 1
       ? "Delete portfolio"
       : "Delete portfolios";
   const deleteDescription =
-    deleteIntent?.mode === "filtered"
-      ? "This uses the target-portfolio bulk-delete endpoint with select_all=true and current_url set to the active list."
-      : "This uses the target-portfolio bulk-delete endpoint for the selected rows.";
-  const deleteObjectSummary =
-    deleteIntent?.mode === "filtered"
-      ? buildFilteredDeleteSummary({
-          searchValue,
-          totalCount,
-        })
-      : buildPortfolioDeleteSummary(deleteSelectionPortfolios);
+    "This uses the portfolio bulk-delete endpoint for the selected portfolio UIDs.";
+  const deleteObjectSummary = buildPortfolioDeleteSummary(deleteSelectionPortfolios);
 
   async function confirmDelete() {
     if (!deleteIntent) {
       return null;
-    }
-
-    if (deleteIntent.mode === "filtered") {
-      return deletePortfoliosMutation.mutateAsync({
-        selectAll: true,
-        currentUrl: `${location.pathname}${location.search}`,
-      });
     }
 
     return deletePortfoliosMutation.mutateAsync({
@@ -514,7 +447,7 @@ export function MainSequenceTargetPortfoliosPage() {
       <PageHeader
         eyebrow="Main Sequence Markets"
         title="Portfolios"
-        description="Browse target portfolios using the shared Main Sequence registry pattern and remove selected rows through the backend bulk-delete action."
+        description="Browse portfolios using the shared Main Sequence registry pattern and remove selected rows through the backend bulk-delete action."
         actions={<Badge variant="neutral">{`${totalCount} portfolios`}</Badge>}
       />
 
@@ -522,9 +455,9 @@ export function MainSequenceTargetPortfoliosPage() {
         <CardHeader className="border-b border-border/70">
           <div className="space-y-4">
             <div>
-              <CardTitle>Target portfolio registry</CardTitle>
+              <CardTitle>Portfolio registry</CardTitle>
               <CardDescription>
-                Browse target portfolios backed by the standard DRF list endpoint. This surface
+                Browse portfolios backed by the standard list endpoint. This surface
                 keeps the same shared search, pagination, and bulk-action patterns used across Main
                 Sequence Markets.
               </CardDescription>
@@ -535,17 +468,6 @@ export function MainSequenceTargetPortfoliosPage() {
               accessory={
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="neutral">{`${totalCount} rows`}</Badge>
-                  {searchValue.trim() && totalCount > 0 ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDeleteIntent({ mode: "filtered" })}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete filtered
-                    </Button>
-                  ) : null}
                 </div>
               }
               bulkActions={portfolioBulkActions}
@@ -554,7 +476,7 @@ export function MainSequenceTargetPortfoliosPage() {
               renderSelectionSummary={(selectionCount) => `${selectionCount} portfolios selected`}
               value={searchValue}
               onChange={(event) => updateSearch(event.target.value)}
-              placeholder="Search target portfolios"
+              placeholder="Search portfolios"
               selectionCount={portfolioSelection.selectedCount}
               searchClassName="max-w-xl"
             />
@@ -584,7 +506,7 @@ export function MainSequenceTargetPortfoliosPage() {
               </div>
               <div className="mt-4 text-sm font-medium text-foreground">No portfolios found</div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Try a different search to locate a target portfolio.
+                Try a different search to locate a portfolio.
               </p>
             </div>
           ) : null}
@@ -602,9 +524,10 @@ export function MainSequenceTargetPortfoliosPage() {
                         onChange={portfolioSelection.toggleAll}
                       />
                     </th>
-                    <th className="px-4 pb-2">Portfolio Name</th>
-                    <th className="px-4 pb-2">Creation Date</th>
-                    <th className="px-4 pb-2">Portfolio Index Ticker</th>
+                    <th className="px-4 pb-2">Portfolio</th>
+                    <th className="px-4 pb-2">Calendar</th>
+                    <th className="px-4 pb-2">Portfolio Index UID</th>
+                    <th className="px-4 pb-2">Weights Data Node</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -615,9 +538,9 @@ export function MainSequenceTargetPortfoliosPage() {
                       <tr key={portfolio.uid}>
                         <td className={getRegistryTableCellClassName(selected, "left")}>
                           <MainSequenceSelectionCheckbox
-	                            ariaLabel={`Select portfolio ${portfolio.uid}`}
-	                            checked={selected}
-	                            onChange={() => portfolioSelection.toggleSelection(portfolio.uid)}
+                            ariaLabel={`Select portfolio ${portfolio.uid}`}
+                            checked={selected}
+                            onChange={() => portfolioSelection.toggleSelection(portfolio.uid)}
                           />
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
@@ -627,8 +550,8 @@ export function MainSequenceTargetPortfoliosPage() {
                             onClick={() =>
                               updateSearchParams((nextParams) => {
                                 nextParams.set(
-	                                  mainSequenceTargetPortfolioUidParam,
-	                                  portfolio.uid,
+                                  mainSequenceTargetPortfolioUidParam,
+                                  portfolio.uid,
                                 );
                                 nextParams.set(
                                   mainSequenceTargetPortfolioTabParam,
@@ -645,27 +568,18 @@ export function MainSequenceTargetPortfoliosPage() {
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           <div className="text-foreground">
-                            {formatCreationDate(portfolio.creation_date)}
+                            {getPortfolioCalendarLabel(portfolio)}
+                          </div>
+                        </td>
+                        <td className={getRegistryTableCellClassName(selected)}>
+                          <div className="font-mono text-xs text-foreground">
+                            {getPortfolioIndexUid(portfolio)}
                           </div>
                         </td>
                         <td className={getRegistryTableCellClassName(selected, "right")}>
-                          {(() => {
-                            const assetUid = getPortfolioIndexAssetUid(portfolio);
-                            const ticker = getPortfolioIndexTicker(portfolio);
-
-                            if (assetUid === null) {
-                              return <div className="font-mono text-xs text-foreground">{ticker}</div>;
-                            }
-
-                            return (
-                              <Link
-                                to={getAssetDetailPath(assetUid)}
-                                className="font-mono text-xs text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary/80"
-                              >
-                                {ticker}
-                              </Link>
-                            );
-                          })()}
+                          <div className="font-mono text-xs text-foreground">
+                            {getPortfolioWeightsDataNodeUid(portfolio)}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -707,19 +621,14 @@ export function MainSequenceTargetPortfoliosPage() {
         }
         successToast={{
           title: (result) => {
-            const fallbackCount =
-              deleteIntent?.mode === "filtered"
-                ? totalCount
-                : (deleteIntent?.portfolios.length ?? 0);
+            const fallbackCount = deleteIntent?.portfolios.length ?? 0;
             const deletedCount = resolveDeletedCount(result, fallbackCount);
 
             return deletedCount === 1 ? "Portfolio deleted" : "Portfolios deleted";
           },
           description: (result) =>
             readDeleteDetail(result) ||
-            (deleteIntent?.mode === "filtered"
-              ? "The filtered portfolios were removed."
-              : "The selected portfolios were removed."),
+            "The selected portfolios were removed.",
           variant: "success",
         }}
       />

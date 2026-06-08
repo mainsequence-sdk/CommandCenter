@@ -811,6 +811,144 @@ function filterAssets(searchParams: URLSearchParams, body: Record<string, unknow
   );
 }
 
+function buildAssetDetail(asset: Record<string, unknown>, fallbackUid: string) {
+  const currentSnapshot = isRecord(asset.current_snapshot) ? asset.current_snapshot : {};
+  const uid = readString(asset.uid) || fallbackUid;
+  const uniqueIdentifier = readOptionalString(asset.unique_identifier);
+
+  return {
+    uid,
+    unique_identifier: uniqueIdentifier,
+    asset_type: readOptionalString(asset.asset_type) ?? readOptionalString(asset.security_type),
+    current_snapshot: {
+      time_index: readOptionalString(currentSnapshot.time_index) ?? "2026-06-08T10:30:00Z",
+      asset_identifier:
+        readOptionalString(currentSnapshot.asset_identifier) ?? uniqueIdentifier,
+      name: readOptionalString(currentSnapshot.name) ?? readOptionalString(asset.name),
+      ticker: readOptionalString(currentSnapshot.ticker) ?? readOptionalString(asset.ticker),
+      exchange_code:
+        readOptionalString(currentSnapshot.exchange_code) ?? readOptionalString(asset.exchange_code),
+      asset_ticker_group_id: currentSnapshot.asset_ticker_group_id ?? null,
+    },
+    details: readArray(asset.details),
+    trading_view: null,
+    order_form: null,
+  };
+}
+
+function buildAssetSummary(asset: Record<string, unknown>, fallbackUid: string) {
+  const detail = buildAssetDetail(asset, fallbackUid);
+  const snapshot = detail.current_snapshot;
+  const title =
+    readOptionalString(snapshot.name) ??
+    readOptionalString(snapshot.ticker) ??
+    detail.unique_identifier ??
+    detail.uid;
+  const assetType = readOptionalString(detail.asset_type);
+  const marketSector = readOptionalString(asset.security_market_sector);
+
+  return {
+    entity: {
+      id: detail.uid,
+      type: "asset",
+      title,
+    },
+    badges: [
+      ...(assetType
+        ? [
+            {
+              key: "security_type",
+              label: assetType,
+              tone: "neutral",
+            },
+          ]
+        : []),
+      ...(marketSector
+        ? [
+            {
+              key: "security_market_sector",
+              label: marketSector,
+              tone: "info",
+            },
+          ]
+        : []),
+    ],
+    inline_fields: [
+      {
+        key: "uid",
+        label: "UID",
+        value: detail.uid,
+        kind: "code",
+      },
+      {
+        key: "figi",
+        label: "FIGI",
+        value: readOptionalString(asset.figi),
+        kind: "code",
+      },
+      {
+        key: "exchange_code",
+        label: "Exchange",
+        value: snapshot.exchange_code,
+        kind: "text",
+      },
+    ],
+    highlight_fields: [
+      {
+        key: "name",
+        label: "Name",
+        value: snapshot.name,
+        kind: "text",
+        icon: "database",
+      },
+      {
+        key: "unique_identifier",
+        label: "Identifier",
+        value: detail.unique_identifier,
+        kind: "code",
+        icon: "database",
+      },
+      {
+        key: "ticker",
+        label: "Ticker",
+        value: snapshot.ticker,
+        kind: "code",
+        icon: "tag",
+      },
+    ],
+    stats: [],
+    label_management: {
+      labels: [],
+      add_label_url: null,
+      remove_label_url: null,
+    },
+    summary_warning: null,
+    extensions: {
+      asset_type: detail.asset_type,
+      is_custom_by_organization: readBoolean(asset.is_custom_by_organization),
+    },
+  };
+}
+
+function buildAssetPricingDetails(asset: Record<string, unknown>, fallbackUid: string) {
+  const detail = buildAssetDetail(asset, fallbackUid);
+
+  return {
+    asset_uid: detail.uid,
+    instrument_type: detail.asset_type ?? "unknown",
+    instrument_dump: {
+      unique_identifier: detail.unique_identifier,
+      ticker: detail.current_snapshot.ticker,
+      exchange_code: detail.current_snapshot.exchange_code,
+    },
+    pricing_details_date: detail.current_snapshot.time_index,
+    serialization_format: "json",
+    pricing_package_version: "1.0.0",
+    source: "mock",
+    metadata_json: {},
+  };
+}
+
 function buildEntitySummary(
   id: number | string,
   type: string,
@@ -923,57 +1061,49 @@ function buildProjectSummary(project: Record<string, unknown>) {
 }
 
 function buildTargetPortfolioSummary(portfolio: Record<string, unknown>) {
-  const indexAsset = (portfolio.index_asset ?? {}) as Record<string, unknown>;
-  const currentSnapshot = (indexAsset.current_snapshot ?? {}) as Record<string, unknown>;
+  const portfolioRow = buildPortfolioApiRow(portfolio);
+  const description = readString(portfolio.description);
 
   return buildEntitySummary(
-    readNumber(portfolio.id),
-    "target_portfolio",
-    readString(portfolio.portfolio_name),
+    readString(portfolioRow.uid),
+    "portfolio",
+    readString(portfolioRow.unique_identifier),
     {
+      badges: [
+        {
+          key: "portfolio_index",
+          label: readString(portfolioRow.portfolio_index_uid) ? "Indexed" : "Portfolio",
+          tone: "info",
+        },
+      ],
       inlineFields: [
         {
-          key: "creation_date",
-          label: "Created",
-          value: readString(portfolio.creation_date),
-          kind: "datetime",
+          key: "calendar_name",
+          label: "Calendar",
+          value: readString(portfolioRow.calendar_name),
+          kind: "text",
         },
         {
-          key: "index_asset",
-          label: "Index asset",
-          value: readString(currentSnapshot.name) || readString(currentSnapshot.ticker) || "Not set",
-          kind: "text",
+          key: "portfolio_index_uid",
+          label: "Portfolio Index UID",
+          value: readString(portfolioRow.portfolio_index_uid),
+          kind: "code",
         },
       ],
       highlightFields: [
         {
-          key: "strategy",
-          label: "Rebalance strategy",
-          value: readString(portfolio.rebalance_strategy_name) || "Signal-weighted allocation",
-          kind: "text",
-        },
-        {
-          key: "signal",
-          label: "Signal",
-          value: readString(portfolio.signal_name) || "Cross-asset momentum",
+          key: "unique_identifier",
+          label: "Identifier",
+          value: readString(portfolioRow.unique_identifier),
           kind: "text",
         },
       ],
-      stats: [
-        {
-          key: "positions",
-          label: "Positions",
-          display: String(readArray(portfolio.weight_rows).length),
-          value: readArray(portfolio.weight_rows).length,
-          kind: "number",
-        },
-      ],
+      stats: [],
       extra: {
-        description: readString(portfolio.description),
-        signal_name: readString(portfolio.signal_name),
-        rebalance_strategy_name: readString(portfolio.rebalance_strategy_name),
-        weight_rows: readArray(portfolio.weight_rows),
-        portfolio_weights: readArray(portfolio.weights),
+        description,
+        detail_url: `/api/v1/portfolio/${readString(portfolioRow.uid)}/`,
+        latest_weights_url: `/api/v1/portfolio/${readString(portfolioRow.uid)}/weights/`,
+        delete_url: `/api/v1/portfolio/${readString(portfolioRow.uid)}/`,
       },
     },
   );
@@ -1542,9 +1672,25 @@ function handleAssets(route: string, method: string, searchParams: URLSearchPara
     return paginate(filterAssets(searchParams, body), String(body?.limit ?? defaultPageSize), String(body?.offset ?? 0));
   }
 
+  const summaryMatch = route.match(/^\/api\/v1\/asset\/([^/]+)\/summary\/$/);
+  if (summaryMatch && method === "GET") {
+    const assetUid = summaryMatch[1] ?? "";
+    const asset = findByUid(state.assets, assetUid);
+    return buildAssetSummary(asset ?? { uid: assetUid }, assetUid);
+  }
+
+  const pricingDetailsMatch = route.match(/^\/api\/v1\/asset\/([^/]+)\/get_pricing_details\/$/);
+  if (pricingDetailsMatch && method === "GET") {
+    const assetUid = pricingDetailsMatch[1] ?? "";
+    const asset = findByUid(state.assets, assetUid);
+    return buildAssetPricingDetails(asset ?? { uid: assetUid }, assetUid);
+  }
+
   const detailMatch = route.match(/^\/api\/v1\/asset\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
-    return findByUid(state.assets, detailMatch[1] ?? "");
+    const assetUid = detailMatch[1] ?? "";
+    const asset = findByUid(state.assets, assetUid);
+    return asset ? buildAssetDetail(asset, assetUid) : null;
   }
 
   const orderFieldsMatch = route.match(/^\/api\/v1\/asset\/([^/]+)\/order-form-fields\/$/);
@@ -1859,54 +2005,146 @@ function handlePortfolioGroups(route: string, method: string, searchParams: URLS
   return undefined;
 }
 
+function buildPortfolioApiRow(portfolio: Record<string, unknown>) {
+  const indexAsset = (portfolio.index_asset ?? {}) as Record<string, unknown>;
+  const currentSnapshot = (indexAsset.current_snapshot ?? {}) as Record<string, unknown>;
+  const uid = readString(portfolio.uid) || `mock-portfolio-${readString(portfolio.id)}`;
+  const uniqueIdentifier =
+    readString(portfolio.unique_identifier) ||
+    readString(portfolio.portfolio_name) ||
+    readString(currentSnapshot.name) ||
+    uid;
+
+  return {
+    uid,
+    unique_identifier: uniqueIdentifier,
+    calendar_name: readString(portfolio.calendar_name) || "CRYPTO_24_7",
+    calendar_uid: readString(portfolio.calendar_uid) || null,
+    portfolio_index_uid:
+      readString(portfolio.portfolio_index_uid) || readString(indexAsset.uid) || null,
+    portfolio_weights_data_node_uid:
+      readString(portfolio.portfolio_weights_data_node_uid) || null,
+    signal_weights_data_node_uid: readString(portfolio.signal_weights_data_node_uid) || null,
+    portfolio_data_node_uid: readString(portfolio.portfolio_data_node_uid) || null,
+    backtest_table_price_column_name:
+      readString(portfolio.backtest_table_price_column_name) || "close",
+  };
+}
+
+function buildPortfolioWeightsApiResponse(portfolio: Record<string, unknown> | undefined) {
+  const portfolioRow = buildPortfolioApiRow(portfolio ?? {});
+  const weightsDate = readString(portfolio?.weights_date) || null;
+  const portfolioIndexIdentifier =
+    readString(portfolio?.portfolio_index_identifier) ||
+    (readString(portfolioRow.portfolio_index_uid)
+      ? `${readString(portfolioRow.unique_identifier)}-index`
+      : null);
+  const rows = readArray<Record<string, unknown>>(portfolio?.weight_rows).map((row) => {
+    const assetIdentifier =
+      readString(row.asset_identifier) ||
+      readString(row.unique_identifier) ||
+      readString(row.asset_name) ||
+      readString(row.asset_ticker);
+
+    return {
+      time_index: readString(row.time_index) || weightsDate,
+      portfolio_index_identifier: portfolioIndexIdentifier,
+      asset_identifier: assetIdentifier,
+      weight:
+        row.weight ??
+        row.weight_notional_exposure ??
+        row.position_value ??
+        null,
+      weight_before: row.weight_before ?? null,
+      price_current: row.price_current ?? null,
+      price_before: row.price_before ?? null,
+      volume_current: row.volume_current ?? null,
+      volume_before: row.volume_before ?? null,
+      asset: {
+        uid: readString(row.asset_uid) || readString(row.uid) || assetIdentifier,
+        unique_identifier: assetIdentifier,
+        current_snapshot: {
+          name: readString(row.asset_name) || assetIdentifier,
+          ticker: readString(row.asset_ticker),
+        },
+      },
+    };
+  });
+
+  return {
+    portfolio_uid: readString(portfolioRow.uid),
+    portfolio_unique_identifier: readString(portfolioRow.unique_identifier),
+    portfolio_index_uid: readString(portfolioRow.portfolio_index_uid),
+    portfolio_index_identifier: portfolioIndexIdentifier,
+    weights_date: rows.length > 0 ? weightsDate : null,
+    resolution_warning:
+      readString(portfolioRow.portfolio_index_uid) ? null : "Portfolio has no portfolio_index_uid; latest weights cannot be resolved.",
+    weights: rows,
+  };
+}
+
 function handleTargetPortfolios(route: string, method: string, searchParams: URLSearchParams) {
-  if (route === "/api/v1/target_portfolio/" && method === "GET") {
-    const filtered = state.targetPortfolios.filter((portfolio) =>
+  if (route === "/api/v1/portfolio/" && method === "GET") {
+    const filtered = state.targetPortfolios.map(buildPortfolioApiRow).filter((portfolio) =>
       matchesSearch(
         [
-          portfolio.id,
-          portfolio.portfolio_name,
-          (portfolio.index_asset as Record<string, unknown> | undefined)?.current_snapshot,
+          portfolio.uid,
+          portfolio.unique_identifier,
+          portfolio.calendar_name,
+          portfolio.portfolio_index_uid,
         ],
-        searchParams.get("search") ?? searchParams.get("index_asset__current_snapshot__name"),
+        searchParams.get("search"),
       ),
     );
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
-  if (route === "/api/v1/target_portfolio/bulk-delete/" && method === "POST") {
+  if (route === "/api/v1/portfolio/bulk-delete/" && method === "POST") {
     return {
-      detail: "Target portfolios removed from mock state.",
+      detail: "Deleted 0 portfolios from mock state.",
       deleted_count: 0,
+      failed: [],
     };
   }
 
-  const summaryMatch = route.match(/^\/api\/v1\/target_portfolio\/([^/]+)\/summary\/$/);
+  const detailMatch = route.match(/^\/api\/v1\/portfolio\/([^/]+)\/$/);
+  if (detailMatch && method === "GET") {
+    const portfolioUid = detailMatch[1] ?? "";
+    const portfolio = findByUid(state.targetPortfolios, portfolioUid) ?? { uid: portfolioUid };
+    const portfolioRow = buildPortfolioApiRow(portfolio);
+    return {
+      portfolio: portfolioRow,
+      metadata: {
+        uid: `metadata-${portfolioUid}`,
+        unique_identifier: readString(portfolioRow.unique_identifier),
+        description: readString(portfolio.description),
+      },
+      tabs: [
+        {
+          key: "latest_weights",
+          label: "Latest Weights",
+          url: `/api/v1/portfolio/${portfolioUid}/weights/?order=desc&limit=1&include_asset_detail=true`,
+        },
+      ],
+      links: {
+        summary: `/api/v1/portfolio/${portfolioUid}/summary/`,
+        latest_weights: `/api/v1/portfolio/${portfolioUid}/weights/`,
+        delete: `/api/v1/portfolio/${portfolioUid}/`,
+      },
+    };
+  }
+
+  const summaryMatch = route.match(/^\/api\/v1\/portfolio\/([^/]+)\/summary\/$/);
   if (summaryMatch && method === "GET") {
     const portfolioUid = summaryMatch[1] ?? "";
     const portfolio = findByUid(state.targetPortfolios, portfolioUid);
     return buildTargetPortfolioSummary(portfolio ?? { uid: portfolioUid, portfolio_name: `Portfolio ${portfolioUid}` });
   }
 
-  const weightsMatch = route.match(/^\/api\/v1\/target_portfolio\/([^/]+)\/weights-position-details\/$/);
+  const weightsMatch = route.match(/^\/api\/v1\/portfolio\/([^/]+)\/weights\/$/);
   if (weightsMatch && method === "GET") {
     const portfolio = findByUid(state.targetPortfolios, weightsMatch[1] ?? "");
-    return {
-      weights: readArray(portfolio?.weights),
-      position_columns: [],
-      rows: readArray(portfolio?.weight_rows),
-      columnDefs: [
-        { field: "asset_ticker", headerName: "Ticker" },
-        { field: "asset_name", headerName: "Asset" },
-        { field: "position_value", headerName: "Weight" },
-      ],
-      summaryColumnDefs: [
-        { field: "label", headerName: "Bucket" },
-        { field: "value", headerName: "Weight" },
-      ],
-      position_map: null,
-      weights_date: readString(portfolio?.weights_date) || new Date().toISOString(),
-    };
+    return buildPortfolioWeightsApiResponse(portfolio ?? undefined);
   }
 
   return undefined;
@@ -1931,13 +2169,169 @@ function handleVirtualFunds(
   searchParams: URLSearchParams,
   init?: RequestInit,
 ) {
+  const buildVirtualFundApiRow = (fund: Record<string, unknown>) => {
+    const uid = readOptionalString(fund.uid) || `virtual-fund-${readString(fund.id)}`;
+    const accountUid = readOptionalString(fund.account_uid ?? fund.account);
+    const portfolioUid = readOptionalString(fund.target_portfolio_uid ?? fund.portfolio_uid);
+    const uniqueIdentifier =
+      readOptionalString(fund.unique_identifier) ||
+      [accountUid, portfolioUid].filter(Boolean).join("__") ||
+      uid;
+
+    return {
+      uid,
+      unique_identifier: uniqueIdentifier,
+      account_uid: accountUid,
+      target_portfolio_uid: portfolioUid,
+    };
+  };
+
+  const buildVirtualFundDetail = (fundUid: string) => {
+    const fund = state.virtualFunds.find((row) => readOptionalString(row.uid) === fundUid) ?? {
+      uid: fundUid,
+    };
+    const row = buildVirtualFundApiRow(fund);
+
+    return {
+      virtual_fund: row,
+      tabs: [
+        {
+          key: "holdings",
+          label: "Holdings",
+          url: `/api/v1/virtualfund/${row.uid}/holdings/?order=desc&limit=1&include_asset_detail=true`,
+        },
+      ],
+      links: {
+        summary: `/api/v1/virtualfund/${row.uid}/summary/`,
+        holdings: `/api/v1/virtualfund/${row.uid}/holdings/`,
+        latest_holdings: `/api/v1/virtualfund/${row.uid}/holdings/`,
+        account: row.account_uid ? `/api/v1/account/${row.account_uid}/summary/` : null,
+        portfolio: row.target_portfolio_uid ? `/api/v1/portfolio/${row.target_portfolio_uid}/` : null,
+      },
+    };
+  };
+
+  const buildVirtualFundSummary = (fundUid: string) => {
+    const detail = buildVirtualFundDetail(fundUid);
+    const fund = detail.virtual_fund;
+
+    return {
+      entity: {
+        id: fund.uid,
+        type: "virtual_fund",
+        title: fund.unique_identifier,
+      },
+      badges: [],
+      inline_fields: [
+        {
+          key: "uid",
+          label: "UID",
+          value: fund.uid,
+          kind: "code",
+        },
+        {
+          key: "unique_identifier",
+          label: "Identifier",
+          value: fund.unique_identifier,
+          kind: "code",
+        },
+        {
+          key: "account_uid",
+          label: "Account UID",
+          value: fund.account_uid,
+          kind: "code",
+        },
+        {
+          key: "target_portfolio_uid",
+          label: "Portfolio UID",
+          value: fund.target_portfolio_uid,
+          kind: "code",
+        },
+      ],
+      highlight_fields: [],
+      stats: [],
+      label_management: {
+        labels: [],
+        add_label_url: null,
+        remove_label_url: null,
+      },
+      summary_warning: null,
+      extensions: {
+        detail_url: `/api/v1/virtualfund/${fund.uid}/`,
+        holdings_url: `/api/v1/virtualfund/${fund.uid}/holdings/`,
+        latest_holdings_url: `/api/v1/virtualfund/${fund.uid}/holdings/`,
+        account_summary_url: fund.account_uid ? `/api/v1/account/${fund.account_uid}/summary/` : null,
+        portfolio_detail_url: fund.target_portfolio_uid ? `/api/v1/portfolio/${fund.target_portfolio_uid}/` : null,
+      },
+    };
+  };
+
+  const buildVirtualFundHoldings = (fundUid: string) => {
+    const fund = buildVirtualFundDetail(fundUid).virtual_fund;
+    const holdingsDate = "2026-06-08T10:30:00Z";
+    const holdingsSetUid = `${fund.uid}-holdings-set`;
+    const sourceHoldingsSetUid = `${fund.account_uid ?? "account"}-holdings-set`;
+    const assetRows = state.assets.slice(0, 2);
+    const holdings = assetRows.map((asset, index) => {
+      const currentSnapshot =
+        asset.current_snapshot && typeof asset.current_snapshot === "object"
+          ? (asset.current_snapshot as Record<string, unknown>)
+          : {};
+      const uniqueIdentifier =
+        readOptionalString(asset.unique_identifier) ||
+        readOptionalString(asset.ticker) ||
+        `mock-asset-${index + 1}`;
+      const allocatedQuantity = index === 0 ? "5.0" : "2.0";
+      const direction = index === 0 ? -1 : 1;
+
+      return {
+        time_index: holdingsDate,
+        asset_identifier: uniqueIdentifier,
+        virtual_fund_holdings_set_uid: holdingsSetUid,
+        source_account_holdings_set_uid: sourceHoldingsSetUid,
+        quantity: allocatedQuantity,
+        direction,
+        signed_quantity: String(Number(allocatedQuantity) * direction),
+        target_trade_time: null,
+        extra_details: {},
+        asset: {
+          uid: readOptionalString(asset.uid) || uniqueIdentifier,
+          asset_identifier: uniqueIdentifier,
+          current_snapshot: {
+            name: readOptionalString(currentSnapshot.name) || readOptionalString(asset.name) || uniqueIdentifier,
+            ticker: readOptionalString(currentSnapshot.ticker) || readOptionalString(asset.ticker),
+          },
+        },
+      };
+    });
+
+    return {
+      virtual_fund_uid: fund.uid,
+      virtual_fund_unique_identifier: fund.unique_identifier,
+      holdings_set_uid: holdings.length > 0 ? holdingsSetUid : null,
+      source_account_holdings_set_uid: holdings.length > 0 ? sourceHoldingsSetUid : null,
+      holdings_date: holdings.length > 0 ? holdingsDate : null,
+      holdings,
+    };
+  };
+
   if (route === "/api/v1/virtualfund/" && method === "GET") {
-    const filtered = state.virtualFunds.filter((fund) =>
-      matchesSearch(
-        [fund.uid, fund.id, fund.target_portfolio_name, fund.account_name],
+    const accountUid = readOptionalString(searchParams.get("account_uid"));
+    const portfolioUid = readOptionalString(searchParams.get("portfolio_uid"));
+    const filtered = state.virtualFunds.map(buildVirtualFundApiRow).filter((fund) => {
+      if (accountUid && fund.account_uid !== accountUid) {
+        return false;
+      }
+
+      if (portfolioUid && fund.target_portfolio_uid !== portfolioUid) {
+        return false;
+      }
+
+      return matchesSearch(
+        [fund.uid, fund.unique_identifier, fund.account_uid, fund.target_portfolio_uid],
         searchParams.get("search"),
-      ),
-    );
+      );
+    });
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
@@ -1946,28 +2340,38 @@ function handleVirtualFunds(
     const record = {
       uid: readOptionalString(body?.uid) || `virtual-fund-${Date.now()}`,
       id: nextId(state.virtualFunds),
+      unique_identifier:
+        readOptionalString(body?.unique_identifier) ||
+        `${readOptionalString(body?.account_uid ?? body?.related_account ?? body?.account) ?? "account"}__${readOptionalString(body?.target_portfolio_uid ?? body?.target_portfolio) ?? "portfolio"}`,
       target_portfolio_uid: readOptionalString(body?.target_portfolio_uid ?? body?.target_portfolio) || null,
-      target_portfolio_name:
-        readString(body?.target_portfolio_name) || "Virtual Fund Portfolio",
       account_uid: readOptionalString(body?.account_uid ?? body?.related_account ?? body?.account) || null,
-      account_name: readString(body?.account_name) || "Managed Account",
       ...((body as Record<string, unknown> | null) ?? {}),
     };
     state.virtualFunds.unshift(record);
-    return record;
+    return buildVirtualFundApiRow(record);
+  }
+
+  const summaryMatch = route.match(/^\/api\/v1\/virtualfund\/([^/]+)\/summary\/$/);
+  if (summaryMatch && method === "GET") {
+    return buildVirtualFundSummary(decodeURIComponent(summaryMatch[1] ?? ""));
+  }
+
+  const holdingsMatch = route.match(/^\/api\/v1\/virtualfund\/([^/]+)\/holdings\/$/);
+  if (holdingsMatch && method === "GET") {
+    return buildVirtualFundHoldings(decodeURIComponent(holdingsMatch[1] ?? ""));
   }
 
   const detailMatch = route.match(/^\/api\/v1\/virtualfund\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
     const fundUid = decodeURIComponent(detailMatch[1]);
-    return state.virtualFunds.find((fund) => readOptionalString(fund.uid) === fundUid);
+    return buildVirtualFundDetail(fundUid);
   }
 
   if (detailMatch && method === "PATCH") {
     const fundUid = decodeURIComponent(detailMatch[1]);
     const record = state.virtualFunds.find((fund) => readOptionalString(fund.uid) === fundUid);
     Object.assign(record ?? {}, parseBody(init) ?? {});
-    return record;
+    return record ? buildVirtualFundApiRow(record) : null;
   }
 
   return undefined;
@@ -2004,6 +2408,87 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       ),
     );
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
+  }
+
+  if (route === "/api/v1/account/target-allocation/targets/" && method === "GET") {
+    const targetType = readOptionalString(searchParams.get("target_type")) ?? "all";
+    const assetTargets = state.assets.map((asset) => {
+      const currentSnapshot =
+        asset.current_snapshot && typeof asset.current_snapshot === "object"
+          ? (asset.current_snapshot as Record<string, unknown>)
+          : null;
+      const assetUid = readOptionalString(asset.uid) ?? readOptionalString(asset.unique_identifier) ?? "";
+      const identifier = readOptionalString(asset.unique_identifier) ?? assetUid;
+      const displayLabel =
+        readOptionalString(currentSnapshot?.name) ??
+        readOptionalString(asset.name) ??
+        identifier;
+      const secondaryLabel =
+        readOptionalString(currentSnapshot?.ticker) ??
+        readOptionalString(asset.ticker);
+
+      return {
+        target_type: "asset",
+        target_uid: assetUid,
+        asset_uid: assetUid,
+        portfolio_uid: null,
+        identifier,
+        display_label: displayLabel,
+        secondary_label: secondaryLabel,
+        current_snapshot: currentSnapshot
+          ? {
+              name: readOptionalString(currentSnapshot.name) ?? displayLabel,
+              ticker: readOptionalString(currentSnapshot.ticker) ?? secondaryLabel,
+            }
+          : null,
+        metadata: {
+          asset_type:
+            readOptionalString(asset.asset_type) ??
+            readOptionalString(asset.security_type) ??
+            null,
+        },
+      };
+    });
+    const portfolioTargets = state.targetPortfolios.map((portfolio) => {
+      const portfolioUid = readOptionalString(portfolio.uid) ?? readOptionalString(portfolio.unique_identifier) ?? "";
+      const identifier = readOptionalString(portfolio.unique_identifier) ?? portfolioUid;
+
+      return {
+        target_type: "portfolio",
+        target_uid: portfolioUid,
+        asset_uid: null,
+        portfolio_uid: portfolioUid,
+        identifier,
+        display_label:
+          readOptionalString(portfolio.display_name) ??
+          readOptionalString(portfolio.portfolio_name) ??
+          identifier,
+        secondary_label: null,
+        current_snapshot: null,
+        metadata: {
+          portfolio_index_uid: readOptionalString(portfolio.portfolio_index_uid),
+        },
+      };
+    });
+    const targets = [
+      ...(targetType === "all" || targetType === "asset" ? assetTargets : []),
+      ...(targetType === "all" || targetType === "portfolio" ? portfolioTargets : []),
+    ].filter((target) =>
+      matchesSearch(
+        [
+          target.target_type,
+          target.target_uid,
+          target.asset_uid,
+          target.portfolio_uid,
+          target.identifier,
+          target.display_label,
+          target.secondary_label,
+        ],
+        searchParams.get("search"),
+      ),
+    );
+
+    return paginate(targets, searchParams.get("limit"), searchParams.get("offset"));
   }
 
   const detailMatch = route.match(/^\/api\/v1\/account\/([^/]+)\/$/);
@@ -2098,6 +2583,95 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     };
   }
 
+  const holdingsByFundMatch = route.match(/^\/api\/v1\/account\/([^/]+)\/holdings\/by-fund\/$/);
+
+  if (holdingsByFundMatch && method === "GET") {
+    const accountUid = decodeURIComponent(holdingsByFundMatch[1]);
+    const account = findManagedAccountByUid(accountUid);
+    const holdingsDate = searchParams.get("holdings_date") || "2026-05-18T09:30:00Z";
+    const sourceHoldingsSetUid = `mock-holdings-set-${accountUid}`;
+    const relatedFunds = state.virtualFunds.filter(
+      (fund) => readOptionalString(fund.account_uid) === accountUid,
+    );
+    const fallbackFunds =
+      relatedFunds.length > 0
+        ? relatedFunds
+        : state.virtualFunds.slice(0, account ? 1 : 0);
+    const assetRows = state.assets.slice(0, Math.max(fallbackFunds.length, 1));
+
+    if (!account) {
+      return {
+        account_uid: accountUid,
+        source_account_holdings_set_uid: null,
+        holdings_date: null,
+        funds: [],
+        residuals: [],
+        allocation_warnings: [],
+      };
+    }
+
+    return {
+      account_uid: accountUid,
+      source_account_holdings_set_uid: sourceHoldingsSetUid,
+      holdings_date: holdingsDate,
+      funds: fallbackFunds.map((fund, index) => {
+        const asset = assetRows.length > 0 ? assetRows[index % assetRows.length] : undefined;
+        const currentSnapshot =
+          asset?.current_snapshot && typeof asset.current_snapshot === "object"
+            ? (asset.current_snapshot as Record<string, unknown>)
+            : {};
+        const assetIdentifier =
+          readOptionalString(asset?.unique_identifier) ||
+          readOptionalString(asset?.ticker) ||
+          `mock-asset-${index + 1}`;
+        const holdingsSetUid = `mock-fund-holdings-${readOptionalString(fund.uid) || index + 1}`;
+
+        return {
+          virtual_fund_uid: readOptionalString(fund.uid) || `mock-fund-${index + 1}`,
+          virtual_fund_unique_identifier:
+            readOptionalString(fund.unique_identifier) || `mock-fund-${index + 1}`,
+          target_portfolio_uid: readOptionalString(fund.target_portfolio_uid),
+          holdings_set_uid: holdingsSetUid,
+          holdings: [
+            {
+              time_index: holdingsDate,
+              asset_identifier: assetIdentifier,
+              asset: {
+                uid: readOptionalString(asset?.uid) || assetIdentifier,
+                asset_identifier: assetIdentifier,
+                current_snapshot: {
+                  name:
+                    readOptionalString(currentSnapshot.name) ||
+                    readOptionalString(asset?.name) ||
+                    assetIdentifier,
+                  ticker: readOptionalString(currentSnapshot.ticker) || readOptionalString(asset?.ticker),
+                },
+              },
+              quantity: String(10 + index),
+              direction: 1,
+              signed_quantity: String(10 + index),
+              target_trade_time: null,
+              extra_details: {
+                position_set_uid: `mock-target-position-set-${accountUid}`,
+                target_row_key: `mock-row-${index + 1}`,
+                target_gap_signed_quantity: "0.0",
+                scale: "1.0",
+              },
+              allocation: {
+                position_set_uid: `mock-target-position-set-${accountUid}`,
+                target_row_key: `mock-row-${index + 1}`,
+                target_gap_signed_quantity: "0.0",
+                scale: "1.0",
+              },
+            },
+          ],
+        };
+      }),
+      residuals: [],
+      allocation_warnings: [],
+    };
+  }
+
   const holdingsMatch = route.match(/^\/api\/v1\/account\/([^/]+)\/holdings\/$/);
 
   if (holdingsMatch && method === "GET") {
@@ -2105,36 +2679,50 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
     const account = findManagedAccountByUid(accountUid);
 
     if (!account) {
-      return [];
+      return {
+        holdings_set_uid: null,
+        holdings_date: null,
+        holdings: [],
+      };
     }
 
     const holdingsDate = searchParams.get("holdings_date") || "2026-05-18T09:30:00Z";
+    const asset = state.assets[0];
+    const currentSnapshot =
+      asset?.current_snapshot && typeof asset.current_snapshot === "object"
+        ? (asset.current_snapshot as Record<string, unknown>)
+        : {};
+    const assetIdentifier =
+      readOptionalString(asset?.unique_identifier) ||
+      readOptionalString(asset?.ticker) ||
+      "btc_spot";
 
-    return [
-      {
-        id: 0,
-        snapshot_uid: `mock-holdings-snapshot-${accountUid}`,
-        holdings_set_uid: `mock-holdings-set-${accountUid}`,
-        holdings_date: holdingsDate,
-        nav: "1250.25000000",
-        related_account: 0,
-        is_trade_snapshot: false,
-        target_trade_time: null,
-        related_expected_asset_exposure_df: [],
-        holdings: [
-          {
-            time_index: holdingsDate,
-            unique_identifier: "btc_spot",
-            asset: 101,
-            asset_id: 101,
-            price: "100.000000000000000000",
-            quantity: "12.00000000",
-            missing_price: false,
-            extra_details: {},
+    return {
+      holdings_set_uid: `mock-holdings-set-${accountUid}`,
+      holdings_date: holdingsDate,
+      holdings: [
+        {
+          time_index: holdingsDate,
+          asset_identifier: assetIdentifier,
+          asset: {
+            uid: readOptionalString(asset?.uid) || assetIdentifier,
+            asset_identifier: assetIdentifier,
+            current_snapshot: {
+              name: readOptionalString(currentSnapshot.name) || readOptionalString(asset?.name) || assetIdentifier,
+              ticker: readOptionalString(currentSnapshot.ticker) || readOptionalString(asset?.ticker),
+            },
           },
-        ],
-      },
-    ];
+          quantity: "12.00000000",
+          direction: 1,
+          signed_quantity: "12.00000000",
+          target_trade_time: holdingsDate,
+          extra_details: {},
+          position_type: "units",
+          price: null,
+          missing_price: true,
+        },
+      ],
+    };
   }
 
   const addHoldingsMatch = route.match(/^\/api\/v1\/account\/([^/]+)\/add-holdings\/$/);
@@ -2149,20 +2737,54 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       return {};
     }
 
+    const holdingsDate = readString(body.holdings_date) || new Date().toISOString();
+
     return {
-      related_account: 0,
-      holdings_date: readString(body.holdings_date) || new Date().toISOString(),
+      holdings_date: holdingsDate,
       holdings_set_uid: `mock-holdings-set-${accountUid}`,
-      positions: positions.map((position) => ({
-        unique_identifier: readString(position.unique_identifier) || null,
-        asset_uid: readString(position.asset_uid) || null,
-        position_type: readString(position.position_type) || "units",
-        quantity: readString(position.quantity) || "0",
-        direction: readNumber(position.direction) < 0 ? -1 : 1,
-        target_trade_time: readString(position.target_trade_time) || null,
-        extra_details:
-          isRecord(position.extra_details) ? position.extra_details : {},
-      })),
+      holdings: positions.map((position) => {
+        const assetIdentifier =
+          readString(position.asset_identifier) ||
+          readString(position.unique_identifier) ||
+          null;
+        const assetUid = readString(position.asset_uid) || null;
+        const asset = assetUid
+          ? state.assets.find((candidate) => readString(candidate.uid) === assetUid) ?? null
+          : assetIdentifier
+            ? findAssetByUniqueIdentifier(assetIdentifier)
+            : null;
+        const currentSnapshot =
+          asset?.current_snapshot && typeof asset.current_snapshot === "object"
+            ? (asset.current_snapshot as Record<string, unknown>)
+            : {};
+        const quantity = readString(position.quantity) || "0";
+        const direction = readNumber(position.direction) < 0 ? -1 : 1;
+
+        return {
+          time_index: holdingsDate,
+          asset_identifier: assetIdentifier,
+          asset: asset
+            ? {
+                uid: readString(asset.uid) || assetUid,
+                asset_identifier:
+                  readString(asset.unique_identifier) || assetIdentifier,
+                current_snapshot: {
+                  name: readString(currentSnapshot.name) || readString(asset.name) || assetIdentifier,
+                  ticker: readString(currentSnapshot.ticker) || readString(asset.ticker),
+                },
+              }
+            : null,
+          quantity,
+          direction,
+          signed_quantity: String(Number(quantity) * direction),
+          target_trade_time: readString(position.target_trade_time) || null,
+          extra_details:
+            isRecord(position.extra_details) ? position.extra_details : {},
+          position_type: readString(position.position_type) || "units",
+          price: null,
+          missing_price: true,
+        };
+      }),
     };
   }
 
@@ -2200,7 +2822,12 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       }
 
       const uniqueIdentifier = readOptionalString(position.unique_identifier);
-      const asset = uniqueIdentifier ? findAssetByUniqueIdentifier(uniqueIdentifier) : null;
+      const assetUid = readOptionalString(position.asset_uid);
+      const asset = assetUid
+        ? state.assets.find((candidate) => readString(candidate.uid) === assetUid) ?? null
+        : uniqueIdentifier
+          ? findAssetByUniqueIdentifier(uniqueIdentifier)
+          : null;
       return {
         ...position,
         asset: asset ? cloneValue(asset) : null,
@@ -2230,6 +2857,14 @@ function handleManagedAccounts(route: string, method: string, searchParams: URLS
       target_positions_date: readString(body.target_positions_date) || new Date().toISOString(),
       position_set_uid: `mock-target-positions-set-${accountUid}-${Date.now()}`,
       positions: positions.map((position) => ({
+        target_type: readString(position.target_type) || "asset",
+        target_uid:
+          readString(position.target_uid) ||
+          readString(position.asset_uid) ||
+          readString(position.portfolio_uid) ||
+          null,
+        asset_uid: readString(position.asset_uid) || null,
+        portfolio_uid: readString(position.portfolio_uid) || null,
         unique_identifier: readString(position.unique_identifier) || null,
         weight_notional_exposure:
           readString(position.weight_notional_exposure) || null,

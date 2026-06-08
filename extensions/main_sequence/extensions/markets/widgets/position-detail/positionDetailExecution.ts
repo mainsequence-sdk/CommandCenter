@@ -149,7 +149,7 @@ export async function executePositionDetailWidget(
             : sourceType === "account"
               ? "Unable to load account holdings."
               : sourceType === "target_positions_account"
-                ? "Unable to load account target positions."
+                ? "Unable to load account target allocations."
               : "Unable to load position details.",
         targetPortfolioUid: sourceType === "portfolio" ? targetPortfolioUid : undefined,
         accountUid:

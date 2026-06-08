@@ -616,9 +616,15 @@ function safeFormatPositionDetailJson(value: unknown) {
 }
 
 function buildAccountHoldingExpandedRecord(row: Record<string, unknown>) {
-  const uniqueIdentifier =
-    typeof row.unique_identifier === "string" && row.unique_identifier.trim()
+  const assetIdentifier =
+    typeof row.asset_identifier === "string" && row.asset_identifier.trim()
+      ? row.asset_identifier.trim()
+      : typeof row.unique_identifier === "string" && row.unique_identifier.trim()
       ? row.unique_identifier.trim()
+      : null;
+  const assetUid =
+    typeof row.asset_uid === "string" && row.asset_uid.trim()
+      ? row.asset_uid.trim()
       : null;
   const timeIndex =
     typeof row.time_index === "string" && row.time_index.trim()
@@ -626,11 +632,27 @@ function buildAccountHoldingExpandedRecord(row: Record<string, unknown>) {
       : typeof row.date === "string" && row.date.trim()
         ? row.date.trim()
         : null;
+  const positionType =
+    typeof row.position_type === "string" && row.position_type.trim()
+      ? row.position_type.trim()
+      : "units";
   const price =
     typeof row.price === "string" || typeof row.price === "number" ? row.price : null;
   const quantity =
     typeof row.quantity === "string" || typeof row.quantity === "number"
       ? row.quantity
+      : typeof row.position_value === "string" || typeof row.position_value === "number"
+        ? row.position_value
+        : null;
+  const direction =
+    typeof row.direction === "number"
+      ? row.direction
+      : typeof row.direction === "string" && row.direction.trim()
+        ? Number(row.direction)
+        : null;
+  const signedQuantity =
+    typeof row.signed_quantity === "string" || typeof row.signed_quantity === "number"
+      ? row.signed_quantity
       : typeof row.position_value === "string" || typeof row.position_value === "number"
         ? row.position_value
         : null;
@@ -640,6 +662,7 @@ function buildAccountHoldingExpandedRecord(row: Record<string, unknown>) {
       : isRecord(row.asset)
         ? row.asset
         : null;
+  const missingPrice = typeof row.missing_price === "boolean" ? row.missing_price : undefined;
   const targetTradeTime =
     typeof row.target_trade_time === "string" && row.target_trade_time.trim()
       ? row.target_trade_time.trim()
@@ -648,42 +671,95 @@ function buildAccountHoldingExpandedRecord(row: Record<string, unknown>) {
     isRecord(row.extra_details) || Array.isArray(row.extra_details) ? row.extra_details : undefined;
 
   return {
-    ...(uniqueIdentifier ? { unique_identifier: uniqueIdentifier } : {}),
+    ...(assetIdentifier ? { asset_identifier: assetIdentifier } : {}),
+    ...(assetUid ? { asset_uid: assetUid } : {}),
     ...(timeIndex ? { time_index: timeIndex } : {}),
+    position_type: positionType,
     ...(price !== null ? { price } : {}),
     ...(quantity !== null ? { quantity } : {}),
+    ...(direction !== null && Number.isFinite(direction) ? { direction } : {}),
+    ...(signedQuantity !== null ? { signed_quantity: signedQuantity } : {}),
+    ...(missingPrice !== undefined ? { missing_price: missingPrice } : {}),
     ...(targetTradeTime ? { target_trade_time: targetTradeTime } : {}),
     ...(extraDetails !== undefined ? { extra_details: extraDetails } : {}),
     ...(asset !== null ? { asset } : {}),
   };
 }
 
-function buildTargetPositionsAccountExpandedRecord(row: Record<string, unknown>) {
+export function buildTargetPositionsAccountExpandedRecord(row: Record<string, unknown>) {
   const uniqueIdentifier =
     typeof row.unique_identifier === "string" && row.unique_identifier.trim()
       ? row.unique_identifier.trim()
       : null;
-  const asset =
-    typeof row.asset === "number"
-      ? row.asset
-      : isRecord(row.asset)
-        ? row.asset
-        : null;
+  const targetType =
+    typeof row.target_type === "string" && row.target_type.trim()
+      ? row.target_type.trim()
+      : row.portfolio_uid
+        ? "portfolio"
+        : "asset";
+  const assetUid =
+    typeof row.asset_uid === "string" && row.asset_uid.trim()
+      ? row.asset_uid.trim()
+      : null;
+  const portfolioUid =
+    typeof row.portfolio_uid === "string" && row.portfolio_uid.trim()
+      ? row.portfolio_uid.trim()
+      : null;
+  const targetUid =
+    typeof row.target_uid === "string" && row.target_uid.trim()
+      ? row.target_uid.trim()
+      : targetType === "portfolio"
+        ? portfolioUid
+        : assetUid;
   const positionType = getPositionDetailPositionRowType(row);
-  const rawValue =
+  const weightNotionalExposure =
     row.weight_notional_exposure ??
+    (positionType === "weight_notional_exposure" ? row.position_value : null);
+  const constantNotionalExposure =
     row.constant_notional_exposure ??
+    (positionType === "constant_notional" ? row.position_value : null);
+  const singleAssetQuantity =
     row.single_asset_quantity ??
-    row.position_value;
+    (positionType === "units" ? row.position_value : null);
 
   return {
-    ...(uniqueIdentifier ? { unique_identifier: uniqueIdentifier } : {}),
-    ...(positionType === "weight_notional_exposure"
-      ? { weight_notional_exposure: rawValue }
-      : positionType === "constant_notional"
-        ? { constant_notional_exposure: rawValue }
-        : { single_asset_quantity: rawValue }),
-    ...(asset !== null ? { asset } : {}),
+    target_type: targetType,
+    target_uid: targetUid,
+    asset_uid: assetUid,
+    portfolio_uid: portfolioUid,
+    unique_identifier: uniqueIdentifier,
+    weight_notional_exposure: weightNotionalExposure,
+    constant_notional_exposure: constantNotionalExposure,
+    single_asset_quantity: singleAssetQuantity,
+    asset: isRecord(row.asset) ? row.asset : null,
+    portfolio: isRecord(row.portfolio) ? row.portfolio : null,
+  };
+}
+
+function isVirtualFundHoldingDisplayRow(row: Record<string, unknown>) {
+  return Boolean(
+    row.virtual_fund_uid ||
+      row.virtual_fund_unique_identifier ||
+      row.virtual_fund_holdings_set_uid ||
+      row.source_account_holdings_set_uid,
+  );
+}
+
+function buildVirtualFundHoldingExpandedRecord(row: Record<string, unknown>) {
+  const baseHolding = buildAccountHoldingExpandedRecord(row);
+  const virtualFundHoldingsSetUid =
+    typeof row.virtual_fund_holdings_set_uid === "string" && row.virtual_fund_holdings_set_uid.trim()
+      ? row.virtual_fund_holdings_set_uid.trim()
+      : null;
+  const sourceAccountHoldingsSetUid =
+    typeof row.source_account_holdings_set_uid === "string" && row.source_account_holdings_set_uid.trim()
+      ? row.source_account_holdings_set_uid.trim()
+      : null;
+
+  return {
+    ...baseHolding,
+    virtual_fund_holdings_set_uid: virtualFundHoldingsSetUid,
+    source_account_holdings_set_uid: sourceAccountHoldingsSetUid,
   };
 }
 
@@ -826,8 +902,11 @@ function PositionDetailPositionExpandedContent({
   row: Record<string, unknown>;
   sourceType?: PositionDetailSourceType;
 }) {
+  const isVirtualFundHolding = isVirtualFundHoldingDisplayRow(row);
   const formattedJson = safeFormatPositionDetailJson(
-    sourceType === "account"
+    sourceType === "account" && isVirtualFundHolding
+      ? buildVirtualFundHoldingExpandedRecord(row)
+      : sourceType === "account"
       ? buildAccountHoldingExpandedRecord(row)
       : sourceType === "target_positions_account"
         ? buildTargetPositionsAccountExpandedRecord(row)
@@ -837,10 +916,12 @@ function PositionDetailPositionExpandedContent({
   return (
     <div className="overflow-hidden rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/50">
       <div className="border-b border-border/60 px-3 py-2 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-        {sourceType === "account"
+        {sourceType === "account" && isVirtualFundHolding
+          ? "Virtual Fund Holding JSON"
+          : sourceType === "account"
           ? "Holding JSON"
           : sourceType === "target_positions_account"
-            ? "Target Position JSON"
+            ? "Target Allocation JSON"
             : "Position JSON"}
       </div>
       <pre className="overflow-x-auto px-3 py-3 font-mono text-[12px] leading-5 text-foreground whitespace-pre-wrap break-words">

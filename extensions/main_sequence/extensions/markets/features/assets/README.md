@@ -5,21 +5,21 @@ This feature owns the Main Sequence Markets asset registry screen and the asset 
 ## Entry Points
 
 - `MainSequenceAssetsPage.tsx`: URL-driven asset list surface with shared registry search and click-through navigation into the asset detail state.
-- `MainSequenceAssetDetailView.tsx`: URL-selected asset detail screen with a synthesized summary card, tabbed metadata, TradingView, pricing-details sections, and order-field helper flows.
+- `MainSequenceAssetDetailView.tsx`: URL-selected asset detail screen with the backend summary card, canonical detail tab, and pricing-details tab.
 
 ## API Dependencies
 
 - `GET /api/v1/asset/` with `response_format=frontend_list` for the default list flow.
 - `GET /api/v1/asset/{uid}/` with `response_format=frontend_detail` for the asset detail screen.
+- `GET /api/v1/asset/{uid}/summary/` for the reusable detail summary card.
 - `GET /api/v1/asset/{uid}/get_pricing_details/` for the pricing-details tab on asset detail.
-- `GET /api/v1/asset/{uid}/order-form-fields/?order_type=...` for the order drawer field helper.
 
 ## Rules
 
 - Keep screen params URL-backed so filtered asset views are refresh-safe and linkable.
 - Keep transport logic in `extensions/main_sequence/common/api/index.ts`.
 - Use namespaced query params such as `msAssetUid` and `msAssetTab` for detail state.
-- Asset rows should open the detail view directly from the registry instead of acting as a read-only static table.
+- Asset rows should open the detail view directly from the registry and keep a visible details affordance in the list.
 - Strip unsupported asset-specific filter params from the URL on load so this screen stays aligned with the rest of Main Sequence.
-- Do not issue a collection-level asset summary request unless the Markets backend exposes a supported summary endpoint again.
-- Treat order submission as out of scope here; this feature only migrates detail data, the synthesized summary card, the pricing-details tab, and the dynamic order-form helper.
+- Render the detail header from `GET /api/v1/asset/{uid}/summary/` through `MainSequenceEntitySummaryCard`.
+- Treat order submission, TradingView actions, and order-form helpers as out of scope until the asset detail contract exposes active data for those surfaces again.

@@ -11,6 +11,7 @@ import { MarkdownContent } from "@/components/ui/markdown-content";
 import { PageHeader } from "@/components/ui/page-header";
 
 import {
+  fetchTargetPortfolioDetail,
   fetchTargetPositionDetailPositionDetails,
   fetchTargetPortfolioSummary,
   formatMainSequenceError,
@@ -23,7 +24,6 @@ import {
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import {
   formatPositionDetailCellValue,
-  normalizePositionDetailSummaryRows,
   PositionDetailPositionSummaryStrip,
   PositionDetailTable,
 } from "../../widgets/position-detail/PositionDetailTable";
@@ -43,22 +43,12 @@ export function isTargetPortfolioDetailTabId(
   return targetPortfolioDetailTabs.some((tab) => tab.id === value);
 }
 
-function getPortfolioIndexAsset(row: TargetPortfolioListRow | null) {
-  if (!row) {
-    return null;
-  }
-
-  return row.index_asset ?? row.portfolio_index_asset ?? null;
-}
-
 function getPortfolioName(row: TargetPortfolioListRow | null) {
-  const name = getPortfolioIndexAsset(row)?.current_snapshot?.name;
-  return typeof name === "string" && name.trim() ? name.trim() : "";
+  return readTrimmedString(row?.unique_identifier) ?? "";
 }
 
-function getPortfolioTicker(row: TargetPortfolioListRow | null) {
-  const ticker = getPortfolioIndexAsset(row)?.current_snapshot?.ticker;
-  return typeof ticker === "string" && ticker.trim() ? ticker.trim() : "";
+function getPortfolioIndexUid(row: TargetPortfolioListRow | null) {
+  return readTrimmedString(row?.portfolio_index_uid) ?? "";
 }
 
 function readTrimmedString(value: unknown) {
@@ -76,10 +66,6 @@ function getTargetPortfolioDetailContent(summary: TargetPortfolioSummaryResponse
 
   return {
     description: readTrimmedString(extensions?.description),
-    signalName: readTrimmedString(extensions?.signal_name),
-    signalDescription: readTrimmedString(extensions?.signal_description),
-    rebalanceStrategyName: readTrimmedString(extensions?.rebalance_strategy_name),
-    rebalanceStrategyDescription: readTrimmedString(extensions?.rebalance_strategy_description),
   };
 }
 
@@ -141,19 +127,19 @@ function buildFallbackPortfolioSummary(
   }
 
   const portfolioName = getPortfolioName(portfolio);
-  const creationDate = portfolio.creation_date?.trim() || "";
-  const indexTicker = getPortfolioTicker(portfolio);
+  const calendarName = readTrimmedString(portfolio.calendar_name);
+  const indexUid = getPortfolioIndexUid(portfolio);
 
   return {
     entity: {
       id: portfolioUid,
-      type: "target_portfolio",
+      type: "portfolio",
       title: portfolioName || `Portfolio ${portfolioUid}`,
     },
     badges: [
       {
         key: "portfolio-type",
-        label: "Target Portfolio",
+        label: indexUid ? "Indexed" : "Portfolio",
         tone: "neutral",
       },
     ],
@@ -164,12 +150,12 @@ function buildFallbackPortfolioSummary(
         value: portfolioUid,
         kind: "code",
       },
-      ...(creationDate
+      ...(calendarName
         ? [
             {
-              key: "creation_date",
-              label: "Created",
-              value: creationDate,
+              key: "calendar_name",
+              label: "Calendar",
+              value: calendarName,
               kind: "text" as const,
             },
           ]
@@ -177,15 +163,15 @@ function buildFallbackPortfolioSummary(
     ],
     highlight_fields: [
       {
-        key: "portfolio_name",
+        key: "unique_identifier",
         label: "Portfolio",
         value: portfolioName || "Not available",
         kind: "text",
       },
       {
-        key: "index_asset_ticker",
-        label: "Index Asset",
-        value: indexTicker || "Not available",
+        key: "portfolio_index_uid",
+        label: "Portfolio Index UID",
+        value: indexUid || "Not available",
         kind: "text",
       },
     ],
@@ -217,31 +203,32 @@ export function MainSequenceTargetPortfolioDetailView({
     queryFn: () => fetchTargetPortfolioSummary(portfolioUid),
     enabled: Boolean(portfolioUid),
   });
+  const portfolioDetailQuery = useQuery({
+    queryKey: ["main_sequence", "target_portfolios", "detail", portfolioUid],
+    queryFn: () => fetchTargetPortfolioDetail(portfolioUid),
+    enabled: Boolean(portfolioUid) && selectedTabId === "detail",
+  });
 
   const summary = useMemo(() => {
     const rawSummary = portfolioSummaryQuery.data ?? fallbackSummary;
     return rawSummary ? normalizePortfolioSummary(rawSummary) : null;
   }, [fallbackSummary, portfolioSummaryQuery.data]);
-  const detailContent = useMemo(
-    () => getTargetPortfolioDetailContent(portfolioSummaryQuery.data ?? null),
-    [portfolioSummaryQuery.data],
-  );
+  const detailContent = useMemo(() => {
+    const summaryDetail = getTargetPortfolioDetailContent(portfolioSummaryQuery.data ?? null);
+    const detailDescription = readTrimmedString(portfolioDetailQuery.data?.metadata?.description);
+
+    return {
+      description: detailDescription ?? summaryDetail.description,
+    };
+  }, [portfolioDetailQuery.data, portfolioSummaryQuery.data]);
   const weightsDetailsQuery = useQuery({
     queryKey: ["main_sequence", "target_portfolios", "weights_position_details", portfolioUid],
     queryFn: () => fetchTargetPositionDetailPositionDetails(portfolioUid),
     enabled: Boolean(portfolioUid) && selectedTabId === "weights",
   });
   const weightRows = weightsDetailsQuery.data?.rows ?? [];
-  const weightSummaryRows = useMemo(
-    () => normalizePositionDetailSummaryRows(weightsDetailsQuery.data?.weights ?? null),
-    [weightsDetailsQuery.data?.weights],
-  );
   const hasDetailContent = Boolean(
-    detailContent.description ||
-      detailContent.signalName ||
-      detailContent.signalDescription ||
-      detailContent.rebalanceStrategyName ||
-      detailContent.rebalanceStrategyDescription,
+    detailContent.description,
   );
   const portfolioTitle =
     summary?.entity.title?.trim() ||
@@ -253,7 +240,7 @@ export function MainSequenceTargetPortfolioDetailView({
       <PageHeader
         eyebrow="Main Sequence Markets"
         title={portfolioTitle}
-        description="Review the canonical target portfolio summary."
+        description="Review the canonical portfolio summary."
         actions={
           <Button type="button" variant="outline" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
@@ -313,10 +300,15 @@ export function MainSequenceTargetPortfolioDetailView({
         </CardHeader>
         <CardContent className="pt-5">
           {selectedTabId === "detail" ? (
-            portfolioSummaryQuery.isLoading && !portfolioSummaryQuery.data ? (
+            (portfolioSummaryQuery.isLoading && !portfolioSummaryQuery.data) ||
+            portfolioDetailQuery.isLoading ? (
               <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
                 <Loader2 className="mr-3 h-4 w-4 animate-spin" />
                 Loading portfolio details
+              </div>
+            ) : portfolioDetailQuery.isError ? (
+              <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                {formatMainSequenceError(portfolioDetailQuery.error)}
               </div>
             ) : hasDetailContent ? (
               <div className="space-y-4">
@@ -330,48 +322,6 @@ export function MainSequenceTargetPortfolioDetailView({
                     </CardHeader>
                     <CardContent className="pt-0">
                       <MarkdownContent content={detailContent.description} />
-                    </CardContent>
-                  </Card>
-                ) : null}
-
-                {detailContent.signalName || detailContent.signalDescription ? (
-                  <Card variant="nested">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">
-                        {detailContent.signalName || "Signal"}
-                      </CardTitle>
-                      <CardDescription>Signal metadata attached to this portfolio.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      {detailContent.signalDescription ? (
-                        <MarkdownContent content={detailContent.signalDescription} />
-                      ) : (
-                        <div className="text-sm text-muted-foreground">
-                          No signal description was returned.
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ) : null}
-
-                {detailContent.rebalanceStrategyName || detailContent.rebalanceStrategyDescription ? (
-                  <Card variant="nested">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">
-                        {detailContent.rebalanceStrategyName || "Rebalance strategy"}
-                      </CardTitle>
-                      <CardDescription>
-                        Rebalance strategy metadata from the summary endpoint.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      {detailContent.rebalanceStrategyDescription ? (
-                        <MarkdownContent content={detailContent.rebalanceStrategyDescription} />
-                      ) : (
-                        <div className="text-sm text-muted-foreground">
-                          No rebalance strategy description was returned.
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
                 ) : null}
@@ -418,49 +368,14 @@ export function MainSequenceTargetPortfolioDetailView({
                     </div>
                   </CardContent>
                 </Card>
-                {weightSummaryRows.length > 0 ? (
-                  <Card variant="nested" className="min-w-[220px]">
-                    <CardContent className="pt-5">
-                      <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                        Weight Entries
-                      </div>
-                      <div className="mt-2 text-sm font-medium text-foreground">
-                        {weightSummaryRows.length.toLocaleString()}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : null}
               </div>
-
-              {weightSummaryRows.length > 0 ? (
-                <Card variant="nested">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Weights Summary</CardTitle>
-                    <CardDescription>
-                      Summary rows returned by the weights-position-details endpoint.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <PositionDetailTable
-                      columnDefs={weightsDetailsQuery.data?.summaryColumnDefs ?? []}
-                      rows={weightSummaryRows}
-                      expandableAssetRows
-                      sourceType="portfolio"
-                      positionMap={weightsDetailsQuery.data?.position_map ?? null}
-                      emptyMessage="No summary weight rows were returned."
-                      emptyTitle="No summary rows"
-                      tableMinWidth={680}
-                    />
-                  </CardContent>
-                </Card>
-              ) : null}
 
               {weightRows.length > 0 ? (
                 <Card variant="nested">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Position Details</CardTitle>
                     <CardDescription>
-                      Detailed rows returned by the weights-position-details endpoint.
+                      Detailed rows returned by the portfolio weights endpoint.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
@@ -479,9 +394,10 @@ export function MainSequenceTargetPortfolioDetailView({
                 </Card>
               ) : null}
 
-              {weightSummaryRows.length === 0 && weightRows.length === 0 ? (
+              {weightRows.length === 0 ? (
                 <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/32 px-4 py-10 text-center text-sm text-muted-foreground">
-                  No weights were returned for this portfolio.
+                  {weightsDetailsQuery.data?.resolution_warning ||
+                    "No weights were returned for this portfolio."}
                 </div>
               ) : null}
             </div>

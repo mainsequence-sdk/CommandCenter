@@ -1,37 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowUpRight, LineChart, Loader2, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
-import { Textarea } from "@/components/ui/textarea";
 
 import {
   fetchAssetDetail,
-  fetchAssetOrderFormFields,
   fetchAssetPricingDetails,
+  fetchAssetSummary,
   formatMainSequenceError,
+  type AssetCurrentSnapshot,
   type AssetDetailField,
   type AssetDetailResponse,
   type AssetListRow,
   type AssetPricingDetailsResponse,
-  type AssetOrderFormConfig,
-  type AssetOrderFormField,
-  type AssetOrderFormFieldChoice,
-  type AssetTradingViewAlert,
-  type AssetTradingViewConfig,
   type EntitySummaryHeader,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 
 export const assetDetailTabs = [
-  { id: "metadata", label: "Metadata" },
-  { id: "trading-view", label: "TradingView" },
+  { id: "details", label: "Details" },
   { id: "pricing-details", label: "Pricing Details" },
 ] as const;
 
@@ -45,8 +36,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function formatAssetValue(value: string | null | undefined, fallback = "Not available") {
-  return value?.trim() || fallback;
+function readText(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function formatAssetValue(value: unknown, fallback = "Not available") {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value === "string") {
+    return value.trim() || fallback;
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "Yes" : "No";
+  }
+
+  return String(value);
 }
 
 function safeJsonStringify(value: unknown) {
@@ -57,889 +64,306 @@ function safeJsonStringify(value: unknown) {
   }
 }
 
-function formatUnknownValue(value: unknown) {
-  if (value === null || value === undefined || value === "") {
-    return "Not available";
-  }
-
-  if (Array.isArray(value)) {
-    if (value.every((entry) => ["string", "number", "boolean"].includes(typeof entry))) {
-      return value.map((entry) => String(entry)).join(", ");
-    }
-
-    return safeJsonStringify(value);
-  }
-
-  if (typeof value === "object") {
-    return safeJsonStringify(value);
-  }
-
-  if (typeof value === "boolean") {
-    return value ? "Yes" : "No";
-  }
-
-  return String(value);
+function getSnapshot(detail: AssetDetailResponse | null | undefined): AssetCurrentSnapshot | null {
+  return isRecord(detail?.current_snapshot) ? detail.current_snapshot : null;
 }
 
-function formatFieldInputValue(value: unknown) {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  if (typeof value === "string" || typeof value === "number") {
-    return value;
-  }
-
-  if (typeof value === "boolean") {
-    return value ? "true" : "false";
-  }
-
-  return safeJsonStringify(value);
-}
-
-function getAssetTitle(detail: AssetDetailResponse | null, initialAsset: AssetListRow | null) {
-  return (
-    detail?.name?.trim() ||
-    initialAsset?.name?.trim() ||
-    detail?.ticker?.trim() ||
-    initialAsset?.ticker?.trim() ||
-    detail?.unique_identifier?.trim() ||
-    initialAsset?.unique_identifier?.trim() ||
-    detail?.figi?.trim() ||
-    initialAsset?.figi?.trim() ||
-    `Asset ${detail?.id ?? initialAsset?.id ?? ""}`.trim()
-  );
-}
-
-function buildAssetSummary(
+function getAssetTitle(
   assetUid: string,
-  detail: AssetDetailResponse | null,
+  summary: EntitySummaryHeader | null | undefined,
+  detail: AssetDetailResponse | null | undefined,
   initialAsset: AssetListRow | null,
-): EntitySummaryHeader | null {
-  if (!detail && !initialAsset) {
-    return null;
-  }
-
-  const title = getAssetTitle(detail, initialAsset);
-  const ticker = detail?.ticker?.trim() || initialAsset?.ticker?.trim() || "";
-  const exchangeCode = detail?.exchange_code?.trim() || initialAsset?.exchange_code?.trim() || "";
-  const securityType =
-    detail?.security_type?.trim() || initialAsset?.security_type?.trim() || "";
-  const marketSector =
-    detail?.security_market_sector?.trim() || initialAsset?.security_market_sector?.trim() || "";
-  const uniqueIdentifier =
-    detail?.unique_identifier?.trim() || initialAsset?.unique_identifier?.trim() || "";
-  const figi = detail?.figi?.trim() || initialAsset?.figi?.trim() || "";
-  const isCustom =
-    detail?.is_custom_by_organization ?? initialAsset?.is_custom_by_organization ?? false;
-  const tradingView = getAssetTradingView(detail);
-  const orderForm = getAssetOrderForm(detail);
-  const orderTypes = getAssetOrderTypes(orderForm);
-
-  return {
-    entity: {
-      id: assetUid,
-      type: "asset",
-      title,
-    },
-    badges: [
-      {
-        key: "asset-scope",
-        label: isCustom ? "Custom" : "Standard",
-        tone: isCustom ? "warning" : "neutral",
-      },
-      {
-        key: "trading-view",
-        label: tradingView?.enabled ? "TradingView enabled" : "TradingView unavailable",
-        tone: tradingView?.enabled ? "success" : "neutral",
-      },
-    ],
-    inline_fields: [
-      {
-        key: "asset_uid",
-        label: "UID",
-        value: assetUid,
-        kind: "code",
-      },
-      ...(uniqueIdentifier
-        ? [
-            {
-              key: "unique_identifier",
-              label: "Identifier",
-              value: uniqueIdentifier,
-              kind: "code" as const,
-              icon: "fingerprint",
-            },
-          ]
-        : []),
-      ...(figi
-        ? [
-            {
-              key: "figi",
-              label: "FIGI",
-              value: figi,
-              kind: "code" as const,
-            },
-          ]
-        : []),
-    ],
-    highlight_fields: [
-      {
-        key: "ticker",
-        label: "Ticker",
-        value: ticker || "Not available",
-        kind: "text",
-        icon: "tags",
-      },
-      {
-        key: "exchange_code",
-        label: "Exchange",
-        value: exchangeCode || "Not available",
-        kind: "text",
-        icon: "globe",
-      },
-      {
-        key: "security_type",
-        label: "Security Type",
-        value: securityType || "Not available",
-        kind: "text",
-        icon: "boxes",
-      },
-      {
-        key: "market_sector",
-        label: "Market Sector",
-        value: marketSector || "Not available",
-        kind: "text",
-        icon: "database",
-      },
-    ],
-    stats: [
-      {
-        key: "metadata_fields",
-        label: "Metadata Fields",
-        display: String(getAssetMetadataRows(detail).length),
-        value: getAssetMetadataRows(detail).length,
-        kind: "number",
-      },
-      {
-        key: "order_types",
-        label: "Order Types",
-        display: String(orderTypes.length),
-        value: orderTypes.length,
-        kind: "number",
-      },
-    ],
-  };
-}
-
-function getAssetMetadataRows(detail: AssetDetailResponse | null) {
-  if (!detail) {
-    return [];
-  }
-
-  if (Array.isArray(detail.details)) {
-    return detail.details;
-  }
-
-  const metadata = detail.metadata;
-  return Array.isArray(metadata) ? (metadata as AssetDetailField[]) : [];
-}
-
-function getAssetTradingView(detail: AssetDetailResponse | null) {
-  if (!detail || !isRecord(detail.trading_view)) {
-    return null;
-  }
-
-  return detail.trading_view as AssetTradingViewConfig;
-}
-
-function getAssetOrderForm(detail: AssetDetailResponse | null) {
-  if (!detail || !isRecord(detail.order_form)) {
-    return null;
-  }
-
-  return detail.order_form as AssetOrderFormConfig;
-}
-
-function getAssetOrderTypes(orderForm: AssetOrderFormConfig | null) {
-  if (!orderForm || !Array.isArray(orderForm.order_types)) {
-    return [];
-  }
-
-  return orderForm.order_types
-    .map((value) => value?.trim())
-    .filter((value): value is string => Boolean(value));
-}
-
-function getDefaultOrderType(orderForm: AssetOrderFormConfig | null, orderTypes: string[]) {
-  const requestedDefault = orderForm?.default_order_type?.trim();
-
-  if (requestedDefault && orderTypes.includes(requestedDefault)) {
-    return requestedDefault;
-  }
-
-  return orderTypes[0] ?? "";
-}
-
-function getOrderFieldKey(field: AssetOrderFormField, index: number) {
-  const rawKey = field.key ?? field.name ?? field.label;
-  const trimmed = typeof rawKey === "string" ? rawKey.trim() : "";
-  return trimmed || `field-${index}`;
-}
-
-function normalizeOrderFieldChoices(field: AssetOrderFormField): AssetOrderFormFieldChoice[] {
-  const rawChoices = Array.isArray(field.choices)
-    ? field.choices
-    : Array.isArray(field.options)
-      ? field.options
-      : [];
-
-  return rawChoices.flatMap((choice) => {
-    if (typeof choice === "string" || typeof choice === "number" || typeof choice === "boolean") {
-      return [
-        {
-          value: choice,
-          label: String(choice),
-        },
-      ];
-    }
-
-    if (isRecord(choice)) {
-      const value = choice.value;
-      const label =
-        (typeof choice.label === "string" && choice.label.trim()) ||
-        (typeof choice.name === "string" && choice.name.trim()) ||
-        (value !== null && value !== undefined ? String(value) : "");
-
-      if (
-        (typeof value === "string" || typeof value === "number" || typeof value === "boolean") &&
-        label
-      ) {
-        return [
-          {
-            value,
-            label,
-            description:
-              typeof choice.description === "string" && choice.description.trim()
-                ? choice.description.trim()
-                : undefined,
-          },
-        ];
-      }
-    }
-
-    return [];
-  });
-}
-
-function getOrderFieldEditor(field: AssetOrderFormField) {
-  const editor = (field.editor ?? field.type ?? "").trim().toLowerCase();
-
-  if (["checkbox", "toggle", "boolean", "bool"].includes(editor)) {
-    return "checkbox";
-  }
-
-  if (["textarea", "json", "code"].includes(editor)) {
-    return "textarea";
-  }
-
-  if (["number", "integer", "float", "decimal"].includes(editor)) {
-    return "number";
-  }
-
-  if (["select", "choice", "choices", "enum"].includes(editor)) {
-    return "select";
-  }
-
-  return normalizeOrderFieldChoices(field).length > 0 ? "select" : "text";
-}
-
-function buildOrderFieldDefaults(fields: AssetOrderFormField[]) {
-  return fields.reduce<Record<string, unknown>>((values, field, index) => {
-    values[getOrderFieldKey(field, index)] = field.value ?? "";
-    return values;
-  }, {});
-}
-
-function resolveLinkFieldValue(value: unknown) {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed
-      ? {
-          href: trimmed,
-          label: trimmed,
-        }
-      : null;
-  }
-
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  const hrefCandidate =
-    (typeof value.href === "string" && value.href.trim()) ||
-    (typeof value.url === "string" && value.url.trim()) ||
-    (typeof value.link === "string" && value.link.trim()) ||
-    "";
-  const labelCandidate =
-    (typeof value.label === "string" && value.label.trim()) ||
-    (typeof value.title === "string" && value.title.trim()) ||
-    (typeof value.name === "string" && value.name.trim()) ||
-    hrefCandidate;
-
-  return hrefCandidate
-    ? {
-        href: hrefCandidate,
-        label: labelCandidate || hrefCandidate,
-      }
-    : null;
-}
-
-function getTradingViewAlerts(tradingView: AssetTradingViewConfig | null) {
-  if (!tradingView || !Array.isArray(tradingView.alerts)) {
-    return [];
-  }
-
-  return tradingView.alerts.filter(
-    (alert): alert is AssetTradingViewAlert | string =>
-      typeof alert === "string" || isRecord(alert),
-  );
-}
-
-function getTradingViewAlertTitle(alert: AssetTradingViewAlert | string, index: number) {
-  if (typeof alert === "string") {
-    return alert;
-  }
+) {
+  const snapshot = getSnapshot(detail);
 
   return (
-    alert.title?.trim() ||
-    alert.label?.trim() ||
-    alert.name?.trim() ||
-    alert.condition?.trim() ||
-    `Alert ${index + 1}`
+    readText(summary?.entity.title) ??
+    readText(snapshot?.name) ??
+    readText(detail?.name) ??
+    readText(initialAsset?.name) ??
+    readText(snapshot?.ticker) ??
+    readText(detail?.ticker) ??
+    readText(initialAsset?.ticker) ??
+    readText(detail?.unique_identifier) ??
+    readText(initialAsset?.unique_identifier) ??
+    assetUid
   );
 }
 
-function getTradingViewAlertDescription(alert: AssetTradingViewAlert | string) {
-  if (typeof alert === "string") {
-    return null;
-  }
+function getAssetSubtitle(assetUid: string, detail: AssetDetailResponse | null | undefined) {
+  const snapshot = getSnapshot(detail);
+  const parts = [
+    readText(detail?.asset_type),
+    readText(snapshot?.ticker) ?? readText(detail?.ticker),
+    readText(snapshot?.exchange_code) ?? readText(detail?.exchange_code),
+  ].filter(Boolean);
 
+  return parts.length > 0 ? parts.join(" / ") : `Asset UID ${assetUid}`;
+}
+
+function DetailValueCard({
+  label,
+  value,
+  code = false,
+}: {
+  label: string;
+  value: unknown;
+  code?: boolean;
+}) {
   return (
-    alert.message?.trim() ||
-    alert.description?.trim() ||
-    alert.condition?.trim() ||
-    null
-  );
-}
-
-function renderMetadataFieldValue(field: AssetDetailField) {
-  if (field.value_type === "link") {
-    const linkValue = resolveLinkFieldValue(field.value);
-
-    if (!linkValue) {
-      return <div className="text-sm text-muted-foreground">Not available</div>;
-    }
-
-    return (
-      <a
-        href={linkValue.href}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary/80"
+    <div className="rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/40 px-3 py-3">
+      <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className={`mt-2 break-words text-sm text-foreground ${
+          code ? "font-mono" : "font-medium"
+        }`}
       >
-        <span className="truncate">{linkValue.label}</span>
-        <ArrowUpRight className="h-3.5 w-3.5" />
-      </a>
-    );
-  }
-
-  if (field.value_type === "pricing_detail") {
-    return (
-      <pre className="overflow-x-auto rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/36 px-4 py-4 text-xs text-foreground">
-        {safeJsonStringify(field.value)}
-      </pre>
-    );
-  }
-
-  return <div className="text-sm text-foreground">{formatUnknownValue(field.value)}</div>;
-}
-
-function AssetMetadataSection({
-  rows,
-}: {
-  rows: AssetDetailField[];
-}) {
-  return (
-    <Card variant="nested">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Metadata</CardTitle>
-        <CardDescription>
-          Asset detail rows returned by the frontend detail serializer.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-0">
-        {rows.length > 0 ? (
-          <div className="grid gap-3 lg:grid-cols-2">
-            {rows.map((field, index) => {
-              const fieldKey = field.key?.trim() || `${field.label}-${index}`;
-              const fullWidth = field.value_type === "pricing_detail";
-
-              return (
-                <div
-                  key={fieldKey}
-                  className={`rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4 ${
-                    fullWidth ? "lg:col-span-2" : ""
-                  }`}
-                >
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                    {field.label}
-                  </div>
-                  <div className="mt-3">{renderMetadataFieldValue(field)}</div>
-                  {field.meta || field.description ? (
-                    <div className="mt-3 text-xs text-muted-foreground">
-                      {field.meta?.trim() || field.description?.trim()}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4 text-sm text-muted-foreground">
-            No frontend detail metadata was returned for this asset.
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        {formatAssetValue(value)}
+      </div>
+    </div>
   );
 }
 
-function TradingViewSection({
-  tradingView,
-}: {
-  tradingView: AssetTradingViewConfig | null;
-}) {
-  const alerts = useMemo(() => getTradingViewAlerts(tradingView), [tradingView]);
+function JsonBlock({ value }: { value: unknown }) {
+  return (
+    <pre className="max-h-96 overflow-auto rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/50 p-4 font-mono text-xs leading-relaxed text-foreground">
+      {safeJsonStringify(value)}
+    </pre>
+  );
+}
+
+function AssetDetailFields({ fields }: { fields: AssetDetailField[] }) {
+  if (fields.length === 0) {
+    return (
+      <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/32 px-4 py-8 text-center text-sm text-muted-foreground">
+        No additional asset detail fields were returned.
+      </div>
+    );
+  }
 
   return (
-    <Card variant="nested">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <LineChart className="h-4 w-4" />
-          TradingView
-        </CardTitle>
-        <CardDescription>
-          Symbol and alert metadata returned for the TradingView integration.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 pt-0">
-        {!tradingView?.enabled ? (
-          <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4 text-sm text-muted-foreground">
-            TradingView is not enabled for this asset.
+    <div className="grid gap-3 md:grid-cols-2">
+      {fields.map((field, index) => (
+        <Card key={field.key ?? `${field.label}-${index}`} variant="nested">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{field.label}</CardTitle>
+            {field.key || field.value_type ? (
+              <CardDescription>
+                {[field.key, field.value_type].filter(Boolean).join(" / ")}
+              </CardDescription>
+            ) : null}
+          </CardHeader>
+          <CardContent className="space-y-3 pt-0">
+            {isRecord(field.value) || Array.isArray(field.value) ? (
+              <JsonBlock value={field.value} />
+            ) : (
+              <div className="break-words text-sm text-foreground">
+                {formatAssetValue(field.value)}
+              </div>
+            )}
+            {field.description ? (
+              <div className="text-xs text-muted-foreground">{field.description}</div>
+            ) : null}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function AssetDetailsSection({
+  detail,
+  isLoading,
+  isError,
+  error,
+}: {
+  detail: AssetDetailResponse | null;
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+}) {
+  if (isLoading && !detail) {
+    return (
+      <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
+        <Loader2 className="mr-3 h-4 w-4 animate-spin" />
+        Loading asset details
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+        {formatMainSequenceError(error)}
+      </div>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/32 px-4 py-8 text-center text-sm text-muted-foreground">
+        No asset detail was returned.
+      </div>
+    );
+  }
+
+  const snapshot = getSnapshot(detail);
+  const detailFields = Array.isArray(detail.details) ? detail.details : [];
+
+  return (
+    <div className="space-y-5">
+      <Card variant="nested">
+        <CardHeader>
+          <CardTitle>Asset Detail</CardTitle>
+          <CardDescription>
+            Canonical asset identity and latest snapshot returned by the asset detail endpoint.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <DetailValueCard label="UID" value={detail.uid} code />
+            <DetailValueCard label="Identifier" value={detail.unique_identifier} code />
+            <DetailValueCard label="Asset Type" value={detail.asset_type} />
+            <DetailValueCard label="Snapshot Time" value={snapshot?.time_index} code />
+            <DetailValueCard label="Snapshot Asset Identifier" value={snapshot?.asset_identifier} code />
+            <DetailValueCard label="Name" value={snapshot?.name ?? detail.name} />
+            <DetailValueCard label="Ticker" value={snapshot?.ticker ?? detail.ticker} code />
+            <DetailValueCard
+              label="Exchange"
+              value={snapshot?.exchange_code ?? detail.exchange_code}
+              code
+            />
+            <DetailValueCard
+              label="Asset Ticker Group"
+              value={snapshot?.asset_ticker_group_id}
+              code
+            />
           </div>
-        ) : (
-          <>
-            <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
-              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                Symbol
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Badge variant="primary">{formatAssetValue(tradingView.symbol, "Not configured")}</Badge>
-                <Badge variant="success">Enabled</Badge>
-              </div>
-            </div>
+        </CardContent>
+      </Card>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-medium text-foreground">Alerts</div>
-                <Badge variant="neutral">{`${alerts.length} configured`}</Badge>
-              </div>
+      <Card variant="nested">
+        <CardHeader>
+          <CardTitle>Current Snapshot</CardTitle>
+          <CardDescription>
+            Latest snapshot payload from `current_snapshot`.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <JsonBlock value={snapshot ?? {}} />
+        </CardContent>
+      </Card>
 
-              {alerts.length > 0 ? (
-                <div className="grid gap-3">
-                  {alerts.map((alert, index) => {
-                    const alertRecord = isRecord(alert) ? (alert as AssetTradingViewAlert) : null;
-                    const severity = alertRecord?.severity?.trim();
-                    const description = getTradingViewAlertDescription(alert);
-
-                    return (
-                      <div
-                        key={
-                          typeof alert === "string"
-                            ? `${alert}-${index}`
-                            : String(alert.id ?? alert.label ?? alert.title ?? index)
-                        }
-                        className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-medium text-foreground">
-                              {getTradingViewAlertTitle(alert, index)}
-                            </div>
-                            {description ? (
-                              <div className="mt-2 text-sm text-muted-foreground">{description}</div>
-                            ) : null}
-                          </div>
-                          {severity ? <Badge variant="warning">{severity}</Badge> : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4 text-sm text-muted-foreground">
-                  No TradingView alerts are configured for this asset.
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+      <Card variant="nested">
+        <CardHeader>
+          <CardTitle>Additional Details</CardTitle>
+          <CardDescription>
+            Rows returned by the `details` array in the frontend detail response.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AssetDetailFields fields={detailFields} />
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
 function PricingDetailsSection({
-  error,
-  isLoading,
   pricingDetails,
+  isLoading,
+  isError,
+  error,
 }: {
-  error: unknown;
-  isLoading: boolean;
   pricingDetails: AssetPricingDetailsResponse | null;
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
 }) {
-  return (
-    <Card variant="nested">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Pricing Details</CardTitle>
-        <CardDescription>
-          Serialized pricing instrument payload returned by the pricing-details endpoint.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 pt-0">
-        {isLoading ? (
-          <div className="flex min-h-40 items-center justify-center">
-            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading pricing details
-            </div>
-          </div>
-        ) : null}
-
-        {!isLoading && error ? (
-          <div className="rounded-[calc(var(--radius)-8px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {formatMainSequenceError(error)}
-          </div>
-        ) : null}
-
-        {!isLoading && !error && pricingDetails ? (
-          <>
-            <div className="grid gap-3 lg:grid-cols-2">
-              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Asset UID
-                </div>
-                <div className="mt-3 font-mono text-sm text-foreground">
-                  {formatAssetValue(pricingDetails.asset_uid)}
-                </div>
-              </div>
-              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Instrument Type
-                </div>
-                <div className="mt-3 text-sm text-foreground">
-                  {formatAssetValue(pricingDetails.instrument_type)}
-                </div>
-              </div>
-              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Pricing Details Date
-                </div>
-                <div className="mt-3 text-sm text-foreground">
-                  {formatAssetValue(pricingDetails.pricing_details_date)}
-                </div>
-              </div>
-              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Serialization Format
-                </div>
-                <div className="mt-3 text-sm text-foreground">
-                  {formatAssetValue(pricingDetails.serialization_format)}
-                </div>
-              </div>
-              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Pricing Package Version
-                </div>
-                <div className="mt-3 text-sm text-foreground">
-                  {formatAssetValue(pricingDetails.pricing_package_version)}
-                </div>
-              </div>
-              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Source
-                </div>
-                <div className="mt-3 text-sm text-foreground">
-                  {formatAssetValue(pricingDetails.source)}
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="text-sm font-medium text-foreground">Instrument Dump</div>
-              <pre className="overflow-x-auto rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4 text-xs text-foreground">
-                {safeJsonStringify(pricingDetails.instrument_dump)}
-              </pre>
-            </div>
-
-            <div className="space-y-3">
-              <div className="text-sm font-medium text-foreground">Metadata JSON</div>
-              {pricingDetails.metadata_json ? (
-                <pre className="overflow-x-auto rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4 text-xs text-foreground">
-                  {safeJsonStringify(pricingDetails.metadata_json)}
-                </pre>
-              ) : (
-                <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4 text-sm text-muted-foreground">
-                  No metadata JSON was returned for this pricing row.
-                </div>
-              )}
-            </div>
-          </>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-function renderOrderFieldControl(
-  field: AssetOrderFormField,
-  fieldKey: string,
-  value: unknown,
-  onChange: (nextValue: unknown) => void,
-) {
-  const editor = getOrderFieldEditor(field);
-  const choices = normalizeOrderFieldChoices(field);
-  const disabled = Boolean(field.read_only);
-
-  if (editor === "checkbox") {
+  if (isLoading && !pricingDetails) {
     return (
-      <label className="flex items-center gap-3 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-3 text-sm text-foreground">
-        <input
-          type="checkbox"
-          checked={Boolean(value)}
-          onChange={(event) => onChange(event.target.checked)}
-          disabled={disabled}
-          className="h-4 w-4 rounded border border-input"
-        />
-        <span>{field.label?.trim() || fieldKey}</span>
-      </label>
+      <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
+        <Loader2 className="mr-3 h-4 w-4 animate-spin" />
+        Loading pricing details
+      </div>
     );
   }
 
-  if (editor === "select") {
-    const selectedValue = value === null || value === undefined ? "" : String(value);
-
+  if (isError) {
     return (
-      <select
-        value={selectedValue}
-        onChange={(event) => {
-          const nextValue = choices.find(
-            (choice) => String(choice.value) === event.target.value,
-          )?.value;
-          onChange(nextValue ?? event.target.value);
-        }}
-        disabled={disabled}
-        className="flex h-10 w-full rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus:border-primary/70 focus:ring-2 focus:ring-ring/30"
-      >
-        <option value="">Select an option</option>
-        {choices.map((choice) => (
-          <option key={`${fieldKey}-${String(choice.value)}`} value={String(choice.value)}>
-            {choice.label}
-          </option>
-        ))}
-      </select>
+      <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+        {formatMainSequenceError(error)}
+      </div>
     );
   }
 
-  if (editor === "textarea") {
+  if (!pricingDetails) {
     return (
-      <Textarea
-        value={formatFieldInputValue(value)}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-        placeholder={field.placeholder ?? ""}
-        rows={4}
-      />
+      <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/32 px-4 py-8 text-center text-sm text-muted-foreground">
+        No pricing details were returned.
+      </div>
     );
   }
 
   return (
-    <Input
-      type={editor === "number" ? "number" : "text"}
-      value={formatFieldInputValue(value)}
-      onChange={(event) => onChange(event.target.value)}
-      disabled={disabled}
-      placeholder={field.placeholder ?? ""}
-    />
-  );
-}
-
-function AssetOrderDialog({
-  assetUid,
-  assetTitle,
-  onClose,
-  open,
-  orderForm,
-}: {
-  assetUid: string;
-  assetTitle: string;
-  onClose: () => void;
-  open: boolean;
-  orderForm: AssetOrderFormConfig | null;
-}) {
-  const orderTypes = useMemo(() => getAssetOrderTypes(orderForm), [orderForm]);
-  const defaultOrderType = useMemo(
-    () => getDefaultOrderType(orderForm, orderTypes),
-    [orderForm, orderTypes],
-  );
-  const [selectedOrderType, setSelectedOrderType] = useState(defaultOrderType);
-  const [fieldValues, setFieldValues] = useState<Record<string, unknown>>({});
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setSelectedOrderType((current) =>
-      orderTypes.includes(current) ? current : defaultOrderType,
-    );
-  }, [defaultOrderType, open, orderTypes]);
-
-  const orderFieldsQuery = useQuery({
-    queryKey: ["main_sequence", "assets", "order_fields", assetUid, selectedOrderType],
-    queryFn: () => fetchAssetOrderFormFields(assetUid, selectedOrderType),
-    enabled: open && Boolean(assetUid) && Boolean(selectedOrderType),
-  });
-
-  useEffect(() => {
-    if (!orderFieldsQuery.data) {
-      return;
-    }
-
-    setFieldValues(buildOrderFieldDefaults(orderFieldsQuery.data));
-  }, [orderFieldsQuery.data, selectedOrderType]);
-
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      title={`Order ticket · ${assetTitle}`}
-      description="Order submission is still deferred. This drawer only loads the asset-specific order fields."
-      className="ml-auto h-[min(92vh,860px)] max-w-[min(760px,calc(100vw-24px))]"
-      contentClassName="space-y-5"
-    >
-      {orderTypes.length === 0 ? (
-        <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4 text-sm text-muted-foreground">
-          No order types were provided for this asset.
-        </div>
-      ) : (
-        <>
-          <div className="space-y-2">
-            <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              Order type
-            </label>
-            <select
-              value={selectedOrderType}
-              onChange={(event) => setSelectedOrderType(event.target.value)}
-              className="flex h-10 w-full rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus:border-primary/70 focus:ring-2 focus:ring-ring/30"
-              aria-label="Select order type"
-            >
-              {orderTypes.map((orderType) => (
-                <option key={orderType} value={orderType}>
-                  {orderType}
-                </option>
-              ))}
-            </select>
-            {orderForm?.default_order_type ? (
-              <div className="text-xs text-muted-foreground">
-                {`Default order type: ${orderForm.default_order_type}`}
-              </div>
-            ) : null}
+    <div className="space-y-5">
+      <Card variant="nested">
+        <CardHeader>
+          <CardTitle>Pricing Details</CardTitle>
+          <CardDescription>
+            Current pricing and instrument configuration for this asset.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <DetailValueCard label="Asset UID" value={pricingDetails.asset_uid} code />
+            <DetailValueCard label="Instrument Type" value={pricingDetails.instrument_type} />
+            <DetailValueCard
+              label="Pricing Details Date"
+              value={pricingDetails.pricing_details_date}
+              code
+            />
+            <DetailValueCard
+              label="Serialization Format"
+              value={pricingDetails.serialization_format}
+              code
+            />
+            <DetailValueCard
+              label="Pricing Package Version"
+              value={pricingDetails.pricing_package_version}
+              code
+            />
+            <DetailValueCard label="Source" value={pricingDetails.source} />
           </div>
+        </CardContent>
+      </Card>
 
-          {orderFieldsQuery.isLoading ? (
-            <div className="flex min-h-40 items-center justify-center">
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading order fields
-              </div>
-            </div>
-          ) : null}
+      <Card variant="nested">
+        <CardHeader>
+          <CardTitle>Instrument Dump</CardTitle>
+          <CardDescription>
+            Serialized pricing instrument payload returned by the backend.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <JsonBlock value={pricingDetails.instrument_dump ?? {}} />
+        </CardContent>
+      </Card>
 
-          {orderFieldsQuery.isError ? (
-            <div className="rounded-[calc(var(--radius)-8px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-              {formatMainSequenceError(orderFieldsQuery.error)}
-            </div>
-          ) : null}
-
-          {!orderFieldsQuery.isLoading && !orderFieldsQuery.isError ? (
-            <div className="space-y-4">
-              {orderFieldsQuery.data && orderFieldsQuery.data.length > 0 ? (
-                orderFieldsQuery.data.map((field, index) => {
-                  const fieldKey = getOrderFieldKey(field, index);
-                  const fieldValue = fieldValues[fieldKey] ?? field.value ?? "";
-
-                  return (
-                    <div key={fieldKey} className="space-y-2">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <label className="text-sm font-medium text-foreground">
-                            {field.label?.trim() || fieldKey}
-                          </label>
-                          {field.required ? (
-                            <span className="ml-2 text-xs uppercase tracking-[0.16em] text-warning">
-                              Required
-                            </span>
-                          ) : null}
-                        </div>
-                        {field.read_only ? <Badge variant="neutral">Read only</Badge> : null}
-                      </div>
-
-                      {renderOrderFieldControl(field, fieldKey, fieldValue, (nextValue) => {
-                        setFieldValues((current) => ({
-                          ...current,
-                          [fieldKey]: nextValue,
-                        }));
-                      })}
-
-                      {field.help_text?.trim() || field.description?.trim() ? (
-                        <div className="text-xs text-muted-foreground">
-                          {field.help_text?.trim() || field.description?.trim()}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/30 px-4 py-4 text-sm text-muted-foreground">
-                  No order fields were returned for this order type.
-                </div>
-              )}
-
-              <div className="flex items-center justify-between gap-3 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-4">
-                <div className="text-sm text-muted-foreground">
-                  Order submission will be added in a later phase.
-                </div>
-                <Button type="button" disabled>
-                  Submit order
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </>
-      )}
-    </Dialog>
+      <Card variant="nested">
+        <CardHeader>
+          <CardTitle>Metadata</CardTitle>
+          <CardDescription>
+            Pricing-details metadata from `metadata_json`.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <JsonBlock value={pricingDetails.metadata_json ?? {}} />
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -956,11 +380,14 @@ export function MainSequenceAssetDetailView({
   onBack: () => void;
   onSelectTab: (tabId: AssetDetailTabId) => void;
 }) {
-  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
-
   const assetDetailQuery = useQuery({
     queryKey: ["main_sequence", "assets", "detail", assetUid],
     queryFn: () => fetchAssetDetail(assetUid),
+    enabled: Boolean(assetUid),
+  });
+  const assetSummaryQuery = useQuery({
+    queryKey: ["main_sequence", "assets", "summary", assetUid],
+    queryFn: () => fetchAssetSummary(assetUid),
     enabled: Boolean(assetUid),
   });
   const assetPricingDetailsQuery = useQuery({
@@ -969,148 +396,91 @@ export function MainSequenceAssetDetailView({
     enabled: Boolean(assetUid) && activeTabId === "pricing-details",
   });
 
-  useEffect(() => {
-    setOrderDialogOpen(false);
-  }, [assetUid]);
-
-  const assetDetail = assetDetailQuery.data ?? null;
-  const metadataRows = useMemo(() => getAssetMetadataRows(assetDetail), [assetDetail]);
-  const tradingView = useMemo(() => getAssetTradingView(assetDetail), [assetDetail]);
-  const orderForm = useMemo(() => getAssetOrderForm(assetDetail), [assetDetail]);
-  const orderTypes = useMemo(() => getAssetOrderTypes(orderForm), [orderForm]);
-  const assetTitle = getAssetTitle(assetDetail, initialAsset);
-  const assetSummary = useMemo(
-    () => buildAssetSummary(assetUid, assetDetail, initialAsset),
-    [assetDetail, assetUid, initialAsset],
+  const detail = assetDetailQuery.data ?? null;
+  const summary = assetSummaryQuery.data ?? null;
+  const pageTitle = useMemo(
+    () => getAssetTitle(assetUid, summary, detail, initialAsset),
+    [assetUid, detail, initialAsset, summary],
   );
-  const subtitleParts = [
-    assetDetail?.ticker?.trim() || initialAsset?.ticker?.trim() || null,
-    assetDetail?.exchange_code?.trim() || initialAsset?.exchange_code?.trim() || null,
-    assetDetail?.security_type?.trim() || initialAsset?.security_type?.trim() || null,
-  ].filter(Boolean);
+  const pageDescription = getAssetSubtitle(assetUid, detail);
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Main Sequence Markets"
-        title={assetTitle}
-        description={`UID ${assetUid}`}
+        title={pageTitle}
+        description={pageDescription}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            {orderTypes.length > 0 ? (
-              <Button type="button" onClick={() => setOrderDialogOpen(true)}>
-                <ShoppingCart className="h-4 w-4" />
-                Order ticket
-              </Button>
-            ) : null}
-            <Button variant="outline" onClick={onBack}>
-              <ArrowLeft className="h-4 w-4" />
-              Back to master list
-            </Button>
-          </div>
+          <Button type="button" variant="outline" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to assets
+          </Button>
         }
       />
 
-      {assetDetailQuery.isLoading && !assetDetail ? (
+      {assetSummaryQuery.isLoading && !summary ? (
         <Card>
-          <CardContent className="flex min-h-48 items-center justify-center">
+          <CardContent className="flex min-h-32 items-center justify-center">
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading asset details
+              Loading asset summary
             </div>
           </CardContent>
         </Card>
       ) : null}
 
-      {assetDetailQuery.isError ? (
-        <Card>
-          <CardContent className="p-5">
-            <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-              {formatMainSequenceError(assetDetailQuery.error)}
-            </div>
-          </CardContent>
-        </Card>
+      {assetSummaryQuery.isError ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+          {formatMainSequenceError(assetSummaryQuery.error)}
+        </div>
       ) : null}
 
-      {assetSummary ? <MainSequenceEntitySummaryCard summary={assetSummary} /> : null}
-
-      {assetDetail ? (
-        <>
-          <Card>
-            <CardHeader className="border-b border-border/70">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <CardTitle>Asset detail</CardTitle>
-                  <CardDescription>
-                    {subtitleParts.length > 0
-                      ? subtitleParts.join(" · ")
-                      : "Review asset metadata, TradingView state, and order-form helpers."}
-                  </CardDescription>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="neutral">{`UID ${assetUid}`}</Badge>
-                  {(assetDetail.unique_identifier ?? initialAsset?.unique_identifier)?.trim() ? (
-                    <Badge variant="neutral">
-                          {formatAssetValue(
-                            assetDetail.unique_identifier ?? initialAsset?.unique_identifier,
-                          )}
-                    </Badge>
-                  ) : null}
-                  <Badge
-                    variant={
-                      assetDetail.is_custom_by_organization ?? initialAsset?.is_custom_by_organization
-                        ? "warning"
-                        : "neutral"
-                    }
-                  >
-                    {assetDetail.is_custom_by_organization ?? initialAsset?.is_custom_by_organization
-                      ? "Custom"
-                      : "Standard"}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {assetDetailTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    className={
-                      tab.id === activeTabId
-                        ? "rounded-[calc(var(--radius)-8px)] border border-primary/35 bg-primary/12 px-3 py-2 text-sm font-medium text-topbar-foreground"
-                        : "rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-background/36 hover:text-foreground"
-                    }
-                    onClick={() => onSelectTab(tab.id)}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </CardHeader>
-            <CardContent className="pt-5">
-              {activeTabId === "metadata" ? (
-                <AssetMetadataSection rows={metadataRows} />
-              ) : activeTabId === "pricing-details" ? (
-                <PricingDetailsSection
-                  error={assetPricingDetailsQuery.error}
-                  isLoading={assetPricingDetailsQuery.isLoading}
-                  pricingDetails={assetPricingDetailsQuery.data ?? null}
-                />
-              ) : (
-                <TradingViewSection tradingView={tradingView} />
-              )}
-            </CardContent>
-          </Card>
-
-          <AssetOrderDialog
-            assetUid={assetUid}
-            assetTitle={assetTitle}
-            onClose={() => setOrderDialogOpen(false)}
-            open={orderDialogOpen}
-            orderForm={orderForm}
-          />
-        </>
+      {summary ? (
+        <MainSequenceEntitySummaryCard
+          summary={summary}
+          onSummaryUpdated={async () => {
+            await assetSummaryQuery.refetch();
+          }}
+        />
       ) : null}
+
+      <Card>
+        <CardHeader className="border-b border-border/70 pb-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {assetDetailTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  activeTabId === tab.id
+                    ? "border-primary/50 bg-primary/12 text-primary"
+                    : "border-border/70 bg-background/35 text-muted-foreground hover:border-primary/35 hover:text-foreground"
+                }`}
+                onClick={() => onSelectTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </CardHeader>
+        <CardContent className="pt-5">
+          {activeTabId === "details" ? (
+            <AssetDetailsSection
+              detail={detail}
+              error={assetDetailQuery.error}
+              isError={assetDetailQuery.isError}
+              isLoading={assetDetailQuery.isLoading}
+            />
+          ) : (
+            <PricingDetailsSection
+              error={assetPricingDetailsQuery.error}
+              isError={assetPricingDetailsQuery.isError}
+              isLoading={assetPricingDetailsQuery.isLoading}
+              pricingDetails={assetPricingDetailsQuery.data ?? null}
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -17,13 +17,13 @@ function normalizeAccountUid(value: string) {
 
 const sourceTypeHelpText: Record<PositionDetailSourceType, string> = {
   portfolio:
-    "Portfolio source rows are always interpreted as weight from notional exposure. Backend hydration is available from the target portfolio weights endpoint until local rows are authored.",
+    "Portfolio source rows are always interpreted as weight from notional exposure. Backend hydration is available from the portfolio weights endpoint until local rows are authored.",
   account:
     "Account source hydrates the canonical holdings snapshot first, then saves edited holdings back through the managed-account add-holdings endpoint with a top-level holdings datetime.",
   target_position:
-    "Target position source rows can use weight from notional exposure, units, or constant notional.",
+    "Target allocation source rows can use weight from notional exposure, units, or constant notional.",
   target_positions_account:
-    "Target positions account rows can hydrate the latest or exact account target-position assignment, then save an account-scoped target-position assignment back through the managed-account add-target-positions endpoint with a top-level target positions datetime.",
+    "Target allocation account rows can hydrate the latest or exact account target allocation assignment, then save an account-scoped assignment back through the managed-account add-target-positions endpoint with a top-level target allocation datetime.",
 };
 
 export function PositionDetailWidgetSettings({
@@ -57,7 +57,7 @@ export function PositionDetailWidgetSettings({
 
       <label className="space-y-2">
         <WidgetSettingFieldLabel
-          help="Source type determines how rows are interpreted. Portfolio rows are weights, account rows are holdings rows with a top-level holdings datetime, target position rows are local-authored, and target positions account rows are local-authored rows that save to an account assignment endpoint."
+          help="Source type determines how rows are interpreted. Portfolio rows are weights, account rows are holdings rows with a top-level holdings datetime, target allocation rows are local-authored, and target allocation account rows save to an account assignment endpoint."
           textClassName="text-sm font-medium text-topbar-foreground"
         >
           Source type
@@ -78,8 +78,8 @@ export function PositionDetailWidgetSettings({
         >
           <option value="portfolio">Portfolio</option>
           <option value="account">Account</option>
-          <option value="target_position">Target Position</option>
-          <option value="target_positions_account">Target Positions Account</option>
+          <option value="target_position">Target Allocation</option>
+          <option value="target_positions_account">Target Allocation Account</option>
         </Select>
         <p className="text-sm text-muted-foreground">{sourceTypeHelpText[sourceType]}</p>
       </label>
@@ -123,7 +123,7 @@ export function PositionDetailWidgetSettings({
           </WidgetSettingFieldLabel>
           <Input
             type="text"
-            placeholder="target-portfolio-uid"
+            placeholder="portfolio-uid"
             value={portfolioUid}
             readOnly={!editable || sourceType !== "portfolio"}
             onChange={(event) => {
@@ -135,14 +135,14 @@ export function PositionDetailWidgetSettings({
           />
           <p className="text-sm text-muted-foreground">
             {sourceType === "portfolio"
-              ? "Hydrates portfolio rows from the target portfolio weights endpoint until you persist local rows."
-              : "Ignored for account and target position source types."}
+              ? "Hydrates portfolio rows from the portfolio weights endpoint until you persist local rows."
+              : "Ignored for account and target allocation source types."}
           </p>
         </label>
 
         <label className="space-y-2">
           <WidgetSettingFieldLabel
-            help="Used when the source type is Account for holdings hydration, or Target Positions Account for account-scoped target-position saves."
+            help="Used when the source type is Account for holdings hydration, or Target Allocation Account for account-scoped target allocation saves."
             textClassName="text-sm font-medium text-topbar-foreground"
           >
             Account uid
@@ -166,14 +166,14 @@ export function PositionDetailWidgetSettings({
             {sourceType === "account"
               ? "Hydrates latest account holdings from the canonical holdings endpoint until you enter edit mode and save a new holdings snapshot."
               : sourceType === "target_positions_account"
-                ? "Required for account target-position hydration and saves through the target-positions and add-target-positions endpoints."
-              : "Ignored for portfolio and target position source types."}
+                ? "Required for account target allocation hydration and saves through the target-positions and add-target-positions endpoints."
+              : "Ignored for portfolio and target allocation source types."}
           </p>
         </label>
 
         <label className="space-y-2">
           <WidgetSettingFieldLabel
-            help="Only portfolio widgets can render the summary view. Account and target position widgets always use detailed positions."
+            help="Only portfolio widgets can render the summary view. Account and target allocation widgets always use detailed positions."
             textClassName="text-sm font-medium text-topbar-foreground"
           >
             Variant
@@ -194,7 +194,7 @@ export function PositionDetailWidgetSettings({
           <p className="text-sm text-muted-foreground">
             {sourceType === "portfolio" && draftProps.editableInPlace !== true
               ? "Summary is available only for hydrated portfolio data. Once you edit inline, the widget uses detailed positions."
-              : "Account, target position, and target positions account sources always render detailed positions."}
+              : "Account, target allocation, and target allocation account sources always render detailed positions."}
           </p>
         </label>
       </div>

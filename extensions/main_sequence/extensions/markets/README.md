@@ -22,11 +22,10 @@ This nested extension is the separate application shell for market-facing Main S
 - `managed-accounts/`: managed-account registry with a dedicated list/detail surface under the `Managed Accounts` navigation section.
 - `Platform`
 - `calendars/`: calendar registry with summary-backed detail pages and dates, sessions, and events relationship tabs.
-- `catalogue/`: catalogue registry with backend row-listing and row-delete detail flows.
 - `Portfolios`
-- `funds/`: read-only virtual-fund registry showing linked portfolios and accounts.
+- `funds/`: virtual-fund registry with explicit detail navigation, summary, and holdings.
 - `portfolio-groups/`: portfolio-group registry with bulk delete from the list and a dedicated direct-detail page.
-- `portfolios/`: target-portfolio registry with shared list search, fixed pagination, and bulk-delete support.
+- `portfolios/`: portfolio registry with shared list search, fixed pagination, and bulk-delete support.
 - `Pricing`
 - `pricing-market-data/`: pricing market-data sets and bindings registry backed by `/api/v1/pricing/market_data/`.
 

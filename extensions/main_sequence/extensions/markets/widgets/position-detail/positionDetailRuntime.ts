@@ -18,6 +18,10 @@ export interface PositionDetailInlineRow extends Record<string, unknown> {
   rowId: string;
   assetId: number;
   assetUid?: string;
+  targetType?: string;
+  targetUid?: string;
+  portfolioUid?: string;
+  targetMetadata?: Record<string, unknown>;
   assetName?: string;
   assetTicker?: string;
   uniqueIdentifier?: string;
@@ -250,15 +254,26 @@ export function getDefaultPositionDetailPositionType(
 function normalizePositionDetailInlinePositionType(
   value: unknown,
   sourceType: PositionDetailSourceType,
+  targetType?: string,
 ): PositionDetailInlinePositionType {
   if (sourceType === "account") {
     return "units";
   }
 
   const allowedPositionTypes = getAllowedPositionDetailPositionTypes(sourceType);
-  return allowedPositionTypes.includes(value as PositionDetailCanonicalPositionType)
+  const positionType = allowedPositionTypes.includes(value as PositionDetailCanonicalPositionType)
     ? (value as PositionDetailCanonicalPositionType)
     : getDefaultPositionDetailPositionType(sourceType);
+
+  if (
+    (sourceType === "target_position" || sourceType === "target_positions_account") &&
+    targetType === "portfolio" &&
+    positionType === "units"
+  ) {
+    return "weight_notional_exposure";
+  }
+
+  return positionType;
 }
 
 export function normalizePositionDetailPositionRows(
@@ -278,6 +293,12 @@ export function normalizePositionDetailPositionRows(
     const currentSnapshot =
       asset && isPlainRecord(asset.current_snapshot) ? asset.current_snapshot : null;
     const assetUid = readString(entry.assetUid ?? entry.asset_uid ?? asset?.uid);
+    const targetType = readString(entry.targetType ?? entry.target_type);
+    const targetUid = readString(entry.targetUid ?? entry.target_uid);
+    const portfolioUid = readString(entry.portfolioUid ?? entry.portfolio_uid);
+    const targetMetadataCandidate = entry.targetMetadata ?? entry.target_metadata;
+    const targetMetadata =
+      isPlainRecord(targetMetadataCandidate) ? targetMetadataCandidate : undefined;
     const uniqueIdentifier = readString(
       entry.uniqueIdentifier ?? entry.unique_identifier ?? asset?.unique_identifier,
     );
@@ -302,7 +323,11 @@ export function normalizePositionDetailPositionRows(
     normalizedRows.push({
       rowId,
       assetId,
-      assetUid,
+      ...(assetUid ? { assetUid } : {}),
+      ...(targetType ? { targetType } : {}),
+      ...(targetUid ? { targetUid } : {}),
+      ...(portfolioUid ? { portfolioUid } : {}),
+      ...(targetMetadata ? { targetMetadata } : {}),
       assetName: readString(
         entry.assetName ?? entry.asset_name ?? entry.name ?? currentSnapshot?.name,
       ),
@@ -319,7 +344,11 @@ export function normalizePositionDetailPositionRows(
           }
         : {}),
       price: normalizePositionDetailInlinePrice(entry.price),
-      positionType: normalizePositionDetailInlinePositionType(entry.positionType, sourceType),
+      positionType: normalizePositionDetailInlinePositionType(
+        entry.positionType,
+        sourceType,
+        targetType,
+      ),
       positionValue: normalizePositionDetailInlinePositionValue(entry.positionValue),
     });
 
@@ -347,6 +376,10 @@ export function buildPositionDetailInlineDisplayRows(
     id: row.assetId,
     asset_id: row.assetId,
     ...(row.assetUid ? { asset_uid: row.assetUid } : {}),
+    ...(row.targetType ? { target_type: row.targetType } : {}),
+    ...(row.targetUid ? { target_uid: row.targetUid } : {}),
+    ...(row.portfolioUid ? { portfolio_uid: row.portfolioUid } : {}),
+    ...(row.targetMetadata ? { target_metadata: row.targetMetadata } : {}),
     asset_name:
       row.assetName ||
       row.uniqueIdentifier ||
@@ -412,6 +445,12 @@ export function hydratePositionDetailRowsFromPayload(
     const currentSnapshot =
       asset && isPlainRecord(asset.current_snapshot) ? asset.current_snapshot : null;
     const assetUid = readString(entry.asset_uid ?? entry.assetUid ?? asset?.uid);
+    const targetType = readString(entry.target_type ?? entry.targetType);
+    const targetUid = readString(entry.target_uid ?? entry.targetUid);
+    const portfolioUid = readString(entry.portfolio_uid ?? entry.portfolioUid);
+    const targetMetadataCandidate = entry.target_metadata ?? entry.targetMetadata;
+    const targetMetadata =
+      isPlainRecord(targetMetadataCandidate) ? targetMetadataCandidate : undefined;
     const uniqueIdentifier = readString(entry.unique_identifier ?? asset?.unique_identifier);
     const explicitAssetId = readPositiveInt(entry.asset_id ?? entry.id);
     const assetId =
@@ -428,7 +467,11 @@ export function hydratePositionDetailRowsFromPayload(
     normalizedRows.push({
       rowId: `hydrated-position-${assetId}-${index + 1}`,
       assetId,
-      assetUid,
+      ...(assetUid ? { assetUid } : {}),
+      ...(targetType ? { targetType } : {}),
+      ...(targetUid ? { targetUid } : {}),
+      ...(portfolioUid ? { portfolioUid } : {}),
+      ...(targetMetadata ? { targetMetadata } : {}),
       assetName: readString(entry.asset_name ?? currentSnapshot?.name),
       assetTicker: readString(entry.asset_ticker ?? currentSnapshot?.ticker),
       uniqueIdentifier,
@@ -450,7 +493,11 @@ export function hydratePositionDetailRowsFromPayload(
       positionType:
         sourceType === "account"
           ? "units"
-          : normalizePositionDetailInlinePositionType(entry.position_type, sourceType),
+          : normalizePositionDetailInlinePositionType(
+              entry.position_type,
+              sourceType,
+              targetType,
+            ),
       positionValue: normalizePositionDetailInlinePositionValue(entry.position_value),
     });
 

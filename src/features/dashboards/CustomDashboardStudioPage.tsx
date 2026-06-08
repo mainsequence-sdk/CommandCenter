@@ -4082,7 +4082,7 @@ export function CustomDashboardStudioPage({
         <aside
           aria-hidden={!libraryOpen}
           className={cn(
-            "absolute left-12 bottom-4 z-30 w-[420px] max-w-[calc(100%-4rem)] overflow-hidden rounded-[24px] border border-border/70 bg-card/92 shadow-[var(--shadow-panel)] backdrop-blur-xl transition-[top,transform,opacity] duration-200",
+            "absolute left-12 bottom-4 z-30 w-[420px] max-w-[calc(100%-4rem)] overflow-visible rounded-[24px] border border-border/70 bg-card/92 shadow-[var(--shadow-panel)] backdrop-blur-xl transition-[top,transform,opacity] duration-200",
             dashboardMenuHidden ? "top-4" : "top-12",
             libraryOpen
               ? "translate-x-0 opacity-100"

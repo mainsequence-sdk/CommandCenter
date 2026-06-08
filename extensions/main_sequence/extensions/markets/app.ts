@@ -9,7 +9,6 @@ import {
 import { MainSequenceAssetCategoriesPage } from "./features/asset-categories/MainSequenceAssetCategoriesPage";
 import { MainSequenceAssetsPage } from "./features/assets/MainSequenceAssetsPage";
 import { MainSequenceCalendarsPage } from "./features/calendars/MainSequenceCalendarsPage";
-import { MainSequenceCataloguePage } from "./features/catalogue/MainSequenceCataloguePage";
 import { MainSequenceManagedAccountsPage } from "./features/managed-accounts/MainSequenceManagedAccountsPage";
 import { MainSequenceFundsPage } from "./features/funds/MainSequenceFundsPage";
 import { MainSequenceIndicesPage } from "./features/indices/MainSequenceIndicesPage";
@@ -165,35 +164,17 @@ export const mainSequenceMarketsApp: AppDefinition = {
       component: MainSequenceCalendarsPage,
     },
     {
-      id: "catalogue",
-      title: "Catalogue",
-      navLabel: "Catalogue",
-      description: "Browse catalogue-backed model registries and inspect or delete exposed rows.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Catalogue. This page shows backend catalog records and the rows each record exposes for listing or deletion.",
-        availableActions: [
-          "Browse catalogue records",
-          "Inspect catalogue columns",
-          "Browse catalogue rows",
-          "Delete catalogue rows",
-        ],
-      }),
-      navigationSection: platformSection,
-      kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
-      component: MainSequenceCataloguePage,
-    },
-    {
       id: "funds",
       title: "Virtual Funds",
       navLabel: "Virtual Funds",
       description: "Browse virtual funds and the portfolio and account linked to each one.",
       ...defineSurfaceAssistantContext({
         summary:
-          "User is on Virtual Funds. This page shows virtual funds and their linked portfolio and account relationships.",
+          "User is on Virtual Funds. This page shows virtual funds, opens virtual-fund detail, and displays holdings.",
         availableActions: [
           "Browse virtual funds",
+          "Open virtual fund detail",
+          "Inspect virtual fund holdings",
           "Inspect linked portfolios",
           "Inspect linked accounts",
         ],
@@ -226,12 +207,12 @@ export const mainSequenceMarketsApp: AppDefinition = {
       id: "portfolios",
       title: "Portfolios",
       navLabel: "Portfolios",
-      description: "Browse target portfolios and remove selected rows through the backend bulk-delete action.",
+      description: "Browse portfolios and remove selected rows through the backend bulk-delete action.",
       ...defineSurfaceAssistantContext({
         summary:
-          "User is on Portfolios. This page shows target portfolios and related backend bulk actions.",
+          "User is on Portfolios. This page shows portfolios and related backend bulk actions.",
         availableActions: [
-          "Browse target portfolios",
+          "Browse portfolios",
           "Inspect portfolio details",
           "Bulk delete selected portfolios",
         ],
