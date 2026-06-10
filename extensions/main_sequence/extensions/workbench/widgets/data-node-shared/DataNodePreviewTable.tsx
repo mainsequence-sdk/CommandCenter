@@ -28,7 +28,7 @@ function formatPreviewValue(value: unknown) {
 export function DataNodePreviewTable({
   className,
   columns,
-  emptyMessage = "No rows are available for the selected period.",
+  emptyMessage = "No records are available for the selected period.",
   maxRows = 20,
   rows,
 }: {

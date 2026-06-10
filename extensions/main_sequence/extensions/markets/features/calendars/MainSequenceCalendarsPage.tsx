@@ -796,8 +796,8 @@ function CalendarDetailView({
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm text-muted-foreground">
             {activeRelationshipRows.length === 0
-              ? "No rows loaded"
-              : `${relationshipOffset + 1}-${relationshipOffset + activeRelationshipRows.length} rows`}
+              ? "No records loaded"
+              : `${relationshipOffset + 1}-${relationshipOffset + activeRelationshipRows.length} records`}
           </div>
           <PaginationActions
             canGoBack={relationshipOffset > 0}
@@ -923,7 +923,7 @@ export function MainSequenceCalendarsPage() {
             </div>
             <MainSequenceRegistrySearch
               actionMenuLabel="Calendar actions"
-              accessory={<Badge variant="neutral">{`${loadedCount} rows`}</Badge>}
+              accessory={<Badge variant="neutral">{`${loadedCount} calendars`}</Badge>}
               value={searchValue}
               onChange={(event) => updateSearch(event.target.value)}
               placeholder="Search calendars"

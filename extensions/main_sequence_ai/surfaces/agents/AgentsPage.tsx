@@ -284,7 +284,7 @@ export function AgentsPage() {
               accessory={<Badge variant="neutral">{`${agentsQuery.data?.count ?? 0} agents`}</Badge>}
               value={filterValue}
               onChange={(event) => setFilterValue(event.target.value)}
-              placeholder="Filter by name, id, unique id, provider, model, or engine"
+              placeholder="Filter by name, UID, unique identifier, provider, model, or engine"
               selectionCount={0}
             />
           </div>

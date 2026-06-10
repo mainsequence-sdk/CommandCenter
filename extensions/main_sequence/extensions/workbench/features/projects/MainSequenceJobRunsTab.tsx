@@ -432,7 +432,7 @@ export function MainSequenceJobRunsTab({
           accessory={<Badge variant="neutral">{`${runsQuery.data?.count ?? 0} runs`}</Badge>}
           value={filterValue}
           onChange={(event) => setFilterValue(event.target.value)}
-          placeholder="Filter by run name, id, status, trigger, or commit"
+          placeholder="Filter by run name, UID, status, trigger, or commit"
           searchClassName="max-w-lg"
         />
       </div>
@@ -524,7 +524,7 @@ export function MainSequenceJobRunsTab({
                   <td className="border-y border-border/70 bg-background/24 px-4 py-3">
                     <div className="text-foreground">{jobRun.triggered_by ?? "System"}</div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      {jobRun.triggered_by_id ? `User ${jobRun.triggered_by_id}` : "No user id"}
+                      {jobRun.triggered_by_id ? `User ${jobRun.triggered_by_id}` : "No triggering user"}
                     </div>
                   </td>
                   <td className="border-y border-border/70 bg-background/24 px-4 py-3">

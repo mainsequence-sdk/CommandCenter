@@ -375,7 +375,7 @@ export function MainSequenceTargetPortfolioDetailView({
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Position Details</CardTitle>
                     <CardDescription>
-                      Detailed rows returned by the portfolio weights endpoint.
+                      Detailed records returned by the portfolio weights endpoint.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">

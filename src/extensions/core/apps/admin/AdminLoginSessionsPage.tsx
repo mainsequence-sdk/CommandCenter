@@ -195,7 +195,7 @@ export function AdminLoginSessionsPage() {
                     step={1}
                     value={userIdFilterValue}
                     onChange={(event) => setUserIdFilterValue(event.target.value)}
-                    placeholder="User ID"
+                    placeholder="User key"
                     className="h-9 w-28 rounded-[calc(var(--radius)-6px)] border border-input bg-background px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/60"
                   />
                   <Select

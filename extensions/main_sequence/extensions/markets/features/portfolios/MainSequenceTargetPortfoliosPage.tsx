@@ -467,7 +467,7 @@ export function MainSequenceTargetPortfoliosPage() {
               actionMenuLabel="Portfolio actions"
               accessory={
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="neutral">{`${totalCount} rows`}</Badge>
+                  <Badge variant="neutral">{`${totalCount} portfolios`}</Badge>
                 </div>
               }
               bulkActions={portfolioBulkActions}

@@ -8,13 +8,10 @@ import { hasAllPermissions } from "@/auth/permissions";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { getWidgetDetailsPath } from "@/features/widgets/widget-explorer";
+import { formatWidgetSourceLabel } from "@/features/widgets/widget-source-labels";
 import { titleCase } from "@/lib/utils";
 import { useRegisteredWidgetTypesCatalog } from "@/widgets/registered-widget-types-api";
 import type { WidgetDefinition } from "@/widgets/types";
-
-function formatSource(source: string) {
-  return titleCase(source.replace(/[_-]+/g, " "));
-}
 
 function resolveRuntimeMode(widget: WidgetDefinition) {
   if (widget.workspaceRuntimeMode) {
@@ -133,7 +130,7 @@ export function WidgetCatalogPage() {
                           </div>
                         </td>
                         <td className="w-[170px] px-4 py-3 text-foreground">
-                          {formatSource(widget.source)}
+                          {formatWidgetSourceLabel(widget.source)}
                         </td>
                         <td className="w-[190px] px-4 py-3 text-foreground">
                           {titleCase(widget.category)}

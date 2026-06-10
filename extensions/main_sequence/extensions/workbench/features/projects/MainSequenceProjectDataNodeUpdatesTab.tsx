@@ -197,7 +197,7 @@ export function MainSequenceProjectDataNodeUpdatesTab({
           }
           value={filterValue}
           onChange={(event) => setFilterValue(event.target.value)}
-          placeholder="Filter by uid, update hash, status, scheduler, or compute"
+          placeholder="Filter by UID, update hash, status, scheduler, or compute"
           searchClassName="max-w-lg"
         />
       </div>

@@ -721,7 +721,7 @@ export function MainSequenceDataNodesPage() {
         description:
           result.deleted_count > 0
             ? [
-                `${result.deleted_count} rows removed`,
+                `${result.deleted_count} records removed`,
                 result.unique_identifier_list?.length
                   ? `${result.unique_identifier_list.length} identifiers filtered`
                   : null,
@@ -729,7 +729,7 @@ export function MainSequenceDataNodesPage() {
               ]
                 .filter(Boolean)
                 .join(" · ")
-            : "No rows matched the delete-after-date request.",
+            : "No records matched the delete-after-date request.",
       });
 
       await Promise.all([
@@ -1135,7 +1135,7 @@ export function MainSequenceDataNodesPage() {
           payload.missing_table_deleted ? `${payload.missing_table_deleted} orphan rows deleted` : null,
         ]
           .filter(Boolean)
-          .join(" · ") || "No rows were deleted.",
+          .join(" · ") || "No records were deleted.",
       });
     } else if (
       result &&
@@ -1731,7 +1731,7 @@ export function MainSequenceDataNodesPage() {
                   actionMenuLabel="Data node actions"
                   accessory={
                     <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-                      <Badge variant="neutral">{`${dataNodesQuery.data?.count ?? 0} rows`}</Badge>
+                      <Badge variant="neutral">{`${dataNodesQuery.data?.count ?? 0} data nodes`}</Badge>
                       <div className="w-full sm:w-64">
                         <Select
                           value={selectedNamespaceValue}
@@ -1908,7 +1908,7 @@ export function MainSequenceDataNodesPage() {
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           <div className="flex items-start gap-2">
-                            <HardDrive className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                            <HardDrive className="mt-0.5 text-muted-foreground" />
                             <div className="min-w-0">
                               <button
                                 type="button"
@@ -1923,7 +1923,7 @@ export function MainSequenceDataNodesPage() {
                                 title={getDataNodeTableName(dataNode)}
                               >
                                 <span className="truncate">{getDataNodeTableName(dataNode)}</span>
-                                <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
+                                <ArrowUpRight className="text-muted-foreground transition-colors group-hover:text-primary" />
                               </button>
                               <div
                                 className="mt-0.5 max-w-[260px] truncate font-mono text-muted-foreground"
@@ -1937,7 +1937,7 @@ export function MainSequenceDataNodesPage() {
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
                           <div className="flex items-start gap-2">
-                            <Database className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                            <Database className="mt-0.5 text-muted-foreground" />
                             <div className="min-w-0">
                               <div className="font-medium text-foreground">
                                 {dataNode.identifier?.trim() || "No identifier"}

@@ -18,6 +18,10 @@ interface SelectOption {
   value: string;
 }
 
+type SelectOptionElementProps = React.OptionHTMLAttributes<HTMLOptionElement> & {
+  "data-description"?: string;
+};
+
 function flattenOptions(children: React.ReactNode): SelectOption[] {
   const options: SelectOption[] = [];
 
@@ -27,7 +31,7 @@ function flattenOptions(children: React.ReactNode): SelectOption[] {
     }
 
     if (child.type === "option") {
-      const props = child.props as React.OptionHTMLAttributes<HTMLOptionElement>;
+      const props = child.props as SelectOptionElementProps;
       const label =
         typeof props.children === "string"
           ? props.children
@@ -286,10 +290,15 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                     <span className="min-w-0 flex-1">
                       {option.description ? (
                         <span className="flex min-w-0 flex-col">
-                          <span className={cn("truncate", fitContent && "whitespace-nowrap")}>
+                          <span className={cn(fitContent ? "whitespace-nowrap" : "truncate")}>
                             {option.label}
                           </span>
-                          <span className="truncate text-[11px] text-muted-foreground">
+                          <span
+                            className={cn(
+                              "text-[11px] text-muted-foreground",
+                              fitContent ? "whitespace-nowrap" : "truncate",
+                            )}
+                          >
                             {option.description}
                           </span>
                         </span>

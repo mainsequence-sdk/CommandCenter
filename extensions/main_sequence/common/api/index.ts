@@ -26,6 +26,8 @@ const assetEndpoint = buildMainSequenceAssetEndpoint("asset/");
 const catalogEndpoint = buildMainSequenceAssetEndpoint("catalog/");
 const calendarEndpoint = buildMainSequenceAssetEndpoint("calendar/");
 const pricingMarketDataEndpoint = buildMainSequenceAssetEndpoint("pricing/market_data/");
+const pricingCurvesEndpoint = buildMainSequenceAssetEndpoint("pricing/curves/");
+const marketsSettingsEndpoint = buildMainSequenceAssetEndpoint("settings/");
 const indexEndpoint = buildMainSequenceAssetEndpoint("index/");
 const assetCategoryEndpoint = buildMainSequenceAssetEndpoint("asset-category/");
 const instrumentsConfigurationEndpoint = buildMainSequenceAssetEndpoint(
@@ -549,6 +551,37 @@ export interface PricingMarketDataApiCard {
   resources: PricingMarketDataResourceLink[];
 }
 
+export interface MarketsSettingsAssumption {
+  key: string;
+  label: string;
+  value: string;
+  source: string;
+  description: string;
+}
+
+export interface MarketsSettingsResponse {
+  app: {
+    name: string;
+    scope: string;
+    version: string;
+  };
+  runtime: {
+    namespace: string;
+    namespace_source: string;
+    default_namespace: string;
+    auto_register_enabled: boolean;
+    management_mode: string;
+    schema_mutation_allowed: boolean;
+    requires_migrations: boolean;
+  };
+  documentation: {
+    openapi_url: string;
+    swagger_url: string;
+    redoc_url: string;
+  };
+  assumptions: MarketsSettingsAssumption[];
+}
+
 export interface PricingMarketDataSet extends Record<string, unknown> {
   uid: string;
   set_key: string;
@@ -633,6 +666,62 @@ export interface PricingMarketDataBindingResolveResponse {
   market_data_set: string;
   concept_key: string;
   data_node_uid: string;
+}
+
+export interface PricingCurveRow extends Record<string, unknown> {
+  uid: string;
+  unique_identifier: string;
+  display_name: string;
+  curve_type: string;
+  index_uid: string | null;
+  interpolation_method: string | null;
+  compounding: string | null;
+  source: string | null;
+  metadata_json: Record<string, unknown> | null;
+}
+
+export interface PricingCurveFilters {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  curveType?: string;
+  indexUid?: string;
+  source?: string;
+}
+
+export interface PricingCurveDiscountCurveFilters {
+  marketDataSet: string;
+  valuationDate?: string;
+}
+
+export interface PricingCurveDiscountCurveNode {
+  days_to_maturity: number;
+  zero: number;
+}
+
+export interface PricingCurveDiscountCurveMarketDataSet {
+  uid: string;
+  set_key: string;
+  display_name: string;
+}
+
+export interface PricingCurveDiscountCurveBinding {
+  uid: string;
+  concept_key: string;
+  data_node_uid: string;
+  storage_table_identifier: string;
+}
+
+export interface PricingCurveDiscountCurveResponse {
+  curve_uid: string;
+  curve_identifier: string;
+  curve: PricingCurveRow;
+  market_data_set: PricingCurveDiscountCurveMarketDataSet;
+  binding: PricingCurveDiscountCurveBinding;
+  valuation_date: string;
+  effective_date: string;
+  request_mode: string;
+  nodes: PricingCurveDiscountCurveNode[];
 }
 
 export interface AssetCategoryListRow {
@@ -4799,6 +4888,63 @@ export function listCalendarEvents(
 
 export function fetchPricingMarketDataApiCard() {
   return requestJson<PricingMarketDataApiCard>(pricingMarketDataEndpoint);
+}
+
+export function fetchMarketsSettings() {
+  return requestJson<MarketsSettingsResponse>(marketsSettingsEndpoint);
+}
+
+function buildPricingCurveSearch({
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+  search,
+  curveType,
+  indexUid,
+  source,
+}: PricingCurveFilters = {}) {
+  return {
+    limit,
+    offset,
+    search: search?.trim() || undefined,
+    curve_type: curveType?.trim() || undefined,
+    index_uid: indexUid?.trim() || undefined,
+    source: source?.trim() || undefined,
+  } satisfies Record<string, QueryValue>;
+}
+
+export async function listPricingCurves(filters: PricingCurveFilters = {}) {
+  const limit = filters.limit ?? mainSequenceRegistryPageSize;
+  const offset = filters.offset ?? 0;
+  const payload = await requestJson<PaginatedResponse<PricingCurveRow>>(
+    pricingCurvesEndpoint,
+    "",
+    undefined,
+    buildPricingCurveSearch({ ...filters, limit, offset }),
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function fetchPricingCurveSummary(curveUid: string) {
+  return requestJson<EntitySummaryHeader>(
+    pricingCurvesEndpoint,
+    `${resolveMainSequenceUidPath(curveUid, "pricing curve")}/summary/`,
+  );
+}
+
+export function fetchPricingCurveDiscountCurve(
+  curveUid: string,
+  filters: PricingCurveDiscountCurveFilters,
+) {
+  return requestJson<PricingCurveDiscountCurveResponse>(
+    pricingCurvesEndpoint,
+    `${resolveMainSequenceUidPath(curveUid, "pricing curve")}/discount-curve/`,
+    undefined,
+    {
+      market_data_set: filters.marketDataSet.trim(),
+      valuation_date: filters.valuationDate?.trim() || undefined,
+    },
+  );
 }
 
 function buildPricingMarketDataSetSearch({

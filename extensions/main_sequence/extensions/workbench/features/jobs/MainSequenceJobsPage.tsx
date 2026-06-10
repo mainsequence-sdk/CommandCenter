@@ -395,7 +395,7 @@ export function MainSequenceJobsPage() {
               renderSelectionSummary={(selectionCount) => `${selectionCount} jobs selected`}
               value={filterValue}
               onChange={(event) => setFilterValue(event.target.value)}
-              placeholder="Filter by name, id, project, execution path, or compute"
+              placeholder="Filter by name, UID, project, execution path, or compute"
               searchClassName="max-w-lg"
               selectionCount={jobSelection.selectedCount}
             />

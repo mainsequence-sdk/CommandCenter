@@ -406,7 +406,7 @@ export function AgentSessionCatalogPicker({
                             {getAgentSessionRecordTitle(session)}
                           </div>
                           <div className="mt-1 truncate text-xs text-muted-foreground">
-                            <span className="font-mono">Session ID: {sessionId}</span>
+                            <span className="font-mono">Session UID: {sessionId}</span>
                           </div>
                           {handleUniqueId ? (
                             <div className="mt-1 truncate text-xs text-muted-foreground">

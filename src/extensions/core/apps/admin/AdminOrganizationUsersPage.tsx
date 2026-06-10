@@ -668,7 +668,7 @@ export function AdminOrganizationUsersPage() {
               )}
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
-              placeholder="Search by email or user id"
+              placeholder="Search by email or user UID"
               searchClassName="max-w-xl"
             />
           </div>

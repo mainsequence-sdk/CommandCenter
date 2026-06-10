@@ -25,6 +25,7 @@ import {
 } from "@/dashboards/widget-reference-language";
 import { WidgetBindingPanel } from "@/widgets/shared/WidgetBindingPanel";
 import { getWidgetDetailsPath } from "@/features/widgets/widget-explorer";
+import { formatWidgetSourceLabel } from "@/features/widgets/widget-source-labels";
 import { resolveWidgetInstancePresentation } from "@/widgets/shared/widget-schema";
 import { resolveManagedConnectionQuerySource } from "@/connections/managedConnectionQuerySource";
 import {
@@ -1028,7 +1029,7 @@ export function CustomWidgetSettingsPage({
                           {selectedDashboard.title}
                         </Badge>
                         <Badge variant="neutral">{widget.kind}</Badge>
-                        <Badge variant="neutral">{widget.source}</Badge>
+                        <Badge variant="neutral">{formatWidgetSourceLabel(widget.source)}</Badge>
                       </div>
                       <div className="space-y-1">
                         <h1 className="text-2xl font-semibold tracking-tight text-foreground">

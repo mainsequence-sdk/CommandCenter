@@ -16,6 +16,7 @@ import {
   formatZeroCurveDayLabel,
   normalizeZeroCurveProps,
   resolveZeroCurveConfig,
+  type ZeroCurveSeries,
   type MainSequenceZeroCurveWidgetProps,
 } from "./zeroCurveModel";
 
@@ -344,10 +345,135 @@ function buildZeroCurveChartOption({
   };
 }
 
-export function ZeroCurveWidget({ props, instanceId }: Props) {
+export function ZeroCurveChartSurface({
+  series,
+  invalidRowCount = 0,
+  emptyDescription = "The linked rows did not contain parsable compressed curve payloads for the selected source.",
+  emptyTitle = "No zero curves could be rendered",
+}: {
+  series: ZeroCurveSeries[];
+  invalidRowCount?: number;
+  emptyDescription?: string;
+  emptyTitle?: string;
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { resolvedTokens } = useTheme();
+  const palette = useMemo(
+    () => getSeriesPalette(resolvedTokens),
+    [resolvedTokens],
+  );
+  const overallRange = useMemo(() => {
+    const datedSeries = series
+      .filter(
+        (entry): entry is typeof entry & {
+          timeIndexLabel: string;
+          timeIndexSortValue: number;
+        } =>
+          typeof entry.timeIndexLabel === "string" &&
+          entry.timeIndexLabel.trim().length > 0 &&
+          typeof entry.timeIndexSortValue === "number" &&
+          Number.isFinite(entry.timeIndexSortValue),
+      )
+      .sort((left, right) => left.timeIndexSortValue - right.timeIndexSortValue);
 
+    if (datedSeries.length === 0) {
+      return null;
+    }
+
+    return {
+      endLabel: datedSeries[datedSeries.length - 1]!.timeIndexLabel,
+      startLabel: datedSeries[0]!.timeIndexLabel,
+    };
+  }, [series]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+
+    if (!container || series.length === 0) {
+      return;
+    }
+
+    const chart = echarts.init(container, undefined, {
+      renderer: "canvas",
+    });
+    const option = buildZeroCurveChartOption({
+      palette,
+      resolvedTokens,
+      series,
+    });
+
+    chart.setOption(option, true);
+
+    const resizeObserver = new ResizeObserver(() => {
+      chart.resize();
+    });
+
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+      chart.dispose();
+    };
+  }, [palette, resolvedTokens, series]);
+
+  if (series.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
+          <LineChart className="h-5 w-5" />
+        </div>
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">{emptyTitle}</div>
+          <p className="text-sm text-muted-foreground">{emptyDescription}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      {invalidRowCount > 0 ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+          Skipped {invalidRowCount.toLocaleString()} row
+          {invalidRowCount === 1 ? "" : "s"} because the selected curve payload could not be parsed.
+        </div>
+      ) : null}
+
+      <div
+        className="relative min-h-0 flex-1 overflow-hidden rounded-[calc(var(--radius)-6px)] border px-2 pt-2 pb-2"
+        style={{
+          borderColor: withAlpha(resolvedTokens.border, 0.72),
+          background: `linear-gradient(180deg, ${withAlpha(resolvedTokens.background, 0.76)} 0%, ${withAlpha(
+            resolvedTokens.card,
+            0.96,
+          )} 100%)`,
+        }}
+      >
+        {overallRange ? (
+          <div className="pointer-events-none absolute top-3 left-3 z-10 flex flex-wrap items-center gap-2">
+            <div
+              className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs"
+              style={{
+                borderColor: withAlpha(resolvedTokens.border, 0.72),
+                backgroundColor: withAlpha(resolvedTokens.background, 0.78),
+                color: resolvedTokens.foreground,
+              }}
+            >
+              <span className="uppercase tracking-[0.12em] text-[10px] text-muted-foreground">From</span>
+              <span className="font-semibold">{overallRange.startLabel}</span>
+              <span className="text-muted-foreground">→</span>
+              <span className="uppercase tracking-[0.12em] text-[10px] text-muted-foreground">To</span>
+              <span className="font-semibold">{overallRange.endLabel}</span>
+            </div>
+          </div>
+        ) : null}
+        <div ref={containerRef} className="h-full min-h-0 w-full" />
+      </div>
+    </div>
+  );
+}
+
+export function ZeroCurveWidget({ props, instanceId }: Props) {
   const normalizedProps = useMemo(
     () => normalizeZeroCurveProps(props),
     [props],
@@ -373,10 +499,6 @@ export function ZeroCurveWidget({ props, instanceId }: Props) {
     [effectiveProps],
   );
   const hasRuntimeRows = (linkedDataset?.rows?.length ?? 0) > 0;
-  const palette = useMemo(
-    () => getSeriesPalette(resolvedTokens),
-    [resolvedTokens],
-  );
   const [seriesState, setSeriesState] = useState<{
     error: string | null;
     loading: boolean;
@@ -429,60 +551,6 @@ export function ZeroCurveWidget({ props, instanceId }: Props) {
     };
   }, [linkedDataset?.rows, resolvedConfig]);
 
-  const overallRange = useMemo(() => {
-    const datedSeries = (seriesState.result?.series ?? [])
-      .filter(
-        (entry): entry is typeof entry & {
-          timeIndexLabel: string;
-          timeIndexSortValue: number;
-        } =>
-          typeof entry.timeIndexLabel === "string" &&
-          entry.timeIndexLabel.trim().length > 0 &&
-          typeof entry.timeIndexSortValue === "number" &&
-          Number.isFinite(entry.timeIndexSortValue),
-      )
-      .sort((left, right) => left.timeIndexSortValue - right.timeIndexSortValue);
-
-    if (datedSeries.length === 0) {
-      return null;
-    }
-
-    return {
-      endLabel: datedSeries[datedSeries.length - 1]!.timeIndexLabel,
-      startLabel: datedSeries[0]!.timeIndexLabel,
-    };
-  }, [seriesState.result]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-
-    if (!container || !seriesState.result || seriesState.result.series.length === 0) {
-      return;
-    }
-
-    const chart = echarts.init(container, undefined, {
-      renderer: "canvas",
-    });
-    const option = buildZeroCurveChartOption({
-      palette,
-      resolvedTokens,
-      series: seriesState.result.series,
-    });
-
-    chart.setOption(option, true);
-
-    const resizeObserver = new ResizeObserver(() => {
-      chart.resize();
-    });
-
-    resizeObserver.observe(container);
-
-    return () => {
-      resizeObserver.disconnect();
-      chart.dispose();
-    };
-  }, [palette, resolvedTokens, seriesState.result]);
-
   if (sourceBinding.isFilterWidgetSource && !sourceBinding.hasResolvedFilterWidgetSource) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
@@ -519,61 +587,19 @@ export function ZeroCurveWidget({ props, instanceId }: Props) {
     );
   }
 
-  if (!hasRuntimeRows || !seriesState.result || seriesState.result.series.length === 0) {
+  if (!hasRuntimeRows || !seriesState.result) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-6 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full border border-border/70 bg-background/55 text-primary">
-          <LineChart className="h-5 w-5" />
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-foreground">No zero curves could be rendered</div>
-          <p className="text-sm text-muted-foreground">
-            The linked rows did not contain parsable compressed curve payloads for the selected source.
-          </p>
-        </div>
-      </div>
+      <ZeroCurveChartSurface
+        series={[]}
+        emptyDescription="The linked rows did not contain parsable compressed curve payloads for the selected source."
+      />
     );
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      {seriesState.result.invalidRowCount > 0 ? (
-        <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-          Skipped {seriesState.result.invalidRowCount.toLocaleString()} row
-          {seriesState.result.invalidRowCount === 1 ? "" : "s"} because the selected curve payload could not be parsed.
-        </div>
-      ) : null}
-
-      <div
-        className="relative min-h-0 flex-1 overflow-hidden rounded-[calc(var(--radius)-6px)] border px-2 pt-2 pb-2"
-        style={{
-          borderColor: withAlpha(resolvedTokens.border, 0.72),
-          background: `linear-gradient(180deg, ${withAlpha(resolvedTokens.background, 0.76)} 0%, ${withAlpha(
-            resolvedTokens.card,
-            0.96,
-          )} 100%)`,
-        }}
-      >
-        {overallRange ? (
-          <div className="pointer-events-none absolute top-3 left-3 z-10 flex flex-wrap items-center gap-2">
-            <div
-              className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs"
-              style={{
-                borderColor: withAlpha(resolvedTokens.border, 0.72),
-                backgroundColor: withAlpha(resolvedTokens.background, 0.78),
-                color: resolvedTokens.foreground,
-              }}
-            >
-              <span className="uppercase tracking-[0.12em] text-[10px] text-muted-foreground">From</span>
-              <span className="font-semibold">{overallRange.startLabel}</span>
-              <span className="text-muted-foreground">→</span>
-              <span className="uppercase tracking-[0.12em] text-[10px] text-muted-foreground">To</span>
-              <span className="font-semibold">{overallRange.endLabel}</span>
-            </div>
-          </div>
-        ) : null}
-        <div ref={containerRef} className="h-full min-h-0 w-full" />
-      </div>
-    </div>
+    <ZeroCurveChartSurface
+      series={seriesState.result.series}
+      invalidRowCount={seriesState.result.invalidRowCount}
+    />
   );
 }

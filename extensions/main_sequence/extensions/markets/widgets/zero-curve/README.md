@@ -48,6 +48,9 @@ payloads from a bound upstream dataset on a numeric days axis using ECharts.
 - Runtime fetch ownership should stay with upstream execution owners such as Connection Query or
   Tabular Transform. This widget may decompress and transform published rows locally, but it must
   not create its own canonical backend data fetch path on workspace surfaces.
+- `ZeroCurveWidget.tsx` now also exports a shared chart surface used by the Pricing Curve detail
+  page. Keep page-level reuse limited to rendering semantics; page features still own their own
+  backend fetch paths and response shaping.
 - `definition.ts` now publishes both `widgetVersion` and an explicit backend-facing
   `registryContract`.
 - Keep that registry contract aligned with the real consumer behavior here: compressed curve input

@@ -520,10 +520,10 @@ export function MainSequenceTimeScaleDbServiceDetail({
                 </CardDescription>
               </div>
               <MainSequenceRegistrySearch
-                accessory={<Badge variant="neutral">{`${databasesTotalItems} rows`}</Badge>}
+                accessory={<Badge variant="neutral">{`${databasesTotalItems} data sources`}</Badge>}
                 value={databaseSearchValue}
                 onChange={(event) => setDatabaseSearchValue(event.target.value)}
-                placeholder="Search by display name, class type, status, or id"
+                placeholder="Search by display name, class type, status, or UID"
                 searchClassName="max-w-lg"
               />
             </div>

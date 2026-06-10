@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { Database, Loader2 } from "lucide-react";
+import { ArrowUpRight, Database, Loader2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -251,7 +251,7 @@ export function MainSequenceIndicesPage() {
 
             <MainSequenceRegistrySearch
               actionMenuLabel="Index actions"
-              accessory={<Badge variant="neutral">{`${totalCount} rows`}</Badge>}
+              accessory={<Badge variant="neutral">{`${totalCount} indices`}</Badge>}
               value={searchValue}
               onChange={(event) => updateSearch(event.target.value)}
               placeholder="Search indices"
@@ -307,11 +307,16 @@ export function MainSequenceIndicesPage() {
                       <td className="px-4 py-3">
                         <button
                           type="button"
-                          className="space-y-1 text-left transition-opacity hover:opacity-80"
+                          className="block w-full min-w-0 text-left"
                           onClick={() => openIndexDetail(indexRow.uid)}
                         >
-                          <div className="font-medium text-foreground">{getIndexTitle(indexRow)}</div>
-                          <div className="font-mono text-xs text-muted-foreground">{indexRow.uid}</div>
+                          <div className="min-w-0">
+                            <div className="group inline-flex max-w-full items-center gap-1.5 font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary">
+                              <span className="truncate">{getIndexTitle(indexRow)}</span>
+                              <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
+                            </div>
+                            <div className="mt-1 font-mono text-xs text-muted-foreground">{indexRow.uid}</div>
+                          </div>
                         </button>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">

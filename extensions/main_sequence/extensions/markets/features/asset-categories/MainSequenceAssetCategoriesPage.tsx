@@ -353,14 +353,14 @@ export function MainSequenceAssetCategoriesPage() {
 
             <MainSequenceRegistrySearch
               actionMenuLabel="Category actions"
-              accessory={<Badge variant="neutral">{`${totalCount} rows`}</Badge>}
+              accessory={<Badge variant="neutral">{`${totalCount} categories`}</Badge>}
               bulkActions={categoryBulkActions}
               clearSelectionLabel="Clear categories"
               onClearSelection={categorySelection.clearSelection}
               renderSelectionSummary={(selectionCount) => `${selectionCount} categories selected`}
               value={searchValue}
               onChange={(event) => updateSearch(event.target.value)}
-              placeholder="Search by id, display name, unique identifier, or description"
+              placeholder="Search by UID, display name, unique identifier, or description"
               selectionCount={categorySelection.selectedCount}
               searchClassName="max-w-xl"
             />

@@ -504,13 +504,16 @@ export function AdminManageCreditsPage() {
         );
         const userName = readUserDisplayName(matchedUser, row.user_id);
         const userSecondary = readUserSecondaryLabel(matchedUser, row.user_id);
+        const userUid = matchedUser?.uid?.trim() || "";
 
         return {
           ...row,
           userName,
           userSecondary,
           normalizedMode,
-          searchText: [userName, userSecondary, row.user_id, normalizedMode].join(" ").toLowerCase(),
+          searchText: [userName, userSecondary, userUid, row.user_id, normalizedMode]
+            .join(" ")
+            .toLowerCase(),
         };
       })
       .sort((left, right) => left.userName.localeCompare(right.userName));
@@ -1114,7 +1117,7 @@ export function AdminManageCreditsPage() {
                   }
                   value={searchValue}
                   onChange={(event) => setSearchValue(event.target.value)}
-                  placeholder="Search by name, email, user id, or policy mode"
+                  placeholder="Search by name, email, user UID, or policy mode"
                   searchClassName="max-w-xl"
                 />
               </div>

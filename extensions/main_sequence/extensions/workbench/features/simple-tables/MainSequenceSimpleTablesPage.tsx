@@ -1378,7 +1378,7 @@ export function MainSequenceMetaTablesPage() {
                   actionMenuLabel="Meta table actions"
                   accessory={
                     <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-                      <Badge variant="neutral">{`${metaTablesQuery.data?.count ?? 0} rows`}</Badge>
+                      <Badge variant="neutral">{`${metaTablesQuery.data?.count ?? 0} meta tables`}</Badge>
                       <div className="w-full sm:w-64">
                         <Select
                           value={selectedNamespaceValue}
@@ -1496,7 +1496,7 @@ export function MainSequenceMetaTablesPage() {
                             </td>
                             <td className={getRegistryTableCellClassName(selected)}>
                               <div className="flex items-start gap-2">
-                                <HardDrive className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                                <HardDrive className="mt-0.5 shrink-0 text-muted-foreground" />
                                 <div className="min-w-0">
                                   <button
                                     type="button"
@@ -1511,7 +1511,7 @@ export function MainSequenceMetaTablesPage() {
                                     title={getMetaTableListTableName(table)}
                                   >
                                     <span className="truncate">{getMetaTableListTableName(table)}</span>
-                                    <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
+                                    <ArrowUpRight className="shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
                                   </button>
                                   <div
                                     className="mt-0.5 max-w-[260px] truncate font-mono text-muted-foreground"
@@ -1525,7 +1525,7 @@ export function MainSequenceMetaTablesPage() {
                             </td>
                             <td className={getRegistryTableCellClassName(selected)}>
                               <div className="flex items-start gap-2">
-                                <Database className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                                <Database className="mt-0.5 shrink-0 text-muted-foreground" />
                                 <div className="min-w-0">
                                   <div className="font-medium text-foreground">
                                     {table.identifier?.trim() || "No identifier"}

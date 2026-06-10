@@ -505,7 +505,7 @@ export function MainSequenceFundsPage() {
 
             <MainSequenceRegistrySearch
               actionMenuLabel="Virtual fund actions"
-              accessory={<Badge variant="neutral">{`${totalCount} rows`}</Badge>}
+              accessory={<Badge variant="neutral">{`${totalCount} virtual funds`}</Badge>}
               value={searchValue}
               onChange={(event) => updateSearch(event.target.value)}
               placeholder="Search virtual funds"

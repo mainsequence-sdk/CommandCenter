@@ -972,7 +972,7 @@ export function MainSequenceProjectsPage() {
                       renderSelectionSummary={(selectionCount) => `${selectionCount} projects selected`}
                       value={filterValue}
                       onChange={(event) => setFilterValue(event.target.value)}
-                      placeholder="Filter by name, uid, git url, or data source"
+                      placeholder="Filter by name, UID, git URL, or data source"
                       selectionCount={projectSelection.selectedCount}
                     />
                   </div>

@@ -119,14 +119,14 @@ export function AgentSessionDetailSections({
           Overview
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <SessionField label="Session ID" value={core.sessionId} mono />
-          <SessionField label="Display Session ID" value={detail.context.sessionDisplayId} mono />
+          <SessionField label="Session UID" value={core.sessionId} mono />
+          <SessionField label="Display Session UID" value={detail.context.sessionDisplayId} mono />
           <SessionField label="Status" value={core.status} />
           <SessionField label="Working" value={formatBoolean(core.working || detail.context.working)} />
           <SessionField label="Agent Type" value={core.agentType} />
           <SessionField label="Actor Name" value={core.actorName} />
           <SessionField label="Request Agent Type" value={detail.context.requestAgentType} mono />
-          <SessionField label="Agent Unique ID" value={detail.context.agentUniqueId} mono />
+          <SessionField label="Agent Unique Identifier" value={detail.context.agentUniqueId} mono />
         </div>
 
         {core.title ? (
@@ -174,13 +174,13 @@ export function AgentSessionDetailSections({
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <SessionField label="Runtime State" value={core.runtimeState || detail.context.runtimeState} mono />
-          <SessionField label="Runtime Session ID" value={detail.context.runtimeSessionId} mono />
-          <SessionField label="Thread ID" value={detail.context.threadId} mono />
+          <SessionField label="Runtime Session UID" value={detail.context.runtimeSessionId} mono />
+          <SessionField label="Thread UID" value={detail.context.threadId} mono />
           <SessionField label="Session Key" value={detail.context.sessionKey} mono />
-          <SessionField label="Project ID" value={detail.context.projectId} mono />
+          <SessionField label="Project UID" value={detail.context.projectId} mono />
           <SessionField label="Working Directory" value={detail.context.cwd} mono />
           <SessionField label="Handle" value={detail.context.handleUniqueId} mono />
-          <SessionField label="External Step ID" value={core.externalStepId} mono />
+          <SessionField label="External Step Key" value={core.externalStepId} mono />
         </div>
       </div>
 
@@ -189,7 +189,7 @@ export function AgentSessionDetailSections({
           Model
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <SessionField label="Agent ID" value={core.agentId || detail.context.agentId} mono />
+          <SessionField label="Agent UID" value={core.agentId || detail.context.agentId} mono />
           <SessionField label="Provider" value={core.llmProvider} />
           <SessionField label="Model" value={core.llmModel} mono />
           <SessionField label="Engine" value={core.engineName} />
@@ -219,8 +219,8 @@ export function AgentSessionDetailSections({
                 className="rounded-[14px] border border-border/60 bg-background/45 px-3 py-3"
               >
                 <div className="grid gap-3 md:grid-cols-2">
-                  <SessionField label="Handle ID" value={handle.id} mono />
-                  <SessionField label="Unique ID" value={handle.handleUniqueId} mono />
+                  <SessionField label="Handle UID" value={handle.id} mono />
+                  <SessionField label="Unique Identifier" value={handle.handleUniqueId} mono />
                   <SessionField label="Owner User" value={handle.ownerUserId} mono />
                   <SessionField label="Locked" value={formatBoolean(handle.isLocked)} />
                 </div>

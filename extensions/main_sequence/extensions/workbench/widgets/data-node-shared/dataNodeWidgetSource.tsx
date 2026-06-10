@@ -1303,7 +1303,7 @@ export function createDataNodeWidgetSourceSettingsSchema<
               onBlur={() => {
                 commitIdentifierInput();
               }}
-              placeholder={uniqueIdentifierList.length > 0 ? "Add identifier" : "Filter rows"}
+              placeholder={uniqueIdentifierList.length > 0 ? "Add identifier" : "Filter records"}
               className="h-7 min-w-[120px] flex-1 border-0 bg-transparent px-0 text-sm text-foreground outline-none placeholder:text-muted-foreground"
             />
           </div>

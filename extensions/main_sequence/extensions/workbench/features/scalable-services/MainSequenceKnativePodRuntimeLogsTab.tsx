@@ -106,11 +106,11 @@ export function MainSequenceKnativePodRuntimeLogsTab({
         <div>
           <div className="text-sm font-medium text-foreground">Pod logs</div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Runtime log rows returned by the knative pod runtime logs endpoint.
+            Runtime log entries returned by the knative pod runtime logs endpoint.
           </p>
         </div>
         <MainSequenceRegistrySearch
-          accessory={<Badge variant="neutral">{`${logsQuery.data?.rows.length ?? 0} rows`}</Badge>}
+          accessory={<Badge variant="neutral">{`${logsQuery.data?.rows.length ?? 0} logs`}</Badge>}
           value={filterValue}
           onChange={(event) => setFilterValue(event.target.value)}
           placeholder="Filter logs by any row content"
@@ -140,7 +140,7 @@ export function MainSequenceKnativePodRuntimeLogsTab({
           </div>
           <div className="mt-4 text-sm font-medium text-foreground">No logs found</div>
           <p className="mt-2 text-sm text-muted-foreground">
-            This pod runtime has no matching log rows.
+            This pod runtime has no matching logs.
           </p>
         </div>
       ) : null}

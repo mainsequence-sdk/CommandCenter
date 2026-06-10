@@ -9,6 +9,7 @@ import { hasAllPermissions } from "@/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { formatWidgetSourceLabel } from "@/features/widgets/widget-source-labels";
 import {
   resolveWidgetMockPresentation,
   resolveWidgetMockProps,
@@ -35,10 +36,6 @@ function WidgetDetailsShell({ children }: { children: ReactNode }) {
       <div className="mx-auto max-w-[1500px] pb-8">{children}</div>
     </div>
   );
-}
-
-function formatSource(source: string) {
-  return titleCase(source.replace(/[_-]+/g, " "));
 }
 
 function formatPermissions(permissions: string[] | undefined) {
@@ -359,7 +356,7 @@ export function WidgetExplorerPage() {
               <KeyValueTable
                 rows={[
                   { label: "Widget ID", value: widget.id },
-                  { label: "Application / Source", value: formatSource(widget.source) },
+                  { label: "Application / Source", value: formatWidgetSourceLabel(widget.source) },
                   { label: "Category", value: titleCase(widget.category) },
                   { label: "Type", value: widget.kind },
                   { label: "Version", value: widget.widgetVersion },

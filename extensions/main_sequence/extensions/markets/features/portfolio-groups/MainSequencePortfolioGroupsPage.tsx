@@ -343,7 +343,7 @@ export function MainSequencePortfolioGroupsPage() {
 
             <MainSequenceRegistrySearch
               actionMenuLabel="Portfolio group actions"
-              accessory={<Badge variant="neutral">{`${totalCount} rows`}</Badge>}
+              accessory={<Badge variant="neutral">{`${totalCount} groups`}</Badge>}
               bulkActions={portfolioGroupBulkActions}
               clearSelectionLabel="Clear portfolio groups"
               onClearSelection={portfolioGroupSelection.clearSelection}

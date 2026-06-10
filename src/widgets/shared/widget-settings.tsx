@@ -40,6 +40,7 @@ import {
   resolveWidgetMockRuntimeState,
   resolveWidgetMockTitle,
 } from "@/features/widgets/widget-explorer";
+import { formatWidgetSourceLabel } from "@/features/widgets/widget-source-labels";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -1151,7 +1152,10 @@ export function WidgetSettingsPanel<
           <div className="grid min-w-[220px] gap-2">
             <WidgetSettingsMetaField label="Status" value={statusSummary.label} />
             <WidgetSettingsMetaField label="Widget kind" value={widget.kind} />
-            <WidgetSettingsMetaField label="Widget source" value={widget.source} />
+            <WidgetSettingsMetaField
+              label="Widget source"
+              value={formatWidgetSourceLabel(widget.source)}
+            />
             <WidgetSettingsMetaField label="Widget category" value={widget.category} />
           </div>
         </div>

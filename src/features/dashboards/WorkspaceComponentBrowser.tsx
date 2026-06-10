@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { cn, titleCase } from "@/lib/utils";
+import { formatWidgetSourceLabel } from "@/features/widgets/widget-source-labels";
+import { cn } from "@/lib/utils";
 import { useRegisteredWidgetTypesCatalog } from "@/widgets/registered-widget-types-api";
 import type { WidgetDefinition } from "@/widgets/types";
 
@@ -58,7 +59,6 @@ function getWidgetCatalogSearchScore(widget: WidgetDefinition, rawQuery: string)
   const title = widget.title.toLowerCase();
   const description = widget.description.toLowerCase();
   const category = widget.category.toLowerCase();
-  const kind = widget.kind.toLowerCase();
   const source = widget.source.toLowerCase();
   const tags = widget.tags?.join(" ").toLowerCase() ?? "";
 
@@ -79,7 +79,7 @@ function getWidgetCatalogSearchScore(widget: WidgetDefinition, rawQuery: string)
       termScore = Math.max(termScore, 50);
     }
 
-    if (category.includes(term) || kind.includes(term) || source.includes(term)) {
+    if (category.includes(term) || source.includes(term)) {
       termScore = Math.max(termScore, 35);
     }
 
@@ -263,7 +263,6 @@ export function WorkspaceComponentBrowser({
   const { allowedWidgetIds } = useWorkspaceStudioSurfaceConfig();
   const [catalogQuery, setCatalogQuery] = useState("");
   const [catalogCategoryFilter, setCatalogCategoryFilter] = useState("all");
-  const [catalogKindFilter, setCatalogKindFilter] = useState<WidgetDefinition["kind"] | "all">("all");
   const [catalogSourceFilter, setCatalogSourceFilter] = useState("all");
   const [catalogScope, setCatalogScope] = useState<CatalogScope>("browse");
   const [favoriteWidgetIds, setFavoriteWidgetIds] = useState<string[]>([]);
@@ -297,26 +296,26 @@ export function WorkspaceComponentBrowser({
     () => new Map(allowedWidgets.map((widget) => [widget.id, widget])),
     [allowedWidgets],
   );
-  const categoryOptions = useMemo(
-    () =>
-      Array.from(new Set(allowedWidgets.map((widget) => widget.category))).sort((left, right) =>
-        left.localeCompare(right),
-      ),
-    [allowedWidgets],
-  );
-  const kindOptions = useMemo(
-    () =>
-      Array.from(new Set(allowedWidgets.map((widget) => widget.kind))).sort((left, right) =>
-        left.localeCompare(right),
-      ),
-    [allowedWidgets],
-  );
   const sourceOptions = useMemo(
     () =>
       Array.from(new Set(allowedWidgets.map((widget) => widget.source))).sort((left, right) =>
         left.localeCompare(right),
       ),
     [allowedWidgets],
+  );
+  const categoryOptionWidgets = useMemo(
+    () =>
+      catalogSourceFilter === "all"
+        ? allowedWidgets
+        : allowedWidgets.filter((widget) => widget.source === catalogSourceFilter),
+    [allowedWidgets, catalogSourceFilter],
+  );
+  const categoryOptions = useMemo(
+    () =>
+      Array.from(new Set(categoryOptionWidgets.map((widget) => widget.category))).sort((left, right) =>
+        left.localeCompare(right),
+      ),
+    [categoryOptionWidgets],
   );
   const favoriteWidgetSet = useMemo(() => new Set(favoriteWidgetIds), [favoriteWidgetIds]);
   const recentWidgetIndexMap = useMemo(
@@ -351,7 +350,6 @@ export function WorkspaceComponentBrowser({
   const filteredWidgets = useMemo(() => {
     const query = catalogQuery.trim().toLowerCase();
     const hasCategoryFilter = catalogCategoryFilter !== "all";
-    const hasKindFilter = catalogKindFilter !== "all";
     const hasSourceFilter = catalogSourceFilter !== "all";
 
     return catalogBaseWidgets
@@ -365,10 +363,6 @@ export function WorkspaceComponentBrowser({
         }
 
         if (hasCategoryFilter && widget.category !== catalogCategoryFilter) {
-          return false;
-        }
-
-        if (hasKindFilter && widget.kind !== catalogKindFilter) {
           return false;
         }
 
@@ -405,14 +399,12 @@ export function WorkspaceComponentBrowser({
   }, [
     catalogBaseWidgets,
     catalogCategoryFilter,
-    catalogKindFilter,
     catalogQuery,
     catalogSourceFilter,
     favoriteWidgetSet,
     recentWidgetIndexMap,
   ]);
-  const catalogFiltersActive =
-    catalogCategoryFilter !== "all" || catalogKindFilter !== "all" || catalogSourceFilter !== "all";
+  const catalogFiltersActive = catalogCategoryFilter !== "all" || catalogSourceFilter !== "all";
   const catalogSearchActive = catalogQuery.trim().length > 0;
   const catalogSections = useMemo<CatalogSection[]>(() => {
     if (catalogScope === "favorites") {
@@ -527,6 +519,12 @@ export function WorkspaceComponentBrowser({
   }, [allowedWidgets, userId]);
 
   useEffect(() => {
+    if (catalogCategoryFilter !== "all" && !categoryOptions.includes(catalogCategoryFilter)) {
+      setCatalogCategoryFilter("all");
+    }
+  }, [catalogCategoryFilter, categoryOptions]);
+
+  useEffect(() => {
     if (!userId) {
       return;
     }
@@ -548,7 +546,6 @@ export function WorkspaceComponentBrowser({
   function handleCatalogFiltersReset() {
     setCatalogQuery("");
     setCatalogCategoryFilter("all");
-    setCatalogKindFilter("all");
     setCatalogSourceFilter("all");
   }
 
@@ -631,8 +628,24 @@ export function WorkspaceComponentBrowser({
             />
           </div>
 
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Select
+              fitContent
+              value={catalogSourceFilter}
+              onChange={(event) => {
+                setCatalogSourceFilter(event.target.value);
+                setCatalogCategoryFilter("all");
+              }}
+            >
+              <option value="all">All sources</option>
+              {sourceOptions.map((source) => (
+                <option key={source} value={source}>
+                  {formatWidgetSourceLabel(source)}
+                </option>
+              ))}
+            </Select>
+            <Select
+              fitContent
               value={catalogCategoryFilter}
               onChange={(event) => {
                 setCatalogCategoryFilter(event.target.value);
@@ -642,32 +655,6 @@ export function WorkspaceComponentBrowser({
               {categoryOptions.map((category) => (
                 <option key={category} value={category}>
                   {category}
-                </option>
-              ))}
-            </Select>
-            <Select
-              value={catalogKindFilter}
-              onChange={(event) => {
-                setCatalogKindFilter(event.target.value as WidgetDefinition["kind"] | "all");
-              }}
-            >
-              <option value="all">All kinds</option>
-              {kindOptions.map((kind) => (
-                <option key={kind} value={kind}>
-                  {titleCase(kind)}
-                </option>
-              ))}
-            </Select>
-            <Select
-              value={catalogSourceFilter}
-              onChange={(event) => {
-                setCatalogSourceFilter(event.target.value);
-              }}
-            >
-              <option value="all">All sources</option>
-              {sourceOptions.map((source) => (
-                <option key={source} value={source}>
-                  {titleCase(source)}
                 </option>
               ))}
             </Select>

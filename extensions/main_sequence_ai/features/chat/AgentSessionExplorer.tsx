@@ -332,7 +332,7 @@ export function AgentSessionExplorer({
                                 </div>
                               ) : null}
                               <div className="mt-1 truncate text-xs text-muted-foreground">
-                                <span className="font-mono">Session ID: {session.id}</span>
+                                <span className="font-mono">Session UID: {session.id}</span>
                               </div>
                               {session.handleUniqueId ? (
                                 <div className="mt-1 truncate text-xs text-muted-foreground">

@@ -457,7 +457,7 @@ function augmentAgentSummary({
       display: String(recentSessionsCount),
       value: recentSessionsCount,
       kind: "number",
-      info: "Recent AgentSession rows loaded for this agent.",
+      info: "Recent AgentSession records loaded for this agent.",
     });
   }
 
@@ -972,7 +972,7 @@ export function AgentDetailView({
                 renderSelectionSummary={(selectionCount) => `${selectionCount} sessions selected`}
                 value={sessionFilterValue}
                 onChange={(event) => setSessionFilterValue(event.target.value)}
-                placeholder="Filter by title, id, status, provider, model, or engine"
+                placeholder="Filter by title, UID, status, provider, model, or engine"
                 searchClassName="max-w-lg"
                 selectionCount={sessionSelection.selectedCount}
               />

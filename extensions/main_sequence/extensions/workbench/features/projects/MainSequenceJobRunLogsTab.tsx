@@ -106,11 +106,11 @@ export function MainSequenceJobRunLogsTab({
         <div>
           <div className="text-sm font-medium text-foreground">Execution logs</div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Live log rows captured for this run from the backend log action.
+            Live log entries captured for this run from the backend log action.
           </p>
         </div>
         <MainSequenceRegistrySearch
-          accessory={<Badge variant="neutral">{`${logsQuery.data?.rows.length ?? 0} rows`}</Badge>}
+          accessory={<Badge variant="neutral">{`${logsQuery.data?.rows.length ?? 0} logs`}</Badge>}
           value={filterValue}
           onChange={(event) => setFilterValue(event.target.value)}
           placeholder="Filter logs by any row content"
@@ -140,7 +140,7 @@ export function MainSequenceJobRunLogsTab({
           </div>
           <div className="mt-4 text-sm font-medium text-foreground">No logs found</div>
           <p className="mt-2 text-sm text-muted-foreground">
-            This run has no matching log rows.
+            This run has no matching logs.
           </p>
         </div>
       ) : null}

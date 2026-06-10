@@ -1264,8 +1264,8 @@ export function buildPositionDetailTableColumns(
 export function PositionDetailTable({
   columnDefs,
   rows,
-  emptyMessage = "No rows were returned.",
-  emptyTitle = "No rows",
+  emptyMessage = "No records were returned.",
+  emptyTitle = "No records",
   expandableAssetRows = false,
   positionMap,
   preferredPositionColumns = false,

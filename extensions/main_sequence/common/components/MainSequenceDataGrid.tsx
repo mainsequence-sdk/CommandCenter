@@ -24,8 +24,8 @@ export function MainSequenceDataGrid<TData extends object>({
   data,
   columns,
   className,
-  emptyMessage = "No rows were returned.",
-  emptyTitle = "No rows",
+  emptyMessage = "No records were returned.",
+  emptyTitle = "No records",
   stickyHeader = true,
   tableMinWidth = 760,
 }: MainSequenceDataGridProps<TData>) {

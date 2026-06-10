@@ -317,7 +317,7 @@ export function MainSequenceManagedAccountsPage() {
 
             <MainSequenceRegistrySearch
               actionMenuLabel="Managed account actions"
-              accessory={<Badge variant="neutral">{`${totalCount} rows`}</Badge>}
+              accessory={<Badge variant="neutral">{`${totalCount} accounts`}</Badge>}
               bulkActions={managedAccountBulkActions}
               clearSelectionLabel="Clear accounts"
               onClearSelection={managedAccountSelection.clearSelection}

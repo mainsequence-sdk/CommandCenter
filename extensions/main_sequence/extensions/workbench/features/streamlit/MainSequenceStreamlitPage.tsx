@@ -198,7 +198,7 @@ export function MainSequenceStreamlitPage() {
               accessory={<Badge variant="neutral">{`${totalItems} releases`}</Badge>}
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
-              placeholder="Search by title, project, resource, subdomain, or release id"
+              placeholder="Search by title, project, resource, subdomain, or release UID"
               searchClassName="max-w-xl"
             />
           </div>

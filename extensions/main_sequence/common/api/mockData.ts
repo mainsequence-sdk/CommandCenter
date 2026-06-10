@@ -795,6 +795,7 @@ function filterAssets(searchParams: URLSearchParams, body: Record<string, unknow
       return matchesSearch(
         [
           asset.id,
+          asset.uid,
           asset.unique_identifier,
           asset.figi,
           asset.name,
@@ -947,6 +948,241 @@ function buildAssetPricingDetails(asset: Record<string, unknown>, fallbackUid: s
     source: "mock",
     metadata_json: {},
   };
+}
+
+function buildMockPricingCurves() {
+  return [
+    {
+      uid: "mock-pricing-curve-usd-sofr-discount",
+      unique_identifier: "USD-SOFR-3M-DISCOUNT",
+      display_name: "USD SOFR 3M Discount Curve",
+      curve_type: "discount",
+      index_uid: "mock-index-usd-sofr-3m",
+      interpolation_method: "log_linear_discount",
+      compounding: "compounded_annual",
+      source: "mock",
+      metadata_json: {},
+    },
+    {
+      uid: "mock-pricing-curve-eur-estr-discount",
+      unique_identifier: "EUR-ESTR-OIS-DISCOUNT",
+      display_name: "EUR ESTR OIS Discount Curve",
+      curve_type: "discount",
+      index_uid: "mock-index-eur-estr",
+      interpolation_method: "linear_zero",
+      compounding: "continuous",
+      source: "mock",
+      metadata_json: {},
+    },
+  ];
+}
+
+function buildPricingCurveSummary(curveUid: string) {
+  const curve = buildMockPricingCurves().find((row) => row.uid === curveUid);
+
+  if (!curve) {
+    throw new Error(`Mock pricing curve ${curveUid} was not found.`);
+  }
+
+  return {
+    entity: {
+      id: curve.uid,
+      type: "pricing_curve",
+      title: curve.display_name || curve.unique_identifier || curve.uid,
+    },
+    badges: [
+      {
+        key: "curve_type",
+        label: curve.curve_type,
+        tone: "neutral",
+      },
+      ...(curve.source
+        ? [
+            {
+              key: "source",
+              label: curve.source,
+              tone: "info",
+            },
+          ]
+        : []),
+    ],
+    inline_fields: [
+      {
+        key: "uid",
+        label: "UID",
+        value: curve.uid,
+        kind: "code",
+      },
+      {
+        key: "unique_identifier",
+        label: "Identifier",
+        value: curve.unique_identifier,
+        kind: "code",
+      },
+      {
+        key: "index_uid",
+        label: "Index UID",
+        value: curve.index_uid,
+        kind: "code",
+      },
+    ],
+    highlight_fields: [
+      {
+        key: "display_name",
+        label: "Curve",
+        value: curve.display_name,
+        kind: "text",
+        icon: "database",
+      },
+      {
+        key: "interpolation_method",
+        label: "Interpolation",
+        value: curve.interpolation_method,
+        kind: "code",
+        icon: "database",
+      },
+      {
+        key: "compounding",
+        label: "Compounding",
+        value: curve.compounding,
+        kind: "code",
+        icon: "database",
+      },
+    ],
+    stats: [],
+    label_management: {
+      labels: [],
+      add_label_url: null,
+      remove_label_url: null,
+    },
+    summary_warning: null,
+    extensions: {
+      detail_url: `/api/v1/pricing/curves/${curve.uid}/`,
+      metadata_json: curve.metadata_json,
+    },
+  };
+}
+
+function buildMockPricingCurveDiscountCurve(
+  curveUid: string,
+  marketDataSetValue: string | null,
+  valuationDateValue: string | null,
+) {
+  const curve = buildMockPricingCurves().find((row) => row.uid === curveUid);
+
+  if (!curve) {
+    throw new Error(`Mock pricing curve ${curveUid} was not found.`);
+  }
+
+  const marketDataSets = buildMockPricingMarketDataSets();
+  const marketDataSet =
+    marketDataSets.find(
+      (set) => set.uid === marketDataSetValue || set.set_key === marketDataSetValue,
+    ) ?? marketDataSets[0]!;
+  const valuationDate = readString(valuationDateValue) || "2026-06-01T00:00:00Z";
+
+  return {
+    curve_uid: curve.uid,
+    curve_identifier: curve.unique_identifier,
+    curve,
+    market_data_set: {
+      uid: marketDataSet.uid,
+      set_key: marketDataSet.set_key,
+      display_name: marketDataSet.display_name,
+    },
+    binding: {
+      uid: `mock-binding-${curve.uid}`,
+      concept_key: "discount_curves",
+      data_node_uid: `mock-data-node-${curve.uid}`,
+      storage_table_identifier: "DiscountCurvesStorage",
+    },
+    valuation_date: valuationDate,
+    effective_date: valuationDate,
+    request_mode: "historical",
+    nodes: [
+      {
+        days_to_maturity: 28,
+        zero: curve.uid.includes("eur") ? 0.021 : 0.051,
+      },
+      {
+        days_to_maturity: 91,
+        zero: curve.uid.includes("eur") ? 0.0225 : 0.0495,
+      },
+      {
+        days_to_maturity: 182,
+        zero: curve.uid.includes("eur") ? 0.023 : 0.047,
+      },
+      {
+        days_to_maturity: 365,
+        zero: curve.uid.includes("eur") ? 0.024 : 0.044,
+      },
+      {
+        days_to_maturity: 730,
+        zero: curve.uid.includes("eur") ? 0.0255 : 0.041,
+      },
+    ],
+  };
+}
+
+function buildMockPricingMarketDataSets() {
+  return [
+    {
+      uid: "mock-pricing-market-data-set-default",
+      set_key: "default",
+      display_name: "Default pricing market data",
+      description: "Mock default market-data set for curve inspection.",
+      status: "ACTIVE",
+      metadata_json: {},
+    },
+    {
+      uid: "mock-pricing-market-data-set-research",
+      set_key: "research",
+      display_name: "Research pricing market data",
+      description: "Mock research market-data set for scenario inspection.",
+      status: "ACTIVE",
+      metadata_json: {},
+    },
+  ];
+}
+
+function filterMockPricingMarketDataSets(searchParams: URLSearchParams) {
+  const status = searchParams.get("status");
+  const setKey = searchParams.get("set_key");
+
+  return buildMockPricingMarketDataSets().filter((set) => {
+    if (status && set.status !== status) {
+      return false;
+    }
+
+    if (setKey && set.set_key !== setKey) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function filterMockPricingCurves(searchParams: URLSearchParams) {
+  const search = searchParams.get("search");
+  const curveType = searchParams.get("curve_type");
+  const indexUid = searchParams.get("index_uid");
+  const source = searchParams.get("source");
+
+  return buildMockPricingCurves().filter((curve) => {
+    if (curveType && curve.curve_type !== curveType) {
+      return false;
+    }
+
+    if (indexUid && curve.index_uid !== indexUid) {
+      return false;
+    }
+
+    if (source && curve.source !== source) {
+      return false;
+    }
+
+    return matchesSearch([curve.unique_identifier], search);
+  });
 }
 
 function buildEntitySummary(
@@ -1663,6 +1899,55 @@ function handleProjects(route: string, method: string, searchParams: URLSearchPa
 }
 
 function handleAssets(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
+  if (route === "/api/v1/settings/" && method === "GET") {
+    return {
+      app: {
+        name: "MainSequence Markets Public API",
+        scope: "apps/v1",
+        version: "4.3.14",
+      },
+      runtime: {
+        namespace: "mainsequence.examples",
+        namespace_source: "MSM_AUTO_REGISTER_NAMESPACE",
+        default_namespace: "mainsequence.markets",
+        auto_register_enabled: true,
+        management_mode: "platform_managed",
+        schema_mutation_allowed: false,
+        requires_migrations: true,
+      },
+      documentation: {
+        openapi_url: "/openapi.json",
+        swagger_url: "/docs",
+        redoc_url: "/redoc",
+      },
+      assumptions: [
+        {
+          key: "namespace",
+          label: "Markets namespace",
+          value: "mainsequence.examples",
+          source: "MSM_AUTO_REGISTER_NAMESPACE",
+          description: "Runtime MetaTables and DataNodes resolve against this namespace.",
+        },
+        {
+          key: "runtime_bootstrap",
+          label: "Runtime bootstrap",
+          value: "startup_attachment",
+          source: "apps/v1 runtime bootstrap",
+          description:
+            "The API attaches markets and pricing runtime tables during application startup when auto-registration namespace is configured.",
+        },
+        {
+          key: "schema_management",
+          label: "Schema management",
+          value: "migrations_required",
+          source: "apps/v1 runtime bootstrap",
+          description:
+            "Schema mutation is not performed by this API; required MetaTable migrations must already be applied.",
+        },
+      ],
+    };
+  }
+
   if (route === "/api/v1/asset/" && method === "GET") {
     return paginate(filterAssets(searchParams, null), searchParams.get("limit"), searchParams.get("offset"));
   }
@@ -1710,6 +1995,46 @@ function handleAssets(route: string, method: string, searchParams: URLSearchPara
       detail: "Assets removed from mock state.",
       deleted_count: before - state.assets.length,
     };
+  }
+
+  return undefined;
+}
+
+function handlePricingMarketData(route: string, method: string, searchParams: URLSearchParams) {
+  if (route === "/api/v1/pricing/market_data/sets/" && method === "GET") {
+    return paginate(
+      filterMockPricingMarketDataSets(searchParams),
+      searchParams.get("limit"),
+      searchParams.get("offset"),
+    );
+  }
+
+  return undefined;
+}
+
+function handlePricingCurves(route: string, method: string, searchParams: URLSearchParams) {
+  const summaryMatch = route.match(/^\/api\/v1\/pricing\/curves\/([^/]+)\/summary\/$/);
+
+  if (summaryMatch && method === "GET") {
+    return buildPricingCurveSummary(decodeURIComponent(summaryMatch[1] ?? ""));
+  }
+
+  const discountCurveMatch = route.match(/^\/api\/v1\/pricing\/curves\/([^/]+)\/discount-curve\/$/);
+
+  if (discountCurveMatch && method === "GET") {
+    return buildMockPricingCurveDiscountCurve(
+      decodeURIComponent(discountCurveMatch[1] ?? ""),
+      searchParams.get("market_data_set"),
+      searchParams.get("valuation_date"),
+    );
+  }
+
+  if (route === "/api/v1/pricing/curves/" && method === "GET") {
+    return paginate(
+      filterMockPricingCurves(searchParams),
+      searchParams.get("limit"),
+      searchParams.get("offset"),
+    );
   }
 
   return undefined;
@@ -4671,6 +4996,8 @@ export function getMainSequenceMockResponse<T>({
   return (
     handleProjects(route, method, url.searchParams, init) ??
     handleAssets(route, method, url.searchParams, init) ??
+    handlePricingMarketData(route, method, url.searchParams) ??
+    handlePricingCurves(route, method, url.searchParams) ??
     handleIndexes(route, method, url.searchParams) ??
     handleAssetCategories(route, method, url.searchParams, init) ??
     handlePortfolioGroups(route, method, url.searchParams, init) ??

@@ -191,7 +191,7 @@ function JobRunOverviewTable({
             </CardTitle>
             <CardDescription>{description}</CardDescription>
           </div>
-          <Badge variant="neutral">{`${rows.length} rows`}</Badge>
+          <Badge variant="neutral">{`${rows.length} records`}</Badge>
         </div>
       </CardHeader>
       <CardContent className="pt-5">

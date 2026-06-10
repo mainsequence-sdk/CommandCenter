@@ -72,14 +72,14 @@ export function MainSequenceMetaTableSnapshotTab({
           <div>
             <CardTitle className="text-base">Data Snapshot</CardTitle>
             <CardDescription>
-              Preview the latest rows returned by this meta table.
+              Preview the latest records returned by this meta table.
             </CardDescription>
           </div>
           <MainSequenceRegistrySearch
-            accessory={<Badge variant="neutral">{`${filteredRows.length} rows loaded`}</Badge>}
+            accessory={<Badge variant="neutral">{`${filteredRows.length} records loaded`}</Badge>}
             value={filterValue}
             onChange={(event) => setFilterValue(event.target.value)}
-            placeholder="Filter the loaded snapshot rows"
+            placeholder="Filter the loaded snapshot records"
             searchClassName="max-w-lg"
           />
         </div>

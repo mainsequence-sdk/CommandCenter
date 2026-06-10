@@ -269,7 +269,7 @@ export function MainSequenceSecretsPage() {
               }
               value={filterValue}
               onChange={(event) => setFilterValue(event.target.value)}
-              placeholder="Filter by name or id"
+              placeholder="Filter by name or UID"
               searchClassName="max-w-lg"
             />
           </div>

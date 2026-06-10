@@ -10,6 +10,7 @@ import {
 } from "@/dashboards/DashboardWidgetExecution";
 import { resolveWidgetStatusSummary } from "@/dashboards/widget-status";
 import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
+import { formatWidgetSourceLabel } from "@/features/widgets/widget-source-labels";
 import { cn } from "@/lib/utils";
 import {
   resolveWidgetMinimalChrome,
@@ -152,7 +153,7 @@ export function WidgetFrame({
                   </Badge>
                 ) : null}
                 <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                  {widget.source}
+                  {formatWidgetSourceLabel(widget.source)}
                 </span>
               </div>
             ) : null}

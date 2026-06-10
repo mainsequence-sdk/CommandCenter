@@ -30,6 +30,7 @@ import {
   type WidgetStatusSummary,
   type WidgetStatusTone,
 } from "@/dashboards/widget-status";
+import { formatWidgetSourceLabel } from "@/features/widgets/widget-source-labels";
 import { cn, titleCase } from "@/lib/utils";
 import type {
   ResolvedWidgetInputs,
@@ -455,7 +456,7 @@ function DefaultWidgetRailSummary({
         <div className="flex items-start justify-between gap-3">
           <span className="text-muted-foreground">Source</span>
           <span className="max-w-[120px] text-right font-medium text-foreground">
-            {widget.source}
+            {formatWidgetSourceLabel(widget.source)}
           </span>
         </div>
       </div>

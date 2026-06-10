@@ -98,7 +98,7 @@ function parseNumericValue(value: unknown) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function normalizeZeroCurveRateValue(value: number) {
+export function normalizeZeroCurveRateValue(value: number) {
   return Math.round(value * 100 * 1_000_000) / 1_000_000;
 }
 
@@ -132,7 +132,7 @@ async function decompressStringToCurve(b64String: string) {
   return parsed as Record<string, unknown>;
 }
 
-function parseZeroCurveTimeIndexLabel(value: unknown) {
+export function formatZeroCurveTimeIndexLabel(value: unknown) {
   const timestampMs = parseZeroCurveTimeIndexMs(value);
 
   if (timestampMs !== null) {
@@ -153,7 +153,7 @@ function parseZeroCurveTimeIndexLabel(value: unknown) {
   return null;
 }
 
-function parseZeroCurveTimeIndexMs(value: unknown) {
+export function parseZeroCurveTimeIndexMs(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
     const normalizedMs =
       Math.abs(value) >= 1_000_000_000_000
@@ -342,7 +342,7 @@ export async function buildZeroCurveSeriesFromRows(
         continue;
       }
 
-      const timeIndexLabel = parseZeroCurveTimeIndexLabel(row[timeIndexField]);
+      const timeIndexLabel = formatZeroCurveTimeIndexLabel(row[timeIndexField]);
       const timeIndexSortValue = parseZeroCurveTimeIndexMs(row[timeIndexField]);
       const label =
         timeIndexLabel && curveIdentifier !== "__empty__"

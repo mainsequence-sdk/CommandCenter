@@ -292,7 +292,7 @@ export function MainSequenceProjectImagesTab({
           renderSelectionSummary={(selectionCount) => `${selectionCount} images selected`}
           value={filterValue}
           onChange={(event) => setFilterValue(event.target.value)}
-          placeholder="Filter by id, repo hash, base image, tag, digest, or status"
+          placeholder="Filter by UID, repo hash, base image, tag, digest, or status"
           searchClassName="max-w-lg"
           selectionCount={imageSelection.selectedCount}
         />

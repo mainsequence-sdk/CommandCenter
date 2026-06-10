@@ -236,10 +236,10 @@ export function MainSequenceAssetsPage() {
 
             <MainSequenceRegistrySearch
               actionMenuLabel="Asset actions"
-              accessory={<Badge variant="neutral">{`${totalCount} rows`}</Badge>}
+              accessory={<Badge variant="neutral">{`${totalCount} assets`}</Badge>}
               value={searchValue}
               onChange={(event) => updateFilter("search", event.target.value)}
-              placeholder="Search by id, unique identifier, FIGI, name, or type"
+              placeholder="Search by UID, unique identifier, FIGI, name, or type"
               searchClassName="max-w-xl"
             />
           </div>

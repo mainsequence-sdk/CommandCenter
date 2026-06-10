@@ -160,10 +160,10 @@ export function MainSequenceTimeScaleDbServicesPage() {
               </CardDescription>
             </div>
             <MainSequenceRegistrySearch
-              accessory={<Badge variant="neutral">{`${totalItems} rows`}</Badge>}
+              accessory={<Badge variant="neutral">{`${totalItems} services`}</Badge>}
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
-              placeholder="Search by release name, namespace, or uid"
+              placeholder="Search by release name, namespace, or UID"
               searchClassName="max-w-lg"
             />
           </div>

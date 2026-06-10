@@ -437,7 +437,7 @@ export function MainSequenceNamespacesPage() {
                         Tables currently registered under this namespace.
                       </CardDescription>
                     </div>
-                    <Badge variant="neutral">{`${namespaceTablesQuery.data?.length ?? 0} rows`}</Badge>
+                    <Badge variant="neutral">{`${namespaceTablesQuery.data?.length ?? 0} tables`}</Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -577,7 +577,7 @@ export function MainSequenceNamespacesPage() {
               </CardDescription>
             </div>
             <MainSequenceRegistrySearch
-              accessory={<Badge variant="neutral">{`${filteredNamespaces.length} rows`}</Badge>}
+              accessory={<Badge variant="neutral">{`${filteredNamespaces.length} namespaces`}</Badge>}
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
               placeholder="Search by namespace name or UUID"

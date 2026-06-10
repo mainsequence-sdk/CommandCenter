@@ -35,6 +35,15 @@
 - Asset detail helpers use the UID-only `/api/v1/asset/{uid}/` API surface. Detail pages request
   `response_format=frontend_detail`, render `/summary/` through the shared summary card, and load
   `/get_pricing_details/` only for the pricing-details tab.
+- `listPricingCurves(...)` calls `/api/v1/pricing/curves/` with `limit`, `offset`, `search`,
+  then normalizes the standard paginated response for the Pricing Curves registry surface.
+- `fetchPricingCurveDiscountCurve(...)` calls
+  `/api/v1/pricing/curves/{uid}/discount-curve/` with required `market_data_set` and optional
+  `valuation_date`, and returns the typed discount-curve response used by the Pricing Curve detail
+  page.
+- `fetchMarketsSettings()` calls `/api/v1/settings/` and exposes the public Markets app metadata,
+  runtime assumptions, documentation URLs, and assumption rows through one typed helper for the
+  platform settings surface.
 - `listDataNodes(...)` defaults to the backend light serializer (`light=true`) for picker/list
   surfaces that only need lightweight identity fields. Full registry/detail-style tables that rely
   on richer `dynamic_table` fields must opt out explicitly with `light: false`.

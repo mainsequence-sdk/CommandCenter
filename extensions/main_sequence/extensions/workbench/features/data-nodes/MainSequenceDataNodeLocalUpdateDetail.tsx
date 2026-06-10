@@ -959,7 +959,7 @@ export function MainSequenceDataNodeLocalUpdateDetail({
                   </p>
                 </div>
                 <MainSequenceRegistrySearch
-                  accessory={<Badge variant="neutral">{`${logsQuery.data?.rows.length ?? 0} rows`}</Badge>}
+                  accessory={<Badge variant="neutral">{`${logsQuery.data?.rows.length ?? 0} logs`}</Badge>}
                   value={logFilterValue}
                   onChange={(event) => setLogFilterValue(event.target.value)}
                   placeholder="Filter logs by any row content"

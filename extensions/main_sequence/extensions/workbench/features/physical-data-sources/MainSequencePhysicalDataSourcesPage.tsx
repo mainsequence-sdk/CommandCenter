@@ -261,7 +261,7 @@ export function MainSequencePhysicalDataSourcesPage() {
                       </option>
                     ))}
                   </select>
-                  <Badge variant="neutral">{`${totalItems} rows`}</Badge>
+                  <Badge variant="neutral">{`${totalItems} data sources`}</Badge>
                 </div>
               }
               bulkActions={bulkActions}
@@ -280,7 +280,7 @@ export function MainSequencePhysicalDataSourcesPage() {
 
             {showSelectAllMatchingHint ? (
               <div className="rounded-[calc(var(--radius)-8px)] border border-primary/20 bg-primary/8 px-4 py-3 text-sm text-foreground">
-                <span>{`All ${pageRows.length} rows on this page are selected.`}</span>{" "}
+                <span>{`All ${pageRows.length} items on this page are selected.`}</span>{" "}
                 <button
                   type="button"
                   className="font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary/80"

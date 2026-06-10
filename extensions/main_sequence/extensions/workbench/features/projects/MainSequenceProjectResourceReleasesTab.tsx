@@ -1493,7 +1493,7 @@ export function MainSequenceProjectResourceReleasesTab({
               renderSelectionSummary={(selectionCount) => `${selectionCount} releases selected`}
               value={filterValue}
               onChange={(event) => setFilterValue(event.target.value)}
-              placeholder="Filter by subdomain, kind, release id, job id, or resource id"
+              placeholder="Filter by subdomain, kind, release UID, job UID, or resource UID"
               searchClassName="max-w-lg"
               selectionCount={releaseSelection.selectedCount}
             />

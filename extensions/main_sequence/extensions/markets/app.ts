@@ -14,7 +14,9 @@ import { MainSequenceFundsPage } from "./features/funds/MainSequenceFundsPage";
 import { MainSequenceIndicesPage } from "./features/indices/MainSequenceIndicesPage";
 import { MainSequencePortfolioGroupsPage } from "./features/portfolio-groups/MainSequencePortfolioGroupsPage";
 import { MainSequenceTargetPortfoliosPage } from "./features/portfolios/MainSequenceTargetPortfoliosPage";
+import { MainSequencePricingCurvesPage } from "./features/pricing-curves/MainSequencePricingCurvesPage";
 import { MainSequencePricingMarketDataPage } from "./features/pricing-market-data/MainSequencePricingMarketDataPage";
+import { MainSequenceMarketsSettingsPage } from "./features/settings/MainSequenceMarketsSettingsPage";
 
 const assetsSection: AppSurfaceNavigationSection = {
   id: "assets",
@@ -124,6 +126,28 @@ export const mainSequenceMarketsApp: AppDefinition = {
       component: MainSequenceIndicesPage,
     },
     {
+      id: "pricing-curves",
+      title: "Pricing Curves",
+      navLabel: "Curves",
+      description: "Browse pricing curves and open summary-driven curve details.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Pricing Curves. This page lists pricing curves from the pricing curves API with global search and opens detail views backed by the pricing-curve summary and discount-curve endpoints.",
+        availableActions: [
+          "Browse pricing curves",
+          "Open pricing curve details",
+          "Search curve unique identifiers",
+          "Inspect discount curve nodes",
+          "Switch valuation date",
+          "Switch pricing market data set",
+        ],
+      }),
+      navigationSection: pricingSection,
+      kind: "page",
+      requiredPermissions: ["main_sequence_markets:view"],
+      component: MainSequencePricingCurvesPage,
+    },
+    {
       id: "pricing-market-data",
       title: "Pricing Market Data",
       navLabel: "Pricing Market Data",
@@ -162,6 +186,27 @@ export const mainSequenceMarketsApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceCalendarsPage,
+    },
+    {
+      id: "settings",
+      title: "Settings",
+      navLabel: "Settings",
+      description: "Inspect public Markets API metadata, runtime assumptions, and documentation URLs.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Markets Settings. This page shows backend-authored app metadata, runtime assumptions, and documentation entrypoints for the Markets API.",
+        availableActions: [
+          "Inspect Markets app metadata",
+          "Inspect runtime assumptions",
+          "Open OpenAPI documentation",
+          "Open Swagger UI",
+          "Open ReDoc",
+        ],
+      }),
+      navigationSection: platformSection,
+      kind: "page",
+      requiredPermissions: ["main_sequence_markets:view"],
+      component: MainSequenceMarketsSettingsPage,
     },
     {
       id: "funds",

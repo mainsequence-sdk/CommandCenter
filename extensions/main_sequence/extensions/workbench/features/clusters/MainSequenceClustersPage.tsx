@@ -71,7 +71,7 @@ export function MainSequenceClustersPage() {
               </CardDescription>
             </div>
             <MainSequenceRegistrySearch
-              accessory={<Badge variant="neutral">{`${totalItems} rows`}</Badge>}
+              accessory={<Badge variant="neutral">{`${totalItems} clusters`}</Badge>}
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
               placeholder="Search by cluster name or UUID"
