@@ -11,10 +11,14 @@ Feature folders in this extension should contain market-facing Main Sequence scr
 - `funds/`: virtual-fund registry with shared search, pagination, detail navigation, and holdings.
 - `indices/`: index registry with shared list search, embedded detail loading, and delete support.
 - `portfolio-groups/`: portfolio-group registry with shared list behavior and a dedicated read-only detail page.
+- `portfolio-signals/`: portfolio signal metadata registry with create, description update, delete signal values, and delete metadata actions.
 - `portfolios/`: portfolio registry with shared list search, offset pagination, and bulk delete.
 - `pricing-curves/`: pricing curves registry backed by `/api/v1/pricing/curves/`.
 - `pricing-market-data/`: pricing market-data sets and bindings registry backed by `/api/v1/pricing/market_data/`.
 - `settings/`: read-only platform settings view backed by `/api/v1/settings/`.
+- `summaryLinks.ts`: reusable resolver for `link_url` values attached to backend-rendered summary
+  badges, fields, and stats. It maps API resource links such as portfolios, calendars, indices,
+  and portfolio data tables into Main Sequence Markets app routes.
 
 ## Rules
 

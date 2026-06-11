@@ -69,6 +69,7 @@ type MockState = {
   managedAccountTargetPositionsByAccountUid: Record<string, Record<string, unknown>>;
   portfolioGroups: Array<Record<string, unknown>>;
   targetPortfolios: Array<Record<string, unknown>>;
+  portfolioSignals: Array<Record<string, unknown>>;
   instrumentsConfiguration: Record<string, unknown>;
   projects: Array<Record<string, unknown>>;
   projectBaseImages: Array<Record<string, unknown>>;
@@ -110,6 +111,7 @@ function createMockState(): MockState {
     managedAccountTargetPositionsByAccountUid: {},
     portfolioGroups: readDataset("portfolio_groups"),
     targetPortfolios: readDataset("target_portfolios"),
+    portfolioSignals: buildDefaultPortfolioSignals(),
     instrumentsConfiguration: readDataset("instruments_configuration"),
     projects: readDataset("projects"),
     projectBaseImages: readDataset("project_base_images"),
@@ -146,6 +148,29 @@ let state = createMockState();
 
 function readString(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function buildDefaultPortfolioSignals() {
+  const dataset = readOptionalDataset<Array<Record<string, unknown>>>("portfolio_signals");
+
+  if (dataset) {
+    return dataset;
+  }
+
+  return [
+    {
+      id: 1,
+      uid: "signal-metadata-momentum",
+      signal_uid: "mock-momentum-signal",
+      signal_description: "Momentum signal metadata seeded for local Markets mock data.",
+    },
+    {
+      id: 2,
+      uid: "signal-metadata-quality",
+      signal_uid: "mock-quality-signal",
+      signal_description: "Quality signal metadata seeded for local Markets mock data.",
+    },
+  ];
 }
 
 function readOptionalString(value: unknown) {
@@ -513,6 +538,27 @@ function resolveMockSourceTableConfigStats(sourceTableConfigId: string) {
   );
 }
 
+function resolveMockDataNodeStats(dataNodeUid: string) {
+  const node = state.dataNodes.find((candidate) => readString(candidate.uid) === dataNodeUid);
+
+  if (!node) {
+    return {
+      multi_index_stats: {},
+      multi_index_column_stats: {},
+    };
+  }
+
+  const stats = buildMockSourceTableConfigStatsFromRows(
+    node,
+    resolveMockDataNodeRemoteRows(dataNodeUid),
+  );
+
+  return {
+    multi_index_stats: stats.multi_index_stats ?? {},
+    multi_index_column_stats: stats.multi_index_column_stats ?? {},
+  };
+}
+
 function updateMockDataNodeIndexStats(dataNodeUid: string) {
   const node = state.dataNodes.find((candidate) => readString(candidate.uid) === dataNodeUid);
 
@@ -586,6 +632,100 @@ function matchesSearch(values: unknown[], search: string | null | undefined) {
     .join(" ")
     .toLowerCase()
     .includes(needle);
+}
+
+function inferMockTabularFrameFieldType(values: unknown[]) {
+  const nonNullValues = values.filter((value) => value !== null && value !== undefined);
+
+  if (nonNullValues.length === 0) {
+    return "string";
+  }
+
+  if (nonNullValues.every((value) => typeof value === "number")) {
+    return "number";
+  }
+
+  if (nonNullValues.every((value) => typeof value === "boolean")) {
+    return "boolean";
+  }
+
+  if (nonNullValues.every((value) => typeof value === "string")) {
+    return "string";
+  }
+
+  return "json";
+}
+
+function buildMockTabularFrameResponse(name: string, rows: Array<Record<string, unknown>>) {
+  const columns = Array.from(
+    rows.reduce<Set<string>>((keys, row) => {
+      Object.keys(row).forEach((key) => keys.add(key));
+      return keys;
+    }, new Set<string>()),
+  );
+
+  return {
+    frames: [
+      {
+        name,
+        contract: "core.tabular_frame@v1",
+        fields: columns.map((column) => {
+          const values = rows.map((row) => row[column] ?? null);
+
+          return {
+            name: column,
+            type: inferMockTabularFrameFieldType(values),
+            values,
+          };
+        }),
+      },
+    ],
+    warnings: [],
+    traceId: `mock-${Date.now().toString(36)}`,
+  };
+}
+
+function applyMockTabularFrameFilters(
+  rows: Array<Record<string, unknown>>,
+  searchParams: URLSearchParams,
+) {
+  const startDateMs = Date.parse(searchParams.get("start_date") ?? "");
+  const endDateMs = Date.parse(searchParams.get("end_date") ?? "");
+  const hasStartDate = Number.isFinite(startDateMs);
+  const hasEndDate = Number.isFinite(endDateMs);
+  const order = searchParams.get("order") === "asc" ? "asc" : "desc";
+  const limitValue = Number(searchParams.get("limit"));
+  const limit = Number.isFinite(limitValue) && limitValue > 0
+    ? Math.trunc(limitValue)
+    : rows.length;
+
+  return [...rows]
+    .filter((row) => {
+      const rowDateMs = Date.parse(readString(row.time_index) ?? "");
+
+      if (!Number.isFinite(rowDateMs)) {
+        return !hasStartDate && !hasEndDate;
+      }
+
+      if (hasStartDate && rowDateMs < startDateMs) {
+        return false;
+      }
+
+      if (hasEndDate && rowDateMs > endDateMs) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((left, right) => {
+      const leftDateMs = Date.parse(readString(left.time_index) ?? "");
+      const rightDateMs = Date.parse(readString(right.time_index) ?? "");
+      const leftValue = Number.isFinite(leftDateMs) ? leftDateMs : 0;
+      const rightValue = Number.isFinite(rightDateMs) ? rightDateMs : 0;
+
+      return order === "asc" ? leftValue - rightValue : rightValue - leftValue;
+    })
+    .slice(0, limit);
 }
 
 function sortDescendingById<T extends Record<string, unknown>>(rows: T[]) {
@@ -2472,6 +2612,209 @@ function handleTargetPortfolios(route: string, method: string, searchParams: URL
     return buildPortfolioWeightsApiResponse(portfolio ?? undefined);
   }
 
+  if (weightsMatch && method === "DELETE") {
+    const portfolioUid = weightsMatch[1] ?? "";
+    const portfolio = findByUid(state.targetPortfolios, portfolioUid);
+    const snapshot = buildPortfolioWeightsApiResponse(portfolio ?? { uid: portfolioUid });
+    const weightsDate = readString(searchParams.get("weights_date"));
+    const currentRows = readArray<Record<string, unknown>>(portfolio?.weight_rows);
+    const nextRows = weightsDate
+      ? currentRows.filter((row) => {
+          const rowDate = readString(row.time_index) || readString(portfolio?.weights_date);
+          return rowDate !== weightsDate;
+        })
+      : [];
+
+    if (portfolio) {
+      portfolio.weight_rows = nextRows;
+    }
+
+    return {
+      detail: "Portfolio weights deleted.",
+      portfolio_uid: portfolioUid,
+      portfolio_index_identifier: snapshot.portfolio_index_identifier,
+      weights_date: weightsDate || null,
+      deleted_count: currentRows.length - nextRows.length,
+    };
+  }
+
+  const signalWeightsMatch = route.match(/^\/api\/v1\/portfolio\/([^/]+)\/signals_weights\/$/);
+  if (signalWeightsMatch && method === "GET") {
+    const portfolioUid = signalWeightsMatch[1] ?? "";
+    const portfolio = findByUid(state.targetPortfolios, portfolioUid);
+    const snapshot = buildPortfolioWeightsApiResponse(portfolio ?? { uid: portfolioUid });
+    const rows = snapshot.weights.map((row, index) => ({
+      time_index: row.time_index ?? snapshot.weights_date,
+      portfolio_uid: portfolioUid,
+      signal_uid: readString(portfolio?.signal_uid) ?? `mock-signal-${portfolioUid}`,
+      asset_identifier: row.asset_identifier,
+      weight: row.weight,
+      rank: index + 1,
+    }));
+
+    return buildMockTabularFrameResponse(
+      "Signal Weights",
+      applyMockTabularFrameFilters(rows, searchParams),
+    );
+  }
+
+  const portfolioValuesMatch = route.match(/^\/api\/v1\/portfolio\/([^/]+)\/portfolio_values\/$/);
+  if (portfolioValuesMatch && method === "GET") {
+    const portfolioUid = portfolioValuesMatch[1] ?? "";
+    const portfolio = findByUid(state.targetPortfolios, portfolioUid);
+    const portfolioRow = buildPortfolioApiRow(portfolio ?? { uid: portfolioUid });
+    const weightsDate = readString(portfolio?.weights_date) ?? new Date().toISOString();
+    const rows = [
+      {
+        time_index: weightsDate,
+        portfolio_uid: portfolioUid,
+        unique_identifier: portfolioRow.unique_identifier,
+        portfolio_value: readNumber(portfolio?.portfolio_value) || 1_000_000,
+        currency: readString(portfolio?.currency) ?? "USD",
+      },
+    ];
+
+    return buildMockTabularFrameResponse(
+      "Portfolio Values",
+      applyMockTabularFrameFilters(rows, searchParams),
+    );
+  }
+
+  return undefined;
+}
+
+function buildPortfolioSignalApiRow(signal: Record<string, unknown>) {
+  const uid = readString(signal.uid) || `mock-portfolio-signal-${readString(signal.id)}`;
+  const signalUid = readString(signal.signal_uid) || uid;
+
+  return {
+    ...signal,
+    uid,
+    signal_uid: signalUid,
+    signal_description: readOptionalString(signal.signal_description),
+  };
+}
+
+function deleteMockSignalWeightRows(signalUid: string, weightsDate: string | null) {
+  let deletedCount = 0;
+
+  state.targetPortfolios.forEach((portfolio) => {
+    const portfolioSignalUid = readString(portfolio.signal_uid);
+    const currentRows = readArray<Record<string, unknown>>(portfolio.weight_rows);
+    const nextRows = currentRows.filter((row) => {
+      const rowSignalUid = readString(row.signal_uid) || portfolioSignalUid;
+
+      if (rowSignalUid !== signalUid) {
+        return true;
+      }
+
+      const rowDate = readString(row.time_index);
+      if (weightsDate && rowDate !== weightsDate) {
+        return true;
+      }
+
+      deletedCount += 1;
+      return false;
+    });
+
+    if (nextRows.length !== currentRows.length) {
+      portfolio.weight_rows = nextRows;
+    }
+  });
+
+  return deletedCount;
+}
+
+function handlePortfolioSignals(
+  route: string,
+  method: string,
+  searchParams: URLSearchParams,
+  init?: RequestInit,
+) {
+  if (route === "/api/v1/portfolio-signal/" && method === "GET") {
+    const signalUidFilter = readOptionalString(searchParams.get("signal_uid"));
+    const filtered = state.portfolioSignals.map(buildPortfolioSignalApiRow).filter((signal) => {
+      if (signalUidFilter && signal.signal_uid !== signalUidFilter) {
+        return false;
+      }
+
+      return matchesSearch(
+        [signal.uid, signal.signal_uid, signal.signal_description],
+        searchParams.get("search"),
+      );
+    });
+
+    return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
+  }
+
+  if (route === "/api/v1/portfolio-signal/" && method === "POST") {
+    const body = parseBody(init);
+    const signalUid = readString(body?.signal_uid).trim();
+    const row = {
+      id: nextId(state.portfolioSignals),
+      uid: `signal-metadata-${Date.now()}`,
+      signal_uid: signalUid || "mock-signal",
+      signal_description: readString(body?.signal_description).trim(),
+    };
+
+    state.portfolioSignals.unshift(row);
+    return buildPortfolioSignalApiRow(row);
+  }
+
+  const weightsMatch = route.match(/^\/api\/v1\/portfolio-signal\/([^/]+)\/weights\/$/);
+  if (weightsMatch && method === "DELETE") {
+    const signal = findByUid(state.portfolioSignals, weightsMatch[1] ?? "");
+    if (!signal) {
+      return undefined;
+    }
+
+    const row = buildPortfolioSignalApiRow(signal);
+    const weightsDate = readOptionalString(searchParams.get("weights_date"));
+    const deletedCount = deleteMockSignalWeightRows(row.signal_uid, weightsDate);
+
+    return {
+      detail: "Signal values deleted.",
+      signal_metadata_uid: row.uid,
+      signal_uid: row.signal_uid,
+      weights_date: weightsDate,
+      deleted_count: deletedCount,
+    };
+  }
+
+  const detailMatch = route.match(/^\/api\/v1\/portfolio-signal\/([^/]+)\/$/);
+  if (!detailMatch) {
+    return undefined;
+  }
+
+  const signal = findByUid(state.portfolioSignals, detailMatch[1] ?? "");
+  if (!signal) {
+    return undefined;
+  }
+
+  if (method === "GET") {
+    return buildPortfolioSignalApiRow(signal);
+  }
+
+  if (method === "PATCH") {
+    const body = parseBody(init);
+    signal.signal_description = readString(body?.signal_description).trim();
+    return buildPortfolioSignalApiRow(signal);
+  }
+
+  if (method === "DELETE") {
+    const row = buildPortfolioSignalApiRow(signal);
+    const deletedWeightsCount = deleteMockSignalWeightRows(row.signal_uid, null);
+    state.portfolioSignals = state.portfolioSignals.filter((entry) => readString(entry.uid) !== row.uid);
+
+    return {
+      detail: "Signal metadata deleted.",
+      signal_metadata_uid: row.uid,
+      signal_uid: row.signal_uid,
+      deleted_count: 1,
+      deleted_weights_count: deletedWeightsCount,
+    };
+  }
+
   return undefined;
 }
 
@@ -4081,12 +4424,20 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
     return resolveMockSourceTableConfigStats(sourceTableConfigStatsMatch[1] ?? "");
   }
 
+  const dynamicTableStatsMatch = route.match(
+    /^\/orm\/api\/ts_manager\/dynamic_table\/([^/]+)\/get-stats\/$/,
+  );
+  if (dynamicTableStatsMatch && method === "GET") {
+    return resolveMockDataNodeStats(dynamicTableStatsMatch[1] ?? "");
+  }
+
   if (route === "/orm/api/ts_manager/dynamic_table/namespaces/" && method === "GET") {
     return buildMockNamespaceRows(state.dataNodes);
   }
 
   if (route === "/orm/api/ts_manager/dynamic_table/" && method === "GET") {
     const query = searchParams.get("q");
+    const uid = readString(searchParams.get("uid")).trim();
     const namespace = readString(searchParams.get("namespace")).trim();
     const filtered = sortDescendingById(
       state.dataNodes.filter((node) => {
@@ -4094,7 +4445,14 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
           return false;
         }
 
-        return matchesSearch([node.id, node.storage_hash, node.identifier, node.description], query);
+        if (uid && readOptionalString(node.uid)?.trim() !== uid) {
+          return false;
+        }
+
+        return matchesSearch(
+          [node.uid, node.id, node.storage_hash, node.identifier, node.description],
+          query,
+        );
       }),
     );
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
@@ -4103,7 +4461,7 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
   if (route === "/orm/api/ts_manager/dynamic_table/quick-search/" && method === "GET") {
     return state.dataNodes
       .filter((node) =>
-        matchesSearch([node.storage_hash, node.identifier], searchParams.get("q")),
+        matchesSearch([node.uid, node.storage_hash, node.identifier], searchParams.get("q")),
       )
       .slice(0, Number(searchParams.get("limit") ?? 50))
       .map((node) => ({
@@ -4249,27 +4607,6 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
         storage_hash: readString(findByUid(state.dataNodes, uid)?.storage_hash),
         ok: true,
         detail: "Search index refreshed in mock mode.",
-      })),
-    };
-  }
-
-  if (route === "/orm/api/ts_manager/dynamic_table/bulk-set-next-update-from-last-index-value/" && method === "POST") {
-    const body = parseBody(init);
-    const selectedUids = readArray<string>(body?.selected_uids);
-    return {
-      ok: true,
-      action: "set_next_update",
-      requested_uids: selectedUids,
-      requested_count: selectedUids.length,
-      select_all: false,
-      matched_count: selectedUids.length,
-      success_count: selectedUids.length,
-      failed_count: 0,
-      results: selectedUids.map((uid) => ({
-        dynamic_table_metadata_uid: uid,
-        storage_hash: readString(findByUid(state.dataNodes, uid)?.storage_hash),
-        ok: true,
-        detail: "Next update aligned to last index value in mock mode.",
       })),
     };
   }
@@ -5002,6 +5339,7 @@ export function getMainSequenceMockResponse<T>({
     handleAssetCategories(route, method, url.searchParams, init) ??
     handlePortfolioGroups(route, method, url.searchParams, init) ??
     handleTargetPortfolios(route, method, url.searchParams) ??
+    handlePortfolioSignals(route, method, url.searchParams, init) ??
     handleInstrumentsConfiguration(route, method, init) ??
     handleVirtualFunds(route, method, url.searchParams, init) ??
     handleManagedAccounts(route, method, url.searchParams, init) ??

@@ -18,6 +18,7 @@ Center.
 
 ## ADRs
 
+- [ADR 075: MS Markets API Binding](./adr-075-ms-markets-api-binding.md)
 - [ADR 074: UID-Only Main Sequence Backend Identifier Contracts](./adr-074-uid-only-main-sequence-backend-identifier-contracts.md)
 
 ## Guidelines

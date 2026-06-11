@@ -8,6 +8,8 @@ This directory contains the shared Main Sequence domain layer used by multiple n
 - `components/`: reusable Main Sequence UI building blocks shared across apps.
 - `hooks/`: shared UI state helpers that are still specific to Main Sequence workflows.
 - `assets/`: shared static assets used by the common components layer.
+- `connectionBindings.ts`: shared connection-binding predicates, including the
+  `main_sequence_markets` / `primary-api` Adapter From API marker resolver.
 
 ## Rules
 

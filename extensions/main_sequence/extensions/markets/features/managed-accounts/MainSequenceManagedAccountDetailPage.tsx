@@ -23,6 +23,7 @@ import { positionDetailWidget } from "../../widgets/position-detail/definition";
 import { PositionDetailWidget } from "../../widgets/position-detail/PositionDetailWidget";
 import type { PositionDetailWidgetProps } from "../../widgets/position-detail/positionDetailRuntime";
 import { getVirtualFundDetailPath } from "../funds/fundShared";
+import { openMainSequenceMarketsSummaryLink } from "../summaryLinks";
 import { getManagedAccountsListPath } from "./managedAccountShared";
 
 export const managedAccountDetailTabs = [
@@ -229,7 +230,12 @@ export function MainSequenceManagedAccountDetailPage() {
       ) : null}
 
       {managedAccountSummaryQuery.data ? (
-        <MainSequenceEntitySummaryCard summary={managedAccountSummaryQuery.data} />
+        <MainSequenceEntitySummaryCard
+          summary={managedAccountSummaryQuery.data}
+          onSummaryItemLinkClick={(linkUrl) =>
+            openMainSequenceMarketsSummaryLink(navigate, linkUrl)
+          }
+        />
       ) : (
         <Card>
           <CardContent className="flex min-h-40 items-center justify-center">

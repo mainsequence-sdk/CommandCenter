@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from
 
 import {
   AlertTriangle,
-  ArrowUpRight,
   Boxes,
   Calendar,
   Cloud,
   Code2,
   Database,
   Fingerprint,
+  FolderOpen,
   GitBranch,
   GitCommitHorizontal,
   GitFork,
@@ -16,12 +16,14 @@ import {
   HardDrive,
   Info,
   Link as LinkIcon,
+  ListTree,
   Loader2,
   Package,
   PencilLine,
   Plus,
   PlaySquare,
   Server,
+  Table2,
   TimerReset,
   Tags,
   X,
@@ -39,6 +41,7 @@ import {
   formatMainSequenceError,
   getSummaryLabels,
   removeSummaryLabel,
+  type SummaryBadge,
   type SummaryField,
   type SummaryResponse,
   type SummaryStat,
@@ -109,11 +112,51 @@ const summaryFieldIconMap: Record<string, LucideIcon> = {
   bucket: HardDrive,
   link: LinkIcon,
   server: Server,
+  "folder-open": FolderOpen,
+  folder: FolderOpen,
+  table: Table2,
+  collection: ListTree,
   "warning-2": AlertTriangle,
 };
 
 function getSummaryFieldIcon(field: SummaryField) {
   return field.icon ? summaryFieldIconMap[field.icon] : undefined;
+}
+
+type SummaryLinkedItem = SummaryBadge | SummaryField | SummaryStat;
+
+function getSummaryItemLinkUrl(item: SummaryLinkedItem) {
+  return typeof item.link_url === "string" && item.link_url.trim()
+    ? item.link_url.trim()
+    : null;
+}
+
+function getSummaryFieldHref(field: SummaryField) {
+  return typeof field.href === "string" && field.href.trim() ? field.href.trim() : null;
+}
+
+function openSummaryUrlFallback(url: string) {
+  const trimmedUrl = url.trim();
+
+  if (!trimmedUrl) {
+    return;
+  }
+
+  if (/^https?:\/\//.test(trimmedUrl)) {
+    window.open(trimmedUrl, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  window.location.assign(trimmedUrl);
+}
+
+function handleClickableSummaryKeyDown(event: KeyboardEvent<HTMLElement>, onClick: () => void) {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  event.preventDefault();
+  onClick();
 }
 
 function SummaryFieldLead({
@@ -196,7 +239,10 @@ function SummaryEditButton({
       className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border/70 text-muted-foreground transition-colors hover:border-primary/35 hover:text-primary"
       aria-label={`Edit ${item.label}`}
       title={`Edit ${item.label}`}
-      onClick={onClick}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
     >
       <PencilLine className="h-3 w-3" />
     </button>
@@ -215,57 +261,63 @@ function SummaryHighlightField({
   const hasLead = Boolean(field.image || field.icon);
   const value = getSummaryValue(field.value);
   const valueClassName = field.tone ? summaryToneToTextClassName(field.tone) : "text-foreground";
-  const buttonClassName = `${valueClassName} mt-1.5 inline-flex max-w-full items-center gap-1.5 text-left text-sm font-medium underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary`;
+  const isClickable = Boolean(onClick);
 
   return (
-    <div className="min-w-[148px] max-w-full flex-none rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-[var(--summary-highlight-card-padding-x)] py-[var(--summary-highlight-card-padding-y)]">
-      <div className="min-w-0">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-          {hasLead ? <SummaryFieldLead field={field} /> : null}
-          <span>{field.label}</span>
-          {field.info ? (
-            <span
-              className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border/70 text-[10px] text-muted-foreground"
-              title={field.info}
-            >
-              <Info className="h-2.5 w-2.5" />
-            </span>
-          ) : null}
-        </div>
-        <SummaryEditButton item={field} onClick={onEdit ?? (() => undefined)} />
-      </div>
-
-      {field.kind === "badges" && Array.isArray(field.value) ? (
-        <div className="mt-[var(--summary-highlight-value-margin-top)] flex flex-wrap gap-1.5">
-          {field.value.length > 0 ? (
-            field.value.map((badgeValue, index) => (
-              <Badge key={`${field.key}-${index}`} variant={summaryToneToBadgeVariant(field.tone)}>
-                {String(badgeValue)}
-              </Badge>
-            ))
-          ) : (
-            <div className="text-sm text-muted-foreground">Not available</div>
-          )}
-        </div>
-      ) : onClick ? (
-        <button type="button" className={buttonClassName} onClick={onClick} title={field.meta || value}>
-          <span className="truncate">{value}</span>
-          <ArrowUpRight className="h-3.5 w-3.5" />
-        </button>
-      ) : (
-        <div
-          className={`${valueClassName} mt-[var(--summary-highlight-value-margin-top)] truncate text-sm font-medium`}
-        >
-          {value}
-        </div>
+    <div
+      className={cn(
+        "min-w-[148px] max-w-full flex-none rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-[var(--summary-highlight-card-padding-x)] py-[var(--summary-highlight-card-padding-y)]",
+        isClickable &&
+          "cursor-pointer transition-colors hover:border-primary/35 hover:bg-background/36 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
       )}
-
-      {field.meta ? (
-        <div className="mt-[var(--summary-highlight-meta-margin-top)] truncate text-xs text-muted-foreground">
-          {field.meta}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? (event) => handleClickableSummaryKeyDown(event, onClick) : undefined}
+      title={field.meta || value}
+    >
+      <div className="min-w-0">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            {hasLead ? <SummaryFieldLead field={field} /> : null}
+            <span>{field.label}</span>
+            {field.info ? (
+              <span
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border/70 text-[10px] text-muted-foreground"
+                title={field.info}
+              >
+                <Info className="h-2.5 w-2.5" />
+              </span>
+            ) : null}
+          </div>
+          <SummaryEditButton item={field} onClick={onEdit ?? (() => undefined)} />
         </div>
-      ) : null}
+
+        {field.kind === "badges" && Array.isArray(field.value) ? (
+          <div className="mt-[var(--summary-highlight-value-margin-top)] flex flex-wrap gap-1.5">
+            {field.value.length > 0 ? (
+              field.value.map((badgeValue, index) => (
+                <Badge key={`${field.key}-${index}`} variant={summaryToneToBadgeVariant(field.tone)}>
+                  {String(badgeValue)}
+                </Badge>
+              ))
+            ) : (
+              <div className="text-sm text-muted-foreground">Not available</div>
+            )}
+          </div>
+        ) : (
+          <div
+            className={`${valueClassName} mt-[var(--summary-highlight-value-margin-top)] truncate text-sm font-medium`}
+          >
+            {value}
+          </div>
+        )}
+
+        {field.meta ? (
+          <div className="mt-[var(--summary-highlight-meta-margin-top)] truncate text-xs text-muted-foreground">
+            {field.meta}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -274,11 +326,13 @@ function SummaryHighlightField({
 export function MainSequenceEntitySummaryCard({
   actions,
   onFieldLinkClick,
+  onSummaryItemLinkClick,
   onSummaryUpdated,
   summary,
 }: {
   actions?: ReactNode;
   onFieldLinkClick?: (field: SummaryField) => void;
+  onSummaryItemLinkClick?: (linkUrl: string, item: SummaryLinkedItem) => void;
   onSummaryUpdated?: () => Promise<void> | void;
   summary: SummaryResponse;
 }) {
@@ -401,6 +455,43 @@ export function MainSequenceEntitySummaryCard({
     }
   }
 
+  function handleSummaryItemLink(item: SummaryLinkedItem) {
+    const linkUrl = getSummaryItemLinkUrl(item);
+
+    if (!linkUrl) {
+      return;
+    }
+
+    if (onSummaryItemLinkClick) {
+      onSummaryItemLinkClick(linkUrl, item);
+      return;
+    }
+
+    openSummaryUrlFallback(linkUrl);
+  }
+
+  function handleSummaryFieldClick(field: SummaryField) {
+    const linkUrl = getSummaryItemLinkUrl(field);
+
+    if (linkUrl) {
+      handleSummaryItemLink(field);
+      return;
+    }
+
+    const href = getSummaryFieldHref(field);
+
+    if (!href) {
+      return;
+    }
+
+    if (onFieldLinkClick) {
+      onFieldLinkClick(field);
+      return;
+    }
+
+    openSummaryUrlFallback(href);
+  }
+
   return (
     <>
       <Card>
@@ -413,7 +504,9 @@ export function MainSequenceEntitySummaryCard({
                   const hasLead = Boolean(field.image || field.icon);
                   const fieldValue = getSummaryValue(field.value);
                   const showLabel = !hasLead || field.kind === "code";
-                  const isClickable = Boolean(field.href && onFieldLinkClick);
+                  const isClickable = Boolean(
+                    getSummaryItemLinkUrl(field) || getSummaryFieldHref(field),
+                  );
                   const valueClassName =
                     field.kind === "code"
                       ? "truncate font-mono text-[11px] text-foreground/90"
@@ -429,7 +522,7 @@ export function MainSequenceEntitySummaryCard({
                         <button
                           type="button"
                           className="inline-flex min-w-0 items-center gap-1.5 transition-colors hover:text-foreground"
-                          onClick={() => onFieldLinkClick?.(field)}
+                          onClick={() => handleSummaryFieldClick(field)}
                           title={field.meta || fieldValue}
                         >
                           {hasLead ? <SummaryFieldLead field={field} /> : null}
@@ -459,11 +552,26 @@ export function MainSequenceEntitySummaryCard({
             <div className="flex flex-col items-start gap-2">
               {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
               <div className="flex flex-wrap items-center gap-2">
-                {summary.badges.map((badge) => (
-                  <Badge key={badge.key} variant={summaryToneToBadgeVariant(badge.tone)}>
-                    {badge.label}
-                  </Badge>
-                ))}
+                {summary.badges.map((badge) => {
+                  const linkUrl = getSummaryItemLinkUrl(badge);
+                  const badgeContent = (
+                    <Badge variant={summaryToneToBadgeVariant(badge.tone)}>{badge.label}</Badge>
+                  );
+
+                  return linkUrl ? (
+                    <button
+                      key={badge.key}
+                      type="button"
+                      className="inline-flex rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      title={linkUrl}
+                      onClick={() => handleSummaryItemLink(badge)}
+                    >
+                      {badgeContent}
+                    </button>
+                  ) : (
+                    <span key={badge.key}>{badgeContent}</span>
+                  );
+                })}
               </div>
               {isLabelable || displayedLabels.length > 0 ? (
                 <div className="flex flex-wrap items-center gap-2.5">
@@ -566,7 +674,11 @@ export function MainSequenceEntitySummaryCard({
                 <SummaryHighlightField
                   key={field.key}
                   field={field}
-                  onClick={field.href && onFieldLinkClick ? () => onFieldLinkClick(field) : undefined}
+                  onClick={
+                    getSummaryItemLinkUrl(field) || getSummaryFieldHref(field)
+                      ? () => handleSummaryFieldClick(field)
+                      : undefined
+                  }
                   onEdit={isEditableItem(field) ? () => setEditingItemKey(field.key) : undefined}
                 />
               ))}
@@ -578,46 +690,66 @@ export function MainSequenceEntitySummaryCard({
           <CardContent className="pt-4">
             <div className="mt-4">
               <div className="grid gap-[var(--summary-stat-grid-gap)] [grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr))]">
-                {summary.stats.map((item) => (
-                  <div
-                    key={item.key}
-                    className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-[var(--summary-stat-card-padding-x)] py-[var(--summary-stat-card-padding-y)]"
-                  >
+                {summary.stats.map((item) => {
+                  const linkUrl = getSummaryItemLinkUrl(item);
+
+                  return (
                     <div
-                      className="flex items-center justify-between gap-3 uppercase tracking-[0.16em] text-muted-foreground"
-                      style={{ fontSize: "var(--summary-stat-label-size)" }}
-                    >
-                      <span>{item.label}</span>
-                      <SummaryEditButton
-                        item={item}
-                        onClick={() => setEditingItemKey(item.key)}
-                      />
-                    </div>
-                    <div
+                      key={item.key}
                       className={cn(
-                        "mt-[var(--summary-stat-value-margin-top)] font-semibold tracking-tight text-foreground",
-                        item.edit?.enabled &&
-                          item.edit.editor === "toggle" &&
-                          item.value === true &&
-                          "text-warning",
+                        "rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-[var(--summary-stat-card-padding-x)] py-[var(--summary-stat-card-padding-y)]",
+                        linkUrl &&
+                          "cursor-pointer transition-colors hover:border-primary/35 hover:bg-background/36 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
                       )}
-                      style={{ fontSize: "var(--summary-stat-value-size)" }}
+                      role={linkUrl ? "button" : undefined}
+                      tabIndex={linkUrl ? 0 : undefined}
+                      title={linkUrl ?? item.info ?? item.label}
+                      onClick={linkUrl ? () => handleSummaryItemLink(item) : undefined}
+                      onKeyDown={
+                        linkUrl
+                          ? (event) =>
+                              handleClickableSummaryKeyDown(event, () =>
+                                handleSummaryItemLink(item),
+                              )
+                          : undefined
+                      }
                     >
-                      {item.display}
-                    </div>
-                    {item.info ? (
                       <div
-                        className="mt-[var(--summary-stat-info-margin-top)] text-muted-foreground"
-                        style={{
-                          fontSize: "var(--summary-stat-info-size)",
-                          lineHeight: "var(--line-height-body)",
-                        }}
+                        className="flex items-center justify-between gap-3 uppercase tracking-[0.16em] text-muted-foreground"
+                        style={{ fontSize: "var(--summary-stat-label-size)" }}
                       >
-                        {item.info}
+                        <span>{item.label}</span>
+                        <SummaryEditButton
+                          item={item}
+                          onClick={() => setEditingItemKey(item.key)}
+                        />
                       </div>
-                    ) : null}
-                  </div>
-                ))}
+                      <div
+                        className={cn(
+                          "mt-[var(--summary-stat-value-margin-top)] font-semibold tracking-tight text-foreground",
+                          item.edit?.enabled &&
+                            item.edit.editor === "toggle" &&
+                            item.value === true &&
+                            "text-warning",
+                        )}
+                        style={{ fontSize: "var(--summary-stat-value-size)" }}
+                      >
+                        {item.display}
+                      </div>
+                      {item.info ? (
+                        <div
+                          className="mt-[var(--summary-stat-info-margin-top)] text-muted-foreground"
+                          style={{
+                            fontSize: "var(--summary-stat-info-size)",
+                            lineHeight: "var(--line-height-body)",
+                          }}
+                        >
+                          {item.info}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </CardContent>

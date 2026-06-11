@@ -929,6 +929,7 @@ export function ConnectionQueryWorkbench({
         resolvedQueryModel,
         {
           scopeId: publishedPreviewInstanceId ?? "connection-query-workbench-preview",
+          connectionInstance: selectedConnectionInstance,
           forceFullRefresh: true,
         },
       );

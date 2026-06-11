@@ -19,6 +19,10 @@ Current surfaces in this folder:
 - `AdminWidgetConfigurationsPage.tsx`: organization widget-type configuration inventory and CRUD
   surface for widgets that advertise organization-scoped configuration capability, including raw
   JSON override editing, backend registration status, and override-row deletion
+- `AdminMainSequenceMarketsPage.tsx`: organization application setting that selects the
+  `command_center.adapter_from_api` connection marked with the
+  `main_sequence_markets` / `primary-api` binding. It updates connection public config metadata and
+  clears duplicate Markets bindings from other Adapter From API connections.
 - `AdminActivePlansPage.tsx`: organization subscription inventory and per-user plan assignments
   backed by `/user/api/organization/<uid>/active-plans/` with inline assign/remove seat controls
   plus a `Manage seats` modal loaded from `/user/api/organization/<uid>/subscription-seats/`

@@ -172,6 +172,7 @@ export interface ConnectionConfigEditorProps<
   value: TPublicConfig;
   onChange: (value: TPublicConfig) => void;
   disabled?: boolean;
+  connectionInstance?: ConnectionInstance;
 }
 
 export interface ConnectionQueryEditorProps<

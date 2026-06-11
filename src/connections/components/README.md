@@ -10,6 +10,10 @@ Reusable UI components for connection-aware settings and app surfaces.
   connection id. Menu rows render the connection type logo, instance name, type title/id, and
   status badges so connection-aware settings and explorer screens share one picker.
 - `ConnectionTypeIcon.tsx`: renders a connection type logo with a safe initials fallback.
+- `connection-icons.ts`: resolves icon descriptors for type-level and instance-level connection
+  rendering. Adapter From API instances may use sanitized `compiledContract.openapi.logo` metadata
+  discovered from OpenAPI `info.x-logo`; other connections continue to use their registered
+  type-level icon.
 - `ConnectionQueryEditorFields.tsx`: shared form controls for connection-specific query editors.
   These controls keep CodeMirror-backed query code, SQL, JSON-object, string-list, number, boolean,
   and source-summary fields consistent when a connection type renders its own query kwargs inside
@@ -24,6 +28,8 @@ Reusable UI components for connection-aware settings and app surfaces.
 
 - Components must display connection metadata only. Do not render secret values or accept raw
   credentials here.
+- Dynamic instance logos are display metadata only. Only absolute HTTP(S) URLs from sanitized
+  compiled-contract branding are rendered; unsafe protocols fall back to the connection type icon.
 - Widget settings should store `ConnectionRef` values instead of endpoint URLs, tokens, or display
   names.
 - Connection-specific query editors should render only payload fields for their selected

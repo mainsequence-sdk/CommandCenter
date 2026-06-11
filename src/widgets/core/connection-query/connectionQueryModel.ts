@@ -1,13 +1,14 @@
 import {
   fetchConnectionResource,
   queryPublicWidgetExecution,
-  queryConnection,
   resolveConnectionRefFromInstances,
 } from "@/connections/api";
+import { executeConnectionQuery } from "@/connections/connectionQueryExecution";
 import type { DashboardRequestTraceMeta } from "@/dashboards/dashboard-request-trace";
 import {
   isConnectionResponseContractId,
   type ConnectionId,
+  type ConnectionInstance,
   type ConnectionResponseContractId,
 } from "@/connections/types";
 import type {
@@ -82,6 +83,7 @@ export type ConnectionQueryRuntimeState =
 
 const DEFAULT_PROMQL_RANGE_STEP_MS = 5 * 60 * 1000;
 const CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED = false;
+const ADAPTER_FROM_API_CONNECTION_TYPE_ID = "command_center.adapter_from_api";
 
 function shouldLogConnectionQueryExecutionDebug() {
   return CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED && import.meta.env.DEV;
@@ -1053,6 +1055,7 @@ export async function executeConnectionQueryWidgetRequest(
     executionSurface?: WidgetExecutionSurface;
     publicExecution?: WidgetPublicExecutionContract;
     publicWorkspaceToken?: string;
+    connectionInstance?: ConnectionInstance;
     forceFullRefresh?: boolean;
     traceMeta?: DashboardRequestTraceMeta;
     signal?: AbortSignal;
@@ -1123,13 +1126,20 @@ export async function executeConnectionQueryWidgetRequest(
     }) as ConnectionQueryRuntimeState;
   }
 
-  const resolvedConnectionSelection = isPublicExecutionSurface
+  const requiresConnectionInstance =
+    !isPublicExecutionSurface &&
+    effectiveProps.connectionRef?.typeId === ADAPTER_FROM_API_CONNECTION_TYPE_ID;
+  const resolvedConnectionSelection: {
+    connectionRef?: ConnectionRef;
+    connectionInstance?: ConnectionInstance;
+    repaired?: boolean;
+  } = isPublicExecutionSurface
     ? { connectionRef: effectiveProps.connectionRef }
-    : effectiveProps.connectionRef?.id !== undefined
+    : effectiveProps.connectionRef?.id !== undefined && !requiresConnectionInstance
       ? { connectionRef: effectiveProps.connectionRef }
       : await resolveConnectionRefFromInstances(
           effectiveProps.connectionRef,
-          { allowFetch: true },
+          { allowFetch: true, preferredInstance: options?.connectionInstance },
         );
   if (import.meta.env.DEV) {
     /*
@@ -1268,7 +1278,9 @@ export async function executeConnectionQueryWidgetRequest(
       }
 
       try {
-        const result = await queryConnection(incrementalDecision.request, traceMeta, {
+        const result = await executeConnectionQuery(incrementalDecision.request, {
+          connectionInstance: resolvedConnectionSelection.connectionInstance,
+          traceMeta,
           signal: options?.signal,
         });
 

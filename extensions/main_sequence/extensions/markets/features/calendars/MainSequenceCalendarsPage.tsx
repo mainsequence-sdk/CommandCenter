@@ -28,6 +28,7 @@ import {
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
+import { openMainSequenceMarketsSummaryLink } from "../summaryLinks";
 
 type CalendarDetailTab = "details" | "dates" | "sessions" | "events";
 
@@ -665,6 +666,9 @@ function CalendarDetailView({
       ) : summaryQuery.data ? (
         <MainSequenceEntitySummaryCard
           summary={summaryQuery.data}
+          onSummaryItemLinkClick={(linkUrl) =>
+            openMainSequenceMarketsSummaryLink(navigate, linkUrl)
+          }
           onSummaryUpdated={() =>
             queryClient.invalidateQueries({
               queryKey: ["main_sequence", "calendars", "summary", calendarUid],

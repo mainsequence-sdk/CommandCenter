@@ -22,6 +22,7 @@ import { MainSequenceEntitySummaryCard } from "../../../../common/components/Mai
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
+import { openMainSequenceMarketsSummaryLink } from "../summaryLinks";
 import { positionDetailWidget } from "../../widgets/position-detail/definition";
 import { PositionDetailWidget } from "../../widgets/position-detail/PositionDetailWidget";
 import type { PositionDetailWidgetProps } from "../../widgets/position-detail/positionDetailRuntime";
@@ -352,6 +353,9 @@ export function MainSequenceFundsPage() {
         {virtualFundSummaryQuery.data ? (
           <MainSequenceEntitySummaryCard
             summary={virtualFundSummaryQuery.data}
+            onSummaryItemLinkClick={(linkUrl) =>
+              openMainSequenceMarketsSummaryLink(navigate, linkUrl)
+            }
             onSummaryUpdated={async () => {
               await virtualFundSummaryQuery.refetch();
             }}

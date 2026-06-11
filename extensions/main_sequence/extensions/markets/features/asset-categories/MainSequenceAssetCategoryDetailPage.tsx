@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Database, Loader2, PencilLine, Trash2 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
+import { getAppPath } from "@/apps/utils";
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,8 @@ import {
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
-import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
+import { MainSequenceAssetRegistryTable } from "../assets/MainSequenceAssetRegistryTable";
+import { openMainSequenceMarketsSummaryLink } from "../summaryLinks";
 import {
   AssetCategoryEditorDialog,
   buildCategoryDeleteSummary,
@@ -31,8 +33,8 @@ import {
   buildCategorySummary,
   buildEditorInitialValues,
   buildUpdatePayload,
-  formatAssetValue,
   formatCategoryValue,
+  getCategoryDetailFields,
   getAssetCategoriesListPath,
   readCategoryDetailString,
   resolveDeletedCount,
@@ -176,6 +178,17 @@ export function MainSequenceAssetCategoryDetailPage() {
     }
   }
 
+  function openNestedAssetDetail(asset: AssetListRow) {
+    const nextParams = new URLSearchParams();
+    nextParams.set("msAssetUid", asset.uid);
+    nextParams.set("msAssetTab", "details");
+
+    navigate({
+      pathname: getAppPath("main_sequence_markets", "assets"),
+      search: `?${nextParams.toString()}`,
+    });
+  }
+
   if (!categoryUid) {
     return (
       <div className="space-y-6">
@@ -196,9 +209,15 @@ export function MainSequenceAssetCategoryDetailPage() {
 
   const categoryTitle =
     categoryDetailQuery.data?.title?.trim() ||
-    categoryDetailQuery.data?.selected_category.text?.trim() ||
+    categoryDetailQuery.data?.selected_category?.text?.trim() ||
+    readCategoryDetailString(categoryDetailQuery.data, "display_name") ||
     `Asset Category ${categoryUid}`;
-  const categorySubtitle = categoryDetailQuery.data?.selected_category.sub_text || "";
+  const categorySubtitle =
+    categoryDetailQuery.data?.selected_category?.sub_text ||
+    readCategoryDetailString(categoryDetailQuery.data, "unique_identifier");
+  const categoryDetailFields = categoryDetailQuery.data
+    ? getCategoryDetailFields(categoryDetailQuery.data, selectedCategoryRow)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -212,13 +231,13 @@ export function MainSequenceAssetCategoryDetailPage() {
               <ArrowLeft className="h-4 w-4" />
               Back to categories
             </Button>
-            {categoryDetailQuery.data?.actions.can_edit ? (
+            {categoryDetailQuery.data?.actions?.can_edit ? (
               <Button type="button" variant="outline" onClick={() => setEditDialogOpen(true)}>
                 <PencilLine className="h-4 w-4" />
                 Edit
               </Button>
             ) : null}
-            {categoryDetailQuery.data?.actions.can_delete && selectedCategoryRow ? (
+            {categoryDetailQuery.data?.actions?.can_delete && selectedCategoryRow ? (
               <Button type="button" variant="danger" onClick={() => setDeleteDialogOpen(true)}>
                 <Trash2 className="h-4 w-4" />
                 Delete
@@ -255,6 +274,9 @@ export function MainSequenceAssetCategoryDetailPage() {
         <>
           <MainSequenceEntitySummaryCard
             summary={buildCategorySummary(categoryDetailQuery.data)}
+            onSummaryItemLinkClick={(linkUrl) =>
+              openMainSequenceMarketsSummaryLink(navigate, linkUrl)
+            }
           />
 
           <Card>
@@ -267,7 +289,7 @@ export function MainSequenceAssetCategoryDetailPage() {
               </div>
             </CardHeader>
             <CardContent className="grid gap-3 pt-6 md:grid-cols-2">
-              {categoryDetailQuery.data.details.map((field) => (
+              {categoryDetailFields.map((field) => (
                 <div
                   key={field.name}
                   className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-3"
@@ -333,62 +355,10 @@ export function MainSequenceAssetCategoryDetailPage() {
               ) : null}
 
               {!nestedAssetsQuery.isLoading && !nestedAssetsQuery.isError && nestedAssets.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[980px] border-separate border-spacing-y-2 text-sm">
-                    <thead>
-                      <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                        <th className="px-4 pb-2">Asset</th>
-                        <th className="px-4 pb-2">Ticker</th>
-                        <th className="px-4 pb-2">Exchange</th>
-                        <th className="px-4 pb-2">Sector</th>
-                        <th className="px-4 pb-2">Type</th>
-                        <th className="px-4 pb-2">Scope</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {nestedAssets.map((asset: AssetListRow) => (
-                        <tr key={asset.uid}>
-                          <td className={getRegistryTableCellClassName(false, "left")}>
-                            <div className="min-w-0">
-                              <div className="truncate font-medium text-foreground">
-                                {formatAssetValue(
-                                  asset.name,
-                                  asset.unique_identifier || asset.figi || asset.uid,
-                                )}
-                              </div>
-                              <div className="mt-1 truncate text-xs text-muted-foreground">
-                                {[
-                                  asset.uid ? `UID ${asset.uid}` : null,
-                                  asset.unique_identifier ? `Identifier ${asset.unique_identifier}` : null,
-                                  asset.figi ? `FIGI ${asset.figi}` : null,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" · ")}
-                              </div>
-                            </div>
-                          </td>
-                          <td className={getRegistryTableCellClassName(false)}>
-                            {formatAssetValue(asset.ticker)}
-                          </td>
-                          <td className={getRegistryTableCellClassName(false)}>
-                            {formatAssetValue(asset.exchange_code)}
-                          </td>
-                          <td className={getRegistryTableCellClassName(false)}>
-                            {formatAssetValue(asset.security_market_sector)}
-                          </td>
-                          <td className={getRegistryTableCellClassName(false)}>
-                            {formatAssetValue(asset.security_type)}
-                          </td>
-                          <td className={getRegistryTableCellClassName(false, "right")}>
-                            <Badge variant={asset.is_custom_by_organization ? "warning" : "neutral"}>
-                              {asset.is_custom_by_organization ? "Custom" : "Standard"}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <MainSequenceAssetRegistryTable
+                  assets={nestedAssets}
+                  onOpenAsset={openNestedAssetDetail}
+                />
               ) : null}
             </CardContent>
 

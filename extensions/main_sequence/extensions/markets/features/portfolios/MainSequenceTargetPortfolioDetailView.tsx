@@ -1,19 +1,31 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, ArrowLeft, Loader2, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { getAppPath } from "@/apps/utils";
+import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { PageHeader } from "@/components/ui/page-header";
+import type { CommandCenterFrameFieldType } from "@/connections/types";
+import {
+  normalizeTabularFrameSource,
+  type TabularFrameFieldSchema,
+  type TabularFrameFieldType,
+  type TabularFrameSourceV1,
+} from "@/widgets/shared/tabular-frame-source";
+import { TabularPreviewTable } from "@/widgets/shared/tabular-preview-table";
 
 import {
+  deleteTargetPortfolioWeights,
   fetchTargetPortfolioDetail,
+  fetchTargetPortfolioSignalWeights,
   fetchTargetPositionDetailPositionDetails,
   fetchTargetPortfolioSummary,
+  fetchTargetPortfolioValues,
   formatMainSequenceError,
   type SummaryField,
   type SummaryResponse,
@@ -22,6 +34,7 @@ import {
   type TargetPortfolioListRow,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
+import { openMainSequenceMarketsSummaryLink } from "../summaryLinks";
 import {
   formatPositionDetailCellValue,
   PositionDetailPositionSummaryStrip,
@@ -31,6 +44,8 @@ import {
 export const targetPortfolioDetailTabs = [
   { id: "detail", label: "Detail" },
   { id: "weights", label: "Weights" },
+  { id: "signal_weights", label: "Signal Weights" },
+  { id: "portfolio_values", label: "Portfolio Values" },
 ] as const;
 
 export type TargetPortfolioDetailTabId = (typeof targetPortfolioDetailTabs)[number]["id"];
@@ -53,6 +68,227 @@ function getPortfolioIndexUid(row: TargetPortfolioListRow | null) {
 
 function readTrimmedString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readDeletedWeightsCount(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const count = (value as Record<string, unknown>).deleted_count;
+  return typeof count === "number" && Number.isFinite(count) ? count : null;
+}
+
+function formatDeletedWeightsDescription(value: unknown) {
+  const count = readDeletedWeightsCount(value);
+
+  if (count === null) {
+    return "Portfolio weights were deleted.";
+  }
+
+  return `${count.toLocaleString()} ${count === 1 ? "weight row was" : "weight rows were"} deleted.`;
+}
+
+function mapCommandCenterFrameFieldType(value: unknown): TabularFrameFieldType {
+  if (value === "time") {
+    return "datetime";
+  }
+
+  if (
+    value === "number" ||
+    value === "string" ||
+    value === "boolean" ||
+    value === "json"
+  ) {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function readCommandCenterFrameFields(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((field) => {
+    if (!isPlainRecord(field)) {
+      return [];
+    }
+
+    const name = readTrimmedString(field.name);
+    const values = Array.isArray(field.values) ? field.values : null;
+
+    if (!name || !values) {
+      return [];
+    }
+
+    const fieldType = field.type as CommandCenterFrameFieldType | undefined;
+    const config = isPlainRecord(field.config) ? field.config : {};
+    const displayName = readTrimmedString(config.displayName);
+
+    return [
+      {
+        name,
+        type: fieldType,
+        values,
+        schema: {
+          key: name,
+          label: displayName ?? name,
+          type: mapCommandCenterFrameFieldType(fieldType),
+          nullable: true,
+          provenance: "backend",
+          nativeType: typeof fieldType === "string" ? fieldType : null,
+          reason: "Returned by the Main Sequence Markets tabular endpoint.",
+        } satisfies TabularFrameFieldSchema,
+      },
+    ];
+  });
+}
+
+function commandCenterFrameToTabularSource(
+  frame: Record<string, unknown>,
+  label: string,
+): TabularFrameSourceV1 | null {
+  const fields = readCommandCenterFrameFields(frame.fields);
+
+  if (fields.length === 0) {
+    return null;
+  }
+
+  const rowCount = Math.max(0, ...fields.map((field) => field.values.length));
+  const columns = fields.map((field) => field.name);
+  const rows = Array.from({ length: rowCount }, (_entry, index) =>
+    Object.fromEntries(fields.map((field) => [field.name, field.values[index] ?? null])),
+  );
+
+  return {
+    status: "ready",
+    columns,
+    rows,
+    fields: fields.map((field) => field.schema),
+    meta: isPlainRecord(frame.meta) ? frame.meta : undefined,
+    source: {
+      kind: "main-sequence-markets",
+      label: readTrimmedString(frame.name) ?? label,
+      updatedAtMs: Date.now(),
+    },
+  };
+}
+
+function normalizePortfolioTabularFrameResponse(
+  value: unknown,
+  label: string,
+): TabularFrameSourceV1 | null {
+  const normalizedSource = normalizeTabularFrameSource(value);
+
+  if (normalizedSource) {
+    return normalizedSource;
+  }
+
+  if (!isPlainRecord(value) || !Array.isArray(value.frames)) {
+    return null;
+  }
+
+  const tabularFrame = value.frames.find(
+    (frame) =>
+      isPlainRecord(frame) &&
+      frame.contract === "core.tabular_frame@v1" &&
+      Array.isArray(frame.fields),
+  );
+
+  return tabularFrame && isPlainRecord(tabularFrame)
+    ? commandCenterFrameToTabularSource(tabularFrame, label)
+    : null;
+}
+
+function PortfolioTabularFramePanel({
+  data,
+  description,
+  emptyMessage,
+  error,
+  isError,
+  isLoading,
+  title,
+}: {
+  data: unknown;
+  description: string;
+  emptyMessage: string;
+  error: unknown;
+  isError: boolean;
+  isLoading: boolean;
+  title: string;
+}) {
+  const frame = useMemo(
+    () => (data === undefined ? null : normalizePortfolioTabularFrameResponse(data, title)),
+    [data, title],
+  );
+  const errorMessage =
+    isError
+      ? formatMainSequenceError(error)
+      : frame?.status === "error"
+        ? frame.error ?? "The endpoint returned a tabular frame error."
+        : null;
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
+        <Loader2 className="mr-3 h-4 w-4 animate-spin" />
+        Loading {title.toLowerCase()}
+      </div>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+        {errorMessage}
+      </div>
+    );
+  }
+
+  if (!frame) {
+    return (
+      <div className="flex min-h-40 items-center justify-center gap-3 rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-4 text-sm text-warning">
+        <AlertTriangle className="h-4 w-4" />
+        The endpoint did not return a tabular frame.
+      </div>
+    );
+  }
+
+  return (
+    <Card variant="nested">
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base">{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <span className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/35 px-2 py-1">
+              {frame.rows.length.toLocaleString()} rows
+            </span>
+            <span className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/35 px-2 py-1">
+              {frame.columns.length.toLocaleString()} columns
+            </span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <TabularPreviewTable
+          className="min-h-[420px]"
+          columns={frame.columns}
+          rows={frame.rows}
+          emptyMessage={emptyMessage}
+          maxRows={100}
+        />
+      </CardContent>
+    </Card>
+  );
 }
 
 function getTargetPortfolioSummaryExtensions(
@@ -193,6 +429,8 @@ export function MainSequenceTargetPortfolioDetailView({
   selectedTabId: TargetPortfolioDetailTabId;
 }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [deleteWeightsDialogOpen, setDeleteWeightsDialogOpen] = useState(false);
   const fallbackSummary = useMemo(
     () => buildFallbackPortfolioSummary(portfolioUid, initialPortfolio),
     [initialPortfolio, portfolioUid],
@@ -227,6 +465,42 @@ export function MainSequenceTargetPortfolioDetailView({
     enabled: Boolean(portfolioUid) && selectedTabId === "weights",
   });
   const weightRows = weightsDetailsQuery.data?.rows ?? [];
+  const weightsDate = weightsDetailsQuery.data?.weights_date ?? null;
+  const deleteWeightsMutation = useMutation({
+    mutationFn: () => deleteTargetPortfolioWeights(portfolioUid),
+  });
+  const signalWeightsQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "target_portfolios",
+      "signal_weights",
+      portfolioUid,
+      "desc",
+      100,
+    ],
+    queryFn: () =>
+      fetchTargetPortfolioSignalWeights(portfolioUid, {
+        order: "desc",
+        limit: 100,
+      }),
+    enabled: Boolean(portfolioUid) && selectedTabId === "signal_weights",
+  });
+  const portfolioValuesQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "target_portfolios",
+      "portfolio_values",
+      portfolioUid,
+      "desc",
+      100,
+    ],
+    queryFn: () =>
+      fetchTargetPortfolioValues(portfolioUid, {
+        order: "desc",
+        limit: 100,
+      }),
+    enabled: Boolean(portfolioUid) && selectedTabId === "portfolio_values",
+  });
   const hasDetailContent = Boolean(
     detailContent.description,
   );
@@ -242,10 +516,25 @@ export function MainSequenceTargetPortfolioDetailView({
         title={portfolioTitle}
         description="Review the canonical portfolio summary."
         actions={
-          <Button type="button" variant="outline" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
-            Back to portfolios
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4" />
+              Back to portfolios
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => setDeleteWeightsDialogOpen(true)}
+              disabled={deleteWeightsMutation.isPending}
+            >
+              {deleteWeightsMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Delete weights
+            </Button>
+          </div>
         }
       />
 
@@ -262,6 +551,9 @@ export function MainSequenceTargetPortfolioDetailView({
       {summary ? (
         <MainSequenceEntitySummaryCard
           summary={summary}
+          onSummaryItemLinkClick={(linkUrl) =>
+            openMainSequenceMarketsSummaryLink(navigate, linkUrl)
+          }
           onFieldLinkClick={(field) => {
             if (field.href) {
               navigate(field.href);
@@ -331,79 +623,157 @@ export function MainSequenceTargetPortfolioDetailView({
                 No additional portfolio detail fields were returned.
               </div>
             )
-          ) : weightsDetailsQuery.isLoading ? (
-            <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
-              <Loader2 className="mr-3 h-4 w-4 animate-spin" />
-              Loading portfolio weights
-            </div>
-          ) : weightsDetailsQuery.isError ? (
-            <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-              {formatMainSequenceError(weightsDetailsQuery.error)}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                {weightsDetailsQuery.data?.weights_date ? (
+          ) : selectedTabId === "weights" ? (
+            weightsDetailsQuery.isLoading ? (
+              <div className="flex min-h-40 items-center justify-center text-sm text-muted-foreground">
+                <Loader2 className="mr-3 h-4 w-4 animate-spin" />
+                Loading portfolio weights
+              </div>
+            ) : weightsDetailsQuery.isError ? (
+              <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                {formatMainSequenceError(weightsDetailsQuery.error)}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  {weightsDate ? (
+                    <Card variant="nested" className="min-w-[220px]">
+                      <CardContent className="pt-5">
+                        <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                          Weights Date
+                        </div>
+                        <div className="mt-2 text-sm font-medium text-foreground">
+                          {formatPositionDetailCellValue(
+                            weightsDate,
+                            "weights_date",
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : null}
                   <Card variant="nested" className="min-w-[220px]">
                     <CardContent className="pt-5">
                       <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                        Weights Date
+                        Position Rows
                       </div>
                       <div className="mt-2 text-sm font-medium text-foreground">
-                        {formatPositionDetailCellValue(
-                          weightsDetailsQuery.data.weights_date,
-                          "weights_date",
-                        )}
+                        {weightRows.length.toLocaleString()}
                       </div>
                     </CardContent>
                   </Card>
-                ) : null}
-                <Card variant="nested" className="min-w-[220px]">
-                  <CardContent className="pt-5">
-                    <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                      Position Rows
-                    </div>
-                    <div className="mt-2 text-sm font-medium text-foreground">
-                      {weightRows.length.toLocaleString()}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {weightRows.length > 0 ? (
-                <Card variant="nested">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Position Details</CardTitle>
-                    <CardDescription>
-                      Detailed records returned by the portfolio weights endpoint.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <PositionDetailPositionSummaryStrip rows={weightRows} />
-                    <PositionDetailTable
-                      columnDefs={weightsDetailsQuery.data?.columnDefs ?? []}
-                      rows={weightRows}
-                      preferredPositionColumns
-                      sourceType="portfolio"
-                      holdingsDate={weightsDetailsQuery.data?.weights_date ?? null}
-                      emptyMessage="No position rows were returned."
-                      emptyTitle="No position rows"
-                      tableMinWidth={760}
-                    />
-                  </CardContent>
-                </Card>
-              ) : null}
-
-              {weightRows.length === 0 ? (
-                <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/32 px-4 py-10 text-center text-sm text-muted-foreground">
-                  {weightsDetailsQuery.data?.resolution_warning ||
-                    "No weights were returned for this portfolio."}
                 </div>
-              ) : null}
-            </div>
+
+                {weightRows.length > 0 ? (
+                  <Card variant="nested">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">Position Details</CardTitle>
+                      <CardDescription>
+                        Detailed records returned by the portfolio weights endpoint.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <PositionDetailPositionSummaryStrip rows={weightRows} />
+                      <PositionDetailTable
+                        columnDefs={weightsDetailsQuery.data?.columnDefs ?? []}
+                        rows={weightRows}
+                        preferredPositionColumns
+                        sourceType="portfolio"
+                        holdingsDate={weightsDetailsQuery.data?.weights_date ?? null}
+                        emptyMessage="No position rows were returned."
+                        emptyTitle="No position rows"
+                        tableMinWidth={760}
+                      />
+                    </CardContent>
+                  </Card>
+                ) : null}
+
+                {weightRows.length === 0 ? (
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/32 px-4 py-10 text-center text-sm text-muted-foreground">
+                    {weightsDetailsQuery.data?.resolution_warning ||
+                      "No weights were returned for this portfolio."}
+                  </div>
+                ) : null}
+              </div>
+            )
+          ) : selectedTabId === "signal_weights" ? (
+            <PortfolioTabularFramePanel
+              title="Signal Weights"
+              description="Signal weight rows returned by the portfolio signal weights endpoint."
+              emptyMessage="No signal weight rows were returned for this portfolio."
+              data={signalWeightsQuery.data}
+              error={signalWeightsQuery.error}
+              isError={signalWeightsQuery.isError}
+              isLoading={signalWeightsQuery.isLoading}
+            />
+          ) : (
+            <PortfolioTabularFramePanel
+              title="Portfolio Values"
+              description="Portfolio value rows returned by the portfolio values endpoint."
+              emptyMessage="No portfolio value rows were returned for this portfolio."
+              data={portfolioValuesQuery.data}
+              error={portfolioValuesQuery.error}
+              isError={portfolioValuesQuery.isError}
+              isLoading={portfolioValuesQuery.isLoading}
+            />
           )}
         </CardContent>
       </Card>
+
+      <ActionConfirmationDialog
+        open={deleteWeightsDialogOpen}
+        onClose={() => {
+          if (!deleteWeightsMutation.isPending) {
+            setDeleteWeightsDialogOpen(false);
+          }
+        }}
+        title="Delete portfolio weights"
+        tone="danger"
+        actionLabel="delete"
+        objectLabel="portfolio weights"
+        objectSummary={
+          <div className="space-y-2">
+            <div>
+              <div className="font-medium text-foreground">{portfolioTitle}</div>
+              <div className="font-mono text-xs text-muted-foreground">{portfolioUid}</div>
+            </div>
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                Delete scope
+              </div>
+              <div className="mt-1 text-sm text-foreground">
+                All portfolio weight rows for the resolved portfolio index identifier
+              </div>
+            </div>
+          </div>
+        }
+        description="This deletes all weight rows for this portfolio's resolved portfolio index identifier."
+        specialText="The request intentionally omits weights_date so the backend deletes all portfolio weights."
+        confirmWord="DELETE"
+        confirmButtonLabel="Delete weights"
+        isPending={deleteWeightsMutation.isPending}
+        onConfirm={() => deleteWeightsMutation.mutateAsync()}
+        onSuccess={async () => {
+          setDeleteWeightsDialogOpen(false);
+          await queryClient.invalidateQueries({
+            queryKey: ["main_sequence", "target_portfolios"],
+          });
+        }}
+        error={
+          deleteWeightsMutation.isError
+            ? formatMainSequenceError(deleteWeightsMutation.error)
+            : undefined
+        }
+        successToast={{
+          title: "Portfolio weights deleted",
+          description: formatDeletedWeightsDescription,
+          variant: "success",
+        }}
+        errorToast={{
+          title: "Portfolio weights delete failed",
+          description: formatMainSequenceError,
+          variant: "error",
+        }}
+      />
     </div>
   );
 }

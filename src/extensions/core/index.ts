@@ -19,6 +19,7 @@ import { AdminGithubOrganizationsPage } from "@/extensions/core/apps/admin/Admin
 import { AdminHostedResourcesPage } from "@/extensions/core/apps/admin/AdminHostedResourcesPage";
 import { AdminInvoicesPage } from "@/extensions/core/apps/admin/AdminInvoicesPage";
 import { AdminLoginSessionsPage } from "@/extensions/core/apps/admin/AdminLoginSessionsPage";
+import { AdminMainSequenceMarketsPage } from "@/extensions/core/apps/admin/AdminMainSequenceMarketsPage";
 import { AdminManageCreditsPage } from "@/extensions/core/apps/admin/AdminManageCreditsPage";
 import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOrganizationUsersPage";
 import { AdminWidgetConfigurationsPage } from "@/extensions/core/apps/admin/AdminWidgetConfigurationsPage";
@@ -384,6 +385,31 @@ export const adminApp: AppDefinition = {
         order: 42,
       },
       component: AdminWidgetConfigurationsPage,
+    },
+    {
+      id: "main-sequence-markets",
+      title: "Main Sequence Markets",
+      navLabel: "Main Sequence Markets",
+      description: "Select the Adapter From API connection used by Main Sequence Markets.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Main Sequence Markets admin settings. This page selects the organization Adapter From API connection used by the Markets application.",
+        availableActions: [
+          "Review eligible Adapter From API connections",
+          "Select the Markets primary API connection",
+          "Clear duplicate Markets bindings",
+        ],
+      }),
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["org_admin:view"],
+      navigationSection: {
+        id: "applications",
+        label: "Applications",
+        description: "Organization-scoped application configuration.",
+        order: 43,
+      },
+      component: AdminMainSequenceMarketsPage,
     },
     {
       id: "github-organizations",

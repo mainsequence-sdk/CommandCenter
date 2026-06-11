@@ -60,14 +60,28 @@ function findCategoryDetailField(
   detail: AssetCategoryDetailResponse | null | undefined,
   fieldName: string,
 ) {
-  return detail?.details.find((field) => field.name === fieldName) ?? null;
+  const fields = Array.isArray(detail?.details) ? detail.details : [];
+
+  return fields.find((field) => field.name === fieldName) ?? null;
+}
+
+function readCategoryTopLevelValue(
+  detail: AssetCategoryDetailResponse | null | undefined,
+  fieldName: string,
+) {
+  if (!detail || typeof detail !== "object") {
+    return undefined;
+  }
+
+  return (detail as unknown as Record<string, unknown>)[fieldName];
 }
 
 export function readCategoryDetailString(
   detail: AssetCategoryDetailResponse | null | undefined,
   fieldName: string,
 ) {
-  const value = findCategoryDetailField(detail, fieldName)?.value;
+  const value = findCategoryDetailField(detail, fieldName)?.value
+    ?? readCategoryTopLevelValue(detail, fieldName);
 
   return value === null || value === undefined ? "" : String(value);
 }
@@ -76,7 +90,8 @@ export function readCategoryDetailNumber(
   detail: AssetCategoryDetailResponse | null | undefined,
   fieldName: string,
 ) {
-  const value = findCategoryDetailField(detail, fieldName)?.value;
+  const value = findCategoryDetailField(detail, fieldName)?.value
+    ?? readCategoryTopLevelValue(detail, fieldName);
 
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
@@ -84,23 +99,40 @@ export function readCategoryDetailNumber(
 export function buildCategoryListRowFromDetail(
   detail: AssetCategoryDetailResponse,
 ): AssetCategoryListRow {
+  const selectedCategory = detail.selected_category;
+  const uniqueIdentifier =
+    selectedCategory?.sub_text?.trim() ||
+    readCategoryDetailString(detail, "unique_identifier") ||
+    detail.uid;
+  const displayName =
+    selectedCategory?.text?.trim() ||
+    readCategoryDetailString(detail, "display_name") ||
+    detail.title?.trim() ||
+    uniqueIdentifier ||
+    detail.uid;
+
   return {
     uid: detail.uid,
-    unique_identifier: detail.selected_category.sub_text,
-    display_name: detail.selected_category.text || detail.title,
+    unique_identifier: uniqueIdentifier,
+    display_name: displayName,
     description: readCategoryDetailString(detail, "description"),
     number_of_assets: readCategoryDetailNumber(detail, "number_of_assets"),
   };
 }
 
 export function buildCategorySummary(detail: AssetCategoryDetailResponse): EntitySummaryHeader {
+  const selectedCategory = detail.selected_category;
   const title =
-    detail.title.trim() ||
-    detail.selected_category.text.trim() ||
+    detail.title?.trim() ||
+    selectedCategory?.text?.trim() ||
+    readCategoryDetailString(detail, "display_name") ||
     `Asset Category ${detail.uid}`;
-  const uniqueIdentifier = detail.selected_category.sub_text.trim();
+  const uniqueIdentifier =
+    selectedCategory?.sub_text?.trim() ||
+    readCategoryDetailString(detail, "unique_identifier");
   const description = readCategoryDetailString(detail, "description");
   const assetCount = readCategoryDetailNumber(detail, "number_of_assets");
+  const canEdit = Boolean(detail.actions?.can_edit);
 
   return {
     entity: {
@@ -111,8 +143,8 @@ export function buildCategorySummary(detail: AssetCategoryDetailResponse): Entit
     badges: [
       {
         key: "editability",
-        label: detail.actions.can_edit ? "Editable" : "Read only",
-        tone: detail.actions.can_edit ? "success" : "neutral",
+        label: canEdit ? "Editable" : "Read only",
+        tone: canEdit ? "success" : "neutral",
       },
     ],
     inline_fields: [
@@ -151,6 +183,19 @@ export function buildCategorySummary(detail: AssetCategoryDetailResponse): Entit
       },
     ],
   };
+}
+
+export function getCategoryDetailFields(
+  detail: AssetCategoryDetailResponse,
+  row?: AssetCategoryListRow | null,
+) {
+  const details = Array.isArray(detail.details) ? detail.details : [];
+
+  if (details.length > 0) {
+    return details;
+  }
+
+  return buildFallbackCategoryDetails(row ?? buildCategoryListRowFromDetail(detail));
 }
 
 export function buildFallbackCategoryDetails(row: AssetCategoryListRow | null): AssetCategoryDetailField[] {

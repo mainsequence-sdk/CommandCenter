@@ -7,6 +7,12 @@ import {
 } from "@/dashboards/dashboard-request-trace";
 import { isWidgetPreviewMode } from "@/features/widgets/widget-explorer";
 
+import {
+  buildMainSequenceMarketsConnectionRequest,
+  MainSequenceMarketsConnectionTransportError,
+  requestMainSequenceMarketsConnectionJson,
+} from "./marketsConnectionTransport";
+
 const devAuthProxyPrefix = "/__command_center_auth__";
 const devMainSequenceMarketsProxyPrefix = "/__main_sequence_markets__";
 const defaultMainSequenceAssetsRoot = "/api/v1/";
@@ -37,8 +43,11 @@ const virtualFundEndpoint = buildMainSequenceAssetEndpoint("virtualfund/");
 const managedAccountEndpoint = buildMainSequenceAssetEndpoint("account/");
 const portfolioGroupEndpoint = buildMainSequenceAssetEndpoint("portfolio_group/");
 const targetPortfolioEndpoint = buildMainSequenceAssetEndpoint("portfolio/");
+const portfolioSignalEndpoint = buildMainSequenceAssetEndpoint("portfolio-signal/");
 export const mainSequenceRegistryPageSize = 25;
 const DATA_NODE_DETAIL_CACHE_TTL_MS = 300_000;
+const dataNodeUidSearchPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface DataNodeDetailCacheEntry {
   expiresAt: number;
@@ -47,6 +56,11 @@ interface DataNodeDetailCacheEntry {
 }
 
 const dataNodeDetailCache = new Map<string, DataNodeDetailCacheEntry>();
+
+function normalizeDataNodeUidSearch(value: string | undefined) {
+  const trimmed = value?.trim();
+  return trimmed && dataNodeUidSearchPattern.test(trimmed) ? trimmed : undefined;
+}
 
 interface PaginatedResponse<T> {
   count: number;
@@ -1009,6 +1023,67 @@ export interface TargetPortfolioWeightsResponse extends Record<string, unknown> 
   weights_date: string | null;
   resolution_warning: string | null;
   weights: Array<Record<string, unknown>>;
+}
+
+export interface TargetPortfolioWeightsDeleteInput {
+  weightsDate?: string | null;
+}
+
+export interface TargetPortfolioWeightsDeleteResponse extends Record<string, unknown> {
+  detail: string;
+  portfolio_uid: string | null;
+  portfolio_index_identifier: string | null;
+  weights_date: string | null;
+  deleted_count: number;
+}
+
+export interface TargetPortfolioTabularFrameFilters {
+  startDate?: string;
+  endDate?: string;
+  order?: "asc" | "desc";
+  limit?: number;
+}
+
+export interface PortfolioSignalRecord extends Record<string, unknown> {
+  uid: string;
+  signal_uid: string;
+  signal_description: string | null;
+}
+
+export interface PortfolioSignalListFilters {
+  search?: string;
+  signalUid?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface CreatePortfolioSignalInput {
+  signal_uid: string;
+  signal_description: string;
+}
+
+export interface UpdatePortfolioSignalInput {
+  signal_description: string;
+}
+
+export interface PortfolioSignalWeightsDeleteInput {
+  weightsDate?: string | null;
+}
+
+export interface PortfolioSignalWeightsDeleteResponse extends Record<string, unknown> {
+  detail: string;
+  signal_metadata_uid: string | null;
+  signal_uid: string | null;
+  weights_date: string | null;
+  deleted_count: number;
+}
+
+export interface PortfolioSignalDeleteResponse extends Record<string, unknown> {
+  detail: string;
+  signal_metadata_uid: string | null;
+  signal_uid: string | null;
+  deleted_count: number;
+  deleted_weights_count: number;
 }
 
 export interface SummaryExtensions {
@@ -2044,6 +2119,11 @@ export interface SourceTableConfigurationStatsResponse {
     max_per_asset_symbol: Record<string, string>;
     min_per_asset_symbol: Record<string, string>;
   } | null;
+  multi_index_column_stats: unknown;
+}
+
+export interface DataNodeStatsResponse {
+  multi_index_stats: Record<string, unknown> | null;
   multi_index_column_stats: unknown;
 }
 
@@ -3262,6 +3342,7 @@ export interface SummaryBadge {
   key: string;
   label: string;
   tone: string;
+  link_url?: string | null;
 }
 
 export interface SummaryEditChoiceOption {
@@ -3311,6 +3392,7 @@ export interface SummaryField {
   image_alt?: string;
   tone?: string;
   info?: string;
+  link_url?: string | null;
   href?: string;
   edit?: SummaryEditConfig;
 }
@@ -3322,13 +3404,14 @@ export interface SummaryStat {
   value: unknown;
   kind: string;
   info?: string;
+  link_url?: string | null;
   edit?: SummaryEditConfig;
 }
 
 export interface SummaryLabelManagement {
   labels: string[];
-  add_label_url: string;
-  remove_label_url: string;
+  add_label_url: string | null;
+  remove_label_url: string | null;
 }
 
 const EMPTY_SUMMARY_LABELS: string[] = [];
@@ -4351,6 +4434,29 @@ async function requestJson<T>(
         search,
       },
     );
+  }
+
+  const marketsConnectionRequest = buildMainSequenceMarketsConnectionRequest({
+    baseUrl: env.apiBaseUrl,
+    endpoint,
+    path,
+    init,
+    search,
+  });
+
+  if (marketsConnectionRequest) {
+    try {
+      return await requestMainSequenceMarketsConnectionJson<T>(marketsConnectionRequest, {
+        traceMeta,
+        signal: init?.signal ?? undefined,
+      });
+    } catch (error) {
+      if (error instanceof MainSequenceMarketsConnectionTransportError) {
+        throw new MainSequenceApiError(error.message, error.status, error.details);
+      }
+
+      throw error;
+    }
   }
 
   async function sendRequest() {
@@ -5542,6 +5648,155 @@ export function fetchTargetPortfolioSummary(targetPortfolioUid: string) {
   return requestJson<TargetPortfolioSummaryResponse>(
     targetPortfolioEndpoint,
     `${resolveMainSequenceUidPath(targetPortfolioUid, "portfolio")}/summary/`,
+  );
+}
+
+export function deleteTargetPortfolioWeights(
+  targetPortfolioUid: string,
+  input: TargetPortfolioWeightsDeleteInput = {},
+) {
+  const weightsDate = input.weightsDate?.trim();
+
+  return requestJson<TargetPortfolioWeightsDeleteResponse>(
+    targetPortfolioEndpoint,
+    `${resolveMainSequenceUidPath(targetPortfolioUid, "portfolio")}/weights/`,
+    {
+      method: "DELETE",
+    },
+    {
+      weights_date: weightsDate || undefined,
+    },
+  );
+}
+
+function buildTargetPortfolioTabularFrameSearch({
+  endDate,
+  limit = 100,
+  order = "desc",
+  startDate,
+}: TargetPortfolioTabularFrameFilters = {}) {
+  return {
+    start_date: startDate?.trim() || undefined,
+    end_date: endDate?.trim() || undefined,
+    order,
+    limit,
+  };
+}
+
+export function fetchTargetPortfolioSignalWeights(
+  targetPortfolioUid: string,
+  filters: TargetPortfolioTabularFrameFilters = {},
+) {
+  return requestJson<unknown>(
+    targetPortfolioEndpoint,
+    `${resolveMainSequenceUidPath(targetPortfolioUid, "portfolio")}/signals_weights/`,
+    undefined,
+    buildTargetPortfolioTabularFrameSearch(filters),
+  );
+}
+
+export function fetchTargetPortfolioValues(
+  targetPortfolioUid: string,
+  filters: TargetPortfolioTabularFrameFilters = {},
+) {
+  return requestJson<unknown>(
+    targetPortfolioEndpoint,
+    `${resolveMainSequenceUidPath(targetPortfolioUid, "portfolio")}/portfolio_values/`,
+    undefined,
+    buildTargetPortfolioTabularFrameSearch(filters),
+  );
+}
+
+function buildPortfolioSignalListSearch({
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+  search,
+  signalUid,
+}: PortfolioSignalListFilters = {}) {
+  return {
+    search: search?.trim() || undefined,
+    signal_uid: signalUid?.trim() || undefined,
+    limit,
+    offset,
+  };
+}
+
+export async function listPortfolioSignals({
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+  search,
+  signalUid,
+}: PortfolioSignalListFilters = {}) {
+  const payload = await requestJson<
+    PaginatedResponse<PortfolioSignalRecord> | PortfolioSignalRecord[]
+  >(
+    portfolioSignalEndpoint,
+    "",
+    undefined,
+    buildPortfolioSignalListSearch({
+      limit,
+      offset,
+      search,
+      signalUid,
+    }),
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function fetchPortfolioSignal(signalMetadataUid: string) {
+  return requestJson<PortfolioSignalRecord>(
+    portfolioSignalEndpoint,
+    `${resolveMainSequenceUidPath(signalMetadataUid, "portfolio signal")}/`,
+  );
+}
+
+export function createPortfolioSignal(input: CreatePortfolioSignalInput) {
+  return requestJson<PortfolioSignalRecord>(portfolioSignalEndpoint, "", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updatePortfolioSignal(
+  signalMetadataUid: string,
+  input: UpdatePortfolioSignalInput,
+) {
+  return requestJson<PortfolioSignalRecord>(
+    portfolioSignalEndpoint,
+    `${resolveMainSequenceUidPath(signalMetadataUid, "portfolio signal")}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function deletePortfolioSignalWeights(
+  signalMetadataUid: string,
+  input: PortfolioSignalWeightsDeleteInput = {},
+) {
+  const weightsDate = input.weightsDate?.trim();
+
+  return requestJson<PortfolioSignalWeightsDeleteResponse>(
+    portfolioSignalEndpoint,
+    `${resolveMainSequenceUidPath(signalMetadataUid, "portfolio signal")}/weights/`,
+    {
+      method: "DELETE",
+    },
+    {
+      weights_date: weightsDate || undefined,
+    },
+  );
+}
+
+export function deletePortfolioSignal(signalMetadataUid: string) {
+  return requestJson<PortfolioSignalDeleteResponse>(
+    portfolioSignalEndpoint,
+    `${resolveMainSequenceUidPath(signalMetadataUid, "portfolio signal")}/`,
+    {
+      method: "DELETE",
+    },
   );
 }
 
@@ -8014,6 +8269,7 @@ export async function listDataNodes({
   namespace,
   namespaceUid,
   q,
+  uid,
 }: {
   limit?: number;
   light?: boolean;
@@ -8021,7 +8277,10 @@ export async function listDataNodes({
   namespace?: string;
   namespaceUid?: string;
   q?: string;
+  uid?: string;
 } = {}) {
+  const trimmedQuery = q?.trim() || undefined;
+  const requestedUid = uid?.trim() || normalizeDataNodeUidSearch(trimmedQuery);
   const payload = await requestJson<PaginatedResponse<DataNodeSummary> | DataNodeSummary[]>(
     dynamicTableMetadataEndpoint,
     "",
@@ -8033,7 +8292,8 @@ export async function listDataNodes({
       ordering: "storage_hash_id",
       namespace: namespace?.trim() || undefined,
       namespace_uid: namespaceUid?.trim() || undefined,
-      q: q?.trim() || undefined,
+      q: requestedUid ? undefined : trimmedQuery,
+      uid: requestedUid,
     },
   );
 
@@ -8179,13 +8439,6 @@ function postMainSequenceBulkDelete(
       body: JSON.stringify({ uids }),
     },
     search,
-  );
-}
-
-export function bulkSetDataNodeNextUpdateFromLastIndexValue(selectedUids: string[]) {
-  return postDynamicTableBulkAction<DynamicTableBulkActionResponse>(
-    "bulk-set-next-update-from-last-index-value/",
-    { selected_uids: selectedUids },
   );
 }
 
@@ -9183,6 +9436,13 @@ export function fetchSourceTableConfigurationStats(sourceTableConfigurationUid: 
   );
 }
 
+export function fetchDataNodeStats(dataNodeIdentifier: TsManagerPathIdentifier) {
+  return requestJson<DataNodeStatsResponse>(
+    dynamicTableMetadataEndpoint,
+    `${resolveTsManagerPath(dataNodeIdentifier)}/get-stats/`,
+  );
+}
+
 export function deleteDataNodeTail(
   dataNodeIdentifier: TsManagerPathIdentifier,
   input: DataNodeTailDeleteInput,
@@ -9554,9 +9814,13 @@ function flattenErrorMessages(payload: unknown, parentKey?: string): string[] {
 
 export function formatMainSequenceError(error: unknown) {
   if (error instanceof MainSequenceApiError) {
+    if (error.message.trim()) {
+      return error.message.trim();
+    }
+
     const detailMessages = flattenErrorMessages(error.details).filter(Boolean);
 
-    return detailMessages.length > 0 ? detailMessages.join(" ") : error.message;
+    return detailMessages.length > 0 ? detailMessages.join(" ") : "The request failed.";
   }
 
   if (error instanceof Error && error.message.trim()) {

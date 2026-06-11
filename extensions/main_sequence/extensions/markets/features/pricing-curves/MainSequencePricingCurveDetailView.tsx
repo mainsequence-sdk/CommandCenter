@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,7 @@ import {
   type PricingCurveRow,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
+import { openMainSequenceMarketsSummaryLink } from "../summaryLinks";
 import { ZeroCurveChartSurface } from "../../widgets/zero-curve/ZeroCurveWidget";
 import {
   formatZeroCurveTimeIndexLabel,
@@ -280,6 +282,7 @@ export function MainSequencePricingCurveDetailView({
   onSelectMarketDataSet: (value: string) => void;
   selectedMarketDataSetUid: string;
 }) {
+  const navigate = useNavigate();
   const curveSummaryQuery = useQuery({
     queryKey: ["main_sequence", "pricing_curves", "summary", curveUid],
     queryFn: () => fetchPricingCurveSummary(curveUid),
@@ -391,6 +394,9 @@ export function MainSequencePricingCurveDetailView({
       {summary ? (
         <MainSequenceEntitySummaryCard
           summary={summary}
+          onSummaryItemLinkClick={(linkUrl) =>
+            openMainSequenceMarketsSummaryLink(navigate, linkUrl)
+          }
           onSummaryUpdated={async () => {
             await curveSummaryQuery.refetch();
           }}

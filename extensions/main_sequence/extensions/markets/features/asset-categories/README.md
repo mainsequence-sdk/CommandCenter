@@ -5,7 +5,7 @@ This feature owns the Main Sequence Markets asset-category registry, dedicated d
 ## Entry Points
 
 - `MainSequenceAssetCategoriesPage.tsx`: URL-driven category list surface with shared registry search, fixed pagination, and create/delete actions.
-- `MainSequenceAssetCategoryDetailPage.tsx`: dedicated category detail route with migrated detail loading, nested asset table loading, and edit/delete actions.
+- `MainSequenceAssetCategoryDetailPage.tsx`: dedicated category detail route with migrated detail loading, nested asset table loading through the shared Master List asset table, and edit/delete actions.
 
 ## API Dependencies
 
@@ -23,3 +23,4 @@ This feature owns the Main Sequence Markets asset-category registry, dedicated d
 - Keep the category list aligned with the shared Main Sequence registry pattern: no category-specific filter row and no page-size picker.
 - Keep transport logic in `extensions/main_sequence/common/api/index.ts`.
 - Reuse the shared asset list helper for nested category assets, but scope it from the route category uid instead of trusting backend detail metadata to decide the filter.
+- Render nested category assets with `../assets/MainSequenceAssetRegistryTable.tsx`; do not maintain a separate category-specific asset table.

@@ -4,6 +4,10 @@ import { getConnectionRuntimeDefinition } from "@/app/registry/connection-runtim
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ConnectionTypeIcon } from "@/connections/components/ConnectionTypeIcon";
+import {
+  resolveConnectionInstanceIconDescriptor,
+  resolveConnectionTypeIconDescriptor,
+} from "@/connections/components/connection-icons";
 import { useConnectionInstances, useConnectionTypes } from "@/connections/hooks";
 import { cn } from "@/lib/utils";
 import { Check, ChevronDown, Loader2, Search } from "lucide-react";
@@ -67,14 +71,6 @@ function formatConnectionStatus(instance: ConnectionInstance) {
   if (instance.status === "error") return "Error";
   if (instance.status === "disabled") return "Disabled";
   return "Unknown";
-}
-
-function getConnectionIconUrl(connection: AnyConnectionTypeDefinition | undefined) {
-  if (!connection) {
-    return undefined;
-  }
-
-  return connection.iconUrl ?? getConnectionRuntimeDefinition(connection)?.iconUrl;
 }
 
 function getTypeForInstance(
@@ -159,6 +155,9 @@ export function ConnectionPicker({
     : value?.typeId
       ? typesById.get(value.typeId) ?? getConnectionRuntimeDefinition(value.typeId)
       : undefined;
+  const selectedIcon = selectedInstance
+    ? resolveConnectionInstanceIconDescriptor(selectedInstance, selectedType)
+    : resolveConnectionTypeIconDescriptor(selectedType);
   const selectedLabel = selectedInstance?.name ?? value?.id;
   const selectedTypeId = selectedInstance?.typeId ?? value?.typeId;
   const normalizedSearch = searchValue.trim().toLowerCase();
@@ -227,8 +226,10 @@ export function ConnectionPicker({
           <span className="flex min-w-0 items-center gap-3">
             {selectedTypeId ? (
               <ConnectionTypeIcon
-                title={selectedType?.title ?? selectedTypeId}
-                iconUrl={getConnectionIconUrl(selectedType)}
+                title={selectedIcon.title}
+                iconUrl={selectedIcon.iconUrl}
+                imageAlt={selectedIcon.imageAlt}
+                backgroundColor={selectedIcon.backgroundColor}
                 className="h-8 w-8"
               />
             ) : null}
@@ -287,6 +288,7 @@ export function ConnectionPicker({
               {filteredInstances.map((instance) => {
                 const selected = sameConnectionId(instance.id, selectedId);
                 const connectionType = getTypeForInstance(instance, typesById);
+                const icon = resolveConnectionInstanceIconDescriptor(instance, connectionType);
 
                 return (
                   <button
@@ -307,8 +309,10 @@ export function ConnectionPicker({
                       {selected ? <Check className="h-4 w-4" /> : null}
                     </span>
                     <ConnectionTypeIcon
-                      title={connectionType?.title ?? instance.typeId}
-                      iconUrl={getConnectionIconUrl(connectionType)}
+                      title={icon.title}
+                      iconUrl={icon.iconUrl}
+                      imageAlt={icon.imageAlt}
+                      backgroundColor={icon.backgroundColor}
                       className="h-9 w-9"
                     />
                     <span className="min-w-0 flex-1">
@@ -338,8 +342,10 @@ export function ConnectionPicker({
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {selectedTypeId ? (
             <ConnectionTypeIcon
-              title={selectedType?.title ?? selectedTypeId}
-              iconUrl={getConnectionIconUrl(selectedType)}
+              title={selectedIcon.title}
+              iconUrl={selectedIcon.iconUrl}
+              imageAlt={selectedIcon.imageAlt}
+              backgroundColor={selectedIcon.backgroundColor}
               className="h-6 w-6"
             />
           ) : null}

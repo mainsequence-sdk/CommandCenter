@@ -26,12 +26,16 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   createConnectionInstance,
   deleteConnectionInstance,
-  testConnection,
   updateConnectionInstance,
 } from "@/connections/api";
 import { ConnectionPicker } from "@/connections/components/ConnectionPicker";
 import { ConnectionTypeIcon } from "@/connections/components/ConnectionTypeIcon";
+import {
+  resolveConnectionInstanceIconDescriptor,
+  resolveConnectionTypeIconDescriptor,
+} from "@/connections/components/connection-icons";
 import { ConnectionExploreSurface } from "@/connections/ConnectionExploreSurface";
+import { testConnectionInstance } from "@/connections/connectionQueryExecution";
 import { useConnectionInstances, useConnectionTypes } from "@/connections/hooks";
 import { isMockApiConnectionInstance } from "@/connections/mock-api";
 import type {
@@ -42,6 +46,10 @@ import type {
   ConnectionInstance,
 } from "@/connections/types";
 import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
+import {
+  clearMainSequenceMarketsApiConnectionSessionCache,
+  MAIN_SEQUENCE_MARKETS_API_CONNECTION_TYPE_ID,
+} from "../../../../../extensions/main_sequence/common/connectionBindings";
 
 type ConnectionsPageMode = "add-new" | "data-sources" | "explore";
 const dataSourceRowGridClass =
@@ -95,14 +103,6 @@ function isActiveBackendType(connection: AnyConnectionTypeDefinition) {
   return (connection as { isActive?: unknown }).isActive !== false;
 }
 
-function getConnectionIconUrl(connection: AnyConnectionTypeDefinition | undefined) {
-  if (!connection) {
-    return undefined;
-  }
-
-  return connection.iconUrl ?? getConnectionRuntimeDefinition(connection)?.iconUrl;
-}
-
 function getNewerRuntimeConnectionDefinition(
   connection: AnyConnectionTypeDefinition | undefined,
 ) {
@@ -113,6 +113,17 @@ function getNewerRuntimeConnectionDefinition(
   }
 
   return runtimeDefinition;
+}
+
+function resolvePublicConfigDraft(
+  schema: ConnectionConfigSchema | undefined,
+  values: Record<string, string>,
+  fallback: Record<string, unknown> = {},
+) {
+  return {
+    ...fallback,
+    ...parseConfigEditorValue(schema, values),
+  };
 }
 
 function BackendRegistryVersionWarning({
@@ -486,6 +497,8 @@ function ConnectionTypeListItem({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const icon = resolveConnectionTypeIconDescriptor(connection);
+
   return (
     <button
       type="button"
@@ -496,7 +509,7 @@ function ConnectionTypeListItem({
       }`}
       onClick={onSelect}
     >
-      <ConnectionTypeIcon title={connection.title} iconUrl={getConnectionIconUrl(connection)} />
+      <ConnectionTypeIcon title={icon.title} iconUrl={icon.iconUrl} />
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold text-foreground">
           {connection.title}
@@ -525,6 +538,14 @@ function CreateConnectionPanel({
   const [description, setDescription] = useState("");
   const [publicValues, setPublicValues] = useState<Record<string, string>>({});
   const [secureValues, setSecureValues] = useState<Record<string, string>>({});
+  const selectedTypeIcon = resolveConnectionInstanceIconDescriptor(
+    {
+      typeId: selectedType.id,
+      name: name.trim() || selectedType.title,
+      publicConfig: resolvePublicConfigDraft(selectedType.publicConfigSchema, publicValues),
+    },
+    selectedType,
+  );
 
   useEffect(() => {
     setName(selectedType.title);
@@ -559,6 +580,10 @@ function CreateConnectionPanel({
       });
     },
     onSuccess: async () => {
+      if (selectedType.id === MAIN_SEQUENCE_MARKETS_API_CONNECTION_TYPE_ID) {
+        clearMainSequenceMarketsApiConnectionSessionCache();
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["connections", "instances"] });
       onCreated();
     },
@@ -576,8 +601,8 @@ function CreateConnectionPanel({
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="flex min-w-0 items-start gap-3">
               <ConnectionTypeIcon
-                title={selectedType.title}
-                iconUrl={getConnectionIconUrl(selectedType)}
+                title={selectedTypeIcon.title}
+                iconUrl={selectedTypeIcon.iconUrl}
               />
               <div className="min-w-0 space-y-2">
                 <CardTitle>Create data source</CardTitle>
@@ -678,6 +703,18 @@ function EditConnectionPanel({
   const [secureValues, setSecureValues] = useState<Record<string, string>>({});
   const [savedAt, setSavedAt] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const instanceIcon = resolveConnectionInstanceIconDescriptor(
+    {
+      typeId: instance.typeId,
+      name: name.trim() || instance.name,
+      publicConfig: resolvePublicConfigDraft(
+        selectedType.publicConfigSchema,
+        publicValues,
+        instance.publicConfig,
+      ),
+    },
+    selectedType,
+  );
 
   useEffect(() => {
     setName(instance.name);
@@ -710,6 +747,10 @@ function EditConnectionPanel({
       });
     },
     onSuccess: () => {
+      if (selectedType.id === MAIN_SEQUENCE_MARKETS_API_CONNECTION_TYPE_ID) {
+        clearMainSequenceMarketsApiConnectionSessionCache();
+      }
+
       setSecureValues(createEmptyValues(selectedType.secureConfigSchema));
       setSavedAt(new Date().toLocaleTimeString());
       void queryClient.invalidateQueries({ queryKey: ["connections", "instances"] });
@@ -718,6 +759,10 @@ function EditConnectionPanel({
   const deleteMutation = useMutation({
     mutationFn: () => deleteConnectionInstance(instance.id),
     onSuccess: () => {
+      if (instance.typeId === MAIN_SEQUENCE_MARKETS_API_CONNECTION_TYPE_ID) {
+        clearMainSequenceMarketsApiConnectionSessionCache();
+      }
+
       void queryClient.invalidateQueries({ queryKey: ["connections", "instances"] });
     },
   });
@@ -734,8 +779,10 @@ function EditConnectionPanel({
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="flex min-w-0 items-start gap-3">
               <ConnectionTypeIcon
-                title={selectedType.title}
-                iconUrl={getConnectionIconUrl(selectedType)}
+                title={instanceIcon.title}
+                iconUrl={instanceIcon.iconUrl}
+                imageAlt={instanceIcon.imageAlt}
+                backgroundColor={instanceIcon.backgroundColor}
               />
               <div className="min-w-0 space-y-2">
                 <CardTitle>Edit data source</CardTitle>
@@ -774,6 +821,7 @@ function EditConnectionPanel({
               onChange={(nextValue) => {
                 setPublicValues(createValuesFromConfig(selectedType.publicConfigSchema, nextValue));
               }}
+              connectionInstance={instance}
               disabled={updateMutation.isPending}
             />
           ) : (
@@ -891,8 +939,9 @@ function ConnectionInstanceRow({
   onEdit: () => void;
 }) {
   const queryClient = useQueryClient();
+  const icon = resolveConnectionInstanceIconDescriptor(instance, connectionType);
   const testMutation = useMutation({
-    mutationFn: () => testConnection(instance.id),
+    mutationFn: () => testConnectionInstance(instance),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["connections", "instances"] });
     },
@@ -906,8 +955,10 @@ function ConnectionInstanceRow({
     >
       <div className="flex min-w-0 items-start gap-3">
         <ConnectionTypeIcon
-          title={connectionType?.title ?? instance.typeId}
-          iconUrl={getConnectionIconUrl(connectionType)}
+          title={icon.title}
+          iconUrl={icon.iconUrl}
+          imageAlt={icon.imageAlt}
+          backgroundColor={icon.backgroundColor}
           className="h-9 w-9"
         />
         <div className="min-w-0">
@@ -978,7 +1029,7 @@ function ConnectionInstanceRow({
 function ExploreHealthTestControl({ instance }: { instance: ConnectionInstance }) {
   const queryClient = useQueryClient();
   const testMutation = useMutation({
-    mutationFn: () => testConnection(instance.id),
+    mutationFn: () => testConnectionInstance(instance),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["connections", "instances"] });
     },
@@ -1051,6 +1102,7 @@ function ConnectionDetailPanel({
 }) {
   const queryModels = connectionType.queryModels ?? [];
   const examples = connectionType.examples ?? [];
+  const icon = resolveConnectionInstanceIconDescriptor(instance, connectionType);
 
   return (
     <Card className="relative z-0">
@@ -1058,8 +1110,10 @@ function ConnectionDetailPanel({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <ConnectionTypeIcon
-              title={connectionType.title}
-              iconUrl={getConnectionIconUrl(connectionType)}
+              title={icon.title}
+              iconUrl={icon.iconUrl}
+              imageAlt={icon.imageAlt}
+              backgroundColor={icon.backgroundColor}
               className="h-10 w-10"
             />
             <div className="min-w-0 space-y-2">

@@ -4,7 +4,8 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
 
 ## Files
 
-- `MainSequenceDataNodesPage.tsx`: registry page for data nodes. It also owns the top-level detail tabs for summary, description, data snapshot, UML schema graph, policies, permissions, and local-update navigation.
+- `MainSequenceDataNodesPage.tsx`: registry page for data nodes. It also owns the top-level detail tabs for summary, stats, description, data snapshot, UML schema graph, policies, permissions, and local-update navigation.
+- `MainSequenceDataNodeStatsTab.tsx`: detail-tab wrapper that loads `dynamic_table/{uid}/get-stats/` and renders the returned stats payload in a read-only JSON editor.
 - `MainSequenceDataNodeSnapshotTab.tsx`: detail-tab wrapper that loads the latest tail observations for the selected data node and renders a searchable preview table.
 - `MainSequenceDataNodeSchemaGraphTab.tsx`: detail-tab wrapper for the data-node `/schema-graph/` endpoint. It reuses the shared UML explorer and depth/incoming controls.
 - `MainSequenceDataNodeLocalTimeSeriesTab.tsx`: local time series listing and interactions for a selected data node.
@@ -26,6 +27,9 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
 - The `Details` tab uses the same normalized table-detail contract as MetaTables from
   `GET /orm/api/ts_manager/dynamic_table/{uid}/`: `columns`, `indexes_meta`, `foreign_keys`,
   and `incoming_fks`.
+- The `Stats` tab calls `GET /orm/api/ts_manager/dynamic_table/{uid}/get-stats/` and expects
+  `{ multi_index_stats, multi_index_column_stats }`. The payload is intentionally displayed as
+  JSON because these nested stats can vary by backend table shape.
 - Data-node permissions use the shared `MainSequencePermissionsTab`, but they target the absolute `ts_manager/dynamic_table` object root instead of the default pods-scoped permission paths used by projects, constants, and secrets.
 - If a piece becomes useful outside this feature, move it to `../../components` and update this README.
 - Data-node detail navigation is URL-backed: `msDataNodeTab` selects the top-level detail tab, while `msLocalUpdateUid` and `msLocalUpdateTab` drive the nested local-update detail view.
@@ -44,6 +48,8 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
 - The top-level data-node registry and both local-update list tabs now rely on backend search for
   paginated queries. Those surfaces should treat `query.data.results` as the already-filtered
   current page instead of applying another page-local filter in the browser.
+- The top-level data-node registry sends UUID-shaped searches through the exact `uid` query param;
+  other text searches continue to use the backend `q` parameter.
 - The data-node summary header decorates the summary `engine` field with the canonical source icon
   from the detail payload (`data_source.related_resource_class_type`). The summary endpoint still
   provides the display label, while the detail endpoint supplies the stable class type used for the

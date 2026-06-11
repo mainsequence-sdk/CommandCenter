@@ -13,6 +13,7 @@ import { MainSequenceManagedAccountsPage } from "./features/managed-accounts/Mai
 import { MainSequenceFundsPage } from "./features/funds/MainSequenceFundsPage";
 import { MainSequenceIndicesPage } from "./features/indices/MainSequenceIndicesPage";
 import { MainSequencePortfolioGroupsPage } from "./features/portfolio-groups/MainSequencePortfolioGroupsPage";
+import { MainSequencePortfolioSignalsPage } from "./features/portfolio-signals/MainSequencePortfolioSignalsPage";
 import { MainSequenceTargetPortfoliosPage } from "./features/portfolios/MainSequenceTargetPortfoliosPage";
 import { MainSequencePricingCurvesPage } from "./features/pricing-curves/MainSequencePricingCurvesPage";
 import { MainSequencePricingMarketDataPage } from "./features/pricing-market-data/MainSequencePricingMarketDataPage";
@@ -247,6 +248,28 @@ export const mainSequenceMarketsApp: AppDefinition = {
       kind: "page",
       requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequencePortfolioGroupsPage,
+    },
+    {
+      id: "portfolio-signals",
+      title: "Portfolio Signals",
+      navLabel: "Signals",
+      description: "Browse and maintain portfolio signal metadata and destructive signal actions.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Portfolio Signals. This page shows signal metadata records and supports editing descriptions, deleting signal values, and deleting signal metadata.",
+        availableActions: [
+          "Browse portfolio signals",
+          "Search portfolio signals",
+          "Select portfolio signals",
+          "Edit signal descriptions",
+          "Delete signal values",
+          "Delete signal metadata",
+        ],
+      }),
+      navigationSection: portfoliosSection,
+      kind: "page",
+      requiredPermissions: ["main_sequence_markets:view"],
+      component: MainSequencePortfolioSignalsPage,
     },
     {
       id: "portfolios",

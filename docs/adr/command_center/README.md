@@ -15,6 +15,7 @@ one file or one feature folder.
 
 ## Workspace And Runtime ADRs
 
+- [ADR 074: Adapter From API Debug Direct Mode](./adr-074-adapter-from-api-debug-direct-mode.md)
 - [ADR 073: Split Finite Execution And Stream Publication Planning](./adr-073-split-finite-execution-and-stream-publication-planning.md)
 - [ADR 072: Backend Variables And Reference Defaults](./adr-072-backend-variables-and-reference-defaults.md)
 - [ADR 071: Atomic Widget Settings Workspace Save](./adr-071-atomic-widget-settings-workspace-save.md)
@@ -101,6 +102,7 @@ one file or one feature folder.
 
 ## AppComponent And API ADRs
 
+- [ADR 074: Adapter From API Debug Direct Mode](./adr-074-adapter-from-api-debug-direct-mode.md)
 - [ADR: AppComponent as a Binding-Native API Widget](./adr-app-component-binding-native-api-widget.md)
 - [ADR: Shared AppComponent Discovery and Safe-Response Caching](./adr-app-component-caching.md)
 - [ADR: AppComponent Response Notification UI Contract](./adr-app-component-response-notification-ui.md)

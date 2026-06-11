@@ -9,9 +9,9 @@
 - Encapsulate authenticated fetch behavior, error normalization, pagination helpers, and endpoint-specific request functions.
 - Route `VITE_USE_MOCK_DATA=true` requests through the local JSON-backed mock layer under `/mock_data/mainsequence` for the shared Main Sequence API roots:
   `/orm/api/pods/`, `/orm/api/ts_manager/`, and `/api/v1/`.
-- Route Markets API requests (`/api/v1/...`) through `VITE_DEBUG_MAIN_SEQUENCE`
-  when it is set, for example `VITE_DEBUG_MAIN_SEQUENCE=http://127.0.0.1:8021`.
-  Other Main Sequence roots keep using the normal Command Center API base.
+- Route Markets API requests (`/api/v1/...`) through the organization-selected Adapter From API
+  connection marked with the `main_sequence_markets` / `primary-api` application binding. Other
+  Main Sequence roots keep using the normal Command Center API base.
 - Provide a single import surface for Main Sequence feature code that lives outside app-specific extension folders.
 - Load the Main Sequence mock module lazily only when mock mode is active, so live mode does not eagerly import the JSON mock bundle.
 
@@ -19,6 +19,14 @@
 
 - Feature components should import API functions from this directory instead of calling `fetch` directly.
 - Keep endpoint-specific formatting or transport concerns here so page components stay focused on UI and interaction logic.
+- `marketsConnectionTransport.ts` is the shared Main Sequence Markets app transport. It resolves
+  the bound Adapter From API connection once per browser session, stores that connection snapshot
+  in session storage, maps existing method/path/query/body requests to contract operations, and
+  unwraps Adapter From API raw execution envelopes back to the JSON shapes existing callers expect.
+  For direct debug connections with no stored compiled contract, the transport discovers
+  `/.well-known/command-center/connection-contract` from the browser, hydrates the session-cached
+  connection snapshot, and then executes the request without asking the backend to discover the
+  local API.
 - Keep mock response handling centralized here rather than branching inside page components when adding new Main Sequence surfaces.
 - Shared dashboard request tracing also hooks in here. Workspace refresh diagnostics should attach
   trace metadata to these shared API calls so graph/debug surfaces can show the real network path
@@ -54,7 +62,8 @@
   `listProjects(...)`, `listJobs(...)`, `listProjectJobs(...)`, `listJobRuns(...)`,
   `listConstants(...)`, `listSecrets(...)`, `listProjectImages(...)`, `listLocalTimeSeries(...)`,
   and `listProjectLocalTimeSeries(...)` also forward page search strings to backend list
-  endpoints so registry search is not limited to the currently loaded page.
+  endpoints so registry search is not limited to the currently loaded page. `listDataNodes(...)`
+  maps UUID-shaped searches to the exact `uid` query param and leaves other text on `q`.
 - Markets positions helpers also live here. `fetchManagedAccountHoldingsPositionDetails(...)`
   adapts the canonical managed-account holdings collection endpoint
   `/api/v1/account/{uid}/holdings/` into the shared position-detail payload shape used by

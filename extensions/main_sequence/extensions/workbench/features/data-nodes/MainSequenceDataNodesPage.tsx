@@ -30,7 +30,6 @@ import {
   bulkDeleteDataNodes,
   bulkRefreshDataNodeTableSearchIndex,
   bulkSetDataNodeIndexStatsFromTable,
-  bulkSetDataNodeNextUpdateFromLastIndexValue,
   deleteDataNodeTail,
   fetchDataNodeDetail,
   fetchDataNodeSummary,
@@ -60,6 +59,7 @@ import { MainSequenceDataNodeLocalTimeSeriesTab } from "./MainSequenceDataNodeLo
 import { MainSequenceDataNodePoliciesTab } from "./MainSequenceDataNodePoliciesTab";
 import { MainSequenceDataNodeSchemaGraphTab } from "./MainSequenceDataNodeSchemaGraphTab";
 import { MainSequenceDataNodeSnapshotTab } from "./MainSequenceDataNodeSnapshotTab";
+import { MainSequenceDataNodeStatsTab } from "./MainSequenceDataNodeStatsTab";
 import {
   buildDataNodeEngineFieldDecoration,
   decorateDataNodeSummaryWithEngineIcon,
@@ -77,6 +77,7 @@ const dataNodeLocalUpdatesTabId = "local-updates";
 const legacyDataNodeLocalUpdatesTabId = "local-time-series";
 const allDataNodeDetailTabs = [
   { id: "details", label: "Details" },
+  { id: "stats", label: "Stats" },
   { id: "description", label: "Description" },
   { id: "data-snapshot", label: "Data Snapshot" },
   { id: "ulm-diagram", label: "ULM diagram" },
@@ -88,7 +89,6 @@ type DataNodeDetailTabId = (typeof allDataNodeDetailTabs)[number]["id"];
 const defaultDataNodeDetailTabId: DataNodeDetailTabId = "details";
 
 type DataNodeBulkActionKind =
-  | "set-next-update-from-last-index"
   | "set-index-stats-from-table"
   | "refresh-table-search-index"
   | "delete";
@@ -162,6 +162,26 @@ function getDataNodeTitle(dataNode: DataNodeSummary) {
   }
 
   return `Dynamic table ${dataNode.id}`;
+}
+
+function getDataNodeSelectionIdentifier(dataNode: DataNodeSummary) {
+  const identifier = getTsManagerRecordIdentifier(dataNode);
+
+  if (identifier) {
+    return identifier;
+  }
+
+  if (typeof dataNode.id === "number") {
+    return `id:${dataNode.id}`;
+  }
+
+  const storageHash = dataNode.storage_hash?.trim();
+
+  if (storageHash) {
+    return `storage:${storageHash}`;
+  }
+
+  return `${getDataNodeTableName(dataNode)}:${dataNode.creation_date ?? ""}`;
 }
 
 function getDataNodeTableName(dataNode: DataNodeSummary) {
@@ -542,7 +562,7 @@ export function MainSequenceDataNodesPage() {
       compareDataNodes(left, right, sortState.key!, sortState.direction),
     );
   }, [filteredDataNodes, sortState.direction, sortState.key]);
-  const dataNodeSelection = useRegistrySelection(sortedDataNodes);
+  const dataNodeSelection = useRegistrySelection(sortedDataNodes, getDataNodeSelectionIdentifier);
 
   useEffect(() => {
     if (typeof dataNodesQuery.data?.count !== "number") {
@@ -969,11 +989,6 @@ export function MainSequenceDataNodesPage() {
   const dataNodeBulkActions = useMemo(
     () => [
       {
-        id: "set-next-update-from-last-index",
-        label: "Set next update from last time index value",
-        onSelect: () => openBulkAction("set-next-update-from-last-index"),
-      },
-      {
         id: "set-index-stats-from-table",
         label: "Set index stats from table",
         onSelect: () => openBulkAction("set-index-stats-from-table"),
@@ -1000,16 +1015,6 @@ export function MainSequenceDataNodesPage() {
     }
 
     switch (bulkActionRequest.kind) {
-      case "set-next-update-from-last-index":
-        return {
-          title: "Set next update from last time index value",
-          actionLabel: "set next update from last time index value",
-          confirmButtonLabel: "Set next update",
-          confirmWord: "SET NEXT UPDATE",
-          tone: "primary" as const,
-          specialText:
-            "This will recompute the next update timestamp from the last indexed value for the selected Data Nodes.",
-        };
       case "set-index-stats-from-table":
         return {
           title: "Set index stats from table",
@@ -1085,8 +1090,6 @@ export function MainSequenceDataNodesPage() {
       .filter((uid): uid is string => Boolean(uid));
 
     switch (bulkActionRequest.kind) {
-      case "set-next-update-from-last-index":
-        return bulkSetDataNodeNextUpdateFromLastIndexValue(selectedUids);
       case "set-index-stats-from-table":
         return bulkSetDataNodeIndexStatsFromTable(selectedUids);
       case "refresh-table-search-index":
@@ -1148,23 +1151,17 @@ export function MainSequenceDataNodesPage() {
         failed_count: number;
       };
       const actionCopy =
-        bulkActionRequest.kind === "set-next-update-from-last-index"
+        bulkActionRequest.kind === "set-index-stats-from-table"
           ? {
-              successTitle: "Next update values refreshed",
-              partialTitle: "Next update refresh completed with failures",
-              successDescription: `${payload.success_count} data nodes updated from their last time index value.`,
+              successTitle: "Index stats refreshed",
+              partialTitle: "Index stats refresh completed with failures",
+              successDescription: `${payload.success_count} data nodes refreshed from their table metadata.`,
             }
-          : bulkActionRequest.kind === "set-index-stats-from-table"
-            ? {
-                successTitle: "Index stats refreshed",
-                partialTitle: "Index stats refresh completed with failures",
-                successDescription: `${payload.success_count} data nodes refreshed from their table metadata.`,
-              }
-            : {
-                successTitle: "Search index refreshed",
-                partialTitle: "Search index refresh completed with failures",
-                successDescription: `${payload.success_count} data nodes reindexed.`,
-              };
+          : {
+              successTitle: "Search index refreshed",
+              partialTitle: "Search index refresh completed with failures",
+              successDescription: `${payload.success_count} data nodes reindexed.`,
+            };
 
       toast({
         variant: payload.failed_count > 0 ? "info" : "success",
@@ -1629,6 +1626,8 @@ export function MainSequenceDataNodesPage() {
                         </>
                       ) : null}
                     </div>
+                  ) : selectedDetailTabId === "stats" ? (
+                    <MainSequenceDataNodeStatsTab dataNodeUid={selectedDataNodeIdentifier!} />
                   ) : selectedDetailTabId === "description" ? (
                     <Card variant="nested">
                       <CardHeader className="pb-3">
@@ -1723,8 +1722,8 @@ export function MainSequenceDataNodesPage() {
                 <div>
                   <CardTitle>Data nodes registry</CardTitle>
                   <CardDescription>
-                    Start from a namespace, then search across identifiers, hashes, sources,
-                    descriptions, and index names inside that slice.
+                    Start from a namespace, then search by UID, identifier, hash, data source,
+                    description, or index name inside that slice.
                   </CardDescription>
                 </div>
                 <MainSequenceRegistrySearch
@@ -1754,7 +1753,7 @@ export function MainSequenceDataNodesPage() {
                   renderSelectionSummary={(selectionCount) => `${selectionCount} data nodes selected`}
                   value={filterValue}
                   onChange={(event) => setFilterValue(event.target.value)}
-                  placeholder="Filter by identifier, hash, namespace, source class, or data source"
+                  placeholder="Filter by UID, identifier, hash, namespace, or data source"
                   selectionCount={dataNodeSelection.selectedCount}
                 />
               </div>
@@ -1895,15 +1894,16 @@ export function MainSequenceDataNodesPage() {
                 </thead>
                 <tbody>
                   {sortedDataNodes.map((dataNode) => {
-                    const selected = dataNodeSelection.isSelected(dataNode.id);
+                    const dataNodeSelectionIdentifier = getDataNodeSelectionIdentifier(dataNode);
+                    const selected = dataNodeSelection.isSelected(dataNodeSelectionIdentifier);
 
                     return (
-                      <tr key={dataNode.id}>
+                      <tr key={dataNodeSelectionIdentifier}>
                         <td className={getRegistryTableCellClassName(selected, "left")}>
                           <MainSequenceSelectionCheckbox
                             ariaLabel={`Select ${getDataNodeTitle(dataNode)}`}
                             checked={selected}
-                            onChange={() => dataNodeSelection.toggleSelection(dataNode.id)}
+                            onChange={() => dataNodeSelection.toggleSelection(dataNodeSelectionIdentifier)}
                           />
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>

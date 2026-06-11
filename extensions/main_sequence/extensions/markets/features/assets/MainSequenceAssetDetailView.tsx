@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +21,7 @@ import {
   type EntitySummaryHeader,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
+import { openMainSequenceMarketsSummaryLink } from "../summaryLinks";
 
 export const assetDetailTabs = [
   { id: "details", label: "Details" },
@@ -380,6 +382,7 @@ export function MainSequenceAssetDetailView({
   onBack: () => void;
   onSelectTab: (tabId: AssetDetailTabId) => void;
 }) {
+  const navigate = useNavigate();
   const assetDetailQuery = useQuery({
     queryKey: ["main_sequence", "assets", "detail", assetUid],
     queryFn: () => fetchAssetDetail(assetUid),
@@ -438,6 +441,9 @@ export function MainSequenceAssetDetailView({
       {summary ? (
         <MainSequenceEntitySummaryCard
           summary={summary}
+          onSummaryItemLinkClick={(linkUrl) =>
+            openMainSequenceMarketsSummaryLink(navigate, linkUrl)
+          }
           onSummaryUpdated={async () => {
             await assetSummaryQuery.refetch();
           }}
