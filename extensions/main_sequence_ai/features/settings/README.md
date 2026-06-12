@@ -11,8 +11,9 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 ## Entry Points
 
 - `AgentSettingsSection.tsx`
-  User-facing global Agents settings section that resolves the assistant runtime and probes the
-  assistant runtime `GET /health` endpoint for diagnostics.
+  User-facing global Agents settings section that shows the inert `Automate All Agents` preview
+  control, resolves the assistant runtime, and probes the assistant runtime `GET /health` endpoint
+  for diagnostics.
 - `ModelProviderSettingsSection.tsx`
   User-facing global provider-auth section that loads provider cards from `/api/model-providers`,
   loads the full model catalog from `/api/models/catalog`, groups models by provider, and drives a
@@ -44,6 +45,8 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
   dialog chrome here.
 - The health panel intentionally shows the raw `/health` response so backend changes are visible
   without adding a frontend-specific status contract.
+- The `Automate All Agents` button is visual-only until the global automation modal/action is
+  implemented. It must not call backend APIs or mutate settings state yet.
 - Settings sections do not bind to a concrete `AgentSession` and do not call per-session
   `resolve_runtime_access/` for normal settings reads.
 - In production they should resolve assistant-runtime access through the Astro Command Center
@@ -52,6 +55,8 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
   required production bootstrap for settings.
 - Provider auth state is the source of truth for sign-in/sign-off controls. Do not infer provider
   authentication only from model presence.
+- Model-provider settings requests require `session.user.uid` and pass it as
+  `created_by_user_uid`; they must not pass legacy numeric `created_by_user` values.
 - If the model catalog returns providers that are missing from `/api/model-providers`, surface that
   mismatch as a warning. Do not synthesize auth-state cards only from catalog providers.
 - Provider cards should follow backend workflow flags directly: `authenticated` controls `Sign off`,

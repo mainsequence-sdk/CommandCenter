@@ -30,6 +30,7 @@ export async function loginWithRole({
     tokenType: "Bearer",
     user: {
       id: `user-${selectedRole}`,
+      uid: `mock-user-uid-${selectedRole}`,
       name,
       email: normalizedEmail,
       team: selectedRole === "user" ? "Workspace" : "Platform",

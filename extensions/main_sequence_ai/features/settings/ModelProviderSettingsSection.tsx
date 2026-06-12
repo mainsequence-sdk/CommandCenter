@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ExternalLink, Loader2 } from "lucide-react";
 
 import type { AppShellMenuRenderProps } from "@/apps/types";
+import { useAuthStore } from "@/auth/auth-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -359,17 +360,31 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
   const assistantEndpoint = assistantRuntime.assistantEndpoint;
   const sessionToken = assistantRuntime.sessionToken;
   const sessionTokenType = assistantRuntime.sessionTokenType;
+  const sessionUserUid = useAuthStore((state) => state.session?.user.uid ?? null);
   const hasAssistantRuntimeEndpoint = assistantRuntime.isReady && Boolean(assistantEndpoint);
+  const hasSessionUserUid = Boolean(sessionUserUid);
   const [activeAttempt, setActiveAttempt] = useState<SignInAttempt | null>(null);
   const [manualInputValue, setManualInputValue] = useState("");
   const [attemptError, setAttemptError] = useState<string | null>(null);
 
-  const providerQueryKey = ["main-sequence-ai", "model-providers", assistantEndpoint, sessionToken];
-  const catalogQueryKey = ["main-sequence-ai", "model-catalog", assistantEndpoint, sessionToken];
+  const providerQueryKey = [
+    "main-sequence-ai",
+    "model-providers",
+    assistantEndpoint,
+    sessionToken,
+    sessionUserUid,
+  ];
+  const catalogQueryKey = [
+    "main-sequence-ai",
+    "model-catalog",
+    assistantEndpoint,
+    sessionToken,
+    sessionUserUid,
+  ];
 
   const providerAuthQuery = useQuery({
     queryKey: providerQueryKey,
-    enabled: hasAssistantRuntimeEndpoint,
+    enabled: hasAssistantRuntimeEndpoint && hasSessionUserUid,
     queryFn: ({ signal }) => {
       if (!assistantEndpoint) {
         throw new Error("Assistant runtime endpoint is not resolved.");
@@ -377,6 +392,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
 
       return fetchModelProviderAuthStates({
         assistantEndpoint,
+        createdByUserUid: sessionUserUid,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
@@ -386,7 +402,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
 
   const modelsQuery = useQuery({
     queryKey: catalogQueryKey,
-    enabled: hasAssistantRuntimeEndpoint,
+    enabled: hasAssistantRuntimeEndpoint && hasSessionUserUid,
     queryFn: ({ signal }) => {
       if (!assistantEndpoint) {
         throw new Error("Assistant runtime endpoint is not resolved.");
@@ -394,6 +410,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
 
       return fetchModelCatalog({
         assistantEndpoint,
+        createdByUserUid: sessionUserUid,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
@@ -419,10 +436,11 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
       "model-provider-signin-attempt",
       assistantEndpoint,
       sessionToken,
+      sessionUserUid,
       activeAttempt?.provider,
       activeAttempt?.id,
     ],
-    enabled: hasAssistantRuntimeEndpoint && Boolean(activeAttempt),
+    enabled: hasAssistantRuntimeEndpoint && hasSessionUserUid && Boolean(activeAttempt),
     queryFn: ({ signal }) => {
       if (!assistantEndpoint) {
         throw new Error("Assistant runtime endpoint is not resolved.");
@@ -430,6 +448,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
 
       return fetchModelProviderSignInAttempt({
         assistantEndpoint,
+        createdByUserUid: sessionUserUid,
         provider: activeAttempt?.provider ?? "",
         attemptId: activeAttempt?.id ?? "",
         signal,
@@ -453,9 +472,13 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
       if (!assistantEndpoint) {
         throw new Error("Assistant runtime endpoint is not resolved.");
       }
+      if (!sessionUserUid) {
+        throw new Error("Signed-in user uid is required for provider sign-in.");
+      }
 
       return startModelProviderSignIn({
         assistantEndpoint,
+        createdByUserUid: sessionUserUid,
         provider,
         token: sessionToken,
         tokenType: sessionTokenType,
@@ -490,9 +513,13 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
       if (!assistantEndpoint) {
         throw new Error("Assistant runtime endpoint is not resolved.");
       }
+      if (!sessionUserUid) {
+        throw new Error("Signed-in user uid is required for provider sign-off.");
+      }
 
       return signOffModelProvider({
         assistantEndpoint,
+        createdByUserUid: sessionUserUid,
         provider,
         token: sessionToken,
         tokenType: sessionTokenType,
@@ -512,9 +539,13 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
       if (!assistantEndpoint) {
         throw new Error("Assistant runtime endpoint is not resolved.");
       }
+      if (!sessionUserUid) {
+        throw new Error("Signed-in user uid is required for provider sign-in.");
+      }
 
       return submitModelProviderManualSignIn({
         assistantEndpoint,
+        createdByUserUid: sessionUserUid,
         provider: activeAttempt.provider,
         attemptId: activeAttempt.id,
         input: manualInputValue,
@@ -543,9 +574,13 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
       if (!assistantEndpoint) {
         throw new Error("Assistant runtime endpoint is not resolved.");
       }
+      if (!sessionUserUid) {
+        throw new Error("Signed-in user uid is required for provider sign-in.");
+      }
 
       await cancelModelProviderSignIn({
         assistantEndpoint,
+        createdByUserUid: sessionUserUid,
         provider: activeAttempt.provider,
         attemptId: activeAttempt.id,
         token: sessionToken,
@@ -685,6 +720,12 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
         </div>
       ) : null}
 
+      {hasAssistantRuntimeEndpoint && !hasSessionUserUid ? (
+        <div className="rounded-[calc(var(--radius)-4px)] border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
+          Signed-in user uid is required before model provider credentials can be loaded.
+        </div>
+      ) : null}
+
       {providerAuthQuery.isError ? (
         <div className="rounded-[calc(var(--radius)-4px)] border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
           {providerAuthQuery.error instanceof Error
@@ -710,6 +751,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
       {!providerAuthQuery.isLoading &&
       !modelsQuery.isLoading &&
       hasAssistantRuntimeEndpoint &&
+      hasSessionUserUid &&
       !providerAuthQuery.isError &&
       !modelsQuery.isError &&
       providerOrder.length === 0 ? (
@@ -721,6 +763,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
       {!providerAuthQuery.isLoading &&
       !modelsQuery.isLoading &&
       hasAssistantRuntimeEndpoint &&
+      hasSessionUserUid &&
       !providerAuthQuery.isError &&
       !modelsQuery.isError &&
       catalogOnlyProviders.length > 0 ? (
@@ -734,6 +777,7 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
       {!providerAuthQuery.isLoading &&
       !modelsQuery.isLoading &&
       hasAssistantRuntimeEndpoint &&
+      hasSessionUserUid &&
       !providerAuthQuery.isError &&
       !modelsQuery.isError ? (
         <div className="space-y-4">

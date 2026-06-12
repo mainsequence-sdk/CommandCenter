@@ -145,6 +145,9 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - `model-provider-auth-api.ts` now targets `/api/model-providers` rather than chat runtime
   endpoints and owns the generic sign-in attempt state machine:
   start, poll, manual input, cancel, and sign-off.
+- Global model-provider credential requests are scoped with
+  `created_by_user_uid=<signed-in user uid>`. Do not use the legacy numeric `created_by_user`
+  filter on this path.
 - Sign-in attempt normalization also preserves `authUrl` / `authInstructions`, because the frontend
   should keep showing the sign-in link whenever the backend keeps providing it across attempt
   states.

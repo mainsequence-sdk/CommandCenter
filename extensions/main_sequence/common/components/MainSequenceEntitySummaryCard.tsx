@@ -497,60 +497,66 @@ export function MainSequenceEntitySummaryCard({
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3">
-            <div className="space-y-1.5 min-w-0">
-              <CardTitle className="text-lg">{summary.entity.title}</CardTitle>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                {summary.inline_fields.map((field) => {
-                  const hasLead = Boolean(field.image || field.icon);
-                  const fieldValue = getSummaryValue(field.value);
-                  const showLabel = !hasLead || field.kind === "code";
-                  const isClickable = Boolean(
-                    getSummaryItemLinkUrl(field) || getSummaryFieldHref(field),
-                  );
-                  const valueClassName =
-                    field.kind === "code"
-                      ? "truncate font-mono text-[11px] text-foreground/90"
-                      : `truncate ${field.tone ? summaryToneToTextClassName(field.tone) : "text-foreground/90"}`;
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <CardTitle className="text-lg">{summary.entity.title}</CardTitle>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  {summary.inline_fields.map((field) => {
+                    const hasLead = Boolean(field.image || field.icon);
+                    const fieldValue = getSummaryValue(field.value);
+                    const showLabel = !hasLead || field.kind === "code";
+                    const isClickable = Boolean(
+                      getSummaryItemLinkUrl(field) || getSummaryFieldHref(field),
+                    );
+                    const valueClassName =
+                      field.kind === "code"
+                        ? "truncate font-mono text-[11px] text-foreground/90"
+                        : `truncate ${field.tone ? summaryToneToTextClassName(field.tone) : "text-foreground/90"}`;
 
-                  return (
-                    <div
-                      key={field.key}
-                      className="inline-flex min-w-0 max-w-full items-center gap-1.5"
-                      title={field.meta || fieldValue}
-                    >
-                      {isClickable ? (
-                        <button
-                          type="button"
-                          className="inline-flex min-w-0 items-center gap-1.5 transition-colors hover:text-foreground"
-                          onClick={() => handleSummaryFieldClick(field)}
-                          title={field.meta || fieldValue}
-                        >
-                          {hasLead ? <SummaryFieldLead field={field} /> : null}
-                          {showLabel ? <span>{field.label}</span> : null}
-                          <span className={valueClassName} title={field.meta || fieldValue}>
-                            {field.kind === "code" ? truncateMiddle(fieldValue, 44) : fieldValue}
-                          </span>
-                        </button>
-                      ) : (
-                        <>
-                          {hasLead ? <SummaryFieldLead field={field} /> : null}
-                          {showLabel ? <span>{field.label}</span> : null}
-                          <span className={valueClassName} title={field.meta || fieldValue}>
-                            {field.kind === "code" ? truncateMiddle(fieldValue, 44) : fieldValue}
-                          </span>
-                        </>
-                      )}
-                      <SummaryEditButton
-                        item={field}
-                        onClick={() => setEditingItemKey(field.key)}
-                      />
-                    </div>
-                  );
-                })}
+                    return (
+                      <div
+                        key={field.key}
+                        className="inline-flex min-w-0 max-w-full items-center gap-1.5"
+                        title={field.meta || fieldValue}
+                      >
+                        {isClickable ? (
+                          <button
+                            type="button"
+                            className="inline-flex min-w-0 items-center gap-1.5 transition-colors hover:text-foreground"
+                            onClick={() => handleSummaryFieldClick(field)}
+                            title={field.meta || fieldValue}
+                          >
+                            {hasLead ? <SummaryFieldLead field={field} /> : null}
+                            {showLabel ? <span>{field.label}</span> : null}
+                            <span className={valueClassName} title={field.meta || fieldValue}>
+                              {field.kind === "code" ? truncateMiddle(fieldValue, 44) : fieldValue}
+                            </span>
+                          </button>
+                        ) : (
+                          <>
+                            {hasLead ? <SummaryFieldLead field={field} /> : null}
+                            {showLabel ? <span>{field.label}</span> : null}
+                            <span className={valueClassName} title={field.meta || fieldValue}>
+                              {field.kind === "code" ? truncateMiddle(fieldValue, 44) : fieldValue}
+                            </span>
+                          </>
+                        )}
+                        <SummaryEditButton
+                          item={field}
+                          onClick={() => setEditingItemKey(field.key)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
+              {actions ? (
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  {actions}
+                </div>
+              ) : null}
             </div>
             <div className="flex flex-col items-start gap-2">
-              {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
               <div className="flex flex-wrap items-center gap-2">
                 {summary.badges.map((badge) => {
                   const linkUrl = getSummaryItemLinkUrl(badge);

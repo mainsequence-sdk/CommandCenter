@@ -126,7 +126,7 @@ export function ProjectAgentsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-6">
       <PageHeader
         eyebrow="Main Sequence AI"
         title="Project Agents"
@@ -138,7 +138,7 @@ export function ProjectAgentsPage() {
         }
       />
 
-      <Card className="max-w-6xl">
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Project selection</CardTitle>
           <CardDescription>

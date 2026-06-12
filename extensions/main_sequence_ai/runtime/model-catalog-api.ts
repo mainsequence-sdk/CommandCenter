@@ -2,6 +2,7 @@ import {
   fetchMainSequenceAiAssistantResponse,
   type MainSequenceAiAssistantRuntimeTarget,
 } from "./assistant-endpoint";
+import { appendCreatedByUserUidSearchParam } from "./user-scope";
 
 export type ModelCatalogAuthKind = "api_key" | "oauth";
 export type ModelCatalogReasoningEffort =
@@ -224,12 +225,14 @@ function normalizeModelCatalogPayload(payload: unknown) {
 
 export async function fetchModelCatalog({
   assistantEndpoint,
+  createdByUserUid,
   runtimeTarget = "command-center-base",
   signal,
   token,
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
+  createdByUserUid?: string | number | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   signal?: AbortSignal;
   token?: string | null;
@@ -238,7 +241,10 @@ export async function fetchModelCatalog({
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
-    requestPath: "/api/models/catalog",
+    requestPath: appendCreatedByUserUidSearchParam(
+      "/api/models/catalog",
+      createdByUserUid,
+    ),
     method: "GET",
     runtimeTarget,
     signal,

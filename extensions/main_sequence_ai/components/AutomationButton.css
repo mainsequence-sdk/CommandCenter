@@ -1,0 +1,147 @@
+.main-sequence-ai-automation-button {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  min-height: 40px;
+  min-width: 8.75rem;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--primary) 26%, var(--border) 74%);
+  border-radius: calc(var(--radius) - 8px);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 7%, var(--card) 93%) 0%, color-mix(in srgb, var(--primary) 4%, var(--background) 96%) 100%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 8%, transparent),
+    0 12px 24px -25px color-mix(in srgb, var(--primary) 58%, transparent);
+  color: color-mix(in srgb, var(--primary) 62%, white 38%);
+  cursor: pointer;
+  padding: 0 0.95rem;
+  text-align: center;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease,
+    transform 180ms ease;
+}
+
+.main-sequence-ai-automation-button::before,
+.main-sequence-ai-automation-button::after {
+  content: none;
+}
+
+.main-sequence-ai-automation-button:not(:disabled):hover,
+.main-sequence-ai-automation-button:focus-visible {
+  border-color: color-mix(in srgb, var(--primary) 40%, white 18%);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 10%, var(--card) 90%) 0%, color-mix(in srgb, var(--primary) 6%, var(--background) 94%) 100%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 12%, transparent),
+    0 14px 30px -25px color-mix(in srgb, var(--primary) 70%, transparent);
+  color: color-mix(in srgb, white 72%, var(--primary) 28%);
+  filter: saturate(1.02);
+  transform: translateY(-1px);
+}
+
+.main-sequence-ai-automation-button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.18) opacity(0.64);
+  transform: none;
+}
+
+.main-sequence-ai-automation-button:disabled::before,
+.main-sequence-ai-automation-button:disabled::after {
+  animation: none;
+  opacity: 0;
+}
+
+.main-sequence-ai-automation-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ring) 86%, white 14%);
+  outline-offset: 3px;
+}
+
+.main-sequence-ai-automation-ditherwave {
+  position: absolute !important;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  mask-image: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / 0.24) 16%, black 70%, black 100%);
+  transition: opacity 180ms ease;
+}
+
+.main-sequence-ai-automation-ditherwave canvas {
+  opacity: 0.62;
+}
+
+.main-sequence-ai-automation-ditherwave__fallback {
+  height: 100%;
+  width: 100%;
+  background:
+    radial-gradient(120% 85% at 86% 50%, color-mix(in srgb, white 42%, var(--primary) 58%) 0%, color-mix(in srgb, var(--primary) 34%, transparent) 34%, transparent 64%),
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 12%, transparent) 0%, transparent 100%);
+}
+
+.main-sequence-ai-automation-button:not(:disabled):hover .main-sequence-ai-automation-ditherwave,
+.main-sequence-ai-automation-button:focus-visible .main-sequence-ai-automation-ditherwave {
+  opacity: 0.58;
+}
+
+.main-sequence-ai-automation-button__content {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.3;
+  text-shadow: 0 1px 10px color-mix(in srgb, black 40%, transparent);
+}
+
+.main-sequence-ai-automation-dialog-header {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-bottom-color: color-mix(in srgb, var(--primary) 30%, var(--border) 70%);
+  background:
+    radial-gradient(120% 85% at 86% 50%, color-mix(in srgb, white 14%, var(--primary) 24%) 0%, color-mix(in srgb, var(--primary) 14%, transparent) 34%, transparent 66%),
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 8%, var(--card) 92%) 0%, color-mix(in srgb, var(--primary) 4%, var(--background) 96%) 100%);
+}
+
+.main-sequence-ai-automation-dialog-header .main-sequence-ai-automation-ditherwave {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+.main-sequence-ai-automation-dialog-header > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main-sequence-ai-automation-button,
+  .main-sequence-ai-automation-button::before,
+  .main-sequence-ai-automation-button::after,
+  .main-sequence-ai-automation-ditherwave {
+    animation: none;
+    transition: none;
+  }
+
+  .main-sequence-ai-automation-button:not(:disabled):hover::before,
+  .main-sequence-ai-automation-button:focus-visible::before,
+  .main-sequence-ai-automation-button:not(:disabled):hover::after,
+  .main-sequence-ai-automation-button:focus-visible::after {
+    animation: none;
+  }
+}

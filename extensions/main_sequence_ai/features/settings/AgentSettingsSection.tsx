@@ -3,6 +3,7 @@ import { Loader2, RefreshCcw } from "lucide-react";
 
 import type { AppShellMenuRenderProps } from "@/apps/types";
 import { Button } from "@/components/ui/button";
+import { AutomationButton } from "../../components/AutomationButton";
 import { buildMainSequenceAiAssistantUrl } from "../../runtime/assistant-endpoint";
 import { fetchAssistantHealth } from "../../runtime/assistant-health-api";
 import { useAssistantRuntimeAccess } from "./useAssistantRuntimeAccess";
@@ -81,7 +82,7 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
   return (
     <div className="space-y-4 py-4">
       <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="text-sm font-medium text-topbar-foreground">Agents Settings</div>
             <div className="mt-1 text-sm text-muted-foreground">
@@ -93,30 +94,33 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
               </div>
             ) : null}
           </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={settingsRefreshing}
-            onClick={() => {
-              if (!hasAssistantRuntimeEndpoint) {
-                void assistantRuntime.refetch();
-                return;
-              }
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <AutomationButton label="Automate All Agents" className="max-sm:w-full" />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={settingsRefreshing}
+              onClick={() => {
+                if (!hasAssistantRuntimeEndpoint) {
+                  void assistantRuntime.refetch();
+                  return;
+                }
 
-              void Promise.all([
-                assistantRuntime.refetch(),
-                healthQuery.refetch(),
-              ]);
-            }}
-          >
-            {settingsRefreshing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCcw className="h-4 w-4" />
-            )}
-            Refresh
-          </Button>
+                void Promise.all([
+                  assistantRuntime.refetch(),
+                  healthQuery.refetch(),
+                ]);
+              }}
+            >
+              {settingsRefreshing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCcw className="h-4 w-4" />
+              )}
+              Refresh
+            </Button>
+          </div>
         </div>
       </div>
 

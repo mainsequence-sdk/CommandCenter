@@ -130,9 +130,10 @@ read. When the logo is available, the frontend stores a sanitized snapshot at
 Direct debug discovery also writes the sanitized discovery result to browser `sessionStorage` keyed
 by connection id. Reopening the same connection in the same browser session can reuse that cached
 contract without calling `/openapi.json` and the well-known contract endpoint again. The cache is
-invalidated by API root or contract-version mismatch and can be bypassed with the editor's
-`Refresh contract` action. This session cache is frontend-only and is not a persisted backend
-storage contract.
+ignored by API root or contract-version mismatch. The editor keeps fresh discovery and cached
+restore separate: `Discover contract` fetches the API again and rewrites the cache, while
+`Use cached contract` restores the matching session entry without network calls. This session cache
+is frontend-only and is not a persisted backend storage contract.
 
 Backend proxy discovery should persist the same sanitized shape in `compiledContract.openapi.logo`.
 This is a backend contract addition only for optional returned metadata: it does not change query

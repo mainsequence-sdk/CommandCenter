@@ -1,3 +1,5 @@
+/** @vitest-environment jsdom */
+
 import { describe, expect, it } from "vitest";
 
 import type {
@@ -9,6 +11,10 @@ import {
   resolveConnectionInstanceIconDescriptor,
   resolveConnectionTypeIconDescriptor,
 } from "./connection-icons";
+import {
+  clearAdapterFromApiDirectDiscoverySessionCache,
+  writeAdapterFromApiDirectDiscoverySessionCache,
+} from "../../../connections/adapter-from-api/directTransport";
 
 const adapterFromApiType = {
   id: "command_center.adapter_from_api",
@@ -85,5 +91,55 @@ describe("connection icon descriptors", () => {
     );
 
     expect(descriptor).toEqual(resolveConnectionTypeIconDescriptor(adapterFromApiType));
+  });
+
+  it("uses session-cached direct discovery branding when backend config omits the logo", () => {
+    const connectionId = "markets-session-logo";
+
+    clearAdapterFromApiDirectDiscoverySessionCache(connectionId);
+    writeAdapterFromApiDirectDiscoverySessionCache(connectionId, {
+      apiBaseUrl: "http://127.0.0.1:8021",
+      contractDefinitionUrl:
+        "http://127.0.0.1:8021/.well-known/command-center/connection-contract",
+      openApiUrl: "http://127.0.0.1:8021/openapi.json",
+      compiledContract: {
+        contractVersion: 1,
+        adapter: {
+          type: "adapter-from-api",
+          title: "Markets API",
+        },
+        openapi: {
+          logo: {
+            url: "http://127.0.0.1:8021/static/logo.svg",
+            altText: "Markets",
+            source: "openapi.info.x-logo",
+          },
+        },
+        availableOperations: [],
+      },
+    });
+
+    const descriptor = resolveConnectionInstanceIconDescriptor(
+      {
+        ...createAdapterFromApiInstance({
+          debugApiBaseUrl: "http://127.0.0.1:8021",
+          compiledContract: {
+            contractVersion: 1,
+            adapter: {
+              type: "adapter-from-api",
+              title: "Markets API",
+            },
+            availableOperations: [],
+          },
+        }),
+        id: connectionId,
+      },
+      adapterFromApiType,
+    );
+
+    expect(descriptor.iconUrl).toBe("http://127.0.0.1:8021/static/logo.svg");
+    expect(descriptor.imageAlt).toBe("Markets logo");
+
+    clearAdapterFromApiDirectDiscoverySessionCache(connectionId);
   });
 });

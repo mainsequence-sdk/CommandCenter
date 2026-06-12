@@ -514,6 +514,47 @@ export function MainSequenceProjectsPage() {
       ? rawProjectAgentId
       : null;
   const showConfigureProjectAgentButton = hasProjectAgentCapabilities === true;
+  const projectAgentSummaryActions =
+    showProjectAgentLauncher || showConfigureProjectAgentButton ? (
+      <>
+        {showProjectAgentLauncher ? (
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 border-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+            title="Talk to project agent"
+            aria-label="Talk to project agent"
+            onClick={() => {
+              if (!readyProjectAgentId) {
+                toast({
+                  variant: "error",
+                  title: "Project agent unavailable",
+                  description: "This project agent service does not expose a ready agent session.",
+                });
+                return;
+              }
+
+              openProjectAgentRail({
+                agentId: readyProjectAgentId,
+                label: projectAgentServiceQuery.data?.subdomain?.trim() || "Project Agent",
+              });
+            }}
+          >
+            <Bot className="h-4 w-4" />
+          </Button>
+        ) : null}
+        {showConfigureProjectAgentButton ? (
+          <Button
+            size="sm"
+            onClick={() => {
+              navigate(`/app/main_sequence_ai/project-agents?msProjectUid=${selectedProjectUid}`);
+            }}
+          >
+            Configure project agent
+          </Button>
+        ) : null}
+      </>
+    ) : null;
 
   const githubOrganizationOptions: PickerOption[] = [
     {
@@ -753,32 +794,6 @@ export function MainSequenceProjectsPage() {
               <span className="text-foreground">{projectTitle}</span>
             </div>
             <div className="flex items-center gap-2">
-              {showProjectAgentLauncher ? (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 border-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                  title="Talk to project agent"
-                  aria-label="Talk to project agent"
-                  onClick={() => {
-                    if (!readyProjectAgentId) {
-                      toast({
-                        variant: "error",
-                        title: "Project agent unavailable",
-                        description: "This project agent service does not expose a ready agent session.",
-                      });
-                      return;
-                    }
-
-                    openProjectAgentRail({
-                      agentId: readyProjectAgentId,
-                      label: projectAgentServiceQuery.data?.subdomain?.trim() || "Project Agent",
-                    });
-                  }}
-                >
-                  <Bot className="h-4 w-4" />
-                </Button>
-              ) : null}
               <Button variant="outline" size="sm" onClick={closeProjectDetail}>
                 <ArrowLeft className="h-4 w-4" />
                 Back to projects
@@ -811,18 +826,7 @@ export function MainSequenceProjectsPage() {
             <>
               <MainSequenceEntitySummaryCard
                 summary={projectHeader}
-                actions={
-                  showConfigureProjectAgentButton ? (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        navigate(`/app/main_sequence_ai/project-agents?msProjectUid=${selectedProjectUid}`);
-                      }}
-                    >
-                      Configure project agent
-                    </Button>
-                  ) : null
-                }
+                actions={projectAgentSummaryActions}
                 onFieldLinkClick={(field) => {
                   const linkedProjectUid = getProjectUidFromSummaryHref(field.href);
 

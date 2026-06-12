@@ -1,8 +1,11 @@
 import { getConnectionRuntimeDefinition } from "@/app/registry/connection-runtime";
 import type {
   AnyConnectionTypeDefinition,
+  ConnectionId,
   ConnectionInstance,
 } from "@/connections/types";
+
+import { readAdapterFromApiDirectDiscoverySessionCache } from "../../../connections/adapter-from-api/directTransport";
 
 const ADAPTER_FROM_API_CONNECTION_TYPE_ID = "command_center.adapter_from_api";
 
@@ -13,7 +16,9 @@ export interface ConnectionIconDescriptor {
   backgroundColor?: string;
 }
 
-type ConnectionIconInstance = Pick<ConnectionInstance, "typeId" | "name" | "publicConfig">;
+type ConnectionIconInstance = Pick<ConnectionInstance, "typeId" | "name" | "publicConfig"> & {
+  id?: ConnectionId;
+};
 
 function readString(value: unknown) {
   return typeof value === "string" ? value.trim() || undefined : undefined;
@@ -78,16 +83,11 @@ function readLogoDescriptor(value: unknown): Omit<ConnectionIconDescriptor, "tit
   };
 }
 
-function readAdapterFromApiInstanceBranding(instance: ConnectionIconInstance) {
-  if (instance.typeId !== ADAPTER_FROM_API_CONNECTION_TYPE_ID) {
-    return undefined;
-  }
-
-  const compiledContract = isRecord(instance.publicConfig.compiledContract)
-    ? instance.publicConfig.compiledContract
-    : undefined;
-
-  if (!compiledContract) {
+function readCompiledContractBranding(
+  compiledContract: unknown,
+  fallbackName: string,
+): ConnectionIconDescriptor | undefined {
+  if (!isRecord(compiledContract)) {
     return undefined;
   }
 
@@ -105,8 +105,32 @@ function readAdapterFromApiInstanceBranding(instance: ConnectionIconInstance) {
       readString(openapi?.title) ??
       readString(adapter?.title) ??
       readString(adapter?.id) ??
-      instance.name,
-  } satisfies ConnectionIconDescriptor;
+      fallbackName,
+  };
+}
+
+function readAdapterFromApiInstanceBranding(instance: ConnectionIconInstance) {
+  if (instance.typeId !== ADAPTER_FROM_API_CONNECTION_TYPE_ID) {
+    return undefined;
+  }
+
+  const compiledContractFromConfig = isRecord(instance.publicConfig.compiledContract)
+    ? instance.publicConfig.compiledContract
+    : undefined;
+  const configBranding = readCompiledContractBranding(compiledContractFromConfig, instance.name);
+
+  if (configBranding) {
+    return configBranding;
+  }
+
+  const cachedContract = readAdapterFromApiDirectDiscoverySessionCache(instance.id, {
+    apiBaseUrl:
+      readString(instance.publicConfig.debugApiBaseUrl) ??
+      readString(instance.publicConfig.apiBaseUrl),
+    contractVersion: readString(instance.publicConfig.contractVersion),
+  })?.compiledContract;
+
+  return readCompiledContractBranding(cachedContract, instance.name);
 }
 
 export function resolveConnectionTypeIconDescriptor(

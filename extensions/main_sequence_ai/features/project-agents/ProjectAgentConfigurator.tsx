@@ -19,6 +19,7 @@ import {
   fetchProjectExecutorAgentServiceByProject,
   fetchProjectImages,
   formatMainSequenceError,
+  updateProjectExecutorAgentServiceAutomation,
   type ProjectExecutorAgentServiceRecord,
   type ProjectImageOption,
 } from "../../../main_sequence/common/api";
@@ -31,6 +32,7 @@ import {
 } from "../../../main_sequence/common/components/MainSequenceResourceRequirementsSection";
 import { toProjectImageTitlePickerOption } from "../../../main_sequence/common/components/projectImagePickerOptions";
 import { fetchAgentDetail } from "../../agent-search";
+import { AutomationButton, AutomationDitherWaveLayer } from "../../components/AutomationButton";
 import { normalizeAgentImageDriftRecord } from "../../image-drift";
 import {
   buildAvailableRunConfigCacheKey,
@@ -160,6 +162,7 @@ export function ProjectAgentConfigurator({
   const [selectedLlmModelId, setSelectedLlmModelId] = useState("");
   const hydratedProjectAgentModelKeyRef = useRef<string | null>(null);
   const [deployDialogOpen, setDeployDialogOpen] = useState(false);
+  const [automateDialogOpen, setAutomateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [buildImageResult, setBuildImageResult] = useState<ProjectExecutorAgentServiceRecord | null>(
     null,
@@ -405,6 +408,29 @@ export function ProjectAgentConfigurator({
         variant: "error",
         title: "Delete project agent failed",
         description: formatMainSequenceError(error),
+      });
+    },
+  });
+
+  const automateProjectAgentDeploymentMutation = useMutation({
+    mutationFn: async () => {
+      const service =
+        currentProjectAgentServiceQuery.data ??
+        (await fetchProjectExecutorAgentServiceByProject(projectUid));
+      const serviceUid = service?.uid?.trim();
+
+      if (!serviceUid) {
+        throw new Error("Deploy a project agent service before enabling deployment automation.");
+      }
+
+      return updateProjectExecutorAgentServiceAutomation(serviceUid, true);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "projects", "summary", projectUid],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "projects", "project-agent", "service", projectUid],
       });
     },
   });
@@ -912,6 +938,12 @@ export function ProjectAgentConfigurator({
               "Deploy Agent"
             )}
           </Button>
+          <AutomationButton
+            label={automateProjectAgentDeploymentMutation.isPending ? "Automating" : "Automate"}
+            ariaLabel="Automate project agent deployment"
+            onClick={() => setAutomateDialogOpen(true)}
+            disabled={automateProjectAgentDeploymentMutation.isPending}
+          />
           {currentProjectAgentServiceQuery.data ? (
             <Button
               variant="danger"
@@ -1017,6 +1049,49 @@ export function ProjectAgentConfigurator({
         }}
         errorToast={{
           title: "Project agent deployment failed",
+          description: (error) => formatMainSequenceError(error),
+          variant: "error",
+        }}
+      />
+
+      <ActionConfirmationDialog
+        open={automateDialogOpen}
+        onClose={() => {
+          if (!automateProjectAgentDeploymentMutation.isPending) {
+            setAutomateDialogOpen(false);
+          }
+        }}
+        title="Automate Deployment"
+        actionLabel="enable automatic project-agent deployment"
+        objectLabel="project agent service"
+        confirmWord="AUTOMATE"
+        confirmButtonLabel="Enable Automation"
+        tone="primary"
+        headerClassName="main-sequence-ai-automation-dialog-header"
+        headerDecor={<AutomationDitherWaveLayer />}
+        description="Automating deployment will always release a new agent version every time a project version is upgraded."
+        objectSummary={
+          <div className="space-y-1">
+            <div className="font-medium text-foreground">
+              {currentProjectAgentServiceQuery.data?.subdomain ?? "Project agent"}
+            </div>
+            <div className="text-muted-foreground">
+              Automatic deployment will stay enabled for this project agent.
+            </div>
+          </div>
+        }
+        isPending={automateProjectAgentDeploymentMutation.isPending}
+        onConfirm={() => automateProjectAgentDeploymentMutation.mutateAsync()}
+        onSuccess={() => {
+          setAutomateDialogOpen(false);
+        }}
+        successToast={{
+          title: "Deployment automation enabled",
+          description: "New project versions will release a new agent version automatically.",
+          variant: "success",
+        }}
+        errorToast={{
+          title: "Deployment automation failed",
           description: (error) => formatMainSequenceError(error),
           variant: "error",
         }}

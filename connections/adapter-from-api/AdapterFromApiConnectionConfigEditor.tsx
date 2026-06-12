@@ -150,6 +150,12 @@ function hasMainSequenceMarketsBinding(value: AdapterFromApiPublicConfig) {
   return readApplicationBindings(value).some(isMainSequenceMarketsBinding);
 }
 
+function readCompiledContractLogoUrl(value: AdapterFromApiCompiledContract | undefined) {
+  const openapi = isRecord(value?.openapi) ? value.openapi : undefined;
+  const logo = isRecord(openapi?.logo) ? openapi.logo : undefined;
+  return typeof logo?.url === "string" && logo.url.trim() ? logo.url.trim() : undefined;
+}
+
 function setMainSequenceMarketsBinding(
   value: AdapterFromApiPublicConfig,
   enabled: boolean,
@@ -469,6 +475,11 @@ export function AdapterFromApiConnectionConfigEditor({
       source: "cache" | "remote";
     },
   ) {
+    const operationLabel = `${result.compiledContract.availableOperations?.length ?? 0} operation${
+      result.compiledContract.availableOperations?.length === 1 ? "" : "s"
+    }`;
+    const logoUrl = readCompiledContractLogoUrl(result.compiledContract);
+
     updateConfig(value, onChange, {
       transportMode: "direct",
       debugApiBaseUrl: result.apiBaseUrl,
@@ -482,24 +493,27 @@ export function AdapterFromApiConnectionConfigEditor({
       status: "success",
       message:
         input.source === "cache"
-          ? `Loaded cached direct contract with ${result.compiledContract.availableOperations?.length ?? 0} operation${
-              result.compiledContract.availableOperations?.length === 1 ? "" : "s"
-            }. Use refresh to fetch the API again.`
-          : `Discovered ${result.compiledContract.availableOperations?.length ?? 0} operation${
-              result.compiledContract.availableOperations?.length === 1 ? "" : "s"
-            }.`,
+          ? `Loaded cached direct contract with ${operationLabel}${
+              logoUrl ? " and OpenAPI logo" : ""
+            }. Use Discover contract to fetch the API again.`
+          : `Discovered ${operationLabel}${
+              logoUrl
+                ? " and OpenAPI logo."
+                : ". No OpenAPI info.x-logo was readable from the derived OpenAPI URL."
+            }`,
     });
   }
 
-  async function runDirectDiscovery(options?: { refresh?: boolean }) {
+  function loadCachedDirectDiscovery() {
+    if (directDiscoveryCacheEntry) {
+      applyDirectDiscoveryResult(directDiscoveryCacheEntry, { source: "cache" });
+    }
+  }
+
+  async function runDirectDiscovery() {
     setDirectDiscoveryState({ status: "loading" });
 
     try {
-      if (!options?.refresh && directDiscoveryCacheEntry) {
-        applyDirectDiscoveryResult(directDiscoveryCacheEntry, { source: "cache" });
-        return;
-      }
-
       const result = await discoverAdapterFromApiDirectContract(apiRootDraft);
 
       writeAdapterFromApiDirectDiscoverySessionCache(connectionInstance?.id, result);
@@ -593,9 +607,9 @@ export function AdapterFromApiConnectionConfigEditor({
                     variant="outline"
                     size="sm"
                     disabled={disabled || directDiscoveryState.status === "loading"}
-                    onClick={() => void runDirectDiscovery({ refresh: true })}
+                    onClick={loadCachedDirectDiscovery}
                   >
-                    Refresh contract
+                    Use cached contract
                   </Button>
                 ) : null}
                 {directDiscoveryState.message ? (

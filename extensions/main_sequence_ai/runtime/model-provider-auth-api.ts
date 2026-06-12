@@ -2,6 +2,7 @@ import {
   fetchMainSequenceAiAssistantResponse,
   type MainSequenceAiAssistantRuntimeTarget,
 } from "./assistant-endpoint";
+import { appendCreatedByUserUidSearchParam } from "./user-scope";
 
 export type ProviderAuthKind = "api_key" | "oauth";
 
@@ -269,12 +270,14 @@ async function throwProviderApiError(response: Response, fallback: string): Prom
 
 export async function fetchModelProviderAuthStates({
   assistantEndpoint,
+  createdByUserUid,
   runtimeTarget = "command-center-base",
   signal,
   token,
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
+  createdByUserUid?: string | number | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   signal?: AbortSignal;
   token?: string | null;
@@ -283,7 +286,10 @@ export async function fetchModelProviderAuthStates({
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
-    requestPath: "/api/model-providers",
+    requestPath: appendCreatedByUserUidSearchParam(
+      "/api/model-providers",
+      createdByUserUid,
+    ),
     method: "GET",
     runtimeTarget,
     signal,
@@ -300,12 +306,14 @@ export async function fetchModelProviderAuthStates({
 
 export async function startModelProviderSignIn({
   assistantEndpoint,
+  createdByUserUid,
   runtimeTarget = "command-center-base",
   provider,
   token,
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
+  createdByUserUid?: string | number | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   token?: string | null;
@@ -314,7 +322,10 @@ export async function startModelProviderSignIn({
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
-    requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signin`,
+    requestPath: appendCreatedByUserUidSearchParam(
+      `/api/model-providers/${encodeURIComponent(provider)}/signin`,
+      createdByUserUid,
+    ),
     method: "POST",
     runtimeTarget,
     sessionToken: token,
@@ -352,6 +363,7 @@ export async function startModelProviderSignIn({
 
 export async function fetchModelProviderSignInAttempt({
   assistantEndpoint,
+  createdByUserUid,
   runtimeTarget = "command-center-base",
   provider,
   attemptId,
@@ -360,6 +372,7 @@ export async function fetchModelProviderSignInAttempt({
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
+  createdByUserUid?: string | number | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   attemptId: string;
@@ -370,7 +383,10 @@ export async function fetchModelProviderSignInAttempt({
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
-    requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}`,
+    requestPath: appendCreatedByUserUidSearchParam(
+      `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}`,
+      createdByUserUid,
+    ),
     method: "GET",
     runtimeTarget,
     signal,
@@ -402,6 +418,7 @@ export async function fetchModelProviderSignInAttempt({
 
 export async function submitModelProviderManualSignIn({
   assistantEndpoint,
+  createdByUserUid,
   runtimeTarget = "command-center-base",
   provider,
   attemptId,
@@ -410,6 +427,7 @@ export async function submitModelProviderManualSignIn({
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
+  createdByUserUid?: string | number | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   attemptId: string;
@@ -420,7 +438,10 @@ export async function submitModelProviderManualSignIn({
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
-    requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}/manual`,
+    requestPath: appendCreatedByUserUidSearchParam(
+      `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}/manual`,
+      createdByUserUid,
+    ),
     method: "POST",
     runtimeTarget,
     headers: {
@@ -444,6 +465,7 @@ export async function submitModelProviderManualSignIn({
 
 export async function cancelModelProviderSignIn({
   assistantEndpoint,
+  createdByUserUid,
   runtimeTarget = "command-center-base",
   provider,
   attemptId,
@@ -451,6 +473,7 @@ export async function cancelModelProviderSignIn({
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
+  createdByUserUid?: string | number | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   attemptId: string;
@@ -460,7 +483,10 @@ export async function cancelModelProviderSignIn({
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
-    requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}/cancel`,
+    requestPath: appendCreatedByUserUidSearchParam(
+      `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}/cancel`,
+      createdByUserUid,
+    ),
     method: "POST",
     runtimeTarget,
     sessionToken: token,
@@ -477,12 +503,14 @@ export async function cancelModelProviderSignIn({
 
 export async function signOffModelProvider({
   assistantEndpoint,
+  createdByUserUid,
   runtimeTarget = "command-center-base",
   provider,
   token,
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
+  createdByUserUid?: string | number | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   token?: string | null;
@@ -491,7 +519,10 @@ export async function signOffModelProvider({
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
-    requestPath: `/api/model-providers/${encodeURIComponent(provider)}/signoff`,
+    requestPath: appendCreatedByUserUidSearchParam(
+      `/api/model-providers/${encodeURIComponent(provider)}/signoff`,
+      createdByUserUid,
+    ),
     method: "POST",
     runtimeTarget,
     sessionToken: token,

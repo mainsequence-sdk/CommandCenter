@@ -3762,6 +3762,7 @@ export interface BillingEstimateResponse {
 export interface ProjectExecutorAgentServiceRecord {
   id?: number;
   uid?: string;
+  automatic_deployment?: boolean;
   project?: string;
   project_uid?: string;
   project_related_image?: string;
@@ -3794,6 +3795,7 @@ export interface ProjectExecutorAgentServiceSummary {
   id: number;
   uid: string;
   agent_id: number | string | null;
+  automatic_deployment?: boolean;
   is_ready: boolean;
   executor_bundle_image_has_drift?: boolean;
   image_drift?: unknown;
@@ -8813,6 +8815,22 @@ export function maintainProjectExecutorAgentService(serviceUid: string) {
     "",
     {
       method: "POST",
+    },
+  );
+}
+
+export function updateProjectExecutorAgentServiceAutomation(
+  serviceUid: string,
+  automaticDeployment: boolean,
+) {
+  return requestJson<ProjectExecutorAgentServiceSummary>(
+    `/orm/api/agents/v1/project-executor-agent-services/${resolveMainSequenceUidPath(serviceUid, "project executor agent service")}/`,
+    "",
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        automatic_deployment: automaticDeployment,
+      }),
     },
   );
 }

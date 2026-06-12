@@ -32,17 +32,16 @@ This feature owns the Main Sequence project registry and project detail experien
 - Project permissions use the shared `MainSequencePermissionsTab` against the standard shareable-object project endpoints.
 - The infra graph tab is backed by the dedicated `widgets/project-infra-graph/` module. That module also powers the reusable workspace widget definition, so project-tab changes should keep the compact widget variant working too. It follows the backend link contract directly: click inspects via `summary_url`, and `Explore graph` drills down via `graph_url`. The graph presentation is intentionally project-centric, with the project node centered and the rest of the infrastructure arranged radially instead of in column lanes.
 - The resource releases tab supports project resource release creation flows for dashboard, agent, and fastapi release kinds.
-- The project detail summary header now owns the project-agent entrypoint again through a
-  `Configure project agent` button. That button only appears when the selected project advertises
-  agent capabilities.
-- When `by-project/<projectUid>/` reports a ready project-agent service, the project header shows a
-  small robot action in the top-right corner with the hover text `Talk to project agent`. Clicking
-  it opens the dedicated project-agent rail and first tries to reuse the latest AgentSession for
-  that service and current user through the filtered sessions endpoint. If no prior session exists,
-  it falls back to `/orm/api/agents/v1/agents/{agent_id}/start_new_session/`. That rail is
-  separate from the normal Command Center `Cmd+J` rail, so both can stay open at the same time.
-  The button styling should stay neutral (`border-border` / `text-muted-foreground`) so it fits
-  every theme instead of carrying a project-specific accent color.
+- The project detail summary card owns the project-agent action cluster in its top-right corner.
+  `Configure project agent` only appears when the selected project advertises agent capabilities.
+- When `by-project/<projectUid>/` reports a ready project-agent service, the same top-right summary
+  card action cluster shows a small robot action with the hover text `Talk to project agent`.
+  Clicking it opens the dedicated project-agent rail and first tries to reuse the latest
+  AgentSession for that service and current user through the filtered sessions endpoint. If no
+  prior session exists, it falls back to `/orm/api/agents/v1/agents/{agent_id}/start_new_session/`.
+  That rail is separate from the normal Command Center `Cmd+J` rail, so both can stay open at the
+  same time. The button styling should stay neutral (`border-border` / `text-muted-foreground`) so
+  it fits every theme instead of carrying a project-specific accent color.
 - The full project-agent build/deploy/delete form is in the `Main Sequence AI` `Project Agents`
   surface, not in the project-detail tabs anymore.
 - The workbench project page now deep-links to `/app/main_sequence_ai/project-agents?msProjectUid=<uid>`

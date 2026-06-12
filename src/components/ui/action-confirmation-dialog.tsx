@@ -77,6 +77,8 @@ export function ActionConfirmationDialog({
   onSuccess,
   open,
   errorToast,
+  headerDecor,
+  headerClassName,
   specialText,
   successToast,
   title,
@@ -88,6 +90,8 @@ export function ActionConfirmationDialog({
   description?: ReactNode;
   error?: ReactNode;
   errorToast?: ActionConfirmationDialogToastConfig<unknown>;
+  headerDecor?: ReactNode;
+  headerClassName?: string;
   isPending?: boolean;
   objectLabel: string;
   objectSummary?: ReactNode;
@@ -182,7 +186,8 @@ export function ActionConfirmationDialog({
       open={open}
       onClose={onClose}
       className="max-w-[min(680px,calc(100vw-24px))]"
-      headerClassName={activeTone.headerClassName}
+      headerClassName={cn(activeTone.headerClassName, headerClassName)}
+      headerDecor={headerDecor}
     >
       <div className="space-y-5">
         <div className="space-y-3">

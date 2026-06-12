@@ -11,6 +11,7 @@ It is the AI-owned implementation of the project-agent workflow:
 - configure compute
 - configure LLM provider and model
 - deploy or delete the project-agent runtime
+- enable automatic deployment for the current project-agent service
 
 ## Entry Points
 
@@ -52,3 +53,7 @@ It is the AI-owned implementation of the project-agent workflow:
   CPU, memory, spot/standard capacity, and LLM settings. The CPU, memory, and capacity controls
   use the shared Main Sequence resource-requirements section so this screen matches the project job
   and resource-release creation flows, including the shared billing estimate action.
+- The `Automate` action sits next to `Deploy Agent`. After confirmation, it resolves the current
+  project-executor agent service by `projectUid` when necessary and PATCHes
+  `/orm/api/agents/v1/project-executor-agent-services/<service_uid>/` with
+  `automatic_deployment: true`.

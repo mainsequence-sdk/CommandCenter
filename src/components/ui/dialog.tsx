@@ -11,6 +11,7 @@ interface DialogProps {
   closeOnBackdropClick?: boolean;
   contentClassName?: string;
   description?: string;
+  headerDecor?: ReactNode;
   headerClassName?: string;
   onClose: () => void;
   open: boolean;
@@ -23,6 +24,7 @@ export function Dialog({
   closeOnBackdropClick = false,
   contentClassName,
   description,
+  headerDecor,
   headerClassName,
   onClose,
   open,
@@ -87,6 +89,7 @@ export function Dialog({
             headerClassName,
           )}
         >
+          {headerDecor}
           <div className="min-w-0">
             <h2 id="dialog-title" className="text-base font-semibold text-topbar-foreground">
               {title}

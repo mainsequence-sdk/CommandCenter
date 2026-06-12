@@ -49,6 +49,9 @@ an overlay rail.
 - `features/settings/`
   Extension-contributed shell settings sections, including global provider sign-in/sign-off,
   provider attempt workflows, and the full known model catalog.
+- `components/`
+  Reusable Main Sequence AI UI primitives shared across surfaces and settings, including the
+  visual-only automation CTA.
 - `widgets/`
   Extension-owned workspace widgets, including the session-bound terminal widget, the workspace
   reference widget, and related AI-only binding helpers.
