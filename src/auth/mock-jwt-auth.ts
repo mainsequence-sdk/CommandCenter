@@ -137,8 +137,9 @@ function buildMockClaims(user: MockAuthUserRecord, expiresAtSeconds: number) {
   const claimMapping = commandCenterConfig.auth.jwt.claimMapping;
 
   return {
-    [claimMapping.userId]: user.id,
+    [claimMapping.userId]: user.uid,
     uid: user.uid,
+    sid: `mock-session-${user.uid}`,
     [claimMapping.name]: user.name,
     [claimMapping.email]: user.email,
     [claimMapping.team]: user.team,
@@ -174,7 +175,7 @@ function buildMockJwt(user: MockAuthUserRecord, expiresInSeconds = 60 * 60) {
 }
 
 function buildMockRefreshToken(user: MockAuthUserRecord, expiresAtSeconds: number) {
-  return `mock-refresh.${user.id}.${expiresAtSeconds}`;
+  return `mock-refresh.${user.uid}.${expiresAtSeconds}`;
 }
 
 function findUserByIdentifier(identifier: string) {
@@ -188,6 +189,10 @@ function findUserByIdentifier(identifier: string) {
 
 function findUserById(id: string) {
   return mockAuthState.users.find((user) => user.id === id) ?? null;
+}
+
+function findUserByUid(uid: string) {
+  return mockAuthState.users.find((user) => user.uid === uid) ?? null;
 }
 
 function isPrivilegedMockUser(user: MockAuthUserRecord) {
@@ -294,7 +299,7 @@ function parseMockRefreshToken(refreshToken: string) {
   }
 
   return {
-    userId: parts[1] ?? "",
+    userUid: parts[1] ?? "",
     expiresAtSeconds: Number(parts[2] ?? ""),
   };
 }
@@ -321,13 +326,13 @@ function resolveMockUserFromAccessToken(token: string) {
     return null;
   }
 
-  const userId = readString(payload[commandCenterConfig.auth.jwt.claimMapping.userId]);
+  const userUid = readString(payload[commandCenterConfig.auth.jwt.claimMapping.userId]);
 
-  if (!userId) {
+  if (!userUid) {
     return null;
   }
 
-  return findUserById(userId);
+  return findUserByUid(userUid);
 }
 
 function getMockUnauthorizedMessage() {
@@ -530,11 +535,11 @@ export function handleMockJwtPost(
     const refreshToken = readString(payload[refreshField]);
     const parsed = parseMockRefreshToken(refreshToken);
 
-    if (!parsed || !parsed.userId) {
+    if (!parsed || !parsed.userUid) {
       throw new Error("The session expired and could not be refreshed.");
     }
 
-    const user = findUserById(parsed.userId);
+    const user = findUserByUid(parsed.userUid);
 
     if (!user) {
       throw new Error("The session expired and could not be refreshed.");

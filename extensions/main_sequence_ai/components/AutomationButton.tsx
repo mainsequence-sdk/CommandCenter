@@ -30,14 +30,14 @@ function normalizeHexColor(value: string | null | undefined, fallback: string) {
 
 export function AutomationDitherWaveLayer({
   className,
-  mode = "bayer",
+  mode = "dots",
 }: {
   className?: string;
   mode?: "bayer" | "floyd" | "dots" | "ascii";
 }) {
   const theme = useOptionalTheme();
-  const baseColor = normalizeHexColor(theme?.resolvedTokens.primary, "#536DE8");
-  const waveColor = "#FFFFFF";
+  const baseColor = normalizeHexColor(theme?.resolvedTokens.background, "#0B1020");
+  const waveColor = normalizeHexColor(theme?.resolvedTokens.primary, "#536DE8");
 
   return (
     <DitheredWaves
@@ -45,12 +45,12 @@ export function AutomationDitherWaveLayer({
       mode={mode}
       waveColor={waveColor}
       baseColor={baseColor}
-      pixelSize={4}
-      colorNum={3}
+      pixelSize={3}
+      colorNum={2}
       matrixSize={8}
-      waveSpeed={0.038}
-      waveFrequency={2.4}
-      waveAmplitude={0.18}
+      waveSpeed={0.09}
+      waveFrequency={3.1}
+      waveAmplitude={0.34}
       enableMouseInteraction={false}
       mouseRadius={0.45}
       fallback={<div className="main-sequence-ai-automation-ditherwave__fallback" />}

@@ -163,7 +163,7 @@ export function resolveWorkspaceReferenceOutputValue(
 }
 
 export function useWorkspaceReferenceCatalog() {
-  const userId = useAuthStore((state) => state.session?.user.id ?? null);
+  const userId = useAuthStore((state) => state.session?.user.uid ?? null);
   const selectedWorkspaceId = useCustomWorkspaceStudioStore((state) => state.selectedWorkspaceId);
   const draftWorkspaceById = useCustomWorkspaceStudioStore((state) => state.draftWorkspaceById);
   const workspaceListItems = useCustomWorkspaceStudioStore((state) => state.workspaceListItems);

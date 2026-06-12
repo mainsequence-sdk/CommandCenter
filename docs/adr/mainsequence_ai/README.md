@@ -16,6 +16,7 @@ This section is the decision log for `Main Sequence AI` application architecture
 
 ## ADRs
 
+- [ADR 063: Project Agent Configuration Source of Truth](./adr-063-project-agent-configuration-source-of-truth.md)
 - [ADR 062: Remove Unused Agent Capability and Session Resource Models](./adr-062-remove-unused-agent-resource-models.md)
 - [ADR 061: Reintroduce Astro Command Center Handle for Non-Chat Runtime Operations](./adr-061-command-center-handle-runtime-operations.md)
 - [ADR 060: Main Sequence AI Session-Backed Chat Request Contract](./adr-060-session-backed-chat-request-contract.md)

@@ -32,16 +32,17 @@ This feature owns the Main Sequence project registry and project detail experien
 - Project permissions use the shared `MainSequencePermissionsTab` against the standard shareable-object project endpoints.
 - The infra graph tab is backed by the dedicated `widgets/project-infra-graph/` module. That module also powers the reusable workspace widget definition, so project-tab changes should keep the compact widget variant working too. It follows the backend link contract directly: click inspects via `summary_url`, and `Explore graph` drills down via `graph_url`. The graph presentation is intentionally project-centric, with the project node centered and the rest of the infrastructure arranged radially instead of in column lanes.
 - The resource releases tab supports project resource release creation flows for dashboard, agent, and fastapi release kinds.
-- The project detail summary card owns the project-agent action cluster in its top-right corner.
-  `Configure project agent` only appears when the selected project advertises agent capabilities.
-- When `by-project/<projectUid>/` reports a ready project-agent service, the same top-right summary
-  card action cluster shows a small robot action with the hover text `Talk to project agent`.
-  Clicking it opens the dedicated project-agent rail and first tries to reuse the latest
-  AgentSession for that service and current user through the filtered sessions endpoint. If no
-  prior session exists, it falls back to `/orm/api/agents/v1/agents/{agent_id}/start_new_session/`.
+- The project detail summary card owns the top-right project actions menu.
+- That control uses a compact vertical 3-dots trigger and keeps project-agent actions inside a
+  nested `Project agent` submenu so more project-scoped actions can be added without growing the
+  summary-card chrome.
+- When `by-project/<projectUid>/` reports a project-agent service with `agent_uid`, the `Chat with
+  project agent` submenu action opens the dedicated project-agent rail using that public agent UID.
   That rail is separate from the normal Command Center `Cmd+J` rail, so both can stay open at the
-  same time. The button styling should stay neutral (`border-border` / `text-muted-foreground`) so
-  it fits every theme instead of carrying a project-specific accent color.
+  same time.
+- The same project actions menu also owns `Configure project agent` and `Update SDK`.
+- `Update SDK` posts to `/orm/api/pods/projects/<project_uid>/update-sdk/` and should stay grouped
+  with other project-scoped maintenance actions instead of being added as a standalone button.
 - The full project-agent build/deploy/delete form is in the `Main Sequence AI` `Project Agents`
   surface, not in the project-detail tabs anymore.
 - The workbench project page now deep-links to `/app/main_sequence_ai/project-agents?msProjectUid=<uid>`

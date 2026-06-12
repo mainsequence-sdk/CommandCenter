@@ -52,7 +52,7 @@ describe("mainSequenceOhlcBarsWidget", () => {
     expect(registryContract?.configuration).toBeDefined();
     expect(registryContract?.io).toBeDefined();
 
-    expect(mainSequenceOhlcBarsWidget.widgetVersion).toBe("1.1.2");
+    expect(mainSequenceOhlcBarsWidget.widgetVersion).toBe("1.1.3");
     expect(io!.inputs?.[0]?.acceptedOutputIds).toEqual([
       DATA_NODE_SOURCE_OUTPUT_ID,
     ]);

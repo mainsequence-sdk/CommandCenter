@@ -142,6 +142,12 @@ const streamRequest: ConnectionStreamQueryRequest<Record<string, unknown>> = {
   requestedOutputContract: "core.tabular_frame@v1",
   maxRows: 100,
 };
+const serializedStreamRequest = {
+  connectionUid: 42,
+  query: streamRequest.query,
+  requestedOutputContract: streamRequest.requestedOutputContract,
+  maxRows: streamRequest.maxRows,
+};
 
 const streamableQueryModel: ConnectionQueryModel = {
   id: "binance-ticker",
@@ -255,7 +261,7 @@ describe("connection query WebSocket contracts", () => {
   it("builds a subscribe payload around the query-shaped request", () => {
     expect(buildConnectionStreamSubscribeMessage(streamRequest)).toEqual({
       type: "subscribe",
-      request: streamRequest,
+      request: serializedStreamRequest,
     });
   });
 
@@ -334,7 +340,7 @@ describe("connection query WebSocket runtime", () => {
 
     expect(JSON.parse(socket.sent[0])).toEqual({
       type: "subscribe",
-      request: streamRequest,
+      request: serializedStreamRequest,
     });
 
     socket.message(

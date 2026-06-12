@@ -8,21 +8,35 @@ import {
   useState,
 } from "react";
 
-import { Settings, type LucideProps } from "lucide-react";
+import { ChevronLeft, ChevronRight, Settings, type LucideProps } from "lucide-react";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
+type AdminMenuLeafAction = {
+  icon: ComponentType<LucideProps>;
+  label: string;
+  onSelect: () => void;
+  disabled?: boolean;
+  children?: never;
+};
+
+type AdminMenuSubmenuAction = {
+  icon: ComponentType<LucideProps>;
+  label: string;
+  children: AdminMenuLeafAction[];
+  disabled?: boolean;
+  onSelect?: never;
+};
+
+type AdminMenuAction = AdminMenuLeafAction | AdminMenuSubmenuAction;
+
 interface AdminMenuProps {
-  actions: Array<{
-    icon: ComponentType<LucideProps>;
-    label: string;
-    onSelect: () => void;
-  }>;
+  actions: AdminMenuAction[];
   align?: "end" | "start";
   menuClassName?: string;
   onOpenSettings?: () => void;
-  placement?: "bottom" | "right";
+  placement?: "bottom" | "left" | "right";
   settingsLabel?: string;
   triggerClassName?: string;
   triggerContent: ReactNode;
@@ -41,6 +55,7 @@ export function AdminMenu({
   triggerLabel,
 }: AdminMenuProps) {
   const [open, setOpen] = useState(false);
+  const [openSubmenuLabel, setOpenSubmenuLabel] = useState<string | null>(null);
   const [portalStyle, setPortalStyle] = useState<CSSProperties>();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -76,6 +91,7 @@ export function AdminMenu({
 
   useLayoutEffect(() => {
     if (!open) {
+      setOpenSubmenuLabel(null);
       setPortalStyle(undefined);
       return undefined;
     }
@@ -99,6 +115,14 @@ export function AdminMenu({
       if (placement === "right") {
         setPortalStyle({
           left: Math.min(triggerRect.right + 8, maxLeft),
+          top: Math.min(triggerRect.top, maxTop),
+        });
+        return;
+      }
+
+      if (placement === "left") {
+        setPortalStyle({
+          left: Math.max(horizontalPadding, triggerRect.left - menuWidth - 8),
           top: Math.min(triggerRect.top, maxTop),
         });
         return;
@@ -128,6 +152,7 @@ export function AdminMenu({
   }, [align, open, placement]);
 
   const hasActions = actions.length > 0;
+  const submenuOpensLeft = placement === "left";
 
   return (
     <div ref={rootRef} className="relative">
@@ -159,14 +184,116 @@ export function AdminMenu({
               {actions.map((action) => {
                 const Icon = action.icon;
 
+                if ("children" in action) {
+                  const isSubmenuOpen = openSubmenuLabel === action.label;
+                  const submenuActions = action.children ?? [];
+                  const SubmenuChevron = submenuOpensLeft ? ChevronLeft : ChevronRight;
+
+                  return (
+                    <div
+                      key={action.label}
+                      className="relative"
+                      onMouseEnter={() => {
+                        if (!action.disabled) {
+                          setOpenSubmenuLabel(action.label);
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setOpenSubmenuLabel((current) =>
+                          current === action.label ? null : current,
+                        );
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-[calc(var(--radius)-6px)] px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/50",
+                          action.disabled
+                            ? "cursor-not-allowed opacity-50 hover:bg-transparent"
+                            : null,
+                        )}
+                        role="menuitem"
+                        aria-haspopup="menu"
+                        aria-expanded={isSubmenuOpen}
+                        disabled={action.disabled}
+                        onClick={() => {
+                          if (action.disabled) {
+                            return;
+                          }
+
+                          setOpenSubmenuLabel((current) =>
+                            current === action.label ? null : action.label,
+                          );
+                        }}
+                      >
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                        <span className="flex-1 text-left">{action.label}</span>
+                        <SubmenuChevron className="h-4 w-4 text-muted-foreground" />
+                      </button>
+
+                      {isSubmenuOpen ? (
+                        <div
+                          className={cn(
+                            "absolute top-0 z-[170] w-56 rounded-[calc(var(--radius)-2px)] border border-border/70 bg-card/98 p-1.5 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur",
+                            submenuOpensLeft
+                              ? "right-[calc(100%+8px)]"
+                              : "left-[calc(100%+8px)]",
+                          )}
+                          role="menu"
+                        >
+                          {submenuActions.map((childAction) => {
+                            const ChildIcon = childAction.icon;
+
+                            return (
+                              <button
+                                key={`${action.label}-${childAction.label}`}
+                                type="button"
+                                className={cn(
+                                  "flex w-full items-center gap-2 rounded-[calc(var(--radius)-6px)] px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/50",
+                                  childAction.disabled
+                                    ? "cursor-not-allowed opacity-50 hover:bg-transparent"
+                                    : null,
+                                )}
+                                role="menuitem"
+                                disabled={childAction.disabled}
+                                onClick={() => {
+                                  if (childAction.disabled) {
+                                    return;
+                                  }
+
+                                  setOpen(false);
+                                  setOpenSubmenuLabel(null);
+                                  childAction.onSelect();
+                                }}
+                              >
+                                <ChildIcon className="h-4 w-4 text-muted-foreground" />
+                                {childAction.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                }
+
                 return (
                   <button
                     key={action.label}
                     type="button"
-                    className="flex w-full items-center gap-2 rounded-[calc(var(--radius)-6px)] px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-[calc(var(--radius)-6px)] px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/50",
+                      action.disabled ? "cursor-not-allowed opacity-50 hover:bg-transparent" : null,
+                    )}
                     role="menuitem"
+                    disabled={action.disabled}
                     onClick={() => {
+                      if (action.disabled) {
+                        return;
+                      }
+
                       setOpen(false);
+                      setOpenSubmenuLabel(null);
                       action.onSelect();
                     }}
                   >

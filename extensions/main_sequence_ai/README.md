@@ -4,12 +4,13 @@
 
 This extension owns the Main Sequence AI application and the assistant-ui integration used by the shell chat experience.
 
-It currently exposes one app with four visible surfaces plus one hidden deep-link surface:
+It currently exposes one app with five visible surfaces plus one hidden deep-link surface:
 
 - `Main Sequence AI`
 - `Chat`
 - `Agents`
 - `Project Agents`
+- `Deployment Logs`
 - `Agents Monitor`
 - `Agent Session` (hidden route surface)
 
@@ -63,6 +64,8 @@ an overlay rail.
   Session picker surface with a left explorer and an intentionally empty canvas area.
 - `surfaces/project-agents/`
   AI-owned routed surface for project-agent project selection and configuration.
+- `surfaces/project-agent-deployment-logs/`
+  Standalone routed surface for automatic project-agent deployment run logs.
 - `surfaces/monitor/`
   Agent-monitor workspace surface that reuses the shared workspace studio canvas with a filtered
   widget catalog.
@@ -96,6 +99,8 @@ chrome, not just a page-local feature.
 - The project-agents surface lives at `/app/main_sequence_ai/project-agents` and now owns
   project-agent project selection plus the build/deploy/delete workflow that used to live in the
   workbench project-detail tabs.
+- The deployment logs surface lives at `/app/main_sequence_ai/project-agent-deployment-logs` and
+  is opened from Project Agents instead of rendering logs inline.
 - The agents monitor surface lives at `/app/main_sequence_ai/monitor` and reuses the full
   workspace studio canvas, filtered down to agent-monitor workspaces and the scoped agent-monitor
   widget set. It intentionally hides the global saved-widget library link because that library is

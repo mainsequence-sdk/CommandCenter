@@ -1,5 +1,6 @@
 import { useAuthStore } from "@/auth/auth-store";
 import { handleMockAuthRequest } from "@/auth/mock-jwt-auth";
+import { applySessionAuthHeaders } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 
@@ -269,16 +270,8 @@ export interface EmailSignupVerifyInput {
 export interface EmailSignupVerifyResponse {
   code: "signup_complete";
   detail: string;
-  user: {
-    id: number;
-    email: string;
-  };
-  organization: {
-    id: number;
-    uid: string;
-    name: string;
-    plan_display_name: string;
-  };
+  user_uid: string;
+  organization_uid: string;
   tokens: {
     access: string;
     refresh: string;
@@ -416,7 +409,7 @@ async function requestAuthJson<T>(
         throw new Error("You need to be signed in to complete this request.");
       }
 
-      headers.set("Authorization", `${session.tokenType ?? "Bearer"} ${session.token}`);
+      applySessionAuthHeaders(headers, session);
     }
 
     return fetch(requestUrl, {
@@ -650,11 +643,8 @@ export function joinWaitlistEmail(input: WaitlistEmailInput) {
 
 export function uploadCurrentUserProfilePicture(file: File) {
   if (env.useMockData) {
-    const session = useAuthStore.getState().session;
-    const numericId = Number(session?.user.id ?? 0);
-
     return Promise.resolve({
-      id: Number.isFinite(numericId) ? numericId : 0,
+      id: 0,
       profile_picture: URL.createObjectURL(file),
     } satisfies CurrentUserProfilePictureResponse);
   }

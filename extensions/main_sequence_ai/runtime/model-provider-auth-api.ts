@@ -2,7 +2,11 @@ import {
   fetchMainSequenceAiAssistantResponse,
   type MainSequenceAiAssistantRuntimeTarget,
 } from "./assistant-endpoint";
-import { appendCreatedByUserUidSearchParam } from "./user-scope";
+import { env } from "@/config/env";
+import {
+  appendCreatedByUserUidSearchParam,
+  requireCreatedByUserUid,
+} from "./user-scope";
 
 export type ProviderAuthKind = "api_key" | "oauth";
 
@@ -74,6 +78,26 @@ export class ModelProviderApiError extends Error {
     this.code = options?.code ?? null;
     this.status = options?.status ?? null;
   }
+}
+
+const devAuthProxyPrefix = "/__command_center_auth__";
+
+function isLoopbackHostname(hostname: string) {
+  return ["127.0.0.1", "localhost", "::1"].includes(hostname);
+}
+
+function buildModelProviderCredentialStatusUrl(createdByUserUid: string) {
+  const url = new URL(
+    "/orm/api/agents/v1/model_provider_credentials/status/",
+    env.apiBaseUrl,
+  );
+  url.searchParams.set("created_by_user_uid", createdByUserUid);
+
+  if (import.meta.env.DEV && isLoopbackHostname(url.hostname)) {
+    return `${devAuthProxyPrefix}${url.pathname}${url.search}`;
+  }
+
+  return url.toString();
 }
 
 function normalizeString(value: unknown) {
@@ -227,6 +251,33 @@ function normalizeProviderAuthPayload(payload: unknown) {
 
   const candidate = payload as Record<string, unknown>;
 
+  if (
+    candidate.providers &&
+    typeof candidate.providers === "object" &&
+    !Array.isArray(candidate.providers)
+  ) {
+    return Object.entries(candidate.providers as Record<string, unknown>)
+      .map(([provider, value]) => {
+        const status = value && typeof value === "object" && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : {};
+        const credentialStatus = normalizeString(status.status);
+        const authenticated = credentialStatus === "active";
+
+        return {
+          provider,
+          authKind: normalizeAuthKind(status.credentialKind ?? status.credential_kind),
+          signInAvailable: true,
+          authenticated,
+          authSource: authenticated ? "runtime_store" : null,
+          knownModelCount: 0,
+          usableModelCount: authenticated ? 1 : 0,
+          lastValidatedAt: normalizeString(status.lastValidatedAt ?? status.last_validated_at),
+        } satisfies ProviderAuthStatus;
+      })
+      .filter((entry) => Boolean(entry.provider));
+  }
+
   for (const key of ["providers", "items", "results", "data"]) {
     if (Array.isArray(candidate[key])) {
       return (candidate[key] as unknown[])
@@ -269,33 +320,40 @@ async function throwProviderApiError(response: Response, fallback: string): Prom
 }
 
 export async function fetchModelProviderAuthStates({
-  assistantEndpoint,
   createdByUserUid,
-  runtimeTarget = "command-center-base",
   signal,
   token,
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
-  createdByUserUid?: string | number | null;
+  createdByUserUid?: string | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
 }) {
-  const { response } = await fetchMainSequenceAiAssistantResponse({
-    accept: "application/json",
-    assistantEndpoint,
-    requestPath: appendCreatedByUserUidSearchParam(
-      "/api/model-providers",
-      createdByUserUid,
-    ),
-    method: "GET",
-    runtimeTarget,
-    signal,
-    sessionToken: token,
-    sessionTokenType: tokenType,
+  const resolvedCreatedByUserUid = requireCreatedByUserUid(
+    createdByUserUid,
+    "Model provider status",
+  );
+  const headers = new Headers({
+    Accept: "application/json",
   });
+
+  if (token) {
+    headers.set("Authorization", `${tokenType} ${token}`);
+  }
+
+  headers.set("X-User-UID", resolvedCreatedByUserUid);
+
+  const response = await fetch(
+    buildModelProviderCredentialStatusUrl(resolvedCreatedByUserUid),
+    {
+      method: "GET",
+      headers,
+      signal,
+    },
+  );
 
   if (!response.ok) {
     await throwProviderApiError(response, `Failed to load model providers (${response.status}).`);
@@ -313,18 +371,22 @@ export async function startModelProviderSignIn({
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
-  createdByUserUid?: string | number | null;
+  createdByUserUid?: string | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   token?: string | null;
   tokenType?: string;
 }) {
+  const resolvedCreatedByUserUid = requireCreatedByUserUid(
+    createdByUserUid,
+    "Model provider sign-in",
+  );
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     requestPath: appendCreatedByUserUidSearchParam(
       `/api/model-providers/${encodeURIComponent(provider)}/signin`,
-      createdByUserUid,
+      resolvedCreatedByUserUid,
     ),
     method: "POST",
     runtimeTarget,
@@ -372,7 +434,7 @@ export async function fetchModelProviderSignInAttempt({
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
-  createdByUserUid?: string | number | null;
+  createdByUserUid?: string | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   attemptId: string;
@@ -380,12 +442,16 @@ export async function fetchModelProviderSignInAttempt({
   token?: string | null;
   tokenType?: string;
 }) {
+  const resolvedCreatedByUserUid = requireCreatedByUserUid(
+    createdByUserUid,
+    "Model provider sign-in attempt",
+  );
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     requestPath: appendCreatedByUserUidSearchParam(
       `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}`,
-      createdByUserUid,
+      resolvedCreatedByUserUid,
     ),
     method: "GET",
     runtimeTarget,
@@ -427,7 +493,7 @@ export async function submitModelProviderManualSignIn({
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
-  createdByUserUid?: string | number | null;
+  createdByUserUid?: string | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   attemptId: string;
@@ -435,12 +501,16 @@ export async function submitModelProviderManualSignIn({
   token?: string | null;
   tokenType?: string;
 }) {
+  const resolvedCreatedByUserUid = requireCreatedByUserUid(
+    createdByUserUid,
+    "Model provider manual sign-in",
+  );
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     requestPath: appendCreatedByUserUidSearchParam(
       `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}/manual`,
-      createdByUserUid,
+      resolvedCreatedByUserUid,
     ),
     method: "POST",
     runtimeTarget,
@@ -473,19 +543,23 @@ export async function cancelModelProviderSignIn({
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
-  createdByUserUid?: string | number | null;
+  createdByUserUid?: string | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   attemptId: string;
   token?: string | null;
   tokenType?: string;
 }) {
+  const resolvedCreatedByUserUid = requireCreatedByUserUid(
+    createdByUserUid,
+    "Model provider sign-in cancellation",
+  );
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     requestPath: appendCreatedByUserUidSearchParam(
       `/api/model-providers/${encodeURIComponent(provider)}/signin/${encodeURIComponent(attemptId)}/cancel`,
-      createdByUserUid,
+      resolvedCreatedByUserUid,
     ),
     method: "POST",
     runtimeTarget,
@@ -510,18 +584,22 @@ export async function signOffModelProvider({
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
-  createdByUserUid?: string | number | null;
+  createdByUserUid?: string | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   provider: string;
   token?: string | null;
   tokenType?: string;
 }) {
+  const resolvedCreatedByUserUid = requireCreatedByUserUid(
+    createdByUserUid,
+    "Model provider sign-off",
+  );
   const { response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     requestPath: appendCreatedByUserUidSearchParam(
       `/api/model-providers/${encodeURIComponent(provider)}/signoff`,
-      createdByUserUid,
+      resolvedCreatedByUserUid,
     ),
     method: "POST",
     runtimeTarget,

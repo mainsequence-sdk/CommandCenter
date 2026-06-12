@@ -11,9 +11,9 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 ## Entry Points
 
 - `AgentSettingsSection.tsx`
-  User-facing global Agents settings section that shows the inert `Automate All Agents` preview
-  control, resolves the assistant runtime, and probes the assistant runtime `GET /health` endpoint
-  for diagnostics.
+  User-facing global Agents settings section that shows the `Automate All Agents` toggle and
+  deployment-defaults form, resolves the assistant runtime, and probes the assistant runtime
+  `GET /health` endpoint for diagnostics.
 - `ModelProviderSettingsSection.tsx`
   User-facing global provider-auth section that loads provider cards from `/api/model-providers`,
   loads the full model catalog from `/api/models/catalog`, groups models by provider, and drives a
@@ -45,8 +45,17 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
   dialog chrome here.
 - The health panel intentionally shows the raw `/health` response so backend changes are visible
   without adding a frontend-specific status contract.
-- The `Automate All Agents` button is visual-only until the global automation modal/action is
-  implemented. It must not call backend APIs or mutate settings state yet.
+- The `Automate All Agents` control is a toggle. When enabled, it expands the same deployment
+  default shape used by project-agent configuration: provider, model, reasoning, CPU, memory, and
+  optional GPU settings.
+- Opening the Agents settings section always reads
+  `/orm/api/agents/v1/coding-agent-deployment-defaults/`. The backend get-or-creates the
+  authenticated user's singleton defaults record, so the UI must hydrate from that response before
+  treating the toggle or resource fields as current state.
+- Confirming `Automate All Agents` posts to
+  `/orm/api/agents/v1/coding-agent-deployment-defaults/` with `global_active: true` plus the
+  selected LLM and resource defaults. Turning the toggle off posts the same singleton upsert with
+  `global_active: false`.
 - Settings sections do not bind to a concrete `AgentSession` and do not call per-session
   `resolve_runtime_access/` for normal settings reads.
 - In production they should resolve assistant-runtime access through the Astro Command Center
@@ -56,7 +65,8 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 - Provider auth state is the source of truth for sign-in/sign-off controls. Do not infer provider
   authentication only from model presence.
 - Model-provider settings requests require `session.user.uid` and pass it as
-  `created_by_user_uid`; they must not pass legacy numeric `created_by_user` values.
+  `created_by_user_uid`; they must not pass legacy numeric `created_by_user` values, and numeric
+  legacy ids must be rejected before any provider-settings request is sent.
 - If the model catalog returns providers that are missing from `/api/model-providers`, surface that
   mismatch as a warning. Do not synthesize auth-state cards only from catalog providers.
 - Provider cards should follow backend workflow flags directly: `authenticated` controls `Sign off`,

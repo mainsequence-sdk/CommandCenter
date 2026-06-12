@@ -73,7 +73,7 @@ export function CommandCenterPreferencesProvider({
 }: {
   children: ReactNode;
 }) {
-  const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
+  const sessionUserId = useAuthStore((state) => state.session?.user.uid ?? null);
   const endpointConfigured = hasConfiguredPreferencesEndpoint();
   const { setThemeById, themeId } = useTheme();
   const applyingRemoteStateRef = useRef(false);

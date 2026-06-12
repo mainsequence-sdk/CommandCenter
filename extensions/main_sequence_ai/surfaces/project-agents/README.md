@@ -10,8 +10,8 @@ workbench project-detail tabs.
 ## Files
 
 - `ProjectAgentsPage.tsx`
-  The page shell. It owns project selection, capability gating, and the handoff into the shared
-  `ProjectAgentConfigurator`.
+  The page shell. It owns project selection, capability gating, the link to deployment logs, and
+  the handoff into the shared `ProjectAgentConfigurator`.
 
 ## Behavior Notes
 
@@ -19,5 +19,6 @@ workbench project-detail tabs.
   workbench route.
 - After selection, it fetches project summary/capability state and only reveals the configurator
   when the selected project advertises agent capabilities.
-- The page deep-links back into the workbench `Images` tab when the configurator asks to inspect
-  built images.
+- The `Deployment logs` action navigates to the standalone
+  `/app/main_sequence_ai/project-agent-deployment-logs` surface and preserves `msProjectUid` for
+  returning to the same project configuration.

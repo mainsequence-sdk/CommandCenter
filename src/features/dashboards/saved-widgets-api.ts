@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/auth/auth-store";
+import { applySessionAuthHeaders } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import {
@@ -211,9 +212,7 @@ async function requestSavedWidgetBackend(path: string, init?: RequestInit) {
     headers.set("Content-Type", "application/json");
   }
 
-  if (session?.token) {
-    headers.set("Authorization", `Bearer ${session.token}`);
-  }
+  applySessionAuthHeaders(headers, session);
 
   const response = await fetch(buildEndpointUrl(path), {
     ...init,

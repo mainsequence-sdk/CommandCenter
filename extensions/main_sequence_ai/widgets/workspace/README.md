@@ -48,8 +48,8 @@ This folder owns the `main-sequence-ai-workspace` widget, displayed in the catal
 - `WorkspaceWidget.tsx` derives output validity from accessible workspace summaries.
   `workspaceReference.ts` can use the shared studio store when it already has list items, but it
   also fetches workspace summaries directly when the store is empty so direct workspace/detail
-  routes still populate the target picker. In backend mode this direct fetch is not gated on
-  `session.user.id`; the workspace API adapter attaches the auth token to the configured
+  routes still populate the target picker. In backend mode this direct fetch is not gated on a
+  numeric user id; the workspace API adapter attaches the auth token to the configured
   `workspaces.list_url` request and passes `exclude_ids=<current-workspace-id>` so the backend
   can omit the workspace currently being authored.
 - `showRawPropsEditor` is intentionally disabled so ordinary authoring cannot bypass the

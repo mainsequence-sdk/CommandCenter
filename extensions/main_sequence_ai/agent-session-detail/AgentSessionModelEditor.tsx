@@ -85,7 +85,7 @@ export function AgentSessionModelEditor({
 }) {
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
-  const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
+  const sessionUserId = useAuthStore((state) => state.session?.user.uid ?? null);
   const [availableModels, setAvailableModels] = useState<AvailableChatModelOption[]>([]);
   const [availableModelsError, setAvailableModelsError] = useState<string | null>(null);
   const [availableProviders, setAvailableProviders] = useState<AvailableChatProviderOption[]>([]);
@@ -144,6 +144,7 @@ export function AgentSessionModelEditor({
             agentType: detail?.context.requestAgentType ?? null,
             userId: sessionUserId,
           }),
+          createdByUserUid: sessionUserId,
           sessionId: detail?.sessionId ?? null,
           signal: controller.signal,
           token: sessionToken,

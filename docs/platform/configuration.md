@@ -87,7 +87,7 @@ auth:
       refresh_token: refresh
       token_type: token_type
     claim_mapping:
-      user_id: sub
+      user_id: user_uid
       name: name
       email: email
       team: team

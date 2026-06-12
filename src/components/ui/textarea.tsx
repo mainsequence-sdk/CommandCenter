@@ -40,7 +40,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       disabled,
       onChange,
       onCompletionInserted: ({ option, value }) => {
-        setReferenceTokenEditing(true);
+        setReferenceTokenEditing(false);
         onWidgetReferenceCommit?.({
           value,
           reason: "completion",

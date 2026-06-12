@@ -3,6 +3,7 @@ import type { AppDefinition, AppSurfaceNavigationSection, AppSurfaceEntry } from
 import { getPermissionDefinitions } from "@/auth/permission-catalog";
 import type { PermissionDefinition } from "@/auth/permissions";
 import { useAuthStore } from "@/auth/auth-store";
+import { buildSessionAuthHeaderRecord } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 
@@ -408,7 +409,7 @@ async function requestAccessCatalogSync(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        Authorization: `${session.tokenType ?? "Bearer"} ${session.token}`,
+        ...buildSessionAuthHeaderRecord(session),
       },
       body: JSON.stringify(payload),
     });

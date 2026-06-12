@@ -9,6 +9,7 @@ import {
 } from "@/auth/permissions";
 import type { AppUser, OrganizationTeam, Permission } from "@/auth/types";
 import { useAuthStore } from "@/auth/auth-store";
+import { applySessionAuthHeaders } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 
@@ -418,9 +419,7 @@ async function requestAccessRbacJson<T>(
       Accept: "application/json",
     });
 
-    if (session?.token) {
-      headers.set("Authorization", `${session.tokenType ?? "Bearer"} ${session.token}`);
-    }
+    applySessionAuthHeaders(headers, session);
 
     if (body !== undefined) {
       headers.set("Content-Type", "application/json");

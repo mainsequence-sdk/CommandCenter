@@ -43,7 +43,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       disabled: disabled || !textInputType,
       onChange,
       onCompletionInserted: ({ option, value }) => {
-        setReferenceTokenEditing(true);
+        setReferenceTokenEditing(false);
         onWidgetReferenceCommit?.({
           value,
           reason: "completion",

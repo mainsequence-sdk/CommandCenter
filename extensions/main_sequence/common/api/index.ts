@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/auth/auth-store";
+import { applySessionAuthHeaders } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import {
@@ -3763,8 +3764,12 @@ export interface ProjectExecutorAgentServiceRecord {
   id?: number;
   uid?: string;
   automatic_deployment?: boolean;
+  agent_uid?: string | null;
   project?: string;
   project_uid?: string;
+  llm_provider?: string | null;
+  llm_model?: string | null;
+  llm_thinking?: string | null;
   project_related_image?: string;
   project_related_image_uid?: string;
   runtime_image?: string;
@@ -3792,16 +3797,88 @@ export interface ProjectExecutorRuntimeAccess {
 }
 
 export interface ProjectExecutorAgentServiceSummary {
-  id: number;
+  id?: number;
   uid: string;
-  agent_id: number | string | null;
+  agent_uid?: string | null;
   automatic_deployment?: boolean;
   is_ready: boolean;
   executor_bundle_image_has_drift?: boolean;
   image_drift?: unknown;
-  project: number;
-  related_job: number | null;
+  project?: number | string | null;
+  project_uid?: string | null;
+  runtime_image?: string | null;
+  runtime_image_uid?: string | null;
+  related_job?: number | string | null;
+  related_job_uid?: string | null;
   subdomain: string | null;
+}
+
+export type ProjectExecutorAutomaticDeploymentRunStatus =
+  | "pending"
+  | "running"
+  | "waiting_sdk_update"
+  | "waiting_project_image"
+  | "waiting_executor_image"
+  | "no_action"
+  | "deployed"
+  | "skipped"
+  | "blocked"
+  | "failed";
+
+export type ProjectExecutorAutomaticDeploymentRunStep =
+  | "resolve_eligibility"
+  | "create_project_image"
+  | "wait_project_image"
+  | "create_executor_image"
+  | "wait_executor_image"
+  | "resolve_configuration"
+  | "deploy_service"
+  | "cleanup_previous_images"
+  | "complete";
+
+export interface ProjectExecutorAutomaticDeploymentRun {
+  uid: string;
+  agent?: string | Record<string, unknown> | null;
+  status: ProjectExecutorAutomaticDeploymentRunStatus | string;
+  current_step?: ProjectExecutorAutomaticDeploymentRunStep | string | null;
+  automatic_deployment_source?: "manual" | "repository_event" | string | null;
+  revision_context?: Record<string, unknown> | null;
+  trigger_context?: Record<string, unknown> | null;
+  image_artifact_context?: Record<string, unknown> | null;
+  cleanup_context?: Record<string, unknown> | null;
+  attempts?: number | string | null;
+  result?: Record<string, unknown> | null;
+  error_code?: string | null;
+  error_detail?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  [key: string]: unknown;
+}
+
+export type ProjectExecutorAgentServiceDeployStatus =
+  | "deployed"
+  | "waiting_sdk_update"
+  | "waiting_project_image"
+  | "waiting_executor_image"
+  | "blocked"
+  | "failed"
+  | "no_action"
+  | "running";
+
+export interface ProjectExecutorAgentServiceDeployResponse {
+  uid: string;
+  status: ProjectExecutorAgentServiceDeployStatus | string;
+  current_step?: string | null;
+  result?: {
+    service_uid?: string | null;
+    runtime_ready?: boolean | null;
+    [key: string]: unknown;
+  } | null;
+  error_code?: string | null;
+  error_detail?: string | null;
+  [key: string]: unknown;
 }
 
 export interface ProjectExecutorAgentServiceMaintenanceResult {
@@ -3919,23 +3996,27 @@ export interface ProjectBaseImageOption {
 }
 
 export interface GithubOrganizationOption {
-  id: number;
+  uid: string;
   login: string;
   display_name: string;
 }
 
 export interface CreateProjectInput {
   project_name: string;
-  repository_branch?: string;
-  data_source?: string;
+  data_source_uid?: string;
   default_base_image?: string;
-  github_org_id?: number;
+  github_organization?: string;
 }
 
 export interface UpdateProjectSettingsInput {
   projectUid: string;
   defaultDataSourceUid?: string | null;
   defaultBaseImageUid?: string | null;
+}
+
+export interface ProjectUpdateSdkResponse {
+  message: string;
+  job_run_uid: string;
 }
 
 export interface CreateJobInput {
@@ -4356,12 +4437,10 @@ function readMessageFromPayload(payload: unknown): string {
       return record.detail.trim();
     }
 
-    for (const value of Object.values(record)) {
-      const nested = readMessageFromPayload(value);
+    const flattenedMessages = flattenErrorMessages(record).filter(Boolean);
 
-      if (nested) {
-        return nested;
-      }
+    if (flattenedMessages.length > 0) {
+      return flattenedMessages.join(" ");
     }
   }
 
@@ -4473,9 +4552,7 @@ async function requestJson<T>(
       headers.set("Content-Type", "application/json");
     }
 
-    if (session?.token) {
-      headers.set("Authorization", `${session.tokenType ?? "Bearer"} ${session.token}`);
-    }
+    applySessionAuthHeaders(headers, session);
 
     return fetch(requestUrl, {
       ...init,
@@ -8535,6 +8612,16 @@ export function fetchProjectDetail(projectUid: string) {
   );
 }
 
+export function updateProjectSdk(projectUid: string) {
+  return requestJson<ProjectUpdateSdkResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `projects/${resolveMainSequenceUidPath(projectUid, "project")}/update-sdk/`,
+    {
+      method: "POST",
+    },
+  );
+}
+
 export function fetchProjectInfraGraph(
   projectUid: string,
   {
@@ -8757,25 +8844,12 @@ export function getOrCreateProjectExecutorAgentService(
   );
 }
 
-export function buildProjectExecutorAgentServiceImage(input: {
-  project: string;
-  project_related_image: string;
-}) {
-  return requestJson<ProjectExecutorAgentServiceRecord>(
-    "/orm/api/agents/v1/project-executor-agent-services/build-image/",
-    "",
-    {
-      method: "POST",
-      body: JSON.stringify(input),
-    },
-  );
-}
-
 export function deployProjectExecutorAgentService(input: {
-  project: string;
-  runtime_image: string;
+  project_uid: string;
   llm_provider: string;
   llm_model: string;
+  llm_thinking?: string;
+  automatic_deployment?: boolean;
   cpu_request?: string;
   cpu_limit?: string;
   memory_request?: string;
@@ -8784,7 +8858,7 @@ export function deployProjectExecutorAgentService(input: {
   gpu_type?: string;
   spot?: boolean;
 }) {
-  return requestJson<ProjectExecutorAgentServiceRecord>(
+  return requestJson<ProjectExecutorAgentServiceDeployResponse>(
     "/orm/api/agents/v1/project-executor-agent-services/deploy/",
     "",
     {
@@ -8809,12 +8883,80 @@ export async function fetchProjectExecutorAgentServiceByProject(projectUid: stri
   }
 }
 
+export async function fetchProjectExecutorAutomaticDeploymentRuns({
+  agentUid,
+  limit = 20,
+  ordering = "-created_at",
+}: {
+  agentUid?: string | null;
+  limit?: number;
+  ordering?: string;
+} = {}) {
+  const payload = await requestJson<
+    | PaginatedResponse<ProjectExecutorAutomaticDeploymentRun>
+    | ProjectExecutorAutomaticDeploymentRun[]
+  >(
+    "/orm/api/agents/v1/project-executor-automatic-deployment-runs/",
+    "",
+    undefined,
+    {
+      ...(agentUid?.trim() ? { agent_uid: agentUid.trim() } : {}),
+      ordering,
+      limit,
+    },
+  );
+
+  return normalizeListResponse(payload);
+}
+
 export function maintainProjectExecutorAgentService(serviceUid: string) {
   return requestJson<ProjectExecutorAgentServiceMaintenanceResult>(
     `/orm/api/agents/v1/project-executor-agent-services/${resolveMainSequenceUidPath(serviceUid, "project executor agent service")}/maintain-runtime/`,
     "",
     {
       method: "POST",
+    },
+  );
+}
+
+export interface CodingAgentDeploymentDefaultsInput {
+  global_active: boolean;
+  llm_provider: string;
+  llm_model: string;
+  llm_thinking: string;
+  cpu_request: string;
+  cpu_limit: string;
+  memory_request: string;
+  memory_limit: string;
+  gpu_request: string;
+  gpu_type: string;
+}
+
+export interface CodingAgentDeploymentDefaultsRecord
+  extends Partial<CodingAgentDeploymentDefaultsInput> {
+  id?: number;
+  uid?: string;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
+}
+
+export function fetchCodingAgentDeploymentDefaults() {
+  return requestJson<CodingAgentDeploymentDefaultsRecord>(
+    "/orm/api/agents/v1/coding-agent-deployment-defaults/",
+    "",
+  );
+}
+
+export function saveCodingAgentDeploymentDefaults(
+  input: CodingAgentDeploymentDefaultsInput,
+) {
+  return requestJson<CodingAgentDeploymentDefaultsRecord>(
+    "/orm/api/agents/v1/coding-agent-deployment-defaults/",
+    "",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
     },
   );
 }
@@ -8833,19 +8975,6 @@ export function updateProjectExecutorAgentServiceAutomation(
       }),
     },
   );
-}
-
-export async function fetchAvailableProjectExecutorAgentImages(projectUid: string) {
-  const payload = await requestJson<PaginatedResponse<ProjectImageOption> | ProjectImageOption[]>(
-    "/orm/api/agents/v1/project-executor-agent-services/available-images/",
-    "",
-    undefined,
-    {
-      project_uid: projectUid,
-    },
-  );
-
-  return normalizeListResponse(payload).sort((left, right) => right.id - left.id);
 }
 
 export function deleteProjectExecutorAgentServiceByProject(projectUid: string) {
@@ -9221,9 +9350,16 @@ export function bulkDeleteProjects(
     deleteRepositories?: boolean;
   } = {},
 ) {
-  return postMainSequenceBulkDelete(
+  return requestJson<MainSequenceBulkDeleteResponse>(
+    commandCenterConfig.mainSequence.endpoint,
     "projects/bulk-delete/",
-    uids,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        selected_uids: uids,
+        select_all: false,
+      }),
+    },
     deleteRepositories ? { delete_repositories: "true" } : undefined,
   );
 }
@@ -9337,7 +9473,7 @@ export function buildDataNodeDetailQueryKey(dataNodeIdentifier: TsManagerPathIde
 }
 
 function buildDataNodeDetailCacheKey(dataNodeIdentifier: TsManagerPathIdentifier) {
-  const userId = useAuthStore.getState().session?.user.id ?? "anonymous";
+  const userId = useAuthStore.getState().session?.user.uid ?? "anonymous";
   return `${userId}:${String(dataNodeIdentifier)}`;
 }
 

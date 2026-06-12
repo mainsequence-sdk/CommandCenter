@@ -83,7 +83,7 @@ function buildLatestAgentSessionsUrl({
   createdByUserUid,
   agentId,
 }: {
-  createdByUserUid: string | number | null | undefined;
+  createdByUserUid: string | null | undefined;
   agentId?: number | string | null;
 }) {
   const url = new URL("/orm/api/agents/v1/sessions/", env.apiBaseUrl);
@@ -360,7 +360,7 @@ export async function fetchLatestAgentSessions({
   tokenType = "Bearer",
 }: {
   agentId?: string | number | null;
-  createdByUserUid?: string | number | null;
+  createdByUserUid?: string | null;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
@@ -498,7 +498,7 @@ export async function startNewAgentSessionRequest({
   tokenType = "Bearer",
 }: {
   agentId: string | number;
-  createdByUserUid: string | number;
+  createdByUserUid: string;
   signal?: AbortSignal;
   threadId?: string | null;
   token?: string | null;

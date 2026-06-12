@@ -1,4 +1,4 @@
-import { Bot, LayoutTemplate, MessageSquare, Sparkles } from "lucide-react";
+import { Bot, FileText, LayoutTemplate, MessageSquare, Sparkles } from "lucide-react";
 
 import {
   defineSurfaceAssistantContext,
@@ -10,6 +10,7 @@ import { AgentSettingsSection } from "./features/settings/AgentSettingsSection";
 import { ModelProviderSettingsSection } from "./features/settings/ModelProviderSettingsSection";
 import { ChatPage } from "./surfaces/chat/ChatPage";
 import { AgentsMonitorPage } from "./surfaces/monitor/AgentsMonitorPage";
+import { ProjectAgentDeploymentLogsPage } from "./surfaces/project-agent-deployment-logs/ProjectAgentDeploymentLogsPage";
 import { ProjectAgentsPage } from "./surfaces/project-agents/ProjectAgentsPage";
 import { AgentSessionDetailPage } from "./surfaces/session/AgentSessionDetailPage";
 
@@ -95,20 +96,38 @@ export const mainSequenceAiApp: AppDefinition = {
       title: "Project Agents",
       navLabel: "Project Agents",
       icon: Bot,
-      description: "AI-owned build and deployment workflow for project execution agents.",
+      description: "AI-owned deployment workflow for project execution agents.",
       ...defineSurfaceAssistantContext({
         summary:
-          "User is on the Project Agents surface inside Main Sequence AI. This page owns project-agent image build, deployment, and deletion workflows.",
+          "User is on the Project Agents surface inside Main Sequence AI. This page owns project-agent deployment, automation, and deletion workflows.",
         availableActions: [
           "Select a project",
           "Check whether the selected project is agent-capable",
-          "Build a project-agent runtime image",
           "Deploy a project-agent runtime",
+          "Enable automatic deployment for a project agent",
           "Delete an existing project agent",
         ],
       }),
       kind: "page",
       component: ProjectAgentsPage,
+    },
+    {
+      id: "project-agent-deployment-logs",
+      title: "Deployment Logs",
+      navLabel: "Deployment Logs",
+      icon: FileText,
+      description: "Standalone deployment-run log view for automatic project-agent releases.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on the Deployment Logs surface inside Main Sequence AI. This page lists automatic project-agent deployment runs scoped to the authenticated user.",
+        availableActions: [
+          "Review automatic deployment run status",
+          "Inspect current deployment steps and errors",
+          "Return to project-agent configuration",
+        ],
+      }),
+      kind: "page",
+      component: ProjectAgentDeploymentLogsPage,
     },
     {
       id: "monitor",

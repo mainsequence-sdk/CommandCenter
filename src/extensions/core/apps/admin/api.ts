@@ -3,6 +3,7 @@ import {
   type AccessRbacUsersPage,
 } from "@/extensions/core/apps/access-rbac/api";
 import { useAuthStore } from "@/auth/auth-store";
+import { applySessionAuthHeaders } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import type { EntitySummaryHeader } from "../../../../../extensions/main_sequence/common/api";
@@ -111,9 +112,7 @@ async function requestAdminJson<T>(
       headers.set("Content-Type", "application/json");
     }
 
-    if (session?.token) {
-      headers.set("Authorization", `${session.tokenType ?? "Bearer"} ${session.token}`);
-    }
+    applySessionAuthHeaders(headers, session);
 
     return fetch(requestUrl, {
       ...init,

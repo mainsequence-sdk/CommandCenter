@@ -854,8 +854,6 @@ async function hydrateUserShellAccess(
 }
 
 export function resolveSessionUserId({
-  claimUserId,
-  userDetailsUserId,
   uid,
   email,
   name,
@@ -867,8 +865,6 @@ export function resolveSessionUserId({
   name?: string | null;
 }) {
   return (
-    readStringish(claimUserId) ||
-    readStringish(userDetailsUserId) ||
     readStringish(uid) ||
     readString(email) ||
     readString(name) ||
@@ -1146,16 +1142,20 @@ function parseStoredSession(value: unknown): Session | null {
     return null;
   }
 
+  const storedUid = readStringish(value.user.uid ?? value.user.user_uid ?? value.user.userUid);
+  const storedEmail = readString(value.user.email);
+  const storedName = readString(value.user.name, "User");
+
   return {
     token: readString(value.token),
     tokenType: normalizeTokenType(value.tokenType),
     expiresAt: readNumber(value.expiresAt),
     authMode: normalizeAuthMode(value.authMode),
     user: {
-      id: readStringish(value.user.id),
-      uid: readStringish(value.user.uid ?? value.user.user_uid ?? value.user.userUid) || undefined,
-      name: readString(value.user.name, "User"),
-      email: readString(value.user.email),
+      id: storedUid || storedEmail || storedName || "current-user",
+      uid: storedUid || undefined,
+      name: storedName,
+      email: storedEmail,
       avatarUrl: readString(value.user.avatarUrl) || undefined,
       plan: readString(value.user.plan) || undefined,
       team: readString(value.user.team, "Unknown"),
@@ -1181,9 +1181,13 @@ export function persistJwtSession(bundle: JwtSessionBundle) {
     return;
   }
 
+  const { id: _legacyUserId, ...storedUser } = bundle.session.user;
   const payload: StoredJwtAuthState = {
     authMode: normalizeAuthMode(bundle.tokens.authMode ?? bundle.session.authMode),
-    session: bundle.session,
+    session: {
+      ...bundle.session,
+      user: storedUser as AppUser,
+    },
     tokens: {
       ...bundle.tokens,
       authMode: normalizeAuthMode(bundle.tokens.authMode ?? bundle.session.authMode),

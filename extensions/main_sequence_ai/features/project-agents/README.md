@@ -6,12 +6,10 @@ This feature owns the reusable project-agent authoring form used by `Main Sequen
 
 It is the AI-owned implementation of the project-agent workflow:
 
-- build executor runtime images from project images
-- select deployable runtime images
 - configure compute
 - configure LLM provider and model
 - deploy or delete the project-agent runtime
-- enable automatic deployment for the current project-agent service
+- configure automatic deployment for the next project-agent deploy
 
 ## Entry Points
 
@@ -26,25 +24,30 @@ It is the AI-owned implementation of the project-agent workflow:
 - Workbench may still import the shared configurator through a temporary compatibility wrapper
   during the refactor, but new project-agent workflow changes should be authored here first.
 - The form depends on the shared Main Sequence project APIs.
-- The build-source image picker is intentionally scoped to the Main Sequence `base_pod_images`
-  slice by requesting `fetchProjectImages(projectUid, { catalogImagePrefixStartswith:
-  "base_pod_images" })`.
-- Project-agent image pickers now reuse the shared Main Sequence project-image picker metadata
-  builder from `main_sequence/common/components/projectImagePickerOptions.ts`. They keep the image
-  title on the first line, but the second line is shared with the other project-image pickers and
-  prioritizes backend-provided tags, especially `ms-sdk...` tags, before the commit/date copy.
-- Both image pickers are restricted to deployable images only. The frontend offers only images
-  where `is_ready === true` and `build_error !== true`.
+- The deployment flow lets the backend resolve the runtime image. The frontend must not send
+  `runtime_image_uid`, legacy `runtime_image`, or legacy `project` in the deploy request.
+- The deploy request must send the public `project_uid` field.
+- The deploy response is asynchronous status state, not runtime access. The frontend must not
+  require `runtime_access` from `POST /project-executor-agent-services/deploy/`.
+- `waiting_sdk_update`, `waiting_project_image`, `waiting_executor_image`, `running`, and
+  `pending` show a progress panel and poll
+  `/orm/api/agents/v1/project-executor-automatic-deployment-runs/?ordering=-created_at&limit=20`.
+- `deployed` and `no_action` refresh project-agent service state so the existing service/session
+  runtime-access flow can resolve access separately.
 - The screen keeps a persistent warning that project agents are one-per-project runtimes and
-  should be rebuilt from images updated to the latest Main Sequence SDK before deployment.
+  should be deployed from images updated to the latest Main Sequence SDK.
 - LLM selection for project-agent deployment is sourced from the Command Center
   `astro-orchestrator` model catalog only.
 - The configurator loads that catalog through the shared Astro operational runtime-access path.
 - It must not query the project-agent runtime for model options, and it must not depend on the
   assistant rail being open or on unrelated chat-session state.
-- When the current project agent already exists, the form also hydrates `llm_provider` and
-  `llm_model` from that agent's exposed `agent_id` so existing deployment values remain visible
-  even if the runtime catalog is temporarily unavailable.
+- When the current project agent already exists, the form reads the linked `agent_uid` from the
+  project-executor service, loads the agent detail, and hydrates `llm_provider`, `llm_model`, and
+  `llm_thinking` from that agent so existing deployment values remain visible even if the runtime
+  catalog is temporarily unavailable.
+- The Command Center model catalog supplies selectable provider, model, and reasoning options only;
+  it is not the source of truth for the current project-agent configuration when linked agent
+  details exist.
 - When `GET /orm/api/agents/v1/project-executor-agent-services/by-project/<project_uid>/` reports
   `executor_bundle_image_has_drift=true`, the deployment section shows a warning that the deployed
   runtime image has drifted from the latest Astro update, plus any backend-authored drift detail
@@ -53,7 +56,7 @@ It is the AI-owned implementation of the project-agent workflow:
   CPU, memory, spot/standard capacity, and LLM settings. The CPU, memory, and capacity controls
   use the shared Main Sequence resource-requirements section so this screen matches the project job
   and resource-release creation flows, including the shared billing estimate action.
-- The `Automate` action sits next to `Deploy Agent`. After confirmation, it resolves the current
-  project-executor agent service by `projectUid` when necessary and PATCHes
-  `/orm/api/agents/v1/project-executor-agent-services/<service_uid>/` with
-  `automatic_deployment: true`.
+- Deployment automation is an on/off toggle inside the agent configuration, not a deploy-level
+  action. The switch sits on the left side of the automation row; when enabled, the row becomes
+  animated, the deploy request includes `automatic_deployment: true`, and the form shows the
+  automatic release behavior inline instead of opening a separate confirmation modal.

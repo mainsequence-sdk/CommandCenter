@@ -4,7 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
+import { getAppPath } from "@/apps/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -79,7 +81,6 @@ export function ProjectAgentsPage() {
     enabled: normalizedProjectSearchValue.length >= 3,
     staleTime: 300_000,
   });
-
   const selectedProjectSummary = selectedProjectSummaryQuery.data ?? null;
   const hasAgentCapabilities = projectHasAgentCapabilities(selectedProjectSummary);
   const selectedProjectRecord = useMemo<Pick<ProjectQuickSearchRecord, "uid" | "project_name" | "repository_branch"> | null>(
@@ -125,16 +126,38 @@ export function ProjectAgentsPage() {
     });
   }
 
+  function openDeploymentLogs() {
+    const nextSearchParams = new URLSearchParams();
+
+    if (selectedProjectUid) {
+      nextSearchParams.set(mainSequenceProjectUidParam, selectedProjectUid);
+    }
+
+    navigate({
+      pathname: getAppPath("main_sequence_ai", "project-agent-deployment-logs"),
+      search: nextSearchParams.toString() ? `?${nextSearchParams.toString()}` : "",
+    });
+  }
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6">
       <PageHeader
         eyebrow="Main Sequence AI"
         title="Project Agents"
-        description="Build and deploy project execution agents from one AI-owned workflow."
+        description="Deploy and manage project execution agents from one AI-owned workflow."
         actions={
-          selectedProjectUid !== null && hasAgentCapabilities === true ? (
-            <Badge variant="success">Agent capable</Badge>
-          ) : null
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={openDeploymentLogs}
+            >
+              Deployment logs
+            </Button>
+            {selectedProjectUid !== null && hasAgentCapabilities === true ? (
+              <Badge variant="success">Agent capable</Badge>
+            ) : null}
+          </>
         }
       />
 
@@ -223,11 +246,6 @@ export function ProjectAgentsPage() {
             <ProjectAgentConfigurator
               projectUid={selectedProjectUid}
               hasAgentCapabilities={true}
-              onOpenImagesTab={() => {
-                navigate(
-                  `/app/main_sequence_workbench/projects?msProjectUid=${selectedProjectUid}&msTab=images`,
-                );
-              }}
             />
           ) : null}
         </CardContent>

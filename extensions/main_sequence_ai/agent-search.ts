@@ -7,6 +7,7 @@ import {
 
 export interface AgentSearchResult {
   id: number;
+  uid?: string;
   name: string;
   agentType: string;
   displayLabel: string;
@@ -15,6 +16,7 @@ export interface AgentSearchResult {
   status?: string;
   llm_provider: string;
   llm_model: string;
+  llm_thinking: string;
   engine_name: string;
   last_run_at: string | null;
 }
@@ -58,6 +60,7 @@ export interface AgentImageDriftRecord {
 
 export interface AgentDetailRecord {
   id: number;
+  uid?: string;
   name?: string;
   agentType: string;
   displayLabel?: string;
@@ -69,6 +72,7 @@ export interface AgentDetailRecord {
   status?: string | null;
   llm_provider?: string | null;
   llm_model?: string | null;
+  llm_thinking?: string | null;
   engine_name?: string | null;
   last_run_at?: string | null;
   metadata?: Record<string, unknown> | null;
@@ -136,6 +140,7 @@ function normalizeAgentSearchResult(value: unknown): AgentSearchResult {
 
   return {
     id: normalizeNumber(candidate.id),
+    uid: normalizeString(candidate.uid) || undefined,
     name: normalizeString(candidate.name),
     agentType,
     displayLabel: normalizeAgentDisplayLabel(candidate),
@@ -144,6 +149,7 @@ function normalizeAgentSearchResult(value: unknown): AgentSearchResult {
     status: normalizeNullableString(candidate.status) ?? undefined,
     llm_provider: normalizeString(candidate.llm_provider),
     llm_model: normalizeString(candidate.llm_model),
+    llm_thinking: normalizeString(candidate.llm_thinking),
     engine_name: normalizeString(candidate.engine_name),
     last_run_at: normalizeNullableString(candidate.last_run_at),
   };
@@ -176,10 +182,14 @@ function normalizeAgentDetailRecord(value: unknown): AgentDetailRecord {
   return {
     ...candidate,
     id: normalizeNumber(candidate.id),
+    uid: normalizeString(candidate.uid) || undefined,
     name: normalizeString(candidate.name),
     agentType,
     displayLabel: normalizeAgentDisplayLabel(candidate),
     agent_type: agentType,
+    llm_provider: normalizeNullableString(candidate.llm_provider),
+    llm_model: normalizeNullableString(candidate.llm_model),
+    llm_thinking: normalizeNullableString(candidate.llm_thinking),
   } as AgentDetailRecord;
 }
 

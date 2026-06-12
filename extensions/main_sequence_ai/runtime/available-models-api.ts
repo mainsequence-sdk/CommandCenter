@@ -4,6 +4,10 @@ import {
   type MainSequenceAiAssistantRuntimeTarget,
 } from "./assistant-endpoint";
 import { MainSequenceAiError } from "./error-source";
+import {
+  appendCreatedByUserUidSearchParam,
+  requireCreatedByUserUid,
+} from "./user-scope";
 
 export interface AvailableChatModelOption {
   auth:
@@ -521,6 +525,7 @@ export async function fetchAvailableRunConfigOptions({
   assistantEndpoint,
   cacheKey,
   cacheTtlMs = AVAILABLE_RUN_CONFIG_CACHE_TTL_MS,
+  createdByUserUid,
   runtimeTarget,
   sessionId,
   signal,
@@ -531,6 +536,7 @@ export async function fetchAvailableRunConfigOptions({
   assistantEndpoint?: string;
   cacheKey?: string | null;
   cacheTtlMs?: number;
+  createdByUserUid?: string | null;
   onResolvedAccess?: ((access: MainSequenceAiResolvedAssistantAccess) => void) | null;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   sessionId?: string | null;
@@ -545,13 +551,20 @@ export async function fetchAvailableRunConfigOptions({
     return cachedEntry.value;
   }
 
+  const resolvedCreatedByUserUid = requireCreatedByUserUid(
+    createdByUserUid,
+    "Available model catalog",
+  );
   const { resolvedAccess, response } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     ...(sessionId
       ? { currentSessionId: sessionId }
       : { runtimeTarget: runtimeTarget ?? ("configured" as const) }),
-    requestPath: "/api/chat/get_available_models",
+    requestPath: appendCreatedByUserUidSearchParam(
+      "/api/chat/get_available_models",
+      resolvedCreatedByUserUid,
+    ),
     method: "GET",
     signal,
     sessionToken: token,

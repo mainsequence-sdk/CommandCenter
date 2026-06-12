@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/auth/auth-store";
+import { applySessionAuthHeaders } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import type {
@@ -229,7 +230,7 @@ function writeMockWorkspaceCollection(
 }
 
 function getCurrentMockWorkspaceUserId() {
-  return useAuthStore.getState().session?.user.id ?? null;
+  return useAuthStore.getState().session?.user.uid ?? null;
 }
 
 function isLoopbackHostname(hostname: string) {
@@ -1083,9 +1084,7 @@ async function requestWorkspaceBackend(path: string, init?: RequestInit) {
       headers.set("Content-Type", "application/json");
     }
 
-    if (session?.token) {
-      headers.set("Authorization", `${session.tokenType ?? "Bearer"} ${session.token}`);
-    }
+    applySessionAuthHeaders(headers, session);
 
     return fetch(requestUrl, {
       ...init,

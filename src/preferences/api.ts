@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/auth/auth-store";
+import { applySessionAuthHeaders } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import {
@@ -118,7 +119,7 @@ export function readCachedCommandCenterPreferences(
 }
 
 export function readCachedCurrentCommandCenterPreferences() {
-  return readCachedCommandCenterPreferences(useAuthStore.getState().session?.user.id ?? null);
+  return readCachedCommandCenterPreferences(useAuthStore.getState().session?.user.uid ?? null);
 }
 
 export function writeCachedCommandCenterPreferences(
@@ -241,9 +242,7 @@ async function requestPreferences(
       headers.set("Content-Type", "application/json");
     }
 
-    if (session?.token) {
-      headers.set("Authorization", `${session.tokenType ?? "Bearer"} ${session.token}`);
-    }
+    applySessionAuthHeaders(headers, session);
 
     return fetch(requestUrl, {
       ...init,

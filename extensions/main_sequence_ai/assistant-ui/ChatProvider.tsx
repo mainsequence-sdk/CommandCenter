@@ -594,7 +594,7 @@ export function ChatProvider({
   const shouldAvoidImplicitSessionSelection =
     isEmbeddedProjectAgent ||
     (location.pathname === CHAT_PAGE_PATH && !requestedChatSessionId);
-  const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
+  const sessionUserId = useAuthStore((state) => state.session?.user.uid ?? null);
   const sessionUserUid = useAuthStore((state) => state.session?.user.uid ?? null);
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
@@ -1275,6 +1275,7 @@ export function ChatProvider({
         const options = await fetchAvailableRunConfigOptions({
           assistantEndpoint: availableModelsAssistantEndpoint,
           cacheKey: availableModelsCacheKey,
+          createdByUserUid: sessionUserUid,
           onResolvedAccess: (resolvedAccess) => {
             updateSessionRuntimeAccessMeta({
               imageDrift: resolvedAccess.imageDrift,

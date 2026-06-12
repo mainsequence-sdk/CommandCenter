@@ -46,6 +46,17 @@
   transform: translateY(-1px);
 }
 
+.main-sequence-ai-automation-button--active,
+.main-sequence-ai-automation-button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--primary) 48%, white 18%);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 16%, var(--card) 84%) 0%, color-mix(in srgb, var(--primary) 9%, var(--background) 91%) 100%);
+  color: color-mix(in srgb, white 76%, var(--primary) 24%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 14%, transparent),
+    0 14px 30px -24px color-mix(in srgb, var(--primary) 74%, transparent);
+}
+
 .main-sequence-ai-automation-button:disabled {
   cursor: not-allowed;
   filter: grayscale(0.18) opacity(0.64);
@@ -69,7 +80,7 @@
   z-index: 0;
   opacity: 0;
   pointer-events: none;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
   mask-image: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / 0.24) 16%, black 70%, black 100%);
   transition: opacity 180ms ease;
 }
@@ -81,13 +92,18 @@
 .main-sequence-ai-automation-ditherwave__fallback {
   height: 100%;
   width: 100%;
-  background:
-    radial-gradient(120% 85% at 86% 50%, color-mix(in srgb, white 42%, var(--primary) 58%) 0%, color-mix(in srgb, var(--primary) 34%, transparent) 34%, transparent 64%),
-    linear-gradient(180deg, color-mix(in srgb, var(--primary) 12%, transparent) 0%, transparent 100%);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 88%, transparent) 0%,
+    color-mix(in srgb, var(--primary) 42%, transparent) 44%,
+    transparent 100%
+  );
 }
 
 .main-sequence-ai-automation-button:not(:disabled):hover .main-sequence-ai-automation-ditherwave,
-.main-sequence-ai-automation-button:focus-visible .main-sequence-ai-automation-ditherwave {
+.main-sequence-ai-automation-button:focus-visible .main-sequence-ai-automation-ditherwave,
+.main-sequence-ai-automation-button--active .main-sequence-ai-automation-ditherwave,
+.main-sequence-ai-automation-button[aria-pressed="true"] .main-sequence-ai-automation-ditherwave {
   opacity: 0.58;
 }
 
@@ -104,6 +120,142 @@
   font-weight: 650;
   line-height: 1.3;
   text-shadow: 0 1px 10px color-mix(in srgb, black 40%, transparent);
+}
+
+.main-sequence-ai-automation-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 84%, var(--primary) 16%);
+  border-radius: calc(var(--radius) - 8px);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, var(--primary) 4%) 0%, color-mix(in srgb, var(--background) 98%, var(--primary) 2%) 100%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 7%, transparent),
+    0 12px 28px -32px color-mix(in srgb, var(--primary) 40%, transparent);
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.main-sequence-ai-automation-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--primary) 18%, transparent) 0%, transparent 34%, color-mix(in srgb, white 8%, transparent) 100%);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.main-sequence-ai-automation-panel__wave {
+  opacity: 0;
+}
+
+.main-sequence-ai-automation-panel--active {
+  border-color: color-mix(in srgb, var(--primary) 48%, white 16%);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 14%, var(--card) 86%) 0%, color-mix(in srgb, var(--primary) 7%, var(--background) 93%) 100%);
+}
+
+.main-sequence-ai-automation-panel--active::before {
+  opacity: 0.65;
+}
+
+.main-sequence-ai-automation-panel--active .main-sequence-ai-automation-panel__wave {
+  opacity: 0.58;
+}
+
+.main-sequence-ai-automation-panel__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 4.25rem;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+}
+
+.main-sequence-ai-automation-panel__copy {
+  min-width: 0;
+  flex: 1;
+  line-height: 1.4;
+}
+
+.main-sequence-ai-automation-panel__copy p {
+  margin-top: 0.25rem;
+}
+
+.main-sequence-ai-automation-toggle {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  height: 2rem;
+  width: 3.5rem;
+  shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.main-sequence-ai-automation-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ring) 86%, white 14%);
+  outline-offset: 3px;
+}
+
+.main-sequence-ai-automation-toggle__track {
+  position: relative;
+  display: block;
+  height: 1.65rem;
+  width: 3.15rem;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, var(--primary) 22%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--background) 72%, var(--card) 28%);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.main-sequence-ai-automation-toggle__thumb {
+  position: absolute;
+  left: 0.19rem;
+  top: 0.19rem;
+  height: 1.18rem;
+  width: 1.18rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted-foreground) 62%, white 38%);
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.3),
+    inset 0 1px 0 color-mix(in srgb, white 32%, transparent);
+  transition:
+    background 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.main-sequence-ai-automation-toggle[aria-checked="true"] .main-sequence-ai-automation-toggle__track {
+  border-color: color-mix(in srgb, var(--primary) 58%, white 20%);
+  background: color-mix(in srgb, var(--primary) 42%, var(--background) 58%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 16%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.main-sequence-ai-automation-toggle[aria-checked="true"] .main-sequence-ai-automation-toggle__thumb {
+  background: white;
+  box-shadow:
+    0 1px 7px color-mix(in srgb, var(--primary) 56%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 42%, transparent);
+  transform: translateX(1.48rem);
 }
 
 .main-sequence-ai-automation-dialog-header {

@@ -6,14 +6,17 @@ import {
   ArrowUpRight,
   Bot,
   Database,
+  EllipsisVertical,
   FolderKanban,
   GitBranch,
   Loader2,
   Plus,
+  RefreshCcw,
   Trash2,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
+import { AdminMenu } from "@/app/layout/AdminMenu";
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toaster";
 
 import {
@@ -34,6 +38,7 @@ import {
   listProjects,
   mainSequenceRegistryPageSize,
   type ProjectSummary,
+  updateProjectSdk,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
@@ -54,7 +59,6 @@ import { useProjectAgentRailStore } from "../../../../../main_sequence_ai/assist
 
 const defaultFormState = {
   projectName: "",
-  repositoryBranch: "main",
   dataSourceUid: "",
   defaultBaseImageUid: "",
   githubOrgId: "",
@@ -453,6 +457,27 @@ export function MainSequenceProjectsPage() {
       });
     },
   });
+  const updateProjectSdkMutation = useMutation({
+    mutationFn: updateProjectSdk,
+    onSuccess: async (result) => {
+      toast({
+        variant: "success",
+        title: "SDK update started",
+        description: result.message,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["main_sequence", "projects", "list"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "projects", "summary", selectedProjectUid],
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "SDK update failed",
+        description: formatMainSequenceError(error),
+      });
+    },
+  });
   const projectBulkActions =
     projectSelection.selectedCount > 0
       ? [
@@ -497,7 +522,7 @@ export function MainSequenceProjectsPage() {
   const projectAgentServiceQuery = useQuery({
     queryKey: ["main_sequence", "projects", "project-agent", "service", selectedProjectUid],
     queryFn: () => fetchProjectExecutorAgentServiceByProject(selectedProjectUid ?? ""),
-    enabled: isProjectDetailOpen,
+    enabled: isProjectDetailOpen && Boolean(selectedProjectUid),
     staleTime: 60_000,
   });
   const projectHeader = removeProjectAgentCapabilitiesBadge(projectHeaderBase);
@@ -505,70 +530,70 @@ export function MainSequenceProjectsPage() {
     projectHeader?.entity.title ??
     selectedProjectSummary?.project_name ??
     (selectedProjectUid ? `Project ${selectedProjectUid}` : "Project");
-  const rawProjectAgentId = projectAgentServiceQuery.data?.agent_id;
-  const showProjectAgentLauncher = Boolean(projectAgentServiceQuery.data?.id);
-  const readyProjectAgentId =
-    rawProjectAgentId !== null &&
-    rawProjectAgentId !== undefined &&
-    `${rawProjectAgentId}`.trim()
-      ? rawProjectAgentId
-      : null;
-  const showConfigureProjectAgentButton = hasProjectAgentCapabilities === true;
+  const readyProjectAgentUid = projectAgentServiceQuery.data?.agent_uid?.trim() || null;
+  const showProjectAgentActionsMenu =
+    Boolean(readyProjectAgentUid) || hasProjectAgentCapabilities === true;
   const projectAgentSummaryActions =
-    showProjectAgentLauncher || showConfigureProjectAgentButton ? (
-      <>
-        {showProjectAgentLauncher ? (
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-9 w-9 border-border/70 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-            title="Talk to project agent"
-            aria-label="Talk to project agent"
-            onClick={() => {
-              if (!readyProjectAgentId) {
-                toast({
-                  variant: "error",
-                  title: "Project agent unavailable",
-                  description: "This project agent service does not expose a ready agent session.",
-                });
-                return;
-              }
+    selectedProjectUid ? (
+      <AdminMenu
+        actions={[
+          ...(showProjectAgentActionsMenu
+            ? [
+                {
+                  icon: Bot,
+                  label: "Project agent",
+                  children: [
+                    {
+                      icon: Bot,
+                      label: "Chat with project agent",
+                      disabled: !readyProjectAgentUid,
+                      onSelect: () => {
+                        if (!readyProjectAgentUid) {
+                          toast({
+                            variant: "error",
+                            title: "Project agent unavailable",
+                            description:
+                              "This project agent service does not expose a ready agent session.",
+                          });
+                          return;
+                        }
 
-              openProjectAgentRail({
-                agentId: readyProjectAgentId,
-                label: projectAgentServiceQuery.data?.subdomain?.trim() || "Project Agent",
-              });
-            }}
-          >
-            <Bot className="h-4 w-4" />
-          </Button>
-        ) : null}
-        {showConfigureProjectAgentButton ? (
-          <Button
-            size="sm"
-            onClick={() => {
-              navigate(`/app/main_sequence_ai/project-agents?msProjectUid=${selectedProjectUid}`);
-            }}
-          >
-            Configure project agent
-          </Button>
-        ) : null}
-      </>
+                        openProjectAgentRail({
+                          agentId: readyProjectAgentUid,
+                          label:
+                            projectAgentServiceQuery.data?.subdomain?.trim() || "Project Agent",
+                        });
+                      },
+                    },
+                    {
+                      icon: FolderKanban,
+                      label: "Configure project agent",
+                      onSelect: () => {
+                        navigate(
+                          `/app/main_sequence_ai/project-agents?msProjectUid=${selectedProjectUid}`,
+                        );
+                      },
+                    },
+                  ],
+                },
+              ]
+            : []),
+          {
+            icon: RefreshCcw,
+            label: updateProjectSdkMutation.isPending ? "Updating SDK..." : "Update SDK",
+            disabled: updateProjectSdkMutation.isPending,
+            onSelect: () => {
+              void updateProjectSdkMutation.mutateAsync(selectedProjectUid);
+            },
+          },
+        ]}
+        menuClassName="w-56"
+        placement="left"
+        triggerLabel="Project actions"
+        triggerClassName="inline-flex h-9 w-9 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/70 text-muted-foreground shadow-sm transition-colors hover:bg-muted/45 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+        triggerContent={<EllipsisVertical className="h-4 w-4" />}
+      />
     ) : null;
-
-  const githubOrganizationOptions: PickerOption[] = [
-    {
-      value: "",
-      label: "Optional",
-      description: "Use the default organization.",
-    },
-    ...((formOptionsQuery.data?.githubOrganizations ?? []).map((option) => ({
-      value: String(option.id),
-      label: option.display_name || option.login,
-      description: option.display_name && option.display_name !== option.login ? option.login : "",
-      keywords: [option.display_name, option.login],
-    })) satisfies PickerOption[]),
-  ];
 
   const handleCreateProject = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -594,10 +619,9 @@ export function MainSequenceProjectsPage() {
 
     await createProjectMutation.mutateAsync({
       project_name: formState.projectName.trim(),
-      repository_branch: formState.repositoryBranch.trim() || "main",
-      data_source: formState.dataSourceUid.trim(),
+      data_source_uid: formState.dataSourceUid.trim(),
       default_base_image: formState.defaultBaseImageUid.trim(),
-      github_org_id: formState.githubOrgId.trim() ? Number(formState.githubOrgId) : undefined,
+      github_organization: formState.githubOrgId.trim() || undefined,
     });
   };
 
@@ -1130,12 +1154,13 @@ export function MainSequenceProjectsPage() {
           setFormState(defaultFormState);
           setCreateDialogOpen(false);
         }}
-        className="max-w-[min(1080px,calc(100vw-24px))]"
+        className="max-w-[min(1080px,calc(100vw-24px))] overflow-visible"
+        contentClassName="max-h-[min(88vh,920px)] overflow-visible px-5 py-5 md:px-6 md:py-6"
       >
         <form className="space-y-6" onSubmit={handleCreateProject}>
           <div className="space-y-5">
             <div className="rounded-[24px] border border-border/70 bg-background/18 p-5">
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1.25fr)_minmax(220px,0.75fr)]">
+              <div className="grid gap-4">
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                     Project name
@@ -1151,22 +1176,6 @@ export function MainSequenceProjectsPage() {
                     }}
                     placeholder="Alpha Research"
                     required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    Repository branch
-                  </label>
-                  <Input
-                    value={formState.repositoryBranch}
-                    onChange={(event) => {
-                      createProjectMutation.reset();
-                      setFormState((current) => ({
-                        ...current,
-                        repositoryBranch: event.target.value,
-                      }));
-                    }}
-                    placeholder="main"
                   />
                 </div>
               </div>
@@ -1232,21 +1241,37 @@ export function MainSequenceProjectsPage() {
                   <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                     GitHub organization
                   </label>
-                  <PickerField
+                  <Select
+                    aria-label="GitHub organization"
+                    className="h-11 w-full bg-card/70"
+                    listboxPlacement="top"
                     value={formState.githubOrgId}
-                    onChange={(value) => {
+                    disabled={formOptionsQuery.isLoading}
+                    onChange={(event) => {
                       createProjectMutation.reset();
                       setFormState((current) => ({
                         ...current,
-                        githubOrgId: value,
+                        githubOrgId: event.target.value,
                       }));
                     }}
-                    options={githubOrganizationOptions}
-                    placeholder="Optional"
-                    searchPlaceholder="Search organizations"
-                    emptyMessage="No matching GitHub organizations."
-                    loading={formOptionsQuery.isLoading}
-                  />
+                  >
+                    <option value="" data-description="Use the default organization.">
+                      Optional
+                    </option>
+                    {(formOptionsQuery.data?.githubOrganizations ?? []).map((option) => (
+                      <option
+                        key={option.uid}
+                        value={option.uid}
+                        data-description={
+                          option.display_name && option.display_name !== option.login
+                            ? option.login
+                            : undefined
+                        }
+                      >
+                        {option.display_name || option.login}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
               </div>
             </div>

@@ -75,7 +75,7 @@ auth:
       refresh_token: refresh
       token_type: token_type
     claim_mapping:
-      user_id: sub
+      user_id: user_uid
       name: name
       email: email
       team: team
@@ -92,7 +92,7 @@ auth:
     user_details:
       url: /user/api/user/get_user_details/
       response_mapping:
-        user_id: id
+        user_id: ""
         name: name
         email: email
         team: team

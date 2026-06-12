@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/auth/auth-store";
+import { buildSessionAuthHeaderRecord } from "@/auth/session-headers";
 import { env } from "@/config/env";
 import type {
   ActivityItem,
@@ -33,7 +34,7 @@ async function fetchJson<T>(path: string, search?: Record<string, string | numbe
     };
 
     if (session?.token) {
-      headers.Authorization = `${session.tokenType ?? "Bearer"} ${session.token}`;
+      Object.assign(headers, buildSessionAuthHeaderRecord(session));
     }
 
     return fetch(requestUrl, { headers });

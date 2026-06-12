@@ -5,6 +5,7 @@ import {
   type WebSocketTicketResponse,
 } from "@/auth/api";
 import { useAuthStore } from "@/auth/auth-store";
+import { buildSessionAuthHeaderRecord } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import {
@@ -617,9 +618,7 @@ function getSessionHeaders() {
     return {};
   }
 
-  return {
-    Authorization: `${session.tokenType ?? "Bearer"} ${session.token}`,
-  };
+  return buildSessionAuthHeaderRecord(session);
 }
 
 async function readResponsePayload(response: Response) {

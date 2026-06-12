@@ -1,4 +1,5 @@
 import { useAuthStore } from "@/auth/auth-store";
+import { applySessionAuthHeaders } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import {
@@ -167,7 +168,7 @@ function buildAppComponentTransportIdentityKey(
 
 function buildOpenApiCacheKey(props: AppComponentWidgetProps) {
   const session = useAuthStore.getState().session;
-  const userId = session?.user.id ?? "anonymous";
+  const userId = session?.user.uid ?? "anonymous";
   const baseUrl =
     resolveAppComponentDisplayBaseUrl(props) ??
     props.mainSequenceResourceRelease?.publicUrl ??
@@ -199,7 +200,7 @@ async function buildSafeResponseCacheKey({
   url: string;
 }) {
   const session = useAuthStore.getState().session;
-  const userId = session?.user.id ?? "anonymous";
+  const userId = session?.user.uid ?? "anonymous";
   const normalizedMethod = method.trim().toUpperCase();
   const bodyHash = await sha256Hex(body ?? "");
   const headersHash = await sha256Hex(
@@ -542,8 +543,8 @@ async function sendAuthenticatedRequest(
       headers.set("Content-Type", "application/json");
     }
 
-    if (authMode === "session-jwt" && session?.token) {
-      headers.set("Authorization", `${session.tokenType ?? "Bearer"} ${session.token}`);
+    if (authMode === "session-jwt") {
+      applySessionAuthHeaders(headers, session);
     }
 
     return fetch(transportUrl, {

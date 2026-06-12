@@ -1,14 +1,29 @@
-function normalizeUserUid(value: string | number | null | undefined) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return String(value);
+function normalizeUserUid(value: string | null | undefined) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+export function requireCreatedByUserUid(
+  value: string | null | undefined,
+  context: string,
+) {
+  const normalizedUserUid = normalizeUserUid(value);
+
+  if (!normalizedUserUid) {
+    throw new Error(`${context} requires created_by_user_uid.`);
   }
 
-  return typeof value === "string" && value.trim() ? value.trim() : null;
+  if (/^\d+$/.test(normalizedUserUid)) {
+    throw new Error(
+      `${context} requires the public user uid, not the legacy numeric user id.`,
+    );
+  }
+
+  return normalizedUserUid;
 }
 
 export function appendCreatedByUserUidSearchParam(
   requestPath: string,
-  createdByUserUid: string | number | null | undefined,
+  createdByUserUid: string | null | undefined,
 ) {
   const normalizedUserUid = normalizeUserUid(createdByUserUid);
 

@@ -89,7 +89,7 @@ export function WidgetOrganizationConfigurationProvider({
 }: {
   children: ReactNode;
 }) {
-  const sessionUserId = useAuthStore((state) => state.session?.user.id ?? null);
+  const sessionUserId = useAuthStore((state) => state.session?.user.uid ?? null);
   const enabled =
     hasConfiguredOrganizationWidgetTypeConfigurationsEndpoint() && Boolean(sessionUserId);
   const query = useQuery({
