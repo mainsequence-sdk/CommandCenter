@@ -6,7 +6,6 @@ This feature owns the Main Sequence project registry and project detail experien
 
 - `MainSequenceProjectsPage.tsx`: project registry page and project detail shell.
 - `MainSequenceProjectCodeTab.tsx`: repository browser and code preview tab.
-- `MainSequenceProjectAgentTab.tsx`: temporary compatibility wrapper around the AI-owned project-agent configurator during the ownership refactor.
 - `MainSequenceProjectInfraGraphTab.tsx`: project-scoped infrastructure graph tab wrapper.
 - `MainSequenceCreateJobDialog.tsx`: dialog for creating a job from a repository file.
 - `MainSequenceProjectImagesTab.tsx`: project image listing and related image state.
@@ -43,10 +42,9 @@ This feature owns the Main Sequence project registry and project detail experien
 - The same project actions menu also owns `Configure project agent` and `Update SDK`.
 - `Update SDK` posts to `/orm/api/pods/projects/<project_uid>/update-sdk/` and should stay grouped
   with other project-scoped maintenance actions instead of being added as a standalone button.
-- The full project-agent build/deploy/delete form is in the `Main Sequence AI` `Project Agents`
-  surface, not in the project-detail tabs anymore.
-- The workbench project page now deep-links to `/app/main_sequence_ai/project-agents?msProjectUid=<uid>`
-  for that form workflow.
+- The full project-agent build/deploy/delete form is implemented by the `Main Sequence AI`
+  shared `ProjectAgentConfigurator`, but the workbench project actions menu opens it in a modal
+  for the selected project instead of navigating away or asking the user to select a project again.
 - Agent release creation now warns that project execution agents are unique per project and that
   republishing the agent with a different image overrides that project-agent functionality.
 - That project-agent mode is not the generic `Create Agent Release` flow: it opens with the title

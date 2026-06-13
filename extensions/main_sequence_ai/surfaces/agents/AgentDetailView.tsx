@@ -11,7 +11,7 @@ import { EditorView } from "@codemirror/view";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import CodeMirror from "@uiw/react-codemirror";
 import { tags } from "@lezer/highlight";
-import { ArrowLeft, ArrowUpRight, Bot, Loader2, RefreshCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Bot, FolderKanban, Loader2, RefreshCcw, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { getAppPath } from "@/apps/utils";
@@ -20,9 +20,12 @@ import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-di
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import {
+  fetchProjectExecutorAutomaticDeploymentRuns,
+  fetchScalableServiceSummary,
   formatMainSequenceError,
   type EntitySummaryHeader,
 } from "../../../main_sequence/common/api";
@@ -43,6 +46,8 @@ import {
 import { getAgentSessionDetailPath } from "../../agent-session-detail/routes";
 import { useChatFeature } from "../../assistant-ui/ChatProvider";
 import { CHAT_PAGE_PATH } from "../../assistant-ui/chat-ui-store";
+import { AutomationDitherWaveLayer } from "../../components/AutomationButton";
+import { ProjectAgentConfigurator } from "../../features/project-agents/ProjectAgentConfigurator";
 import {
   deleteAgentSessionRequest,
   fetchLatestAgentSessions,
@@ -81,7 +86,7 @@ export function isAgentDetailTabId(value: string | null): value is AgentDetailTa
   return agentDetailTabs.some((tab) => tab.id === value);
 }
 
-function normalizeOptionalString(value: unknown) {
+function normalizeOptionalString(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
   }
@@ -90,12 +95,287 @@ function normalizeOptionalString(value: unknown) {
   return trimmed || null;
 }
 
-function normalizeOptionalObject(value: unknown) {
+function normalizePublicUid(value: unknown): string | null {
+  const normalized = normalizeOptionalString(value);
+
+  if (
+    !normalized ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(normalized)
+  ) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function normalizePathIdentifier(value: unknown): string | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return normalizeOptionalString(value);
+}
+
+function looksLikeUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+function normalizeOptionalObject(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
 
   return value as Record<string, unknown>;
+}
+
+function normalizeAgentTypeSlug(value: unknown): string | null {
+  return normalizeOptionalString(value)?.replace(/_/g, "-").toLowerCase() ?? null;
+}
+
+function isProjectExecutorAgentCandidate(value: unknown): boolean {
+  const slug = normalizeAgentTypeSlug(value);
+
+  return Boolean(
+    slug &&
+      (slug === "project-executor" ||
+        slug === "project-executor-agent" ||
+        slug.includes("project-executor")),
+  );
+}
+
+function readProjectUidFromProjectLike(value: unknown): string | null {
+  const direct = normalizePublicUid(value);
+
+  if (direct) {
+    return direct;
+  }
+
+  const record = normalizeOptionalObject(value);
+
+  if (!record) {
+    return null;
+  }
+
+  for (const key of ["uid", "project_uid", "projectUid"]) {
+    const candidate = normalizePublicUid(record[key]);
+
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function readProjectUidFromAgentRecord(value: unknown): string | null {
+  const record = normalizeOptionalObject(value);
+
+  if (!record) {
+    return null;
+  }
+
+  for (const key of ["project_uid", "projectUid", "related_project_uid", "relatedProjectUid"]) {
+    const candidate = normalizePublicUid(record[key]);
+
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  for (const key of ["project", "related_project", "main_sequence_project"]) {
+    const candidate = readProjectUidFromProjectLike(record[key]);
+
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  for (const key of [
+    "project_executor_agent_service",
+    "projectExecutorAgentService",
+    "project_executor_service",
+    "projectExecutorService",
+    "project_agent_service",
+    "projectAgentService",
+    "agent_service",
+    "agentService",
+    "service",
+    "related_service",
+    "relatedService",
+    "related_job",
+    "relatedJob",
+    "job",
+    "runtime_config_snapshot",
+    "runtimeConfigSnapshot",
+    "runtime_config_override",
+    "runtimeConfigOverride",
+  ]) {
+    const candidate: string | null = readProjectUidFromAgentRecord(record[key]);
+
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  const metadata = normalizeOptionalObject(record.metadata);
+
+  if (metadata) {
+    for (const key of ["project_uid", "projectUid", "related_project_uid", "relatedProjectUid"]) {
+      const candidate = normalizePublicUid(metadata[key]);
+
+      if (candidate) {
+        return candidate;
+      }
+    }
+  }
+
+  return null;
+}
+
+function readProjectUidFromHref(value: unknown): string | null {
+  const href = normalizeOptionalString(value);
+
+  if (!href) {
+    return null;
+  }
+
+  try {
+    const url = new URL(href, "https://mainsequence.local");
+
+    for (const key of ["project_uid", "projectUid", "msProjectUid"]) {
+      const candidate = normalizePublicUid(url.searchParams.get(key));
+
+      if (candidate) {
+        return candidate;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function readProjectUidFromSummaryField(value: unknown): string | null {
+  const record = normalizeOptionalObject(value);
+
+  if (!record) {
+    return null;
+  }
+
+  const hrefCandidate = readProjectUidFromHref(record.href) || readProjectUidFromHref(record.link_url);
+
+  if (hrefCandidate) {
+    return hrefCandidate;
+  }
+
+  const key = normalizeOptionalString(record.key)?.replace(/-/g, "_").toLowerCase() ?? null;
+  const projectValueKeys = new Set([
+    "project",
+    "project_uid",
+    "projectuid",
+    "related_project",
+    "related_project_uid",
+    "relatedprojectuid",
+    "main_sequence_project",
+  ]);
+
+  if (!key || !projectValueKeys.has(key)) {
+    return null;
+  }
+
+  return (
+    readProjectUidFromProjectLike(record.value) ||
+    readProjectUidFromProjectLike(record.meta) ||
+    null
+  );
+}
+
+function readProjectUidFromSummaryRecord(value: unknown): string | null {
+  const direct = readProjectUidFromAgentRecord(value);
+
+  if (direct) {
+    return direct;
+  }
+
+  const record = normalizeOptionalObject(value);
+
+  if (!record) {
+    return null;
+  }
+
+  const extensionCandidate = readProjectUidFromAgentRecord(record.extensions);
+
+  if (extensionCandidate) {
+    return extensionCandidate;
+  }
+
+  for (const key of ["inline_fields", "highlight_fields", "stats", "badges"]) {
+    const values = record[key];
+
+    if (!Array.isArray(values)) {
+      continue;
+    }
+
+    for (const field of values) {
+      const candidate = readProjectUidFromSummaryField(field);
+
+      if (candidate) {
+        return candidate;
+      }
+    }
+  }
+
+  return null;
+}
+
+function readProjectUidFromUnknown(value: unknown): string | null {
+  const direct =
+    readProjectUidFromAgentRecord(value) ||
+    readProjectUidFromSummaryRecord(value);
+
+  if (direct) {
+    return direct;
+  }
+
+  const visited = new Set<object>();
+  const queue: unknown[] = [value];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    if (!current) {
+      continue;
+    }
+
+    const nestedDirect =
+      readProjectUidFromAgentRecord(current) ||
+      readProjectUidFromSummaryRecord(current);
+
+    if (nestedDirect) {
+      return nestedDirect;
+    }
+
+    if (Array.isArray(current)) {
+      queue.push(...current);
+      continue;
+    }
+
+    if (typeof current !== "object") {
+      continue;
+    }
+
+    if (visited.has(current)) {
+      continue;
+    }
+
+    visited.add(current);
+    queue.push(...Object.values(current as Record<string, unknown>));
+  }
+
+  return null;
 }
 
 function normalizeImageDriftCheck(
@@ -385,10 +665,11 @@ function augmentAgentSummary({
   const stats = [...summary.stats];
 
   if (!hasSummaryField(summary, "agent_id")) {
+    const entityIdentifier = String(summary.entity.id);
     inlineFields.unshift({
       key: "agent_id",
-      label: "ID",
-      value: String(summary.entity.id),
+      label: looksLikeUuid(entityIdentifier) ? "UID" : "ID",
+      value: entityIdentifier,
       kind: "code",
       icon: "fingerprint",
     });
@@ -583,7 +864,7 @@ export function AgentDetailView({
   onSelectTab,
 }: {
   activeTabId: AgentDetailTabId;
-  agentId: number;
+  agentId: string | number;
   initialAgent: AgentSearchResult | null;
   onBack: () => void;
   onSelectTab: (tabId: AgentDetailTabId) => void;
@@ -598,53 +879,59 @@ export function AgentDetailView({
     isCreatingAgentSession,
     startAgentSessionById,
   } = useChatFeature();
+  const normalizedAgentId = `${agentId}`.trim();
+  const hasAgentLookupKey = normalizedAgentId.length > 0 && normalizedAgentId !== "0";
 
   const detailQuery = useQuery({
-    queryKey: ["main_sequence_ai", "agents", "detail", agentId],
+    queryKey: ["main_sequence_ai", "agents", "detail", normalizedAgentId],
     queryFn: ({ signal }) =>
       fetchAgentDetail({
-        agentId,
+        agentId: normalizedAgentId,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
       }),
-    enabled: agentId > 0,
+    enabled: hasAgentLookupKey,
     staleTime: 30_000,
   });
   const summaryQuery = useQuery({
-    queryKey: ["main_sequence_ai", "agents", "summary", agentId],
+    queryKey: ["main_sequence_ai", "agents", "summary", normalizedAgentId],
     queryFn: ({ signal }) =>
       fetchAgentSummary({
-        agentId,
+        agentId: normalizedAgentId,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
       }),
-    enabled: agentId > 0,
+    enabled: hasAgentLookupKey,
     staleTime: 30_000,
   });
 
   const sessionsQuery = useQuery({
-    queryKey: ["main_sequence_ai", "agents", "sessions", agentId],
+    queryKey: ["main_sequence_ai", "agents", "sessions", normalizedAgentId],
     queryFn: ({ signal }) =>
       fetchLatestAgentSessions({
-        agentId,
+        agentId: normalizedAgentId,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
       }),
-    enabled: agentId > 0,
+    enabled: hasAgentLookupKey,
     staleTime: 10_000,
   });
 
   const detail = detailQuery.data ?? null;
+  const [deploymentConfiguratorOpen, setDeploymentConfiguratorOpen] = useState(false);
+  const [deploymentAutomationHeaderActive, setDeploymentAutomationHeaderActive] = useState(false);
   const [sessionFilterValue, setSessionFilterValue] = useState("");
   const [sessionsPendingDelete, setSessionsPendingDelete] = useState<AgentSessionApiRecord[]>([]);
   const deferredSessionFilterValue = useDeferredValue(sessionFilterValue);
   const title =
+    normalizeOptionalString(detail?.name) ||
+    initialAgent?.name?.trim() ||
     normalizeOptionalString(detail?.displayLabel) ||
     initialAgent?.displayLabel?.trim() ||
-    `Agent ${agentId}`;
+    `Agent ${normalizedAgentId}`;
   const uniqueId =
     normalizeOptionalString(detail?.agent_unique_id) ||
     initialAgent?.agent_unique_id?.trim() ||
@@ -661,6 +948,78 @@ export function AgentDetailView({
     normalizeOptionalString(detail?.llm_model) ||
     initialAgent?.llm_model?.trim() ||
     null;
+  const summaryRecordForAgentType = normalizeOptionalObject(summaryQuery.data);
+  const summaryEntityForAgentType = normalizeOptionalObject(summaryRecordForAgentType?.entity);
+  const summaryExtensionsForAgentType = normalizeOptionalObject(summaryRecordForAgentType?.extensions);
+  const isProjectExecutorAgent = [
+    detail?.agent_type,
+    detail?.agentType,
+    detail?.type,
+    detail?.agent_kind,
+    detail?.kind,
+    detail?.image_drift?.agent_kind,
+    initialAgent?.agentType,
+    summaryRecordForAgentType?.agent_type,
+    summaryRecordForAgentType?.agentType,
+    summaryRecordForAgentType?.agent_kind,
+    summaryEntityForAgentType?.type,
+    summaryExtensionsForAgentType?.agent_type,
+    summaryExtensionsForAgentType?.agentType,
+    summaryExtensionsForAgentType?.agent_kind,
+  ].some(isProjectExecutorAgentCandidate);
+  const projectExecutorProjectUid = useMemo(
+    () =>
+      readProjectUidFromUnknown(detail) ||
+      readProjectUidFromUnknown(initialAgent) ||
+      readProjectUidFromUnknown(summaryQuery.data) ||
+      readProjectUidFromUnknown(summaryEntityForAgentType) ||
+      readProjectUidFromUnknown(summaryExtensionsForAgentType),
+    [detail, initialAgent, summaryEntityForAgentType, summaryExtensionsForAgentType, summaryQuery.data],
+  );
+  const runtimeProjectUidQuery = useQuery({
+    queryKey: ["main_sequence_ai", "agents", "project-uid-from-runtime", normalizedAgentId],
+    queryFn: async ({ signal }) => {
+      const runtime = await fetchAgentRuntimeId({
+        agentId: normalizedAgentId,
+        signal,
+        token: sessionToken,
+        tokenType: sessionTokenType,
+      });
+      const runtimeIdentifier = normalizePathIdentifier(runtime.runtime_id);
+
+      if (runtimeIdentifier) {
+        const runtimeSummary = await fetchScalableServiceSummary(runtimeIdentifier);
+        const projectUidFromRuntimeSummary = readProjectUidFromUnknown(runtimeSummary);
+
+        if (projectUidFromRuntimeSummary) {
+          return projectUidFromRuntimeSummary;
+        }
+      }
+
+      const runs = await fetchProjectExecutorAutomaticDeploymentRuns({
+        agentUid: normalizedAgentId,
+        limit: 20,
+        ordering: "-created_at",
+      });
+
+      for (const run of runs) {
+        const candidate = readProjectUidFromUnknown(run);
+
+        if (candidate) {
+          return candidate;
+        }
+      }
+
+      return null;
+    },
+    enabled: hasAgentLookupKey && isProjectExecutorAgent && !projectExecutorProjectUid,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const resolvedProjectExecutorProjectUid =
+    projectExecutorProjectUid || runtimeProjectUidQuery.data || null;
+  const showDeploymentEditorAction =
+    isProjectExecutorAgent || Boolean(resolvedProjectExecutorProjectUid);
   const imageDrift = useMemo(
     () =>
       resolveAgentImageDrift({
@@ -749,15 +1108,15 @@ export function AgentDetailView({
   const openRuntimeMutation = useMutation({
     mutationFn: ({ signal }: { signal?: AbortSignal } = {}) =>
       fetchAgentRuntimeId({
-        agentId,
+        agentId: normalizedAgentId,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
       }),
     onSuccess: (payload) => {
-      const runtimeId = payload.runtime_id;
+      const runtimeId = normalizePathIdentifier(payload.runtime_id);
 
-      if (!Number.isFinite(runtimeId) || !runtimeId || runtimeId <= 0) {
+      if (!runtimeId) {
         toast({
           title: "Runtime unavailable",
           description: "This agent doesn't have a runtime.",
@@ -767,7 +1126,7 @@ export function AgentDetailView({
       }
 
       const searchParams = new URLSearchParams();
-      searchParams.set("msScalableServiceId", String(runtimeId));
+      searchParams.set("msScalableServiceUid", runtimeId);
       searchParams.set("msScalableServiceTab", "pods");
       navigate(`${getAppPath("main_sequence_workbench", "scalable-services")}?${searchParams.toString()}`);
     },
@@ -795,9 +1154,19 @@ export function AgentDetailView({
         ]
       : [];
 
+  useEffect(() => {
+    if (
+      !showDeploymentEditorAction ||
+      (!resolvedProjectExecutorProjectUid && !runtimeProjectUidQuery.isLoading)
+    ) {
+      setDeploymentConfiguratorOpen(false);
+      setDeploymentAutomationHeaderActive(false);
+    }
+  }, [resolvedProjectExecutorProjectUid, runtimeProjectUidQuery.isLoading, showDeploymentEditorAction]);
+
   async function handleStartSession() {
     await startAgentSessionById({
-      agentId,
+      agentId: normalizedAgentId,
       label: title,
     });
     navigate(CHAT_PAGE_PATH);
@@ -844,6 +1213,26 @@ export function AgentDetailView({
             )}
             Runtime
           </Button>
+          {showDeploymentEditorAction ? (
+            <Button
+              variant="outline"
+              size="sm"
+              title={
+                resolvedProjectExecutorProjectUid
+                  ? "Configure project agent"
+                  : runtimeProjectUidQuery.isLoading
+                    ? "Resolving linked project from runtime"
+                    : "Open project agent configuration"
+              }
+              onClick={() => {
+                setDeploymentAutomationHeaderActive(false);
+                setDeploymentConfiguratorOpen(true);
+              }}
+            >
+              <FolderKanban className="h-4 w-4" />
+              Configure project agent
+            </Button>
+          ) : null}
           <Button
             size="sm"
             disabled={sessionMutationBusy}
@@ -1005,6 +1394,44 @@ export function AgentDetailView({
           ) : null}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={deploymentConfiguratorOpen}
+        onClose={() => {
+          setDeploymentConfiguratorOpen(false);
+          setDeploymentAutomationHeaderActive(false);
+        }}
+        closeOnBackdropClick
+        title="Edit Agent Deployment"
+        description={title}
+        className="max-w-[min(1180px,calc(100vw-24px))]"
+        contentClassName="px-4 py-4 md:px-5 md:py-5"
+        headerClassName={
+          deploymentAutomationHeaderActive
+            ? "main-sequence-ai-automation-dialog-header"
+            : undefined
+        }
+        headerDecor={
+          deploymentAutomationHeaderActive ? <AutomationDitherWaveLayer /> : null
+        }
+      >
+        {resolvedProjectExecutorProjectUid ? (
+          <ProjectAgentConfigurator
+            projectUid={resolvedProjectExecutorProjectUid}
+            hasAgentCapabilities={true}
+            onAutomaticDeploymentStateChange={setDeploymentAutomationHeaderActive}
+          />
+        ) : runtimeProjectUidQuery.isLoading ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/24 px-4 py-4 text-sm text-muted-foreground">
+            Resolving the linked project from the agent runtime...
+          </div>
+        ) : (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-4 py-4 text-sm text-warning">
+            This project-executor agent detail does not include a public project UID, so the
+            deployment editor could not resolve the linked project from the agent runtime.
+          </div>
+        )}
+      </Dialog>
 
       <ActionConfirmationDialog
         title={sessionsPendingDelete.length > 1 ? "Delete sessions" : "Delete session"}

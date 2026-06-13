@@ -173,10 +173,10 @@
   position: relative;
   z-index: 1;
   display: flex;
-  min-height: 4.25rem;
+  min-height: 3.75rem;
   align-items: center;
   gap: 1rem;
-  padding: 0.95rem 1rem;
+  padding: 0.8rem 1rem;
 }
 
 .main-sequence-ai-automation-panel__copy {

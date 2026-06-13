@@ -56,6 +56,8 @@ import { MainSequenceSelectionCheckbox } from "../../../../common/components/Mai
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
 import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelection";
 import { useProjectAgentRailStore } from "../../../../../main_sequence_ai/assistant-ui/project-agent-rail-store";
+import { AutomationDitherWaveLayer } from "../../../../../main_sequence_ai/components/AutomationButton";
+import { ProjectAgentConfigurator } from "../../../../../main_sequence_ai/features/project-agents/ProjectAgentConfigurator";
 
 const defaultFormState = {
   projectName: "",
@@ -260,6 +262,8 @@ export function MainSequenceProjectsPage() {
   const [filterValue, setFilterValue] = useState("");
   const [projectsPageIndex, setProjectsPageIndex] = useState(0);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [projectAgentConfiguratorOpen, setProjectAgentConfiguratorOpen] = useState(false);
+  const [projectAgentAutomationHeaderActive, setProjectAgentAutomationHeaderActive] = useState(false);
   const [projectDeleteRequest, setProjectDeleteRequest] = useState<ProjectDeleteRequest | null>(null);
   const deferredFilterValue = useDeferredValue(filterValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -408,6 +412,13 @@ export function MainSequenceProjectsPage() {
   useEffect(() => {
     setProjectsPageIndex(0);
   }, [deferredFilterValue]);
+
+  useEffect(() => {
+    if (!selectedProjectUid) {
+      setProjectAgentConfiguratorOpen(false);
+      setProjectAgentAutomationHeaderActive(false);
+    }
+  }, [selectedProjectUid]);
 
   useEffect(() => {
     const totalPages = Math.max(
@@ -569,9 +580,8 @@ export function MainSequenceProjectsPage() {
                       icon: FolderKanban,
                       label: "Configure project agent",
                       onSelect: () => {
-                        navigate(
-                          `/app/main_sequence_ai/project-agents?msProjectUid=${selectedProjectUid}`,
-                        );
+                        setProjectAgentAutomationHeaderActive(false);
+                        setProjectAgentConfiguratorOpen(true);
                       },
                     },
                   ],
@@ -1408,6 +1418,39 @@ export function MainSequenceProjectsPage() {
           void deleteProjectMutation.mutateAsync(projectDeleteRequest);
         }}
       />
+
+      <Dialog
+        open={projectAgentConfiguratorOpen}
+        onClose={() => {
+          setProjectAgentConfiguratorOpen(false);
+          setProjectAgentAutomationHeaderActive(false);
+        }}
+        closeOnBackdropClick
+        title="Configure Project Agent"
+        description={projectTitle}
+        className="max-w-[min(1180px,calc(100vw-24px))]"
+        contentClassName="px-4 py-4 md:px-5 md:py-5"
+        headerClassName={
+          projectAgentAutomationHeaderActive
+            ? "main-sequence-ai-automation-dialog-header"
+            : undefined
+        }
+        headerDecor={
+          projectAgentAutomationHeaderActive ? <AutomationDitherWaveLayer /> : null
+        }
+      >
+        {selectedProjectUid ? (
+          <ProjectAgentConfigurator
+            projectUid={selectedProjectUid}
+            hasAgentCapabilities={true}
+            onAutomaticDeploymentStateChange={setProjectAgentAutomationHeaderActive}
+          />
+        ) : (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/18 px-5 py-8 text-sm text-muted-foreground">
+            Select a project before configuring its agent.
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }

@@ -90,8 +90,8 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - The frontend treats `image_drift` from that per-session `resolve_runtime_access` response as
   backend-owned status. It only normalizes the payload shape enough to surface a generic warning
   in chat when the backend says that the selected runtime needs an update.
-- Global, non-chat operational surfaces such as `Project Agents`, `Model Providers`, and
-  `Agents Settings` should use the dedicated `command-center-base` runtime target instead of
+- Global, non-chat operational surfaces such as `Model Providers`, `Agents Settings`, and
+  project-agent configuration modals should use the dedicated `command-center-base` runtime target instead of
   depending on chat-store side effects or a concrete `AgentSession`.
 - The `command-center-base` runtime target is allowed to resolve runtime access, call `/health`,
   and fetch model/provider catalogs. It must not implicitly fetch transcript history, insights, or

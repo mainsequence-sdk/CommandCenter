@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   fetchAgentSessionDetail,
+  fetchLatestAgentSessions,
   getAgentSessionRecordSessionId,
   normalizeAgentSessionLookupId,
   startNewAgentSessionRequest,
@@ -110,5 +111,28 @@ describe("agent session api", () => {
       created_by_user_uid: "user-uid-123",
       thread_id: "thread-uid-123",
     });
+  });
+
+  it("filters latest sessions by public agent uid when the lookup is not numeric", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ results: [] }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+
+    await fetchLatestAgentSessions({
+      agentId: "agent-uid-123",
+      createdByUserUid: "user-uid-123",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url] = fetchMock.mock.calls[0];
+    const requestUrl = new URL(String(url));
+
+    expect(requestUrl.searchParams.get("agent_uid")).toBe("agent-uid-123");
+    expect(requestUrl.searchParams.has("agent_id")).toBe(false);
   });
 });

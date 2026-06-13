@@ -21,7 +21,9 @@ result opens the agent detail view instead of starting a session.
 - `AgentsPage.tsx`
   Foundry-style list surface built from the shared agent list client. It keeps pagination, local
   filtering, semantic-search discovery, loading, empty, and action states local to the page, and
-  switches into agent detail mode when `msAgentId` is present in the URL search params.
+  switches into agent detail mode when `msAgentId` is present in the URL search params. Agent rows
+  use the backend public `uid` as their preferred lookup key and only keep numeric IDs as a legacy
+  fallback.
 - `AgentDetailView.tsx`
   Same-surface agent detail screen. It renders the agent summary header, overview tab, `Agent Card`
   tab, and recent AgentSession tab while preserving the surrounding app path and shell framing. The
@@ -29,8 +31,10 @@ result opens the agent detail view instead of starting a session.
   with `image_drift` checks from the detail serializer. If the summary endpoint fails, the header
   shows the backend error instead of inventing fallback header data. The header actions also include
   a `Runtime` lookup that resolves `/orm/api/agents/v1/agents/{id}/get_runtime_id/` and deep-links
-  into the Foundry `scalable-services` detail view when a runtime exists. The sessions tab also
-  owns selection state and bulk deletion for recent AgentSession rows.
+  into the Foundry `scalable-services` detail view when a runtime exists. For `project-executor`
+  agents, the header also exposes `Edit deployment` when the agent detail payload includes a public
+  `project_uid` or nested `project.uid`; that action opens the shared project-agent configurator
+  modal. The sessions tab also owns selection state and bulk deletion for recent AgentSession rows.
 - `extensions/main_sequence_ai/agent-search.ts`
   Shared agent list, semantic search, agent detail, and quick-search clients used by the AI
   surfaces and pickers.
@@ -57,12 +61,16 @@ result opens the agent detail view instead of starting a session.
   problems and should not be collapsed back into one search box.
 - Keep detail state encoded in URL params so list/detail navigation behaves like the other Main
   Sequence entity pages.
+- Keep agent list/detail/session launch lookups UID-first. Do not use synthesized numeric `0`
+  values as row keys, visible identifiers, or backend lookup values.
 - Keep AgentSession deletion in the detail Sessions tab routed through the shared
   `deleteAgentSessionRequest(...)` client so the DELETE contract stays centralized.
 - Keep the `Agent Card` tab wired directly to the `agent_card` field from the agent detail
   serializer so it reflects the backend-authored card payload without local reshaping.
 - Keep image-drift status sourced from the agent detail serializer and rendered through the shared
   summary header contract instead of a custom one-off header block.
+- Keep project-executor deployment editing bound to a public project UID from the agent detail
+  serializer. Do not derive project context from numeric project IDs or deployment-run internals.
 - Keep the header summary query bound to the agent `/summary/` endpoint. Do not synthesize a local
   fallback summary when that contract fails.
 - Keep session-launch behavior delegated to `ChatProvider` so this page does not grow its own

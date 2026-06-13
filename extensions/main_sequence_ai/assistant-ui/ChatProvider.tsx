@@ -23,7 +23,11 @@ import { useToast } from "@/components/ui/toaster";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
 import { useAgentSessionDetail } from "../agent-session-detail/useAgentSessionDetail";
-import type { AgentImageDriftRecord, AgentSearchResult } from "../agent-search";
+import {
+  getAgentSearchResultLookupKey,
+  type AgentImageDriftRecord,
+  type AgentSearchResult,
+} from "../agent-search";
 import {
   buildActiveSessionSummary,
   resolveAgentSessionDisplayId,
@@ -650,7 +654,7 @@ export function ChatProvider({
   const [latestSessionsError, setLatestSessionsError] = useState<string | null>(null);
   const [hasAttemptedLatestSessionsBootstrap, setHasAttemptedLatestSessionsBootstrap] =
     useState(false);
-  const [latestSessionsAgentFilterId, setLatestSessionsAgentFilterId] = useState<number | null>(null);
+  const [latestSessionsAgentFilterId, setLatestSessionsAgentFilterId] = useState<string | number | null>(null);
   const [latestSessionsRefreshNonce, setLatestSessionsRefreshNonce] = useState(0);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
   const [isCreatingAgentSession, setIsCreatingAgentSession] = useState(false);
@@ -2504,10 +2508,21 @@ export function ChatProvider({
         return;
       }
 
+      const lookupKey = getAgentSearchResultLookupKey(agent);
+
+      if (!lookupKey) {
+        toast({
+          title: "Agent session not created",
+          description: "The selected agent does not expose a valid backend agent uid.",
+          variant: "error",
+        });
+        return;
+      }
+
       persistSessionMessages();
       clearProjectAgentRailSelection();
       setSessionSelectionMode("explicit");
-      setLatestSessionsAgentFilterId(agent.id);
+      setLatestSessionsAgentFilterId(lookupKey);
 
       if (env.useMockData) {
         setAgentSessions((currentSessions) => {
@@ -2533,7 +2548,7 @@ export function ChatProvider({
 
       try {
         const { record, sessionId } = await startNewAgentSessionRequest({
-          agentId: agent.id,
+          agentId: lookupKey,
           createdByUserUid: sessionUserUid ?? "",
           token: sessionToken,
           tokenType: sessionTokenType,

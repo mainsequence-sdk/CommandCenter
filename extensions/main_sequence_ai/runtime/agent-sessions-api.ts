@@ -88,8 +88,10 @@ function buildLatestAgentSessionsUrl({
 }) {
   const url = new URL("/orm/api/agents/v1/sessions/", env.apiBaseUrl);
 
-  if (agentId !== null && agentId !== undefined && `${agentId}`.trim()) {
-    url.searchParams.set("agent_id", String(agentId));
+  const normalizedAgentId = normalizeIdentifier(agentId);
+
+  if (normalizedAgentId) {
+    url.searchParams.set(/^\d+$/.test(normalizedAgentId) ? "agent_id" : "agent_uid", normalizedAgentId);
   }
 
   if (
@@ -134,7 +136,10 @@ function buildAgentSessionModelConfigUrl(sessionId: string | number) {
 }
 
 function buildStartNewAgentSessionUrl(agentId: string | number) {
-  return new URL(`/orm/api/agents/v1/agents/${agentId}/start_new_session/`, env.apiBaseUrl).toString();
+  return new URL(
+    `/orm/api/agents/v1/agents/${encodeURIComponent(String(agentId))}/start_new_session/`,
+    env.apiBaseUrl,
+  ).toString();
 }
 
 function normalizeIdentifier(value: unknown) {

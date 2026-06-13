@@ -3765,6 +3765,11 @@ export interface ProjectExecutorAgentServiceRecord {
   uid?: string;
   automatic_deployment?: boolean;
   agent_uid?: string | null;
+  cpu_request?: string | null;
+  cpu_limit?: string | null;
+  memory_request?: string | null;
+  memory_limit?: string | null;
+  spot?: boolean | null;
   project?: string;
   project_uid?: string;
   llm_provider?: string | null;
@@ -3801,6 +3806,11 @@ export interface ProjectExecutorAgentServiceSummary {
   uid: string;
   agent_uid?: string | null;
   automatic_deployment?: boolean;
+  cpu_request?: string | null;
+  cpu_limit?: string | null;
+  memory_request?: string | null;
+  memory_limit?: string | null;
+  spot?: boolean | null;
   is_ready: boolean;
   executor_bundle_image_has_drift?: boolean;
   image_drift?: unknown;
@@ -3838,6 +3848,7 @@ export type ProjectExecutorAutomaticDeploymentRunStep =
 
 export interface ProjectExecutorAutomaticDeploymentRun {
   uid: string;
+  agent_uid?: string | null;
   agent?: string | Record<string, unknown> | null;
   status: ProjectExecutorAutomaticDeploymentRunStatus | string;
   current_step?: ProjectExecutorAutomaticDeploymentRunStep | string | null;
@@ -8858,6 +8869,8 @@ export function deployProjectExecutorAgentService(input: {
   gpu_type?: string;
   spot?: boolean;
 }) {
+  console.log("POST /orm/api/agents/v1/project-executor-agent-services/deploy/", input);
+
   return requestJson<ProjectExecutorAgentServiceDeployResponse>(
     "/orm/api/agents/v1/project-executor-agent-services/deploy/",
     "",
@@ -9321,7 +9334,17 @@ export function deleteJob(jobUid: string) {
 }
 
 export function bulkDeleteJobs(uids: string[]) {
-  return postMainSequenceBulkDelete("job/bulk-delete/", uids);
+  return requestJson<MainSequenceBulkDeleteResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    "job/bulk-delete/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        selected_uids: uids,
+        select_all: false,
+      }),
+    },
+  );
 }
 
 export function deleteProject(

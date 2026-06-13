@@ -8,6 +8,7 @@ import {
 export interface AgentSearchResult {
   id: number;
   uid?: string;
+  project_uid?: string | null;
   name: string;
   agentType: string;
   displayLabel: string;
@@ -23,6 +24,8 @@ export interface AgentSearchResult {
 
 export interface AgentSemanticSearchResult {
   id: number;
+  uid?: string;
+  project_uid?: string | null;
   name: string;
   agentType: string;
   displayLabel: string;
@@ -61,6 +64,7 @@ export interface AgentImageDriftRecord {
 export interface AgentDetailRecord {
   id: number;
   uid?: string;
+  project_uid?: string | null;
   name?: string;
   agentType: string;
   displayLabel?: string;
@@ -84,7 +88,7 @@ export interface AgentDetailRecord {
 
 export type AgentSummaryResponse = SummaryResponse;
 export interface AgentRuntimeIdResponse {
-  runtime_id: number | null;
+  runtime_id: string | number | null;
 }
 
 function asRecord(value: unknown) {
@@ -125,25 +129,51 @@ function normalizeAgentType(candidate: Record<string, unknown>) {
   return agentType;
 }
 
-function normalizeAgentDisplayLabel(candidate: Record<string, unknown>) {
+function normalizeAgentName(candidate: Record<string, unknown>) {
+  const nestedAgent = asRecord(candidate.agent);
+
+  return (
+    normalizeString(candidate.name) ||
+    normalizeString(candidate.agent_name) ||
+    normalizeString(nestedAgent.name)
+  );
+}
+
+function normalizeAgentUid(candidate: Record<string, unknown>) {
+  const nestedAgent = asRecord(candidate.agent);
+
+  return (
+    normalizeString(candidate.uid) ||
+    normalizeString(candidate.agent_uid) ||
+    normalizeString(candidate.agentUid) ||
+    normalizeString(nestedAgent.uid) ||
+    normalizeString(nestedAgent.agent_uid) ||
+    normalizeString(nestedAgent.agentUid)
+  );
+}
+
+function normalizeAgentDisplayLabel(candidate: Record<string, unknown>, fallbackName = "") {
   return (
     normalizeString(candidate.display_label) ||
     normalizeString(candidate.displayLabel) ||
     normalizeString(candidate.label) ||
-    normalizeString(candidate.title)
+    normalizeString(candidate.title) ||
+    fallbackName
   );
 }
 
 function normalizeAgentSearchResult(value: unknown): AgentSearchResult {
   const candidate = asRecord(value);
   const agentType = normalizeAgentType(candidate);
+  const name = normalizeAgentName(candidate);
 
   return {
     id: normalizeNumber(candidate.id),
-    uid: normalizeString(candidate.uid) || undefined,
-    name: normalizeString(candidate.name),
+    uid: normalizeAgentUid(candidate) || undefined,
+    project_uid: normalizeNullableString(candidate.project_uid),
+    name,
     agentType,
-    displayLabel: normalizeAgentDisplayLabel(candidate),
+    displayLabel: normalizeAgentDisplayLabel(candidate, name),
     agent_unique_id: normalizeString(candidate.agent_unique_id),
     description: normalizeString(candidate.description),
     status: normalizeNullableString(candidate.status) ?? undefined,
@@ -158,12 +188,15 @@ function normalizeAgentSearchResult(value: unknown): AgentSearchResult {
 function normalizeAgentSemanticSearchResult(value: unknown): AgentSemanticSearchResult {
   const candidate = asRecord(value);
   const agentType = normalizeAgentType(candidate);
+  const name = normalizeAgentName(candidate);
 
   return {
     id: normalizeNumber(candidate.id),
-    name: normalizeString(candidate.name),
+    uid: normalizeAgentUid(candidate) || undefined,
+    project_uid: normalizeNullableString(candidate.project_uid),
+    name,
     agentType,
-    displayLabel: normalizeAgentDisplayLabel(candidate),
+    displayLabel: normalizeAgentDisplayLabel(candidate, name),
     agent_unique_id: normalizeString(candidate.agent_unique_id),
     description: normalizeString(candidate.description),
     semantic_score:
@@ -178,14 +211,16 @@ function normalizeAgentSemanticSearchResult(value: unknown): AgentSemanticSearch
 function normalizeAgentDetailRecord(value: unknown): AgentDetailRecord {
   const candidate = asRecord(value);
   const agentType = normalizeAgentType(candidate);
+  const name = normalizeAgentName(candidate);
 
   return {
     ...candidate,
     id: normalizeNumber(candidate.id),
-    uid: normalizeString(candidate.uid) || undefined,
-    name: normalizeString(candidate.name),
+    uid: normalizeAgentUid(candidate) || undefined,
+    project_uid: normalizeNullableString(candidate.project_uid),
+    name,
     agentType,
-    displayLabel: normalizeAgentDisplayLabel(candidate),
+    displayLabel: normalizeAgentDisplayLabel(candidate, name),
     agent_type: agentType,
     llm_provider: normalizeNullableString(candidate.llm_provider),
     llm_model: normalizeNullableString(candidate.llm_model),
@@ -214,15 +249,24 @@ export function buildAgentListUrl({
 }
 
 export function buildAgentDetailUrl(agentId: string | number) {
-  return new URL(`/orm/api/agents/v1/agents/${agentId}/`, env.apiBaseUrl).toString();
+  return new URL(
+    `/orm/api/agents/v1/agents/${encodeURIComponent(String(agentId))}/`,
+    env.apiBaseUrl,
+  ).toString();
 }
 
 export function buildAgentSummaryUrl(agentId: string | number) {
-  return new URL(`/orm/api/agents/v1/agents/${agentId}/summary/`, env.apiBaseUrl).toString();
+  return new URL(
+    `/orm/api/agents/v1/agents/${encodeURIComponent(String(agentId))}/summary/`,
+    env.apiBaseUrl,
+  ).toString();
 }
 
 export function buildAgentRuntimeIdUrl(agentId: string | number) {
-  return new URL(`/orm/api/agents/v1/agents/${agentId}/get_runtime_id/`, env.apiBaseUrl).toString();
+  return new URL(
+    `/orm/api/agents/v1/agents/${encodeURIComponent(String(agentId))}/get_runtime_id/`,
+    env.apiBaseUrl,
+  ).toString();
 }
 
 export function buildAgentSemanticSearchUrl() {
@@ -231,6 +275,30 @@ export function buildAgentSemanticSearchUrl() {
 
 export function buildAgentSelectionDescription(agent: AgentSearchResult) {
   return [agent.agent_unique_id, agent.status].filter(Boolean).join(" · ");
+}
+
+export function getAgentSearchResultLookupKey(
+  agent: Pick<AgentSearchResult, "id" | "uid"> | Pick<AgentSemanticSearchResult, "id" | "uid">,
+) {
+  const uid = normalizeString(agent.uid);
+
+  if (uid) {
+    return uid;
+  }
+
+  return agent.id > 0 ? String(agent.id) : null;
+}
+
+export function getAgentSearchResultRowKey(
+  agent: Pick<AgentSearchResult, "agent_unique_id" | "id" | "name" | "uid">,
+  index: number,
+) {
+  return (
+    getAgentSearchResultLookupKey(agent) ||
+    normalizeString(agent.agent_unique_id) ||
+    normalizeString(agent.name) ||
+    `agent-row-${index}`
+  );
 }
 
 export function buildAgentOptionDescription(agent: AgentSearchResult) {

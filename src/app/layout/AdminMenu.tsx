@@ -60,6 +60,29 @@ export function AdminMenu({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const submenuCloseTimerRef = useRef<number | null>(null);
+
+  function clearSubmenuCloseTimer() {
+    if (submenuCloseTimerRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(submenuCloseTimerRef.current);
+    submenuCloseTimerRef.current = null;
+  }
+
+  function openSubmenu(label: string) {
+    clearSubmenuCloseTimer();
+    setOpenSubmenuLabel(label);
+  }
+
+  function scheduleSubmenuClose(label: string) {
+    clearSubmenuCloseTimer();
+    submenuCloseTimerRef.current = window.setTimeout(() => {
+      setOpenSubmenuLabel((current) => (current === label ? null : current));
+      submenuCloseTimerRef.current = null;
+    }, 180);
+  }
 
   useEffect(() => {
     if (!open) {
@@ -91,6 +114,7 @@ export function AdminMenu({
 
   useLayoutEffect(() => {
     if (!open) {
+      clearSubmenuCloseTimer();
       setOpenSubmenuLabel(null);
       setPortalStyle(undefined);
       return undefined;
@@ -195,13 +219,16 @@ export function AdminMenu({
                       className="relative"
                       onMouseEnter={() => {
                         if (!action.disabled) {
-                          setOpenSubmenuLabel(action.label);
+                          openSubmenu(action.label);
                         }
                       }}
                       onMouseLeave={() => {
-                        setOpenSubmenuLabel((current) =>
-                          current === action.label ? null : current,
-                        );
+                        scheduleSubmenuClose(action.label);
+                      }}
+                      onFocus={() => {
+                        if (!action.disabled) {
+                          openSubmenu(action.label);
+                        }
                       }}
                     >
                       <button
@@ -221,6 +248,7 @@ export function AdminMenu({
                             return;
                           }
 
+                          clearSubmenuCloseTimer();
                           setOpenSubmenuLabel((current) =>
                             current === action.label ? null : action.label,
                           );
@@ -236,10 +264,16 @@ export function AdminMenu({
                           className={cn(
                             "absolute top-0 z-[170] w-56 rounded-[calc(var(--radius)-2px)] border border-border/70 bg-card/98 p-1.5 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur",
                             submenuOpensLeft
-                              ? "right-[calc(100%+8px)]"
-                              : "left-[calc(100%+8px)]",
+                              ? "right-[calc(100%-2px)]"
+                              : "left-[calc(100%-2px)]",
                           )}
                           role="menu"
+                          onMouseEnter={() => {
+                            openSubmenu(action.label);
+                          }}
+                          onMouseLeave={() => {
+                            scheduleSubmenuClose(action.label);
+                          }}
                         >
                           {submenuActions.map((childAction) => {
                             const ChildIcon = childAction.icon;

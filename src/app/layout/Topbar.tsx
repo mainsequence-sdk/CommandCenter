@@ -1,6 +1,6 @@
 import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { Rows3, Search, Settings2, ShieldCheck } from "lucide-react";
+import { ExternalLink, Rows3, Search, Settings2, ShieldCheck } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { env } from "@/config/env";
+import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
 import { useCustomWorkspaceStudioStore } from "@/features/dashboards/custom-workspace-studio-store";
 import {
@@ -41,6 +42,82 @@ import { SettingsDialog } from "./SettingsDialog";
 import { ThemeMenu } from "./ThemeMenu";
 
 const WORKSPACE_CANVAS_SURFACE_IDS = new Set(["workspaces", "slide-studio"]);
+const MOCK_BUDGET_SPENT_USD = 400;
+const MOCK_BUDGET_LIMIT_USD = 10_000;
+const MOCK_BUDGET_PERCENT = Math.round((MOCK_BUDGET_SPENT_USD / MOCK_BUDGET_LIMIT_USD) * 100);
+
+function formatBudgetCurrency(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+interface BudgetUsageIndicatorProps {
+  onOpenBilling: () => void;
+}
+
+function BudgetUsageIndicator({ onOpenBilling }: BudgetUsageIndicatorProps) {
+  const [expanded, setExpanded] = useState(false);
+  const spentLabel = formatBudgetCurrency(MOCK_BUDGET_SPENT_USD);
+  const limitLabel = formatBudgetCurrency(MOCK_BUDGET_LIMIT_USD);
+
+  return (
+    <div
+      className={cn(
+        "hidden h-9 items-center overflow-hidden rounded-[calc(var(--radius)-6px)] text-foreground/90 transition-[width,background-color] duration-200 sm:flex",
+        expanded ? "w-[238px] bg-card/50 ring-1 ring-border/55" : "w-[112px]",
+      )}
+    >
+      <button
+        type="button"
+        aria-pressed={expanded}
+        aria-label={`${MOCK_BUDGET_PERCENT}% budget consumed`}
+        title={`${spentLabel} / ${limitLabel}`}
+        className="group flex h-full w-[112px] shrink-0 items-center gap-2 rounded-[calc(var(--radius)-6px)] px-2.5 text-left transition-colors hover:bg-muted/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+        onClick={() => {
+          setExpanded((current) => !current);
+        }}
+      >
+        <span className="w-7 shrink-0 text-[11px] font-semibold tabular-nums">
+          {MOCK_BUDGET_PERCENT}%
+        </span>
+        <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted/55">
+          <span
+            className="block h-full min-w-1.5 rounded-full bg-primary/75 shadow-[0_0_10px_color-mix(in_srgb,var(--primary)_20%,transparent)]"
+            style={{ width: `${MOCK_BUDGET_PERCENT}%` }}
+          />
+        </span>
+        <span
+          aria-hidden="true"
+          className="shrink-0 text-[11px] font-semibold text-foreground/50"
+        >
+          $
+        </span>
+      </button>
+
+      {expanded ? (
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 border-l border-border/55 px-2.5">
+          <span className="min-w-0 flex-1 truncate text-[11px] font-medium tabular-nums text-muted-foreground">
+            {spentLabel}/{limitLabel}
+          </span>
+          <button
+            type="button"
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+            title="Open billing page"
+            aria-label="Open billing page"
+            onClick={() => {
+              onOpenBilling();
+            }}
+          >
+            <ExternalLink className="h-3 w-3" />
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function Topbar() {
   const { t } = useTranslation();
@@ -412,6 +489,12 @@ export function Topbar() {
         {env.useMockData ? (
           <Badge variant="neutral">{t("topbar.dataModeMock")}</Badge>
         ) : null}
+
+        <BudgetUsageIndicator
+          onOpenBilling={() => {
+            navigate(getAppPath("admin", "invoices"));
+          }}
+        />
 
         <FavoriteSurfacesMenu
           items={favoriteMenuItems}

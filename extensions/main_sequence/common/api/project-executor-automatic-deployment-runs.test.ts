@@ -20,6 +20,7 @@ vi.mock("@/dashboards/dashboard-request-trace", () => ({
 }));
 
 import {
+  bulkDeleteJobs,
   deployProjectExecutorAgentService,
   fetchProjectExecutorAutomaticDeploymentRuns,
   updateProjectSdk,
@@ -76,6 +77,37 @@ describe("project executor automatic deployment runs api", () => {
     expect(url).not.toContain("created_by_user=");
   });
 
+  it("preserves top-level agent_uid from deployment run responses", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [
+            {
+              uid: "run-public-uid",
+              agent_uid: "agent-public-uid",
+              status: "waiting_project_image",
+              current_step: "wait_project_image",
+              result: {},
+              error_code: "",
+              error_detail: "",
+            },
+          ],
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+        },
+      ),
+    );
+
+    const runs = await fetchProjectExecutorAutomaticDeploymentRuns();
+
+    expect(runs[0]?.agent_uid).toBe("agent-public-uid");
+  });
+
   it("deploys project executor agents with public project uid and no runtime image field", async () => {
     await deployProjectExecutorAgentService({
       project_uid: "project-public-uid",
@@ -109,5 +141,17 @@ describe("project executor automatic deployment runs api", () => {
 
     expect(url).toContain(`/orm/api/pods/projects/${projectUid}/update-sdk/`);
     expect(url).not.toContain("/orm/api/pods/pods/");
+  });
+
+  it("bulk deletes jobs with selected_uids instead of the legacy uids body", async () => {
+    await bulkDeleteJobs(["job-uid-1", "job-uid-2"]);
+
+    const [requestUrl, requestInit] = fetchMock.mock.calls[0] ?? [];
+    const body = JSON.parse(String(requestInit?.body ?? "{}")) as Record<string, unknown>;
+
+    expect(String(requestUrl)).toContain("/orm/api/pods/job/bulk-delete/");
+    expect(body.selected_uids).toEqual(["job-uid-1", "job-uid-2"]);
+    expect(body.select_all).toBe(false);
+    expect(body.uids).toBeUndefined();
   });
 });

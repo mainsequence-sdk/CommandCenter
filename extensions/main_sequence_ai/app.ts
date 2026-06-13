@@ -11,7 +11,6 @@ import { ModelProviderSettingsSection } from "./features/settings/ModelProviderS
 import { ChatPage } from "./surfaces/chat/ChatPage";
 import { AgentsMonitorPage } from "./surfaces/monitor/AgentsMonitorPage";
 import { ProjectAgentDeploymentLogsPage } from "./surfaces/project-agent-deployment-logs/ProjectAgentDeploymentLogsPage";
-import { ProjectAgentsPage } from "./surfaces/project-agents/ProjectAgentsPage";
 import { AgentSessionDetailPage } from "./surfaces/session/AgentSessionDetailPage";
 
 export const mainSequenceAiApp: AppDefinition = {
@@ -92,26 +91,6 @@ export const mainSequenceAiApp: AppDefinition = {
       component: AgentsPage,
     },
     {
-      id: "project-agents",
-      title: "Project Agents",
-      navLabel: "Project Agents",
-      icon: Bot,
-      description: "AI-owned deployment workflow for project execution agents.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on the Project Agents surface inside Main Sequence AI. This page owns project-agent deployment, automation, and deletion workflows.",
-        availableActions: [
-          "Select a project",
-          "Check whether the selected project is agent-capable",
-          "Deploy a project-agent runtime",
-          "Enable automatic deployment for a project agent",
-          "Delete an existing project agent",
-        ],
-      }),
-      kind: "page",
-      component: ProjectAgentsPage,
-    },
-    {
       id: "project-agent-deployment-logs",
       title: "Deployment Logs",
       navLabel: "Deployment Logs",
@@ -123,7 +102,7 @@ export const mainSequenceAiApp: AppDefinition = {
         availableActions: [
           "Review automatic deployment run status",
           "Inspect current deployment steps and errors",
-          "Return to project-agent configuration",
+          "Return to the related Workbench project when a project UID is present",
         ],
       }),
       kind: "page",

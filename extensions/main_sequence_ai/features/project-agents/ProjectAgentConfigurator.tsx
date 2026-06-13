@@ -26,7 +26,6 @@ import {
   MainSequenceResourceRequirementsSection,
 } from "../../../main_sequence/common/components/MainSequenceResourceRequirementsSection";
 import { fetchAgentDetail } from "../../agent-search";
-import { AutomationDitherWaveLayer } from "../../components/AutomationButton";
 import { normalizeAgentImageDriftRecord } from "../../image-drift";
 import {
   buildAvailableRunConfigCacheKey,
@@ -34,13 +33,21 @@ import {
 } from "../../runtime/available-models-api";
 import { resolveMainSequenceAiConfiguredAssistantEndpoint } from "../../runtime/assistant-endpoint";
 
-function createDefaultDeploymentComputeState() {
+interface DeploymentComputeState {
+  cpuRequest: string;
+  cpuLimit: string;
+  memoryRequest: string;
+  memoryLimit: string;
+  spot: boolean | null;
+}
+
+function createDefaultDeploymentComputeState(): DeploymentComputeState {
   return {
-    cpuRequest: "250m",
-    cpuLimit: "1000m",
-    memoryRequest: "512Mi",
-    memoryLimit: "2Gi",
-    spot: true,
+    cpuRequest: "",
+    cpuLimit: "",
+    memoryRequest: "",
+    memoryLimit: "",
+    spot: null,
   };
 }
 
@@ -164,12 +171,30 @@ function readLinkedAgentUid(value: unknown) {
   return agentUid || null;
 }
 
+function readServiceComputeState(value: unknown): DeploymentComputeState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return createDefaultDeploymentComputeState();
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return {
+    cpuRequest: normalizeConfigValue(candidate.cpu_request),
+    cpuLimit: normalizeConfigValue(candidate.cpu_limit),
+    memoryRequest: normalizeConfigValue(candidate.memory_request),
+    memoryLimit: normalizeConfigValue(candidate.memory_limit),
+    spot: typeof candidate.spot === "boolean" ? candidate.spot : null,
+  };
+}
+
 export function ProjectAgentConfigurator({
   projectUid,
   hasAgentCapabilities,
+  onAutomaticDeploymentStateChange,
 }: {
   projectUid: string;
   hasAgentCapabilities: boolean | null;
+  onAutomaticDeploymentStateChange?: (enabled: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -180,7 +205,6 @@ export function ProjectAgentConfigurator({
   const [selectedLlmModelId, setSelectedLlmModelId] = useState("");
   const [selectedLlmThinking, setSelectedLlmThinking] = useState("");
   const hydratedProjectAgentModelKeyRef = useRef<string | null>(null);
-  const hydratedAutomationServiceKeyRef = useRef<string | null>(null);
   const reportedDeploymentTerminalKeyRef = useRef<string | null>(null);
   const [deployDialogOpen, setDeployDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -188,6 +212,10 @@ export function ProjectAgentConfigurator({
     null,
   );
   const [automaticDeploymentEnabled, setAutomaticDeploymentEnabled] = useState(false);
+  const [hydratedAutomationServiceKey, setHydratedAutomationServiceKey] = useState<string | null>(
+    null,
+  );
+  const [hydratedComputeServiceKey, setHydratedComputeServiceKey] = useState<string | null>(null);
   const [computeState, setComputeState] = useState(() => createDefaultDeploymentComputeState());
   const commandCenterModelCatalogCacheKey = useMemo(
     () =>
@@ -226,6 +254,17 @@ export function ProjectAgentConfigurator({
     enabled: Boolean(projectUid) && hasAgentCapabilities === true,
     staleTime: 60_000,
   });
+  const currentProjectAgentService = currentProjectAgentServiceQuery.data ?? null;
+  const currentAutomationServiceKey =
+    !currentProjectAgentServiceQuery.isLoading && !currentProjectAgentServiceQuery.isError
+      ? currentProjectAgentService?.uid?.trim() || `${projectUid}:new`
+      : null;
+  const automationConfigurationReady = Boolean(
+    currentAutomationServiceKey && hydratedAutomationServiceKey === currentAutomationServiceKey,
+  );
+  const resourceConfigurationReady = Boolean(
+    currentAutomationServiceKey && hydratedComputeServiceKey === currentAutomationServiceKey,
+  );
   const currentProjectAgentUid = readLinkedAgentUid(currentProjectAgentServiceQuery.data);
   const currentProjectAgentDetailQuery = useQuery({
     queryKey: [
@@ -257,10 +296,52 @@ export function ProjectAgentConfigurator({
   const currentProjectAgentThinking = normalizeConfigValue(
     currentProjectAgentDetailQuery.data?.llm_thinking,
   );
+  const requiresBackendAgentModelConfiguration = Boolean(currentProjectAgentUid);
+  const currentProjectAgentDetailIsPending = Boolean(
+    currentProjectAgentUid && currentProjectAgentDetailQuery.isLoading,
+  );
+  const linkedAgentModelConfigurationReady =
+    !requiresBackendAgentModelConfiguration ||
+    Boolean(currentProjectAgentDetailQuery.data && currentProjectAgentProvider && currentProjectAgentModel);
+  const linkedAgentModelConfigurationMissing = Boolean(
+    currentProjectAgentUid &&
+      currentProjectAgentDetailQuery.data &&
+      (!currentProjectAgentProvider || !currentProjectAgentModel),
+  );
+  const llmConfigurationIsPending =
+    currentProjectAgentServiceQuery.isLoading || currentProjectAgentDetailIsPending;
   const imageDrift = readServiceImageDrift(currentProjectAgentServiceQuery.data);
   const driftedImageChecks = (imageDrift?.checks ?? []).filter((check) => check.has_drift === true);
   const shouldShowImageDrift = imageDrift?.has_drift === true;
   const imageDriftAutohealMessage = imageDrift?.autoheal_message?.trim() || null;
+  const currentProjectAgentCatalogModel = useMemo(
+    () =>
+      currentProjectAgentProvider && currentProjectAgentModel
+        ? availableModels.find(
+            (model) =>
+              normalizeCatalogKey(model.value) === normalizeCatalogKey(currentProjectAgentModel) &&
+              normalizeCatalogKey(model.provider) === normalizeCatalogKey(currentProjectAgentProvider),
+          ) ?? null
+        : null,
+    [availableModels, currentProjectAgentModel, currentProjectAgentProvider],
+  );
+  const currentProjectAgentModelOptionId =
+    currentProjectAgentCatalogModel?.id ||
+    (currentProjectAgentProvider && currentProjectAgentModel
+      ? buildCurrentModelOptionId(currentProjectAgentProvider, currentProjectAgentModel)
+      : "");
+  const effectiveSelectedLlmProvider =
+    selectedLlmProvider || (requiresBackendAgentModelConfiguration ? currentProjectAgentProvider : "");
+  const effectiveSelectedLlmModelId =
+    selectedLlmModelId || (requiresBackendAgentModelConfiguration ? currentProjectAgentModelOptionId : "");
+  const effectiveSelectedLlmThinking =
+    selectedLlmThinking || (requiresBackendAgentModelConfiguration ? currentProjectAgentThinking : "");
+  const llmConfigurationCanRender = Boolean(
+    !llmConfigurationIsPending &&
+      !currentProjectAgentServiceQuery.isError &&
+      !currentProjectAgentDetailQuery.isError &&
+      linkedAgentModelConfigurationReady,
+  );
   const providerOptions = useMemo(
     () => {
       const options = availableProviders.map((entry) => ({
@@ -286,8 +367,8 @@ export function ProjectAgentConfigurator({
     [availableProviders, currentProjectAgentProvider],
   );
   const filteredModelOptions = useMemo(() => {
-    const scopedModels = selectedLlmProvider
-      ? availableModels.filter((entry) => entry.provider === selectedLlmProvider)
+    const scopedModels = effectiveSelectedLlmProvider
+      ? availableModels.filter((entry) => entry.provider === effectiveSelectedLlmProvider)
       : availableModels;
 
     const options = scopedModels.map((entry) => {
@@ -304,8 +385,8 @@ export function ProjectAgentConfigurator({
 
     if (currentProjectAgentProvider && currentProjectAgentModel) {
       const selectedProviderMatchesCurrent =
-        !selectedLlmProvider ||
-        normalizeCatalogKey(selectedLlmProvider) === normalizeCatalogKey(currentProjectAgentProvider);
+        !effectiveSelectedLlmProvider ||
+        normalizeCatalogKey(effectiveSelectedLlmProvider) === normalizeCatalogKey(currentProjectAgentProvider);
       const hasCurrentModel = scopedModels.some(
         (model) =>
           normalizeCatalogKey(model.value) === normalizeCatalogKey(currentProjectAgentModel) &&
@@ -324,16 +405,21 @@ export function ProjectAgentConfigurator({
     }
 
     return options;
-  }, [availableModels, currentProjectAgentModel, currentProjectAgentProvider, selectedLlmProvider]);
+  }, [
+    availableModels,
+    currentProjectAgentModel,
+    currentProjectAgentProvider,
+    effectiveSelectedLlmProvider,
+  ]);
   const selectedModelOption =
-    filteredModelOptions.find((entry) => entry.value === selectedLlmModelId) ?? null;
+    filteredModelOptions.find((entry) => entry.value === effectiveSelectedLlmModelId) ?? null;
   const selectedDeploymentModel =
-    availableModels.find((entry) => entry.id === selectedLlmModelId) ?? null;
+    availableModels.find((entry) => entry.id === effectiveSelectedLlmModelId) ?? null;
   const selectedReasoningEffortOptions = useMemo(() => {
     const options = selectedDeploymentModel?.reasoningEfforts.length
       ? [...selectedDeploymentModel.reasoningEfforts]
       : [];
-    const selectedThinking = selectedLlmThinking.trim();
+    const selectedThinking = effectiveSelectedLlmThinking.trim();
     const hasSelectedThinking =
       selectedThinking &&
       options.some((entry) => normalizeCatalogKey(entry.value) === normalizeCatalogKey(selectedThinking));
@@ -346,21 +432,22 @@ export function ProjectAgentConfigurator({
     }
 
     return options;
-  }, [selectedDeploymentModel, selectedLlmThinking]);
+  }, [effectiveSelectedLlmThinking, selectedDeploymentModel]);
   const resolvedLlmProvider =
     selectedDeploymentModel?.provider?.trim() ||
     selectedModelOption?.provider?.trim() ||
-    selectedLlmProvider.trim() ||
+    effectiveSelectedLlmProvider.trim() ||
     currentProjectAgentProvider;
   const resolvedLlmModelId =
     selectedDeploymentModel?.value.trim() ||
     selectedModelOption?.modelValue?.trim() ||
     currentProjectAgentModel;
-  const resolvedLlmThinking = selectedLlmThinking.trim() || currentProjectAgentThinking;
+  const resolvedLlmThinking = effectiveSelectedLlmThinking.trim() || currentProjectAgentThinking;
   const selectedCatalogModelIsUsable = !(
     selectedDeploymentModel?.auth?.required && !selectedDeploymentModel.auth.usable
   );
   const llmSelectionIsValid = Boolean(
+      llmConfigurationCanRender &&
       resolvedLlmProvider &&
       resolvedLlmModelId &&
       selectedCatalogModelIsUsable &&
@@ -377,13 +464,26 @@ export function ProjectAgentConfigurator({
           normalizeCatalogKey(model.provider) === normalizeCatalogKey(currentProjectAgentProvider),
       ),
   );
+  const resolvedCpuRequest = computeState.cpuRequest.trim();
+  const resolvedCpuLimit = computeState.cpuLimit.trim();
+  const resolvedMemoryRequest = computeState.memoryRequest.trim();
+  const resolvedMemoryLimit = computeState.memoryLimit.trim();
+  const resourceSelectionIsValid = Boolean(
+    resourceConfigurationReady &&
+      resolvedCpuRequest &&
+      resolvedCpuLimit &&
+      resolvedMemoryRequest &&
+      resolvedMemoryLimit,
+  );
   const costEstimateResources = useMemo(
     () =>
-      buildMainSequenceCostEstimateResources({
-        cpuRequest: computeState.cpuRequest,
-        memoryRequest: computeState.memoryRequest,
-        spot: computeState.spot,
-      }),
+      computeState.spot === null
+        ? null
+        : buildMainSequenceCostEstimateResources({
+            cpuRequest: computeState.cpuRequest,
+            memoryRequest: computeState.memoryRequest,
+            spot: computeState.spot,
+          }),
     [computeState.cpuRequest, computeState.memoryRequest, computeState.spot],
   );
 
@@ -405,15 +505,6 @@ export function ProjectAgentConfigurator({
     onSuccess: async (result) => {
       reportedDeploymentTerminalKeyRef.current = null;
       setDeployResult(result);
-      await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "summary", projectUid],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "project-agent", "service", projectUid],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ["main_sequence_ai", "project-agent", "agent-detail"],
-      });
 
       const status = normalizeDeploymentStatus(result.status);
 
@@ -469,10 +560,10 @@ export function ProjectAgentConfigurator({
       setSelectedLlmModelId("");
       setSelectedLlmThinking("");
       hydratedProjectAgentModelKeyRef.current = null;
-      hydratedAutomationServiceKeyRef.current = null;
-      await queryClient.invalidateQueries({
-        queryKey: ["main_sequence", "projects", "summary", projectUid],
-      });
+      setAutomaticDeploymentEnabled(false);
+      setHydratedAutomationServiceKey(null);
+      setComputeState(createDefaultDeploymentComputeState());
+      setHydratedComputeServiceKey(null);
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "projects", "project-agent", "service", projectUid],
       });
@@ -548,16 +639,6 @@ export function ProjectAgentConfigurator({
 
     reportedDeploymentTerminalKeyRef.current = reportKey;
 
-    void queryClient.invalidateQueries({
-      queryKey: ["main_sequence", "projects", "summary", projectUid],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: ["main_sequence", "projects", "project-agent", "service", projectUid],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: ["main_sequence_ai", "project-agent", "agent-detail"],
-    });
-
     toast({
       variant: isDeploymentFailureStatus(status) ? "error" : "success",
       title: isDeploymentFailureStatus(status)
@@ -574,7 +655,8 @@ export function ProjectAgentConfigurator({
       setSelectedLlmThinking("");
       setDeployResult(null);
       setAutomaticDeploymentEnabled(false);
-      hydratedAutomationServiceKeyRef.current = null;
+      setHydratedAutomationServiceKey(null);
+      setHydratedComputeServiceKey(null);
       hydratedProjectAgentModelKeyRef.current = null;
       reportedDeploymentTerminalKeyRef.current = null;
       setComputeState(createDefaultDeploymentComputeState());
@@ -586,29 +668,74 @@ export function ProjectAgentConfigurator({
     setSelectedLlmProvider("");
     setSelectedLlmModelId("");
     setSelectedLlmThinking("");
-    hydratedAutomationServiceKeyRef.current = null;
+    setHydratedAutomationServiceKey(null);
+    setHydratedComputeServiceKey(null);
+    setComputeState(createDefaultDeploymentComputeState());
     hydratedProjectAgentModelKeyRef.current = null;
     reportedDeploymentTerminalKeyRef.current = null;
   }, [projectUid]);
 
   useEffect(() => {
-    if (currentProjectAgentServiceQuery.isLoading) {
-      return;
-    }
-
-    const service = currentProjectAgentServiceQuery.data;
-    const serviceKey = service?.uid?.trim() || `${projectUid}:new`;
-
-    if (hydratedAutomationServiceKeyRef.current === serviceKey) {
-      return;
-    }
-
-    setAutomaticDeploymentEnabled(service?.automatic_deployment === true);
-    hydratedAutomationServiceKeyRef.current = serviceKey;
+    onAutomaticDeploymentStateChange?.(
+      automationConfigurationReady && automaticDeploymentEnabled,
+    );
   }, [
-    currentProjectAgentServiceQuery.data,
+    automationConfigurationReady,
+    automaticDeploymentEnabled,
+    onAutomaticDeploymentStateChange,
+  ]);
+
+  useEffect(
+    () => () => {
+      onAutomaticDeploymentStateChange?.(false);
+    },
+    [onAutomaticDeploymentStateChange],
+  );
+
+  useEffect(() => {
+    if (
+      currentProjectAgentServiceQuery.isLoading ||
+      currentProjectAgentServiceQuery.isError ||
+      !currentAutomationServiceKey
+    ) {
+      return;
+    }
+
+    if (hydratedAutomationServiceKey === currentAutomationServiceKey) {
+      return;
+    }
+
+    setAutomaticDeploymentEnabled(currentProjectAgentService?.automatic_deployment === true);
+    setHydratedAutomationServiceKey(currentAutomationServiceKey);
+  }, [
+    currentAutomationServiceKey,
+    currentProjectAgentService?.automatic_deployment,
+    currentProjectAgentServiceQuery.isError,
     currentProjectAgentServiceQuery.isLoading,
-    projectUid,
+    hydratedAutomationServiceKey,
+  ]);
+
+  useEffect(() => {
+    if (
+      currentProjectAgentServiceQuery.isLoading ||
+      currentProjectAgentServiceQuery.isError ||
+      !currentAutomationServiceKey
+    ) {
+      return;
+    }
+
+    if (hydratedComputeServiceKey === currentAutomationServiceKey) {
+      return;
+    }
+
+    setComputeState(readServiceComputeState(currentProjectAgentService));
+    setHydratedComputeServiceKey(currentAutomationServiceKey);
+  }, [
+    currentAutomationServiceKey,
+    currentProjectAgentService,
+    currentProjectAgentServiceQuery.isError,
+    currentProjectAgentServiceQuery.isLoading,
+    hydratedComputeServiceKey,
   ]);
 
   useEffect(() => {
@@ -673,7 +800,11 @@ export function ProjectAgentConfigurator({
   ]);
 
   useEffect(() => {
-    if (currentProjectAgentUid && !currentProjectAgentDetailQuery.data) {
+    if (currentProjectAgentServiceQuery.isLoading) {
+      return;
+    }
+
+    if (currentProjectAgentUid) {
       return;
     }
 
@@ -701,13 +832,18 @@ export function ProjectAgentConfigurator({
     setSelectedLlmProvider(preferredProvider ?? availableProviders[0]?.value ?? "");
   }, [
     availableProviders,
-    currentProjectAgentDetailQuery.data,
+    currentProjectAgentServiceQuery.isError,
+    currentProjectAgentServiceQuery.isLoading,
     currentProjectAgentUid,
     currentProjectAgentProvider,
     selectedLlmProvider,
   ]);
 
   useEffect(() => {
+    if (currentProjectAgentServiceQuery.isLoading || currentProjectAgentServiceQuery.isError) {
+      return;
+    }
+
     if (currentProjectAgentUid && !currentProjectAgentDetailQuery.data) {
       return;
     }
@@ -735,6 +871,8 @@ export function ProjectAgentConfigurator({
     setSelectedLlmModelId(preferredModel ?? firstUsableModel?.value ?? "");
   }, [
     currentProjectAgentDetailQuery.data,
+    currentProjectAgentServiceQuery.isError,
+    currentProjectAgentServiceQuery.isLoading,
     currentProjectAgentUid,
     currentProjectAgentModel,
     filteredModelOptions,
@@ -742,6 +880,10 @@ export function ProjectAgentConfigurator({
   ]);
 
   useEffect(() => {
+    if (currentProjectAgentServiceQuery.isLoading || currentProjectAgentServiceQuery.isError) {
+      return;
+    }
+
     if (currentProjectAgentUid && !currentProjectAgentDetailQuery.data) {
       return;
     }
@@ -784,6 +926,8 @@ export function ProjectAgentConfigurator({
     );
   }, [
     currentProjectAgentDetailQuery.data,
+    currentProjectAgentServiceQuery.isError,
+    currentProjectAgentServiceQuery.isLoading,
     currentProjectAgentUid,
     currentProjectAgentModel,
     currentProjectAgentProvider,
@@ -868,7 +1012,21 @@ export function ProjectAgentConfigurator({
               LLM
             </div>
 
-            {!hasRuntimeModelCatalog ? (
+            {llmConfigurationIsPending ? (
+              <div className="flex items-center gap-3 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/36 px-3 py-3 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading project agent model configuration...
+              </div>
+            ) : null}
+
+            {!llmConfigurationIsPending && linkedAgentModelConfigurationMissing ? (
+              <div className="rounded-[calc(var(--radius)-8px)] border border-warning/35 bg-warning/10 px-3 py-3 text-sm text-warning">
+                The linked project agent detail did not include an LLM provider and model. The
+                deployment form is waiting for backend agent configuration before enabling deploy.
+              </div>
+            ) : null}
+
+            {!llmConfigurationIsPending && !linkedAgentModelConfigurationMissing && !hasRuntimeModelCatalog ? (
               <div className="space-y-3">
                 <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/36 px-3 py-3 text-sm text-muted-foreground">
                   {commandCenterModelOptionsQuery.isLoading
@@ -914,7 +1072,7 @@ export function ProjectAgentConfigurator({
               </div>
             ) : null}
 
-            {hasRuntimeModelCatalog ? (
+            {llmConfigurationCanRender && hasRuntimeModelCatalog ? (
               <div className="space-y-3">
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   <div className="space-y-1.5">
@@ -923,7 +1081,7 @@ export function ProjectAgentConfigurator({
                       aria-label="LLM provider"
                       className="h-11 w-full bg-card/70"
                       disabled={providerOptions.length === 0}
-                      value={selectedLlmProvider}
+                      value={effectiveSelectedLlmProvider}
                       onChange={(event) => {
                         setSelectedLlmProvider(event.target.value);
                       }}
@@ -945,7 +1103,7 @@ export function ProjectAgentConfigurator({
                       aria-label="LLM model"
                       className="h-11 w-full bg-card/70"
                       disabled={filteredModelOptions.length === 0}
-                      value={selectedLlmModelId}
+                      value={effectiveSelectedLlmModelId}
                       onChange={(event) => {
                         setSelectedLlmModelId(event.target.value);
                       }}
@@ -991,116 +1149,124 @@ export function ProjectAgentConfigurator({
             ) : null}
           </div>
 
-          <MainSequenceResourceRequirementsSection
-            costEstimate={{ resources: costEstimateResources }}
-            gridClassName="md:grid-cols-2 xl:grid-cols-5"
-          >
-            <MainSequenceResourceField label="CPU request">
-              <Input
-                value={computeState.cpuRequest}
-                onChange={(event) =>
-                  setComputeState((current) => ({
-                    ...current,
-                    cpuRequest: event.target.value,
-                  }))
-                }
-                placeholder="250m"
-              />
-            </MainSequenceResourceField>
+          {resourceConfigurationReady ? (
+            <MainSequenceResourceRequirementsSection
+              costEstimate={{ resources: costEstimateResources }}
+              gridClassName="md:grid-cols-2 xl:grid-cols-5"
+            >
+              <MainSequenceResourceField label="CPU request">
+                <Input
+                  value={computeState.cpuRequest}
+                  onChange={(event) =>
+                    setComputeState((current) => ({
+                      ...current,
+                      cpuRequest: event.target.value,
+                    }))
+                  }
+                  placeholder="250m"
+                />
+              </MainSequenceResourceField>
 
-            <MainSequenceResourceField label="CPU limit">
-              <Input
-                value={computeState.cpuLimit}
-                onChange={(event) =>
-                  setComputeState((current) => ({
-                    ...current,
-                    cpuLimit: event.target.value,
-                  }))
-                }
-                placeholder="1000m"
-              />
-            </MainSequenceResourceField>
+              <MainSequenceResourceField label="CPU limit">
+                <Input
+                  value={computeState.cpuLimit}
+                  onChange={(event) =>
+                    setComputeState((current) => ({
+                      ...current,
+                      cpuLimit: event.target.value,
+                    }))
+                  }
+                  placeholder="1000m"
+                />
+              </MainSequenceResourceField>
 
-            <MainSequenceResourceField label="Memory request">
-              <Input
-                value={computeState.memoryRequest}
-                onChange={(event) =>
-                  setComputeState((current) => ({
-                    ...current,
-                    memoryRequest: event.target.value,
-                  }))
-                }
-                placeholder="512Mi"
-              />
-            </MainSequenceResourceField>
+              <MainSequenceResourceField label="Memory request">
+                <Input
+                  value={computeState.memoryRequest}
+                  onChange={(event) =>
+                    setComputeState((current) => ({
+                      ...current,
+                      memoryRequest: event.target.value,
+                    }))
+                  }
+                  placeholder="512Mi"
+                />
+              </MainSequenceResourceField>
 
-            <MainSequenceResourceField label="Memory limit">
-              <Input
-                value={computeState.memoryLimit}
-                onChange={(event) =>
-                  setComputeState((current) => ({
-                    ...current,
-                    memoryLimit: event.target.value,
-                  }))
-                }
-                placeholder="2Gi"
-              />
-            </MainSequenceResourceField>
+              <MainSequenceResourceField label="Memory limit">
+                <Input
+                  value={computeState.memoryLimit}
+                  onChange={(event) =>
+                    setComputeState((current) => ({
+                      ...current,
+                      memoryLimit: event.target.value,
+                    }))
+                  }
+                  placeholder="2Gi"
+                />
+              </MainSequenceResourceField>
 
-            <MainSequenceResourceField label="Capacity">
-              <MainSequenceCapacityToggle
-                spot={computeState.spot}
-                onChange={(spot) =>
-                  setComputeState((current) => ({
-                    ...current,
-                    spot,
-                  }))
-                }
-              />
-            </MainSequenceResourceField>
-          </MainSequenceResourceRequirementsSection>
+              <MainSequenceResourceField label="Capacity">
+                <MainSequenceCapacityToggle
+                  spot={computeState.spot}
+                  onChange={(spot) =>
+                    setComputeState((current) => ({
+                      ...current,
+                      spot,
+                    }))
+                  }
+                />
+              </MainSequenceResourceField>
+            </MainSequenceResourceRequirementsSection>
+          ) : null}
 
-          <div
-            className={
-              automaticDeploymentEnabled
-                ? "main-sequence-ai-automation-panel main-sequence-ai-automation-panel--active"
-                : "main-sequence-ai-automation-panel"
-            }
-          >
-            {automaticDeploymentEnabled ? (
-              <AutomationDitherWaveLayer className="main-sequence-ai-automation-panel__wave" />
-            ) : null}
-            <div className="main-sequence-ai-automation-panel__content">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={automaticDeploymentEnabled}
-                aria-label="Toggle project agent deployment automation"
-                className="main-sequence-ai-automation-toggle"
-                onClick={() => setAutomaticDeploymentEnabled((current) => !current)}
-              >
-                <span className="main-sequence-ai-automation-toggle__track">
-                  <span className="main-sequence-ai-automation-toggle__thumb" />
-                </span>
-              </button>
-              <div className="main-sequence-ai-automation-panel__copy">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Deployment automation
-                </div>
-                {automaticDeploymentEnabled ? (
+          {automationConfigurationReady ? (
+            <div className="main-sequence-ai-automation-panel">
+              <div className="main-sequence-ai-automation-panel__content">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={automaticDeploymentEnabled}
+                  aria-label="Toggle project agent deployment automation"
+                  className="main-sequence-ai-automation-toggle"
+                  onClick={() => setAutomaticDeploymentEnabled((current) => !current)}
+                >
+                  <span className="main-sequence-ai-automation-toggle__track">
+                    <span className="main-sequence-ai-automation-toggle__thumb" />
+                  </span>
+                </button>
+                <div className="main-sequence-ai-automation-panel__copy">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      Deployment automation
+                    </div>
+                    <span className="rounded-full border border-border/60 bg-background/35 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                      {automaticDeploymentEnabled ? "Enabled" : "Manual"}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-sm font-medium text-foreground">
+                    {automaticDeploymentEnabled ? "Automatic releases" : "Manual deploys"}
+                  </div>
                   <p className="max-w-3xl text-sm text-muted-foreground">
-                    Automating deployment will always release a new agent version every time a
-                    project version is upgraded.
+                    {automaticDeploymentEnabled
+                      ? "A new agent version will be released whenever the project version is upgraded."
+                      : "Project agent releases only happen when you deploy from this form."}
                   </p>
-                ) : null}
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
         </div>
 
         {hasRuntimeModelCatalog && !llmSelectionIsValid ? (
           <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
             Select an authenticated LLM provider and model for the project agent deployment.
+          </div>
+        ) : null}
+
+        {resourceConfigurationReady && !resourceSelectionIsValid ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+            Enter CPU request, CPU limit, memory request, and memory limit before deploying.
           </div>
         ) : null}
 
@@ -1110,6 +1276,8 @@ export function ProjectAgentConfigurator({
             onClick={() => setDeployDialogOpen(true)}
             disabled={
               !llmSelectionIsValid ||
+              !automationConfigurationReady ||
+              !resourceSelectionIsValid ||
               deployAgentMutation.isPending
             }
           >
@@ -1214,9 +1382,15 @@ export function ProjectAgentConfigurator({
         objectSummary={
           <div className="space-y-1">
             <div className="text-muted-foreground">
-              CPU {computeState.cpuRequest || "250m"} / {computeState.cpuLimit || "1000m"} ·
-              Memory {computeState.memoryRequest || "512Mi"} / {computeState.memoryLimit || "2Gi"} ·{" "}
-              {computeState.spot ? "Spot" : "Standard"}
+              CPU {computeState.cpuRequest || "Not set"} /{" "}
+              {computeState.cpuLimit || "Not set"} · Memory{" "}
+              {computeState.memoryRequest || "Not set"} /{" "}
+              {computeState.memoryLimit || "Not set"} ·{" "}
+              {computeState.spot === null
+                ? "Capacity not set"
+                : computeState.spot
+                  ? "Spot"
+                  : "Standard"}
             </div>
             <div className="text-muted-foreground">
               LLM {resolvedLlmProvider || "Unknown"} / {resolvedLlmModelId || "Unknown"}
@@ -1225,25 +1399,35 @@ export function ProjectAgentConfigurator({
               <div className="text-muted-foreground">Reasoning {resolvedLlmThinking}</div>
             ) : null}
             <div className="text-muted-foreground">
-              Automatic deployment {automaticDeploymentEnabled ? "enabled" : "disabled"}
+              Automatic deployment{" "}
+              {automationConfigurationReady && automaticDeploymentEnabled ? "enabled" : "disabled"}
             </div>
           </div>
         }
         isPending={deployAgentMutation.isPending}
-        onConfirm={() =>
-          deployAgentMutation.mutateAsync({
+        onConfirm={() => {
+          if (!resourceSelectionIsValid) {
+            toast({
+              title: "Resource values required",
+              description: "Enter CPU request, CPU limit, memory request, and memory limit.",
+              variant: "error",
+            });
+            return;
+          }
+
+          return deployAgentMutation.mutateAsync({
             project_uid: projectUid,
             llm_provider: resolvedLlmProvider,
             llm_model: resolvedLlmModelId,
             llm_thinking: resolvedLlmThinking,
-            automatic_deployment: automaticDeploymentEnabled,
-            cpu_request: computeState.cpuRequest.trim() || "250m",
-            cpu_limit: computeState.cpuLimit.trim() || "1000m",
-            memory_request: computeState.memoryRequest.trim() || "512Mi",
-            memory_limit: computeState.memoryLimit.trim() || "2Gi",
-            spot: computeState.spot,
-          })
-        }
+            automatic_deployment: automationConfigurationReady && automaticDeploymentEnabled,
+            cpu_request: resolvedCpuRequest,
+            cpu_limit: resolvedCpuLimit,
+            memory_request: resolvedMemoryRequest,
+            memory_limit: resolvedMemoryLimit,
+            spot: computeState.spot ?? undefined,
+          });
+        }}
         onSuccess={() => {
           setDeployDialogOpen(false);
         }}

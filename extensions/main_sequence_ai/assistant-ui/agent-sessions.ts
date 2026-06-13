@@ -104,7 +104,7 @@ export function createAgentSessionId() {
 
 export function toAgentSessionAgent(agent: AgentSearchResult): AgentSessionAgent {
   return {
-    id: agent.id,
+    id: agent.id > 0 ? agent.id : null,
     name: agent.name,
     displayLabel: agent.displayLabel,
     requestAgentType: agent.agentType,

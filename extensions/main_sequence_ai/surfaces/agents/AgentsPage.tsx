@@ -16,6 +16,8 @@ import { getRegistryTableCellClassName } from "../../../main_sequence/common/com
 import {
   fetchAgentList,
   fetchAgentSemanticSearch,
+  getAgentSearchResultLookupKey,
+  getAgentSearchResultRowKey,
   type AgentSemanticSearchResult,
   type AgentSearchResult,
 } from "../../agent-search";
@@ -42,9 +44,9 @@ export function AgentsPage() {
     startAgentSession,
   } = useChatFeature();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const selectedAgentId = Number(searchParams.get(mainSequenceAgentIdParam) ?? "");
+  const selectedAgentLookupKey = searchParams.get(mainSequenceAgentIdParam)?.trim() ?? "";
   const requestedAgentTabId = searchParams.get(mainSequenceAgentTabParam);
-  const isAgentDetailOpen = Number.isFinite(selectedAgentId) && selectedAgentId > 0;
+  const isAgentDetailOpen = selectedAgentLookupKey.length > 0 && selectedAgentLookupKey !== "0";
   const selectedAgentTabId = isAgentDetailTabId(requestedAgentTabId)
     ? requestedAgentTabId
     : defaultAgentDetailTabId;
@@ -116,10 +118,11 @@ export function AgentsPage() {
 
       return [
         agent.name,
+        agent.uid ?? "",
         agent.displayLabel,
         agent.agentType,
         agent.agent_unique_id,
-        String(agent.id),
+        agent.id > 0 ? String(agent.id) : "",
         agent.description ?? "",
         agent.engine_name ?? "",
         agent.llm_provider ?? "",
@@ -131,8 +134,16 @@ export function AgentsPage() {
     });
   }, [deferredFilterValue, agentsQuery.data?.results]);
   const selectedAgentFromList = useMemo(
-    () => (agentsQuery.data?.results ?? []).find((agent) => agent.id === selectedAgentId) ?? null,
-    [agentsQuery.data?.results, selectedAgentId],
+    () =>
+      (agentsQuery.data?.results ?? []).find((agent) => {
+        const lookupKey = getAgentSearchResultLookupKey(agent);
+
+        return (
+          lookupKey === selectedAgentLookupKey ||
+          (agent.id > 0 && String(agent.id) === selectedAgentLookupKey)
+        );
+      }) ?? null,
+    [agentsQuery.data?.results, selectedAgentLookupKey],
   );
   const semanticSearchActive = semanticQuery.length >= 3;
   const semanticSearchResults = semanticSearchQuery.data ?? [];
@@ -155,9 +166,9 @@ export function AgentsPage() {
     );
   }
 
-  function openAgentDetail(agentId: number) {
+  function openAgentDetail(agentLookupKey: string) {
     updateSearchParams((nextParams) => {
-      nextParams.set(mainSequenceAgentIdParam, String(agentId));
+      nextParams.set(mainSequenceAgentIdParam, agentLookupKey);
       nextParams.delete(mainSequenceAgentTabParam);
     });
   }
@@ -179,7 +190,7 @@ export function AgentsPage() {
     return (
       <AgentDetailView
         activeTabId={selectedAgentTabId}
-        agentId={selectedAgentId}
+        agentId={selectedAgentLookupKey}
         initialAgent={selectedAgentFromList}
         onBack={closeAgentDetail}
         onSelectTab={selectAgentDetailTab}
@@ -260,13 +271,22 @@ export function AgentsPage() {
             !semanticSearchQuery.isError &&
             semanticSearchResults.length > 0 ? (
             <div className="space-y-2 px-4 py-4">
-              {semanticSearchResults.map((agent) => (
-                <SemanticAgentRow
-                  key={agent.id}
-                  agent={agent}
-                  onOpenDetail={() => openAgentDetail(agent.id)}
-                />
-              ))}
+              {semanticSearchResults.map((agent, index) => {
+                const lookupKey = getAgentSearchResultLookupKey(agent);
+
+                return (
+                  <SemanticAgentRow
+                    key={getAgentSearchResultRowKey(agent, index)}
+                    agent={agent}
+                    canOpenDetail={Boolean(lookupKey)}
+                    onOpenDetail={() => {
+                      if (lookupKey) {
+                        openAgentDetail(lookupKey);
+                      }
+                    }}
+                  />
+                );
+              })}
             </div>
             ) : null}
           </CardContent>
@@ -341,18 +361,27 @@ export function AgentsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAgents.map((agent) => (
-                    <AgentRow
-                      key={agent.id}
-                      agent={agent}
-                      disabled={sessionMutationBusy}
-                      onOpenDetail={() => openAgentDetail(agent.id)}
-                      onStartSession={() => {
-                        startAgentSession(agent);
-                        navigate(CHAT_PAGE_PATH);
-                      }}
-                    />
-                  ))}
+                  {filteredAgents.map((agent, index) => {
+                    const lookupKey = getAgentSearchResultLookupKey(agent);
+
+                    return (
+                      <AgentRow
+                        key={getAgentSearchResultRowKey(agent, index)}
+                        agent={agent}
+                        disabled={sessionMutationBusy}
+                        canOpenDetail={Boolean(lookupKey)}
+                        onOpenDetail={() => {
+                          if (lookupKey) {
+                            openAgentDetail(lookupKey);
+                          }
+                        }}
+                        onStartSession={() => {
+                          startAgentSession(agent);
+                          navigate(CHAT_PAGE_PATH);
+                        }}
+                      />
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -378,11 +407,13 @@ export function AgentsPage() {
 function AgentRow({
   agent,
   disabled,
+  canOpenDetail,
   onOpenDetail,
   onStartSession,
 }: {
   agent: AgentSearchResult;
   disabled: boolean;
+  canOpenDetail: boolean;
   onOpenDetail: () => void;
   onStartSession: () => void;
 }) {
@@ -391,6 +422,8 @@ function AgentRow({
       ? `${agent.llm_provider} / ${agent.llm_model}`
       : "No model configured";
   const description = agent.description?.trim() || "No description provided.";
+  const agentName = agent.name?.trim() || "Unnamed agent";
+  const secondaryIdentifier = agent.uid?.trim() || (agent.id > 0 ? `ID ${agent.id}` : "");
 
   return (
     <tr>
@@ -401,11 +434,12 @@ function AgentRow({
             <button
               type="button"
               className="group inline-flex cursor-pointer items-center gap-1.5 rounded-sm text-left outline-none transition-colors hover:text-primary focus-visible:text-primary"
+              disabled={!canOpenDetail}
               onClick={onOpenDetail}
-              title={`Open ${agent.name}`}
+              title={`Open ${agentName}`}
             >
               <span className="font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors group-hover:decoration-primary group-focus-visible:decoration-primary">
-                {agent.name}
+                {agentName}
               </span>
               <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary" />
             </button>
@@ -420,13 +454,17 @@ function AgentRow({
         </div>
       </td>
       <td className={getRegistryTableCellClassName(false)}>
-        <div className="font-mono text-foreground">{agent.agent_unique_id}</div>
-        <div
-          className="mt-0.5 text-muted-foreground"
-          style={{ fontSize: "var(--table-meta-font-size)" }}
-        >
-          ID {agent.id}
+        <div className="font-mono text-foreground">
+          {agent.agent_unique_id || agent.uid || "No identifier"}
         </div>
+        {secondaryIdentifier ? (
+          <div
+            className="mt-0.5 font-mono text-muted-foreground"
+            style={{ fontSize: "var(--table-meta-font-size)" }}
+          >
+            {secondaryIdentifier}
+          </div>
+        ) : null}
       </td>
       <td className={getRegistryTableCellClassName(false)}>
         <div className="text-foreground">{agent.agentType || "Unknown type"}</div>
@@ -458,9 +496,11 @@ function formatSemanticScore(value?: number | null) {
 
 function SemanticAgentRow({
   agent,
+  canOpenDetail,
   onOpenDetail,
 }: {
   agent: AgentSemanticSearchResult;
+  canOpenDetail: boolean;
   onOpenDetail: () => void;
 }) {
   const combinedScore = formatSemanticScore(agent.combined_score);
@@ -471,6 +511,7 @@ function SemanticAgentRow({
     <button
       type="button"
       className="flex w-full items-start justify-between gap-4 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-4 text-left transition-colors hover:bg-background/55"
+      disabled={!canOpenDetail}
       onClick={onOpenDetail}
     >
       <div className="min-w-0 flex-1">
@@ -479,7 +520,9 @@ function SemanticAgentRow({
             <Bot className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-foreground">{agent.displayLabel}</div>
+            <div className="truncate text-sm font-semibold text-foreground">
+              {agent.name || "Unnamed agent"}
+            </div>
             <div className="mt-1 truncate font-mono text-xs text-muted-foreground">
               {agent.agent_unique_id}
             </div>

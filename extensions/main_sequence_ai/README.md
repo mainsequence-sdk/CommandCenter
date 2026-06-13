@@ -4,12 +4,11 @@
 
 This extension owns the Main Sequence AI application and the assistant-ui integration used by the shell chat experience.
 
-It currently exposes one app with five visible surfaces plus one hidden deep-link surface:
+It currently exposes one app with four visible surfaces plus one hidden deep-link surface:
 
 - `Main Sequence AI`
 - `Chat`
 - `Agents`
-- `Project Agents`
 - `Deployment Logs`
 - `Agents Monitor`
 - `Agent Session` (hidden route surface)
@@ -62,16 +61,14 @@ an overlay rail.
   Standalone AgentSession detail shell that chat and widgets deep-link into.
 - `surfaces/agents/`
   Session picker surface with a left explorer and an intentionally empty canvas area.
-- `surfaces/project-agents/`
-  AI-owned routed surface for project-agent project selection and configuration.
 - `surfaces/project-agent-deployment-logs/`
   Standalone routed surface for automatic project-agent deployment run logs.
 - `surfaces/monitor/`
   Agent-monitor workspace surface that reuses the shared workspace studio canvas with a filtered
   widget catalog.
 - `features/project-agents/`
-  Shared project-agent authoring form and related logic used by the routed `Project Agents`
-  surface.
+  Shared project-agent authoring form and related logic used by modal entry points such as
+  Workbench project actions and project-executor agent details.
 
 ## Integration Boundary
 
@@ -96,11 +93,10 @@ chrome, not just a page-local feature.
 - The agents surface lives at `/app/main_sequence_ai/agents` and uses a full-bleed workspace-style
   shell with a thin left icon rail that opens the same AgentSession explorer/search used by the
   chat page. The canvas area on that page stays empty on purpose.
-- The project-agents surface lives at `/app/main_sequence_ai/project-agents` and now owns
-  project-agent project selection plus the build/deploy/delete workflow that used to live in the
-  workbench project-detail tabs.
 - The deployment logs surface lives at `/app/main_sequence_ai/project-agent-deployment-logs` and
-  is opened from Project Agents instead of rendering logs inline.
+  is opened from project-agent modal entry points instead of rendering logs inline.
+- Project-agent build/deploy/delete configuration is modal-only. The AI app no longer exposes a
+  routed project-agent configuration surface.
 - The agents monitor surface lives at `/app/main_sequence_ai/monitor` and reuses the full
   workspace studio canvas, filtered down to agent-monitor workspaces and the scoped agent-monitor
   widget set. It intentionally hides the global saved-widget library link because that library is

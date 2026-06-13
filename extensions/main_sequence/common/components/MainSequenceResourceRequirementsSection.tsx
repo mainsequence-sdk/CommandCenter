@@ -262,14 +262,14 @@ export function MainSequenceCapacityToggle({
   spot,
 }: {
   onChange: (spot: boolean) => void;
-  spot: boolean;
+  spot: boolean | null;
 }) {
   return (
     <div className="flex h-11 items-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 p-1">
       <button
         type="button"
         className={
-          spot
+          spot === true
             ? "flex-1 rounded-[calc(var(--radius)-8px)] bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
             : "flex-1 rounded-[calc(var(--radius)-8px)] px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         }
@@ -280,7 +280,7 @@ export function MainSequenceCapacityToggle({
       <button
         type="button"
         className={
-          !spot
+          spot === false
             ? "flex-1 rounded-[calc(var(--radius)-8px)] bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
             : "flex-1 rounded-[calc(var(--radius)-8px)] px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         }
