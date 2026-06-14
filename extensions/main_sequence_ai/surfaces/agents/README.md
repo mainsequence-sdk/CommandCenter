@@ -34,7 +34,10 @@ result opens the agent detail view instead of starting a session.
   into the Foundry `scalable-services` detail view when a runtime exists. For `project-executor`
   agents, the header also exposes `Edit deployment` when the agent detail payload includes a public
   `project_uid` or nested `project.uid`; that action opens the shared project-agent configurator
-  modal. The sessions tab also owns selection state and bulk deletion for recent AgentSession rows.
+  modal. It also exposes `Create session with handle`, which posts the shared handle-session
+  contract through `agent-sessions-api.ts` and uses the shared run-config resolver to prepopulate
+  provider, model, and thinking fields from the agent defaults plus the registered model catalog.
+  The sessions tab also owns selection state and bulk deletion for recent AgentSession rows.
 - `extensions/main_sequence_ai/agent-search.ts`
   Shared agent list, semantic search, agent detail, and quick-search clients used by the AI
   surfaces and pickers.
@@ -75,6 +78,10 @@ result opens the agent detail view instead of starting a session.
   fallback summary when that contract fails.
 - Keep session-launch behavior delegated to `ChatProvider` so this page does not grow its own
   session creation contract.
+- Keep handle-bound session creation routed through
+  `getOrCreateAgentSessionWithHandleRequest(...)` and `resolveRunConfigSelection(...)`. Do not add
+  local provider/model/thinking merge logic or pass frontend user identity fields in the handle
+  session payload.
 - Keep the `Runtime` action routed through the dedicated `get_runtime_id` lookup helper and the
   Foundry `scalable-services` detail surface instead of hardcoding runtime URLs directly in the AI
   app.

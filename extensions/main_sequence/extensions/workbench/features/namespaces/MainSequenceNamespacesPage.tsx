@@ -67,7 +67,7 @@ function getNamespaceDescription(namespace?: MainSequenceNamespaceDetail | MainS
 }
 
 function getNamespaceTableTitle(table: MainSequenceNamespaceTableRecord) {
-  return table.identifier?.trim() || table.storage_hash?.trim() || table.uid;
+  return table.identifier?.trim() || table.uid;
 }
 
 function getNamespaceTableKindLabel(table: MainSequenceNamespaceTableRecord) {
@@ -484,7 +484,7 @@ export function MainSequenceNamespacesPage() {
                               style={{ fontSize: "var(--table-meta-font-size)" }}
                             >
                               <th className="px-4 py-[var(--table-standard-header-padding-y)]">Type</th>
-                              <th className="px-4 py-[var(--table-standard-header-padding-y)]">Storage hash</th>
+                              <th className="px-4 py-[var(--table-standard-header-padding-y)]">Table</th>
                               <th className="px-4 py-[var(--table-standard-header-padding-y)]">Identifier</th>
                               <th className="px-4 py-[var(--table-standard-header-padding-y)]">Created</th>
                             </tr>
@@ -504,7 +504,7 @@ export function MainSequenceNamespacesPage() {
                                       onClick={() => openNamespaceTableDetail(table)}
                                       disabled={!canOpen}
                                     >
-                                      <span>{table.storage_hash?.trim() || table.uid}</span>
+                                      <span>{getNamespaceTableTitle(table)}</span>
                                       {canOpen ? (
                                         <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
                                       ) : null}

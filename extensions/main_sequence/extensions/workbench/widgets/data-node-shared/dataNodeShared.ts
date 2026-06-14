@@ -2,7 +2,6 @@ import type {
   DataNodeDetail,
   DataNodeRemoteDataRow,
   DataNodeSummary,
-  LocalTimeSerieQuickSearchRecord,
 } from "../../../../common/api";
 import type {
   TabularFrameFieldSchema,
@@ -12,6 +11,12 @@ import type {
 
 export type DataNodeDateRangeMode = "dashboard" | "fixed";
 export type DataNodeFieldOption = TabularFrameFieldSchema;
+
+type LocalTimeSerieLabelRecord = {
+  id: number;
+  update_hash?: string | null;
+  data_node_storage?: Pick<DataNodeSummary, "id" | "uid" | "identifier"> | null;
+};
 
 function fieldTypeFamily(type: TabularFrameFieldType) {
   if (type === "integer" || type === "number") {
@@ -297,9 +302,7 @@ function getFieldOptionDtype(
   return metadata?.dtype?.trim() || sourceConfig?.column_dtypes_map?.[key] || null;
 }
 
-export function formatDataNodeLabel(
-  dataNode?: Pick<DataNodeSummary, "id" | "uid" | "identifier" | "storage_hash"> | null,
-) {
+export function formatDataNodeLabel(dataNode?: Pick<DataNodeSummary, "id" | "uid" | "identifier"> | null) {
   if (!dataNode) {
     return "Data node";
   }
@@ -310,13 +313,11 @@ export function formatDataNodeLabel(
     return identifier;
   }
 
-  return dataNode.storage_hash || dataNode.uid || `Data node ${dataNode.id}`;
+  return dataNode.uid || `Data node ${dataNode.id}`;
 }
 
 export function formatLocalTimeSerieLabel(
-  localTimeSerie?:
-    | Pick<LocalTimeSerieQuickSearchRecord, "id" | "update_hash" | "data_node_storage">
-    | null,
+  localTimeSerie?: LocalTimeSerieLabelRecord | null,
 ) {
   if (!localTimeSerie) {
     return "Local update";
@@ -332,12 +333,6 @@ export function formatLocalTimeSerieLabel(
 
   if (dataNodeIdentifier) {
     return dataNodeIdentifier;
-  }
-
-  const dataNodeStorageHash = localTimeSerie.data_node_storage?.storage_hash?.trim();
-
-  if (dataNodeStorageHash) {
-    return dataNodeStorageHash;
   }
 
   return `Local update ${localTimeSerie.id}`;

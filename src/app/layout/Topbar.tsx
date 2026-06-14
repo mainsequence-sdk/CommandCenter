@@ -1,5 +1,6 @@
 import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
+import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Rows3, Search, Settings2, ShieldCheck } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -27,6 +28,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { env } from "@/config/env";
+import {
+  getCurrentUserCreditsSummary,
+  type OrganizationCreditConsumptionSummary,
+  type UserCreditSummaryBudget,
+} from "@/extensions/core/apps/admin/api";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
 import { useCustomWorkspaceStudioStore } from "@/features/dashboards/custom-workspace-studio-store";
@@ -42,52 +48,249 @@ import { SettingsDialog } from "./SettingsDialog";
 import { ThemeMenu } from "./ThemeMenu";
 
 const WORKSPACE_CANVAS_SURFACE_IDS = new Set(["workspaces", "slide-studio"]);
-const MOCK_BUDGET_SPENT_USD = 400;
-const MOCK_BUDGET_LIMIT_USD = 10_000;
-const MOCK_BUDGET_PERCENT = Math.round((MOCK_BUDGET_SPENT_USD / MOCK_BUDGET_LIMIT_USD) * 100);
-
-function formatBudgetCurrency(value: number) {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
+const USER_CREDIT_SUMMARY_QUERY_KEY = ["user", "credits", "summary"] as const;
 
 interface BudgetUsageIndicatorProps {
   onOpenBilling: () => void;
 }
 
+function clampBudgetPercent(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function getBudgetPercent(spentCents: number, limitCents: number) {
+  if (!Number.isFinite(spentCents) || !Number.isFinite(limitCents) || limitCents <= 0) {
+    return null;
+  }
+
+  return clampBudgetPercent((spentCents / limitCents) * 100);
+}
+
+function hasMonthlyBudgetLimit(userBudget: UserCreditSummaryBudget | null) {
+  return Number(userBudget?.monthly_limit_cents) > 0;
+}
+
+function formatBudgetCurrency(cents: number, currency: string) {
+  const amount = Number(cents || 0) / 100;
+  const normalizedCurrency = String(currency || "usd").toUpperCase();
+  const fractionDigits = Math.abs(cents) % 100 === 0 ? 0 : 2;
+
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: normalizedCurrency,
+      maximumFractionDigits: fractionDigits,
+    }).format(amount);
+  } catch {
+    return `$${amount.toFixed(fractionDigits)}`;
+  }
+}
+
+function getOrganizationConsumptionSegments(consumption: OrganizationCreditConsumptionSummary) {
+  const total = Math.max(0, Number(consumption.total_cents || 0));
+
+  if (total <= 0) {
+    return {
+      userAttributed: 0,
+      shared: 0,
+      unresolved: 0,
+    };
+  }
+
+  const userAttributed = clampBudgetPercent(
+    (Number(consumption.user_attributed_cents || 0) / total) * 100,
+  );
+  const unresolved = clampBudgetPercent((Number(consumption.unresolved_cents || 0) / total) * 100);
+  const shared = Math.max(0, 100 - userAttributed - unresolved);
+
+  return { userAttributed, shared, unresolved };
+}
+
+function BudgetRail({
+  percent,
+  title,
+  compact = false,
+}: {
+  percent: number | null;
+  title: string;
+  compact?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        "min-w-0 overflow-hidden rounded-full bg-muted/55",
+        compact ? "h-1" : "h-1.5",
+      )}
+      title={title}
+    >
+      <span
+        className="block h-full min-w-1.5 rounded-full bg-primary/75 shadow-[0_0_10px_color-mix(in_srgb,var(--primary)_20%,transparent)]"
+        style={{ width: `${percent ?? 0}%` }}
+      />
+    </span>
+  );
+}
+
+function OrganizationConsumptionRail({
+  consumption,
+  title,
+}: {
+  consumption: OrganizationCreditConsumptionSummary;
+  title: string;
+}) {
+  const segments = getOrganizationConsumptionSegments(consumption);
+
+  return (
+    <span className="flex h-1 min-w-0 overflow-hidden rounded-full bg-muted/55" title={title}>
+      <span
+        className="h-full bg-primary/70"
+        style={{ width: `${segments.userAttributed}%` }}
+      />
+      <span
+        className="h-full bg-amber-400/70"
+        style={{ width: `${segments.shared}%` }}
+      />
+      <span
+        className="h-full bg-muted-foreground/45"
+        style={{ width: `${segments.unresolved}%` }}
+      />
+    </span>
+  );
+}
+
 function BudgetUsageIndicator({ onOpenBilling }: BudgetUsageIndicatorProps) {
   const [expanded, setExpanded] = useState(false);
-  const spentLabel = formatBudgetCurrency(MOCK_BUDGET_SPENT_USD);
-  const limitLabel = formatBudgetCurrency(MOCK_BUDGET_LIMIT_USD);
+  const hasUserSession = useAuthStore((state) => Boolean(state.session?.user));
+  const summaryQuery = useQuery({
+    queryKey: USER_CREDIT_SUMMARY_QUERY_KEY,
+    queryFn: getCurrentUserCreditsSummary,
+    enabled: hasUserSession,
+    staleTime: 60_000,
+  });
+  const summary = summaryQuery.data;
+  const userBudget = summary?.user_budget ?? null;
+  const organizationConsumption = summary?.organization_consumption ?? null;
+  const budgetRequestPending = summaryQuery.isPending || (summaryQuery.isFetching && !summary);
+  const hasUserBudgetLimit = hasMonthlyBudgetLimit(userBudget);
+  const userPercent = userBudget
+    ? hasUserBudgetLimit
+      ? getBudgetPercent(userBudget.spent_this_period_cents, Number(userBudget.monthly_limit_cents))
+      : 100
+    : null;
+  const userPercentLabel = userBudget
+    ? `${userPercent ?? 100}%`
+    : summaryQuery.isError
+      ? "ERR"
+      : budgetRequestPending
+        ? "..."
+        : "—";
+  const hasOrganizationConsumption = Boolean(organizationConsumption);
+  const userSpentLabel = userBudget
+    ? formatBudgetCurrency(userBudget.spent_this_period_cents, userBudget.currency)
+    : "—";
+  const userLimitLabel =
+    userBudget && hasUserBudgetLimit
+      ? formatBudgetCurrency(Number(userBudget.monthly_limit_cents), userBudget.currency)
+      : null;
+  const userTitle = userBudget
+    ? userLimitLabel
+      ? `${userSpentLabel} / ${userLimitLabel}`
+      : `${userSpentLabel} consumed`
+    : summaryQuery.isError
+      ? "Budget unavailable"
+      : "Loading budget";
+  const organizationTitle = organizationConsumption
+    ? [
+        `${formatBudgetCurrency(
+          organizationConsumption.total_cents,
+          organizationConsumption.currency,
+        )} organization consumption`,
+        `shared ${formatBudgetCurrency(
+          organizationConsumption.organization_shared_cents,
+          organizationConsumption.currency,
+        )}`,
+        `user-attributed ${formatBudgetCurrency(
+          organizationConsumption.user_attributed_cents,
+          organizationConsumption.currency,
+        )}`,
+        `unresolved ${formatBudgetCurrency(
+          organizationConsumption.unresolved_cents,
+          organizationConsumption.currency,
+        )}`,
+      ].join(" · ")
+    : "";
+
+  useEffect(() => {
+    if (
+      !import.meta.env.DEV ||
+      typeof window === "undefined" ||
+      window.localStorage.getItem("debug:budget-summary") !== "1"
+    ) {
+      return;
+    }
+
+    console.debug("[budget-summary]", {
+      enabled: hasUserSession,
+      status: summaryQuery.status,
+      fetchStatus: summaryQuery.fetchStatus,
+      hasUserBudget: Boolean(userBudget),
+      hasOrganizationConsumption,
+      error: summaryQuery.error instanceof Error ? summaryQuery.error.message : null,
+    });
+  }, [
+    hasOrganizationConsumption,
+    hasUserSession,
+    summaryQuery.error,
+    summaryQuery.fetchStatus,
+    summaryQuery.status,
+    userBudget,
+  ]);
 
   return (
     <div
       className={cn(
         "hidden h-9 items-center overflow-hidden rounded-[calc(var(--radius)-6px)] text-foreground/90 transition-[width,background-color] duration-200 sm:flex",
-        expanded ? "w-[238px] bg-card/50 ring-1 ring-border/55" : "w-[112px]",
+        expanded
+          ? hasOrganizationConsumption
+            ? "w-[312px] bg-card/50 ring-1 ring-border/55"
+            : "w-[238px] bg-card/50 ring-1 ring-border/55"
+          : "w-[112px]",
       )}
     >
       <button
         type="button"
         aria-pressed={expanded}
-        aria-label={`${MOCK_BUDGET_PERCENT}% budget consumed`}
-        title={`${spentLabel} / ${limitLabel}`}
+        aria-label={`${userPercentLabel} budget consumed`}
+        title={organizationTitle ? `${userTitle} · ${organizationTitle}` : userTitle}
         className="group flex h-full w-[112px] shrink-0 items-center gap-2 rounded-[calc(var(--radius)-6px)] px-2.5 text-left transition-colors hover:bg-muted/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
         onClick={() => {
           setExpanded((current) => !current);
         }}
       >
         <span className="w-7 shrink-0 text-[11px] font-semibold tabular-nums">
-          {MOCK_BUDGET_PERCENT}%
+          {userPercentLabel}
         </span>
-        <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted/55">
-          <span
-            className="block h-full min-w-1.5 rounded-full bg-primary/75 shadow-[0_0_10px_color-mix(in_srgb,var(--primary)_20%,transparent)]"
-            style={{ width: `${MOCK_BUDGET_PERCENT}%` }}
+        <span
+          className={cn(
+            "flex min-w-0 flex-1 flex-col",
+            hasOrganizationConsumption ? "gap-1" : "justify-center",
+          )}
+        >
+          <BudgetRail
+            percent={userPercent}
+            title={userTitle}
+            compact={hasOrganizationConsumption}
           />
+          {organizationConsumption ? (
+            <OrganizationConsumptionRail
+              consumption={organizationConsumption}
+              title={organizationTitle}
+            />
+          ) : null}
         </span>
         <span
           aria-hidden="true"
@@ -99,8 +302,18 @@ function BudgetUsageIndicator({ onOpenBilling }: BudgetUsageIndicatorProps) {
 
       {expanded ? (
         <div className="flex min-w-0 flex-1 items-center gap-1.5 border-l border-border/55 px-2.5">
-          <span className="min-w-0 flex-1 truncate text-[11px] font-medium tabular-nums text-muted-foreground">
-            {spentLabel}/{limitLabel}
+          <span className="flex min-w-0 flex-1 flex-col truncate text-[11px] font-medium tabular-nums text-muted-foreground">
+            <span className="truncate">
+              {userLimitLabel ? `${userSpentLabel}/${userLimitLabel}` : `${userSpentLabel} consumed`}
+            </span>
+            {organizationConsumption ? (
+              <span className="truncate">
+                {`Org ${formatBudgetCurrency(
+                  organizationConsumption.total_cents,
+                  organizationConsumption.currency,
+                )}`}
+              </span>
+            ) : null}
           </span>
           <button
             type="button"
@@ -492,7 +705,7 @@ export function Topbar() {
 
         <BudgetUsageIndicator
           onOpenBilling={() => {
-            navigate(getAppPath("admin", "invoices"));
+            navigate(getAppPath("admin", "billing-details"));
           }}
         />
 

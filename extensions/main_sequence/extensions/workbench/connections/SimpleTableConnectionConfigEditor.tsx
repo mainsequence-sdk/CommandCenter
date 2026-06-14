@@ -29,7 +29,6 @@ function normalizeUidString(value: unknown) {
 
 function getMetaTableLabel(table?: MetaTableRecord | MetaTableDetail | null) {
   const candidates = [
-    table?.storage_hash,
     table?.identifier,
     table?.source_class_name,
     typeof table?.display_name === "string" ? table.display_name : undefined,
@@ -86,7 +85,6 @@ function updateSelectedMetaTableConfig(
       metaTableUid: undefined,
       metaTableIdentifier: undefined,
       metaTableLabel: undefined,
-      metaTableStorageHash: undefined,
     };
   }
 
@@ -95,14 +93,12 @@ function updateSelectedMetaTableConfig(
     metaTableUid: table.uid?.trim() || undefined,
     metaTableIdentifier: table.identifier ?? undefined,
     metaTableLabel: getMetaTableLabel(table),
-    metaTableStorageHash: table.storage_hash ?? undefined,
   };
 }
 
 function buildSearchText(table: MetaTableRecord) {
   return [
     table.uid ?? "",
-    table.storage_hash ?? "",
     table.identifier ?? "",
     table.source_class_name ?? "",
     table.description ?? "",
@@ -138,7 +134,6 @@ export function MetaTableConnectionConfigEditor({
           id: 0,
           uid: metaTableUid,
           identifier: value.metaTableIdentifier ?? null,
-          storage_hash: value.metaTableStorageHash,
         }
       : null);
   const filteredTables = useMemo(() => {
@@ -164,7 +159,6 @@ export function MetaTableConnectionConfigEditor({
 
     if (
       nextConfig.metaTableLabel === value.metaTableLabel &&
-      nextConfig.metaTableStorageHash === value.metaTableStorageHash &&
       nextConfig.metaTableIdentifier === value.metaTableIdentifier
     ) {
       return;
@@ -189,7 +183,7 @@ export function MetaTableConnectionConfigEditor({
               value={searchValue}
               disabled={disabled}
               onChange={(event) => setSearchValue(event.target.value)}
-              placeholder="Search by storage hash, identifier, source class, or UID"
+              placeholder="Search by identifier, source class, or UID"
             />
           </label>
 
@@ -253,12 +247,6 @@ export function MetaTableConnectionConfigEditor({
                   <div className="font-semibold uppercase tracking-[0.12em]">UID</div>
                   <div className="mt-1 break-all font-mono text-foreground">
                     {selectedMetaTable.uid}
-                  </div>
-                </div>
-                <div>
-                  <div className="font-semibold uppercase tracking-[0.12em]">Storage hash</div>
-                  <div className="mt-1 break-all font-mono text-foreground">
-                    {selectedMetaTable.storage_hash ?? "Pending detail"}
                   </div>
                 </div>
                 <div>

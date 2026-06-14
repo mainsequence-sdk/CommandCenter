@@ -32,6 +32,11 @@ import {
   fetchAvailableRunConfigOptions,
 } from "../../runtime/available-models-api";
 import { resolveMainSequenceAiConfiguredAssistantEndpoint } from "../../runtime/assistant-endpoint";
+import {
+  buildCurrentModelOptionId,
+  normalizeRunConfigKey,
+  resolveRunConfigSelection,
+} from "../../runtime/run-config-selection";
 
 interface DeploymentComputeState {
   cpuRequest: string;
@@ -49,10 +54,6 @@ function createDefaultDeploymentComputeState(): DeploymentComputeState {
     memoryLimit: "",
     spot: null,
   };
-}
-
-function normalizeCatalogKey(value: string | null | undefined) {
-  return typeof value === "string" && value.trim() ? value.trim().toLowerCase() : null;
 }
 
 const commandCenterAgentType = "astro-orchestrator";
@@ -146,10 +147,6 @@ function selectDeploymentProgressRun(
   const resultUid = deployResult.uid?.trim();
   const matchingRun = resultUid ? runs.find((run) => run.uid === resultUid) : null;
   return matchingRun ?? runs[0] ?? null;
-}
-
-function buildCurrentModelOptionId(provider: string, model: string) {
-  return ["current", provider.trim(), model.trim()].join("::");
 }
 
 function readServiceImageDrift(value: unknown) {
@@ -314,138 +311,47 @@ export function ProjectAgentConfigurator({
   const driftedImageChecks = (imageDrift?.checks ?? []).filter((check) => check.has_drift === true);
   const shouldShowImageDrift = imageDrift?.has_drift === true;
   const imageDriftAutohealMessage = imageDrift?.autoheal_message?.trim() || null;
-  const currentProjectAgentCatalogModel = useMemo(
-    () =>
-      currentProjectAgentProvider && currentProjectAgentModel
-        ? availableModels.find(
-            (model) =>
-              normalizeCatalogKey(model.value) === normalizeCatalogKey(currentProjectAgentModel) &&
-              normalizeCatalogKey(model.provider) === normalizeCatalogKey(currentProjectAgentProvider),
-          ) ?? null
-        : null,
-    [availableModels, currentProjectAgentModel, currentProjectAgentProvider],
-  );
-  const currentProjectAgentModelOptionId =
-    currentProjectAgentCatalogModel?.id ||
-    (currentProjectAgentProvider && currentProjectAgentModel
-      ? buildCurrentModelOptionId(currentProjectAgentProvider, currentProjectAgentModel)
-      : "");
-  const effectiveSelectedLlmProvider =
-    selectedLlmProvider || (requiresBackendAgentModelConfiguration ? currentProjectAgentProvider : "");
-  const effectiveSelectedLlmModelId =
-    selectedLlmModelId || (requiresBackendAgentModelConfiguration ? currentProjectAgentModelOptionId : "");
-  const effectiveSelectedLlmThinking =
-    selectedLlmThinking || (requiresBackendAgentModelConfiguration ? currentProjectAgentThinking : "");
   const llmConfigurationCanRender = Boolean(
     !llmConfigurationIsPending &&
       !currentProjectAgentServiceQuery.isError &&
       !currentProjectAgentDetailQuery.isError &&
       linkedAgentModelConfigurationReady,
   );
-  const providerOptions = useMemo(
-    () => {
-      const options = availableProviders.map((entry) => ({
-        label: entry.label,
-        value: entry.value,
-      }));
-      const hasCurrentProvider =
-        currentProjectAgentProvider &&
-        options.some(
-          (entry) =>
-            normalizeCatalogKey(entry.value) === normalizeCatalogKey(currentProjectAgentProvider),
-        );
-
-      if (currentProjectAgentProvider && !hasCurrentProvider) {
-        options.unshift({
-          label: `${currentProjectAgentProvider} (current)`,
-          value: currentProjectAgentProvider,
-        });
-      }
-
-      return options;
-    },
-    [availableProviders, currentProjectAgentProvider],
+  const runConfigSelection = useMemo(
+    () =>
+      resolveRunConfigSelection({
+        availableModels,
+        availableProviders,
+        currentModel: requiresBackendAgentModelConfiguration ? currentProjectAgentModel : "",
+        currentProvider: requiresBackendAgentModelConfiguration ? currentProjectAgentProvider : "",
+        currentThinking: requiresBackendAgentModelConfiguration ? currentProjectAgentThinking : "",
+        selectedModelId: selectedLlmModelId,
+        selectedProvider: selectedLlmProvider,
+        selectedThinking: selectedLlmThinking,
+      }),
+    [
+      availableModels,
+      availableProviders,
+      currentProjectAgentModel,
+      currentProjectAgentProvider,
+      currentProjectAgentThinking,
+      requiresBackendAgentModelConfiguration,
+      selectedLlmModelId,
+      selectedLlmProvider,
+      selectedLlmThinking,
+    ],
   );
-  const filteredModelOptions = useMemo(() => {
-    const scopedModels = effectiveSelectedLlmProvider
-      ? availableModels.filter((entry) => entry.provider === effectiveSelectedLlmProvider)
-      : availableModels;
-
-    const options = scopedModels.map((entry) => {
-      const unusable = Boolean(entry.auth?.required && !entry.auth.usable);
-
-      return {
-        disabled: unusable,
-        label: unusable ? `${entry.label} (Not authenticated)` : entry.label,
-        provider: entry.provider,
-        value: entry.id,
-        modelValue: entry.value,
-      };
-    });
-
-    if (currentProjectAgentProvider && currentProjectAgentModel) {
-      const selectedProviderMatchesCurrent =
-        !effectiveSelectedLlmProvider ||
-        normalizeCatalogKey(effectiveSelectedLlmProvider) === normalizeCatalogKey(currentProjectAgentProvider);
-      const hasCurrentModel = scopedModels.some(
-        (model) =>
-          normalizeCatalogKey(model.value) === normalizeCatalogKey(currentProjectAgentModel) &&
-          normalizeCatalogKey(model.provider) === normalizeCatalogKey(currentProjectAgentProvider),
-      );
-
-      if (selectedProviderMatchesCurrent && !hasCurrentModel) {
-        options.unshift({
-          disabled: false,
-          label: `${currentProjectAgentModel} (current)`,
-          provider: currentProjectAgentProvider,
-          value: buildCurrentModelOptionId(currentProjectAgentProvider, currentProjectAgentModel),
-          modelValue: currentProjectAgentModel,
-        });
-      }
-    }
-
-    return options;
-  }, [
-    availableModels,
-    currentProjectAgentModel,
-    currentProjectAgentProvider,
-    effectiveSelectedLlmProvider,
-  ]);
-  const selectedModelOption =
-    filteredModelOptions.find((entry) => entry.value === effectiveSelectedLlmModelId) ?? null;
-  const selectedDeploymentModel =
-    availableModels.find((entry) => entry.id === effectiveSelectedLlmModelId) ?? null;
-  const selectedReasoningEffortOptions = useMemo(() => {
-    const options = selectedDeploymentModel?.reasoningEfforts.length
-      ? [...selectedDeploymentModel.reasoningEfforts]
-      : [];
-    const selectedThinking = effectiveSelectedLlmThinking.trim();
-    const hasSelectedThinking =
-      selectedThinking &&
-      options.some((entry) => normalizeCatalogKey(entry.value) === normalizeCatalogKey(selectedThinking));
-
-    if (selectedThinking && !hasSelectedThinking) {
-      options.unshift({
-        label: `${selectedThinking} (current)`,
-        value: selectedThinking,
-      });
-    }
-
-    return options;
-  }, [effectiveSelectedLlmThinking, selectedDeploymentModel]);
-  const resolvedLlmProvider =
-    selectedDeploymentModel?.provider?.trim() ||
-    selectedModelOption?.provider?.trim() ||
-    effectiveSelectedLlmProvider.trim() ||
-    currentProjectAgentProvider;
-  const resolvedLlmModelId =
-    selectedDeploymentModel?.value.trim() ||
-    selectedModelOption?.modelValue?.trim() ||
-    currentProjectAgentModel;
-  const resolvedLlmThinking = effectiveSelectedLlmThinking.trim() || currentProjectAgentThinking;
-  const selectedCatalogModelIsUsable = !(
-    selectedDeploymentModel?.auth?.required && !selectedDeploymentModel.auth.usable
-  );
+  const effectiveSelectedLlmProvider = runConfigSelection.effectiveProvider;
+  const effectiveSelectedLlmModelId = runConfigSelection.effectiveModelId;
+  const providerOptions = runConfigSelection.providerOptions;
+  const filteredModelOptions = runConfigSelection.modelOptions;
+  const selectedModelOption = runConfigSelection.selectedModelOption;
+  const selectedDeploymentModel = runConfigSelection.selectedCatalogModel;
+  const selectedReasoningEffortOptions = runConfigSelection.reasoningOptions;
+  const resolvedLlmProvider = runConfigSelection.resolvedProvider;
+  const resolvedLlmModelId = runConfigSelection.resolvedModel;
+  const resolvedLlmThinking = runConfigSelection.resolvedThinking;
+  const selectedCatalogModelIsUsable = runConfigSelection.selectedCatalogModelIsUsable;
   const llmSelectionIsValid = Boolean(
       llmConfigurationCanRender &&
       resolvedLlmProvider &&
@@ -454,16 +360,8 @@ export function ProjectAgentConfigurator({
       !(currentProjectAgentUid && currentProjectAgentDetailQuery.isLoading),
   );
   const hasReasoningEffortOptions = selectedReasoningEffortOptions.length > 0;
-  const currentAgentModelMissingFromCatalog = Boolean(
-    currentProjectAgentProvider &&
-      currentProjectAgentModel &&
-      hasRuntimeModelCatalog &&
-      !availableModels.some(
-        (model) =>
-          normalizeCatalogKey(model.value) === normalizeCatalogKey(currentProjectAgentModel) &&
-          normalizeCatalogKey(model.provider) === normalizeCatalogKey(currentProjectAgentProvider),
-      ),
-  );
+  const currentAgentModelMissingFromCatalog =
+    hasRuntimeModelCatalog && runConfigSelection.currentModelMissingFromCatalog;
   const resolvedCpuRequest = computeState.cpuRequest.trim();
   const resolvedCpuLimit = computeState.cpuLimit.trim();
   const resolvedMemoryRequest = computeState.memoryRequest.trim();
@@ -766,13 +664,13 @@ export function ProjectAgentConfigurator({
     const providerMatch =
       availableProviders.find(
         (provider) =>
-          normalizeCatalogKey(provider.value) === normalizeCatalogKey(currentProjectAgentProvider),
+          normalizeRunConfigKey(provider.value) === normalizeRunConfigKey(currentProjectAgentProvider),
       ) ?? null;
     const modelMatch =
       availableModels.find(
         (model) =>
-          normalizeCatalogKey(model.value) === normalizeCatalogKey(currentProjectAgentModel) &&
-          normalizeCatalogKey(model.provider) === normalizeCatalogKey(currentProjectAgentProvider),
+          normalizeRunConfigKey(model.value) === normalizeRunConfigKey(currentProjectAgentModel) &&
+          normalizeRunConfigKey(model.provider) === normalizeRunConfigKey(currentProjectAgentProvider),
       ) ?? null;
 
     if (providerMatch) {
@@ -818,7 +716,7 @@ export function ProjectAgentConfigurator({
     if (
       selectedLlmProvider &&
       availableProviders.some(
-        (provider) => normalizeCatalogKey(provider.value) === normalizeCatalogKey(selectedLlmProvider),
+        (provider) => normalizeRunConfigKey(provider.value) === normalizeRunConfigKey(selectedLlmProvider),
       )
     ) {
       return;
@@ -827,7 +725,7 @@ export function ProjectAgentConfigurator({
     const preferredProvider =
       availableProviders.find(
         (provider) =>
-          normalizeCatalogKey(provider.value) === normalizeCatalogKey(currentProjectAgentProvider),
+          normalizeRunConfigKey(provider.value) === normalizeRunConfigKey(currentProjectAgentProvider),
       )?.value ?? null;
     setSelectedLlmProvider(preferredProvider ?? availableProviders[0]?.value ?? "");
   }, [
@@ -864,7 +762,7 @@ export function ProjectAgentConfigurator({
 
     const preferredModel =
       filteredModelOptions.find(
-        (model) => normalizeCatalogKey(model.modelValue) === normalizeCatalogKey(currentProjectAgentModel),
+        (model) => normalizeRunConfigKey(model.modelValue) === normalizeRunConfigKey(currentProjectAgentModel),
       )?.value ?? null;
     const firstUsableModel =
       filteredModelOptions.find((model) => !model.disabled) ?? filteredModelOptions[0] ?? null;
@@ -893,8 +791,8 @@ export function ProjectAgentConfigurator({
     const selectedModelMatchesCurrent =
       currentProjectAgentProvider &&
       currentProjectAgentModel &&
-      normalizeCatalogKey(modelProvider) === normalizeCatalogKey(currentProjectAgentProvider) &&
-      normalizeCatalogKey(modelValue) === normalizeCatalogKey(currentProjectAgentModel);
+      normalizeRunConfigKey(modelProvider) === normalizeRunConfigKey(currentProjectAgentProvider) &&
+      normalizeRunConfigKey(modelValue) === normalizeRunConfigKey(currentProjectAgentModel);
 
     if (selectedModelMatchesCurrent && currentProjectAgentThinking) {
       if (selectedLlmThinking !== currentProjectAgentThinking) {
@@ -915,7 +813,7 @@ export function ProjectAgentConfigurator({
     if (
       selectedLlmThinking &&
       reasoningOptions.some(
-        (entry) => normalizeCatalogKey(entry.value) === normalizeCatalogKey(selectedLlmThinking),
+        (entry) => normalizeRunConfigKey(entry.value) === normalizeRunConfigKey(selectedLlmThinking),
       )
     ) {
       return;

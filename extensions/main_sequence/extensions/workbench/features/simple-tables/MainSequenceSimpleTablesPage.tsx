@@ -103,7 +103,6 @@ type MetaTableForeignKeyDetailRow = {
   name: string;
   sourceColumns: string[];
   targetTableUid: string | null;
-  targetTableStorageHash: string | null;
   targetColumns: string[];
   onDelete: string | null;
 };
@@ -116,7 +115,6 @@ function getPrimaryLabel(table: MetaTableRecord) {
     table.name,
     table.title,
     table.identifier,
-    table.storage_hash,
   ];
 
   for (const candidate of candidates) {
@@ -143,6 +141,16 @@ function getMetaTableListTableName(table: MetaTableRecord) {
   }
 
   return getPrimaryLabel(table);
+}
+
+function getMetaTableListUidSubtitle(table: MetaTableRecord) {
+  const uid = table.uid?.trim();
+
+  if (!uid || getMetaTableListTableName(table) === uid) {
+    return null;
+  }
+
+  return uid;
 }
 
 function getMetaTableUid(table: MetaTableRecord) {
@@ -183,7 +191,6 @@ function formatCreationDate(value?: string | null) {
 function buildSearchText(table: MetaTableRecord) {
   return [
     table.identifier ?? "",
-    table.storage_hash ?? "",
     table.namespace ?? "",
     table.description ?? "",
     getDataSourceLabel(table),
@@ -240,7 +247,7 @@ function buildFallbackMetaTableSummary(
     entity: {
       id: metaTable.uid || metaTable.id || getPrimaryLabel(metaTable),
       type: "meta_table",
-      title: metaTable.storage_hash ?? getPrimaryLabel(metaTable),
+      title: getPrimaryLabel(metaTable),
     },
     badges: [
       {
@@ -327,7 +334,6 @@ function buildMetaTableForeignKeyDetails(
     name: foreignKey.name,
     sourceColumns: foreignKey.source_columns ?? [],
     targetTableUid: foreignKey.target_table_uid ?? null,
-    targetTableStorageHash: foreignKey.target_table_storage_hash ?? null,
     targetColumns: foreignKey.target_columns ?? [],
     onDelete: foreignKey.on_delete ?? null,
   }));
@@ -360,7 +366,7 @@ function buildMetaTableFactItems(metaTable?: MetaTableDetail | null) {
     {
       key: "physical_table_name",
       label: "Physical Table",
-      value: formatMetaTableValue(metaTable.physical_table_name ?? metaTable.storage_hash ?? null),
+      value: formatMetaTableValue(metaTable.physical_table_name),
       monospace: true,
     },
     {
@@ -515,8 +521,8 @@ export function MainSequenceMetaTablesPage() {
         : null);
   const metaTableTitle =
     metaTableSummary?.entity.title ??
-    metaTableDetailQuery.data?.storage_hash ??
-    selectedMetaTableFromList?.storage_hash ??
+    (metaTableDetailQuery.data ? getPrimaryLabel(metaTableDetailQuery.data) : null) ??
+    (selectedMetaTableFromList ? getPrimaryLabel(selectedMetaTableFromList) : null) ??
     (isMetaTableDetailOpen ? `Meta table ${selectedMetaTableIdentifier}` : "Meta table");
   const metaTableColumnDetails = buildMetaTableColumnDetails(metaTableDetailQuery.data);
   const metaTableIndexDetails = buildMetaTableIndexDetails(metaTableDetailQuery.data);
@@ -1208,16 +1214,8 @@ export function MainSequenceMetaTablesPage() {
                                         </td>
                                         <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                           <div className="font-mono">
-                                            {foreignKey.targetTableStorageHash ||
-                                              foreignKey.targetTableUid ||
-                                              "Not set"}
+                                            {foreignKey.targetTableUid || "Not set"}
                                           </div>
-                                          {foreignKey.targetTableStorageHash &&
-                                          foreignKey.targetTableUid ? (
-                                            <div className="mt-1 text-xs text-muted-foreground">
-                                              {foreignKey.targetTableUid}
-                                            </div>
-                                          ) : null}
                                         </td>
                                         <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                           {formatMetaTableListValue(foreignKey.targetColumns)}
@@ -1286,15 +1284,8 @@ export function MainSequenceMetaTablesPage() {
                                         </td>
                                         <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                           <div className="font-mono">
-                                            {foreignKey.targetTableStorageHash ||
-                                              metaTableDetailQuery.data?.storage_hash ||
-                                              "Not set"}
+                                            {foreignKey.targetTableUid || "Current meta table"}
                                           </div>
-                                          {foreignKey.targetTableUid ? (
-                                            <div className="mt-1 text-xs text-muted-foreground">
-                                              {foreignKey.targetTableUid}
-                                            </div>
-                                          ) : null}
                                         </td>
                                         <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                           {formatMetaTableListValue(foreignKey.targetColumns)}
@@ -1484,6 +1475,8 @@ export function MainSequenceMetaTablesPage() {
                     <tbody>
                       {filteredTables.map((table) => {
                         const selected = metaTableSelection.isSelected(table.uid);
+                        const uidSubtitle = getMetaTableListUidSubtitle(table);
+                        const descriptionSubtitle = table.description?.trim() || null;
 
                         return (
                           <tr key={table.uid}>
@@ -1513,13 +1506,15 @@ export function MainSequenceMetaTablesPage() {
                                     <span className="truncate">{getMetaTableListTableName(table)}</span>
                                     <ArrowUpRight className="shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
                                   </button>
-                                  <div
-                                    className="mt-0.5 max-w-[260px] truncate font-mono text-muted-foreground"
-                                    style={{ fontSize: "var(--table-meta-font-size)" }}
-                                    title={table.storage_hash?.trim() || undefined}
-                                  >
-                                    {table.storage_hash?.trim() || "No storage hash"}
-                                  </div>
+                                  {uidSubtitle ? (
+                                    <div
+                                      className="mt-0.5 max-w-[260px] truncate font-mono text-muted-foreground"
+                                      style={{ fontSize: "var(--table-meta-font-size)" }}
+                                      title={uidSubtitle}
+                                    >
+                                      {uidSubtitle}
+                                    </div>
+                                  ) : null}
                                 </div>
                               </div>
                             </td>
@@ -1530,14 +1525,14 @@ export function MainSequenceMetaTablesPage() {
                                   <div className="font-medium text-foreground">
                                     {table.identifier?.trim() || "No identifier"}
                                   </div>
-                                  <div
-                                    className="mt-0.5 text-muted-foreground"
-                                    style={{ fontSize: "var(--table-meta-font-size)" }}
-                                  >
-                                    {[table.uid?.trim() ? `UID ${table.uid.trim()}` : null, table.description?.trim() ?? null]
-                                      .filter(Boolean)
-                                      .join(" · ")}
-                                  </div>
+                                  {descriptionSubtitle ? (
+                                    <div
+                                      className="mt-0.5 text-muted-foreground"
+                                      style={{ fontSize: "var(--table-meta-font-size)" }}
+                                    >
+                                      {descriptionSubtitle}
+                                    </div>
+                                  ) : null}
                                 </div>
                               </div>
                             </td>

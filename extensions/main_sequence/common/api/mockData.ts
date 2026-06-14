@@ -1557,12 +1557,6 @@ function buildDataNodeSummary(dataNode: Record<string, unknown>) {
     ],
     inlineFields: [
       {
-        key: "storage_hash",
-        label: "Storage hash",
-        value: readString(dataNode.storage_hash),
-        kind: "code",
-      },
-      {
         key: "frequency",
         label: "Frequency",
         value: String(dataNode.data_frequency_id ?? "Not set"),
@@ -1602,7 +1596,9 @@ function buildMetaTableSummary(metaTable: Record<string, unknown>) {
   return buildEntitySummary(
     readString(metaTable.uid),
     "meta_table",
-    readString(metaTable.storage_hash) || `Meta Table ${readString(metaTable.uid)}`,
+    readString(metaTable.identifier) ||
+      readString(metaTable.uid) ||
+      `Meta Table ${readString(metaTable.uid)}`,
     {
       badges: [
         {
@@ -2401,7 +2397,9 @@ function handleAssetCategories(route: string, method: string, searchParams: URLS
 }
 
 function handlePortfolioGroups(route: string, method: string, searchParams: URLSearchParams, init?: RequestInit) {
-  if (route === "/api/v1/portfolio_group/" && method === "GET") {
+  const isListRoute = route === "/api/v1/portfolio-group/" || route === "/api/v1/portfolio_group/";
+
+  if (isListRoute && method === "GET") {
     const filtered = state.portfolioGroups.filter((group) =>
       matchesSearch(
         [group.id, group.name, group.display_name, group.unique_identifier, group.description],
@@ -2411,37 +2409,189 @@ function handlePortfolioGroups(route: string, method: string, searchParams: URLS
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
-  if (route === "/api/v1/portfolio_group/get_or_create/" && method === "POST") {
+  if (
+    (route === "/api/v1/portfolio-group/" ||
+      route === "/api/v1/portfolio_group/get_or_create/") &&
+    method === "POST"
+  ) {
     const body = parseBody(init);
+    const uniqueIdentifier = readString(body?.unique_identifier) || `pg_${Date.now()}`;
+    const existingGroup = state.portfolioGroups.find(
+      (group) => readString(group.unique_identifier) === uniqueIdentifier,
+    );
+
+    if (existingGroup) {
+      Object.assign(existingGroup, {
+        display_name: readString(body?.display_name) || readString(existingGroup.display_name),
+        portfolio_group_name:
+          readString(body?.display_name) || readString(existingGroup.portfolio_group_name),
+        description: readString(body?.description),
+        metadata_json: isRecord(body?.metadata_json) ? body?.metadata_json : {},
+      });
+      return existingGroup;
+    }
+
     const record = {
       id: nextId(state.portfolioGroups),
       uid: `mock-portfolio-group-${nextId(state.portfolioGroups)}`,
-      name: readString(body?.display_name) || readString(body?.unique_identifier) || "Portfolio Group",
+      name: readString(body?.display_name) || uniqueIdentifier || "Portfolio Group",
       display_name: readString(body?.display_name) || "Portfolio Group",
       portfolio_group_name: readString(body?.display_name) || "Portfolio Group",
-      unique_identifier: readString(body?.unique_identifier) || `pg_${Date.now()}`,
+      unique_identifier: uniqueIdentifier,
       description: readString(body?.description),
-      portfolio_uids: readArray<string>(body?.portfolios),
+      metadata_json: isRecord(body?.metadata_json) ? body?.metadata_json : {},
+      portfolio_uids: [],
       creation_date: new Date().toISOString(),
     };
     state.portfolioGroups.unshift(record);
     return record;
   }
 
-  if (route === "/api/v1/portfolio_group/bulk-delete/" && method === "POST") {
+  if (
+    (route === "/api/v1/portfolio-group/bulk-delete/" ||
+      route === "/api/v1/portfolio_group/bulk-delete/") &&
+    method === "POST"
+  ) {
     const body = parseBody(init);
     const uids = new Set(readArray<string>(body?.uids));
+    const uniqueIdentifiers = new Set(readArray<string>(body?.unique_identifiers));
     const before = state.portfolioGroups.length;
-    state.portfolioGroups = state.portfolioGroups.filter((group) => !uids.has(readString(group.uid)));
+    state.portfolioGroups = state.portfolioGroups.filter(
+      (group) =>
+        !uids.has(readString(group.uid)) &&
+        !uniqueIdentifiers.has(readString(group.unique_identifier)),
+    );
     return {
       detail: "Portfolio groups removed from mock state.",
       deleted_count: before - state.portfolioGroups.length,
     };
   }
 
-  const detailMatch = route.match(/^\/api\/v1\/portfolio_group\/([^/]+)\/$/);
+  const byPortfolioMatch = route.match(/^\/api\/v1\/portfolio-group\/by-portfolio\/([^/]+)\/$/);
+  if (byPortfolioMatch && method === "GET") {
+    const portfolioUid = byPortfolioMatch[1] ?? "";
+    const filtered = state.portfolioGroups.filter((group) =>
+      readArray<string>(group.portfolio_uids).includes(portfolioUid),
+    );
+    return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
+  }
+
+  const membershipBulkDeleteMatch =
+    route === "/api/v1/portfolio-group/membership/bulk-delete/";
+  if (membershipBulkDeleteMatch && method === "POST") {
+    const body = parseBody(init);
+    const groupUids = new Set(readArray<string>(body?.portfolio_group_uids));
+    const portfolioUids = new Set(readArray<string>(body?.portfolio_uids));
+    let deletedCount = 0;
+
+    state.portfolioGroups.forEach((group) => {
+      if (groupUids.size > 0 && !groupUids.has(readString(group.uid))) {
+        return;
+      }
+
+      const current = readArray<string>(group.portfolio_uids);
+      const next = current.filter(
+        (portfolioUid) => portfolioUids.size > 0 && !portfolioUids.has(portfolioUid),
+      );
+      deletedCount += current.length - next.length;
+      group.portfolio_uids = next;
+    });
+
+    return {
+      detail: "Portfolio group memberships removed from mock state.",
+      deleted_count: deletedCount,
+    };
+  }
+
+  const membershipDeleteMatch = route.match(
+    /^\/api\/v1\/portfolio-group\/([^/]+)\/portfolios\/([^/]+)\/$/,
+  );
+  if (membershipDeleteMatch && method === "DELETE") {
+    const group = findByUid(state.portfolioGroups, membershipDeleteMatch[1] ?? "");
+    const portfolioUid = membershipDeleteMatch[2] ?? "";
+    const current = readArray<string>(group?.portfolio_uids);
+
+    if (group) {
+      group.portfolio_uids = current.filter((memberUid) => memberUid !== portfolioUid);
+    }
+
+    return {
+      detail: "Deleted 1 portfolio group membership.",
+      deleted_count: current.includes(portfolioUid) ? 1 : 0,
+    };
+  }
+
+  const membershipsMatch = route.match(/^\/api\/v1\/portfolio-group\/([^/]+)\/portfolios\/$/);
+  if (membershipsMatch && method === "GET") {
+    const group = findByUid(state.portfolioGroups, membershipsMatch[1] ?? "");
+    const portfolioUids = new Set(readArray<string>(group?.portfolio_uids));
+    const rows = state.targetPortfolios
+      .filter((portfolio) => portfolioUids.has(readString(portfolio.uid)))
+      .map((portfolio) => buildPortfolioApiRow(portfolio));
+
+    return paginate(rows, searchParams.get("limit"), searchParams.get("offset"));
+  }
+
+  if (membershipsMatch && method === "POST") {
+    const group = findByUid(state.portfolioGroups, membershipsMatch[1] ?? "");
+    const body = parseBody(init);
+    const explicitPortfolioUid = readString(body?.portfolio_uid);
+    const portfolioUniqueIdentifier = readString(body?.portfolio_unique_identifier);
+    const portfolio =
+      explicitPortfolioUid
+        ? findByUid(state.targetPortfolios, explicitPortfolioUid)
+        : state.targetPortfolios.find(
+            (row) => readString(row.unique_identifier) === portfolioUniqueIdentifier,
+          );
+    const portfolioUid = readString(portfolio?.uid) || explicitPortfolioUid;
+    const existing = new Set(readArray<string>(group?.portfolio_uids));
+
+    if (group && portfolioUid) {
+      existing.add(portfolioUid);
+      group.portfolio_uids = [...existing];
+    }
+
+    return {
+      uid: `${readString(group?.uid)}:${portfolioUid}`,
+      portfolio_group_uid: readString(group?.uid),
+      portfolio_uid: portfolioUid,
+      portfolio_unique_identifier: readString(portfolio?.unique_identifier),
+    };
+  }
+
+  const detailMatch = route.match(/^\/api\/v1\/portfolio[-_]group\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
     return findByUid(state.portfolioGroups, detailMatch[1] ?? "");
+  }
+
+  if (detailMatch && method === "PATCH") {
+    const group = findByUid(state.portfolioGroups, detailMatch[1] ?? "");
+    const body = parseBody(init);
+
+    if (group) {
+      Object.assign(group, {
+        display_name:
+          typeof body?.display_name === "string" ? body.display_name : group.display_name,
+        portfolio_group_name:
+          typeof body?.display_name === "string" ? body.display_name : group.portfolio_group_name,
+        description: typeof body?.description === "string" ? body.description : group.description,
+        metadata_json: isRecord(body?.metadata_json) ? body.metadata_json : group.metadata_json,
+      });
+    }
+
+    return group;
+  }
+
+  if (detailMatch && method === "DELETE") {
+    const groupUid = detailMatch[1] ?? "";
+    const before = state.portfolioGroups.length;
+    state.portfolioGroups = state.portfolioGroups.filter(
+      (group) => readString(group.uid) !== groupUid,
+    );
+    return {
+      detail: "Deleted 1 portfolio group.",
+      deleted_count: before - state.portfolioGroups.length,
+    };
   }
 
   const appendMatch = route.match(/^\/api\/v1\/portfolio_group\/([^/]+)\/append-portfolios\/$/);
@@ -4450,7 +4600,7 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
         }
 
         return matchesSearch(
-          [node.uid, node.id, node.storage_hash, node.identifier, node.description],
+          [node.uid, node.id, node.identifier, node.description],
           query,
         );
       }),
@@ -4461,7 +4611,7 @@ function handleDataNodes(route: string, method: string, searchParams: URLSearchP
   if (route === "/orm/api/ts_manager/dynamic_table/quick-search/" && method === "GET") {
     return state.dataNodes
       .filter((node) =>
-        matchesSearch([node.uid, node.storage_hash, node.identifier], searchParams.get("q")),
+        matchesSearch([node.uid, node.identifier], searchParams.get("q")),
       )
       .slice(0, Number(searchParams.get("limit") ?? 50))
       .map((node) => ({

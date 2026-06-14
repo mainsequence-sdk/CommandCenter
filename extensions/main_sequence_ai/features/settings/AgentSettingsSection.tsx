@@ -532,14 +532,16 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
           </div>
         </div>
 
-        {globalAutomationEnabled ? (
-          <div className="relative z-10 space-y-4 border-t border-white/10 px-4 pb-4">
-            <div className="mt-4 rounded-[calc(var(--radius)-6px)] border border-primary/25 bg-primary/10 px-3 py-3 text-sm text-muted-foreground">
-              When this is activated, all projects that have agent capabilities will be
-              automatically deployed on each new version. You can always edit each individual
-              project&apos;s resources after deployment.
-            </div>
+        <div className="relative z-10 border-t border-white/10 px-4 py-4">
+          <div className="rounded-[calc(var(--radius)-6px)] border border-primary/25 bg-primary/10 px-3 py-3 text-sm text-muted-foreground">
+            When this is activated, all projects that have agent capabilities will be
+            automatically deployed on each new version. You can always edit each individual
+            project&apos;s resources after deployment.
+          </div>
+        </div>
 
+        {globalAutomationEnabled ? (
+          <div className="relative z-10 space-y-4 px-4 pb-4">
             <div className="grid gap-3 pt-4 sm:grid-cols-2 xl:grid-cols-3">
               <div className="space-y-1.5">
                 <label className="text-xs text-muted-foreground">Provider</label>

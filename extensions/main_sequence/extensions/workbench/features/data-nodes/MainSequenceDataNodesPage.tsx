@@ -175,12 +175,6 @@ function getDataNodeSelectionIdentifier(dataNode: DataNodeSummary) {
     return `id:${dataNode.id}`;
   }
 
-  const storageHash = dataNode.storage_hash?.trim();
-
-  if (storageHash) {
-    return `storage:${storageHash}`;
-  }
-
   return `${getDataNodeTableName(dataNode)}:${dataNode.creation_date ?? ""}`;
 }
 
@@ -198,7 +192,17 @@ function getDataNodeTableName(dataNode: DataNodeSummary) {
     }
   }
 
-  return dataNode.storage_hash?.trim() || "";
+  return "";
+}
+
+function getDataNodeListUidSubtitle(dataNode: DataNodeSummary) {
+  const uid = dataNode.uid?.trim();
+
+  if (!uid || getDataNodeTableName(dataNode) === uid) {
+    return null;
+  }
+
+  return uid;
 }
 
 function getDataNodeProvisioningStatus(dataNode: DataNodeSummary) {
@@ -251,6 +255,15 @@ function normalizeDataNodeSortValue(value?: string | null) {
   return value?.trim() ?? "";
 }
 
+function getDataNodeStableSortLabel(dataNode: DataNodeSummary) {
+  return (
+    getDataNodeTableName(dataNode) ||
+    dataNode.identifier?.trim() ||
+    dataNode.uid?.trim() ||
+    String(dataNode.id)
+  );
+}
+
 function getDataNodeSortValue(dataNode: DataNodeSummary, key: DataNodeSortKey) {
   switch (key) {
     case "table_name":
@@ -281,7 +294,10 @@ function compareDataNodes(
     const rightMissing = Number.isNaN(rightValue);
 
     if (leftMissing && rightMissing) {
-      return dataNodeSortCollator.compare(left.storage_hash, right.storage_hash);
+      return dataNodeSortCollator.compare(
+        getDataNodeStableSortLabel(left),
+        getDataNodeStableSortLabel(right),
+      );
     }
 
     if (leftMissing) {
@@ -298,7 +314,10 @@ function compareDataNodes(
       return comparison;
     }
 
-    return dataNodeSortCollator.compare(left.storage_hash, right.storage_hash);
+    return dataNodeSortCollator.compare(
+      getDataNodeStableSortLabel(left),
+      getDataNodeStableSortLabel(right),
+    );
   }
 
   const leftValue = getDataNodeSortValue(left, key);
@@ -307,7 +326,10 @@ function compareDataNodes(
   const rightMissing = !rightValue;
 
   if (leftMissing && rightMissing) {
-    return dataNodeSortCollator.compare(left.storage_hash, right.storage_hash);
+    return dataNodeSortCollator.compare(
+      getDataNodeStableSortLabel(left),
+      getDataNodeStableSortLabel(right),
+    );
   }
 
   if (leftMissing) {
@@ -327,7 +349,10 @@ function compareDataNodes(
     return comparison;
   }
 
-  return dataNodeSortCollator.compare(left.storage_hash, right.storage_hash);
+  return dataNodeSortCollator.compare(
+    getDataNodeStableSortLabel(left),
+    getDataNodeStableSortLabel(right),
+  );
 }
 
 function getTableIndexNames(dataNode: DataNodeSummary) {
@@ -377,7 +402,7 @@ function buildFallbackDataNodeSummary(dataNode: DataNodeSummary): EntitySummaryH
     entity: {
       id: dataNode.id,
       type: "data_node",
-      title: dataNode.storage_hash,
+      title: getDataNodeTitle(dataNode),
     },
     badges: [
       {
@@ -643,7 +668,7 @@ export function MainSequenceDataNodesPage() {
   }, [dataNodeDetailQuery.data, dataNodeSummaryQuery.data, selectedDataNodeFromList]);
   const dataNodeTitle =
     dataNodeSummary?.entity.title ??
-    selectedDataNodeFromList?.storage_hash ??
+    (selectedDataNodeFromList ? getDataNodeTitle(selectedDataNodeFromList) : null) ??
     (isDataNodeDetailOpen ? `Data node ${selectedDataNodeIdentifier}` : "Data node");
   const dataNodeColumnDetails = dataNodeDetailQuery.data?.columns ?? [];
   const dataNodeIndexDetails = dataNodeDetailQuery.data?.indexes_meta ?? [];
@@ -1054,7 +1079,7 @@ export function MainSequenceDataNodesPage() {
       return null;
     }
 
-    const selectedNames = bulkActionRequest.dataNodes.map((dataNode) => dataNode.storage_hash);
+    const selectedNames = bulkActionRequest.dataNodes.map((dataNode) => getDataNodeTitle(dataNode));
 
     if (selectedNames.length === 1) {
       return (
@@ -1512,16 +1537,8 @@ export function MainSequenceDataNodesPage() {
                                             style={{ fontSize: "var(--table-meta-font-size)" }}
                                           >
                                             <div>
-                                              {foreignKey.target_table_storage_hash?.trim() ||
-                                                foreignKey.target_table_uid?.trim() ||
-                                                "Not set"}
+                                              {foreignKey.target_table_uid?.trim() || "Not set"}
                                             </div>
-                                            {foreignKey.target_table_storage_hash?.trim() &&
-                                            foreignKey.target_table_uid?.trim() ? (
-                                              <div className="mt-1 text-xs text-muted-foreground">
-                                                {foreignKey.target_table_uid.trim()}
-                                              </div>
-                                            ) : null}
                                           </td>
                                           <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                             {formatJoinedValues(foreignKey.target_columns)}
@@ -1595,15 +1612,8 @@ export function MainSequenceDataNodesPage() {
                                             style={{ fontSize: "var(--table-meta-font-size)" }}
                                           >
                                             <div>
-                                              {foreignKey.target_table_storage_hash?.trim() ||
-                                                dataNodeDetailQuery.data?.storage_hash?.trim() ||
-                                                "Not set"}
+                                              {foreignKey.target_table_uid?.trim() || "Current data node"}
                                             </div>
-                                            {foreignKey.target_table_uid?.trim() ? (
-                                              <div className="mt-1 text-xs text-muted-foreground">
-                                                {foreignKey.target_table_uid.trim()}
-                                              </div>
-                                            ) : null}
                                           </td>
                                           <td className="border border-border/70 bg-background/40 px-4 py-[var(--table-standard-cell-padding-y)] text-foreground">
                                             {formatJoinedValues(foreignKey.target_columns)}
@@ -1896,6 +1906,8 @@ export function MainSequenceDataNodesPage() {
                   {sortedDataNodes.map((dataNode) => {
                     const dataNodeSelectionIdentifier = getDataNodeSelectionIdentifier(dataNode);
                     const selected = dataNodeSelection.isSelected(dataNodeSelectionIdentifier);
+                    const uidSubtitle = getDataNodeListUidSubtitle(dataNode);
+                    const descriptionSubtitle = dataNode.description?.trim() || null;
 
                     return (
                       <tr key={dataNodeSelectionIdentifier}>
@@ -1925,13 +1937,15 @@ export function MainSequenceDataNodesPage() {
                                 <span className="truncate">{getDataNodeTableName(dataNode)}</span>
                                 <ArrowUpRight className="text-muted-foreground transition-colors group-hover:text-primary" />
                               </button>
-                              <div
-                                className="mt-0.5 max-w-[260px] truncate font-mono text-muted-foreground"
-                                style={{ fontSize: "var(--table-meta-font-size)" }}
-                                title={dataNode.storage_hash}
-                              >
-                                {dataNode.storage_hash}
-                              </div>
+                              {uidSubtitle ? (
+                                <div
+                                  className="mt-0.5 max-w-[260px] truncate font-mono text-muted-foreground"
+                                  style={{ fontSize: "var(--table-meta-font-size)" }}
+                                  title={uidSubtitle}
+                                >
+                                  {uidSubtitle}
+                                </div>
+                              ) : null}
                             </div>
                           </div>
                         </td>
@@ -1942,14 +1956,14 @@ export function MainSequenceDataNodesPage() {
                               <div className="font-medium text-foreground">
                                 {dataNode.identifier?.trim() || "No identifier"}
                               </div>
-                              <div
-                                className="mt-0.5 text-muted-foreground"
-                                style={{ fontSize: "var(--table-meta-font-size)" }}
-                              >
-                                {[dataNode.uid?.trim() ? `UID ${dataNode.uid.trim()}` : null, dataNode.description?.trim() ?? null]
-                                  .filter(Boolean)
-                                  .join(" · ")}
-                              </div>
+                              {descriptionSubtitle ? (
+                                <div
+                                  className="mt-0.5 text-muted-foreground"
+                                  style={{ fontSize: "var(--table-meta-font-size)" }}
+                                >
+                                  {descriptionSubtitle}
+                                </div>
+                              ) : null}
                             </div>
                           </div>
                         </td>

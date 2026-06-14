@@ -33,7 +33,7 @@ Workbench data access.
 - Data Node public config stores `dataNodeUid`, optional display metadata, `defaultLimit`,
   `queryCachePolicy`, `queryCacheTtlMs`, and `dedupeInFlight`.
 - MetaTable public config stores `metaTableUid`, optional display metadata
-  (`metaTableLabel`, `metaTableStorageHash`, `metaTableIdentifier`), `defaultLimit`,
+  (`metaTableLabel`, `metaTableIdentifier`), `defaultLimit`,
   `statementTimeoutMs`, `queryCachePolicy`, `queryCacheTtlMs`, and `dedupeInFlight`.
 - Main Sequence Explore shells should stay aligned with the core Connection Query widget: select a
   connection path, edit that path through the connection query editor, build the standard
@@ -47,7 +47,6 @@ execution. The frontend contract provides these public config fields:
 
 - `metaTableUid?: string`
 - `metaTableLabel?: string`
-- `metaTableStorageHash?: string`
 - `metaTableIdentifier?: string`
 - `defaultLimit?: number`
 - `statementTimeoutMs?: number`
@@ -68,7 +67,7 @@ Every adapter operation should first resolve the target MetaTable:
    table UID from the query payload.
 3. Validate the resolved value is a non-empty UID string.
 4. Fetch `GET /orm/api/ts_manager/meta_table/{resolved_meta_table_uid}/` to validate existence,
-   permissions, storage hash, and normalized column metadata before execution or health checks.
+   permissions, and normalized column metadata before execution or health checks.
 
 Permissions must be checked before execution and before joining any in-flight request. The minimum
 permission advertised by the frontend is `main_sequence_foundry:view`; backend object-level checks

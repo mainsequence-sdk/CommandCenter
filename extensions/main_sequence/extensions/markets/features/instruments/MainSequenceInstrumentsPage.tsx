@@ -29,13 +29,7 @@ function getDataNodeTitle(dataNode: DataNodeSummary) {
     return identifier;
   }
 
-  const storageHash = dataNode.storage_hash?.trim();
-
-  if (storageHash) {
-    return storageHash;
-  }
-
-  return `Data node ${dataNode.id}`;
+  return dataNode.uid?.trim() || `Data node ${dataNode.id}`;
 }
 
 function getDataSourceLabel(dataNode: DataNodeSummary) {
@@ -53,7 +47,6 @@ function getDataSourceLabel(dataNode: DataNodeSummary) {
 function toDataNodePickerOption(dataNode: DataNodeSummary): PickerOption {
   const label = getDataNodeTitle(dataNode);
   const descriptionParts = [
-    dataNode.storage_hash?.trim() && dataNode.storage_hash !== label ? dataNode.storage_hash : null,
     getDataSourceLabel(dataNode),
   ].filter((value): value is string => Boolean(value && value.trim()));
 
@@ -65,7 +58,6 @@ function toDataNodePickerOption(dataNode: DataNodeSummary): PickerOption {
       dataNode.uid ?? "",
       String(dataNode.id),
       dataNode.identifier ?? "",
-      dataNode.storage_hash ?? "",
       getDataSourceLabel(dataNode),
     ],
   };

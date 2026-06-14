@@ -17,7 +17,6 @@ export type MainSequenceMetaTableQueryCachePolicy = "disabled" | "safe";
 export interface MainSequenceMetaTableConnectionPublicConfig {
   metaTableUid?: string;
   metaTableLabel?: string;
-  metaTableStorageHash?: string;
   metaTableIdentifier?: string;
   defaultLimit?: number;
   statementTimeoutMs?: number;
@@ -81,15 +80,6 @@ export const mainSequenceMetaTableConnection: ConnectionTypeDefinition<
         required: false,
         description:
           "Optional cached display label for the selected Meta Table. The picker maintains this for UI summaries.",
-      },
-      {
-        id: "metaTableStorageHash",
-        sectionId: "meta-table",
-        label: "Storage hash",
-        type: "string",
-        required: false,
-        description:
-          "Optional cached storage hash for the selected Meta Table. Used only for display and debugging context.",
       },
       {
         id: "metaTableIdentifier",

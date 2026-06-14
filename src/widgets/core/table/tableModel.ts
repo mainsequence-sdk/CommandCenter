@@ -3176,7 +3176,7 @@ export function resolveTableWidgetPropsWithFrame(
     sourceLabel:
       resolvedFrameInput?.sourceLabel ??
       (normalizedSourceId
-        ? formatTabularSourceLabel({ id: normalizedSourceId, storage_hash: "", identifier: null })
+        ? formatTabularSourceLabel({ id: normalizedSourceId, identifier: null })
         : undefined),
     dateRangeMode: normalizeDateRangeMode(migratedProps.dateRangeMode),
     fixedStartMs: normalizedFixedStartMs,

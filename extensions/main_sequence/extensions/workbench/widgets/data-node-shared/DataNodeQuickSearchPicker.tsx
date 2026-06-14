@@ -32,13 +32,13 @@ export function DataNodeQuickSearchPicker({
   onChange: (nextId?: string) => void;
   editable: boolean;
   queryScope: string;
-  selectedDataNode?: Pick<DataNodeQuickSearchRecord, "id" | "uid" | "identifier" | "storage_hash"> | null;
+  selectedDataNode?: Pick<DataNodeQuickSearchRecord, "id" | "uid" | "identifier"> | null;
   placeholder?: string;
   searchPlaceholder?: string;
   selectionHelpText?: string;
   showStatus?: boolean;
   onSelectedDataNodeChange?: (
-    dataNode?: Pick<DataNodeQuickSearchRecord, "id" | "uid" | "identifier" | "storage_hash">,
+    dataNode?: Pick<DataNodeQuickSearchRecord, "id" | "uid" | "identifier">,
   ) => void;
   detailError?: unknown;
   hasNoData?: boolean;
@@ -77,11 +77,8 @@ export function DataNodeQuickSearchPicker({
       dataNodeOptions.map((dataNode) => ({
         value: dataNode.uid?.trim() || "",
         label: formatDataNodeLabel(dataNode),
-        description:
-          dataNode.identifier?.trim() && dataNode.storage_hash !== dataNode.identifier
-            ? dataNode.storage_hash
-            : undefined,
-        keywords: [dataNode.uid ?? "", String(dataNode.id), dataNode.identifier ?? "", dataNode.storage_hash ?? ""],
+        description: dataNode.identifier?.trim() ? dataNode.uid ?? undefined : undefined,
+        keywords: [dataNode.uid ?? "", String(dataNode.id), dataNode.identifier ?? ""],
       })),
     [dataNodeOptions],
   );

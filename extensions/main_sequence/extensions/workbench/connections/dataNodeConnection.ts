@@ -48,7 +48,6 @@ export type MainSequenceDataNodeConnectionQuery =
 export interface MainSequenceDataNodeConnectionPublicConfig {
   dataNodeUid?: string;
   dataNodeLabel?: string;
-  dataNodeStorageHash?: string;
   defaultLimit?: number;
   queryCachePolicy?: MainSequenceDataNodeQueryCachePolicy;
   queryCacheTtlMs?: number;
@@ -224,15 +223,6 @@ export const mainSequenceDataNodeConnection: ConnectionTypeDefinition<
         required: false,
         description:
           "Optional cached display label for the selected Data Node. The picker maintains this for UI summaries.",
-      },
-      {
-        id: "dataNodeStorageHash",
-        sectionId: "data-node",
-        label: "Storage hash",
-        type: "string",
-        required: false,
-        description:
-          "Optional cached storage hash for the selected Data Node. Used only for display and debugging context.",
       },
       {
         id: "defaultLimit",

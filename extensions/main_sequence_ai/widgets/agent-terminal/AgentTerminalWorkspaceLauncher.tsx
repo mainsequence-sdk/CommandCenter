@@ -52,7 +52,6 @@ export function AgentTerminalWorkspaceLauncher({
     try {
       const { sessionId } = await startNewAgentSessionRequest({
         agentId: agent.id,
-        createdByUserUid: sessionUserUid ?? "",
         token: sessionToken,
         tokenType: sessionTokenType,
       });

@@ -142,6 +142,13 @@ function buildStartNewAgentSessionUrl(agentId: string | number) {
   ).toString();
 }
 
+function buildGetOrCreateAgentSessionWithHandleUrl(agentUid: string | number) {
+  return new URL(
+    `/orm/api/agents/v1/agents/${encodeURIComponent(String(agentUid))}/sessions/get_or_create_session_with_handle/`,
+    env.apiBaseUrl,
+  ).toString();
+}
+
 function normalizeIdentifier(value: unknown) {
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -496,14 +503,12 @@ export async function fetchAgentSessionDetail({
 
 export async function startNewAgentSessionRequest({
   agentId,
-  createdByUserUid,
   signal,
   threadId,
   token,
   tokenType = "Bearer",
 }: {
   agentId: string | number;
-  createdByUserUid: string;
   signal?: AbortSignal;
   threadId?: string | null;
   token?: string | null;
@@ -518,18 +523,86 @@ export async function startNewAgentSessionRequest({
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  const normalizedCreatedByUserUid = normalizeIdentifier(createdByUserUid);
   const normalizedThreadId = normalizeIdentifier(threadId) ?? createClientThreadId();
-
-  if (!normalizedCreatedByUserUid) {
-    throw new Error("Unable to create a session because no signed-in user uid is available.");
-  }
 
   const response = await fetch(buildStartNewAgentSessionUrl(agentId), {
     method: "POST",
     body: JSON.stringify({
-      created_by_user_uid: normalizedCreatedByUserUid,
       thread_id: normalizedThreadId,
+    }),
+    headers,
+    signal,
+  });
+
+  const rawBody = await response.text().catch(() => "");
+  let payload: unknown = null;
+
+  if (rawBody.trim()) {
+    try {
+      payload = JSON.parse(rawBody) as unknown;
+    } catch {
+      payload = rawBody;
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(buildAgentSessionCreationErrorMessage(payload));
+  }
+
+  const record = extractStartedAgentSessionRecord(payload);
+  const sessionId = extractStartedAgentSessionId(payload);
+
+  if (!sessionId) {
+    throw new Error("Session creation succeeded but no AgentSession uid was returned.");
+  }
+
+  return {
+    sessionId,
+    record,
+  };
+}
+
+export async function getOrCreateAgentSessionWithHandleRequest({
+  agentUid,
+  handleUniqueId,
+  llmModel,
+  llmProvider,
+  llmThinking,
+  name,
+  sessionMetadata = {},
+  signal,
+  token,
+  tokenType = "Bearer",
+}: {
+  agentUid: string | number;
+  handleUniqueId: string;
+  llmModel: string;
+  llmProvider: string;
+  llmThinking?: string | null;
+  name: string;
+  sessionMetadata?: Record<string, unknown>;
+  signal?: AbortSignal;
+  token?: string | null;
+  tokenType?: string;
+}): Promise<StartedAgentSessionResult> {
+  const headers = new Headers({
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  });
+
+  if (token) {
+    headers.set("Authorization", `${tokenType} ${token}`);
+  }
+
+  const response = await fetch(buildGetOrCreateAgentSessionWithHandleUrl(agentUid), {
+    method: "POST",
+    body: JSON.stringify({
+      handle_unique_id: handleUniqueId,
+      name,
+      llm_provider: llmProvider,
+      llm_model: llmModel,
+      llm_thinking: llmThinking ?? "",
+      session_metadata: sessionMetadata,
     }),
     headers,
     signal,

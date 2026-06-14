@@ -122,7 +122,6 @@ export function AgentTerminalWidgetSettings({
     try {
       const { sessionId: nextSessionId } = await startNewAgentSessionRequest({
         agentId: nextAgentId,
-        createdByUserUid: sessionUserUid ?? "",
         token: sessionToken,
         tokenType: sessionTokenType,
       });

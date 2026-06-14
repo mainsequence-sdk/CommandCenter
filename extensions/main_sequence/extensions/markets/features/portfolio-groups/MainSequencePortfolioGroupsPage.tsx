@@ -29,7 +29,7 @@ import {
   buildCreatePortfolioGroupPayload,
   buildPortfolioGroupDeleteSummary,
   formatPortfolioGroupValue,
-  getPortfolioGroupCreationDate,
+  getPortfolioGroupDescription,
   getPortfolioGroupDetailPath,
   getPortfolioGroupTitle,
   getPortfolioGroupUniqueIdentifier,
@@ -319,7 +319,7 @@ export function MainSequencePortfolioGroupsPage() {
       <PageHeader
         eyebrow="Main Sequence Markets"
         title="Portfolio Groups"
-        description="Browse portfolio groups using the shared Main Sequence registry pattern and open dedicated detail pages."
+        description="Browse portfolio classification groups and manage their portfolio memberships."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="neutral">{`${totalCount} groups`}</Badge>
@@ -400,7 +400,7 @@ export function MainSequencePortfolioGroupsPage() {
                     </th>
                     <th className="px-4 pb-2">Name</th>
                     <th className="px-4 pb-2">Unique Identifier</th>
-                    <th className="px-4 pb-2">Creation Date</th>
+                    <th className="px-4 pb-2">Description</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -438,7 +438,7 @@ export function MainSequencePortfolioGroupsPage() {
                           {formatPortfolioGroupValue(getPortfolioGroupUniqueIdentifier(portfolioGroup))}
                         </td>
                         <td className={getRegistryTableCellClassName(selected, "right")}>
-                          {formatPortfolioGroupValue(getPortfolioGroupCreationDate(portfolioGroup), "creation_date")}
+                          {formatPortfolioGroupValue(getPortfolioGroupDescription(portfolioGroup))}
                         </td>
                       </tr>
                     );
@@ -471,8 +471,8 @@ export function MainSequencePortfolioGroupsPage() {
         initialValues={{
           uniqueIdentifier: "",
           displayName: "",
-          source: "Main Sequence Markets",
           description: "",
+          metadataJson: "{}",
         }}
       />
 
@@ -496,7 +496,7 @@ export function MainSequencePortfolioGroupsPage() {
         }
         objectLabel="portfolio group rows"
         objectSummary={buildPortfolioGroupDeleteSummary(deleteIntent?.portfolioGroups ?? [])}
-        description="This uses the portfolio-group bulk-delete endpoint for the selected rows."
+        description="This deletes the selected portfolio group metadata. Membership rows cascade, and portfolios remain."
         confirmWord="DELETE"
         confirmButtonLabel={
           (deleteIntent?.portfolioGroups.length ?? 0) === 1

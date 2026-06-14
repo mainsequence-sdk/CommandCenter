@@ -36,14 +36,20 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   `GET /orm/api/agents/v1/sessions/{session_uid}/` and expose a typed `404` not-found
   error so callers can invalidate stale session-bound UI before touching the assistant runtime. It
   also owns managed session creation through
-  `POST /orm/api/agents/v1/agents/{agent_id}/start_new_session/` plus the AgentSession
-  model-binding PATCH for `llm_provider` / `llm_model`.
+  `POST /orm/api/agents/v1/agents/{agent_id}/start_new_session/`, handle-bound session creation
+  through
+  `POST /orm/api/agents/v1/agents/{agent_uid}/sessions/get_or_create_session_with_handle/`,
+  plus the AgentSession model-binding PATCH for `llm_provider` / `llm_model`.
 - `available-models-api.ts`
   Shared assistant-backend model catalog fetch helper used by the page chat composer. It also owns
   the shared in-memory available-models cache used to avoid repeated
   `/api/chat/get_available_models` requests for the same user + agent-request-name scope for
   15 minutes after a successful load. The cache also exposes expired snapshots so callers can keep
   the last successful catalog rendered while refreshing the runtime in the background.
+- `run-config-selection.ts`
+  Shared provider/model/thinking selection resolver. It merges backend model catalogs with the
+  current persisted agent or session defaults so callers can render standard run-config fields
+  without dropping a current value that is not present in the registered catalog.
 - `model-catalog-api.ts`
   Shared global model-catalog fetch helper used by the provider settings screen.
 - `model-provider-auth-api.ts`
@@ -115,8 +121,12 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   session catalog is requested from chat, pickers, or widget surfaces.
 - Managed Agent Terminal session creation also belongs here. Settings and launchers should not hand
   roll `start_new_session` fetches or parse response payloads themselves.
-- `start_new_session` sends a minimal JSON body with `created_by_user_uid` plus a generated
-  `thread_id`, because the backend contract requires both fields even for a fresh session.
+- `start_new_session` sends a minimal JSON body with a generated `thread_id`; user ownership is
+  resolved from the authenticated backend request context, not from a frontend-supplied
+  `created_by_user_uid`.
+- `get_or_create_session_with_handle` sends only the backend handle contract:
+  `handle_unique_id`, `name`, `llm_provider`, `llm_model`, `llm_thinking`, and
+  `session_metadata`. User ownership is resolved from the authenticated backend request context.
 - If the backend assistant request shape changes, update `agent-session-request.ts` first so the
   page chat and terminal widget stay aligned.
 - Chat picker provider/model changes are persisted through

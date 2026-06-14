@@ -84,6 +84,14 @@ function formatDateTime(value?: string | null) {
   }).format(new Date(parsed));
 }
 
+function getLocalUpdateDataNodeLabel(localTimeSerie: LocalTimeSerieRecord) {
+  return (
+    getTsManagerRecordIdentifier(localTimeSerie.data_node_storage ?? null) ||
+    localTimeSerie.data_node_storage?.identifier?.trim() ||
+    "Unknown"
+  );
+}
+
 function formatDurationSeconds(seconds: number | null) {
   if (seconds === null || !Number.isFinite(seconds)) {
     return "Not available";
@@ -199,7 +207,7 @@ function buildFallbackLocalUpdateSummary(localTimeSerie: LocalTimeSerieRecord): 
       {
         key: "data_node",
         label: "Data node",
-        value: localTimeSerie.data_node_storage?.storage_hash ?? "Unknown",
+        value: getLocalUpdateDataNodeLabel(localTimeSerie),
         kind: "code",
       },
       {
@@ -344,7 +352,7 @@ function LocalUpdateOverviewDetails({
       "Last updated by",
       details?.last_updated_by_user ? `User ${details.last_updated_by_user}` : "Not recorded",
     ],
-    ["Related data node", localTimeSerie.data_node_storage?.storage_hash ?? "Unknown"],
+    ["Related data node", getLocalUpdateDataNodeLabel(localTimeSerie)],
     ["Source class", localTimeSerie.data_node_storage?.source_class_name ?? "Unknown"],
   ];
 

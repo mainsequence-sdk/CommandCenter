@@ -42,7 +42,7 @@ const instrumentsConfigurationEndpoint = buildMainSequenceAssetEndpoint(
 );
 const virtualFundEndpoint = buildMainSequenceAssetEndpoint("virtualfund/");
 const managedAccountEndpoint = buildMainSequenceAssetEndpoint("account/");
-const portfolioGroupEndpoint = buildMainSequenceAssetEndpoint("portfolio_group/");
+const portfolioGroupEndpoint = buildMainSequenceAssetEndpoint("portfolio-group/");
 const targetPortfolioEndpoint = buildMainSequenceAssetEndpoint("portfolio/");
 const portfolioSignalEndpoint = buildMainSequenceAssetEndpoint("portfolio-signal/");
 export const mainSequenceRegistryPageSize = 25;
@@ -922,13 +922,14 @@ export interface InstrumentsConfigurationCurrentResponse {
 }
 
 export interface PortfolioGroupListRow extends Record<string, unknown> {
-  id: number;
+  id?: number;
   uid: string;
   name?: string | null;
   display_name?: string | null;
   portfolio_group_name?: string | null;
   unique_identifier?: string | null;
   description?: string | null;
+  metadata_json?: Record<string, unknown> | null;
   portfolios?: string[] | null;
   portfolio_uids?: string[] | null;
   creation_date?: string | null;
@@ -943,13 +944,19 @@ export interface PortfolioGroupRecord extends PortfolioGroupListRow {}
 export interface CreatePortfolioGroupInput {
   unique_identifier: string;
   display_name?: string;
-  source?: string;
   description?: string;
-  portfolios?: string[];
+  metadata_json?: Record<string, unknown>;
+}
+
+export interface UpdatePortfolioGroupInput {
+  display_name?: string;
+  description?: string;
+  metadata_json?: Record<string, unknown>;
 }
 
 export interface PortfolioGroupBulkDeleteInput {
   uids?: string[];
+  unique_identifiers?: string[];
 }
 
 export interface PortfolioGroupBulkDeleteResponse {
@@ -958,7 +965,32 @@ export interface PortfolioGroupBulkDeleteResponse {
 }
 
 export interface PortfolioGroupPortfolioMutationInput {
-  portfolios: string[];
+  portfolio_uid?: string;
+  portfolio_unique_identifier?: string;
+}
+
+export interface PortfolioGroupMembershipRecord extends Record<string, unknown> {
+  uid?: string;
+  portfolio_group_uid?: string;
+  portfolio_uid?: string;
+  portfolio_unique_identifier?: string;
+}
+
+export interface PortfolioGroupPortfolioListRow extends Record<string, unknown> {
+  uid: string;
+  unique_identifier: string;
+  calendar_uid?: string | null;
+  published_index_uid?: string | null;
+  portfolio_weights_data_node_uid?: string | null;
+  signal_weights_data_node_uid?: string | null;
+  signal_uid?: string | null;
+  portfolio_data_node_uid?: string | null;
+}
+
+export interface PortfolioGroupMembershipBulkDeleteInput {
+  uids?: string[];
+  portfolio_group_uids?: string[];
+  portfolio_uids?: string[];
 }
 
 export interface TargetPortfolioListRow extends Record<string, unknown> {
@@ -4074,6 +4106,8 @@ export interface AssetCategoryListFilters {
 
 export interface PortfolioGroupListFilters {
   search?: string;
+  uniqueIdentifier?: string;
+  displayName?: string;
   limit?: number;
   offset?: number;
 }
@@ -4685,6 +4719,8 @@ function buildPortfolioGroupListSearch(filters: PortfolioGroupListFilters) {
   return {
     response_format: "frontend_list",
     search: filters.search?.trim() || undefined,
+    unique_identifier: filters.uniqueIdentifier?.trim() || undefined,
+    display_name: filters.displayName?.trim() || undefined,
     limit: filters.limit,
     offset: filters.offset,
   } satisfies Record<string, QueryValue>;
@@ -5593,11 +5629,15 @@ export function updateCurrentInstrumentsConfiguration({
 
 export async function listPortfolioGroups({
   search,
+  uniqueIdentifier,
+  displayName,
   limit = mainSequenceRegistryPageSize,
   offset = 0,
 }: PortfolioGroupListFilters = {}) {
   const filters = {
     search,
+    uniqueIdentifier,
+    displayName,
     limit,
     offset,
   } satisfies PortfolioGroupListFilters;
@@ -5620,16 +5660,28 @@ export function bulkDeletePortfolioGroups(input: PortfolioGroupBulkDeleteInput) 
       method: "POST",
       body: JSON.stringify({
         uids: input.uids,
+        unique_identifiers: input.unique_identifiers,
       }),
     },
   );
 }
 
 export function createPortfolioGroup(input: CreatePortfolioGroupInput) {
-  return requestJson<PortfolioGroupRecord>(portfolioGroupEndpoint, "get_or_create/", {
+  return requestJson<PortfolioGroupRecord>(portfolioGroupEndpoint, "", {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function updatePortfolioGroup(portfolioGroupUid: string, input: UpdatePortfolioGroupInput) {
+  return requestJson<PortfolioGroupRecord>(
+    portfolioGroupEndpoint,
+    `${resolveMainSequenceUidPath(portfolioGroupUid, "portfolio group")}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export function fetchPortfolioGroupDetail(portfolioGroupUid: string) {
@@ -5639,13 +5691,23 @@ export function fetchPortfolioGroupDetail(portfolioGroupUid: string) {
   );
 }
 
-export function appendPortfolioGroupPortfolios(
+export function deletePortfolioGroup(portfolioGroupUid: string) {
+  return requestJson<PortfolioGroupBulkDeleteResponse>(
+    portfolioGroupEndpoint,
+    `${resolveMainSequenceUidPath(portfolioGroupUid, "portfolio group")}/`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function addPortfolioGroupPortfolio(
   portfolioGroupUid: string,
   input: PortfolioGroupPortfolioMutationInput,
 ) {
-  return requestJson<PortfolioGroupRecord>(
+  return requestJson<PortfolioGroupMembershipRecord>(
     portfolioGroupEndpoint,
-    `${resolveMainSequenceUidPath(portfolioGroupUid, "portfolio group")}/append-portfolios/`,
+    `${resolveMainSequenceUidPath(portfolioGroupUid, "portfolio group")}/portfolios/`,
     {
       method: "POST",
       body: JSON.stringify(input),
@@ -5653,13 +5715,75 @@ export function appendPortfolioGroupPortfolios(
   );
 }
 
-export function removePortfolioGroupPortfolios(
+export async function listPortfolioGroupPortfolios(
   portfolioGroupUid: string,
-  input: PortfolioGroupPortfolioMutationInput,
+  {
+    limit = mainSequenceRegistryPageSize,
+    offset = 0,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
 ) {
-  return requestJson<PortfolioGroupRecord>(
+  const payload = await requestJson<
+    PaginatedResponse<PortfolioGroupPortfolioListRow> | PortfolioGroupPortfolioListRow[]
+  >(
     portfolioGroupEndpoint,
-    `${resolveMainSequenceUidPath(portfolioGroupUid, "portfolio group")}/remove-portfolios/`,
+    `${resolveMainSequenceUidPath(portfolioGroupUid, "portfolio group")}/portfolios/`,
+    undefined,
+    {
+      limit,
+      offset,
+    },
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export async function listPortfolioGroupsByPortfolio(
+  portfolioUid: string,
+  {
+    limit = mainSequenceRegistryPageSize,
+    offset = 0,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+) {
+  const payload = await requestJson<
+    PaginatedResponse<PortfolioGroupListRow> | PortfolioGroupListRow[]
+  >(
+    portfolioGroupEndpoint,
+    `by-portfolio/${resolveMainSequenceUidPath(portfolioUid, "portfolio")}/`,
+    undefined,
+    {
+      limit,
+      offset,
+    },
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function removePortfolioGroupPortfolio(
+  portfolioGroupUid: string,
+  portfolioUid: string,
+) {
+  return requestJson<PortfolioGroupBulkDeleteResponse>(
+    portfolioGroupEndpoint,
+    `${resolveMainSequenceUidPath(portfolioGroupUid, "portfolio group")}/portfolios/${resolveMainSequenceUidPath(portfolioUid, "portfolio")}/`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function bulkDeletePortfolioGroupMemberships(
+  input: PortfolioGroupMembershipBulkDeleteInput,
+) {
+  return requestJson<PortfolioGroupBulkDeleteResponse>(
+    portfolioGroupEndpoint,
+    "membership/bulk-delete/",
     {
       method: "POST",
       body: JSON.stringify(input),

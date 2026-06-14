@@ -48,6 +48,9 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 - The `Automate All Agents` control is a toggle. When enabled, it expands the same deployment
   default shape used by project-agent configuration: provider, model, reasoning, CPU, memory, and
   optional GPU settings.
+- The explanatory callout for global automation must remain visible before activation so users can
+  understand that enabling it automatically deploys every agent-capable project on each new
+  version while still allowing per-project resource edits afterward.
 - Opening the Agents settings section always reads
   `/orm/api/agents/v1/coding-agent-deployment-defaults/`. The backend get-or-creates the
   authenticated user's singleton defaults record, so the UI must hydrate from that response before

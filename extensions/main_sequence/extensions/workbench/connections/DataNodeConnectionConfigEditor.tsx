@@ -38,10 +38,9 @@ export function DataNodeConnectionConfigEditor({
             id: 0,
             uid: value.dataNodeUid,
             identifier: value.dataNodeLabel ?? null,
-            storage_hash: value.dataNodeStorageHash ?? "",
           }
         : null,
-    [value.dataNodeUid, value.dataNodeLabel, value.dataNodeStorageHash],
+    [value.dataNodeUid, value.dataNodeLabel],
   );
 
   return (
@@ -55,7 +54,6 @@ export function DataNodeConnectionConfigEditor({
               ...value,
               dataNodeUid: nextId,
               dataNodeLabel: nextId ? value.dataNodeLabel : undefined,
-              dataNodeStorageHash: nextId ? value.dataNodeStorageHash : undefined,
             });
           }}
           onSelectedDataNodeChange={(dataNode) => {
@@ -63,7 +61,6 @@ export function DataNodeConnectionConfigEditor({
               ...value,
               dataNodeUid: dataNode?.uid?.trim(),
               dataNodeLabel: dataNode ? formatDataNodeLabel(dataNode) : undefined,
-              dataNodeStorageHash: dataNode?.storage_hash,
             });
           }}
           editable={!disabled}

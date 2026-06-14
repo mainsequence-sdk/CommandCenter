@@ -889,7 +889,7 @@ export function resolveDataNodeWidgetSourceConfig(
       sourceMode === "manual"
         ? "Manual table"
         : formatDataNodeLabel(
-            detail ?? (dataNodeUid ? { id: 0, uid: dataNodeUid, storage_hash: "", identifier: null } : null),
+            detail ?? (dataNodeUid ? { id: 0, uid: dataNodeUid, identifier: null } : null),
           ),
     dateRangeMode,
     fixedEndMs,

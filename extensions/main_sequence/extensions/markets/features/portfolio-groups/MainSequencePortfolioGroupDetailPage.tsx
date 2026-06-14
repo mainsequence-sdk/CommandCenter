@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Plus, Search, Trash2 } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
@@ -13,24 +13,29 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toaster";
 
 import {
-  appendPortfolioGroupPortfolios,
+  addPortfolioGroupPortfolio,
+  deletePortfolioGroup,
   fetchPortfolioGroupDetail,
-  fetchTargetPortfolioSummary,
   formatMainSequenceError,
-  removePortfolioGroupPortfolios,
+  listPortfolioGroupPortfolios,
+  removePortfolioGroupPortfolio,
   searchTargetPortfolioOptions,
+  updatePortfolioGroup,
+  type PortfolioGroupPortfolioListRow,
   type PortfolioGroupRecord,
   type TargetPortfolioSearchOption,
 } from "../../../../common/api";
 import {
+  buildUpdatePortfolioGroupPayload,
   formatPortfolioGroupValue,
-  getPortfolioGroupCreationDate,
   getPortfolioGroupDescription,
   getPortfolioGroupTitle,
   getPortfolioGroupUniqueIdentifier,
   getPortfolioGroupsListPath,
   getPortfolioSearchOptionLabel,
   getTargetPortfolioDetailPath,
+  PortfolioGroupEditorDialog,
+  type PortfolioGroupEditorValues,
 } from "./portfolioGroupShared";
 
 type PortfolioGroupDetailTabId = "settings" | "overview";
@@ -44,9 +49,14 @@ const portfolioGroupDetailTabs: Array<{ id: PortfolioGroupDetailTabId; label: st
   { id: "overview", label: "Overview" },
   { id: "settings", label: "Settings" },
 ];
+const portfolioGroupMembershipPageSize = 50;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readTrimmedString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function readUid(value: unknown) {
@@ -75,39 +85,55 @@ function isPortfolioField(fieldKey?: string) {
   return normalized === "portfolios" || normalized === "portfolio_uids";
 }
 
-function extractPortfolioUids(portfolioGroup: PortfolioGroupRecord | null | undefined) {
-  if (!portfolioGroup) {
-    return [];
-  }
-
-  const rawValues = [
-    portfolioGroup.portfolio_uids,
-    portfolioGroup.portfolios,
-  ].filter(Array.isArray);
-  const uids = rawValues.flatMap((value) => value.map((entry) => readUid(entry)));
-
-  return Array.from(new Set(uids.filter((uid): uid is string => uid !== null))).sort((left, right) => left.localeCompare(right));
+function getPortfolioListRowTitle(portfolio: PortfolioGroupPortfolioListRow) {
+  return readTrimmedString(portfolio.unique_identifier) || `Portfolio ${portfolio.uid}`;
 }
 
-function getPortfolioSummaryTitle(
-  summary: Awaited<ReturnType<typeof fetchTargetPortfolioSummary>> | null | undefined,
-) {
-  const title = summary?.entity?.title;
-  return typeof title === "string" && title.trim() ? title.trim() : null;
+function serializeMetadataJson(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return "{}";
+  }
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return "{}";
+  }
+}
+
+function buildEditorInitialValues(
+  portfolioGroup: PortfolioGroupRecord | null | undefined,
+): PortfolioGroupEditorValues {
+  return {
+    uniqueIdentifier: getPortfolioGroupUniqueIdentifier(portfolioGroup) ?? "",
+    displayName: readTrimmedString(portfolioGroup?.display_name) ?? "",
+    description: getPortfolioGroupDescription(portfolioGroup) ?? "",
+    metadataJson: serializeMetadataJson(portfolioGroup?.metadata_json),
+  };
+}
+
+function readDeleteDetail(result: unknown) {
+  if (
+    result &&
+    typeof result === "object" &&
+    "detail" in result &&
+    typeof (result as { detail?: unknown }).detail === "string"
+  ) {
+    const detail = (result as { detail: string }).detail.trim();
+    return detail.length > 0 ? detail : undefined;
+  }
+
+  return undefined;
 }
 
 function PortfolioGroupNestedValue({
   value,
   fieldKey,
   depth = 0,
-  portfolioTitlesByUid,
-  loadingPortfolioUids,
 }: {
   value: unknown;
   fieldKey?: string;
   depth?: number;
-  portfolioTitlesByUid?: Map<string, string>;
-  loadingPortfolioUids?: Set<string>;
 }) {
   if (isBlankValue(value)) {
     return <div className="text-sm text-muted-foreground">Not available</div>;
@@ -128,9 +154,6 @@ function PortfolioGroupNestedValue({
               return null;
             }
 
-            const portfolioTitle = portfolioTitlesByUid?.get(portfolioUid) ?? null;
-            const isLoading = loadingPortfolioUids?.has(portfolioUid) ?? false;
-
             return (
               <div
                 key={`${fieldKey ?? "portfolio"}-${portfolioUid}-${index}`}
@@ -140,7 +163,7 @@ function PortfolioGroupNestedValue({
                   to={getTargetPortfolioDetailPath(portfolioUid)}
                   className="text-sm font-medium text-primary transition-colors hover:text-primary/80 hover:underline"
                 >
-                  {portfolioTitle || (isLoading ? `Loading portfolio ${portfolioUid}` : `Portfolio ${portfolioUid}`)}
+                  {`Portfolio ${portfolioUid}`}
                 </Link>
                 <div className="mt-1 text-xs text-muted-foreground">{`UID ${portfolioUid}`}</div>
               </div>
@@ -176,13 +199,7 @@ function PortfolioGroupNestedValue({
               Item {index + 1}
             </div>
             <div className="mt-2">
-              <PortfolioGroupNestedValue
-                value={entry}
-                fieldKey={fieldKey}
-                depth={depth + 1}
-                portfolioTitlesByUid={portfolioTitlesByUid}
-                loadingPortfolioUids={loadingPortfolioUids}
-              />
+              <PortfolioGroupNestedValue value={entry} fieldKey={fieldKey} depth={depth + 1} />
             </div>
           </div>
         ))}
@@ -208,13 +225,7 @@ function PortfolioGroupNestedValue({
               {key.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())}
             </div>
             <div className="mt-2">
-              <PortfolioGroupNestedValue
-                value={entryValue}
-                fieldKey={key}
-                depth={depth + 1}
-                portfolioTitlesByUid={portfolioTitlesByUid}
-                loadingPortfolioUids={loadingPortfolioUids}
-              />
+              <PortfolioGroupNestedValue value={entryValue} fieldKey={key} depth={depth + 1} />
             </div>
           </div>
         ))}
@@ -229,13 +240,14 @@ function buildOrderedEntries(portfolioGroup: PortfolioGroupRecord) {
   const entries = Object.entries(portfolioGroup).filter(([, value]) => !isBlankValue(value));
   const order = new Map<string, number>([
     ["id", 0],
-    ["name", 1],
-    ["display_name", 2],
-    ["portfolio_group_name", 3],
-    ["unique_identifier", 4],
-    ["description", 5],
-    ["creation_date", 6],
-    ["portfolios", 7],
+    ["uid", 1],
+    ["name", 2],
+    ["display_name", 3],
+    ["portfolio_group_name", 4],
+    ["unique_identifier", 5],
+    ["description", 6],
+    ["metadata_json", 7],
+    ["creation_date", 8],
   ]);
 
   return entries.sort(([leftKey], [rightKey]) => {
@@ -263,6 +275,19 @@ function renderRemoveSummary(target: RemovePortfolioIntent | null) {
   );
 }
 
+function renderGroupSummary(portfolioGroup: PortfolioGroupRecord | null | undefined) {
+  if (!portfolioGroup) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="font-medium text-foreground">{getPortfolioGroupTitle(portfolioGroup)}</div>
+      <div className="text-xs text-muted-foreground">{`UID ${portfolioGroup.uid}`}</div>
+    </div>
+  );
+}
+
 export function MainSequencePortfolioGroupDetailPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -271,8 +296,13 @@ export function MainSequencePortfolioGroupDetailPage() {
   const params = useParams();
   const [activeTabId, setActiveTabId] = useState<PortfolioGroupDetailTabId>("overview");
   const [portfolioSearchValue, setPortfolioSearchValue] = useState("");
-  const [selectedPortfolioOption, setSelectedPortfolioOption] = useState<TargetPortfolioSearchOption | null>(null);
-  const [removePortfolioIntent, setRemovePortfolioIntent] = useState<RemovePortfolioIntent | null>(null);
+  const [selectedPortfolioOption, setSelectedPortfolioOption] =
+    useState<TargetPortfolioSearchOption | null>(null);
+  const [removePortfolioIntent, setRemovePortfolioIntent] = useState<RemovePortfolioIntent | null>(
+    null,
+  );
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteGroupDialogOpen, setDeleteGroupDialogOpen] = useState(false);
 
   const portfolioGroupUid = params.groupUid?.trim() ?? "";
   const deferredPortfolioSearchValue = useDeferredValue(portfolioSearchValue);
@@ -286,48 +316,37 @@ export function MainSequencePortfolioGroupDetailPage() {
     enabled: Boolean(portfolioGroupUid),
   });
 
-  const linkedPortfolioUids = useMemo(
-    () => extractPortfolioUids(portfolioGroupDetailQuery.data),
-    [portfolioGroupDetailQuery.data],
-  );
-
-  const linkedPortfolioQueries = useQueries({
-    queries: linkedPortfolioUids.map((linkedPortfolioUid) => ({
-      queryKey: ["main_sequence", "target_portfolios", "summary", linkedPortfolioUid],
-      queryFn: () => fetchTargetPortfolioSummary(linkedPortfolioUid),
-      enabled: linkedPortfolioUids.length > 0,
-    })),
+  const groupPortfoliosQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "portfolio_groups",
+      "detail",
+      portfolioGroupUid,
+      "portfolios",
+      { limit: portfolioGroupMembershipPageSize, offset: 0 },
+    ],
+    queryFn: () =>
+      listPortfolioGroupPortfolios(portfolioGroupUid, {
+        limit: portfolioGroupMembershipPageSize,
+        offset: 0,
+      }),
+    enabled: Boolean(portfolioGroupUid),
   });
 
-  const portfolioTitlesByUid = useMemo(() => {
-    const nextMap = new Map<string, string>();
-
-    linkedPortfolioUids.forEach((linkedPortfolioUid, index) => {
-      const title = getPortfolioSummaryTitle(linkedPortfolioQueries[index]?.data);
-
-      if (title) {
-        nextMap.set(linkedPortfolioUid, title);
-      }
-    });
-
-    return nextMap;
-  }, [linkedPortfolioUids, linkedPortfolioQueries]);
-
-  const loadingPortfolioUids = useMemo(() => {
-    const nextSet = new Set<string>();
-
-    linkedPortfolioUids.forEach((linkedPortfolioUid, index) => {
-      if (linkedPortfolioQueries[index]?.isLoading) {
-        nextSet.add(linkedPortfolioUid);
-      }
-    });
-
-    return nextSet;
-  }, [linkedPortfolioUids, linkedPortfolioQueries]);
+  const linkedPortfolioRows = groupPortfoliosQuery.data?.results ?? [];
+  const linkedPortfolioUids = useMemo(
+    () => linkedPortfolioRows.map((portfolio) => portfolio.uid),
+    [linkedPortfolioRows],
+  );
 
   const detailEntries = useMemo(
     () =>
       portfolioGroupDetailQuery.data ? buildOrderedEntries(portfolioGroupDetailQuery.data) : [],
+    [portfolioGroupDetailQuery.data],
+  );
+
+  const editInitialValues = useMemo(
+    () => buildEditorInitialValues(portfolioGroupDetailQuery.data),
     [portfolioGroupDetailQuery.data],
   );
 
@@ -358,30 +377,30 @@ export function MainSequencePortfolioGroupDetailPage() {
       return;
     }
 
-    const stillAvailable = availablePortfolioOptions.some((option) => option.uid === selectedPortfolioOption.uid);
+    const stillAvailable = availablePortfolioOptions.some(
+      (option) => option.uid === selectedPortfolioOption.uid,
+    );
 
     if (!stillAvailable) {
       setSelectedPortfolioOption(null);
     }
   }, [availablePortfolioOptions, selectedPortfolioOption]);
 
-  const appendPortfolioMutation = useMutation({
+  const addPortfolioMutation = useMutation({
     mutationFn: (portfolioUid: string) =>
-      appendPortfolioGroupPortfolios(portfolioGroupUid, {
-        portfolios: [portfolioUid],
+      addPortfolioGroupPortfolio(portfolioGroupUid, {
+        portfolio_uid: portfolioUid,
       }),
-    onSuccess: async (updatedPortfolioGroup, portfolioUid) => {
-      queryClient.setQueryData(
-        ["main_sequence", "portfolio_groups", "detail", portfolioGroupUid],
-        updatedPortfolioGroup,
-      );
+    onSuccess: async (_membership, portfolioUid) => {
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "portfolio_groups"],
       });
 
       toast({
         title: "Portfolio added",
-        description: `${portfolioTitlesByUid.get(portfolioUid) || getPortfolioSearchOptionLabel(selectedPortfolioOption ?? { uid: portfolioUid, unique_identifier: "" })} was added to ${getPortfolioGroupTitle(updatedPortfolioGroup)}.`,
+        description: `${getPortfolioSearchOptionLabel(
+          selectedPortfolioOption ?? { uid: portfolioUid, unique_identifier: "" },
+        )} was added to this portfolio group.`,
       });
 
       setPortfolioSearchValue("");
@@ -398,14 +417,44 @@ export function MainSequencePortfolioGroupDetailPage() {
 
   const removePortfolioMutation = useMutation({
     mutationFn: (portfolioUid: string) =>
-      removePortfolioGroupPortfolios(portfolioGroupUid, {
-        portfolios: [portfolioUid],
-      }),
+      removePortfolioGroupPortfolio(portfolioGroupUid, portfolioUid),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "portfolio_groups"],
+      });
+    },
+  });
+
+  const updatePortfolioGroupMutation = useMutation({
+    mutationFn: (values: PortfolioGroupEditorValues) =>
+      updatePortfolioGroup(portfolioGroupUid, buildUpdatePortfolioGroupPayload(values)),
     onSuccess: async (updatedPortfolioGroup) => {
       queryClient.setQueryData(
         ["main_sequence", "portfolio_groups", "detail", portfolioGroupUid],
         updatedPortfolioGroup,
       );
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "portfolio_groups"],
+      });
+
+      setEditDialogOpen(false);
+      toast({
+        title: "Portfolio group updated",
+        description: `${getPortfolioGroupTitle(updatedPortfolioGroup)} was updated.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Portfolio group update failed",
+        description: formatMainSequenceError(error),
+      });
+    },
+  });
+
+  const deletePortfolioGroupMutation = useMutation({
+    mutationFn: () => deletePortfolioGroup(portfolioGroupUid),
+    onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "portfolio_groups"],
       });
@@ -434,7 +483,6 @@ export function MainSequencePortfolioGroupDetailPage() {
     getPortfolioGroupTitle(portfolioGroupDetailQuery.data) || `Portfolio Group ${portfolioGroupUid}`;
   const uniqueIdentifier = getPortfolioGroupUniqueIdentifier(portfolioGroupDetailQuery.data);
   const description = getPortfolioGroupDescription(portfolioGroupDetailQuery.data);
-  const creationDate = getPortfolioGroupCreationDate(portfolioGroupDetailQuery.data);
 
   return (
     <div className="space-y-6">
@@ -442,19 +490,34 @@ export function MainSequencePortfolioGroupDetailPage() {
         eyebrow="Main Sequence Markets"
         title={title}
         description={
-          uniqueIdentifier || description || "Manage the portfolios linked to this portfolio group."
+          uniqueIdentifier ||
+          description ||
+          "Manage portfolio classification metadata and memberships."
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="neutral">{`UID ${portfolioGroupUid}`}</Badge>
-            {creationDate ? (
-              <Badge variant="neutral">
-                {formatPortfolioGroupValue(creationDate, "creation_date")}
-              </Badge>
-            ) : null}
             <Button type="button" variant="outline" onClick={() => navigate(backPath)}>
               <ArrowLeft className="h-4 w-4" />
               Back to portfolio groups
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditDialogOpen(true)}
+              disabled={!portfolioGroupDetailQuery.data}
+            >
+              <Pencil className="h-4 w-4" />
+              Edit group
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={() => setDeleteGroupDialogOpen(true)}
+              disabled={!portfolioGroupDetailQuery.data}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete group
             </Button>
           </div>
         }
@@ -505,10 +568,9 @@ export function MainSequencePortfolioGroupDetailPage() {
               <Card>
                 <CardHeader className="border-b border-border/70">
                   <div>
-                    <CardTitle>Portfolio group settings</CardTitle>
+                    <CardTitle>Add portfolio membership</CardTitle>
                     <CardDescription>
-                      Search portfolios, select one result, and add it to this group without
-                      leaving the page.
+                      Search portfolios, select one result, and add one membership to this group.
                     </CardDescription>
                   </div>
                 </CardHeader>
@@ -599,11 +661,11 @@ export function MainSequencePortfolioGroupDetailPage() {
                           return;
                         }
 
-                        appendPortfolioMutation.mutate(selectedPortfolioOption.uid);
+                        addPortfolioMutation.mutate(selectedPortfolioOption.uid);
                       }}
-                      disabled={!selectedPortfolioOption || appendPortfolioMutation.isPending}
+                      disabled={!selectedPortfolioOption || addPortfolioMutation.isPending}
                     >
-                      {appendPortfolioMutation.isPending ? (
+                      {addPortfolioMutation.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <Plus className="h-4 w-4" />
@@ -619,59 +681,73 @@ export function MainSequencePortfolioGroupDetailPage() {
                   <div>
                     <CardTitle>Group portfolios</CardTitle>
                     <CardDescription>
-                      Current portfolio members resolved from the ids stored on this portfolio
-                      group.
+                      Current members from `GET /api/v1/portfolio-group/{portfolioGroupUid}/portfolios/`.
                     </CardDescription>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3 pt-6">
-	                  {linkedPortfolioUids.length === 0 ? (
+                  {groupPortfoliosQuery.isLoading ? (
+                    <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-10 text-center text-sm text-muted-foreground">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading group portfolios
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {groupPortfoliosQuery.isError ? (
+                    <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                      {formatMainSequenceError(groupPortfoliosQuery.error)}
+                    </div>
+                  ) : null}
+
+                  {!groupPortfoliosQuery.isLoading &&
+                  !groupPortfoliosQuery.isError &&
+                  linkedPortfolioRows.length === 0 ? (
                     <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-10 text-center text-sm text-muted-foreground">
                       This group does not have any linked portfolios yet.
                     </div>
-                  ) : (
-	                    linkedPortfolioUids.map((linkedPortfolioUid) => {
-	                      const linkedPortfolioTitle =
-	                        portfolioTitlesByUid.get(linkedPortfolioUid) ||
-	                        (loadingPortfolioUids.has(linkedPortfolioUid)
-	                          ? `Loading portfolio ${linkedPortfolioUid}`
-	                          : `Portfolio ${linkedPortfolioUid}`);
+                  ) : null}
 
-                      return (
-                        <div
-	                          key={linkedPortfolioUid}
-                          className="flex items-start justify-between gap-3 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-4"
-                        >
-                          <div className="min-w-0">
-                            <Link
-	                              to={getTargetPortfolioDetailPath(linkedPortfolioUid)}
-                              className="text-sm font-medium text-primary transition-colors hover:text-primary/80 hover:underline"
-                            >
-                              {linkedPortfolioTitle}
-                            </Link>
-	                            <div className="mt-1 text-xs text-muted-foreground">{`UID ${linkedPortfolioUid}`}</div>
-                          </div>
+                  {linkedPortfolioRows.map((linkedPortfolio) => {
+                    const linkedPortfolioTitle = getPortfolioListRowTitle(linkedPortfolio);
 
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="text-danger hover:bg-danger/10 hover:text-danger"
-                            onClick={() =>
-                              setRemovePortfolioIntent({
-	                                uid: linkedPortfolioUid,
-                                title: linkedPortfolioTitle,
-                              })
-                            }
-                            disabled={removePortfolioMutation.isPending}
+                    return (
+                      <div
+                        key={linkedPortfolio.uid}
+                        className="flex items-start justify-between gap-3 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-4"
+                      >
+                        <div className="min-w-0">
+                          <Link
+                            to={getTargetPortfolioDetailPath(linkedPortfolio.uid)}
+                            className="text-sm font-medium text-primary transition-colors hover:text-primary/80 hover:underline"
                           >
-                            <Trash2 className="h-4 w-4" />
-                            Remove
-                          </Button>
+                            {linkedPortfolioTitle}
+                          </Link>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {`UID ${linkedPortfolio.uid}`}
+                          </div>
                         </div>
-                      );
-                    })
-                  )}
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-danger hover:bg-danger/10 hover:text-danger"
+                          onClick={() =>
+                            setRemovePortfolioIntent({
+                              uid: linkedPortfolio.uid,
+                              title: linkedPortfolioTitle,
+                            })
+                          }
+                          disabled={removePortfolioMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Remove
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             </div>
@@ -681,7 +757,7 @@ export function MainSequencePortfolioGroupDetailPage() {
                 <div>
                   <CardTitle>Portfolio group details</CardTitle>
                   <CardDescription>
-	                    These fields come directly from `GET /api/v1/portfolio_group/{portfolioGroupUid}/`.
+                    These fields come directly from `GET /api/v1/portfolio-group/{portfolioGroupUid}/`.
                   </CardDescription>
                 </div>
               </CardHeader>
@@ -696,12 +772,7 @@ export function MainSequencePortfolioGroupDetailPage() {
                         {key.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())}
                       </div>
                       <div className="mt-3">
-                        <PortfolioGroupNestedValue
-                          value={value}
-                          fieldKey={key}
-	                          portfolioTitlesByUid={portfolioTitlesByUid}
-	                          loadingPortfolioUids={loadingPortfolioUids}
-                        />
+                        <PortfolioGroupNestedValue value={value} fieldKey={key} />
                       </div>
                     </div>
                   ))
@@ -715,6 +786,21 @@ export function MainSequencePortfolioGroupDetailPage() {
           )}
         </>
       ) : null}
+
+      <PortfolioGroupEditorDialog
+        open={editDialogOpen}
+        onClose={() => {
+          if (!updatePortfolioGroupMutation.isPending) {
+            setEditDialogOpen(false);
+          }
+        }}
+        onSubmit={(values) => updatePortfolioGroupMutation.mutate(values)}
+        isPending={updatePortfolioGroupMutation.isPending}
+        error={updatePortfolioGroupMutation.error}
+        initialValues={editInitialValues}
+        mode="edit"
+        submitLabel="Save group"
+      />
 
       <ActionConfirmationDialog
         open={removePortfolioIntent !== null}
@@ -730,13 +816,14 @@ export function MainSequencePortfolioGroupDetailPage() {
           setRemovePortfolioIntent(null);
         }}
         title="Remove portfolio"
-        description="This removes the selected portfolio from the current portfolio group."
+        description="This removes only the membership row between this portfolio group and the selected portfolio."
         tone="danger"
         actionLabel="remove the selected portfolio"
         confirmButtonLabel="Remove portfolio"
         confirmWord="REMOVE"
         objectLabel="portfolio"
         objectSummary={renderRemoveSummary(removePortfolioIntent)}
+        isPending={removePortfolioMutation.isPending}
         errorToast={{
           title: "Remove portfolio failed",
           description: (error) => formatMainSequenceError(error),
@@ -747,6 +834,38 @@ export function MainSequencePortfolioGroupDetailPage() {
             removePortfolioIntent
               ? `${removePortfolioIntent.title} was removed from this portfolio group.`
               : "The portfolio was removed.",
+        }}
+      />
+
+      <ActionConfirmationDialog
+        open={deleteGroupDialogOpen}
+        onClose={() => {
+          if (!deletePortfolioGroupMutation.isPending) {
+            setDeleteGroupDialogOpen(false);
+          }
+        }}
+        onConfirm={() => deletePortfolioGroupMutation.mutateAsync()}
+        onSuccess={() => {
+          setDeleteGroupDialogOpen(false);
+          navigate(backPath);
+        }}
+        title="Delete portfolio group"
+        description="This deletes the portfolio group metadata. Membership rows cascade, and portfolios remain."
+        tone="danger"
+        actionLabel="delete this portfolio group"
+        confirmButtonLabel="Delete group"
+        confirmWord="DELETE"
+        objectLabel="portfolio group"
+        objectSummary={renderGroupSummary(portfolioGroupDetailQuery.data)}
+        isPending={deletePortfolioGroupMutation.isPending}
+        error={
+          deletePortfolioGroupMutation.isError
+            ? formatMainSequenceError(deletePortfolioGroupMutation.error)
+            : undefined
+        }
+        successToast={{
+          title: "Portfolio group deleted",
+          description: (result) => readDeleteDetail(result) || "The portfolio group was removed.",
         }}
       />
     </div>

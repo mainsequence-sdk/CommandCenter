@@ -2410,7 +2410,6 @@ export function ChatProvider({
     try {
       const { record, sessionId } = await startNewAgentSessionRequest({
         agentId: launchAgentId,
-        createdByUserUid: sessionUserUid ?? "",
         token: sessionToken,
         tokenType: sessionTokenType,
       });
@@ -2549,7 +2548,6 @@ export function ChatProvider({
       try {
         const { record, sessionId } = await startNewAgentSessionRequest({
           agentId: lookupKey,
-          createdByUserUid: sessionUserUid ?? "",
           token: sessionToken,
           tokenType: sessionTokenType,
         });
@@ -2622,7 +2620,6 @@ export function ChatProvider({
       try {
         const { record, sessionId } = await startNewAgentSessionRequest({
           agentId: normalizedAgentId,
-          createdByUserUid: sessionUserUid ?? "",
           token: sessionToken,
           tokenType: sessionTokenType,
         });
@@ -2742,7 +2739,6 @@ export function ChatProvider({
 
         const { record, sessionId } = await startNewAgentSessionRequest({
           agentId: normalizedAgentId,
-          createdByUserUid: sessionUserUid ?? "",
           token: sessionToken,
           tokenType: sessionTokenType,
         });

@@ -522,6 +522,35 @@ export interface UserCreditsState {
   policy: OrganizationCreditsPolicy | null;
 }
 
+export interface CreditPeriod {
+  start: string;
+  end: string;
+  timezone: string;
+}
+
+export interface UserCreditSummaryBudget {
+  spent_this_period_cents: number;
+  monthly_limit_cents: number | null;
+  remaining_monthly_limit_cents: number | null;
+  available_cents: number;
+  currency: string;
+}
+
+export interface OrganizationCreditConsumptionSummary {
+  user_attributed_cents: number;
+  organization_shared_cents: number;
+  unresolved_cents: number;
+  total_cents: number;
+  consumer_count: number;
+  currency: string;
+}
+
+export interface UserCreditSummary {
+  period: CreditPeriod;
+  user_budget: UserCreditSummaryBudget;
+  organization_consumption?: OrganizationCreditConsumptionSummary;
+}
+
 export interface OrganizationCreditsCheckoutInput {
   amount_cents: number;
   success_url: string;
@@ -887,6 +916,12 @@ export function getOrganizationCredits(organizationUid: string) {
 
 export function getCurrentUserCredits() {
   return requestAdminJson<UserCreditsState>("/user/api/user/credits/", {
+    method: "GET",
+  });
+}
+
+export function getCurrentUserCreditsSummary() {
+  return requestAdminJson<UserCreditSummary>("/user/api/user/credits/summary/", {
     method: "GET",
   });
 }

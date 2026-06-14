@@ -70,7 +70,6 @@ export type TabularWidgetSourceMode = "direct" | "filter_widget" | "manual";
 export interface TabularSourceDetail {
   id?: number;
   identifier?: string | null;
-  storage_hash?: string;
   sourcetableconfiguration?: {
     time_index_name?: string | null;
     index_names?: string[];
@@ -450,9 +449,7 @@ export function formatTabularFieldSearchText(field: TabularFieldOption) {
   ].join(" ");
 }
 
-export function formatTabularSourceLabel(
-  source?: Pick<TabularSourceDetail, "id" | "identifier" | "storage_hash"> | null,
-) {
+export function formatTabularSourceLabel(source?: Pick<TabularSourceDetail, "id" | "identifier"> | null) {
   if (!source) {
     return "Dataset";
   }
@@ -463,7 +460,7 @@ export function formatTabularSourceLabel(
     return identifier;
   }
 
-  return source.storage_hash || (source.id ? `Dataset ${source.id}` : "Dataset");
+  return source.id ? `Dataset ${source.id}` : "Dataset";
 }
 
 export function buildTabularFieldOptions(detail?: TabularSourceDetail | null) {
@@ -854,7 +851,7 @@ export function resolveTabularWidgetSourceConfig(
     availableFields: buildTabularFieldOptions(detail),
     sourceId,
     sourceLabel: formatTabularSourceLabel(
-      detail ?? (sourceId ? { id: sourceId, storage_hash: "", identifier: null } : null),
+      detail ?? (sourceId ? { id: sourceId, identifier: null } : null),
     ),
     dateRangeMode,
     fixedStartMs: normalizeTimestampMs(props.fixedStartMs),

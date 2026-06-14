@@ -5,9 +5,11 @@ Shared shell navigation and chrome for the Command Center application.
 ## Main Entry Points
 
 - `Topbar.tsx`: global top navigation, search, favorites, notifications, user menu, and current-app navigation.
-  It also owns the mock budget usage bar beside favorites. The bar is always visible in the
-  navigation chrome, shows percent consumed, uses a trailing `$` marker, and toggles inline mock
-  dollar details plus a link into the organization billing surface.
+  It also owns the user credit summary bar beside favorites. The bar reads
+  `/user/api/user/credits/summary/`, always renders `user_budget`, renders a second slim
+  organization-consumption bar only when `organization_consumption` is present, and must not branch
+  on scope or UID fields. When `user_budget.monthly_limit_cents` is absent or zero, the user rail is
+  consumption-only and renders as 100% instead of showing an empty budget cap.
 - `Sidebar.tsx`: left rail app navigation.
 - `AppNavigationPanel.tsx`: per-app left-side surface navigation panel.
 - `AppSurfaceSelector.tsx`: topbar surface switcher for the current app.

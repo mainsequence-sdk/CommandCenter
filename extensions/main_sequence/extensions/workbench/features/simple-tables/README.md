@@ -36,6 +36,8 @@ The directory name is still `simple-tables` only because older local imports use
   remove referencing MetaTables and Data Nodes too.
 - Bulk delete removes MetaTable registrations only; it does not drop physical database tables.
 - Top-level detail navigation is URL-backed with `msMetaTableUid` and `msMetaTableTab`.
+- Meta Table display identity uses table names, explicit identifiers, and UIDs. Do not surface
+  `storage_hash`; that field is deprecated and is not part of the UI identity model.
 - The list view is namespace-first on purpose. It narrows the heavier Meta Table registry before
   applying the page-local text filter.
 - Meta Table search must be backend-driven. The page forwards the current search string to

@@ -15,6 +15,13 @@ import { formatDataNodeLabel, formatLocalTimeSerieLabel } from "./dataNodeShared
 
 const localTimeSerieOptionLimit = 50;
 
+type LocalTimeSeriePickerRecord = Omit<LocalTimeSerieQuickSearchRecord, "data_node_storage"> & {
+  data_node_storage: Pick<
+    NonNullable<LocalTimeSerieQuickSearchRecord["data_node_storage"]>,
+    "id" | "uid" | "identifier"
+  > | null;
+};
+
 export function LocalTimeSerieQuickSearchPicker({
   value,
   onChange,
@@ -69,7 +76,7 @@ export function LocalTimeSerieQuickSearchPicker({
     staleTime: 300_000,
   });
 
-  const selectedLocalTimeSerie = useMemo<LocalTimeSerieQuickSearchRecord | null>(() => {
+  const selectedLocalTimeSerie = useMemo<LocalTimeSeriePickerRecord | null>(() => {
     const current = selectedLocalTimeSerieQuery.data;
 
     if (!current) {
@@ -85,10 +92,9 @@ export function LocalTimeSerieQuickSearchPicker({
           ? current.project_uid
           : null,
       data_node_storage: current.data_node_storage
-        ? {
+          ? {
             id: current.data_node_storage.id,
             uid: current.data_node_storage.uid ?? null,
-            storage_hash: current.data_node_storage.storage_hash,
             identifier: current.data_node_storage.identifier,
           }
         : null,
@@ -96,7 +102,7 @@ export function LocalTimeSerieQuickSearchPicker({
   }, [selectedLocalTimeSerieQuery.data]);
 
   const localTimeSerieOptions = useMemo(() => {
-    const baseOptions: LocalTimeSerieQuickSearchRecord[] =
+    const baseOptions: LocalTimeSeriePickerRecord[] =
       normalizedSearchValue.length >= 3 ? localTimeSeriesQuery.data ?? [] : [];
 
     if (
@@ -120,7 +126,6 @@ export function LocalTimeSerieQuickSearchPicker({
           String(localTimeSerie.id),
           localTimeSerie.update_hash,
           localTimeSerie.project_uid ?? "",
-          localTimeSerie.data_node_storage?.storage_hash ?? "",
           localTimeSerie.data_node_storage?.identifier ?? "",
         ],
       })),

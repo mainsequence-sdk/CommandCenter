@@ -10,7 +10,7 @@ Feature folders in this extension should contain market-facing Main Sequence scr
 - `managed-accounts/`: read-only managed-account registry with dedicated detail pages.
 - `funds/`: virtual-fund registry with shared search, pagination, detail navigation, and holdings.
 - `indices/`: index registry with shared list search, embedded detail loading, and delete support.
-- `portfolio-groups/`: portfolio-group registry with shared list behavior and a dedicated read-only detail page.
+- `portfolio-groups/`: portfolio-group registry with shared list behavior, metadata CRUD, and membership management.
 - `portfolio-signals/`: portfolio signal metadata registry with create, description update, delete signal values, and delete metadata actions.
 - `portfolios/`: portfolio registry with shared list search, offset pagination, and bulk delete.
 - `pricing-curves/`: pricing curves registry backed by `/api/v1/pricing/curves/`.

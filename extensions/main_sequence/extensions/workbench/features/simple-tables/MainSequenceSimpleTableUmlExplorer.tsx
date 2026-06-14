@@ -1035,7 +1035,7 @@ export function MainSequenceMetaTableUmlExplorer({
                               {table.identifier || `Table ${table.id}`}
                             </div>
                             <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
-                              {table.storage_hash}
+                              {table.uid}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1156,7 +1156,7 @@ export function MainSequenceMetaTableUmlExplorer({
                         {selectedTable.identifier || `Table ${selectedTable.id}`}
                       </div>
                       <div className="mt-1 font-mono text-[11px] text-muted-foreground">
-                        {selectedTable.storage_hash}
+                        {selectedTable.uid}
                       </div>
                     </div>
                     {selectedTable.id === payload?.root_table_id ? (

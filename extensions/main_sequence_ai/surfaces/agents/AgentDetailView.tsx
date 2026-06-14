@@ -21,6 +21,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import {
@@ -49,13 +51,20 @@ import { CHAT_PAGE_PATH } from "../../assistant-ui/chat-ui-store";
 import { AutomationDitherWaveLayer } from "../../components/AutomationButton";
 import { ProjectAgentConfigurator } from "../../features/project-agents/ProjectAgentConfigurator";
 import {
+  buildAvailableRunConfigCacheKey,
+  fetchAvailableRunConfigOptions,
+} from "../../runtime/available-models-api";
+import { resolveMainSequenceAiConfiguredAssistantEndpoint } from "../../runtime/assistant-endpoint";
+import {
   deleteAgentSessionRequest,
   fetchLatestAgentSessions,
   getAgentSessionRecordSessionId,
   getAgentSessionRecordSummary,
   getAgentSessionRecordTitle,
+  getOrCreateAgentSessionWithHandleRequest,
   type AgentSessionApiRecord,
 } from "../../runtime/agent-sessions-api";
+import { resolveRunConfigSelection } from "../../runtime/run-config-selection";
 
 const agentDetailTabs = [
   {
@@ -873,6 +882,7 @@ export function AgentDetailView({
   const { toast } = useToast();
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
+  const sessionUserUid = useAuthStore((state) => state.session?.user.uid ?? null);
   const {
     hasActiveChatStream,
     isActiveSessionLoading,
@@ -923,6 +933,12 @@ export function AgentDetailView({
   const detail = detailQuery.data ?? null;
   const [deploymentConfiguratorOpen, setDeploymentConfiguratorOpen] = useState(false);
   const [deploymentAutomationHeaderActive, setDeploymentAutomationHeaderActive] = useState(false);
+  const [handleSessionDialogOpen, setHandleSessionDialogOpen] = useState(false);
+  const [handleUniqueId, setHandleUniqueId] = useState("");
+  const [handleSessionName, setHandleSessionName] = useState("");
+  const [handleSessionLlmProvider, setHandleSessionLlmProvider] = useState("");
+  const [handleSessionLlmModelId, setHandleSessionLlmModelId] = useState("");
+  const [handleSessionLlmThinking, setHandleSessionLlmThinking] = useState("");
   const [sessionFilterValue, setSessionFilterValue] = useState("");
   const [sessionsPendingDelete, setSessionsPendingDelete] = useState<AgentSessionApiRecord[]>([]);
   const deferredSessionFilterValue = useDeferredValue(sessionFilterValue);
@@ -948,6 +964,72 @@ export function AgentDetailView({
     normalizeOptionalString(detail?.llm_model) ||
     initialAgent?.llm_model?.trim() ||
     null;
+  const llmThinking =
+    normalizeOptionalString(detail?.llm_thinking) ||
+    initialAgent?.llm_thinking?.trim() ||
+    null;
+  const agentUidForHandleSession =
+    normalizeOptionalString(detail?.uid) ||
+    initialAgent?.uid?.trim() ||
+    normalizedAgentId;
+  const agentTypeForRunConfig =
+    normalizeOptionalString(detail?.agent_type) ||
+    normalizeOptionalString(detail?.agentType) ||
+    initialAgent?.agentType?.trim() ||
+    null;
+  const configuredAssistantEndpoint = resolveMainSequenceAiConfiguredAssistantEndpoint();
+  const runConfigCacheKey = useMemo(
+    () =>
+      buildAvailableRunConfigCacheKey({
+        agentType: agentTypeForRunConfig,
+        userId: sessionUserUid,
+      }),
+    [agentTypeForRunConfig, sessionUserUid],
+  );
+  const runConfigOptionsQuery = useQuery({
+    queryKey: [
+      "main_sequence_ai",
+      "agents",
+      "handle-session-run-config-options",
+      runConfigCacheKey,
+      sessionToken,
+    ],
+    queryFn: ({ signal }) =>
+      fetchAvailableRunConfigOptions({
+        assistantEndpoint: configuredAssistantEndpoint ?? undefined,
+        cacheKey: runConfigCacheKey,
+        createdByUserUid: sessionUserUid,
+        runtimeTarget: configuredAssistantEndpoint ? "configured" : "command-center-base",
+        signal,
+        token: sessionToken,
+        tokenType: sessionTokenType,
+      }),
+    enabled: handleSessionDialogOpen && Boolean(sessionToken && sessionUserUid),
+    staleTime: 300_000,
+  });
+  const handleSessionRunConfig = useMemo(
+    () =>
+      resolveRunConfigSelection({
+        availableModels: runConfigOptionsQuery.data?.models ?? [],
+        availableProviders: runConfigOptionsQuery.data?.providers ?? [],
+        currentModel: llmModel,
+        currentProvider: llmProvider,
+        currentThinking: llmThinking,
+        selectedModelId: handleSessionLlmModelId,
+        selectedProvider: handleSessionLlmProvider,
+        selectedThinking: handleSessionLlmThinking,
+      }),
+    [
+      handleSessionLlmModelId,
+      handleSessionLlmProvider,
+      handleSessionLlmThinking,
+      llmModel,
+      llmProvider,
+      llmThinking,
+      runConfigOptionsQuery.data?.models,
+      runConfigOptionsQuery.data?.providers,
+    ],
+  );
   const summaryRecordForAgentType = normalizeOptionalObject(summaryQuery.data);
   const summaryEntityForAgentType = normalizeOptionalObject(summaryRecordForAgentType?.entity);
   const summaryExtensionsForAgentType = normalizeOptionalObject(summaryRecordForAgentType?.extensions);
@@ -1138,6 +1220,54 @@ export function AgentDetailView({
       });
     },
   });
+  const createSessionWithHandleMutation = useMutation({
+    mutationFn: async () => {
+      const normalizedHandleUniqueId = handleUniqueId.trim();
+      const normalizedName = handleSessionName.trim();
+      const resolvedProvider = handleSessionRunConfig.resolvedProvider.trim();
+      const resolvedModel = handleSessionRunConfig.resolvedModel.trim();
+
+      if (!normalizedHandleUniqueId || !normalizedName || !resolvedProvider || !resolvedModel) {
+        throw new Error("Handle ID, name, provider, and model are required.");
+      }
+
+      return getOrCreateAgentSessionWithHandleRequest({
+        agentUid: agentUidForHandleSession,
+        handleUniqueId: normalizedHandleUniqueId,
+        name: normalizedName,
+        llmProvider: resolvedProvider,
+        llmModel: resolvedModel,
+        llmThinking: handleSessionRunConfig.resolvedThinking.trim(),
+        sessionMetadata: {},
+        token: sessionToken,
+        tokenType: sessionTokenType,
+      });
+    },
+    onSuccess: async ({ sessionId }) => {
+      await sessionsQuery.refetch();
+      setHandleSessionDialogOpen(false);
+      toast({
+        title: "Session handle ready",
+        description: `AgentSession ${sessionId} is attached to this handle.`,
+        variant: "success",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Session handle failed",
+        description: error instanceof Error ? error.message : "Unable to create the session handle.",
+        variant: "error",
+      });
+    },
+  });
+  const canCreateSessionWithHandle = Boolean(
+    handleUniqueId.trim() &&
+      handleSessionName.trim() &&
+      handleSessionRunConfig.resolvedProvider.trim() &&
+      handleSessionRunConfig.resolvedModel.trim() &&
+      handleSessionRunConfig.selectedCatalogModelIsUsable &&
+      !createSessionWithHandleMutation.isPending,
+  );
   const sessionBulkActions =
     sessionSelection.selectedCount > 0
       ? [
@@ -1163,6 +1293,112 @@ export function AgentDetailView({
       setDeploymentAutomationHeaderActive(false);
     }
   }, [resolvedProjectExecutorProjectUid, runtimeProjectUidQuery.isLoading, showDeploymentEditorAction]);
+
+  useEffect(() => {
+    if (!handleSessionDialogOpen) {
+      return;
+    }
+
+    if (
+      handleSessionLlmProvider &&
+      handleSessionRunConfig.providerOptions.some(
+        (option) => option.value === handleSessionLlmProvider,
+      )
+    ) {
+      return;
+    }
+
+    const nextProvider =
+      handleSessionRunConfig.effectiveProvider ||
+      handleSessionRunConfig.providerOptions[0]?.value ||
+      "";
+
+    if (nextProvider && nextProvider !== handleSessionLlmProvider) {
+      setHandleSessionLlmProvider(nextProvider);
+    }
+  }, [
+    handleSessionDialogOpen,
+    handleSessionLlmProvider,
+    handleSessionRunConfig.effectiveProvider,
+    handleSessionRunConfig.providerOptions,
+  ]);
+
+  useEffect(() => {
+    if (!handleSessionDialogOpen) {
+      return;
+    }
+
+    if (
+      handleSessionLlmModelId &&
+      handleSessionRunConfig.modelOptions.some(
+        (option) => option.value === handleSessionLlmModelId,
+      )
+    ) {
+      return;
+    }
+
+    const nextModelId =
+      handleSessionRunConfig.effectiveModelId ||
+      handleSessionRunConfig.modelOptions.find((option) => !option.disabled)?.value ||
+      handleSessionRunConfig.modelOptions[0]?.value ||
+      "";
+
+    if (nextModelId && nextModelId !== handleSessionLlmModelId) {
+      setHandleSessionLlmModelId(nextModelId);
+    }
+  }, [
+    handleSessionDialogOpen,
+    handleSessionLlmModelId,
+    handleSessionRunConfig.effectiveModelId,
+    handleSessionRunConfig.modelOptions,
+  ]);
+
+  useEffect(() => {
+    if (!handleSessionDialogOpen) {
+      return;
+    }
+
+    if (handleSessionRunConfig.reasoningOptions.length === 0) {
+      if (handleSessionLlmThinking) {
+        setHandleSessionLlmThinking("");
+      }
+      return;
+    }
+
+    if (
+      handleSessionLlmThinking &&
+      handleSessionRunConfig.reasoningOptions.some(
+        (option) => option.value === handleSessionLlmThinking,
+      )
+    ) {
+      return;
+    }
+
+    const nextThinking =
+      handleSessionRunConfig.resolvedThinking ||
+      handleSessionRunConfig.selectedCatalogModel?.defaultReasoningEffort ||
+      handleSessionRunConfig.reasoningOptions[0]?.value ||
+      "";
+
+    if (nextThinking !== handleSessionLlmThinking) {
+      setHandleSessionLlmThinking(nextThinking);
+    }
+  }, [
+    handleSessionDialogOpen,
+    handleSessionLlmThinking,
+    handleSessionRunConfig.reasoningOptions,
+    handleSessionRunConfig.resolvedThinking,
+    handleSessionRunConfig.selectedCatalogModel,
+  ]);
+
+  function openSessionWithHandleDialog() {
+    setHandleUniqueId("");
+    setHandleSessionName(title);
+    setHandleSessionLlmProvider("");
+    setHandleSessionLlmModelId("");
+    setHandleSessionLlmThinking("");
+    setHandleSessionDialogOpen(true);
+  }
 
   async function handleStartSession() {
     await startAgentSessionById({
@@ -1242,6 +1478,14 @@ export function AgentDetailView({
           >
             <Bot className="h-4 w-4" />
             Start session
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openSessionWithHandleDialog}
+          >
+            <Bot className="h-4 w-4" />
+            Create session with handle
           </Button>
           <Button variant="outline" size="sm" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
@@ -1394,6 +1638,178 @@ export function AgentDetailView({
           ) : null}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={handleSessionDialogOpen}
+        onClose={() => {
+          if (!createSessionWithHandleMutation.isPending) {
+            setHandleSessionDialogOpen(false);
+          }
+        }}
+        closeOnBackdropClick
+        title="Create Session With Handle"
+        description={title}
+        className="max-w-[min(760px,calc(100vw-24px))]"
+      >
+        <form
+          className="space-y-5"
+          onSubmit={(event) => {
+            event.preventDefault();
+
+            if (canCreateSessionWithHandle) {
+              void createSessionWithHandleMutation.mutateAsync();
+            }
+          }}
+        >
+          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-3 text-sm text-muted-foreground">
+            Creates or reuses a backend AgentSession for this agent and binds it to a stable
+            handle. User ownership is resolved by the authenticated request.
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Handle unique ID</label>
+              <Input
+                className="h-11 bg-card/70"
+                value={handleUniqueId}
+                onChange={(event) => setHandleUniqueId(event.target.value)}
+                placeholder="for example project:alpha:primary-agent"
+                disabled={createSessionWithHandleMutation.isPending}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Name</label>
+              <Input
+                className="h-11 bg-card/70"
+                value={handleSessionName}
+                onChange={(event) => setHandleSessionName(event.target.value)}
+                placeholder="Session name"
+                disabled={createSessionWithHandleMutation.isPending}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Provider</label>
+              <Select
+                aria-label="LLM provider"
+                className="h-11 w-full bg-card/70"
+                disabled={
+                  createSessionWithHandleMutation.isPending ||
+                  handleSessionRunConfig.providerOptions.length === 0
+                }
+                value={handleSessionRunConfig.effectiveProvider}
+                onChange={(event) => {
+                  setHandleSessionLlmProvider(event.target.value);
+                  setHandleSessionLlmModelId("");
+                  setHandleSessionLlmThinking("");
+                }}
+              >
+                {handleSessionRunConfig.providerOptions.length === 0 ? (
+                  <option value="">No providers available</option>
+                ) : null}
+                {handleSessionRunConfig.providerOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground">Model</label>
+              <Select
+                aria-label="LLM model"
+                className="h-11 w-full bg-card/70"
+                disabled={
+                  createSessionWithHandleMutation.isPending ||
+                  handleSessionRunConfig.modelOptions.length === 0
+                }
+                value={handleSessionRunConfig.effectiveModelId}
+                onChange={(event) => {
+                  setHandleSessionLlmModelId(event.target.value);
+                  setHandleSessionLlmThinking("");
+                }}
+              >
+                {handleSessionRunConfig.modelOptions.length === 0 ? (
+                  <option value="">No models available</option>
+                ) : null}
+                {handleSessionRunConfig.modelOptions.map((option) => (
+                  <option key={option.value} value={option.value} disabled={option.disabled}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            {handleSessionRunConfig.reasoningOptions.length > 0 ? (
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Reasoning</label>
+                <Select
+                  aria-label="LLM reasoning"
+                  className="h-11 w-full bg-card/70"
+                  disabled={createSessionWithHandleMutation.isPending}
+                  value={handleSessionRunConfig.resolvedThinking}
+                  onChange={(event) => {
+                    setHandleSessionLlmThinking(event.target.value);
+                  }}
+                >
+                  {handleSessionRunConfig.reasoningOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
+          </div>
+
+          {runConfigOptionsQuery.isLoading ? (
+            <div className="flex items-center gap-2 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/24 px-3 py-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Loading registered model options
+            </div>
+          ) : null}
+
+          {runConfigOptionsQuery.isError ? (
+            <div className="rounded-[calc(var(--radius)-8px)] border border-warning/35 bg-warning/10 px-3 py-2 text-xs text-warning">
+              {formatMainSequenceError(runConfigOptionsQuery.error)}
+            </div>
+          ) : null}
+
+          {handleSessionRunConfig.currentModelMissingFromCatalog ? (
+            <div className="rounded-[calc(var(--radius)-8px)] border border-warning/35 bg-warning/10 px-3 py-2 text-xs text-warning">
+              The agent default model is not in the registered model catalog. Keeping the
+              backend agent configuration until you select a different model.
+            </div>
+          ) : null}
+
+          <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 px-3 py-2 font-mono text-xs text-muted-foreground">
+            session_metadata: {JSON.stringify({})}
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-border/60 pt-4">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={createSessionWithHandleMutation.isPending}
+              onClick={() => setHandleSessionDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!canCreateSessionWithHandle}>
+              {createSessionWithHandleMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Bot className="h-4 w-4" />
+              )}
+              Create session with handle
+            </Button>
+          </div>
+        </form>
+      </Dialog>
 
       <Dialog
         open={deploymentConfiguratorOpen}
