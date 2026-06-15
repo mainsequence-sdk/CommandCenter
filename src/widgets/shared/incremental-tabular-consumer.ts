@@ -24,6 +24,14 @@ import {
   type RuntimeRowSelector,
   type RuntimeTabularFrameRef,
 } from "@/widgets/shared/runtime-data-store";
+import {
+  CORE_GRAPH_WIDGET_ID,
+  CORE_STATISTIC_WIDGET_ID,
+  CORE_TABLE_WIDGET_ID,
+  CORE_TABULAR_TRANSFORM_WIDGET_ID,
+  MAIN_SEQUENCE_MARKETS_OHLC_BARS_WIDGET_ID,
+  normalizeWidgetTypeId,
+} from "@/widgets/widget-type-normalization";
 
 export const TABULAR_SEED_INPUT_ID = "seedData";
 export const TABULAR_LIVE_UPDATES_INPUT_ID = "liveUpdates";
@@ -37,11 +45,11 @@ export interface TabularMergeKeyMapping {
 }
 
 const LEGACY_TABULAR_CONSUMER_WIDGET_IDS = new Set([
-  "graph",
-  "tabular-transform",
-  "table",
-  "statistic",
-  "main-sequence-ohlc-bars",
+  CORE_GRAPH_WIDGET_ID,
+  CORE_TABULAR_TRANSFORM_WIDGET_ID,
+  CORE_TABLE_WIDGET_ID,
+  CORE_STATISTIC_WIDGET_ID,
+  MAIN_SEQUENCE_MARKETS_OHLC_BARS_WIDGET_ID,
 ]);
 const LEGACY_TABULAR_SOURCE_INPUT_ID = "sourceData";
 
@@ -1309,7 +1317,9 @@ export function migrateLegacyIncrementalTabularBindings(
   widgetId: string | undefined,
   bindings: WidgetInstanceBindings | undefined,
 ) {
-  if (!widgetId || !LEGACY_TABULAR_CONSUMER_WIDGET_IDS.has(widgetId) || !bindings) {
+  const normalizedWidgetId = widgetId ? normalizeWidgetTypeId(widgetId) : "";
+
+  if (!normalizedWidgetId || !LEGACY_TABULAR_CONSUMER_WIDGET_IDS.has(normalizedWidgetId) || !bindings) {
     return bindings;
   }
 

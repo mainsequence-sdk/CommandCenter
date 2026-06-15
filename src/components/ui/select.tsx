@@ -1,14 +1,17 @@
 import * as React from "react";
 
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   actionLabel?: string;
   actionOnSelect?: () => void;
+  emptyMessage?: string;
   fitContent?: boolean;
   listboxPlacement?: "bottom" | "top";
+  searchable?: boolean;
+  searchPlaceholder?: string;
 }
 
 interface SelectOption {
@@ -74,6 +77,20 @@ function normalizeSelectValue(value: unknown) {
   return typeof value === "string" ? value.trim() : String(value ?? "").trim();
 }
 
+function matchesSearch(option: SelectOption, query: string) {
+  if (!query) {
+    return true;
+  }
+
+  const haystack = [
+    option.label,
+    option.description ?? "",
+    option.value,
+  ].join(" ").toLowerCase();
+
+  return haystack.includes(query);
+}
+
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
   (
     {
@@ -83,11 +100,14 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       disabled = false,
       actionLabel,
       actionOnSelect,
+      emptyMessage = "No options matched the search.",
       fitContent = false,
       listboxPlacement = "bottom",
       multiple,
       name,
       onChange,
+      searchable = false,
+      searchPlaceholder = "Search options",
       value,
       ...props
     },
@@ -96,6 +116,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     const rootRef = React.useRef<HTMLDivElement | null>(null);
     const hiddenSelectRef = React.useRef<HTMLSelectElement | null>(null);
     const [open, setOpen] = React.useState(false);
+    const [searchValue, setSearchValue] = React.useState("");
     const options = React.useMemo(() => flattenOptions(children), [children]);
     const { controlled, currentValue, setUncontrolledValue } = useControllableStringValue(
       value,
@@ -104,11 +125,16 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     const normalizedCurrentValue = normalizeSelectValue(currentValue);
     const selectedOption =
       options.find((option) => normalizeSelectValue(option.value) === normalizedCurrentValue) ?? null;
+    const normalizedSearchValue = searchValue.trim().toLowerCase();
+    const visibleOptions = searchable
+      ? options.filter((option) => matchesSearch(option, normalizedSearchValue))
+      : options;
 
     React.useImperativeHandle(forwardedRef, () => hiddenSelectRef.current as HTMLSelectElement, []);
 
     React.useEffect(() => {
       if (!open) {
+        setSearchValue("");
         return undefined;
       }
 
@@ -262,8 +288,28 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 <div className="mb-1 border-t border-border/70" />
               </>
             ) : null}
+            {searchable ? (
+              <div className="border-b border-border/70 p-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    autoFocus
+                    type="search"
+                    value={searchValue}
+                    onChange={(event) => setSearchValue(event.target.value)}
+                    placeholder={searchPlaceholder}
+                    className="h-9 w-full rounded-[calc(var(--radius)-7px)] border border-border/70 bg-background/55 px-3 pl-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/65 focus:ring-2 focus:ring-ring/25"
+                  />
+                </div>
+              </div>
+            ) : null}
             <div className="max-h-72 overflow-y-auto">
-              {options.map((option) => {
+              {visibleOptions.length === 0 ? (
+                <div className="rounded-[calc(var(--radius)-6px)] px-3 py-6 text-sm text-muted-foreground">
+                  {emptyMessage}
+                </div>
+              ) : null}
+              {visibleOptions.map((option) => {
                 const selected = option.value === currentValue;
 
                 return (

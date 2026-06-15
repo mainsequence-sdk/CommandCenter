@@ -2,6 +2,7 @@ import { FileText } from "lucide-react";
 
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
+import { CORE_RICH_TEXT_NOTE_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
@@ -12,7 +13,7 @@ import {
 import { RichTextNoteWidgetSettings } from "./RichTextNoteWidgetSettings";
 
 export const richTextNoteWidget = defineWidget<RichTextNoteWidgetProps>({
-  id: "rich-text-note",
+  id: CORE_RICH_TEXT_NOTE_WIDGET_ID,
   widgetVersion: "1.12.0",
   title: "Rich Text",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

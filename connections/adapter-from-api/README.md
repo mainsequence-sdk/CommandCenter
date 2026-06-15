@@ -135,6 +135,18 @@ restore separate: `Discover contract` fetches the API again and rewrites the cac
 `Use cached contract` restores the matching session entry without network calls. This session cache
 is frontend-only and is not a persisted backend storage contract.
 
+The operation query editor also refreshes the direct debug contract in place. This is intentional
+for local API development: when the editor opens, it fetches the latest well-known contract for the
+configured direct debug API root and updates the browser session cache. `Refresh contract` repeats
+that fetch on demand after a route is published while the editor is already open. Direct debug
+execution prefers a matching session-cached contract over the stale persisted snapshot so new
+operations can be authored and executed without resaving the connection first.
+
+While a direct debug refresh is in flight, or when it fails, the query editor hides saved/cached
+operations. This prevents stale operations from looking live when the local API is off or the
+well-known contract cannot be reached. Backend-mode connections can still render their persisted
+backend-discovered contract because backend proxy discovery is authoritative storage.
+
 Backend proxy discovery should persist the same sanitized shape in `compiledContract.openapi.logo`.
 This is a backend contract addition only for optional returned metadata: it does not change query
 payloads, transport selection, secret handling, cache keys, or upstream execution. Generic Adapter
@@ -182,10 +194,24 @@ through their configured key/name definitions, and extra query parameters pass t
 the upstream URL. It then performs the upstream API request and maps the response to the requested
 connection frame contract.
 
+The query editor lists operations that are explicitly query-capable (`kind: "query"` or
+`capabilities: ["query"]`) and read-only `GET` operations, including operations classified as
+`resource`. For compatibility with older contracts, operations with neither `kind` nor
+`capabilities` are also treated as query-capable. To hide an operation from query authoring, the
+contract must explicitly classify it as a mutation or expose it through a non-GET method without
+query capability.
+
 Direct debug mode uses the same query payload, validates it in the browser against the saved
 `compiledContract`, applies the same query parameter mapping/passthrough rule, sends
 `fetch(..., { credentials: "omit" })` to `debugApiBaseUrl`, and maps the response to the same
 `ConnectionQueryResponse` shape expected by widgets.
+
+If an operation declares `responseContract` and the upstream direct response is already a native
+Command Center frame for that contract, direct debug mode wraps that frame into
+`ConnectionQueryResponse.frames` without requiring `responseMappings`. For
+`core.tabular_frame@v1`, direct debug also accepts the canonical tabular source shape with
+`columns` and `rows` and converts it to the same response envelope. Use `responseMappings` only for
+provider-native JSON that must be transformed into a frame.
 
 ## Maintenance Constraints
 

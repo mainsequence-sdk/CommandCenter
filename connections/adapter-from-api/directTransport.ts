@@ -26,6 +26,7 @@ import type {
 
 const WELL_KNOWN_CONTRACT_PATH = "/.well-known/command-center/connection-contract";
 const DEFAULT_OPENAPI_PATH = "/openapi.json";
+const OPTIONAL_OPENAPI_DISCOVERY_TIMEOUT_MS = 1000;
 const ADAPTER_FROM_API_CONNECTION_TYPE_ID = "command_center.adapter_from_api";
 const ADAPTER_FROM_API_QUERY_KIND = "api-operation";
 const DIRECT_DISCOVERY_SESSION_CACHE_PREFIX =
@@ -449,6 +450,19 @@ async function discoverOpenApiLogo(
     signal?: AbortSignal;
   },
 ) {
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => {
+    controller.abort();
+  }, OPTIONAL_OPENAPI_DISCOVERY_TIMEOUT_MS);
+  const abortFromParent = () => controller.abort();
+
+  if (options?.signal?.aborted) {
+    clearTimeout(timeoutHandle);
+    return undefined;
+  }
+
+  options?.signal?.addEventListener("abort", abortFromParent, { once: true });
+
   try {
     const response = await fetchDirect(
       openApiUrl,
@@ -456,7 +470,7 @@ async function discoverOpenApiLogo(
         method: "GET",
         redirect: "error",
         credentials: "omit",
-        signal: options?.signal,
+        signal: controller.signal,
         headers: {
           Accept: "application/json",
         },
@@ -471,6 +485,9 @@ async function discoverOpenApiLogo(
     return readOpenApiInfoLogo(await response.json() as unknown, openApiUrl);
   } catch {
     return undefined;
+  } finally {
+    clearTimeout(timeoutHandle);
+    options?.signal?.removeEventListener("abort", abortFromParent);
   }
 }
 
@@ -709,6 +726,8 @@ function normalizeOperations(items: unknown): AdapterFromApiOperationDefinition[
       },
       requestBody: isRecord(item.requestBody) ? item.requestBody : null,
       responseMappings,
+      responseContract: optionalString(item.responseContract),
+      responseModel: optionalString(item.responseModel) ?? null,
       cache: isRecord(item.cache) ? item.cache : {},
     };
   });
@@ -839,16 +858,64 @@ export function isAdapterFromApiDirectConnectionInstance(
   );
 }
 
-function compiledContractFromConfig(
-  publicConfig: AdapterFromApiPublicConfig | Record<string, unknown>,
-): AdapterFromApiCompiledContract {
+export function adapterFromApiOperationSupportsQuery(
+  operation: AdapterFromApiOperationDefinition,
+) {
+  const capabilities = operation.capabilities ?? [];
+  const method = operation.method.toUpperCase();
+
+  if (operation.kind === "query" || capabilities.includes("query")) {
+    return true;
+  }
+
+  if (operation.kind === "mutation" || capabilities.includes("mutation")) {
+    return false;
+  }
+
+  if (method === "GET") {
+    return true;
+  }
+
+  // Older contracts did not classify operations; keep those selectable/executable.
+  return !operation.kind && capabilities.length === 0;
+}
+
+export function readAdapterFromApiEffectiveCompiledContract(
+  instance: ConnectionInstance | undefined,
+): AdapterFromApiCompiledContract | undefined {
+  if (!instance || instance.typeId !== ADAPTER_FROM_API_CONNECTION_TYPE_ID) {
+    return undefined;
+  }
+
+  const publicConfig = instance.publicConfig as AdapterFromApiPublicConfig;
+  const directDiscoveryCacheEntry = isAdapterFromApiDirectConnectionInstance(instance)
+    ? readAdapterFromApiDirectDiscoverySessionCache(instance.id, {
+        apiBaseUrl: publicConfig.debugApiBaseUrl,
+        contractVersion: publicConfig.contractVersion,
+      })
+    : undefined;
+
+  if (directDiscoveryCacheEntry?.compiledContract) {
+    return directDiscoveryCacheEntry.compiledContract;
+  }
+
   const contract = publicConfig.compiledContract;
 
-  if (!isRecord(contract)) {
+  if (isRecord(contract)) {
+    return contract as unknown as AdapterFromApiCompiledContract;
+  }
+
+  return undefined;
+}
+
+function compiledContractFromInstance(instance: ConnectionInstance): AdapterFromApiCompiledContract {
+  const contract = readAdapterFromApiEffectiveCompiledContract(instance);
+
+  if (!contract) {
     throw new Error("Adapter From API contract has not been discovered.");
   }
 
-  return contract as unknown as AdapterFromApiCompiledContract;
+  return contract;
 }
 
 function operationById(
@@ -1043,16 +1110,13 @@ function normalizeQuery(
     throw new Error("Unsupported Adapter From API query kind.");
   }
 
-  const publicConfig = instance.publicConfig as AdapterFromApiPublicConfig;
-  const contract = compiledContractFromConfig(publicConfig);
+  const contract = compiledContractFromInstance(instance);
   const operation = operationById(contract, query.operationId);
-  const capabilities = operation.capabilities ?? [];
 
   if (
     !options?.allowHealthOperation &&
     !options?.allowNonQueryOperation &&
-    operation.kind !== "query" &&
-    !capabilities.includes("query")
+    !adapterFromApiOperationSupportsQuery(operation)
   ) {
     throw new Error("Selected operation does not support query execution.");
   }
@@ -1392,6 +1456,77 @@ function responseToMappedFrame(
   };
 }
 
+function isCommandCenterFrame(value: unknown): value is CommandCenterFrame {
+  return (
+    isRecord(value) &&
+    typeof value.contract === "string" &&
+    Array.isArray(value.fields) &&
+    value.fields.every(
+      (field) =>
+        isRecord(field) &&
+        typeof field.name === "string" &&
+        typeof field.type === "string" &&
+        Array.isArray(field.values),
+    )
+  );
+}
+
+function normalizeFrameFieldType(value: unknown): CommandCenterFrameFieldType {
+  return value === "time" ||
+    value === "number" ||
+    value === "string" ||
+    value === "boolean" ||
+    value === "json"
+    ? value
+    : "json";
+}
+
+function nativeTabularSourceToFrame(value: unknown): CommandCenterFrame | undefined {
+  if (!isRecord(value) || !Array.isArray(value.columns) || !Array.isArray(value.rows)) {
+    return undefined;
+  }
+
+  const columns = value.columns.flatMap((column) =>
+    typeof column === "string" && column.trim() ? [column.trim()] : [],
+  );
+
+  if (columns.length === 0) {
+    return undefined;
+  }
+
+  const rows = value.rows.filter(isRecord);
+  const fieldTypes = new Map<string, CommandCenterFrameFieldType>();
+
+  if (Array.isArray(value.fields)) {
+    value.fields.forEach((field) => {
+      if (!isRecord(field)) {
+        return;
+      }
+
+      const key =
+        typeof field.key === "string" && field.key.trim()
+          ? field.key.trim()
+          : typeof field.name === "string" && field.name.trim()
+            ? field.name.trim()
+            : undefined;
+
+      if (key) {
+        fieldTypes.set(key, normalizeFrameFieldType(field.type));
+      }
+    });
+  }
+
+  return {
+    contract: CORE_TABULAR_FRAME_SOURCE_CONTRACT,
+    fields: columns.map((column) => ({
+      name: column,
+      type: fieldTypes.get(column) ?? "json",
+      values: rows.map((row) => row[column] ?? null),
+    })),
+    ...(isRecord(value.meta) ? { meta: value.meta } : {}),
+  };
+}
+
 function upstreamBodyToConnectionQueryResponse(
   input: {
     instance: ConnectionInstance;
@@ -1408,6 +1543,44 @@ function upstreamBodyToConnectionQueryResponse(
         ? input.body.warnings.map(String)
         : [],
       traceId: typeof input.body.traceId === "string" ? input.body.traceId : input.traceId,
+    };
+  }
+
+  if (input.normalized.operation.responseContract === CORE_TABULAR_FRAME_SOURCE_CONTRACT) {
+    const nativeTabularFrame = nativeTabularSourceToFrame(input.body);
+
+    if (nativeTabularFrame) {
+      return {
+        frames: [nativeTabularFrame],
+        warnings: [],
+        traceId: input.traceId,
+      };
+    }
+  }
+
+  if (
+    input.normalized.operation.responseContract &&
+    isCommandCenterFrame(input.body)
+  ) {
+    if (input.body.contract !== input.normalized.operation.responseContract) {
+      throw new Error(
+        `Native operation response returned ${input.body.contract}, not ${input.normalized.operation.responseContract}.`,
+      );
+    }
+
+    if (
+      input.normalized.requestedOutputContract &&
+      input.body.contract !== input.normalized.requestedOutputContract
+    ) {
+      throw new Error(
+        `Native operation response returned ${input.body.contract}, not ${input.normalized.requestedOutputContract}.`,
+      );
+    }
+
+    return {
+      frames: [input.body],
+      warnings: [],
+      traceId: input.traceId,
     };
   }
 
@@ -1547,7 +1720,7 @@ export async function testAdapterFromApiDirect(
 ): Promise<ConnectionHealthResult> {
   const traceId = `direct-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   const publicConfig = instance.publicConfig as AdapterFromApiPublicConfig;
-  const contract = compiledContractFromConfig(publicConfig);
+  const contract = compiledContractFromInstance(instance);
   const health = isRecord(contract.health) ? contract.health : undefined;
   const operationId = health?.operationId;
 

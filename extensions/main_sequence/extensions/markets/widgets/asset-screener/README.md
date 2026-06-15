@@ -26,6 +26,9 @@ field roles on `seedData`.
   field mappings, columns, and the shared core Table display settings mounted in presentation
   mode. The embedded table settings now inherit the same Pro-table capability path as
   `pro-table`, including column-formula authoring and the shared live merge mapping editor.
+  Asset Screener should continue to accept Pro Table schema/display configuration through its
+  `table` prop and `meta.tableVisuals`, while intentionally suppressing generic table chrome such
+  as toolbar search, pagination, and footer strips in the market screener surface.
 - `assetScreenerModel.ts`: prop normalization, resolved-input materialization, screener runtime
   model derivation, filtering, and sorting.
 - `USAGE_GUIDANCE.md`: backend-synced authoring guidance.
@@ -37,11 +40,12 @@ trend, and live-update meaning is assigned by the widget input role plus explici
 internal `meta.marketAsset` field-role metadata. Connections should not advertise Asset
 Screener-specific market contracts to feed this widget.
 
-`seedData` is a generic tabular frame. It does not need exact `unique_identifier` or `Symbol`
-columns. Asset identity is resolved from explicit field mappings, `meta.marketAsset` roles, common
-field names such as `symbol` or `ticker`, or an internal row id when the frame has no identity-like
-field. Live updates patch retained rows only when the shared table live merge mapping says which
-seed fields and live fields represent the same row.
+`seedData` is a generic tabular frame. Asset identity is resolved from explicit field mappings,
+`meta.marketAsset` roles, common field names such as `assetKey`, `asset_identifier`, `symbol`, or
+`ticker`, or an internal row id when the frame has no identity-like field but already has a usable
+visible-column proposal. A `Symbol` field is treated as a supported display alias when present.
+Live updates patch retained rows only when source metadata or the shared table live merge mapping
+says which seed fields and live fields represent the same row.
 
 The widget can either bind visible upstream sources or own one hidden managed source from the
 settings page:
@@ -106,6 +110,12 @@ Asset Screener does not execute source-declared transform metadata. Shared reusa
 columns must be materialized by an upstream `tabular-transform`; screener-local display formulas
 belong in shared table formula columns.
 
+When a source frame has no `meta.marketAsset` or `meta.tableVisuals` proposal but its fields look
+like an asset monitor table, for example `unique_identifier` or `ticker` plus `last_price`, the
+screener derives a minimal visible column set from those fields. A field named `Symbol` is accepted
+when present. Arbitrary tabular data without recognizable asset identity/value fields still stays in
+the source-column empty state instead of being treated as market data.
+
 Local screener formulas now belong to the shared Pro-table settings path as well. If a user wants
 one screener-only computed display column such as `YTD` or `Spread %`, that column is authored in
 the embedded shared table settings and rendered through the same formula runtime used by
@@ -145,7 +155,7 @@ and sparkline cell rendering.
   saved explicit field no longer exists on the frame, the adapter falls back to semantic metadata
   and then to field-name heuristics instead of dropping rows.
 - Inline `sparklineSeries` parsing uses the encoding and order on the field role itself; duplicate
-  visual metadata is descriptive and preserved, but not required for parsing.
+  visual metadata is descriptive and preserved for settings/readability.
 
 ## Generic Field Mapping Examples
 
@@ -198,11 +208,13 @@ order.
 - Persisted screener columns must not become the owner of shared table visuals. Source metadata
   should win over any stale copied screener `visual` snapshot so the screener resolves colors and
   gauges through the same shared table contract as the generic Table widget on the same frame.
-- When no source metadata or instance override columns exist, the widget must render an empty
-  source-column state. It must not fall back to Symbol/Name/Trend or any other predefined market
-  column set. If the bound source is still loading or has failed, prefer a source-status message
-  over raw metadata jargon; reserve the source-column empty state for frames that arrived without a
-  usable visible-column proposal.
+- When no source metadata or instance override columns exist, the widget may derive columns only
+  from asset-monitor-like identity/value fields such as `unique_identifier`, `assetKey`,
+  `asset_identifier`, `symbol`, `ticker`, `last_price`, or `price`. It must not fall back to
+  Symbol/Name/Trend or any other predefined market column set for arbitrary tabular data. If the
+  bound source is still loading or has failed, prefer a source-status message over raw metadata
+  jargon; reserve the source-column empty state for frames that arrived without recognizable asset
+  identity/value fields or a usable visible-column proposal.
 - The renderer must not draw a rounded nested card inside the workspace frame. Keep the screener
   surface square-edged so it matches workspace widget chrome.
 - Do not reintroduce a standalone grid for Asset Screener. Market-specific code should stop at
@@ -210,6 +222,10 @@ order.
   and Enterprise sparkline column wiring for the shared table frame.
 - Do not add screener-only formula semantics. Column formulas now belong to the shared Pro-table
   settings/runtime path so `pro-table` and Asset Screener stay aligned.
+- Do not add screener-only table formatting semantics. The embedded table settings must stay on the
+  shared Pro-table path for schema columns, formulas, local column overrides, value labels,
+  conditional rules, heatmaps, data bars, gauges, live merge mapping, grouping, density, and
+  selection outputs.
 - The Asset Screener uses the shared table frame with column floating filters disabled and a
   transparent surface and no internal toolbar or footer strip. Per-column filter rows,
   quick-filter search, in-panel titles, row-count headers, empty-state footers, pagination panels,
@@ -221,6 +237,11 @@ order.
 - `table.liveMergeKeyMappings` is exposed through the embedded shared table settings. It uses the
   same seed/live row identity model as Table and Pro Table, so a screener can patch retained rows
   when live update rows use different field names or arrive as repeated latest events.
+- A live merge mapping patches a retained seed row only when every configured seed/live field pair
+  has equal values. One mapping is enough for single-field identity such as `symbol -> symbol`;
+  composite identity uses multiple mappings such as `symbol -> symbol` and `exchange -> exchange`.
+  If the live feed uses different names, map the retained seed field to the incoming field, for
+  example `symbol -> ticker`.
 - Live update rows are normalized into the retained seed field names before market-asset
   resolution. For example, a mapping of seed `Symbol` to live `symbol` plus matching `price`
   semantics lets an incoming live `last` value patch the retained seed `last_price` field instead

@@ -8,6 +8,10 @@ import { MarkdownContent } from "@/components/ui/markdown-content";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
+  CORE_MARKDOWN_NOTE_WIDGET_ID,
+  MAIN_SEQUENCE_AI_AGENT_TERMINAL_WIDGET_ID,
+} from "@/widgets/widget-type-normalization";
+import {
   buildWidgetGraphHandleId,
   type WidgetGraphPortKind,
 } from "@/dashboards/widget-dependencies";
@@ -64,8 +68,8 @@ export interface WorkspaceGraphOutputPortData {
 
 export const WORKSPACE_GRAPH_REFERENCE_FRAME_OUTPUT_ID = "__workspace-reference-frame__";
 export const WORKSPACE_GRAPH_REFERENCE_SOURCE_INPUT_ID = "__workspace-reference-source__";
-const MARKDOWN_NOTE_WIDGET_ID = "markdown-note";
-const AGENT_TERMINAL_WIDGET_ID = "main-sequence-ai-agent-terminal";
+const MARKDOWN_NOTE_WIDGET_ID = CORE_MARKDOWN_NOTE_WIDGET_ID;
+const AGENT_TERMINAL_WIDGET_ID = MAIN_SEQUENCE_AI_AGENT_TERMINAL_WIDGET_ID;
 
 export interface WorkspaceGraphNodeData extends Record<string, unknown> {
   title: string;

@@ -21,6 +21,7 @@ import type { DashboardWidgetInstance } from "@/dashboards/types";
 import {
   resolveReferenceBackedWidgetState,
 } from "@/dashboards/widget-instance-references";
+import { CORE_CONNECTION_QUERY_WIDGET_ID } from "@/widgets/widget-type-normalization";
 import { listUnresolvedReferenceBackedPropInputs } from "@/dashboards/widget-dependencies";
 import {
   buildDashboardUpstreamResolutionKey,
@@ -201,7 +202,7 @@ function shouldLogVariableCommitDebug(refreshCycleId: string | undefined) {
 function shouldLogConnectionQueryExecutionDebug(widgetId: string | undefined) {
   return CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED &&
     import.meta.env.DEV &&
-    widgetId === "connection-query";
+    widgetId === CORE_CONNECTION_QUERY_WIDGET_ID;
 }
 
 function summarizeRefreshTargetForDebug(
@@ -888,7 +889,7 @@ export function DashboardWidgetExecutionProvider({
     if (
       !executable &&
       shouldLogVariableCommitDebug(options.refreshCycleId) &&
-      instance.widgetId === "connection-query"
+      instance.widgetId === CORE_CONNECTION_QUERY_WIDGET_ID
     ) {
       console.log("[widget-exec:auto-skip]", {
         targetInstanceId,

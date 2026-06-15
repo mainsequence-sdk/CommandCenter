@@ -17,6 +17,10 @@ import {
   resolveTableEmbeddedConnectionQueryProps,
   type TableWidgetProps,
 } from "./tableModel";
+import {
+  CORE_PRO_TABLE_WIDGET_ID,
+  CORE_TABLE_WIDGET_ID,
+} from "@/widgets/widget-type-normalization";
 
 const tableConnectionMode = "connection";
 const tableStreamConnectionMode = "connection-stream";
@@ -100,6 +104,6 @@ function createTableManagedConnectionConsumerAdapter(widgetId: string) {
 }
 
 export const tableManagedConnectionConsumerAdapter =
-  createTableManagedConnectionConsumerAdapter("table");
+  createTableManagedConnectionConsumerAdapter(CORE_TABLE_WIDGET_ID);
 export const proTableManagedConnectionConsumerAdapter =
-  createTableManagedConnectionConsumerAdapter("pro-table");
+  createTableManagedConnectionConsumerAdapter(CORE_PRO_TABLE_WIDGET_ID);

@@ -1,5 +1,6 @@
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
+import { MAIN_SEQUENCE_MARKETS_POSITION_DETAIL_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { positionDetailExecutionDefinition } from "./positionDetailExecution";
@@ -10,7 +11,7 @@ import { PositionDetailWidgetSettings } from "./PositionDetailWidgetSettings";
 import type { PositionDetailWidgetProps } from "./positionDetailRuntime";
 
 export const positionDetailWidget = defineWidget<PositionDetailWidgetProps>({
-  id: "position-detail",
+  id: MAIN_SEQUENCE_MARKETS_POSITION_DETAIL_WIDGET_ID,
   widgetVersion: "4.1.8",
   title: "Position Detail",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

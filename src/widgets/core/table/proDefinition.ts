@@ -1,9 +1,10 @@
 import { buildTableWidgetDefinition } from "./definition.shared";
 import { proTableSharedOptions, withProTableDefaultProps } from "./proTableOptions";
+import { CORE_PRO_TABLE_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 export const proTableWidget = buildTableWidgetDefinition({
-  widgetId: "pro-table",
-  widgetVersion: "1.1.0",
+  widgetId: CORE_PRO_TABLE_WIDGET_ID,
+  widgetVersion: "1.1.2",
   title: proTableSharedOptions.editionLabel,
   edition: "pro",
   capabilities: proTableSharedOptions.capabilities,

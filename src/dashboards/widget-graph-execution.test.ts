@@ -22,13 +22,21 @@ import type { AnyManagedConnectionConsumerAdapter } from "@/widgets/shared/manag
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 import { CORE_VALUE_JSON_CONTRACT, CORE_VALUE_STRING_CONTRACT } from "@/widgets/shared/value-contracts";
 import { defineWidget, type WidgetBindingTransformStep, type WidgetDefinition } from "@/widgets/types";
+import {
+  CORE_CONNECTION_QUERY_WIDGET_ID,
+  CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
+  CORE_GRAPH_WIDGET_ID,
+  CORE_PRO_TABLE_WIDGET_ID,
+  CORE_TABLE_WIDGET_ID,
+  MAIN_SEQUENCE_MARKETS_ASSET_SCREENER_WIDGET_ID,
+} from "@/widgets/widget-type-normalization";
 
 const TEST_CONNECTION_TYPE_ID = "test.mock-api";
 const TEST_CONNECTION_ID = 9001;
 const TEST_QUERY_KIND = "test-query";
 
 const testGraphManagedConnectionConsumerAdapter = {
-  widgetId: "graph",
+  widgetId: CORE_GRAPH_WIDGET_ID,
   sourceInputId: TABULAR_SEED_INPUT_ID,
   sourceOutputId: "dataset",
   connectionMode: "connection",
@@ -263,7 +271,7 @@ const variableExecutionTargetWidget = defineWidget({
 });
 
 const connectionQueryLikeWidget = defineWidget({
-  id: "connection-query",
+  id: CORE_CONNECTION_QUERY_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Connection Query",
   description: "Connection-query compatible executable source for graph tests.",
@@ -317,7 +325,7 @@ const connectionQueryLikeWidget = defineWidget({
 });
 
 const streamQueryLikeWidget = defineWidget({
-  id: "connection-stream-query",
+  id: CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Connection Stream Query",
   description: "Connection-stream-query compatible source for graph tests.",
@@ -384,7 +392,7 @@ function resolveTableLikeRows(resolvedInputs: Record<string, unknown> | undefine
 }
 
 const tableLikeWidget = defineWidget({
-  id: "table",
+  id: CORE_TABLE_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Table",
   description: "Passive table-like consumer for graph tests.",
@@ -468,12 +476,12 @@ const tableLikeWidget = defineWidget({
 
 const proTableLikeWidget = {
   ...tableLikeWidget,
-  id: "pro-table",
+  id: CORE_PRO_TABLE_WIDGET_ID,
   title: "Pro Table",
 } satisfies WidgetDefinition;
 
 const graphLikeWidget = defineWidget({
-  id: "graph",
+  id: CORE_GRAPH_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Graph",
   description: "Passive graph-like managed connection consumer for graph tests.",
@@ -494,7 +502,7 @@ const graphLikeWidget = defineWidget({
 });
 
 const assetScreenerLikeWidget = defineWidget({
-  id: "ms-markets-asset-screener",
+  id: MAIN_SEQUENCE_MARKETS_ASSET_SCREENER_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Asset Screener",
   description: "Passive asset-screener-like consumer for active-row variable tests.",
@@ -698,7 +706,7 @@ function managedGraphVariableWidgets(symbol: string): DashboardWidgetInstance[] 
     },
     {
       id: "graph-1",
-      widgetId: "graph",
+      widgetId: CORE_GRAPH_WIDGET_ID,
       title: "Graph",
       layout: { cols: 6, rows: 4 },
       props: {
@@ -724,7 +732,7 @@ function managedGraphVariableWidgets(symbol: string): DashboardWidgetInstance[] 
     },
     {
       id: "managed-source-1",
-      widgetId: "connection-query",
+      widgetId: CORE_CONNECTION_QUERY_WIDGET_ID,
       title: "Graph Source",
       layout: { cols: 6, rows: 4 },
       props: embeddedConnectionQuery,
@@ -780,7 +788,7 @@ function managedGraphExpressionVariableWidgets(symbol: string): DashboardWidgetI
     },
     {
       id: "graph-1",
-      widgetId: "graph",
+      widgetId: CORE_GRAPH_WIDGET_ID,
       title: "Graph",
       layout: { cols: 6, rows: 4 },
       props: {
@@ -796,7 +804,7 @@ function managedGraphExpressionVariableWidgets(symbol: string): DashboardWidgetI
     },
     {
       id: "managed-source-1",
-      widgetId: "connection-query",
+      widgetId: CORE_CONNECTION_QUERY_WIDGET_ID,
       title: "Graph Source",
       layout: { cols: 6, rows: 4 },
       props: embeddedConnectionQuery,
@@ -828,11 +836,11 @@ function managedGraphViaTableVariableWidgets(
   symbol: string,
   options: {
     tableInstanceId?: string;
-    tableWidgetId?: "table" | "pro-table";
+    tableWidgetId?: string;
   } = {},
 ): DashboardWidgetInstance[] {
   const tableInstanceId = options.tableInstanceId ?? "table-1";
-  const tableWidgetId = options.tableWidgetId ?? "table";
+  const tableWidgetId = options.tableWidgetId ?? CORE_TABLE_WIDGET_ID;
   const embeddedConnectionQuery = {
     connectionRef: {
       id: TEST_CONNECTION_ID,
@@ -850,7 +858,7 @@ function managedGraphViaTableVariableWidgets(
   return [
     {
       id: "upstream-source-1",
-      widgetId: "connection-query",
+      widgetId: CORE_CONNECTION_QUERY_WIDGET_ID,
       title: "Upstream Source",
       layout: { cols: 6, rows: 4 },
       props: {
@@ -874,7 +882,7 @@ function managedGraphViaTableVariableWidgets(
     {
       id: tableInstanceId,
       widgetId: tableWidgetId,
-      title: tableWidgetId === "pro-table" ? "Pro Table" : "Table",
+      title: tableWidgetId === CORE_PRO_TABLE_WIDGET_ID ? "Pro Table" : "Table",
       layout: { cols: 6, rows: 4 },
       bindings: {
         [TABULAR_SEED_INPUT_ID]: {
@@ -885,7 +893,7 @@ function managedGraphViaTableVariableWidgets(
     },
     {
       id: "graph-1",
-      widgetId: "graph",
+      widgetId: CORE_GRAPH_WIDGET_ID,
       title: "Graph",
       layout: { cols: 6, rows: 4 },
       props: {
@@ -911,7 +919,7 @@ function managedGraphViaTableVariableWidgets(
     },
     {
       id: "managed-source-1",
-      widgetId: "connection-query",
+      widgetId: CORE_CONNECTION_QUERY_WIDGET_ID,
       title: "Graph Source",
       layout: { cols: 6, rows: 4 },
       props: embeddedConnectionQuery,
@@ -984,7 +992,7 @@ function tableInteractionVariableWidgets(row: Record<string, unknown>): Dashboar
   return [
     {
       id: "upstream-source-1",
-      widgetId: "connection-query",
+      widgetId: CORE_CONNECTION_QUERY_WIDGET_ID,
       title: "Upstream Source",
       layout: { cols: 6, rows: 4 },
       props: {
@@ -1007,7 +1015,7 @@ function tableInteractionVariableWidgets(row: Record<string, unknown>): Dashboar
     },
     {
       id: "table-1",
-      widgetId: "table",
+      widgetId: CORE_TABLE_WIDGET_ID,
       title: "Table",
       layout: { cols: 6, rows: 4 },
       bindings: {
@@ -1056,7 +1064,7 @@ function assetScreenerVariableWidgets(row: Record<string, unknown>): DashboardWi
   return [
     {
       id: "upstream-source-1",
-      widgetId: "connection-query",
+      widgetId: CORE_CONNECTION_QUERY_WIDGET_ID,
       title: "Upstream Source",
       layout: { cols: 6, rows: 4 },
       props: {
@@ -1079,7 +1087,7 @@ function assetScreenerVariableWidgets(row: Record<string, unknown>): DashboardWi
     },
     {
       id: "asset-screener-1",
-      widgetId: "ms-markets-asset-screener",
+      widgetId: MAIN_SEQUENCE_MARKETS_ASSET_SCREENER_WIDGET_ID,
       title: "Asset Screener",
       layout: { cols: 6, rows: 4 },
       bindings: {
@@ -1276,7 +1284,7 @@ describe("dashboard upstream resolution keys", () => {
     const mockWidgets: DashboardWidgetInstance[] = [
       {
         id: "mock-source-1",
-        widgetId: "connection-query",
+        widgetId: CORE_CONNECTION_QUERY_WIDGET_ID,
         title: "Mock source",
         layout: { cols: 6, rows: 4 },
         props: {
@@ -1302,7 +1310,7 @@ describe("dashboard upstream resolution keys", () => {
       },
       {
         id: "table-1",
-        widgetId: "table",
+        widgetId: CORE_TABLE_WIDGET_ID,
         title: "Table",
         layout: { cols: 6, rows: 4 },
         props: {
@@ -1366,7 +1374,7 @@ describe("dashboard upstream resolution keys", () => {
     const mockWidgets: DashboardWidgetInstance[] = [
       {
         id: "stream-source-1",
-        widgetId: "connection-stream-query",
+        widgetId: CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
         title: "Live stream source",
         layout: { cols: 6, rows: 4 },
         runtimeState: {
@@ -1378,7 +1386,7 @@ describe("dashboard upstream resolution keys", () => {
       },
       {
         id: "table-1",
-        widgetId: "table",
+        widgetId: CORE_TABLE_WIDGET_ID,
         title: "Table",
         layout: { cols: 6, rows: 4 },
         bindings: {
@@ -1461,7 +1469,7 @@ describe("dashboard upstream resolution keys", () => {
     const mockWidgets: DashboardWidgetInstance[] = [
       {
         id: "stream-source-1",
-        widgetId: "connection-stream-query",
+        widgetId: CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
         title: "Live stream source",
         layout: { cols: 6, rows: 4 },
         runtimeState: {
@@ -1473,7 +1481,7 @@ describe("dashboard upstream resolution keys", () => {
       },
       {
         id: "table-1",
-        widgetId: "table",
+        widgetId: CORE_TABLE_WIDGET_ID,
         title: "Table",
         layout: { cols: 6, rows: 4 },
         bindings: {
@@ -1672,7 +1680,7 @@ describe("dashboard upstream resolution keys", () => {
     let workingWidgets: DashboardWidgetInstance[] = [
       {
         id: "mock-source-1",
-        widgetId: "connection-query",
+        widgetId: CORE_CONNECTION_QUERY_WIDGET_ID,
         title: "Mock source",
         layout: { cols: 6, rows: 4 },
         props: originalProps,
@@ -1740,7 +1748,7 @@ describe("dashboard upstream resolution keys", () => {
       beforeSnapshot,
       afterSnapshot,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(plan.changedVariableEntries).toEqual([
@@ -1796,7 +1804,7 @@ describe("dashboard upstream resolution keys", () => {
       widgets: [
         {
           id: "upstream-source-1",
-          widgetId: "connection-query",
+          widgetId: CORE_CONNECTION_QUERY_WIDGET_ID,
           title: "Upstream Source",
           layout: { cols: 6, rows: 4 },
           props: {
@@ -1814,7 +1822,7 @@ describe("dashboard upstream resolution keys", () => {
         },
         {
           id: "table-1",
-          widgetId: "table",
+          widgetId: CORE_TABLE_WIDGET_ID,
           title: "Table",
           layout: { cols: 6, rows: 4 },
           bindings: {
@@ -1826,7 +1834,7 @@ describe("dashboard upstream resolution keys", () => {
         },
         {
           id: "http-1",
-          widgetId: "connection-query",
+          widgetId: CORE_CONNECTION_QUERY_WIDGET_ID,
           title: "HTTP Query",
           layout: { cols: 6, rows: 4 },
           props: {
@@ -1886,7 +1894,7 @@ describe("dashboard upstream resolution keys", () => {
       beforeSnapshot,
       afterSnapshot,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(plan.changedVariableEntries).toEqual([]);
@@ -1925,7 +1933,7 @@ describe("dashboard upstream resolution keys", () => {
         return false;
       },
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(inspectedEntryIds).toEqual([
@@ -1962,7 +1970,7 @@ describe("dashboard upstream resolution keys", () => {
       afterSnapshot,
       includeDownstreamVariableSources: false,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(plan.changedVariableEntries).toHaveLength(1);
@@ -1986,7 +1994,7 @@ describe("dashboard upstream resolution keys", () => {
       beforeSnapshot,
       afterSnapshot,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(plan.affectedConsumerWidgetIds).toEqual(["graph-1"]);
@@ -2020,7 +2028,7 @@ describe("dashboard upstream resolution keys", () => {
       beforeSnapshot,
       afterSnapshot,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(plan.changedVariableEntries).toEqual([
@@ -2061,7 +2069,7 @@ describe("dashboard upstream resolution keys", () => {
       beforeSnapshot,
       afterSnapshot,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(plan.changedVariableEntries).toEqual([
@@ -2098,7 +2106,7 @@ describe("dashboard upstream resolution keys", () => {
       beforeSnapshot,
       afterSnapshot,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(listDashboardWidgetExecutionOrder("managed-source-1", afterSnapshot))
@@ -2145,8 +2153,8 @@ describe("dashboard upstream resolution keys", () => {
   });
 
   it.each([
-    { tableInstanceId: "table-1", tableWidgetId: "table" as const },
-    { tableInstanceId: "pro-table-1", tableWidgetId: "pro-table" as const },
+    { tableInstanceId: "table-1", tableWidgetId: CORE_TABLE_WIDGET_ID },
+    { tableInstanceId: "pro-table-1", tableWidgetId: CORE_PRO_TABLE_WIDGET_ID },
   ])(
     "plans runtime variable changes from $tableWidgetId without rebuilding before topology",
     ({ tableInstanceId, tableWidgetId }) => {
@@ -2170,7 +2178,7 @@ describe("dashboard upstream resolution keys", () => {
           return true;
         },
         resolveManagedConnectionConsumerAdapter: (widgetId) =>
-          widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+          widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
       });
 
       expect(inspectedEntryIds).toEqual([
@@ -2202,7 +2210,7 @@ describe("dashboard upstream resolution keys", () => {
           throw new Error("unchanged runtime signatures should not be inspected");
         },
         resolveManagedConnectionConsumerAdapter: (widgetId) =>
-          widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+          widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
       });
 
       expect(secondPlan.changedVariableEntries).toEqual([]);
@@ -2233,7 +2241,7 @@ describe("dashboard upstream resolution keys", () => {
       beforeSnapshot,
       afterSnapshot,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(plan.changedVariableEntries).toEqual([]);
@@ -2266,7 +2274,7 @@ describe("dashboard upstream resolution keys", () => {
       beforeSnapshot,
       afterSnapshot,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(plan.changedVariableEntries).toEqual([]);
@@ -2295,7 +2303,7 @@ describe("dashboard upstream resolution keys", () => {
       beforeSnapshot,
       afterSnapshot,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(plan.changedVariableEntries.map((entry) => entry.sourceOutputId)).toEqual([
@@ -2340,14 +2348,14 @@ describe("dashboard upstream resolution keys", () => {
       beforeSnapshot,
       afterSnapshot: sameSymbolSnapshot,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
     const changedPlan = planDashboardVariableDrivenCommit({
       changedWidgetId: "upstream-source-1",
       beforeSnapshot,
       afterSnapshot: changedSymbolSnapshot,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(unchangedPlan.changedVariableEntries).toEqual([]);
@@ -2393,7 +2401,7 @@ describe("dashboard upstream resolution keys", () => {
       beforeSnapshot,
       afterSnapshot,
       resolveManagedConnectionConsumerAdapter: (widgetId) =>
-        widgetId === "graph" ? testGraphManagedConnectionConsumerAdapter : null,
+        widgetId === CORE_GRAPH_WIDGET_ID ? testGraphManagedConnectionConsumerAdapter : null,
     });
 
     expect(plan.executableTargetOverridesByWidgetId["managed-source-1"]?.props)

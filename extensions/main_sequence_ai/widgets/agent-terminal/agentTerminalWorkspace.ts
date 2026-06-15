@@ -6,10 +6,11 @@ import {
   updateDashboardWidgetRuntimeState,
   updateDashboardWidgetSettings,
 } from "@/features/dashboards/custom-dashboard-storage";
+import { MAIN_SEQUENCE_AI_AGENT_TERMINAL_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import { normalizeAgentTerminalWidgetProps } from "./agentTerminalModel";
 
-export const AGENT_TERMINAL_WIDGET_ID = "main-sequence-ai-agent-terminal";
+export const AGENT_TERMINAL_WIDGET_ID = MAIN_SEQUENCE_AI_AGENT_TERMINAL_WIDGET_ID;
 export const AGENT_TERMINAL_AUTO_FOCUS_RUNTIME_KEY = "autoFocusPromptNonce";
 const AGENT_TERMINAL_SPAWN_COLS = 14;
 const AGENT_TERMINAL_SPAWN_ROWS = 16;

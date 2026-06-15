@@ -8,6 +8,11 @@ import type {
 } from "@/dashboards/types";
 import { collectDashboardWidgetEntries } from "@/dashboards/widget-dependencies";
 import type { ResolvedWidgetInputs, WidgetAgentSnapshot } from "@/widgets/types";
+import {
+  MAIN_SEQUENCE_FOUNDRY_DEPENDENCY_GRAPH_WIDGET_ID,
+  MAIN_SEQUENCE_FOUNDRY_PROJECT_INFRA_GRAPH_WIDGET_ID,
+  normalizeWidgetTypeId,
+} from "@/widgets/widget-type-normalization";
 
 import type {
   BuiltWorkspaceSnapshotArchive,
@@ -76,7 +81,12 @@ function resolvePlacementMode(instance: DashboardWidgetInstance) {
 }
 
 function resolveDisplayKind(widgetId: string, widgetKind?: string): WidgetAgentSnapshot["displayKind"] {
-  if (widgetId === "dependency-graph" || widgetId === "main-sequence-project-infra-graph") {
+  const normalizedWidgetId = normalizeWidgetTypeId(widgetId);
+
+  if (
+    normalizedWidgetId === MAIN_SEQUENCE_FOUNDRY_DEPENDENCY_GRAPH_WIDGET_ID ||
+    normalizedWidgetId === MAIN_SEQUENCE_FOUNDRY_PROJECT_INFRA_GRAPH_WIDGET_ID
+  ) {
     return "graph";
   }
 

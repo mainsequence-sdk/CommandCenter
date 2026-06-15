@@ -1,5 +1,6 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +20,12 @@ import {
   type AdapterFromApiParameterLocation,
   type AdapterFromApiResponseMapping,
 } from "./index";
+import {
+  adapterFromApiOperationSupportsQuery,
+  discoverAdapterFromApiDirectContract,
+  readAdapterFromApiEffectiveCompiledContract,
+  writeAdapterFromApiDirectDiscoverySessionCache,
+} from "./directTransport";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -29,10 +36,7 @@ function readCompiledContract(value: unknown): AdapterFromApiCompiledContract | 
 }
 
 function readQueryOperations(contract: AdapterFromApiCompiledContract | undefined) {
-  return (contract?.availableOperations ?? []).filter((operation) => {
-    const capabilities = operation.capabilities ?? [];
-    return operation.kind === "query" || capabilities.includes("query");
-  });
+  return (contract?.availableOperations ?? []).filter(adapterFromApiOperationSupportsQuery);
 }
 
 function findOperation(
@@ -229,8 +233,43 @@ export function AdapterFromApiConnectionQueryEditor({
   queryModel,
   value,
 }: ConnectionQueryEditorProps<AdapterFromApiConnectionQuery>) {
-  const compiledContract = readCompiledContract(connectionInstance?.publicConfig.compiledContract);
+  const [directDiscoveryState, setDirectDiscoveryState] = useState<{
+    contract?: AdapterFromApiCompiledContract;
+    message?: string;
+    status: "idle" | "loading" | "success" | "error";
+  }>({ status: "idle" });
+  const autoDirectDiscoveryKeyRef = useRef<string | null>(null);
+  const isDirectMode = connectionInstance?.publicConfig.transportMode === "direct";
+  const debugApiBaseUrl =
+    typeof connectionInstance?.publicConfig.debugApiBaseUrl === "string"
+      ? connectionInstance.publicConfig.debugApiBaseUrl.trim()
+      : "";
+  const connectionId = connectionInstance?.id;
+  const contractVersion =
+    typeof connectionInstance?.publicConfig.contractVersion === "string"
+      ? connectionInstance.publicConfig.contractVersion.trim()
+      : "";
+  const directAutoDiscoveryKey =
+    isDirectMode && connectionId && debugApiBaseUrl
+      ? `${connectionId}:${debugApiBaseUrl}:${contractVersion}`
+      : undefined;
+  const persistedCompiledContract = readCompiledContract(
+    connectionInstance?.publicConfig.compiledContract,
+  );
+  const effectiveCompiledContract = useMemo(
+    () => readAdapterFromApiEffectiveCompiledContract(connectionInstance),
+    [connectionInstance],
+  );
+  const staleDirectCompiledContract = isDirectMode
+    ? effectiveCompiledContract ?? persistedCompiledContract
+    : undefined;
+  const compiledContract = isDirectMode
+    ? directDiscoveryState.status === "success"
+      ? directDiscoveryState.contract
+      : undefined
+    : persistedCompiledContract ?? effectiveCompiledContract;
   const operations = useMemo(() => readQueryOperations(compiledContract), [compiledContract]);
+  const totalOperationCount = compiledContract?.availableOperations?.length ?? 0;
   const selectedOperation = findOperation(operations, value.operationId);
   const mappings = getMappingOptions(selectedOperation);
   const selectedMappingId = value.responseMappingId ?? defaultMappingId(mappings);
@@ -238,6 +277,109 @@ export function AdapterFromApiConnectionQueryEditor({
   const queryParameters = getLocationParameters(selectedOperation, "query");
   const headerParameters = getLocationParameters(selectedOperation, "headers");
   const parameters = value.parameters ?? {};
+
+  useEffect(() => {
+    setDirectDiscoveryState({ status: "idle" });
+  }, [
+    connectionInstance?.id,
+    connectionInstance?.publicConfig.compiledContract,
+    connectionInstance?.publicConfig.contractVersion,
+    connectionInstance?.publicConfig.debugApiBaseUrl,
+    connectionInstance?.publicConfig.transportMode,
+  ]);
+
+  async function refreshDirectContract() {
+    if (!connectionId || !debugApiBaseUrl) {
+      return;
+    }
+
+    setDirectDiscoveryState({
+      status: "loading",
+      message: "Refreshing the direct debug API contract from the browser.",
+    });
+
+    try {
+      const result = await discoverAdapterFromApiDirectContract(debugApiBaseUrl);
+
+      writeAdapterFromApiDirectDiscoverySessionCache(connectionId, result);
+      setDirectDiscoveryState({
+        contract: result.compiledContract,
+        status: "success",
+        message: `Refreshed ${result.compiledContract.availableOperations?.length ?? 0} operation${
+          result.compiledContract.availableOperations?.length === 1 ? "" : "s"
+        } from the direct debug API.`,
+      });
+    } catch (error) {
+      setDirectDiscoveryState({
+        status: "error",
+        message:
+          error instanceof Error && error.message.trim()
+            ? error.message.trim()
+            : "Direct debug contract refresh failed.",
+      });
+    }
+  }
+
+  useEffect(() => {
+    if (
+      !connectionId ||
+      !isDirectMode ||
+      !debugApiBaseUrl ||
+      autoDirectDiscoveryKeyRef.current === directAutoDiscoveryKey
+    ) {
+      return;
+    }
+
+    autoDirectDiscoveryKeyRef.current = directAutoDiscoveryKey ?? null;
+    const controller = new AbortController();
+    let cancelled = false;
+
+    setDirectDiscoveryState({
+      status: "loading",
+      message: "Discovering the direct debug API contract from the browser.",
+    });
+
+    discoverAdapterFromApiDirectContract(debugApiBaseUrl, {
+      signal: controller.signal,
+    })
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+
+        writeAdapterFromApiDirectDiscoverySessionCache(connectionId, result);
+        setDirectDiscoveryState({
+          contract: result.compiledContract,
+          status: "success",
+          message: `Discovered ${result.compiledContract.availableOperations?.length ?? 0} operation${
+            result.compiledContract.availableOperations?.length === 1 ? "" : "s"
+          } from the direct debug API.`,
+        });
+      })
+      .catch((error) => {
+        if (cancelled || controller.signal.aborted) {
+          return;
+        }
+
+        setDirectDiscoveryState({
+          status: "error",
+          message:
+            error instanceof Error && error.message.trim()
+              ? error.message.trim()
+              : "Direct debug contract discovery failed.",
+        });
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [
+    connectionId,
+    directAutoDiscoveryKey,
+    debugApiBaseUrl,
+    isDirectMode,
+  ]);
 
   useEffect(() => {
     if (value.operationId || !selectedOperation) {
@@ -266,9 +408,31 @@ export function AdapterFromApiConnectionQueryEditor({
 
   if (!compiledContract) {
     return (
-      <div className="rounded-[calc(var(--radius)-6px)] border border-warning/35 bg-warning/10 px-3 py-2 text-xs leading-5 text-warning">
-        No compiled API contract is available on this connection instance. The backend adapter must
-        discover and store a sanitized compiledContract before queries can be authored.
+      <div className="space-y-3 rounded-[calc(var(--radius)-6px)] border border-warning/35 bg-warning/10 px-3 py-3 text-xs leading-5 text-warning">
+        <div>
+          {isDirectMode
+            ? directDiscoveryState.status === "loading"
+              ? staleDirectCompiledContract
+                ? "Refreshing the direct debug API contract before showing operations. Stale cached operations are hidden until refresh succeeds."
+                : "Discovering the direct debug API contract so routes can be authored..."
+              : directDiscoveryState.status === "error"
+                ? `Direct debug contract refresh failed: ${directDiscoveryState.message}. Stale cached operations are hidden because the debug API is not reachable.`
+                : debugApiBaseUrl
+                  ? "No compiled API contract is available on this direct debug connection yet. The browser will discover the well-known contract from the debug API root."
+                  : "No direct debug API root is stored on this connection, so routes cannot be discovered."
+            : "No compiled API contract is available on this connection instance. The backend adapter must discover and store a sanitized compiledContract before queries can be authored."}
+        </div>
+        {isDirectMode && debugApiBaseUrl ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || directDiscoveryState.status === "loading"}
+            onClick={() => void refreshDirectContract()}
+          >
+            {directDiscoveryState.status === "loading" ? "Refreshing..." : "Refresh contract"}
+          </Button>
+        ) : null}
       </div>
     );
   }
@@ -284,13 +448,46 @@ export function AdapterFromApiConnectionQueryEditor({
   return (
     <div className="space-y-5">
       <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2 text-xs text-muted-foreground">
-        <div className="font-medium text-foreground">Configured API</div>
-        <div className="mt-1 break-words">
-          {compiledContract.adapter?.title ??
-            compiledContract.adapter?.id ??
-            connectionInstance?.name ??
-            "Adapter From API"}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="font-medium text-foreground">Configured API</div>
+            <div className="mt-1 break-words">
+              {compiledContract.adapter?.title ??
+                compiledContract.adapter?.id ??
+                connectionInstance?.name ??
+                "Adapter From API"}
+            </div>
+            <div className="mt-1">
+              Showing {operations.length} query operation{operations.length === 1 ? "" : "s"} from{" "}
+              {totalOperationCount} contract operation{totalOperationCount === 1 ? "" : "s"}.
+              {totalOperationCount !== operations.length
+                ? " Only query-capable operations are listed."
+                : ""}
+            </div>
+          </div>
+          {isDirectMode && debugApiBaseUrl ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled || directDiscoveryState.status === "loading"}
+              onClick={() => void refreshDirectContract()}
+            >
+              {directDiscoveryState.status === "loading" ? "Refreshing..." : "Refresh contract"}
+            </Button>
+          ) : null}
         </div>
+        {directDiscoveryState.message ? (
+          <div
+            className={
+              directDiscoveryState.status === "error"
+                ? "mt-2 text-destructive"
+                : "mt-2 text-muted-foreground"
+            }
+          >
+            {directDiscoveryState.message}
+          </div>
+        ) : null}
       </div>
 
       <ConnectionQueryEditorSection
@@ -306,10 +503,16 @@ export function AdapterFromApiConnectionQueryEditor({
             value={selectedOperation?.operationId ?? ""}
             onChange={(event) => selectOperation(event.target.value)}
             disabled={disabled}
+            searchable
+            searchPlaceholder="Search operation, method, or path"
           >
             {operations.map((operation) => (
-              <option key={operation.operationId} value={operation.operationId}>
-                {operationLabel(operation)} · {operation.method.toUpperCase()} {operation.path}
+              <option
+                key={operation.operationId}
+                value={operation.operationId}
+                data-description={`${operation.method.toUpperCase()} ${operation.path}`}
+              >
+                {operationLabel(operation)}
               </option>
             ))}
           </Select>

@@ -25,6 +25,7 @@ import {
   type RegisteredWidgetTypeRecord,
 } from "@/widgets/registered-widget-types-api";
 import type { WidgetDefinition } from "@/widgets/types";
+import { ECHARTS_SPEC_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import { AdminSurfaceLayout } from "./shared";
 
@@ -50,7 +51,7 @@ function parseEditorJson(value: string) {
   return parsed;
 }
 
-const ECHARTS_WIDGET_ID = "echarts-spec";
+const ECHARTS_WIDGET_ID = ECHARTS_SPEC_WIDGET_ID;
 const ECHARTS_CAPABILITY_MODE_OPTIONS = [
   { value: "safe-json", label: "Safe JSON" },
   { value: "safe-html-tooltips", label: "Safe HTML Tooltips" },

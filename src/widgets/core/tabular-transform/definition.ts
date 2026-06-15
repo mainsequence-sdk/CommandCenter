@@ -12,6 +12,7 @@ import {
 } from "@/widgets/shared/tabular-frame-source";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
+import { CORE_TABULAR_TRANSFORM_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { TabularTransformWidget } from "./TabularTransformWidget";
@@ -25,7 +26,7 @@ import {
 } from "./tabularTransformModel";
 
 export const tabularTransformWidget = defineWidget<TabularTransformWidgetProps>({
-  id: "tabular-transform",
+  id: CORE_TABULAR_TRANSFORM_WIDGET_ID,
   widgetVersion: "1.3.5",
   title: "Tabular Transform",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

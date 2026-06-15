@@ -2,6 +2,7 @@ import { LayoutTemplate } from "lucide-react";
 
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
+import { MAIN_SEQUENCE_AI_WORKSPACE_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { WorkspaceReferenceRailSummary } from "./WorkspaceReferenceRailSummary";
@@ -16,7 +17,7 @@ import {
   type WorkspaceWidgetProps,
 } from "./workspaceReference";
 
-export const WORKSPACE_WIDGET_ID = "main-sequence-ai-workspace";
+export const WORKSPACE_WIDGET_ID = MAIN_SEQUENCE_AI_WORKSPACE_WIDGET_ID;
 
 export const workspaceWidget = defineWidget<WorkspaceWidgetProps>({
   id: WORKSPACE_WIDGET_ID,

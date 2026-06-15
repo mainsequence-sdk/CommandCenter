@@ -15,7 +15,9 @@ This module owns the shared AgentSession detail capability for the `Main Sequenc
   history must all complete before user input is allowed.
 - `AgentSessionDetailSections.tsx`
   Reusable presentational sections for rendering the normalized AgentSession core detail, including
-  raw payload viewers for large JSON fields.
+  raw payload viewers for large JSON fields. The shared renderer now expects the canonical singular
+  `bound_handle` serializer contract and presents the session in the same summary-plus-tabs detail
+  style used elsewhere in Main Sequence.
 - `AgentSessionInsightsSections.tsx`
   Shared read-only rendering for the backend insights payload, including model, usage, context,
   and last-turn sections.
@@ -68,3 +70,5 @@ transport boundaries into one fake endpoint.
   session-detail fetch state in each surface.
 - If the backend detail serializer changes, update `model.ts` first so every consumer stays
   aligned.
+- Keep session handle normalization centered on the singular `bound_handle` contract. The
+  agent-detail sessions list and the standalone session page should reflect the same handle value.

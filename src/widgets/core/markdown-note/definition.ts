@@ -4,6 +4,7 @@ import { CORE_WIDGET_AGENT_CONTEXT_CONTRACT } from "@/widgets/shared/agent-conte
 import { CORE_VALUE_STRING_CONTRACT } from "@/widgets/shared/value-contracts";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
+import { CORE_MARKDOWN_NOTE_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { MarkdownNoteWidget, type MarkdownNoteWidgetProps } from "./MarkdownNoteWidget";
@@ -28,7 +29,7 @@ const exampleContent = `# Daily Brief
 const MARKDOWN_NOTE_CONTENT_OUTPUT_ID = "markdown-content";
 
 export const markdownNoteWidget = defineWidget<MarkdownNoteWidgetProps>({
-  id: "markdown-note",
+  id: CORE_MARKDOWN_NOTE_WIDGET_ID,
   widgetVersion: "1.4.0",
   title: "Markdown",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

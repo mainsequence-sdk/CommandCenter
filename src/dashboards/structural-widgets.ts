@@ -1,17 +1,22 @@
 import type { DashboardWidgetInstance } from "@/dashboards/types";
 import { resolveWidgetSidebarOnly } from "@/widgets/shared/chrome";
+import {
+  CORE_WORKSPACE_ROW_WIDGET_ID,
+  CORE_WORKSPACE_SLIDE_WIDGET_ID,
+  normalizeWidgetTypeId,
+} from "@/widgets/widget-type-normalization";
 
-export const WORKSPACE_ROW_WIDGET_ID = "workspace-row";
-export const WORKSPACE_SLIDE_WIDGET_ID = "workspace-slide";
+export const WORKSPACE_ROW_WIDGET_ID = CORE_WORKSPACE_ROW_WIDGET_ID;
+export const WORKSPACE_SLIDE_WIDGET_ID = CORE_WORKSPACE_SLIDE_WIDGET_ID;
 export const WORKSPACE_ROW_HEIGHT_ROWS = 2;
 export const WORKSPACE_SLIDE_MIN_HEIGHT_ROWS = 48;
 
 export function isWorkspaceRowWidgetId(widgetId: string) {
-  return widgetId === WORKSPACE_ROW_WIDGET_ID;
+  return normalizeWidgetTypeId(widgetId) === WORKSPACE_ROW_WIDGET_ID;
 }
 
 export function isWorkspaceSlideWidgetId(widgetId: string) {
-  return widgetId === WORKSPACE_SLIDE_WIDGET_ID;
+  return normalizeWidgetTypeId(widgetId) === WORKSPACE_SLIDE_WIDGET_ID;
 }
 
 export function isWorkspaceFullWidthWidgetId(widgetId: string) {

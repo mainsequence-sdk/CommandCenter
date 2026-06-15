@@ -13,6 +13,11 @@ import {
 } from "lucide-react";
 
 import { isWorkspaceRowWidgetId } from "@/dashboards/structural-widgets";
+import {
+  CORE_CONNECTION_QUERY_WIDGET_ID,
+  CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
+  normalizeWidgetTypeId,
+} from "@/widgets/widget-type-normalization";
 
 export interface WorkspaceWidgetIconDescriptor {
   id: string;
@@ -73,7 +78,12 @@ export function resolveWorkspaceWidgetIcon({
   workspaceIcon,
   railIcon,
 }: WorkspaceWidgetIconDescriptor): ComponentType<{ className?: string }> {
-  if (id === "connection-query" || id === "connection-stream-query") {
+  const normalizedId = normalizeWidgetTypeId(id);
+
+  if (
+    normalizedId === CORE_CONNECTION_QUERY_WIDGET_ID ||
+    normalizedId === CORE_CONNECTION_STREAM_QUERY_WIDGET_ID
+  ) {
     const connectionTypeIcon = resolveConnectionQueryTypeIcon(props);
 
     if (connectionTypeIcon) {

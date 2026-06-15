@@ -87,8 +87,14 @@ export interface AgentDetailRecord {
 }
 
 export type AgentSummaryResponse = SummaryResponse;
-export interface AgentRuntimeIdResponse {
-  runtime_id: string | number | null;
+export interface AgentRuntimeRefResponse {
+  cluster_uid: string | null;
+  exists: boolean;
+  latest_ready_revision_name: string | null;
+  namespace: string | null;
+  runtime_kind: string | null;
+  runtime_uid: string | null;
+  service_name: string | null;
 }
 
 function asRecord(value: unknown) {
@@ -262,9 +268,9 @@ export function buildAgentSummaryUrl(agentId: string | number) {
   ).toString();
 }
 
-export function buildAgentRuntimeIdUrl(agentId: string | number) {
+export function buildAgentRuntimeRefUrl(agentUid: string | number) {
   return new URL(
-    `/orm/api/agents/v1/agents/${encodeURIComponent(String(agentId))}/get_runtime_id/`,
+    `/orm/api/agents/v1/agents/${encodeURIComponent(String(agentUid))}/runtime-ref/`,
     env.apiBaseUrl,
   ).toString();
 }
@@ -517,13 +523,27 @@ export async function fetchAgentSummary({
   return (await response.json()) as AgentSummaryResponse;
 }
 
-export async function fetchAgentRuntimeId({
-  agentId,
+function normalizeAgentRuntimeRefResponse(value: unknown): AgentRuntimeRefResponse {
+  const candidate = asRecord(value);
+
+  return {
+    cluster_uid: normalizeNullableString(candidate.cluster_uid),
+    exists: candidate.exists === true,
+    latest_ready_revision_name: normalizeNullableString(candidate.latest_ready_revision_name),
+    namespace: normalizeNullableString(candidate.namespace),
+    runtime_kind: normalizeNullableString(candidate.runtime_kind),
+    runtime_uid: normalizeNullableString(candidate.runtime_uid),
+    service_name: normalizeNullableString(candidate.service_name),
+  };
+}
+
+export async function fetchAgentRuntimeRef({
+  agentUid,
   signal,
   token,
   tokenType = "Bearer",
 }: {
-  agentId: string | number;
+  agentUid: string | number;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
@@ -536,7 +556,7 @@ export async function fetchAgentRuntimeId({
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  const response = await fetch(buildAgentRuntimeIdUrl(agentId), {
+  const response = await fetch(buildAgentRuntimeRefUrl(agentUid), {
     method: "GET",
     headers,
     signal,
@@ -547,5 +567,5 @@ export async function fetchAgentRuntimeId({
     throw new Error(payload?.error || `Agent runtime lookup failed with status ${response.status}.`);
   }
 
-  return (await response.json()) as AgentRuntimeIdResponse;
+  return normalizeAgentRuntimeRefResponse(await response.json());
 }

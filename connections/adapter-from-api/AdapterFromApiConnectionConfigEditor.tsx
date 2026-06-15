@@ -598,8 +598,12 @@ export function AdapterFromApiConnectionConfigEditor({
                   onClick={() => void runDirectDiscovery()}
                 >
                   {directDiscoveryState.status === "loading"
-                    ? "Discovering..."
-                    : "Discover contract"}
+                    ? compiledContract
+                      ? "Refreshing..."
+                      : "Discovering..."
+                    : compiledContract
+                      ? "Refresh contract"
+                      : "Discover contract"}
                 </Button>
                 {directDiscoveryCacheEntry ? (
                   <Button

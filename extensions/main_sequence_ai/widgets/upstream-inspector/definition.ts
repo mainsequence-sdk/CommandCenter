@@ -9,6 +9,7 @@ import {
 } from "@/widgets/shared/value-contracts";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
+import { MAIN_SEQUENCE_AI_UPSTREAM_INSPECTOR_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
@@ -18,7 +19,7 @@ import {
 } from "./UpstreamInspectorWidget";
 import { UpstreamInspectorWidgetSettings } from "./UpstreamInspectorWidgetSettings";
 
-export const UPSTREAM_INSPECTOR_WIDGET_ID = "main-sequence-ai-upstream-inspector";
+export const UPSTREAM_INSPECTOR_WIDGET_ID = MAIN_SEQUENCE_AI_UPSTREAM_INSPECTOR_WIDGET_ID;
 
 export const upstreamInspectorWidget = defineWidget<UpstreamInspectorWidgetProps>({
   id: UPSTREAM_INSPECTOR_WIDGET_ID,

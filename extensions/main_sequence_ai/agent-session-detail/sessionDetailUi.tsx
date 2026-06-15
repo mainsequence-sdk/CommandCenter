@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export function formatSessionTimestamp(value: string | null) {
@@ -86,17 +87,20 @@ export function SessionField({
 
 export function SessionSection({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-4 rounded-[16px] border border-border/60 bg-background/35 px-4 py-4">
-      <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        {title}
-      </div>
-      {children}
-    </section>
+    <Card variant="nested">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        {description ? <CardDescription>{description}</CardDescription> : null}
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   );
 }

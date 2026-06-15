@@ -3,6 +3,7 @@ import { BarChart3 } from "lucide-react";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
 import type { RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
+import { CORE_GRAPH_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
@@ -86,7 +87,7 @@ const graphTabularFieldEffects = [
 ];
 
 export const graphWidget = defineWidget<GraphWidgetProps>({
-  id: "graph",
+  id: CORE_GRAPH_WIDGET_ID,
   widgetVersion: "3.4.0",
   title: "Graph",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

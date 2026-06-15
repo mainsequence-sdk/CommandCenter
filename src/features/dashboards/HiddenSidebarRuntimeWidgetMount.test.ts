@@ -16,11 +16,15 @@ import {
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 import { defineWidget, type WidgetDefinition } from "@/widgets/types";
+import {
+  CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
+  CORE_GRAPH_WIDGET_ID,
+} from "@/widgets/widget-type-normalization";
 
 import { resolveHiddenSidebarRuntimeWidgetMountState } from "./HiddenSidebarRuntimeWidgetMount";
 
 const graphWidget = defineWidget({
-  id: "graph",
+  id: CORE_GRAPH_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Graph",
   description: "Graph",
@@ -37,7 +41,7 @@ const graphWidget = defineWidget({
 });
 
 const connectionStreamWidget = defineWidget({
-  id: "connection-stream-query",
+  id: CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Connection Stream Query",
   description: "Connection Stream Query",
@@ -84,8 +88,8 @@ const jsonInteractionSourceWidget = defineWidget({
 });
 
 const widgetDefinitions = new Map<string, WidgetDefinition>([
-  ["graph", graphWidget],
-  ["connection-stream-query", connectionStreamWidget],
+  [CORE_GRAPH_WIDGET_ID, graphWidget],
+  [CORE_CONNECTION_STREAM_QUERY_WIDGET_ID, connectionStreamWidget],
   ["json-interaction-source", jsonInteractionSourceWidget],
 ]);
 
@@ -113,7 +117,7 @@ function resolveWidgetDefinition(widgetId: string) {
 function widget(overrides: Partial<DashboardWidgetInstance>): DashboardWidgetInstance {
   return {
     id: "widget-1",
-    widgetId: "graph",
+    widgetId: CORE_GRAPH_WIDGET_ID,
     layout: {
       cols: 8,
       rows: 6,
@@ -156,7 +160,7 @@ describe("resolveHiddenSidebarRuntimeWidgetMountState", () => {
   it("passes resolved inputs to direct connection stream hidden mounts", () => {
     const stream = widget({
       id: "stream-1",
-      widgetId: "connection-stream-query",
+      widgetId: CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
       props: {
         connectionRef: {
           id: 5,
@@ -208,7 +212,7 @@ describe("resolveHiddenSidebarRuntimeWidgetMountState", () => {
   it("changes the direct stream runtime key when the referenced variable value changes", () => {
     const stream = widget({
       id: "stream-1",
-      widgetId: "connection-stream-query",
+      widgetId: CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
       props: {
         connectionRef: {
           id: 5,
@@ -273,7 +277,7 @@ describe("resolveHiddenSidebarRuntimeWidgetMountState", () => {
   it("projects managed stream props from the owner without mutating the hidden source", () => {
     const owner = widget({
       id: "graph-1",
-      widgetId: "graph",
+      widgetId: CORE_GRAPH_WIDGET_ID,
       props: {
         graphSourceMode: "connection-stream",
         embeddedConnectionQuery: {
@@ -292,7 +296,7 @@ describe("resolveHiddenSidebarRuntimeWidgetMountState", () => {
     });
     const managedSource = widget({
       id: "stream-1",
-      widgetId: "connection-stream-query",
+      widgetId: CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
       managedBy: {
         ownerInstanceId: owner.id,
         role: "embedded-connection-source",
@@ -366,7 +370,7 @@ describe("resolveHiddenSidebarRuntimeWidgetMountState", () => {
   it("changes the managed stream runtime key when the projected reference value changes", () => {
     const owner = widget({
       id: "graph-1",
-      widgetId: "graph",
+      widgetId: CORE_GRAPH_WIDGET_ID,
       props: {
         graphSourceMode: "connection-stream",
         embeddedConnectionQuery: {
@@ -385,7 +389,7 @@ describe("resolveHiddenSidebarRuntimeWidgetMountState", () => {
     });
     const managedSource = widget({
       id: "stream-1",
-      widgetId: "connection-stream-query",
+      widgetId: CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
       managedBy: {
         ownerInstanceId: owner.id,
         role: "embedded-connection-source",
@@ -439,7 +443,7 @@ describe("resolveHiddenSidebarRuntimeWidgetMountState", () => {
   it("keeps non-stream hidden mounts on raw props", () => {
     const graph = widget({
       id: "graph-1",
-      widgetId: "graph",
+      widgetId: CORE_GRAPH_WIDGET_ID,
       props: {
         title: "Raw graph",
       },

@@ -33,6 +33,7 @@ import {
   normalizeManagedConnectionEmbeddedSourceProps,
   resolveManagedConnectionConsumerSourceWidgetId,
 } from "@/widgets/shared/managed-connection-consumer";
+import { CORE_CONNECTION_QUERY_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -97,7 +98,7 @@ const CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED = false;
 function shouldLogConnectionQueryExecutionDebug(widgetId: string | undefined) {
   return CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED &&
     import.meta.env.DEV &&
-    widgetId === "connection-query";
+    widgetId === CORE_CONNECTION_QUERY_WIDGET_ID;
 }
 
 function summarizeExecutionPropsForDebug(props: unknown) {
@@ -1680,7 +1681,7 @@ export async function executeDashboardWidgetGraph(
     const connectionOrderRows = executionOrder.flatMap((instanceId, index) => {
       const orderedInstance = snapshot.getInstance(instanceId);
 
-      if (orderedInstance?.widgetId !== "connection-query") {
+      if (orderedInstance?.widgetId !== CORE_CONNECTION_QUERY_WIDGET_ID) {
         return [];
       }
 
@@ -2010,7 +2011,7 @@ export async function executeDashboardWidgetGraph(
       targetInstanceId: args.targetInstanceId,
     });
 
-    if (import.meta.env.DEV && executionContext.widgetId === "connection-query") {
+    if (import.meta.env.DEV && executionContext.widgetId === CORE_CONNECTION_QUERY_WIDGET_ID) {
       /*
       console.log("[widget-exec] node start", summarizeExecutionContextForDebug(executionContext));
       */
@@ -2052,7 +2053,7 @@ export async function executeDashboardWidgetGraph(
         !args.persistTargetRuntimeStateWithOverrides
       );
 
-    if (import.meta.env.DEV && instance.widgetId === "connection-query") {
+    if (import.meta.env.DEV && instance.widgetId === CORE_CONNECTION_QUERY_WIDGET_ID) {
       /*
       console.log("[widget-exec] node result", {
         instanceId,
@@ -2213,7 +2214,7 @@ export function listDashboardRefreshableExecutionTargets(args: {
 
   if (CONNECTION_QUERY_EXECUTION_DEBUG_LOGS_ENABLED && import.meta.env.DEV) {
     const connectionQueryRows = snapshot.dependencies.entries.flatMap(({ instance }) => {
-      if (instance.widgetId !== "connection-query") {
+      if (instance.widgetId !== CORE_CONNECTION_QUERY_WIDGET_ID) {
         return [];
       }
 

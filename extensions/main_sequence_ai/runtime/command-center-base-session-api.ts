@@ -126,9 +126,11 @@ function normalizeCommandCenterBaseSessionHandle(
           ? envelope
           : {};
   const boundHandle =
-    Array.isArray(candidate.bound_handles) && candidate.bound_handles[0]
-      ? asRecord(candidate.bound_handles[0])
-      : null;
+    candidate.bound_handle && typeof candidate.bound_handle === "object" && !Array.isArray(candidate.bound_handle)
+      ? asRecord(candidate.bound_handle)
+      : Array.isArray(candidate.bound_handles) && candidate.bound_handles[0]
+        ? asRecord(candidate.bound_handles[0])
+        : null;
   const sessionId =
     normalizeAgentSessionLookupId(candidate.uid) ??
     normalizeAgentSessionLookupId(candidate.agent_session_uid) ??

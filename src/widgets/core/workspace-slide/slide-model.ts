@@ -2,6 +2,7 @@ import type {
   DashboardSlideRegionId,
   DashboardWidgetInstance,
 } from "@/dashboards/types";
+import { normalizeWidgetTypeId } from "@/widgets/widget-type-normalization";
 
 export type WorkspaceSlideRegionId = DashboardSlideRegionId;
 
@@ -178,7 +179,8 @@ function sanitizeEmbeddedWidget(widget: unknown): DashboardWidgetInstance | null
     return null;
   }
 
-  const widgetId = typeof widget.widgetId === "string" ? widget.widgetId.trim() : "";
+  const widgetId =
+    typeof widget.widgetId === "string" ? normalizeWidgetTypeId(widget.widgetId) : "";
 
   if (!widgetId) {
     return null;

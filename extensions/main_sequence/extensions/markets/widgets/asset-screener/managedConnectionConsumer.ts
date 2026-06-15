@@ -7,6 +7,7 @@ import {
 } from "@/widgets/core/connection-stream-query/connectionStreamQueryModel";
 import { TABULAR_UPDATES_OUTPUT_ID } from "@/widgets/shared/incremental-tabular-consumer";
 import { TABULAR_SOURCE_OUTPUT_ID } from "@/widgets/shared/tabular-widget-source";
+import { MAIN_SEQUENCE_MARKETS_ASSET_SCREENER_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import {
   MARKET_ASSET_SCREENER_LIVE_UPDATES_INPUT_ID,
@@ -25,7 +26,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export const assetScreenerManagedConnectionConsumerAdapter = {
-  widgetId: "ms-markets-asset-screener",
+  widgetId: MAIN_SEQUENCE_MARKETS_ASSET_SCREENER_WIDGET_ID,
   sourceInputId: MARKET_ASSET_SCREENER_SEED_INPUT_ID,
   streamSourceInputId: MARKET_ASSET_SCREENER_LIVE_UPDATES_INPUT_ID,
   sourceOutputId: TABULAR_SOURCE_OUTPUT_ID,

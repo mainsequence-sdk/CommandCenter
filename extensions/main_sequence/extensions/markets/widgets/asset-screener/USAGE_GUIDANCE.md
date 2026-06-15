@@ -13,6 +13,9 @@ The screener can also own one hidden generic connection source. `connection` mod
 `connection-query` and binds its `dataset` output to `seedData`; `connection-stream` mode creates a
 hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`.
 
+Asset identity is resolved from source metadata, explicit field mappings, or recognizable identity
+fields such as `unique_identifier`, `assetKey`, `asset_identifier`, `symbol`, or `ticker`.
+
 ## whenToUse
 
 - Use when a workspace needs a terminal-style asset table with latest values, dynamic metric
@@ -70,13 +73,30 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
 - Let source metadata configure the default visible columns through `meta.marketAsset`,
   and `meta.tableVisuals`, or switch the settings panel to `Instance override` to save a local
   `columns` copy for that widget instance.
+- If the source is a simple asset monitor table without metadata, include a recognizable identity
+  field such as `unique_identifier`, `assetKey`, `asset_identifier`, `symbol`, or `ticker`, plus at
+  least one display or current-value field such as `display_name`, `last_price`, `price`, `close`,
+  or `volume` so the screener can derive a minimal visible column set.
 - Use the embedded `Table Settings` section for density, shared grouped sections, column-label
   overrides, thresholds, and selection outputs. Asset Screener no longer owns a separate layout
   grouping control.
+- Treat the embedded `Table Settings` section as the shared Pro Table configuration surface mounted
+  inside Asset Screener. It accepts the same Pro Table column schema and display configuration path:
+  labels, formats, formula columns, decimal precision, visibility, widths, thresholds, heatmaps,
+  data bars, gauges, value-label chips, conditional rules, local column overrides, density,
+  grouping, live merge mapping, and selection output settings.
+- Asset Screener supplies the market-derived table frame and applies market presentation defaults
+  on top of that shared Pro Table configuration. The normal table toolbar, quick search,
+  pagination footer, and generic stable-row-key editing are intentionally suppressed in the
+  screener surface; row identity is still keyed to the resolved asset identity.
 - Use `Live merge mapping` in the embedded `Table Settings` section when live update rows should
-  patch existing screener rows by identity instead of creating repeated latest rows. For example,
-  map seed field `symbol` to live field `symbol`, or map seed field `symbol` to live field
-  `ticker` when the feed uses different names.
+  patch existing screener rows by identity instead of creating repeated latest rows. If the seed
+  row and the live row have the same values for every mapping, the live values update that row;
+  otherwise the live row is added as a new row.
+- Add one live merge mapping for a single-row identity, for example seed field `symbol` and live
+  field `symbol`. Add multiple mappings when identity needs more than one field, for example
+  `symbol -> symbol` and `exchange -> exchange`. If the live feed uses different names, map the
+  retained seed field to the incoming live field, for example `symbol -> ticker`.
 - The live merge runs before the screener resolves display columns. If the seed has `last_price`
   and the live transform publishes `last`, both fields should represent the same value semantic
   such as `price`; after the merge the screener keeps the seed field identity and updates
@@ -84,6 +104,10 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
 - Use the embedded shared Pro-table settings when a screener column should be a local formula.
   Mark the column as `Formula`, then author one expression such as
   `PERCENT_CHANGE([last_price], [yearStart])` or `[last_price] * 10`.
+- Source-declared `meta.tableVisuals.columns` follows the same shared table metadata contract used
+  by Pro Table. If a field or formula column can be formatted in Pro Table through table visuals,
+  Asset Screener can consume the same metadata after it adapts the source fields into screener
+  columns.
 - Configure columns dynamically. Columns are view configuration over stable semantic `valueKey`s,
   `referenceKey`s, and source/computed field ids, for example `price`, `volume`, `marketCap`,
   `previousClose`, `yearStart`, `oneYearAgo`, or `one_day_return`.
@@ -99,10 +123,11 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
 ## blockingRequirements
 
 - `seedData` must be a valid `core.tabular_frame@v1` frame with at least one row field that can be
-  displayed or mapped. It does not need exact `unique_identifier` or `Symbol` columns.
-- Live updates patch retained seed rows only when the shared table live merge mapping identifies
-  matching seed and live fields, for example seed field `Symbol` and live field `symbol`. Without a
-  mapping, live rows are treated as separate incoming rows.
+  displayed or mapped. Stable selection and live patching require asset identity through
+  `meta.marketAsset.fieldRoles`, explicit field mappings, or recognizable identity fields.
+- Live updates patch retained seed rows only when source-owned merge-key metadata or the shared
+  table `Live merge mapping` identifies matching seed and live fields. Without row identity, live
+  rows are treated as append-only events rather than patches.
 - Every numeric measure used by a latest, return, reference, or sparkline column must be declared as
   role `value`, `referenceValue`, or `sparklineSeries` with a stable `valueKey`.
 - Return columns require inline `referenceValue` fields on `seedData` with stable `referenceKey`s
@@ -126,6 +151,8 @@ hidden `connection-stream-query` and binds its `updates` output to `liveUpdates`
   are unique; prefer provider asset ids as `assetKey`.
 - Do not hardcode one fixed column pack in source data. Add metrics as semantic `valueKey`s and let
   the widget column config choose what to render.
+- Plain tabular frames without `meta.marketAsset` or `meta.tableVisuals` only auto-render when their
+  fields look like an asset monitor table. Arbitrary rows still belong in the core Table widget.
 - Missing inline reference values affect only dependent return columns; missing inline sparkline
   values affect only sparkline columns.
 - Do not send high-resolution intraday history in one cell. Inline `sparklineSeries` is for compact
@@ -187,6 +214,13 @@ The widget understands two primary metadata blocks on bound `core.tabular_frame@
 `meta.marketAsset` is Asset Screener-specific semantic metadata. `meta.tableVisuals` is shared
 table metadata that proposes labels, formats, hidden raw inputs, formula display columns, and
 visual behavior. Neither block is a new connection output contract.
+
+The shared table configuration accepted by Asset Screener is the Pro Table configuration path. Use
+`meta.tableVisuals.columns` for source-owned Pro Table display defaults, or use the embedded Table
+Settings panel for local Pro Table settings such as schema columns, formula columns, column
+overrides, value labels, conditional rules, thresholds, heatmaps, data bars, gauges, grouping,
+density, live merge mapping, and selection output behavior. Asset Screener does not maintain a
+separate screener-only table-formatting contract.
 
 ### `meta.marketAsset`
 
@@ -292,9 +326,9 @@ and want Asset Screener to calculate visible return columns:
 }
 ```
 
-These visual hints are shared with the generic Table widget. In Asset Screener they become the
-effective source defaults shown in the shared Table settings, and the first user edit writes only a
-local instance override for the touched field.
+These visual hints are shared with Pro Table and the generic Table widget. In Asset Screener they
+become the effective source defaults shown in the embedded Pro Table settings, and the first user
+edit writes only a local instance override for the touched field.
 
 Supported visual fields:
 
@@ -332,9 +366,8 @@ Current table-backed renderer behavior:
   and order. Semantic identity fields not listed there stay available for screener calculations and
   grouping, but they do not appear as visible columns until the source includes them or the user
   saves an instance override.
-- `tableVisuals.columns` is enough to make columns appear in settings. `meta.marketAsset` improves
-  semantic mapping for asset identity, reference values, and sparklines, but it is not required for
-  the settings column list itself.
+- `tableVisuals.columns` defines the settings-visible source column list. `meta.marketAsset`
+  improves semantic mapping for asset identity, reference values, and sparklines.
 - `meta.marketAsset.fieldRoles` can also create source columns for asset identity fields, latest
   value fields, and sparkline fields when `tableVisuals.columns` is absent. Reference-value fields
   are treated as calculation inputs and are shown only when the source explicitly includes them in
@@ -360,10 +393,11 @@ Current table-backed renderer behavior:
 - The Asset Screener renders through the shared core table frame view. Numeric formatting, value
   thresholds, heatmaps, data bars, and visual ranges should follow table-widget semantics rather
   than a separate market-only renderer.
-- The Asset Screener settings mount the shared core Table settings in presentation mode. Source
+- The Asset Screener settings mount the shared Pro Table settings in presentation mode. Source
   ownership stays with `seedData` and `liveUpdates`, while display settings such as density,
-  grouping, schema labels, column overrides, value labels, threshold rules, live merge mapping,
-  and pagination use the same table configuration model.
+  grouping, schema labels, formula columns, column overrides, value labels, threshold rules,
+  heatmaps, data bars, gauges, live merge mapping, and selection outputs use the same Pro Table
+  configuration model.
 - The workspace renderer disables the generic table's floating per-column filters and uses a
   transparent surface so the screener does not look like a nested table card. It also suppresses
   the generic table toolbar and footer strips, including the quick filter, clear button, internal

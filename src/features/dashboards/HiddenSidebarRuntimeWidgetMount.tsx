@@ -21,8 +21,9 @@ import type {
   WidgetComponentProps,
   WidgetDefinition,
 } from "@/widgets/types";
+import { CORE_CONNECTION_STREAM_QUERY_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
-const CONNECTION_STREAM_QUERY_WIDGET_ID = "connection-stream-query";
+const CONNECTION_STREAM_QUERY_WIDGET_ID = CORE_CONNECTION_STREAM_QUERY_WIDGET_ID;
 // Temporary stream diagnostics are disabled by default to avoid console spam.
 const HIDDEN_STREAM_MOUNT_DEBUG_LOGS_ENABLED = false;
 

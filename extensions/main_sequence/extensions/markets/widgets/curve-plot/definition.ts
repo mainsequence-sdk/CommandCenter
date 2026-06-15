@@ -2,6 +2,7 @@ import { LineChart } from "lucide-react";
 
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
+import { MAIN_SEQUENCE_MARKETS_CURVE_PLOT_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
@@ -95,7 +96,7 @@ const curvePlotDemoResolvedInputs = {
 } satisfies ResolvedWidgetInputs;
 
 export const mainSequenceCurvePlotWidget = defineWidget<MainSequenceCurvePlotWidgetProps>({
-  id: "main-sequence-curve-plot",
+  id: MAIN_SEQUENCE_MARKETS_CURVE_PLOT_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Curve Plot",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

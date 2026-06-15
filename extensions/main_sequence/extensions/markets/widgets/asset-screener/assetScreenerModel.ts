@@ -108,6 +108,17 @@ export const assetScreenerDefaultProps = {
   staleAfterMs: defaultAssetScreenerStaleAfterMs(),
 } satisfies MainSequenceAssetScreenerWidgetProps;
 
+export function buildAssetScreenerResetTableSettingsProps(
+  props: MainSequenceAssetScreenerWidgetProps,
+): MainSequenceAssetScreenerWidgetProps {
+  return {
+    ...props,
+    density: assetScreenerDefaultProps.density,
+    groupBy: assetScreenerDefaultProps.groupBy,
+    table: undefined,
+  };
+}
+
 function stringValueDescriptor(description?: string): WidgetValueDescriptor {
   return {
     kind: "primitive",
@@ -618,6 +629,15 @@ function identityFieldForRole(role: MarketAssetFrameFieldRoleBinding["role"]) {
 function identityFieldForSourceField(field: string): keyof MarketAssetIdentity | null {
   const normalized = normalizeFieldMatch(field);
 
+  if (
+    normalized === "assetkey" ||
+    normalized === "uniqueidentifier" ||
+    normalized === "instrumentid" ||
+    normalized === "securityid"
+  ) {
+    return "assetKey";
+  }
+
   if (normalized === "symbol" || normalized === "ticker") {
     return "symbol";
   }
@@ -682,6 +702,43 @@ function valueFieldForSourceField(field: string) {
   }
 
   return field;
+}
+
+function sourceFieldLooksLikeMarketValue(field: string) {
+  const normalized = normalizeFieldMatch(field);
+
+  return normalized === "price" ||
+    normalized === "px" ||
+    normalized === "pxlast" ||
+    normalized === "lastprice" ||
+    normalized === "last" ||
+    normalized === "close" ||
+    normalized === "volume" ||
+    normalized === "vol" ||
+    normalized === "marketcap" ||
+    normalized === "mktcap";
+}
+
+function sourceFrameLooksLikeAssetMonitorFrame(fields: Iterable<string>) {
+  let hasIdentityField = false;
+  let hasDisplayOrValueField = false;
+
+  for (const field of fields) {
+    const identityField = identityFieldForSourceField(field);
+
+    if (identityField === "assetKey" || identityField === "symbol") {
+      hasIdentityField = true;
+    }
+
+    if (
+      (identityField && identityField !== "assetKey") ||
+      sourceFieldLooksLikeMarketValue(field)
+    ) {
+      hasDisplayOrValueField = true;
+    }
+  }
+
+  return hasIdentityField && hasDisplayOrValueField;
 }
 
 function sourceColumnWidth(
@@ -847,6 +904,16 @@ function buildSourceColumnsFromFrame(
 
   for (const role of fieldRoles) {
     addColumn(buildColumnForField(role.field, undefined));
+  }
+
+  if (
+    columns.length === 0 &&
+    allowedFields.size > 0 &&
+    sourceFrameLooksLikeAssetMonitorFrame(allowedFields)
+  ) {
+    for (const field of allowedFields) {
+      addColumn(buildColumnForField(field, undefined));
+    }
   }
 
   return columns.length > 0 ? columns : null;

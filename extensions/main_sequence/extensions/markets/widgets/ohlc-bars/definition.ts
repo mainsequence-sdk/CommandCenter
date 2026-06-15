@@ -8,6 +8,7 @@ import {
   TABULAR_UPDATES_OUTPUT_ID,
 } from "@/widgets/shared/incremental-tabular-consumer";
 import { defineWidget } from "@/widgets/types";
+import { MAIN_SEQUENCE_MARKETS_OHLC_BARS_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../../../workbench/widget-contracts/mainSequenceDataSourceBundle";
@@ -22,7 +23,7 @@ import { buildOhlcBarsFieldOptionsFromRuntime, buildOhlcBarsSeries, resolveOhlcB
 import { ohlcBarsSettingsSchema } from "./schema";
 
 export const mainSequenceOhlcBarsWidget = defineWidget<MainSequenceOhlcBarsWidgetProps>({
-  id: "main-sequence-ohlc-bars",
+  id: MAIN_SEQUENCE_MARKETS_OHLC_BARS_WIDGET_ID,
   widgetVersion: "1.1.3",
   title: "OHLC Bars",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

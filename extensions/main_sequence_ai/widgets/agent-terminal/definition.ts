@@ -4,6 +4,7 @@ import { CORE_VALUE_STRING_CONTRACT } from "@/widgets/shared/value-contracts";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
 import { CORE_WIDGET_AGENT_CONTEXT_CONTRACT } from "@/widgets/shared/agent-context";
+import { MAIN_SEQUENCE_AI_AGENT_TERMINAL_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { AgentTerminalWidget } from "./AgentTerminalWidget";
@@ -23,7 +24,7 @@ import {
 } from "./agentTerminalModel";
 
 export const agentTerminalWidget = defineWidget<AgentTerminalWidgetProps>({
-  id: "main-sequence-ai-agent-terminal",
+  id: MAIN_SEQUENCE_AI_AGENT_TERMINAL_WIDGET_ID,
   widgetVersion: "3.7.0",
   title: "Agent Terminal",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

@@ -39,6 +39,7 @@ import {
 } from "./AssetScreenerWidget";
 import {
   assetScreenerDefaultProps,
+  buildAssetScreenerResetTableSettingsProps,
   normalizeAssetScreenerProps,
   resolveAssetScreenerState,
   type MainSequenceAssetScreenerWidgetProps,
@@ -593,7 +594,7 @@ describe("AssetScreenerWidget", () => {
     expect(rows[0]?.one_year_return).toBeCloseTo(42.47395833333333);
   });
 
-  it("does not invent default columns when source metadata has no column proposal", () => {
+  it("renders plain source columns when source metadata has no column proposal", () => {
     const props = {
       ...assetScreenerDefaultProps,
       groupBy: undefined,
@@ -609,17 +610,26 @@ describe("AssetScreenerWidget", () => {
       },
     } satisfies MainSequenceAssetScreenerWidgetProps;
 
-    const container = renderWidget(props, {
-      seedData: frame([
-        {
-          unique_identifier: "uid:AAPL",
-          Symbol: "AAPL",
-          last_price: 112.25,
-        },
-      ]),
+    const seedData = frame([
+      {
+        unique_identifier: "uid:AAPL",
+        Symbol: "AAPL",
+        last_price: 112.25,
+      },
+    ]);
+    const state = resolveAssetScreenerState({
+      props,
+      fallbackFrames: {
+        seedData,
+      },
     });
+    const container = renderWidget(props, { seedData });
 
-    expect(container.textContent).toContain(
+    expect(state.columns.map((column) => column.id)).toEqual(["Symbol", "last_price"]);
+    expect(state.filteredRows[0]?.asset.symbol).toBe("AAPL");
+    expect(state.filteredRows[0]?.metrics.last_price).toBe(112.25);
+    expect(container.textContent).not.toContain("Waiting for source data");
+    expect(container.textContent).not.toContain(
       "The source returned data, but it did not describe which columns",
     );
     expect(container.textContent).not.toContain("Trend");
@@ -781,6 +791,43 @@ describe("AssetScreenerWidget", () => {
     } satisfies MainSequenceAssetScreenerWidgetProps;
 
     expect(normalizeAssetScreenerProps(props).table?.groupBy).toBe("sector");
+  });
+
+  it("resets embedded table settings back to screener defaults instead of rehydrating legacy display state", () => {
+    const props = {
+      ...assetScreenerDefaultProps,
+      columnConfigMode: "custom",
+      columns: [
+        {
+          id: "symbol",
+          kind: "asset-field",
+          label: "Symbol",
+          field: "symbol",
+        },
+        {
+          id: "last",
+          kind: "latest-value",
+          label: "Last",
+          valueField: "price",
+          format: "price",
+        },
+      ],
+      density: "comfortable",
+      groupBy: "industry",
+      table: {
+        density: "comfortable",
+        groupBy: "industry",
+        zebraRows: true,
+        selectionMode: "single-row",
+      },
+      sort: undefined,
+    } satisfies MainSequenceAssetScreenerWidgetProps;
+
+    expect(buildAssetScreenerResetTableSettingsProps(props)).toMatchObject({
+      density: assetScreenerDefaultProps.density,
+      groupBy: assetScreenerDefaultProps.groupBy,
+      table: undefined,
+    });
   });
 
   it("renders trend sparklines from inline seed sparkline values", () => {

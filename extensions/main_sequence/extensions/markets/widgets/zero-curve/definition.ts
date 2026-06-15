@@ -2,6 +2,7 @@ import { LineChart } from "lucide-react";
 
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
+import { MAIN_SEQUENCE_MARKETS_ZERO_CURVE_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { MAIN_SEQUENCE_DATA_SOURCE_BUNDLE_CONTRACT } from "../../../workbench/widget-contracts/mainSequenceDataSourceBundle";
@@ -12,7 +13,7 @@ import { ZeroCurveWidget } from "./ZeroCurveWidget";
 import type { MainSequenceZeroCurveWidgetProps } from "./zeroCurveModel";
 
 export const mainSequenceZeroCurveWidget = defineWidget<MainSequenceZeroCurveWidgetProps>({
-  id: "main-sequence-zero-curve",
+  id: MAIN_SEQUENCE_MARKETS_ZERO_CURVE_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Zero Curve",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

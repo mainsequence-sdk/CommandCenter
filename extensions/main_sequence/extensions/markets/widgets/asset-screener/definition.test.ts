@@ -5,13 +5,16 @@ import {
   MARKET_ASSET_SCREENER_SEED_INPUT_ID,
 } from "../../widget-contracts/marketAssetFrames";
 import { getManagedConnectionConsumerAdapter } from "@/widgets/shared/managed-connection-consumer-registry";
+import { MAIN_SEQUENCE_MARKETS_ASSET_SCREENER_WIDGET_ID } from "@/widgets/widget-type-normalization";
 import { mainSequenceAssetScreenerWidget } from "./definition";
 
 describe("mainSequenceAssetScreenerWidget", () => {
   it("registers seed data and live updates as consumer inputs", () => {
     const inputIds = mainSequenceAssetScreenerWidget.io?.inputs?.map((input) => input.id);
 
-    expect(mainSequenceAssetScreenerWidget.id).toBe("ms-markets-asset-screener");
+    expect(mainSequenceAssetScreenerWidget.id).toBe(
+      MAIN_SEQUENCE_MARKETS_ASSET_SCREENER_WIDGET_ID,
+    );
     expect(mainSequenceAssetScreenerWidget.workspaceRuntimeMode).toBe("consumer");
     expect(inputIds).toEqual([
       MARKET_ASSET_SCREENER_SEED_INPUT_ID,
@@ -42,7 +45,9 @@ describe("mainSequenceAssetScreenerWidget", () => {
       supportsManagedConnectionSource: true,
       supportedSourceModes: ["bound", "connection", "connection-stream"],
     });
-    expect(mainSequenceAssetScreenerWidget.registryContract?.usageGuidance).toMatchObject({
+    const usageGuidance = mainSequenceAssetScreenerWidget.registryContract?.usageGuidance;
+
+    expect(usageGuidance).toMatchObject({
       buildPurpose: expect.stringContaining("asset screener"),
       whenToUse: expect.arrayContaining([
         expect.stringContaining("terminal-style asset table"),
@@ -51,8 +56,15 @@ describe("mainSequenceAssetScreenerWidget", () => {
         expect.stringContaining("Bind the full snapshot"),
         expect.stringContaining("meta.tableVisuals.columns"),
         expect.stringContaining("Live merge mapping"),
+        expect.stringContaining("symbol -> ticker"),
+      ]),
+      blockingRequirements: expect.arrayContaining([
+        expect.stringContaining("Stable selection and live patching require asset identity"),
       ]),
     });
+    expect(JSON.stringify(usageGuidance?.blockingRequirements ?? [])).not.toContain(
+      "include exact columns named",
+    );
   });
 
   it("registers a managed connection adapter for Add connection", () => {

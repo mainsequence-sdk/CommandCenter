@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchAgentSessionDetail,
   fetchLatestAgentSessions,
+  getAgentSessionRecordHandleUniqueId,
   getAgentSessionRecordSessionId,
   getOrCreateAgentSessionWithHandleRequest,
   normalizeAgentSessionLookupId,
@@ -67,6 +68,28 @@ describe("agent session api", () => {
     });
 
     expect(getAgentSessionRecordSessionId(record)).toBe("");
+  });
+
+  it("reads the canonical singular bound_handle contract", () => {
+    const record = createAgentSessionRecord({
+      uid: "session-uid-123",
+      bound_handle: {
+        uid: "handle-uid-123",
+        handle_unique_id: "portfolio-review-q2-2026",
+        owner_user_uid: "user-uid-123",
+        is_locked: false,
+      },
+      bound_handles: [
+        {
+          id: 91,
+          handle_unique_id: "legacy-handle-should-not-win",
+          owner_user: 4,
+          is_locked: true,
+        },
+      ],
+    });
+
+    expect(getAgentSessionRecordHandleUniqueId(record)).toBe("portfolio-review-q2-2026");
   });
 
   it("rejects invalid detail lookups before calling fetch", async () => {

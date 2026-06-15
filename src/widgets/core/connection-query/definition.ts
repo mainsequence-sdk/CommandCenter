@@ -11,6 +11,7 @@ import {
   TABULAR_FRAME_SOURCE_VALUE_DESCRIPTOR,
 } from "@/widgets/shared/tabular-frame-source";
 import { defineWidget, type WidgetIoDefinition } from "@/widgets/types";
+import { CORE_CONNECTION_QUERY_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { ConnectionQueryRailSummary } from "./ConnectionQueryRailSummary";
@@ -139,7 +140,7 @@ function resolveConnectionQueryIo(
 }
 
 export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
-  id: "connection-query",
+  id: CORE_CONNECTION_QUERY_WIDGET_ID,
   widgetVersion: "1.6.4",
   title: "Connection Query (HTTP)",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

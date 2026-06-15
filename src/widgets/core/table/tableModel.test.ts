@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 import {
   TABULAR_LIVE_UPDATES_INPUT_ID,
   TABULAR_SEED_INPUT_ID,
   resolveIncrementalTabularOutputFrame,
 } from "@/widgets/shared/incremental-tabular-consumer";
+import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 import { TABULAR_SOURCE_INPUT_ID } from "@/widgets/shared/tabular-widget-source";
 import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 import type { ResolvedWidgetInputs } from "@/widgets/types";
+import {
+  CORE_PRO_TABLE_WIDGET_ID,
+  CORE_TABLE_WIDGET_ID,
+} from "@/widgets/widget-type-normalization";
 
 import { tableWidget } from "./definition";
 import { proTableWidget } from "./proDefinition";
@@ -840,8 +844,8 @@ describe("table widget definition selection outputs", () => {
   });
 
   it("adds a Pro variant without changing the Community table contract", () => {
-    expect(tableWidget.id).toBe("table");
-    expect(proTableWidget.id).toBe("pro-table");
+    expect(tableWidget.id).toBe(CORE_TABLE_WIDGET_ID);
+    expect(proTableWidget.id).toBe(CORE_PRO_TABLE_WIDGET_ID);
     expect((tableWidget.exampleProps as TableWidgetProps).formulasEnabled).toBe(false);
     expect((proTableWidget.exampleProps as TableWidgetProps).formulasEnabled).toBe(true);
     expect(tableWidget.registryContract?.capabilities).toMatchObject({

@@ -938,8 +938,10 @@ export function AssetScreenerWidget({
     (
       sourceFrameStatus === "idle" ||
       sourceFrameStatus === "loading" ||
-      state.sourceStatuses.seed === "valid" ||
-      state.sourceStatuses.live === "valid"
+      (
+        !state.sourceFrame &&
+        (state.sourceStatuses.seed === "valid" || state.sourceStatuses.live === "valid")
+      )
     );
 
   if (!state.hasAnyBinding && state.rows.length === 0) {

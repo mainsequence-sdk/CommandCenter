@@ -944,7 +944,7 @@ function migrateEmbeddedSlideWidgets(
   const nextWidgets: DashboardWidgetInstance[] = [];
 
   widgets.forEach((widget) => {
-    if (widget.widgetId !== WORKSPACE_SLIDE_WIDGET_ID) {
+    if (!isWorkspaceSlideWidgetId(widget.widgetId)) {
       nextWidgets.push(widget);
       return;
     }
@@ -1264,7 +1264,7 @@ export function materializeDashboardLayout(dashboard: DashboardDefinition): Dash
   });
   const validSlideIds = new Set(
     dashboard.widgets
-      .filter((widget) => widget.widgetId === WORKSPACE_SLIDE_WIDGET_ID)
+      .filter((widget) => isWorkspaceSlideWidgetId(widget.widgetId))
       .map((widget) => widget.id),
   );
   const widgetIds = collectDashboardWidgetIds(dashboard.widgets);
@@ -2370,7 +2370,7 @@ export function moveDashboardWidgetToSlideRegion(
   if (
     !targetWidget ||
     targetWidget.id === slideWidgetId ||
-    targetWidget.widgetId === WORKSPACE_SLIDE_WIDGET_ID
+    isWorkspaceSlideWidgetId(targetWidget.widgetId)
   ) {
     return dashboard;
   }
@@ -2450,7 +2450,7 @@ export function moveDashboardWidgetToRootCanvas(
 
   const targetWidget = findDashboardWidgetInTree(dashboard.widgets, instanceId);
 
-  if (!targetWidget || targetWidget.widgetId === WORKSPACE_SLIDE_WIDGET_ID) {
+  if (!targetWidget || isWorkspaceSlideWidgetId(targetWidget.widgetId)) {
     return dashboard;
   }
 
@@ -3083,7 +3083,9 @@ function syncManagedConnectionConsumerSource(
     cloneJson(adapter.getEmbeddedConnectionPresentation(ownerProps) ?? {}),
   );
   const primaryManagedWidget: DashboardWidgetInstance | null =
-    ownedManagedWidgets.find((widget) => widget.widgetId === managedSourceWidgetId) ?? null;
+    ownedManagedWidgets.find(
+      (widget) => normalizeWidgetTypeId(widget.widgetId) === managedSourceWidgetId,
+    ) ?? null;
   let nextDashboard = dashboard;
   let nextManagedWidget: DashboardWidgetInstance | null = primaryManagedWidget;
   const ownerWidgetDefinition = getWidgetById(ownerWidget.widgetId);

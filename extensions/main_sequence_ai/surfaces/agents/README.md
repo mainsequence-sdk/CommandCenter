@@ -25,22 +25,28 @@ result opens the agent detail view instead of starting a session.
   use the backend public `uid` as their preferred lookup key and only keep numeric IDs as a legacy
   fallback.
 - `AgentDetailView.tsx`
-  Same-surface agent detail screen. It renders the agent summary header, overview tab, `Agent Card`
-  tab, and recent AgentSession tab while preserving the surrounding app path and shell framing. The
-  summary header now comes from the canonical agent `/summary/` endpoint and is locally augmented
-  with `image_drift` checks from the detail serializer. If the summary endpoint fails, the header
-  shows the backend error instead of inventing fallback header data. The header actions also include
-  a `Runtime` lookup that resolves `/orm/api/agents/v1/agents/{id}/get_runtime_id/` and deep-links
-  into the Foundry `scalable-services` detail view when a runtime exists. For `project-executor`
-  agents, the header also exposes `Edit deployment` when the agent detail payload includes a public
-  `project_uid` or nested `project.uid`; that action opens the shared project-agent configurator
-  modal. It also exposes `Create session with handle`, which posts the shared handle-session
-  contract through `agent-sessions-api.ts` and uses the shared run-config resolver to prepopulate
-  provider, model, and thinking fields from the agent defaults plus the registered model catalog.
-  The sessions tab also owns selection state and bulk deletion for recent AgentSession rows.
+  Same-surface agent detail screen. It renders the agent summary header plus `Overview`,
+  `Agent Card`, `Sessions`, and `Capabilities` tabs while preserving the surrounding app path and
+  shell framing. The summary header now comes from the canonical agent `/summary/` endpoint and is
+  locally augmented with `image_drift` checks from the detail serializer. If the summary endpoint
+  fails, the header shows the backend error instead of inventing fallback header data. The header
+  actions also include a `Runtime` lookup that resolves
+  `/orm/api/agents/v1/agents/{agent_uid}/runtime-ref/`, reads `runtime_uid`, and deep-links into
+  the Foundry `scalable-services` detail view when a runtime exists. For `project-executor` agents, the header
+  also exposes `Configure agent deployment` when the agent detail payload includes a public
+  `project_uid` or nested `project.uid`; that action opens the shared deployment configurator modal. Session
+  launch actions are grouped under one `Session` menu, including handle-bound session creation,
+  which posts the shared handle-session contract through `agent-sessions-api.ts` and uses the
+  shared run-config resolver to prepopulate provider, model, and thinking fields from the agent
+  defaults plus the registered model catalog. The sessions tab owns selection state and bulk
+  deletion for recent AgentSession rows, and the capabilities tab owns reusable prompt/skill
+  binding and markdown authoring.
 - `extensions/main_sequence_ai/agent-search.ts`
   Shared agent list, semantic search, agent detail, and quick-search clients used by the AI
   surfaces and pickers.
+- `extensions/main_sequence_ai/features/agent-capabilities/`
+  Shared capability resource and agent-binding clients plus the capabilities tab implementation used
+  by agent detail.
 - `extensions/main_sequence_ai/assistant-ui/ChatProvider.tsx`
   Supplies the `startAgentSession(...)` action used by the row-level session launcher.
 
@@ -70,6 +76,8 @@ result opens the agent detail view instead of starting a session.
   `deleteAgentSessionRequest(...)` client so the DELETE contract stays centralized.
 - Keep the `Agent Card` tab wired directly to the `agent_card` field from the agent detail
   serializer so it reflects the backend-authored card payload without local reshaping.
+- Keep capability resource writes separate from capability content writes. The capabilities tab must
+  continue to use the dedicated `/content/` endpoint instead of inventing a flattened save route.
 - Keep image-drift status sourced from the agent detail serializer and rendered through the shared
   summary header contract instead of a custom one-off header block.
 - Keep project-executor deployment editing bound to a public project UID from the agent detail
@@ -82,7 +90,9 @@ result opens the agent detail view instead of starting a session.
   `getOrCreateAgentSessionWithHandleRequest(...)` and `resolveRunConfigSelection(...)`. Do not add
   local provider/model/thinking merge logic or pass frontend user identity fields in the handle
   session payload.
-- Keep the `Runtime` action routed through the dedicated `get_runtime_id` lookup helper and the
-  Foundry `scalable-services` detail surface instead of hardcoding runtime URLs directly in the AI
-  app.
+- Keep the capabilities tab limited to supported `prompt` and `skill` kinds in this phase. Do not
+  expose `extension` authoring until the backend accepts it.
+- Keep the `Runtime` action routed through the dedicated `runtime-ref` lookup helper using the
+  agent UID and the Foundry `scalable-services` detail surface instead of hardcoding runtime URLs
+  directly in the AI app.
 - The actual canvas workflow still lives on the sibling `Agents Monitor` surface.

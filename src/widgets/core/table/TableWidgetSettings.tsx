@@ -1029,7 +1029,7 @@ function TableWidgetSettingsComponent({
                 <p className={descriptionClass}>
                   {isConnectionTableMode
                     ? `The hidden ${
-                        isStreamConnectionTableMode ? "connection-stream-query" : "connection-query"
+                        isStreamConnectionTableMode ? "connection stream source" : "connection query source"
                       } widget still owns execution and dataset publication. This table only formats the incoming rows.`
                     : "The linked source widget owns dataset publication. This table only formats the incoming rows."}
                 </p>

@@ -97,4 +97,33 @@ describe("command center runtime access contract", () => {
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("prefers the singular bound_handle payload when runtime access includes a session handle", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          uid: "session-uid-91",
+          bound_handle: {
+            uid: "handle-uid-91",
+            handle_unique_id: "portfolio-review-q2-2026",
+            owner_user_uid: "user-uid-91",
+            is_locked: false,
+          },
+          runtime_state: "working",
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+
+    const handle = await fetchAgentSessionRuntimeAccess({
+      sessionId: "session-uid-91",
+    });
+
+    expect(handle.handleUniqueId).toBe("portfolio-review-q2-2026");
+  });
 });

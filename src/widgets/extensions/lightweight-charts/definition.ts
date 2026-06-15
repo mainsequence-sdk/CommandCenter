@@ -3,6 +3,7 @@ import { LineChart } from "lucide-react";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 import { defineWidget } from "@/widgets/types";
+import { LIGHTWEIGHT_CHARTS_SPEC_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
@@ -14,7 +15,7 @@ import {
 import { LightweightChartsSpecWidgetSettings } from "./LightweightChartsSpecWidgetSettings";
 
 export const lightweightChartsSpecWidget = defineWidget<LightweightChartsSpecWidgetProps>({
-  id: "lightweight-charts-spec",
+  id: LIGHTWEIGHT_CHARTS_SPEC_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Lightweight Charts Spec",
   description: resolveWidgetDescription(usageGuidanceMarkdown, "lightweight-charts-spec"),

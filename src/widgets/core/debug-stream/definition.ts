@@ -4,6 +4,7 @@ import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/
 import { CORE_TABULAR_FRAME_SOURCE_CONTRACT } from "@/widgets/shared/tabular-frame-source";
 import { TABULAR_SOURCE_CONTRACT, TABULAR_SOURCE_INPUT_ID } from "@/widgets/shared/tabular-widget-source";
 import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
+import { CORE_DEBUG_STREAM_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { DebugStreamWidget } from "./DebugStreamWidget";
@@ -56,7 +57,7 @@ const debugStreamMockResolvedInputs: ResolvedWidgetInputs = {
 };
 
 export const debugStreamWidget = defineWidget<DebugStreamWidgetProps>({
-  id: "debug_stream",
+  id: CORE_DEBUG_STREAM_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Debug Stream",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

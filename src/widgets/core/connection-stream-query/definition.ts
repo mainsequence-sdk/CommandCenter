@@ -12,6 +12,7 @@ import {
 } from "@/widgets/shared/tabular-frame-source";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget, type WidgetIoDefinition, type WidgetSettingsSchema } from "@/widgets/types";
+import { CORE_CONNECTION_STREAM_QUERY_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { ConnectionStreamQueryRailSummary } from "./ConnectionStreamQueryRailSummary";
@@ -158,7 +159,7 @@ function resolveConnectionStreamQueryIo(
 }
 
 export const connectionStreamQueryWidget = defineWidget<ConnectionStreamQueryWidgetProps>({
-  id: "connection-stream-query",
+  id: CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
   widgetVersion: "1.2.0",
   title: "Connection Stream Query (WS)",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

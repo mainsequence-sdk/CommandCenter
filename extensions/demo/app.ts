@@ -2,6 +2,10 @@ import { LayoutDashboard } from "lucide-react";
 
 import { defineSurfaceAssistantContext, type AppDefinition } from "@/apps/types";
 import type { DashboardDefinition } from "@/dashboards/types";
+import {
+  CORE_MARKDOWN_NOTE_WIDGET_ID,
+  MAIN_SEQUENCE_MARKETS_POSITION_DETAIL_WIDGET_ID,
+} from "@/widgets/widget-type-normalization";
 import { DemoOverviewPage } from "./features/DemoOverviewPage";
 import { HealthcareOperationsPage } from "./features/HealthcareOperationsPage";
 import { SupplyChainControlTowerPage } from "./features/SupplyChainControlTowerPage";
@@ -37,7 +41,7 @@ const financialMarketsMonitorDashboard: DashboardDefinition = {
   widgets: [
     {
       id: "overview-positions",
-      widgetId: "position-detail",
+      widgetId: MAIN_SEQUENCE_MARKETS_POSITION_DETAIL_WIDGET_ID,
       title: "Book Snapshot",
       props: {
         sourceType: "target_position",
@@ -84,7 +88,7 @@ const financialMarketsMonitorDashboard: DashboardDefinition = {
     },
     {
       id: "overview-notes",
-      widgetId: "markdown-note",
+      widgetId: CORE_MARKDOWN_NOTE_WIDGET_ID,
       title: "Desk Notes",
       props: {
         content:

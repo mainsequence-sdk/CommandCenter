@@ -17,6 +17,7 @@ import {
   resolveGraphEmbeddedConnectionQueryProps,
   type GraphWidgetProps,
 } from "./graphModel";
+import { CORE_GRAPH_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 const graphConnectionMode = "connection";
 const graphStreamConnectionMode = "connection-stream";
@@ -26,7 +27,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export const graphManagedConnectionConsumerAdapter = {
-  widgetId: "graph",
+  widgetId: CORE_GRAPH_WIDGET_ID,
   sourceInputId: TABULAR_SEED_INPUT_ID,
   streamSourceInputId: TABULAR_LIVE_UPDATES_INPUT_ID,
   sourceOutputId: TABULAR_SOURCE_OUTPUT_ID,

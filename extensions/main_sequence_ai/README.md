@@ -46,6 +46,9 @@ an overlay rail.
 - `features/chat/`
   Shared AgentSession explorer and picker UI used by chat surfaces, widget settings, and the
   monitor launcher flow.
+- `features/agent-capabilities/`
+  Shared reusable capability and agent-binding UI used by the agent detail surface for prompt and
+  skill authoring.
 - `features/settings/`
   Extension-contributed shell settings sections, including global provider sign-in/sign-off,
   provider attempt workflows, and the full known model catalog.
@@ -92,7 +95,9 @@ chrome, not just a page-local feature.
   sessions are browser-persisted per signed-in user until a backend session catalog exists.
 - The agents surface lives at `/app/main_sequence_ai/agents` and uses a full-bleed workspace-style
   shell with a thin left icon rail that opens the same AgentSession explorer/search used by the
-  chat page. The canvas area on that page stays empty on purpose.
+  chat page. The canvas area on that page stays empty on purpose, while the agent detail route now
+  owns prompt/skill capability binding and markdown authoring through a dedicated `Capabilities`
+  tab.
 - The deployment logs surface lives at `/app/main_sequence_ai/project-agent-deployment-logs` and
   is opened from project-agent modal entry points instead of rendering logs inline.
 - Project-agent build/deploy/delete configuration is modal-only. The AI app no longer exposes a
@@ -111,7 +116,8 @@ chrome, not just a page-local feature.
   `{"id": "<workspace-id>"}` and blocks self-selection so a workspace cannot point to itself.
 - Full AgentSession detail is now a shared extension capability and standalone app surface instead
   of a chat-owned modal. Chat only consumes that shared detail layer for summary and deep-link
-  behavior in its right-side rail.
+  behavior in its right-side rail, and the standalone page now follows the same summary-plus-tabs
+  detail pattern used by the other Main Sequence entity surfaces.
 - `Agent Terminal` now keeps its refresh prompt as a saved widget setting and consumes several
   upstream widget contexts through the shared `core.widget-agent-context@v1` binding contract,
   plus explicit workspace references through `main-sequence-ai.workspace-reference@v1`.

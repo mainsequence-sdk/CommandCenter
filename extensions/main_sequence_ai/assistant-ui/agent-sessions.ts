@@ -7,6 +7,7 @@ import type {
 } from "../runtime/agent-sessions-api";
 import {
   getAgentSessionRecordAgentId,
+  getAgentSessionRecordHandleUniqueId,
   getAgentSessionRecordAgentName,
   getAgentSessionRecordSessionId,
   normalizeAgentSessionLookupId,
@@ -154,10 +155,7 @@ export function toAgentSessionRecordFromApi(
       normalizeAgentSessionLookupId(record.session_uid) ||
       normalizeAgentSessionLookupId(record.runtime_session_uid),
   );
-  const handleUniqueId =
-    (Array.isArray(record.bound_handles) ? record.bound_handles[0]?.handle_unique_id : null) ??
-    existing?.handleUniqueId ??
-    null;
+  const handleUniqueId = getAgentSessionRecordHandleUniqueId(record) ?? existing?.handleUniqueId ?? null;
   const preservedAgentUniqueId =
     existing?.agent &&
     existing.agent.agentUniqueId &&

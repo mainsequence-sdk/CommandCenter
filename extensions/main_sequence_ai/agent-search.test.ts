@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   fetchAgentList,
+  fetchAgentRuntimeRef,
   getAgentSearchResultLookupKey,
   getAgentSearchResultRowKey,
 } from "./agent-search";
@@ -61,5 +62,36 @@ describe("agent search api", () => {
     expect(agent.id).toBe(0);
     expect(getAgentSearchResultLookupKey(agent)).toBe("agent-uid-123");
     expect(getAgentSearchResultRowKey(agent, 0)).toBe("agent-uid-123");
+  });
+
+  it("reads agent runtime refs by public agent uid and runtime_uid", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          runtime_uid: "runtime-uid-123",
+          runtime_kind: "knative_service_runtime",
+          service_name: "agent-service",
+          namespace: "agents",
+          cluster_uid: "cluster-uid-123",
+          latest_ready_revision_name: "agent-service-00001",
+          exists: true,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+
+    const result = await fetchAgentRuntimeRef({ agentUid: "agent-uid-123" });
+
+    expect(result.runtime_uid).toBe("runtime-uid-123");
+    expect(result.exists).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/orm/api/agents/v1/agents/agent-uid-123/runtime-ref/");
+    expect(String(url)).not.toContain("get_runtime_id");
   });
 });

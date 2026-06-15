@@ -64,7 +64,6 @@ An agent owns bindings, not the underlying capability resource itself:
 - `GET /orm/api/agents/v1/agents/{agent_uid}/capabilities/`
 - `POST /orm/api/agents/v1/agents/{agent_uid}/capabilities/bind/`
 - `POST /orm/api/agents/v1/agents/{agent_uid}/capabilities/unbind/`
-- `POST /orm/api/agents/v1/agents/{agent_uid}/capabilities/sync-from-card/`
 
 The binding owns:
 
@@ -334,47 +333,7 @@ default.
 Deleting a reusable capability can affect other agents or sessions. That needs a separate decision
 with explicit cross-agent impact handling.
 
-## 9. Sync from card is an explicit capabilities-tab action
-
-The tab will expose:
-
-- `POST /orm/api/agents/v1/agents/{agent_uid}/capabilities/sync-from-card/`
-
-as a dedicated action.
-
-The frontend must treat sync results as capability-configuration feedback, not as agent-creation
-state.
-
-### Successful sync
-
-Show operational feedback from the response:
-
-- `capabilities_created`
-- `capabilities_updated`
-- `bindings_created`
-- `bindings_updated`
-- `bindings_removed`
-- `search_index_refreshed`
-
-### Partial sync with missing resources
-
-If the backend returns:
-
-- `sync_status = "partial_missing_resources"`
-- `missing_resources = [...]`
-
-the UI must render that as a configuration error tied to the capability sync action. It must not
-reuse generic "agent failed" or "agent creation failed" messaging.
-
-The missing resource rows should surface:
-
-- `kind`
-- `name`
-- `path`
-- `project_uid`
-- `repo_commit_sha`
-
-## 10. Session capability bindings are out of scope for this tab
+## 9. Session capability bindings are out of scope for this tab
 
 The backend also supports:
 
@@ -392,7 +351,7 @@ Mixing them into the same first implementation would make the UI ambiguous.
 
 Session capability management can be added later on `AgentSession` detail if needed.
 
-## 11. Agent-detail session lists must always show the bound handle
+## 10. Agent-detail session lists must always show the bound handle
 
 The `Sessions` tab inside `Agent Detail` consumes `AgentSessionSerializer` rows and must surface
 handle information as first-class row metadata.
@@ -405,7 +364,7 @@ When `bound_handle` is present, the session list must display:
 Handle presence must not be hidden behind raw JSON or a secondary drilldown. It belongs directly in
 the session list because handle identity is part of how users distinguish long-lived sessions.
 
-## 12. AgentSession detail will use the standard summary and tabs pattern
+## 11. AgentSession detail will use the standard summary and tabs pattern
 
 The dedicated `AgentSession` detail screen must follow the same detail conventions used across the
 rest of the application:
@@ -425,7 +384,7 @@ This ADR does not freeze the final tab names, but the layout direction is fixed:
 The goal is that agent detail and session detail feel like neighboring entity screens, not separate
 products.
 
-## 13. AgentSession handle normalization will use `bound_handle` as the canonical field
+## 12. AgentSession handle normalization will use `bound_handle` as the canonical field
 
 For `AgentSessionSerializer`-backed screens, the frontend will normalize handles from the singular
 `bound_handle` object.
@@ -455,7 +414,6 @@ This ADR covers:
 - reusable capability resource vs binding separation
 - live markdown authoring for capability content
 - add, bind, edit-content, edit-metadata, and unbind flows
-- explicit sync-from-card behavior and error handling
 - handle visibility in the `Agent Detail` sessions list
 - `AgentSessionSerializer` normalization for singular `bound_handle`
 - `AgentSession` detail layout alignment with the standard summary/tabs/detail pattern
@@ -491,7 +449,6 @@ This ADR does not cover:
    - capability list/detail/content
    - agent capability bindings
    - bind/unbind
-   - sync-from-card
 8. Keep all lookup paths UID-only.
 9. Treat bind as the only write path for binding-level fields.
 10. Refetch bindings after every bind, unbind, sync, or capability metadata/content save.
@@ -517,30 +474,23 @@ This ADR does not cover:
 19. Support inline markdown authoring during create-new.
 20. Bind the new or selected reusable capability to the current agent after the resource step.
 
-### Sync flow
-
-21. Add a `Sync from card` action to the tab toolbar.
-22. Render sync errors inline when `missing_resources` is returned.
-23. Phrase sync feedback as capability synchronization state, not as agent lifecycle failure.
-
 ### AgentSession detail alignment
 
-24. Refactor the standalone `AgentSession` detail surface to use the standard summary-plus-tabs
+21. Refactor the standalone `AgentSession` detail surface to use the standard summary-plus-tabs
     layout pattern already used by agent, project, and other Main Sequence entity screens.
-25. Move handle presentation out of raw-json-only sections and into the summary/detail flow.
-26. Ensure the dedicated session page and any shared detail sections read handle data from the
+22. Move handle presentation out of raw-json-only sections and into the summary/detail flow.
+23. Ensure the dedicated session page and any shared detail sections read handle data from the
     normalized singular `bound_handle` contract.
 
 ### Tests and docs
 
-27. Add focused tests for:
+24. Add focused tests for:
    - capability binding normalization
    - content endpoint save sequencing
    - readonly capability behavior
-   - sync-from-card missing-resource error presentation
    - `bound_handle` normalization for session rows and detail payloads
    - agent-detail session-row rendering with handle metadata
-28. After implementation, update:
+25. After implementation, update:
    - `extensions/main_sequence_ai/surfaces/agents/README.md`
    - `extensions/main_sequence_ai/surfaces/session/README.md`
    - `extensions/main_sequence_ai/agent-session-detail/README.md`
@@ -550,7 +500,7 @@ This ADR does not cover:
 
 - [ ] Add a `Capabilities` tab to `extensions/main_sequence_ai/surfaces/agents/AgentDetailView.tsx`.
 - [ ] Add shared API clients for reusable capability list/detail/content operations.
-- [ ] Add shared API clients for agent capability bindings, bind, unbind, and sync-from-card.
+- [ ] Add shared API clients for agent capability bindings, bind, and unbind.
 - [ ] Keep all new capability and binding lookups UID-only.
 - [ ] Load `GET /orm/api/agents/v1/agents/{agent_uid}/capabilities/` as the canonical dataset for
   the tab.
@@ -580,10 +530,6 @@ This ADR does not cover:
 - [ ] Bind newly created capabilities to the current agent after the resource step completes.
 - [ ] Support binding an existing reusable capability to the current agent.
 - [ ] Support unbinding from the current agent without deleting the underlying reusable capability.
-- [ ] Add a `Sync from card` action to the capabilities tab toolbar.
-- [ ] Render `sync_status = partial_missing_resources` as a capability configuration error, not as
-  an agent creation/deploy failure.
-- [ ] Surface sync result counters such as created/updated/removed bindings and capabilities.
 - [ ] Normalize `AgentSessionSerializer.bound_handle` as the canonical handle contract for
   serializer-backed session screens.
 - [ ] Update the `Sessions` tab inside `Agent Detail` so each session row always shows the bound
@@ -600,7 +546,6 @@ This ADR does not cover:
 - [ ] Add focused tests for capability binding normalization and capability content save
   sequencing.
 - [ ] Add focused tests for readonly capability behavior.
-- [ ] Add focused tests for sync-from-card missing-resource error presentation.
 - [ ] Add focused tests for `bound_handle` normalization in shared session models.
 - [ ] Add focused tests for agent-detail session-row rendering with handle metadata.
 - [ ] Update `extensions/main_sequence_ai/surfaces/agents/README.md` after implementation.
@@ -617,7 +562,6 @@ This ADR does not cover:
 - the UI matches the backend capability/binding model instead of flattening it
 - prompts and skills become editable without abusing the agent-card payload
 - markdown content stays first-class and previewable
-- sync-from-card gets a clear operational home
 - session handles become visible and consistent anywhere `AgentSessionSerializer` is rendered
 - agent detail and session detail become structurally aligned, making the authoring flow easier to
   scan
@@ -639,7 +583,6 @@ This ADR does not cover:
   endpoint.
 - The frontend must separate reusable capability metadata writes from markdown content writes.
 - The frontend must not surface `extension` as a selectable capability kind in this phase.
-- The frontend must show sync-from-card missing-resource responses as configuration errors.
 - The frontend must keep reusable capability deletion out of the first agent-detail tab
   implementation.
 - The `Sessions` tab inside `Agent Detail` must always display the session handle when

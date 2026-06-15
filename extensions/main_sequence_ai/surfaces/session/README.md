@@ -11,8 +11,9 @@ other Main Sequence AI surfaces can deep-link here when they need a full session
 
 - `AgentSessionDetailPage.tsx`
   Route-driven page surface that reads `?session=<id>`, loads the shared AgentSession detail
-  snapshot, renders the shared core-detail sections, and exposes the same provider/model PATCH flow
-  used by chat.
+  snapshot, renders the shared `PageHeader` + summary-first entity shell, and splits the detail body into
+  `Details`, `Model`, and `Insights` tabs. The `Model` tab exposes the same provider/model PATCH
+  flow used by chat without keeping a separate manual refresh action on the page shell.
 
 ## Dependencies
 
@@ -29,3 +30,5 @@ other Main Sequence AI surfaces can deep-link here when they need a full session
   working even when opened outside chat.
 - The route contract is query-based on purpose so widgets and rails can deep-link with only the
   backend session id.
+- Keep this page aligned with the standard Main Sequence entity-detail pattern:
+  summary first, tabs second, active detail sections below.

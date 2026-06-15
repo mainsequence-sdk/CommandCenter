@@ -51,6 +51,7 @@ import {
   readWidgetRuntimeUpdateContext,
   resolveWidgetRuntimeUpdateParts,
 } from "@/widgets/shared/runtime-update";
+import { CORE_CONNECTION_STREAM_QUERY_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 export interface FlattenedDashboardWidgetEntry {
   instance: DashboardWidgetInstance;
@@ -711,7 +712,7 @@ function logStreamDownstreamInput(input: {
   if (
     !import.meta.env.DEV ||
     !STREAM_DOWNSTREAM_INPUT_DEBUG_LOGS_ENABLED ||
-    input.sourceInstance.widgetId !== "connection-stream-query"
+    input.sourceInstance.widgetId !== CORE_CONNECTION_STREAM_QUERY_WIDGET_ID
   ) {
     return;
   }

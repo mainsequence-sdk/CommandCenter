@@ -2,6 +2,7 @@ import { useAuthStore } from "@/auth/auth-store";
 import { applySessionAuthHeaders } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
+import { normalizeWidgetTypeId } from "@/widgets/widget-type-normalization";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 
@@ -193,8 +194,10 @@ function normalizeOrganizationWidgetTypeConfigurationRecord(
   const registeredWidgetTypeWidgetId = readString(
     source.registered_widget_type_widget_id ?? source.registeredWidgetTypeWidgetId,
   ).trim();
+  const normalizedRegisteredWidgetTypeWidgetId =
+    normalizeWidgetTypeId(registeredWidgetTypeWidgetId);
 
-  if (!id || !registeredWidgetTypeId || !registeredWidgetTypeWidgetId) {
+  if (!id || !registeredWidgetTypeId || !normalizedRegisteredWidgetTypeWidgetId) {
     throw new Error("Organization widget type configuration payload is missing required fields.");
   }
 
@@ -210,7 +213,7 @@ function normalizeOrganizationWidgetTypeConfigurationRecord(
       source.creation_date ?? source.creationDate,
     ),
     registeredWidgetTypeId,
-    registeredWidgetTypeWidgetId,
+    registeredWidgetTypeWidgetId: normalizedRegisteredWidgetTypeWidgetId,
     registeredWidgetTypeTitle: readString(
       source.registered_widget_type_title ?? source.registeredWidgetTypeTitle,
     ),
@@ -281,7 +284,7 @@ export async function fetchOrganizationWidgetTypeConfigurations(
     undefined,
     {
       registered_widget_type: filters?.registeredWidgetType,
-      widgetId: filters?.widgetId?.trim() || undefined,
+      widgetId: filters?.widgetId ? normalizeWidgetTypeId(filters.widgetId) : undefined,
     },
   );
 

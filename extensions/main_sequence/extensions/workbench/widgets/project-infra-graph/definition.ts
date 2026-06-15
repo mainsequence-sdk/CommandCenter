@@ -2,6 +2,7 @@ import { Network } from "lucide-react";
 
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
+import { MAIN_SEQUENCE_FOUNDRY_PROJECT_INFRA_GRAPH_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { MainSequenceProjectInfraGraphWidget } from "./MainSequenceProjectInfraGraphWidget";
@@ -9,7 +10,7 @@ import { MainSequenceProjectInfraGraphWidgetSettings } from "./MainSequenceProje
 import type { MainSequenceProjectInfraGraphWidgetProps } from "./projectInfraGraphRuntime";
 
 export const mainSequenceProjectInfraGraphWidget = defineWidget<MainSequenceProjectInfraGraphWidgetProps>({
-  id: "main-sequence-project-infra-graph",
+  id: MAIN_SEQUENCE_FOUNDRY_PROJECT_INFRA_GRAPH_WIDGET_ID,
   widgetVersion: "1.1.0",
   title: "Project Infrastructure Graph",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/auth/auth-store";
 import { applySessionAuthHeaders } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
+import { normalizeWidgetTypeId } from "@/widgets/widget-type-normalization";
 import { env } from "@/config/env";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
@@ -207,7 +208,7 @@ function normalizeRegisteredWidgetType(
 ): RegisteredWidgetTypeRecord {
   return {
     id: readNullableIdentifier(source.id) ?? readNullableIdentifier(source.pk),
-    widgetId: readString(source.widget_id ?? source.widgetId),
+    widgetId: normalizeWidgetTypeId(readString(source.widget_id ?? source.widgetId)),
     title: readString(source.title),
     description: readString(source.description),
     category: readString(source.category),

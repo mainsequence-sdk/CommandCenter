@@ -29,7 +29,8 @@ Use these local docs before reading the implementation in code:
   [`core/statistic/README.md`](./core/statistic/README.md),
   [`core/tabular-transform/README.md`](./core/tabular-transform/README.md),
   [`core/table/README.md`](./core/table/README.md),
-  [`core/workspace-row/README.md`](./core/workspace-row/README.md)
+  [`core/workspace-row/README.md`](./core/workspace-row/README.md),
+  [`core/workspace-slide/README.md`](./core/workspace-slide/README.md)
 - Platform extension widget families:
   [`extensions/ag-grid/README.md`](./extensions/ag-grid/README.md),
   [`extensions/echarts/README.md`](./extensions/echarts/README.md),
@@ -41,6 +42,11 @@ Use these local docs before reading the implementation in code:
 ## Notable behavior
 
 - A `WidgetDefinition` is the reusable widget type: metadata, render component, and optional typed settings UI.
+- Widget type ids use the canonical `{application}__{widget}` format, for example
+  `main-sequence-ai__agent-terminal`. The frontend normalizes legacy ids at registry, catalog,
+  workspace, saved-widget, and embedded-widget boundaries so persisted dashboards created with older
+  ids continue to load. New code should import ids from `widget-type-normalization.ts` instead of
+  hardcoding literal widget ids.
 - `WidgetDefinition` can now also declare static `io` metadata for widget inputs, outputs,
   accepted/published contracts, input effects, and pure output publication.
 - Widgets can also declare pure instance-scoped `resolveIo(...)` when their ports depend on saved

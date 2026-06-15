@@ -238,7 +238,7 @@ export function buildTableWidgetDefinition(options: TableWidgetDefinitionOptions
           label: "Selected cell values",
           contract: CORE_VALUE_JSON_CONTRACT,
           description:
-            "Publishes the current selected cell values as an ordered JSON list. Row selection clicks publish the active cell as a one-item list; cell selection publishes the selected cell range.",
+            "Publishes selected cell values as an ordered JSON list. Row and cell selection clicks currently publish the active cell as a one-item list.",
           valueDescriptor: TABLE_WIDGET_JSON_VALUE_ARRAY_DESCRIPTOR,
           resolveValue: ({ props, resolvedInputs, runtimeState, runtimeDataStore }) =>
             resolveTableWidgetSelectedCellValuesOutput(
@@ -386,7 +386,7 @@ export function buildTableWidgetDefinition(options: TableWidgetDefinitionOptions
           "Display formatting, hidden columns, and value styling do not mutate the published dataset.",
           "selectedRows republishes the current frame filtered to the selected rows when selection mode is enabled.",
           "activeRow, activeCell, and activeCellValue publish JSON interaction state derived from the user's current table selection.",
-          "selectedCellValues publishes an ordered list: one active clicked cell in row modes, or the selected cell range in cell mode.",
+          "selectedCellValues publishes an ordered list that currently contains the active clicked cell in row and cell modes.",
         ],
       },
       capabilities: {

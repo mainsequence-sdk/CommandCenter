@@ -17,6 +17,7 @@ import {
   useResolvedTabularWidgetSourceBinding,
 } from "@/widgets/shared/tabular-widget-source";
 import type { WidgetComponentProps } from "@/widgets/types";
+import { CORE_DEBUG_STREAM_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import type { DebugStreamWidgetProps } from "./DebugStreamWidgetSettings";
 
@@ -147,7 +148,7 @@ export function DebugStreamWidget({
 
   const debugSnapshot = useMemo(
     () => ({
-      widgetId: "debug_stream",
+      widgetId: CORE_DEBUG_STREAM_WIDGET_ID,
       instanceId,
       title: instanceTitle,
       sourceWidgetId: sourceBinding.resolvedSourceInput?.sourceWidgetId,

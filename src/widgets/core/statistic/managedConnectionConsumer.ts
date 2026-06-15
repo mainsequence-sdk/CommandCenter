@@ -17,6 +17,7 @@ import {
   resolveStatisticEmbeddedConnectionQueryProps,
   type StatisticWidgetProps,
 } from "./statisticModel";
+import { CORE_STATISTIC_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 const statisticConnectionMode = "connection";
 const statisticStreamConnectionMode = "connection-stream";
@@ -26,7 +27,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export const statisticManagedConnectionConsumerAdapter = {
-  widgetId: "statistic",
+  widgetId: CORE_STATISTIC_WIDGET_ID,
   sourceInputId: TABULAR_SEED_INPUT_ID,
   streamSourceInputId: TABULAR_LIVE_UPDATES_INPUT_ID,
   sourceOutputId: TABULAR_SOURCE_OUTPUT_ID,

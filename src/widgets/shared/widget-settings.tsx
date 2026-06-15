@@ -7,7 +7,7 @@ import {
   type ComponentType,
 } from "react";
 
-import { Copy, Loader2, Settings2, Trash2, Zap } from "lucide-react";
+import { ChevronDown, Copy, Loader2, Settings2, Trash2, Zap } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -699,6 +699,7 @@ export function WidgetSettingsPanel<
   const [rawPropsValue, setRawPropsValue] = useState(() => serializeWidgetProps(activeDraftProps));
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [rawPropsEditorOpen, setRawPropsEditorOpen] = useState(false);
+  const [cardChromeOpen, setCardChromeOpen] = useState(false);
   const [deferredRegionsHydratedKey, setDeferredRegionsHydratedKey] = useState<string | null>(null);
   const deferredRegionsReady = deferredRegionsHydratedKey === deferredRegionsKey;
   const deferredInstanceId = deferredRegionsReady ? instance.id : undefined;
@@ -751,6 +752,12 @@ export function WidgetSettingsPanel<
     [activeCardTitle, referenceLanguageSourceWidgets],
   );
   const activeCardTitleLabel = activeTitleReferenceToken?.label ?? activeCardTitle;
+  const cardChromeSummary = [
+    activeCardTitleLabel || widget.title,
+    showHeader ? "Header visible" : "Header hidden",
+    showPlacementField ? (sidebarOnly ? "Sidebar only" : "Canvas") : null,
+    transparentSurface ? "Transparent surface" : "Card surface",
+  ].filter(Boolean).join(" · ");
   const resolvedPanelTitle =
     panelTitle ?? (activeCardTitleLabel ? `${activeCardTitleLabel} Settings` : "Card settings");
   const referenceExpressionTitle = controlledTitle ? instanceTitle : initialTitle;
@@ -1198,38 +1205,114 @@ export function WidgetSettingsPanel<
         ) : null}
       </div>
       <div className="space-y-6 px-5 py-5 md:px-6 md:py-6">
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="text-sm font-medium text-topbar-foreground">Card title</div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                This is the title shown in the workspace card header.
-              </p>
+        <section className="overflow-hidden rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/22">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/20"
+            aria-expanded={cardChromeOpen}
+            onClick={() => setCardChromeOpen((current) => !current)}
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-topbar-foreground">Card chrome</span>
+              <span className="mt-1 block truncate text-xs text-muted-foreground">
+                {cardChromeSummary}
+              </span>
+            </span>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                cardChromeOpen && "rotate-180",
+              )}
+            />
+          </button>
+
+          {cardChromeOpen ? (
+            <div className="space-y-4 border-t border-border/70 px-4 py-4">
+              <section className="space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-topbar-foreground">Card title</div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      This is the title shown in the workspace card header.
+                    </p>
+                  </div>
+                </div>
+                <Input
+                  value={activeInstanceTitle}
+                  onChange={(event) => {
+                    if (demoModeActive) {
+                      setDemoDraftTitle(event.target.value);
+                      return;
+                    }
+
+                    syncReferenceLanguageBindings(
+                      event.target.value,
+                      activeDraftProps,
+                      activeDraftBindings,
+                    );
+
+                    if (controlledTitle) {
+                      onDraftTitleChange?.(event.target.value);
+                    } else {
+                      setInternalInstanceTitle(event.target.value);
+                    }
+                  }}
+                  placeholder="Card title"
+                  readOnly={!editable || (Boolean(titleReferenceBinding) && !titleExpressionManaged)}
+                />
+              </section>
+
+              <div className="grid gap-4 lg:grid-cols-3">
+                <WidgetSettingsSelectField
+                  label="Header"
+                  description="Control whether the widget header is visible during normal viewing. Workspace edit mode always shows it."
+                  value={showHeader ? "visible" : "hidden"}
+                  onChange={(nextValue) => {
+                    handleShowHeaderChange(nextValue === "visible");
+                  }}
+                  disabled={!editable}
+                  options={[
+                    { value: "visible", label: "Header: Visible" },
+                    { value: "hidden", label: "Header: Hidden" },
+                  ]}
+                />
+
+                {showPlacementField ? (
+                  <WidgetSettingsSelectField
+                    label="Placement"
+                    description={
+                      placementLocked
+                        ? "This widget is defined as sidebar-only and stays mounted in the widget rail."
+                        : "Choose whether this widget renders on the canvas or stays mounted only in the widget rail."
+                    }
+                    value={sidebarOnly ? "sidebar" : "canvas"}
+                    onChange={(nextValue) => {
+                      handlePlacementModeChange(nextValue === "sidebar" ? "sidebar" : "canvas");
+                    }}
+                    disabled={!editable || placementLocked}
+                    options={[
+                      { value: "canvas", label: "Placement: Canvas" },
+                      { value: "sidebar", label: "Placement: Sidebar only" },
+                    ]}
+                  />
+                ) : null}
+
+                <WidgetSettingsSelectField
+                  label="Surface"
+                  description="Control whether this widget renders as a normal card or a flatter transparent surface."
+                  value={transparentSurface ? "transparent" : "default"}
+                  onChange={(nextValue) => {
+                    handleSurfaceModeChange(nextValue === "transparent" ? "transparent" : "default");
+                  }}
+                  disabled={!editable}
+                  options={[
+                    { value: "default", label: "Surface: Card" },
+                    { value: "transparent", label: "Surface: Transparent" },
+                  ]}
+                />
+              </div>
             </div>
-          </div>
-          <Input
-            value={activeInstanceTitle}
-            onChange={(event) => {
-              if (demoModeActive) {
-                setDemoDraftTitle(event.target.value);
-                return;
-              }
-
-              syncReferenceLanguageBindings(
-                event.target.value,
-                activeDraftProps,
-                activeDraftBindings,
-              );
-
-              if (controlledTitle) {
-                onDraftTitleChange?.(event.target.value);
-              } else {
-                setInternalInstanceTitle(event.target.value);
-              }
-            }}
-            placeholder="Card title"
-            readOnly={!editable || (Boolean(titleReferenceBinding) && !titleExpressionManaged)}
-          />
+          ) : null}
         </section>
 
         {referenceLanguageErrors.length > 0 ? (
@@ -1242,56 +1325,6 @@ export function WidgetSettingsPanel<
             </ul>
           </section>
         ) : null}
-
-        <div className="grid gap-4 lg:grid-cols-3">
-          <WidgetSettingsSelectField
-            label="Header"
-            description="Control whether the widget header is visible during normal viewing. Workspace edit mode always shows it."
-            value={showHeader ? "visible" : "hidden"}
-            onChange={(nextValue) => {
-              handleShowHeaderChange(nextValue === "visible");
-            }}
-            disabled={!editable}
-            options={[
-              { value: "visible", label: "Header: Visible" },
-              { value: "hidden", label: "Header: Hidden" },
-            ]}
-          />
-
-          {showPlacementField ? (
-            <WidgetSettingsSelectField
-              label="Placement"
-              description={
-                placementLocked
-                  ? "This widget is defined as sidebar-only and stays mounted in the widget rail."
-                  : "Choose whether this widget renders on the canvas or stays mounted only in the widget rail."
-              }
-              value={sidebarOnly ? "sidebar" : "canvas"}
-              onChange={(nextValue) => {
-                handlePlacementModeChange(nextValue === "sidebar" ? "sidebar" : "canvas");
-              }}
-              disabled={!editable || placementLocked}
-              options={[
-                { value: "canvas", label: "Placement: Canvas" },
-                { value: "sidebar", label: "Placement: Sidebar only" },
-              ]}
-            />
-          ) : null}
-
-          <WidgetSettingsSelectField
-            label="Surface"
-            description="Control whether this widget renders as a normal card or a flatter transparent surface."
-            value={transparentSurface ? "transparent" : "default"}
-            onChange={(nextValue) => {
-              handleSurfaceModeChange(nextValue === "transparent" ? "transparent" : "default");
-            }}
-            disabled={!editable}
-            options={[
-              { value: "default", label: "Surface: Card" },
-              { value: "transparent", label: "Surface: Transparent" },
-            ]}
-          />
-        </div>
 
         {showPanelPreview ? (
           deferredRegionsReady ? (

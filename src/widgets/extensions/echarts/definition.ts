@@ -3,6 +3,7 @@ import { LineChart } from "lucide-react";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { CORE_VALUE_JSON_CONTRACT } from "@/widgets/shared/value-contracts";
 import { defineWidget } from "@/widgets/types";
+import { ECHARTS_SPEC_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
@@ -15,7 +16,7 @@ import {
 import { EChartsSpecWidgetSettings } from "./EChartsSpecWidgetSettings";
 
 export const echartsSpecWidget = defineWidget<EChartsSpecWidgetProps>({
-  id: "echarts-spec",
+  id: ECHARTS_SPEC_WIDGET_ID,
   widgetVersion: "1.2.2",
   title: "ECharts Spec",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

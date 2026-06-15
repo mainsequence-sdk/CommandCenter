@@ -17,6 +17,7 @@ import type {
   WidgetDefinition,
   WidgetOrganizationConfigurationContract,
 } from "@/widgets/types";
+import { normalizeWidgetTypeId } from "@/widgets/widget-type-normalization";
 
 interface WidgetOrganizationConfigurationContextValue {
   records: OrganizationWidgetTypeConfigurationRecord[];
@@ -128,7 +129,9 @@ export function WidgetOrganizationConfigurationProvider({
 
 export function useWidgetOrganizationConfigurationRecord(widgetId?: string | null) {
   const context = useContext(WidgetOrganizationConfigurationContext);
-  const record = widgetId ? (context.recordsByWidgetId.get(widgetId) ?? null) : null;
+  const record = widgetId
+    ? (context.recordsByWidgetId.get(normalizeWidgetTypeId(widgetId)) ?? null)
+    : null;
 
   return {
     record,

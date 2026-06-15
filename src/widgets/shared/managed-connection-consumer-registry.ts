@@ -5,6 +5,7 @@ import {
   proTableManagedConnectionConsumerAdapter,
   tableManagedConnectionConsumerAdapter,
 } from "@/widgets/core/table/managedConnectionConsumer";
+import { normalizeWidgetTypeId } from "@/widgets/widget-type-normalization";
 import { assetScreenerManagedConnectionConsumerAdapter } from "../../../extensions/main_sequence/extensions/markets/widgets/asset-screener/managedConnectionConsumer";
 
 const MANAGED_CONNECTION_CONSUMER_ADAPTERS = new Map<
@@ -22,5 +23,7 @@ const MANAGED_CONNECTION_CONSUMER_ADAPTERS = new Map<
 ]);
 
 export function getManagedConnectionConsumerAdapter(widgetId: string | undefined) {
-  return widgetId ? MANAGED_CONNECTION_CONSUMER_ADAPTERS.get(widgetId) ?? null : null;
+  return widgetId
+    ? MANAGED_CONNECTION_CONSUMER_ADAPTERS.get(normalizeWidgetTypeId(widgetId)) ?? null
+    : null;
 }

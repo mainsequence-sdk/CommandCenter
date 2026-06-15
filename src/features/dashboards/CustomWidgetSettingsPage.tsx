@@ -41,6 +41,7 @@ import {
   resolveManagedConnectionConsumerSourceWidgetId,
 } from "@/widgets/shared/managed-connection-consumer";
 import { fetchAppComponentOpenApiDocument } from "@/widgets/core/app-component/appComponentApi";
+import { CORE_APP_COMPONENT_WIDGET_ID } from "@/widgets/widget-type-normalization";
 import {
   buildAppComponentBindingSpec,
   buildAppComponentGeneratedForm,
@@ -462,7 +463,7 @@ export function CustomWidgetSettingsPage({
 
     const candidates = resolvedDashboard.widgets.filter((dashboardWidget) => {
       if (
-        dashboardWidget.widgetId !== "app-component" ||
+        dashboardWidget.widgetId !== CORE_APP_COMPONENT_WIDGET_ID ||
         repairedAppComponentIdsRef.current.has(dashboardWidget.id)
       ) {
         return false;

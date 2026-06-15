@@ -23,6 +23,7 @@ import {
   widgetTightFormTitleClass,
 } from "@/widgets/shared/form-density";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
+import { CORE_APP_COMPONENT_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import { executeAppComponent } from "./appComponentExecution";
 import {
@@ -585,7 +586,7 @@ export function AppComponentWidgetSettings({
 
     const result = await executeAppComponent({
       executionSurface: "private-dashboard",
-      widgetId: "app-component",
+      widgetId: CORE_APP_COMPONENT_WIDGET_ID,
       instanceId,
       reason: "settings-test",
       props: normalizedProps,

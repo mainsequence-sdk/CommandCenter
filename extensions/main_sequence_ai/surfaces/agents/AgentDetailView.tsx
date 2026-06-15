@@ -11,11 +11,12 @@ import { EditorView } from "@codemirror/view";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import CodeMirror from "@uiw/react-codemirror";
 import { tags } from "@lezer/highlight";
-import { ArrowLeft, ArrowUpRight, Bot, FolderKanban, Loader2, RefreshCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Bot, ChevronDown, FolderKanban, Loader2, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { getAppPath } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
+import { AdminMenu } from "@/app/layout/AdminMenu";
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,7 @@ import { getRegistryTableCellClassName } from "../../../main_sequence/common/com
 import { useRegistrySelection } from "../../../main_sequence/common/hooks/useRegistrySelection";
 import {
   fetchAgentDetail,
-  fetchAgentRuntimeId,
+  fetchAgentRuntimeRef,
   fetchAgentSummary,
   type AgentImageDriftCheckRecord,
   type AgentImageDriftRecord,
@@ -49,6 +50,7 @@ import { getAgentSessionDetailPath } from "../../agent-session-detail/routes";
 import { useChatFeature } from "../../assistant-ui/ChatProvider";
 import { CHAT_PAGE_PATH } from "../../assistant-ui/chat-ui-store";
 import { AutomationDitherWaveLayer } from "../../components/AutomationButton";
+import { AgentCapabilitiesTab } from "../../features/agent-capabilities/AgentCapabilitiesTab";
 import { ProjectAgentConfigurator } from "../../features/project-agents/ProjectAgentConfigurator";
 import {
   buildAvailableRunConfigCacheKey,
@@ -61,6 +63,7 @@ import {
   getAgentSessionRecordSessionId,
   getAgentSessionRecordSummary,
   getAgentSessionRecordTitle,
+  getAgentSessionRecordHandleUniqueId,
   getOrCreateAgentSessionWithHandleRequest,
   type AgentSessionApiRecord,
 } from "../../runtime/agent-sessions-api";
@@ -83,6 +86,12 @@ const agentDetailTabs = [
     id: "sessions",
     label: "Sessions",
     title: "Sessions",
+    body: "",
+  },
+  {
+    id: "capabilities",
+    label: "Capabilities",
+    title: "Capabilities",
     body: "",
   },
 ] as const;
@@ -803,6 +812,7 @@ function AgentSessionsTable({
             const sessionId = getAgentSessionRecordSessionId(record);
             const detailPath = getAgentSessionDetailPath(sessionId);
             const selected = selection.isSelected(sessionId);
+            const handleUniqueId = getAgentSessionRecordHandleUniqueId(record);
             const modelSummary =
               record.llm_provider?.trim() && record.llm_model?.trim()
                 ? `${record.llm_provider} / ${record.llm_model}`
@@ -830,6 +840,11 @@ function AgentSessionsTable({
                   <div className="mt-1 text-xs text-muted-foreground">
                     {getAgentSessionRecordSummary(record) || `Session ${sessionId}`}
                   </div>
+                  {handleUniqueId ? (
+                    <div className="mt-1 font-mono text-xs text-muted-foreground">
+                      Handle: {handleUniqueId}
+                    </div>
+                  ) : null}
                 </td>
                 <td className={getRegistryTableCellClassName(selected)}>
                   <div className="inline-flex items-center gap-2 text-foreground">
@@ -968,7 +983,7 @@ export function AgentDetailView({
     normalizeOptionalString(detail?.llm_thinking) ||
     initialAgent?.llm_thinking?.trim() ||
     null;
-  const agentUidForHandleSession =
+  const agentUidForActions =
     normalizeOptionalString(detail?.uid) ||
     initialAgent?.uid?.trim() ||
     normalizedAgentId;
@@ -1059,15 +1074,15 @@ export function AgentDetailView({
     [detail, initialAgent, summaryEntityForAgentType, summaryExtensionsForAgentType, summaryQuery.data],
   );
   const runtimeProjectUidQuery = useQuery({
-    queryKey: ["main_sequence_ai", "agents", "project-uid-from-runtime", normalizedAgentId],
+    queryKey: ["main_sequence_ai", "agents", "project-uid-from-runtime", agentUidForActions],
     queryFn: async ({ signal }) => {
-      const runtime = await fetchAgentRuntimeId({
-        agentId: normalizedAgentId,
+      const runtime = await fetchAgentRuntimeRef({
+        agentUid: agentUidForActions,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
       });
-      const runtimeIdentifier = normalizePathIdentifier(runtime.runtime_id);
+      const runtimeIdentifier = normalizePathIdentifier(runtime.runtime_uid);
 
       if (runtimeIdentifier) {
         const runtimeSummary = await fetchScalableServiceSummary(runtimeIdentifier);
@@ -1189,19 +1204,21 @@ export function AgentDetailView({
   });
   const openRuntimeMutation = useMutation({
     mutationFn: ({ signal }: { signal?: AbortSignal } = {}) =>
-      fetchAgentRuntimeId({
-        agentId: normalizedAgentId,
+      fetchAgentRuntimeRef({
+        agentUid: agentUidForActions,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
       }),
     onSuccess: (payload) => {
-      const runtimeId = normalizePathIdentifier(payload.runtime_id);
+      const runtimeId = normalizePathIdentifier(payload.runtime_uid);
 
       if (!runtimeId) {
         toast({
           title: "Runtime unavailable",
-          description: "This agent doesn't have a runtime.",
+          description: payload.exists
+            ? "The runtime exists but did not return a KnativeServiceRuntime UID."
+            : "The backend could not resolve a KnativeServiceRuntime for this agent.",
           variant: "info",
         });
         return;
@@ -1232,7 +1249,7 @@ export function AgentDetailView({
       }
 
       return getOrCreateAgentSessionWithHandleRequest({
-        agentUid: agentUidForHandleSession,
+        agentUid: agentUidForActions,
         handleUniqueId: normalizedHandleUniqueId,
         name: normalizedName,
         llmProvider: resolvedProvider,
@@ -1426,17 +1443,6 @@ export function AgentDetailView({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              void detailQuery.refetch();
-              void sessionsQuery.refetch();
-            }}
-          >
-            <RefreshCcw className="h-4 w-4" />
-            Refresh
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             disabled={openRuntimeMutation.isPending}
             onClick={() => {
               void openRuntimeMutation.mutateAsync({});
@@ -1455,10 +1461,10 @@ export function AgentDetailView({
               size="sm"
               title={
                 resolvedProjectExecutorProjectUid
-                  ? "Configure project agent"
+                  ? "Configure agent deployment"
                   : runtimeProjectUidQuery.isLoading
                     ? "Resolving linked project from runtime"
-                    : "Open project agent configuration"
+                    : "Open agent deployment configuration"
               }
               onClick={() => {
                 setDeploymentAutomationHeaderActive(false);
@@ -1466,27 +1472,37 @@ export function AgentDetailView({
               }}
             >
               <FolderKanban className="h-4 w-4" />
-              Configure project agent
+              Configure agent deployment
             </Button>
           ) : null}
-          <Button
-            size="sm"
-            disabled={sessionMutationBusy}
-            onClick={() => {
-              void handleStartSession();
-            }}
-          >
-            <Bot className="h-4 w-4" />
-            Start session
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openSessionWithHandleDialog}
-          >
-            <Bot className="h-4 w-4" />
-            Create session with handle
-          </Button>
+          <AdminMenu
+            actions={[
+              {
+                icon: Bot,
+                label: "Start session",
+                disabled: sessionMutationBusy,
+                onSelect: () => {
+                  void handleStartSession();
+                },
+              },
+              {
+                icon: Bot,
+                label: "Create session with handle",
+                onSelect: openSessionWithHandleDialog,
+              },
+            ]}
+            align="end"
+            menuClassName="w-56"
+            triggerLabel="Session actions"
+            triggerClassName="inline-flex h-8 items-center gap-2 rounded-[calc(var(--radius)-4px)] border border-border bg-card/80 px-3 text-xs font-medium text-card-foreground transition-all hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+            triggerContent={
+              <>
+                <Bot className="h-4 w-4" />
+                <span>Session</span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </>
+            }
+          />
           <Button variant="outline" size="sm" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" />
             Back to agents
@@ -1635,6 +1651,13 @@ export function AgentDetailView({
                 <AgentSessionsTable records={filteredSessionRecords} selection={sessionSelection} />
               ) : null}
             </div>
+          ) : null}
+
+          {activeTab.id === "capabilities" ? (
+            <AgentCapabilitiesTab
+              agentUid={agentUidForActions}
+              agentTitle={title}
+            />
           ) : null}
         </CardContent>
       </Card>

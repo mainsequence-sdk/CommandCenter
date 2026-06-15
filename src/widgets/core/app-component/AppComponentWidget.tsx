@@ -12,6 +12,7 @@ import {
   useWidgetExecutionState,
 } from "@/dashboards/DashboardWidgetExecution";
 import type { WidgetComponentProps } from "@/widgets/types";
+import { CORE_APP_COMPONENT_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import {
   APP_COMPONENT_OPENAPI_CACHE_TTL_MS,
@@ -297,7 +298,7 @@ export function AppComponentWidget({
 
     const result = await executeAppComponent({
       executionSurface: "private-dashboard",
-      widgetId: "app-component",
+      widgetId: CORE_APP_COMPONENT_WIDGET_ID,
       instanceId: instanceId ?? "app-component-preview",
       reason: "manual-submit",
       props: normalizedProps,

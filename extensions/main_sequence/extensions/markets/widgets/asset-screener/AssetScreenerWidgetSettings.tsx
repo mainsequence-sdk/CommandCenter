@@ -23,6 +23,7 @@ import { WidgetSettingFieldLabel } from "@/widgets/shared/widget-setting-help";
 import type { WidgetSettingsComponentProps } from "@/widgets/types";
 
 import {
+  buildAssetScreenerResetTableSettingsProps,
   normalizeAssetScreenerProps,
   prepareAssetScreenerColumnsForPersistence,
   resolveAssetScreenerState,
@@ -405,10 +406,7 @@ export function AssetScreenerWidgetSettings({
           resetLabel="Reset table settings"
           showLiveMergeMapping
           onReset={() => {
-            onDraftPropsChange({
-              ...props,
-              table: undefined,
-            });
+            onDraftPropsChange(buildAssetScreenerResetTableSettingsProps(props));
           }}
         />
       </section>

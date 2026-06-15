@@ -1,5 +1,6 @@
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
+import { DEMO_YIELD_CURVE_PLOT_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import {
@@ -9,7 +10,7 @@ import {
 import { YieldCurvePlotWidgetSettings } from "./YieldCurvePlotWidgetSettings";
 
 export const yieldCurvePlotWidget = defineWidget<YieldCurvePlotWidgetProps>({
-  id: "yield-curve-plot",
+  id: DEMO_YIELD_CURVE_PLOT_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Yield Curve Plot",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

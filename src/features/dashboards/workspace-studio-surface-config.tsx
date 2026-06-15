@@ -3,6 +3,7 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { getAppPath } from "@/apps/utils";
 import type { DashboardDefinition, DashboardDefinitionType } from "@/dashboards/types";
 import { WORKSPACE_SLIDE_WIDGET_ID } from "@/dashboards/structural-widgets";
+import { normalizeWidgetTypeId } from "@/widgets/widget-type-normalization";
 import {
   DEFAULT_DASHBOARD_DEFINITION_TYPE,
   normalizeDashboardDefinitionType,
@@ -83,7 +84,7 @@ function resolveWorkspaceStudioSurfaceConfig(
       ? Array.from(
           new Set(
             value.allowedWidgetIds
-              .map((widgetId) => widgetId.trim())
+              .map((widgetId) => normalizeWidgetTypeId(widgetId))
               .filter(Boolean),
           ),
         )
@@ -93,7 +94,7 @@ function resolveWorkspaceStudioSurfaceConfig(
         ? Array.from(
             new Set(
               value.deniedWidgetIds
-                .map((widgetId) => widgetId.trim())
+                .map((widgetId) => normalizeWidgetTypeId(widgetId))
                 .filter(Boolean),
             ),
           )

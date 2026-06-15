@@ -115,6 +115,8 @@ export interface AdapterFromApiOperationDefinition {
     description?: string;
   } | null;
   responseMappings?: AdapterFromApiResponseMapping[];
+  responseContract?: string;
+  responseModel?: string | null;
   cache?: {
     policy?: AdapterFromApiCachePolicy;
     ttlMs?: number;
@@ -386,11 +388,11 @@ Creates a dynamic connection from a Command Center API adapter contract exposed 
 ### api-operation
 
 - Payload: { "kind": "api-operation", "operationId": "listOrders", "parameters": { "path": {}, "query": {}, "headers": {} }, "body": null, "responseMappingId": "orders_table" }
-- Returns: ConnectionQueryResponse, usually with core.tabular_frame@v1 frames from the selected response mapping.
+- Returns: ConnectionQueryResponse, either by wrapping a native frame when the operation declares responseContract, converting native core.tabular_frame@v1 columns/rows responses, or mapping provider-native JSON through a selected response mapping.
 - Time-range-aware: yes, so dynamic operations can receive a top-level timeRange when the selected operation declares it.
 - Backend mode: browser calls Command Center /query/ and the backend calls apiBaseUrl.
 - Direct mode: browser direct runtime calls debugApiBaseUrl with fetch credentials omitted and maps the response locally.
-- Notes: operationId and all parameters must exist in compiledContract. User-configurable Authorization, cookie, API-key, and auth-token headers are rejected.
+- Notes: operationId and all parameters must exist in compiledContract. Operations marked kind: "query" or capabilities: ["query"] are query-capable, and read-only GET operations are also query-capable even when classified as resources. For backward compatibility, unclassified operations with neither kind nor capabilities are also treated as query-capable. Explicit mutation operations stay hidden from query authoring. User-configurable Authorization, cookie, API-key, and auth-token headers are rejected.
 
 ## resources
 
@@ -403,7 +405,7 @@ Backend mode supports the backend Adapter From API resources: contract-definitio
 - Direct mode backend ownership is persistence validation only: validate debugApiBaseUrl syntax, validate submitted compiledContract shape, validate configValues, persist direct-mode public config, and reject backend query/resource/test execution for direct-mode instances.
 - Backend connection persistence accepts and returns applicationBindings as public config metadata. The backend does not treat a Main Sequence Markets binding as a new adapter type.
 - Backend discovery should sanitize OpenAPI info.x-logo into compiledContract.openapi.logo by resolving relative URLs against openapi.url, accepting only browser-renderable HTTP(S) logo URLs, and never treating logo metadata as an execution authority.
-- Browser direct runtime owns direct discovery, a frontend-only sessionStorage discovery cache keyed by connection id, direct query execution, direct health checks, request construction, local parameter validation, and response mapping without Command Center-managed auth.
+- Browser direct runtime owns direct discovery, a frontend-only sessionStorage discovery cache keyed by connection id, direct query execution, direct health checks, request construction, local parameter validation, and response mapping without Command Center-managed auth. In direct debug mode, the query editor refreshes the well-known contract when opened and a matching refreshed session cache can override the saved compiledContract snapshot so local route additions are available before the connection is resaved.
 `;
 
 export const adapterFromApiConnection: ConnectionTypeDefinition<

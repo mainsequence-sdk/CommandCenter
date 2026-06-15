@@ -3,6 +3,7 @@ import { Calculator } from "lucide-react";
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget, type ResolvedWidgetInputs } from "@/widgets/types";
 import type { RuntimeDataStore } from "@/widgets/shared/runtime-data-store";
+import { CORE_STATISTIC_WIDGET_ID } from "@/widgets/widget-type-normalization";
 import {
   resolveIncrementalTabularOutputFrame,
   TABULAR_LIVE_UPDATES_INPUT_ID,
@@ -91,7 +92,7 @@ function resolveStatisticSnapshotSourceDataset(input: {
 }
 
 export const statisticWidget = defineWidget<StatisticWidgetProps>({
-  id: "statistic",
+  id: CORE_STATISTIC_WIDGET_ID,
   widgetVersion: "3.0.3",
   title: "Statistic",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

@@ -5,6 +5,10 @@ import {
   type ConnectionStreamQueryWidgetProps,
 } from "@/widgets/core/connection-stream-query/connectionStreamQueryModel";
 import type { WidgetInstancePresentation } from "@/widgets/types";
+import {
+  CORE_CONNECTION_QUERY_WIDGET_ID,
+  CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
+} from "@/widgets/widget-type-normalization";
 
 export type ManagedConnectionConsumerSourceMode = string;
 export type ManagedConnectionEmbeddedSourceProps =
@@ -70,8 +74,8 @@ export function resolveManagedConnectionConsumerSourceWidgetId(
   const mode = adapter.getSourceMode((props ?? {}) as Record<string, unknown>);
 
   return isManagedConnectionConsumerStreamMode(adapter, mode)
-    ? "connection-stream-query"
-    : "connection-query";
+    ? CORE_CONNECTION_STREAM_QUERY_WIDGET_ID
+    : CORE_CONNECTION_QUERY_WIDGET_ID;
 }
 
 export function resolveManagedConnectionConsumerInputId(
@@ -105,7 +109,7 @@ export function normalizeManagedConnectionEmbeddedSourceProps(
   props: Record<string, unknown> | undefined,
   value: ManagedConnectionEmbeddedSourceProps,
 ) {
-  return resolveManagedConnectionConsumerSourceWidgetId(adapter, props) === "connection-stream-query"
+  return resolveManagedConnectionConsumerSourceWidgetId(adapter, props) === CORE_CONNECTION_STREAM_QUERY_WIDGET_ID
     ? normalizeConnectionStreamQueryProps(value as ConnectionStreamQueryWidgetProps)
     : normalizeConnectionQueryProps(value as ConnectionQueryWidgetProps);
 }

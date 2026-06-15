@@ -1,5 +1,6 @@
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
+import { MAIN_SEQUENCE_FOUNDRY_DEPENDENCY_GRAPH_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { dependencyGraphExecutionDefinition } from "./dependencyGraphExecution";
@@ -10,7 +11,7 @@ import { MainSequenceDependencyGraphWidgetSettings } from "./MainSequenceDepende
 import type { MainSequenceDependencyGraphWidgetProps } from "./dependencyGraphRuntime";
 
 export const mainSequenceDependencyGraphWidget = defineWidget<MainSequenceDependencyGraphWidgetProps>({
-  id: "main-sequence-dependency-graph",
+  id: MAIN_SEQUENCE_FOUNDRY_DEPENDENCY_GRAPH_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Dependency Graph",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

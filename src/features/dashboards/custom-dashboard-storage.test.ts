@@ -15,7 +15,13 @@ import {
   WORKSPACE_SLIDE_GRID_ROW_HEIGHT,
 } from "@/widgets/core/workspace-slide/slide-model";
 import {
+  CORE_CONNECTION_QUERY_WIDGET_ID,
+  CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
+  CORE_GRAPH_WIDGET_ID,
+  CORE_STATISTIC_WIDGET_ID,
+  CORE_TABLE_WIDGET_ID,
   LEGACY_PORTFOLIO_WEIGHTS_WIDGET_ID,
+  MAIN_SEQUENCE_MARKETS_ASSET_SCREENER_WIDGET_ID,
   POSITION_DETAIL_WIDGET_ID,
 } from "@/widgets/widget-type-normalization";
 
@@ -40,7 +46,7 @@ import {
 const TABULAR_CONTRACT = "core.tabular_frame@v1" as const;
 
 const graphWidgetDefinition = defineWidget({
-  id: "graph",
+  id: CORE_GRAPH_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Graph",
   description: "Graph",
@@ -60,7 +66,7 @@ const graphWidgetDefinition = defineWidget({
 });
 
 const connectionQueryWidgetDefinition = defineWidget({
-  id: "connection-query",
+  id: CORE_CONNECTION_QUERY_WIDGET_ID,
   widgetVersion: "1.0.0",
   title: "Connection Query",
   description: "Connection Query",
@@ -109,7 +115,7 @@ function graphWidget(
 ): DashboardWidgetInstance {
   return {
     id,
-    widgetId: "graph",
+    widgetId: CORE_GRAPH_WIDGET_ID,
     title: id,
     layout: {
       cols: 12,
@@ -125,7 +131,7 @@ function tableWidget(
 ): DashboardWidgetInstance {
   return {
     id,
-    widgetId: "table",
+    widgetId: CORE_TABLE_WIDGET_ID,
     title: id,
     layout: {
       cols: 12,
@@ -141,7 +147,7 @@ function statisticWidget(
 ): DashboardWidgetInstance {
   return {
     id,
-    widgetId: "statistic",
+    widgetId: CORE_STATISTIC_WIDGET_ID,
     title: id,
     layout: {
       cols: 12,
@@ -157,7 +163,7 @@ function assetScreenerWidget(
 ): DashboardWidgetInstance {
   return {
     id,
-    widgetId: "ms-markets-asset-screener",
+    widgetId: MAIN_SEQUENCE_MARKETS_ASSET_SCREENER_WIDGET_ID,
     title: id,
     layout: {
       cols: 14,
@@ -211,7 +217,7 @@ function connectionQueryWidget(
 ): DashboardWidgetInstance {
   return {
     id,
-    widgetId: "connection-query",
+    widgetId: CORE_CONNECTION_QUERY_WIDGET_ID,
     title,
     layout: {
       cols: 12,
@@ -566,8 +572,8 @@ describe("custom dashboard storage managed widgets", () => {
       },
     );
     const definitions = new Map([
-      ["graph", graphWidgetDefinition],
-      ["connection-query", connectionQueryWidgetDefinition],
+      [CORE_GRAPH_WIDGET_ID, graphWidgetDefinition],
+      [CORE_CONNECTION_QUERY_WIDGET_ID, connectionQueryWidgetDefinition],
     ]);
     const resolveWidgetDefinition = (widgetId: string) => definitions.get(widgetId);
     const dependencyModel = createDashboardWidgetDependencyModel(
@@ -630,7 +636,7 @@ describe("custom dashboard storage managed widgets", () => {
     const owner = updated.widgets.find((widget) => widget.id === "graph-1");
 
     expect(managedSource).not.toBeNull();
-    expect(managedSource?.widgetId).toBe("connection-query");
+    expect(managedSource?.widgetId).toBe(CORE_CONNECTION_QUERY_WIDGET_ID);
     expect(managedSource?.title).toBe("CPU Graph Source");
     expect(managedSource?.props).toMatchObject({
       connectionRef: {
@@ -684,7 +690,7 @@ describe("custom dashboard storage managed widgets", () => {
     });
     const owner = updated.widgets.find((widget) => widget.id === "graph-1");
 
-    expect(managedSource?.widgetId).toBe("connection-stream-query");
+    expect(managedSource?.widgetId).toBe(CORE_CONNECTION_STREAM_QUERY_WIDGET_ID);
     expect(managedSource?.title).toBe("Ticker Graph Source");
     expect(managedSource?.props).toMatchObject({
       connectionRef: {
@@ -763,7 +769,7 @@ describe("custom dashboard storage managed widgets", () => {
     const owner = updated.widgets.find((widget) => widget.id === "graph-1");
 
     expect(owner?.props?.graphSourceMode).toBe("connection");
-    expect(managedSource?.widgetId).toBe("connection-query");
+    expect(managedSource?.widgetId).toBe(CORE_CONNECTION_QUERY_WIDGET_ID);
   });
 
   it("updates the existing managed connection-query source when graph connection settings change", () => {
@@ -879,7 +885,7 @@ describe("custom dashboard storage managed widgets", () => {
 
     const duplicated = duplicateDashboardWidget(dashboard, "graph-1");
     const duplicatedGraph = duplicated.widgets.find(
-      (widget) => widget.widgetId === "graph" && widget.id !== "graph-1",
+      (widget) => widget.widgetId === CORE_GRAPH_WIDGET_ID && widget.id !== "graph-1",
     );
 
     expect(duplicatedGraph).toBeDefined();
@@ -1001,7 +1007,7 @@ describe("custom dashboard storage managed widgets", () => {
     });
     const owner = updated.widgets.find((widget) => widget.id === "table-1");
 
-    expect(managedSource?.widgetId).toBe("connection-query");
+    expect(managedSource?.widgetId).toBe(CORE_CONNECTION_QUERY_WIDGET_ID);
     expect(managedSource?.title).toBe("Orders Table Source");
     expect(managedSource?.props).toMatchObject({
       connectionRef: {
@@ -1200,7 +1206,7 @@ describe("custom dashboard storage managed widgets", () => {
 
     const duplicated = duplicateDashboardWidget(dashboard, "table-1");
     const duplicatedTable = duplicated.widgets.find(
-      (widget) => widget.widgetId === "table" && widget.id !== "table-1",
+      (widget) => widget.widgetId === CORE_TABLE_WIDGET_ID && widget.id !== "table-1",
     );
     const duplicatedManagedSource = duplicatedTable
       ? findManagedDashboardWidget(duplicated, {
@@ -1307,7 +1313,7 @@ describe("custom dashboard storage managed widgets", () => {
         widget.slidePlacement?.slideWidgetId === duplicatedSlide?.id,
     );
     const duplicatedGraph = duplicatedRow?.row?.children?.find(
-      (child) => child.id !== "graph-child" && child.widgetId === "graph",
+      (child) => child.id !== "graph-child" && child.widgetId === CORE_GRAPH_WIDGET_ID,
     );
 
     expect(duplicatedSlide).toBeDefined();
@@ -1581,7 +1587,7 @@ describe("custom dashboard storage managed widgets", () => {
     });
     const owner = updated.widgets.find((widget) => widget.id === "screener-1");
 
-    expect(managedSource?.widgetId).toBe("connection-query");
+    expect(managedSource?.widgetId).toBe(CORE_CONNECTION_QUERY_WIDGET_ID);
     expect(managedSource?.title).toBe("Global equity monitor Source");
     expect(owner?.bindings).toMatchObject({
       seedData: {
@@ -1619,7 +1625,7 @@ describe("custom dashboard storage managed widgets", () => {
 
     const duplicated = duplicateDashboardWidget(dashboard, "stat-1");
     const duplicatedStatistic = duplicated.widgets.find(
-      (widget) => widget.widgetId === "statistic" && widget.id !== "stat-1",
+      (widget) => widget.widgetId === CORE_STATISTIC_WIDGET_ID && widget.id !== "stat-1",
     );
     const duplicatedManagedSource = duplicatedStatistic
       ? findManagedDashboardWidget(duplicated, {

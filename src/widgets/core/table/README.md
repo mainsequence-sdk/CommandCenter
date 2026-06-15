@@ -92,6 +92,12 @@ tabular frame.
   `buildTableWidgetSourceVisualContractFromFrame(...)` in `tableModel.ts` is the canonical
   constructor for that source-owned visual contract; table-backed domain widgets should reuse it
   instead of rebuilding threshold or visual metadata privately.
+- Source-owned table formatting is passed on the incoming canonical frame as
+  `meta.tableVisuals.columns`. Each column entry may declare `label`, `format`, `decimals`,
+  `visible`, `width`, `thresholds`, `colorScale`, `range`, heatmap/data-bar/ring-gauge controls,
+  inline-series hints, and formula display-column metadata. The parser lives in
+  `tableFrameMetadata.ts`; fields not normalized there are ignored by source metadata and must stay
+  in local widget settings or be added deliberately to that contract.
 - `meta.tableVisuals.columns` can also describe source-declared formula display columns with
   `format: "formula"`, `formulaExpression`, and `formulaResultFormat`. This is used for flat mock
   or source frames that publish raw fields plus a proposed formula column model. Raw input columns
@@ -100,8 +106,11 @@ tabular frame.
 - `pro-table` adds one shared column-formula authoring path on top of that same runtime contract.
   Formula columns are persisted in shared table props, compiled by `tableFormulaCompiler.ts`, and
   applied by the table runtime as widget-owned computed columns.
-- Formula authoring is settings-only in the first implementation. The live widget surface stays
-  selection-oriented and does not become a spreadsheet editor.
+- Formula definitions can come from Pro Table settings or source metadata. The compiler accepts
+  bracketed field references, arithmetic operators, parentheses, numeric literals, and the
+  supported helper functions in `tableFormulaCompiler.ts` such as `PERCENT_CHANGE`,
+  `DIFFERENCE`, `RATIO`, `ADD`, and `MULTIPLY`. The live widget surface stays selection-oriented
+  and does not become an inline spreadsheet editor.
 - Gauge columns render as centered diverging bars in the shared table frame. Positive values fill
   from the middle of the cell toward the right edge; negative values fill from the middle toward
   the left edge.

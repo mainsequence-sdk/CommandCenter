@@ -5,8 +5,11 @@ import type {
   AgentSessionSerializedRecord,
 } from "../runtime/agent-sessions-api";
 import {
+  getAgentSessionRecordAgentLookupId,
   getAgentSessionRecordAgentId,
+  getAgentSessionRecordHandleUniqueId,
   getAgentSessionRecordSessionId,
+  getAgentSessionRecordTitle,
   normalizeAgentSessionLookupId,
 } from "../runtime/agent-sessions-api";
 
@@ -27,7 +30,7 @@ export interface AgentSessionContextInput {
   origin?: string | null;
   serializedSession?: AgentSessionSerializedRecord | null;
   agent?: {
-    id?: number | null;
+    id?: number | string | null;
     displayLabel?: string | null;
     requestAgentType?: string | null;
     agentUniqueId?: string | null;
@@ -72,7 +75,7 @@ export interface AgentSessionCoreDetail {
   stepType: string | null;
   actorType: string | null;
   createdByUserId: string | null;
-  boundHandles: AgentSessionBoundHandleDetail[];
+  boundHandle: AgentSessionBoundHandleDetail | null;
 }
 
 export interface AgentSessionDetailContext {
@@ -200,6 +203,7 @@ export function resolveAgentSessionLookupId(session: AgentSessionContextInput | 
 export function buildAgentSessionDetailContext(
   session: AgentSessionContextInput,
   fallbackAgentId?: string | null,
+  fallbackHandleUniqueId?: string | null,
 ): AgentSessionDetailContext {
   const derivedAgentId =
     fallbackAgentId ??
@@ -213,7 +217,9 @@ export function buildAgentSessionDetailContext(
     requestAgentType: resolveAgentSessionRequestAgentType(session),
     displayLabel: normalizeOptionalString(session.agent?.displayLabel),
     agentUniqueId: normalizeOptionalString(session.agent?.agentUniqueId),
-    handleUniqueId: normalizeOptionalString(session.handleUniqueId),
+    handleUniqueId:
+      normalizeOptionalString(session.handleUniqueId) ??
+      normalizeOptionalString(fallbackHandleUniqueId),
     isDefaultCommandCenterSession: normalizeOptionalString(session.origin) === "astro_command_center_base",
     agentId: derivedAgentId,
     updatedAt: normalizeOptionalString(session.updatedAt),
@@ -230,14 +236,39 @@ export function buildAgentSessionDetailContext(
 
 export function normalizeAgentSessionCoreDetail(record: AgentSessionApiRecord): AgentSessionCoreDetail {
   const sessionId = getAgentSessionRecordSessionId(record);
+  const agentLookupId = getAgentSessionRecordAgentLookupId(record);
   const agentId = getAgentSessionRecordAgentId(record);
+  const boundHandleUniqueId = getAgentSessionRecordHandleUniqueId(record);
+  const boundHandle =
+    boundHandleUniqueId
+      ? {
+          id:
+            normalizeOptionalString(record.bound_handle?.uid) ??
+            normalizeOptionalString(record.bound_handles?.[0]?.uid) ??
+            (record.bound_handles?.[0]?.id !== null && record.bound_handles?.[0]?.id !== undefined
+              ? String(record.bound_handles[0].id)
+              : "bound-handle"),
+          handleUniqueId: boundHandleUniqueId,
+          ownerUserId:
+            normalizeOptionalString(record.bound_handle?.owner_user_uid) ??
+            (record.bound_handle?.owner_user !== null && record.bound_handle?.owner_user !== undefined
+              ? String(record.bound_handle.owner_user)
+              : normalizeOptionalString(record.bound_handles?.[0]?.owner_user_uid) ??
+                (record.bound_handles?.[0]?.owner_user !== null &&
+                record.bound_handles?.[0]?.owner_user !== undefined
+                  ? String(record.bound_handles[0].owner_user)
+                  : null)),
+          isLocked:
+            record.bound_handle?.is_locked === true || record.bound_handles?.[0]?.is_locked === true,
+        }
+      : null;
 
   return {
     sessionId,
-    agentId: agentId !== null ? String(agentId) : null,
+    agentId: agentLookupId ?? (agentId !== null ? String(agentId) : null),
     agentType: normalizeOptionalString(record.agent_type),
     actorName: normalizeOptionalString(record.actor_name),
-    title: normalizeOptionalString(record.title),
+    title: normalizeOptionalString(getAgentSessionRecordTitle(record)),
     summary: normalizeOptionalString(record.summary),
     status: normalizeOptionalString(record.status),
     startedAt: normalizeOptionalString(record.started_at),
@@ -257,11 +288,14 @@ export function normalizeAgentSessionCoreDetail(record: AgentSessionApiRecord): 
     outputPayload: normalizeOptionalRecord(record.output_payload),
     errorDetail: normalizeOptionalString(record.error_detail),
     externalStepId: normalizeOptionalString(record.external_step_id),
-    metadata: normalizeOptionalRecord(record.metadata),
+    metadata:
+      normalizeOptionalRecord(record.session_metadata) ??
+      normalizeOptionalRecord(record.metadata),
     parentStepId:
-      record.parent_step !== null && record.parent_step !== undefined
+      normalizeOptionalString(record.parent_session_uid) ??
+      (record.parent_step !== null && record.parent_step !== undefined
         ? String(record.parent_step)
-        : null,
+        : null),
     sequence: normalizeOptionalNumber(record.sequence),
     stepType: normalizeOptionalString(record.step_type),
     actorType: normalizeOptionalString(record.actor_type),
@@ -273,25 +307,7 @@ export function normalizeAgentSessionCoreDetail(record: AgentSessionApiRecord): 
         : record.created_by_user !== null && record.created_by_user !== undefined
           ? String(record.created_by_user)
         : null,
-    boundHandles: Array.isArray(record.bound_handles)
-      ? record.bound_handles.flatMap((handle) => {
-          const handleUniqueId = normalizeOptionalString(handle.handle_unique_id);
-
-          if (!handleUniqueId) {
-            return [];
-          }
-
-          return [{
-            id: String(handle.id),
-            handleUniqueId,
-            ownerUserId:
-              handle.owner_user !== null && handle.owner_user !== undefined
-                ? String(handle.owner_user)
-                : null,
-            isLocked: handle.is_locked === true,
-          }];
-        })
-      : [],
+    boundHandle,
   };
 }
 
@@ -316,11 +332,15 @@ export function buildAgentSessionDetailSnapshot({
   insightsError: string | null;
   fallbackAgentId?: string | null;
 }): AgentSessionDetailSnapshot {
+  const fallbackHandleUniqueId =
+    core?.boundHandle?.handleUniqueId ??
+    (serializedRecord ? getAgentSessionRecordHandleUniqueId(serializedRecord) : null);
+
   return {
     sessionId: session.id,
     status: detailStatus,
     detailError,
-    context: buildAgentSessionDetailContext(session, fallbackAgentId),
+    context: buildAgentSessionDetailContext(session, fallbackAgentId, fallbackHandleUniqueId),
     core,
     serializedRecord,
     insights,

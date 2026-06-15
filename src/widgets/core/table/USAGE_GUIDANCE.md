@@ -43,10 +43,92 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
   materialized frame columns. The table uses `meta.tableVisuals` as source defaults for labels,
   formats, decimal precision, widths, thresholds, and numeric visuals. Editing a setting creates
   only a local override for the touched field.
+- Put source-owned display defaults on the incoming `core.tabular_frame@v1` value under
+  `meta.tableVisuals.columns`. Each key must match a field in `columns`, a row property, or a
+  formula display column key. The supported source metadata fields are `label`, `format`,
+  `decimals`, `visible`, `width`, `thresholds`, `colorScale`, `range`, `heatmap`, `barMode`,
+  `gradientMode`, `heatmapPalette`, `gaugeMode`, `visualRangeMode`, `visualMin`, `visualMax`,
+  `kind`, `encoding`, `order`, `formulaExpression`, and `formulaResultFormat`.
+- Example source formatting metadata:
+
+  ```json
+  {
+    "status": "ready",
+    "columns": ["symbol", "last_price", "previous_close", "pnl"],
+    "rows": [
+      {
+        "symbol": "BTC",
+        "last_price": 109420.12,
+        "previous_close": 107980,
+        "pnl": -1250
+      }
+    ],
+    "meta": {
+      "tableVisuals": {
+        "columns": {
+          "symbol": {
+            "label": "Symbol",
+            "width": 120
+          },
+          "last_price": {
+            "label": "Last",
+            "format": "price",
+            "decimals": 2,
+            "width": 120
+          },
+          "previous_close": {
+            "label": "Previous close",
+            "format": "price",
+            "visible": false
+          },
+          "one_day_return": {
+            "label": "1D",
+            "format": "formula",
+            "formulaExpression": "PERCENT_CHANGE([last_price], [previous_close])",
+            "formulaResultFormat": "percent",
+            "gaugeMode": "ring"
+          },
+          "pnl": {
+            "label": "PnL",
+            "format": "currency",
+            "decimals": 0,
+            "barMode": "fill",
+            "visualRangeMode": "fixed",
+            "visualMin": -5000,
+            "visualMax": 5000,
+            "thresholds": [
+              { "operator": "lt", "value": 0, "tone": "danger" },
+              { "operator": "gt", "value": 0, "tone": "success" }
+            ]
+          }
+        }
+      }
+    }
+  }
+  ```
+
+- Source metadata `format` accepts `number`, `price`, `percent`, `volume`, `currency`, or
+  `formula`. `price` and `volume` are accepted source aliases and render through the table's numeric
+  formatting path; `volume` also requests compact numeric display.
 - Source frames can propose formula display columns through `meta.tableVisuals.columns` by setting
   `format: "formula"`, `formulaExpression`, and `formulaResultFormat`. Include any raw input fields
   the expression references in the frame and set `visible: false` on those input columns when they
   should remain available for formulas but hidden from the rendered table.
+- Create a formula column in `pro-table` settings by enabling `Formula columns`, clicking
+  `Add formula column`, setting the column key and label, choosing `Formula` as the format, then
+  authoring `Formula expression` in the column's `Advanced` panel.
+- Create a formula column from source metadata by adding a new key under
+  `meta.tableVisuals.columns` with `format: "formula"`, `formulaExpression`, and
+  `formulaResultFormat`. The formula key can be a display-only key that does not exist in each
+  source row; the table computes it from referenced row fields.
+- Formula expressions must wrap field names in brackets. Supported operators are `+`, `-`, `*`,
+  `/`, parentheses, numeric literals, and bracketed fields such as `[last_price]` or
+  `[Last Price]`. Supported functions are `PERCENT_CHANGE(current, reference)`,
+  `DIFFERENCE(left, right)`, `SUBTRACT(left, right)`, `RATIO(numerator, denominator)`,
+  `DIVIDE(numerator, denominator)`, `ADD(...)`, and `MULTIPLY(...)`.
+- Formula result formats are `text`, `datetime`, `number`, `currency`, `percent`, or `bps`.
+  Numeric formula columns can also use the same visual metadata as other numeric columns, including
+  thresholds, data bars, heatmaps, gauges, and fixed visual ranges.
 - Gauge visuals use a centered diverging fill. Positive values extend from the middle of the cell
   toward the right edge; negative values extend from the middle toward the left edge.
 - Configure table-level presentation first. In the per-column editor, the default row keeps only key, label, format, and visibility inline; expand `Advanced` when a column needs descriptions, pinning, Date/time input or output patterns, numeric visuals, or display overrides.
@@ -109,6 +191,8 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Connection response envelopes with `frames[]` are unwrapped to the first compatible publishable frame before rendering.
 - Column `key` values must match fields present in the incoming frame.
 - Numeric visuals require numeric source values and usable bounds.
+- Formula columns require the formula-capable table path. Use `pro-table` or another Enterprise
+  table-backed widget with formulas enabled; Community `table` does not evaluate formula columns.
 - Date/time formatting requires values that can be parsed automatically or by the configured input pattern.
 - Stable selection key fields should point at fields that are present in the canonical dataset. Without them, selection outputs fall back to row indexes.
 - Composed seed/live tables need either source-owned merge key metadata or a `Live merge mapping`.
@@ -122,6 +206,9 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - If this table is backed by an embedded hidden connection source, fix any source runtime error in
   the settings status card before debugging schema or formatting rules.
 - Formatting is presentation-only. Hiding a column, applying a prefix, or adding a heatmap does not modify the published table `dataset` output.
+- `meta.tableVisuals` is source-owned defaults, not a full replacement for widget settings. Prefix,
+  suffix, alignment, pinning, and Date/time input/output patterns are local widget settings unless
+  the table source metadata contract is extended.
 - Changing the upstream transform can change the output columns. Reset columns from the current frame when the saved column schema no longer matches the incoming row shape.
 - Prefix and suffix are literal display text. Do not use them to convert units or change numeric scale upstream.
 - Date/time formatting is presentation-only. It does not convert the published `dataset` output values for downstream widgets.
@@ -167,14 +254,23 @@ breaking the existing Community widget.
   `table`.
 - Configure labels, formats, grouping, search, filters, pagination, and selection outputs through
   the same shared settings surface.
+- Source-owned display defaults use the same `meta.tableVisuals.columns` block as `table`. Put
+  source labels, `format`, `decimals`, `visible`, `width`, thresholds, heatmap/data-bar/ring-gauge
+  controls, and formula display-column metadata there when the upstream frame should propose the
+  initial table presentation. Local widget edits still override those source defaults field by
+  field.
 - `Formulas` is enabled by default on `pro-table`. Mark a column as `Formula`, then author one
   expression in that column's `Advanced` section.
 - Wrap field names in brackets. Use arithmetic such as `([last_price] - [open]) / [open] * 100`
   or functions such as `PERCENT_CHANGE([last_price], [yearStart])`.
 - If a field name contains spaces or punctuation, use the same bracket syntax, for example
   `[Last Price]` or `[1D Return %]`.
-- Formula authoring is settings-only in the first implementation. The live grid remains read-only
-  and keeps its current row/cell interaction meaning.
+- Source frames can create formula display columns without saving local widget schema by declaring
+  them under `meta.tableVisuals.columns`. Use a stable formula key, set `format: "formula"`,
+  provide `formulaExpression`, and set `formulaResultFormat` to the intended renderer format.
+- Formula definitions come from Pro Table settings or source metadata. The live grid remains
+  read-only and keeps its current row/cell interaction meaning; users do not edit formulas inline
+  inside table cells.
 - Treat `pro-table` as additive. Existing `table` widgets stay valid and do not require migration.
 
 ### inputPorts
@@ -210,6 +306,8 @@ breaking the existing Community widget.
 
 - `pro-table` is not a forked table implementation. It shares the same core settings and output
   semantics as `table`.
+- `meta.tableVisuals` formatting is presentation metadata. It does not mutate the published
+  `dataset` rows and does not replace upstream transforms.
 - Formula columns are persisted shared table settings, not transient AG Grid state. If a formula
   column should move with a dataset, keep the formula column key stable in the widget settings.
 - If you need backward compatibility for an existing workspace, leave saved `table` instances on

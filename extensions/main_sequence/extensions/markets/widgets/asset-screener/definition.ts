@@ -13,6 +13,7 @@ import {
   type WidgetObjectValueDescriptor,
   type WidgetOutputResolverArgs,
 } from "@/widgets/types";
+import { MAIN_SEQUENCE_MARKETS_ASSET_SCREENER_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import {
   buildMarketAssetFrameSemanticMeta,
@@ -457,8 +458,8 @@ const mockSeedData = {
 };
 
 export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScreenerWidgetProps>({
-  id: "ms-markets-asset-screener",
-  widgetVersion: "1.11.2",
+  id: MAIN_SEQUENCE_MARKETS_ASSET_SCREENER_WIDGET_ID,
+  widgetVersion: "1.11.4",
   title: "Asset Screener",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",
@@ -526,6 +527,7 @@ export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScr
       configurationNotes: [
         "Generic tabular frames can use explicit field mappings or meta.marketAsset field roles.",
         "Derived return columns use shared table formula columns declared in meta.tableVisuals.columns.",
+        "Embedded table settings use the Pro Table configuration path for schema columns, formulas, local column overrides, value labels, conditional rules, visual formatting, live merge mapping, grouping, density, and selection outputs.",
         "Columns are dynamic view config over stable value keys such as price, volume, or marketCap.",
         "Managed connection mode still uses generic connection-query or connection-stream-query widgets; it does not create a market-specific connection contract.",
       ],

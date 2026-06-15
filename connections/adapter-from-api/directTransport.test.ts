@@ -4,10 +4,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ConnectionInstance } from "@/connections/types";
 
+import type { AdapterFromApiCompiledContract } from "./index";
 import {
   clearAdapterFromApiDirectDiscoverySessionCache,
   compileAdapterFromApiDirectContract,
   discoverAdapterFromApiDirectContract,
+  queryAdapterFromApiDirect,
   queryAdapterFromApiDirectRaw,
   readAdapterFromApiDirectDiscoverySessionCache,
   writeAdapterFromApiDirectDiscoverySessionCache,
@@ -53,6 +55,7 @@ const directConnection: ConnectionInstance = {
 
 describe("Adapter From API direct transport", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -90,6 +93,168 @@ describe("Adapter From API direct transport", () => {
     expect(requestUrl.pathname).toBe("/api/v1/account/");
     expect(requestUrl.searchParams.get("limit")).toBe("25");
     expect(requestUrl.searchParams.get("offset")).toBe("0");
+  });
+
+  it("wraps native frame responses declared by operation responseContract", async () => {
+    const nativeFrame = {
+      name: "Asset Monitor",
+      contract: "core.tabular_frame@v1",
+      fields: [
+        {
+          name: "Symbol",
+          type: "string",
+          values: ["BTC"],
+        },
+      ],
+    };
+    const connection: ConnectionInstance = {
+      ...directConnection,
+      publicConfig: {
+        ...directConnection.publicConfig,
+        compiledContract: {
+          ...(directConnection.publicConfig.compiledContract as AdapterFromApiCompiledContract),
+          availableOperations: [
+            {
+              operationId: "getAssetMonitorFrame",
+              method: "GET",
+              path: "/api/v1/asset/monitor/frame/",
+              kind: "query",
+              capabilities: ["query"],
+              parameters: {
+                path: [],
+                query: [],
+                headers: [],
+              },
+              responseContract: "core.tabular_frame@v1",
+              responseModel: "TabularFrameResponse",
+              responseMappings: [],
+            },
+          ],
+        },
+      },
+    };
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify(nativeFrame), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await queryAdapterFromApiDirect(connection, {
+      connectionId: connection.id,
+      requestedOutputContract: "core.tabular_frame@v1",
+      query: {
+        kind: "api-operation",
+        operationId: "getAssetMonitorFrame",
+        parameters: {
+          path: {},
+          query: {},
+          headers: {},
+        },
+        body: null,
+      },
+    });
+
+    expect(response.frames).toEqual([nativeFrame]);
+    const firstFetchCall = fetchMock.mock.calls[0] as unknown[] | undefined;
+    const requestUrl = new URL(String(firstFetchCall?.[0]));
+    expect(requestUrl.pathname).toBe("/api/v1/asset/monitor/frame/");
+  });
+
+  it("wraps native tabular source responses declared by operation responseContract", async () => {
+    const nativeTabularSource = {
+      status: "ready",
+      columns: ["symbol", "price"],
+      rows: [
+        {
+          symbol: "BTC",
+          price: 101,
+        },
+      ],
+      fields: [
+        {
+          key: "symbol",
+          type: "string",
+        },
+        {
+          key: "price",
+          type: "number",
+        },
+      ],
+    };
+    const connection: ConnectionInstance = {
+      ...directConnection,
+      publicConfig: {
+        ...directConnection.publicConfig,
+        compiledContract: {
+          ...(directConnection.publicConfig.compiledContract as AdapterFromApiCompiledContract),
+          availableOperations: [
+            {
+              operationId: "getAssetMonitorFrame",
+              method: "GET",
+              path: "/api/v1/asset/monitor/frame/",
+              kind: "query",
+              capabilities: ["query"],
+              parameters: {
+                path: [],
+                query: [],
+                headers: [],
+              },
+              responseContract: "core.tabular_frame@v1",
+              responseModel: "TabularFrameResponse",
+              responseMappings: [],
+            },
+          ],
+        },
+      },
+    };
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify(nativeTabularSource), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await queryAdapterFromApiDirect(connection, {
+      connectionId: connection.id,
+      requestedOutputContract: "core.tabular_frame@v1",
+      query: {
+        kind: "api-operation",
+        operationId: "getAssetMonitorFrame",
+        parameters: {
+          path: {},
+          query: {},
+          headers: {},
+        },
+        body: null,
+      },
+    });
+
+    expect(response.frames).toEqual([
+      {
+        contract: "core.tabular_frame@v1",
+        fields: [
+          {
+            name: "symbol",
+            type: "string",
+            values: ["BTC"],
+          },
+          {
+            name: "price",
+            type: "number",
+            values: [101],
+          },
+        ],
+      },
+    ]);
   });
 
   it("stores OpenAPI info.x-logo branding during direct discovery", async () => {
@@ -165,6 +330,67 @@ describe("Adapter From API direct transport", () => {
       href: "http://127.0.0.1:8021/docs",
       source: "openapi.info.x-logo",
     });
+  });
+
+  it("does not block direct discovery when optional OpenAPI metadata hangs", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = String(url);
+
+      if (requestUrl.endsWith("/.well-known/command-center/connection-contract")) {
+        return new Response(
+          JSON.stringify({
+            contractVersion: 1,
+            adapter: {
+              type: "adapter-from-api",
+              id: "markets",
+              title: "Markets API",
+            },
+            configVariables: [],
+            secretVariables: [],
+            availableOperations: [
+              {
+                operationId: "getAssetMonitorFrame",
+                method: "GET",
+                path: "/api/v1/asset/monitor/frame/",
+                kind: "query",
+                capabilities: ["query"],
+                parameters: {
+                  path: [],
+                  query: [],
+                  headers: [],
+                },
+                responseMappings: [],
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          },
+        );
+      }
+
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const discoveryPromise = discoverAdapterFromApiDirectContract("http://127.0.0.1:8021");
+    await vi.advanceTimersByTimeAsync(1000);
+    const result = await discoveryPromise;
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.compiledContract.availableOperations?.[0]?.path).toBe(
+      "/api/v1/asset/monitor/frame/",
+    );
+    expect(result.compiledContract.openapi?.logo).toBeUndefined();
   });
 
   it("excludes display-only logo metadata from the compiled contract checksum", async () => {
@@ -257,6 +483,168 @@ describe("Adapter From API direct transport", () => {
         contractVersion: "v2",
       }),
     ).toBeUndefined();
+  });
+
+  it("uses cached direct discovery contracts when the persisted direct instance has no compiled contract", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ results: [{ uid: "asset-1" }] }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+    const connection: ConnectionInstance = {
+      ...directConnection,
+      id: "direct-cache-runtime",
+      publicConfig: {
+        transportMode: "direct",
+        debugApiBaseUrl: "http://127.0.0.1:8021",
+      },
+    };
+
+    clearAdapterFromApiDirectDiscoverySessionCache(connection.id);
+    writeAdapterFromApiDirectDiscoverySessionCache(connection.id, {
+      apiBaseUrl: "http://127.0.0.1:8021",
+      contractDefinitionUrl:
+        "http://127.0.0.1:8021/.well-known/command-center/connection-contract",
+      openApiUrl: "http://127.0.0.1:8021/openapi.json",
+      compiledContract: directConnection.publicConfig
+        .compiledContract as AdapterFromApiCompiledContract,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await queryAdapterFromApiDirectRaw(connection, {
+      connectionId: connection.id,
+      query: {
+        kind: "api-operation",
+        operationId: "listAccounts",
+        parameters: {
+          path: {},
+          query: {
+            search: "asset",
+          },
+          headers: {},
+        },
+      },
+    });
+
+    const firstFetchCall = fetchMock.mock.calls[0] as unknown[] | undefined;
+    const requestUrl = new URL(String(firstFetchCall?.[0]));
+    expect(requestUrl.pathname).toBe("/api/v1/account/");
+    expect(requestUrl.searchParams.get("search")).toBe("asset");
+  });
+
+  it("prefers cached direct discovery contracts over stale persisted direct contracts", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ results: [] }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+    const connection: ConnectionInstance = {
+      ...directConnection,
+      id: "direct-cache-refresh",
+    };
+
+    clearAdapterFromApiDirectDiscoverySessionCache(connection.id);
+    writeAdapterFromApiDirectDiscoverySessionCache(connection.id, {
+      apiBaseUrl: "http://127.0.0.1:8021",
+      contractDefinitionUrl:
+        "http://127.0.0.1:8021/.well-known/command-center/connection-contract",
+      openApiUrl: "http://127.0.0.1:8021/openapi.json",
+      compiledContract: {
+        ...(directConnection.publicConfig.compiledContract as AdapterFromApiCompiledContract),
+        availableOperations: [
+          {
+            operationId: "assetMonitorFrame",
+            method: "GET",
+            path: "/api/v1/asset/monitor/frame/",
+            parameters: {
+              path: [],
+              query: [],
+              headers: [],
+            },
+            responseMappings: [],
+          },
+        ],
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await queryAdapterFromApiDirectRaw(connection, {
+      connectionId: connection.id,
+      query: {
+        kind: "api-operation",
+        operationId: "assetMonitorFrame",
+        parameters: {
+          path: {},
+          query: {},
+          headers: {},
+        },
+      },
+    });
+
+    const firstFetchCall = fetchMock.mock.calls[0] as unknown[] | undefined;
+    const requestUrl = new URL(String(firstFetchCall?.[0]));
+    expect(requestUrl.pathname).toBe("/api/v1/asset/monitor/frame/");
+  });
+
+  it("treats GET resource operations as query-capable API operations", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ results: [] }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+    const connection: ConnectionInstance = {
+      ...directConnection,
+      id: "direct-get-resource",
+      publicConfig: {
+        ...directConnection.publicConfig,
+        compiledContract: {
+          ...(directConnection.publicConfig.compiledContract as AdapterFromApiCompiledContract),
+          availableOperations: [
+            {
+              operationId: "assetMonitorFrame",
+              method: "GET",
+              path: "/api/v1/asset/monitor/frame/",
+              kind: "resource",
+              capabilities: ["resource"],
+              parameters: {
+                path: [],
+                query: [],
+                headers: [],
+              },
+              responseMappings: [],
+            },
+          ],
+        },
+      },
+    };
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await queryAdapterFromApiDirectRaw(connection, {
+      connectionId: connection.id,
+      query: {
+        kind: "api-operation",
+        operationId: "assetMonitorFrame",
+        parameters: {
+          path: {},
+          query: {},
+          headers: {},
+        },
+      },
+    });
+
+    const firstFetchCall = fetchMock.mock.calls[0] as unknown[] | undefined;
+    const requestUrl = new URL(String(firstFetchCall?.[0]));
+    expect(requestUrl.pathname).toBe("/api/v1/asset/monitor/frame/");
   });
 
   it("substitutes path placeholders by declared parameter name", async () => {

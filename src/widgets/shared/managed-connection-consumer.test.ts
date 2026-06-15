@@ -5,9 +5,10 @@ import {
   type AnyManagedConnectionConsumerAdapter,
 } from "./managed-connection-consumer";
 import { getManagedConnectionConsumerAdapter } from "./managed-connection-consumer-registry";
+import { CORE_PRO_TABLE_WIDGET_ID, CORE_TABLE_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 const testAdapter = {
-  widgetId: "table",
+  widgetId: CORE_TABLE_WIDGET_ID,
   sourceInputId: "seedData",
   sourceOutputId: "dataset",
   connectionMode: "connection",
@@ -83,11 +84,11 @@ describe("buildManagedConnectionConsumerDraftSignature", () => {
   });
 
   it("registers pro-table as a managed connection consumer on the shared table adapter path", () => {
-    const adapter = getManagedConnectionConsumerAdapter("pro-table");
+    const adapter = getManagedConnectionConsumerAdapter(CORE_PRO_TABLE_WIDGET_ID);
 
     expect(adapter).not.toBeNull();
     expect(adapter).toMatchObject({
-      widgetId: "pro-table",
+      widgetId: CORE_PRO_TABLE_WIDGET_ID,
       sourceInputId: "seedData",
       streamSourceInputId: "liveUpdates",
       sourceOutputId: "dataset",

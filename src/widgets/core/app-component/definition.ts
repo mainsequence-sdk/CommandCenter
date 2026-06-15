@@ -2,6 +2,7 @@ import { Braces } from "lucide-react";
 
 import { resolveWidgetDescription, resolveWidgetUsageGuidance } from "@/widgets/shared/widget-usage-guidance";
 import { defineWidget } from "@/widgets/types";
+import { CORE_APP_COMPONENT_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 import usageGuidanceMarkdown from "./USAGE_GUIDANCE.md?raw";
 import { resolveAppComponentWidgetIo } from "./appComponentDynamicIo";
@@ -15,7 +16,7 @@ import {
 } from "./appComponentModel";
 
 export const appComponentWidget = defineWidget<AppComponentWidgetProps>({
-  id: "app-component",
+  id: CORE_APP_COMPONENT_WIDGET_ID,
   widgetVersion: "1.2.0",
   title: "AppComponent",
   description: resolveWidgetDescription(usageGuidanceMarkdown),

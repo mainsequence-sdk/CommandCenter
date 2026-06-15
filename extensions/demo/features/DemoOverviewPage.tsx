@@ -27,6 +27,12 @@ import { getWorkspacePath } from "@/features/dashboards/workspace-favorites";
 import { cn } from "@/lib/utils";
 import { WidgetFrame, MissingWidgetFrame } from "@/widgets/shared/widget-frame";
 import type { WidgetDefinition } from "@/widgets/types";
+import {
+  CORE_CONNECTION_QUERY_WIDGET_ID,
+  CORE_GRAPH_WIDGET_ID,
+  CORE_STATISTIC_WIDGET_ID,
+  CORE_TABLE_WIDGET_ID,
+} from "@/widgets/widget-type-normalization";
 
 const globalMacroWorkspaceId = "workspace-global-macro";
 const globalMacroWorkspacePath = getWorkspacePath(globalMacroWorkspaceId);
@@ -52,7 +58,7 @@ interface EmbeddedWidgetSpec {
 const tabularWidgetSpecs: EmbeddedWidgetSpec[] = [
   {
     id: tabularSourceWidgetId,
-    widgetId: "connection-query",
+    widgetId: CORE_CONNECTION_QUERY_WIDGET_ID,
     title: "Connection Dataset",
     props: {
       queryModelId: "data-node-rows-between-dates",
@@ -72,7 +78,7 @@ const tabularWidgetSpecs: EmbeddedWidgetSpec[] = [
   },
   {
     id: "demo-overview-tabular-last-close",
-    widgetId: "statistic",
+    widgetId: CORE_STATISTIC_WIDGET_ID,
     title: "Last Close By Ticker",
     props: {
       sourceMode: "filter_widget",
@@ -88,7 +94,7 @@ const tabularWidgetSpecs: EmbeddedWidgetSpec[] = [
   },
   {
     id: "demo-overview-tabular-last-volume",
-    widgetId: "statistic",
+    widgetId: CORE_STATISTIC_WIDGET_ID,
     title: "Last Volume By Ticker",
     props: {
       sourceMode: "filter_widget",
@@ -104,7 +110,7 @@ const tabularWidgetSpecs: EmbeddedWidgetSpec[] = [
   },
   {
     id: "demo-overview-tabular-chart",
-    widgetId: "graph",
+    widgetId: CORE_GRAPH_WIDGET_ID,
     title: "Same Data, Instant Visualization",
     props: {
       sourceMode: "filter_widget",
@@ -122,7 +128,7 @@ const tabularWidgetSpecs: EmbeddedWidgetSpec[] = [
   },
   {
     id: "demo-overview-tabular-table",
-    widgetId: "table",
+    widgetId: CORE_TABLE_WIDGET_ID,
     title: "Same Data, Application Table",
     props: {
       sourceMode: "filter_widget",

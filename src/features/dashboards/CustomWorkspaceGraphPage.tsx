@@ -54,6 +54,10 @@ import { isWidgetReferenceSourceOutputId } from "@/dashboards/widget-instance-re
 import type { DashboardDefinition, DashboardWidgetInstance } from "@/dashboards/types";
 import type { ResolvedWidgetInput, ResolvedWidgetInputs } from "@/widgets/types";
 import { WIDGET_AGENT_CONTEXT_OUTPUT_ID } from "@/widgets/shared/agent-context";
+import {
+  CORE_CONNECTION_STREAM_QUERY_WIDGET_ID,
+  MAIN_SEQUENCE_AI_WORKSPACE_WIDGET_ID,
+} from "@/widgets/widget-type-normalization";
 
 import {
   appendCatalogWidget,
@@ -109,7 +113,7 @@ const REFERENCED_WORKSPACE_FRAME_MIN_HEIGHT = 220;
 const REFERENCED_WORKSPACE_FRAME_MIN_WIDTH = 380;
 const REFERENCED_WORKSPACE_NODE_WIDTH = 300;
 const REFERENCED_WORKSPACE_STACK_GAP_Y = 40;
-const WORKSPACE_REFERENCE_WIDGET_ID = "main-sequence-ai-workspace";
+const WORKSPACE_REFERENCE_WIDGET_ID = MAIN_SEQUENCE_AI_WORKSPACE_WIDGET_ID;
 const WORKSPACE_REFERENCE_OUTPUT_ID = "workspace-reference";
 const GRAPH_NODE_TYPES = {
   workspaceWidget: WorkspaceGraphNode,
@@ -312,7 +316,10 @@ function isWorkspaceGraphStreamEdge(input: {
   sourceNode: DashboardWidgetDependencyGraph["nodes"][number];
   sourceRuntimeState: unknown;
 }) {
-  if (input.edge.status !== "valid" || input.sourceNode.widgetId !== "connection-stream-query") {
+  if (
+    input.edge.status !== "valid" ||
+    input.sourceNode.widgetId !== CORE_CONNECTION_STREAM_QUERY_WIDGET_ID
+  ) {
     return false;
   }
 

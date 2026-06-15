@@ -4,6 +4,7 @@ import { MainSequenceAiError, withMainSequenceAiErrorSource } from "./error-sour
 export interface AgentSessionApiRecord {
   id?: number | string | null;
   uid?: string | null;
+  agent_uid?: string | null;
   agent_session?: number | string | null;
   agent_session_uid?: string | null;
   session_uid?: string | null;
@@ -11,7 +12,9 @@ export interface AgentSessionApiRecord {
   agent?: number | AgentSessionApiAgent;
   agent_type: string;
   agent_name: string;
+  name?: string | null;
   parent_step?: number | null;
+  parent_session_uid?: string | null;
   sequence?: number;
   step_type?: string;
   actor_type?: string;
@@ -34,18 +37,29 @@ export interface AgentSessionApiRecord {
   error_detail?: string;
   external_step_id?: string;
   metadata?: Record<string, unknown>;
+  session_metadata?: Record<string, unknown>;
   created_by_user?: number;
   created_by_user_uid?: string | null;
+  bound_handle?: {
+    uid?: string | null;
+    handle_unique_id?: string | null;
+    owner_user_uid?: string | null;
+    owner_user?: number | string | null;
+    is_locked?: boolean | null;
+  } | null;
   bound_handles?: Array<{
-    id: number;
-    handle_unique_id: string;
-    owner_user: number;
+    id?: number | string | null;
+    uid?: string | null;
+    handle_unique_id?: string | null;
+    owner_user?: number | string | null;
+    owner_user_uid?: string | null;
     is_locked: boolean;
   }>;
 }
 
 export interface AgentSessionApiAgent {
   id?: number | null;
+  uid?: string | null;
   name?: string | null;
 }
 
@@ -317,6 +331,18 @@ export function getAgentSessionRecordSessionId(record: AgentSessionApiRecord) {
   );
 }
 
+export function getAgentSessionRecordAgentLookupId(record: AgentSessionApiRecord) {
+  if (record.agent && typeof record.agent === "object" && !Array.isArray(record.agent)) {
+    const nestedUid = normalizeIdentifier(record.agent.uid);
+
+    if (nestedUid) {
+      return nestedUid;
+    }
+  }
+
+  return normalizeIdentifier(record.agent_uid);
+}
+
 export function getAgentSessionRecordAgentId(record: AgentSessionApiRecord) {
   if (typeof record.agent === "number" && Number.isFinite(record.agent)) {
     return record.agent;
@@ -347,7 +373,12 @@ export function getAgentSessionRecordAgentName(record: AgentSessionApiRecord) {
 
 export function getAgentSessionRecordTitle(record: AgentSessionApiRecord) {
   const sessionId = getAgentSessionRecordSessionId(record);
-  return record.title?.trim() || record.summary?.trim() || `Agent session ${sessionId}`;
+  return (
+    record.name?.trim() ||
+    record.title?.trim() ||
+    record.summary?.trim() ||
+    `Agent session ${sessionId}`
+  );
 }
 
 export function getAgentSessionRecordSummary(record: AgentSessionApiRecord) {
@@ -356,8 +387,14 @@ export function getAgentSessionRecordSummary(record: AgentSessionApiRecord) {
 }
 
 export function getAgentSessionRecordHandleUniqueId(record: AgentSessionApiRecord) {
-  const handle = Array.isArray(record.bound_handles) ? record.bound_handles[0] : null;
-  return handle?.handle_unique_id?.trim() || null;
+  const singularHandle = record.bound_handle;
+
+  if (singularHandle?.handle_unique_id?.trim()) {
+    return singularHandle.handle_unique_id.trim();
+  }
+
+  const legacyHandle = Array.isArray(record.bound_handles) ? record.bound_handles[0] : null;
+  return legacyHandle?.handle_unique_id?.trim() || null;
 }
 
 export function getAgentSessionRecordUpdatedAt(record: AgentSessionApiRecord) {
