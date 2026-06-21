@@ -22,6 +22,12 @@ export const POSTGRESQL_CONNECTION_PERMISSIONS = [
 export const TIMESCALEDB_CONNECTION_PERMISSIONS = [
   "timescaledb:query",
 ] as const satisfies Permission[];
+export const MYSQL_CONNECTION_PERMISSIONS = [
+  "mysql:query",
+] as const satisfies Permission[];
+export const MSSQL_CONNECTION_PERMISSIONS = [
+  "mssql:query",
+] as const satisfies Permission[];
 
 export const ROLE_LABELS: Record<BuiltinAppRole, string> = {
   user: "User",
@@ -67,6 +73,8 @@ export const ROLE_PERMISSIONS: Record<BuiltinAppRole, Permission[]> = {
     ...PROMETHEUS_CONNECTION_PERMISSIONS,
     ...POSTGRESQL_CONNECTION_PERMISSIONS,
     ...TIMESCALEDB_CONNECTION_PERMISSIONS,
+    ...MYSQL_CONNECTION_PERMISSIONS,
+    ...MSSQL_CONNECTION_PERMISSIONS,
   ],
 };
 
@@ -155,6 +163,18 @@ export const CORE_PERMISSION_DEFINITIONS = [
     description: "Query backend-owned TimescaleDB data-source instances.",
     category: "Connections",
   },
+  {
+    id: "mysql:query",
+    label: "MySQL / query",
+    description: "Query backend-owned MySQL data-source instances.",
+    category: "Connections",
+  },
+  {
+    id: "mssql:query",
+    label: "SQL Server / query",
+    description: "Query backend-owned SQL Server data-source instances.",
+    category: "Connections",
+  },
 ] as const satisfies PermissionDefinition[];
 
 export const ALL_PERMISSIONS: Permission[] = Array.from(
@@ -163,6 +183,8 @@ export const ALL_PERMISSIONS: Permission[] = Array.from(
     ...PROMETHEUS_CONNECTION_PERMISSIONS,
     ...POSTGRESQL_CONNECTION_PERMISSIONS,
     ...TIMESCALEDB_CONNECTION_PERMISSIONS,
+    ...MYSQL_CONNECTION_PERMISSIONS,
+    ...MSSQL_CONNECTION_PERMISSIONS,
   ]),
 );
 
@@ -286,6 +308,8 @@ export function buildEffectivePermissions({
     merged.add(ORGANIZATION_ADMIN_PERMISSION);
     PROMETHEUS_CONNECTION_PERMISSIONS.forEach((permission) => merged.add(permission));
     POSTGRESQL_CONNECTION_PERMISSIONS.forEach((permission) => merged.add(permission));
+    MYSQL_CONNECTION_PERMISSIONS.forEach((permission) => merged.add(permission));
+    MSSQL_CONNECTION_PERMISSIONS.forEach((permission) => merged.add(permission));
   }
 
   return Array.from(merged);

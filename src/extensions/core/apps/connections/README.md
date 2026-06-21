@@ -37,6 +37,9 @@ registered by `src/extensions/connections/index.ts` as a standalone extension ga
 - The Data Sources list keeps backend `id` values out of the main operator-facing table. IDs stay
   available in edit/detail flows, but the list should emphasize the user-facing name, type, health,
   and secret metadata.
+- The Data Sources surface accepts `connectionUid` in the URL query string and opens that
+  connection's edit/detail panel directly. Other app surfaces can link to
+  `/app/connections/data-sources?connectionUid=<uid>` instead of duplicating connection detail UI.
 - The generic Explore surface uses `src/connections/ConnectionQueryWorkbench.tsx`, matching the
   workspace Connection Query widget settings path for connection path selection, typed query
   editors, generated request preview, test execution, and normalized frame preview. When the

@@ -1,4 +1,5 @@
 import postgresqlIcon from "@/connections/assets/postgresql-logo.svg";
+import mssqlIcon from "@/connections/assets/mssql-logo.svg";
 import dataLakeIcon from "../assets/physical-data-sources/data_lake_32x32.png";
 import duckDbIcon from "../assets/physical-data-sources/duck_db.png";
 import jupyterIcon from "../assets/physical-data-sources/jupyter-svgrepo-com.svg";
@@ -7,10 +8,14 @@ import timescaleIcon from "../assets/physical-data-sources/timescale.png";
 
 const iconByClassType: Record<string, string> = {
   duck_db: duckDbIcon,
+  mssql: mssqlIcon,
+  mssql_db: mssqlIcon,
   postgres: postgresqlIcon,
   postgres_db: postgresqlIcon,
   postgresql: postgresqlIcon,
   postgresql_db: postgresqlIcon,
+  sql_server: mssqlIcon,
+  sqlserver: mssqlIcon,
   timescale_db: timescaleIcon,
   timescale_db_remote: timescaleIcon,
 };

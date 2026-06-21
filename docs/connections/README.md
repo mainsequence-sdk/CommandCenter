@@ -20,6 +20,8 @@ Related ADRs:
 - [Connection-First Workspace Dataflow](../adr/command_center/adr-connection-first-workspace-dataflow.md)
 - [Standardized Connection Result Contracts](../adr/command_center/adr-standardized-connection-result-contracts.md)
 - [PostgreSQL Custom Connection](../adr/command_center/adr-postgresql-connection.md)
+- [Client-Side MySQL Connection Type](../adr/command_center/adr-077-client-side-mysql-connection.md)
+- [Client-Side SQL Server Connection Type](../adr/command_center/adr-078-client-side-sql-server-connection.md)
 - [Main Sequence Simple Table Connection](../adr/command_center/adr-main-sequence-simple-table-connection.md)
 
 ## What A Connection Is

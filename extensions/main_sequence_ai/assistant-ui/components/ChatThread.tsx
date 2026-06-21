@@ -630,6 +630,7 @@ function Composer({
   isSessionReady = true,
   isSessionLoading = false,
   isSessionBusy,
+  showStopControl = false,
   model,
   modelOptions,
   onProviderChange,
@@ -655,6 +656,7 @@ function Composer({
   isSessionReady?: boolean;
   isSessionLoading?: boolean;
   isSessionBusy?: boolean;
+  showStopControl?: boolean;
   model: ComposerModelOption;
   modelOptions: ReadonlyArray<{ disabled?: boolean; label: string; value: ComposerModelOption }>;
   onProviderChange?: (value: string) => void;
@@ -698,6 +700,7 @@ function Composer({
     sessionLoading ||
     !isSessionReady ||
     Boolean(isSessionBusy);
+  const canShowStopControl = Boolean(isSessionBusy && showStopControl);
   const modelsUnavailableMessage = modelCatalogError
     ? formatModelsUnavailableMessage(availableModelsError)
     : formatEmptyModelCatalogMessage();
@@ -738,7 +741,7 @@ function Composer({
             "w-full resize-none overflow-y-auto bg-transparent py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60",
           )}
         />
-        {isSessionBusy ? (
+        {canShowStopControl ? (
           <button
             type="button"
             aria-label={isCancellingSession ? "Stopping session" : "Stop session"}
@@ -749,6 +752,14 @@ function Composer({
           >
             <Square className="h-3.5 w-3.5 fill-current" />
           </button>
+        ) : isSessionBusy ? (
+          <div
+            aria-label={busyPlaceholder}
+            title={busyPlaceholder}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center self-end rounded-full bg-primary/12 text-primary"
+          >
+            <Loader2 className="h-4 w-4 animate-spin" />
+          </div>
         ) : (
           <ComposerPrimitive.Send
             aria-label="Send message"
@@ -1043,6 +1054,8 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
     selectedReasoningEffortValue ?? reasoningEffortOptions[0]?.value ?? "";
   const sessionBusy =
     threadIsRunning || isCreatingAgentSession || Boolean(activeSessionSummary?.working);
+  const showStopControl =
+    !isCreatingAgentSession && (threadIsRunning || Boolean(activeSessionSummary?.working));
   const busyPlaceholder = isCreatingAgentSession
     ? "Creating AgentSession..."
     : activeSessionSummary?.working
@@ -1146,6 +1159,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                   isSessionReady={isActiveSessionReady}
                   isSessionLoading={isActiveSessionLoading}
                   isSessionBusy={sessionBusy}
+                  showStopControl={showStopControl}
                   model={selectedModel}
                   modelOptions={modelOptions}
                   onProviderChange={setSelectedProviderValue}
@@ -1244,6 +1258,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     isSessionReady={isActiveSessionReady}
                     isSessionLoading={isActiveSessionLoading}
                     isSessionBusy={sessionBusy}
+                    showStopControl={showStopControl}
                     model={selectedModel}
                     modelOptions={modelOptions}
                     onProviderChange={setSelectedProviderValue}
@@ -1282,6 +1297,7 @@ export function ChatThread({ compact = false, surface = "overlay" }: ChatThreadP
                     isSessionReady={isActiveSessionReady}
                     isSessionLoading={isActiveSessionLoading}
                     isSessionBusy={sessionBusy}
+                    showStopControl={showStopControl}
                     model={selectedModel}
                     modelOptions={modelOptions}
                     onProviderChange={setSelectedProviderValue}

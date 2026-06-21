@@ -1,21 +1,17 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getAppPath } from "@/apps/utils";
-import { useAuthStore } from "@/auth/auth-store";
-import { hasOrganizationAdminAccess } from "@/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
-import { useToast } from "@/components/ui/toaster";
 
 import {
-  fetchClusterDetail,
+  fetchClusterSummary,
   formatMainSequenceError,
   listClusterDeployments,
   listClusterKnative,
@@ -25,10 +21,7 @@ import {
   listClusterPods,
   listClusterServices,
   listClusterStorage,
-  scaleCluster,
   type ClusterDeploymentRow,
-  type ClusterDetailStatItem,
-  type ClusterDetailSummary,
   type ClusterDetailTabDefinition,
   type ClusterDetailTabId,
   type ClusterKnativeRow,
@@ -36,10 +29,12 @@ import {
   type ClusterNodePoolRow,
   type ClusterNodeRow,
   type ClusterPodRow,
+  type ClusterSummaryResponse,
   type ClusterServiceRow,
   type ClusterStorageRow,
 } from "../../../../common/api";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
+import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 
 const clusterDetailTabs = [
   "node_pools",
@@ -146,9 +141,9 @@ function extractTabLabel(tab: ClusterDetailTabDefinition, id: ClusterDetailTabId
   return rawLabel || clusterTabLabels[id];
 }
 
-function resolveRenderedTabs(summary: ClusterDetailSummary | null): ClusterRenderedTab[] {
+function resolveRenderedTabs(summary: ClusterSummaryResponse | null): ClusterRenderedTab[] {
   const seen = new Set<ClusterDetailTabId>();
-  const summaryTabs = Array.isArray(summary?.tabs) ? summary.tabs : [];
+  const summaryTabs = Array.isArray(summary?.extensions?.tabs) ? summary.extensions.tabs : [];
   const renderedTabs = summaryTabs.flatMap((tab) => {
     const id = extractTabId(tab);
 
@@ -219,75 +214,6 @@ function formatCellValue(value: unknown) {
   return String(value);
 }
 
-function getClusterSummaryString(summary: ClusterDetailSummary, key: string) {
-  const topLevelValue = (summary as Record<string, unknown>)[key];
-
-  if (typeof topLevelValue === "string" && topLevelValue.trim()) {
-    return topLevelValue.trim();
-  }
-
-  const nestedValue = summary.cluster?.[key];
-  return typeof nestedValue === "string" && nestedValue.trim() ? nestedValue.trim() : null;
-}
-
-function getClusterSummaryBoolean(summary: ClusterDetailSummary, key: string) {
-  const topLevelValue = (summary as Record<string, unknown>)[key];
-
-  if (typeof topLevelValue === "boolean") {
-    return topLevelValue;
-  }
-
-  const nestedValue = summary.cluster?.[key];
-  return typeof nestedValue === "boolean" ? nestedValue : false;
-}
-
-function getClusterStatLabel(stat: ClusterDetailStatItem) {
-  return String(stat.label ?? stat.title ?? stat.name ?? "Metric").trim() || "Metric";
-}
-
-function getClusterStatValue(stat: ClusterDetailStatItem) {
-  return formatCellValue(stat.display ?? stat.value ?? null);
-}
-
-function getClusterStatMeta(stat: ClusterDetailStatItem) {
-  const value = String(stat.info ?? stat.description ?? "").trim();
-  return value || null;
-}
-
-function alphaColor(color: string | null | undefined, alpha = "1f") {
-  const trimmed = color?.trim() ?? "";
-
-  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) {
-    return `${trimmed}${alpha}`;
-  }
-
-  return undefined;
-}
-
-function ClusterStatusPill({
-  color,
-  status,
-}: {
-  color?: string | null;
-  status?: string | null;
-}) {
-  const resolvedStatus = status?.trim() || "Unknown";
-  const resolvedColor = color?.trim() || "var(--muted-foreground)";
-
-  return (
-    <div
-      className="inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium"
-      style={{
-        color: resolvedColor,
-        borderColor: alphaColor(color, "4d") ?? "color-mix(in srgb, var(--border) 70%, transparent)",
-        backgroundColor: alphaColor(color, "1f") ?? "color-mix(in srgb, var(--background) 80%, transparent)",
-      }}
-    >
-      {resolvedStatus}
-    </div>
-  );
-}
-
 function ClusterDetailTable<Row>({
   columns,
   minWidthClassName,
@@ -349,45 +275,25 @@ function ClusterDetailTable<Row>({
   );
 }
 
-function buildScaleConfirmationMessage(result: { detail?: string; message?: string; confirmation?: string }) {
-  const value = result.confirmation ?? result.message ?? result.detail ?? "";
-  const trimmed = value.trim();
-  return trimmed || "Cluster scale request submitted.";
-}
-
 export function MainSequenceClusterDetailPage() {
   const { clusterUid: rawClusterUid } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const user = useAuthStore((state) => state.session?.user ?? null);
   const clusterUid = rawClusterUid?.trim() ?? "";
   const isClusterUidValid = clusterUid.length > 0;
-  const [desiredNodeCountValue, setDesiredNodeCountValue] = useState("");
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const rawTab = searchParams.get("tab");
   const activeTab = normalizeClusterDetailTab(rawTab);
   const namespaceFilter = normalizeQueryParam(searchParams.get("namespace"));
   const nodePoolFilter = normalizeQueryParam(searchParams.get("node_pool"));
-  const showScaleControl = user ? hasOrganizationAdminAccess(user) : true;
-  const desiredNodeCountInput = desiredNodeCountValue.trim();
-  const scaleValidationError = useMemo(() => {
-    if (!desiredNodeCountInput) {
-      return null;
-    }
-
-    const parsedValue = Number(desiredNodeCountInput);
-
-    if (!Number.isInteger(parsedValue) || parsedValue < 0) {
-      return "Desired node count must be an integer greater than or equal to 0.";
-    }
-
-    return null;
-  }, [desiredNodeCountInput]);
 
   const summaryQuery = useQuery({
-    queryKey: ["main_sequence", "clusters", "detail", clusterUid],
-    queryFn: () => fetchClusterDetail(clusterUid),
+    queryKey: ["main_sequence", "clusters", "summary", clusterUid, namespaceFilter ?? "", nodePoolFilter ?? ""],
+    queryFn: () =>
+      fetchClusterSummary(clusterUid, {
+        namespace: namespaceFilter ?? undefined,
+        nodePool: nodePoolFilter ?? undefined,
+      }),
     enabled: isClusterUidValid,
     staleTime: 30_000,
   });
@@ -440,29 +346,6 @@ export function MainSequenceClusterDetailPage() {
     enabled: isClusterUidValid && summaryQuery.isSuccess,
   });
 
-  const scaleMutation = useMutation({
-    mutationFn: (desiredNodeCount: number) =>
-      scaleCluster(clusterUid, {
-        desiredNodeCount,
-      }),
-    onSuccess: async (result) => {
-      toast({
-        variant: "success",
-        title: "Cluster scale submitted",
-        description: buildScaleConfirmationMessage(result),
-      });
-
-      await Promise.all([summaryQuery.refetch(), activeTabQuery.refetch()]);
-    },
-    onError: (error) => {
-      toast({
-        variant: "error",
-        title: "Cluster scale failed",
-        description: formatMainSequenceError(error),
-      });
-    },
-  });
-
   useEffect(() => {
     if (!isClusterUidValid) {
       return;
@@ -486,45 +369,10 @@ export function MainSequenceClusterDetailPage() {
 
   const summary = summaryQuery.data ?? null;
   const renderedTabs = useMemo(() => resolveRenderedTabs(summary), [summary]);
-  const clusterName = summary?.cluster.cluster_name?.trim() || `Cluster ${clusterUid}`;
-  const clusterDescription = summary?.cluster.cluster_description?.trim() || "";
-  const clusterUuid = summary?.cluster.uuid?.trim() || "";
-  const metadataItems = summary
-    ? [
-        {
-          label: "Cloud provider",
-          value: getClusterSummaryString(summary, "cloud_provider_label"),
-        },
-        {
-          label: "Location",
-          value: getClusterSummaryString(summary, "location"),
-        },
-        {
-          label: "Configuration",
-          value: getClusterSummaryString(summary, "cluster_configuration_name"),
-        },
-      ]
-    : [];
-  const capabilityItems = summary
-    ? [
-        {
-          key: "allow_to_run_jupyter_hub",
-          label: "Jupyter Hub",
-          enabled: getClusterSummaryBoolean(summary, "allow_to_run_jupyter_hub"),
-        },
-        {
-          key: "allow_to_run_data_sources",
-          label: "Data Sources",
-          enabled: getClusterSummaryBoolean(summary, "allow_to_run_data_sources"),
-        },
-        {
-          key: "is_auto_pilot_cluster",
-          label: "Autopilot",
-          enabled: getClusterSummaryBoolean(summary, "is_auto_pilot_cluster"),
-        },
-      ]
-    : [];
-  const statsItems = Array.isArray(summary?.stats_items) ? summary.stats_items : [];
+  const clusterName = summary?.entity.title?.trim() || summary?.extensions?.cluster?.cluster_name?.trim() || `Cluster ${clusterUid}`;
+  const resolvedClusterUid =
+    summary?.extensions?.cluster?.uid?.trim() ||
+    (typeof summary?.entity.id === "string" && summary.entity.id.trim() ? summary.entity.id.trim() : clusterUid);
   const hasActiveFilters = Boolean(namespaceFilter || nodePoolFilter);
 
   function updateSearchParams(
@@ -583,33 +431,11 @@ export function MainSequenceClusterDetailPage() {
   }
 
   function openPodLogs(podName: string) {
-    if (!clusterUuid) {
+    if (!resolvedClusterUid) {
       return;
     }
 
-    window.location.assign(`/clusters/${clusterUuid}/pods/${encodeURIComponent(podName)}/logs/`);
-  }
-
-  async function handleScaleCluster() {
-    if (!desiredNodeCountInput) {
-      toast({
-        variant: "error",
-        title: "Cluster scale failed",
-        description: "Enter a desired node count.",
-      });
-      return;
-    }
-
-    if (scaleValidationError) {
-      toast({
-        variant: "error",
-        title: "Cluster scale failed",
-        description: scaleValidationError,
-      });
-      return;
-    }
-
-    await scaleMutation.mutateAsync(Number(desiredNodeCountInput));
+    window.location.assign(`/clusters/${resolvedClusterUid}/pods/${encodeURIComponent(podName)}/logs/`);
   }
 
   const nodePoolColumns: ClusterTableColumn<ClusterNodePoolRow>[] = [
@@ -710,7 +536,7 @@ export function MainSequenceClusterDetailPage() {
           type="button"
           className="group inline-flex items-center gap-1.5 rounded-sm text-left font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
           onClick={() => openPodLogs(row.name)}
-          disabled={!clusterUuid}
+          disabled={!resolvedClusterUid}
         >
           <span>{row.name}</span>
         </button>
@@ -961,115 +787,21 @@ export function MainSequenceClusterDetailPage() {
           <span>/</span>
           <span className="text-foreground">{clusterName}</span>
         </div>
-        <Button variant="outline" size="sm" onClick={() => navigate(getAppPath("main_sequence_workbench", "clusters"))}>
-          <ArrowLeft className="h-4 w-4" />
-          Back to clusters
-        </Button>
       </div>
 
       <PageHeader
         eyebrow="Main Sequence"
         title={clusterName}
-        description={clusterDescription || undefined}
+        description="Detail view for the selected cluster."
         actions={
-          <>
-            <ClusterStatusPill
-              status={summary.cluster_status?.status ?? "Unknown"}
-              color={summary.cluster_status?.color ?? undefined}
-            />
-            {showScaleControl ? (
-              <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/36 px-3 py-3">
-                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                  Scale cluster
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={desiredNodeCountValue}
-                    onChange={(event) => setDesiredNodeCountValue(event.target.value)}
-                    className="w-28"
-                    placeholder="0"
-                    disabled={scaleMutation.isPending}
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => {
-                      void handleScaleCluster();
-                    }}
-                    disabled={
-                      scaleMutation.isPending ||
-                      !desiredNodeCountInput ||
-                      Boolean(scaleValidationError)
-                    }
-                  >
-                    {scaleMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : null}
-                    Scale
-                  </Button>
-                </div>
-                <div
-                  className={`mt-1 text-xs ${scaleValidationError ? "text-danger" : "text-muted-foreground"}`}
-                >
-                  {scaleValidationError ?? "Desired node count"}
-                </div>
-              </div>
-            ) : null}
-          </>
+          <Button variant="outline" size="sm" onClick={() => navigate(getAppPath("main_sequence_workbench", "clusters"))}>
+            <ArrowLeft className="h-4 w-4" />
+            Back to clusters
+          </Button>
         }
       />
 
-      {summary.summary_warning ? (
-        <div className="rounded-[calc(var(--radius)-6px)] border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-          {summary.summary_warning}
-        </div>
-      ) : null}
-
-      <Card variant="nested">
-        <CardContent className="grid gap-4 pt-5 md:grid-cols-3">
-          {metadataItems.map((item) => (
-            <div key={item.label} className="space-y-1">
-              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                {item.label}
-              </div>
-              <div className="text-sm font-medium text-foreground">
-                {item.value || "Not available"}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-wrap gap-2">
-        {capabilityItems.map((capability) => (
-          <Badge key={capability.key} variant={capability.enabled ? "success" : "neutral"}>
-            {capability.label}: {capability.enabled ? "Enabled" : "Disabled"}
-          </Badge>
-        ))}
-      </div>
-
-      {statsItems.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {statsItems.map((item, index) => (
-            <Card key={`${getClusterStatLabel(item)}-${index}`} variant="nested">
-              <CardContent className="space-y-2 pt-5">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  {getClusterStatLabel(item)}
-                </div>
-                <div className="text-2xl font-semibold tracking-tight text-foreground">
-                  {getClusterStatValue(item)}
-                </div>
-                {getClusterStatMeta(item) ? (
-                  <div className="text-sm text-muted-foreground">{getClusterStatMeta(item)}</div>
-                ) : null}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : null}
+      <MainSequenceEntitySummaryCard summary={summary} />
 
       <Card>
         <CardHeader className="border-b border-border/70 pb-4">

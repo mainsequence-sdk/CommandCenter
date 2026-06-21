@@ -23,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import {
@@ -50,6 +49,7 @@ import { getAgentSessionDetailPath } from "../../agent-session-detail/routes";
 import { useChatFeature } from "../../assistant-ui/ChatProvider";
 import { CHAT_PAGE_PATH } from "../../assistant-ui/chat-ui-store";
 import { AutomationDitherWaveLayer } from "../../components/AutomationButton";
+import { RunConfigFields } from "../../components/RunConfigFields";
 import { AgentCapabilitiesTab } from "../../features/agent-capabilities/AgentCapabilitiesTab";
 import { ProjectAgentConfigurator } from "../../features/project-agents/ProjectAgentConfigurator";
 import {
@@ -1376,9 +1376,6 @@ export function AgentDetailView({
     }
 
     if (handleSessionRunConfig.reasoningOptions.length === 0) {
-      if (handleSessionLlmThinking) {
-        setHandleSessionLlmThinking("");
-      }
       return;
     }
 
@@ -1487,7 +1484,7 @@ export function AgentDetailView({
               },
               {
                 icon: Bot,
-                label: "Create session with handle",
+                label: "Session handle",
                 onSelect: openSessionWithHandleDialog,
               },
             ]}
@@ -1670,7 +1667,7 @@ export function AgentDetailView({
           }
         }}
         closeOnBackdropClick
-        title="Create Session With Handle"
+        title="Create Session Handle"
         description={title}
         className="max-w-[min(760px,calc(100vw-24px))]"
       >
@@ -1685,24 +1682,27 @@ export function AgentDetailView({
           }}
         >
           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-3 text-sm text-muted-foreground">
-            Creates or reuses a backend AgentSession for this agent and binds it to a stable
-            handle. User ownership is resolved by the authenticated request.
+            Bind this agent to a stable backend AgentSession handle. If the handle already exists,
+            the backend reuses that session.
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Handle unique ID</label>
+              <label className="text-xs text-muted-foreground">Handle ID</label>
               <Input
                 className="h-11 bg-card/70"
                 value={handleUniqueId}
                 onChange={(event) => setHandleUniqueId(event.target.value)}
-                placeholder="for example project:alpha:primary-agent"
+                placeholder="portfolio_scraper"
                 disabled={createSessionWithHandleMutation.isPending}
               />
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                Stable key used to find this session again.
+              </p>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Name</label>
+              <label className="text-xs text-muted-foreground">Session name</label>
               <Input
                 className="h-11 bg-card/70"
                 value={handleSessionName}
@@ -1710,84 +1710,26 @@ export function AgentDetailView({
                 placeholder="Session name"
                 disabled={createSessionWithHandleMutation.isPending}
               />
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                Human-readable label shown in session lists.
+              </p>
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Provider</label>
-              <Select
-                aria-label="LLM provider"
-                className="h-11 w-full bg-card/70"
-                disabled={
-                  createSessionWithHandleMutation.isPending ||
-                  handleSessionRunConfig.providerOptions.length === 0
-                }
-                value={handleSessionRunConfig.effectiveProvider}
-                onChange={(event) => {
-                  setHandleSessionLlmProvider(event.target.value);
-                  setHandleSessionLlmModelId("");
-                  setHandleSessionLlmThinking("");
-                }}
-              >
-                {handleSessionRunConfig.providerOptions.length === 0 ? (
-                  <option value="">No providers available</option>
-                ) : null}
-                {handleSessionRunConfig.providerOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Model</label>
-              <Select
-                aria-label="LLM model"
-                className="h-11 w-full bg-card/70"
-                disabled={
-                  createSessionWithHandleMutation.isPending ||
-                  handleSessionRunConfig.modelOptions.length === 0
-                }
-                value={handleSessionRunConfig.effectiveModelId}
-                onChange={(event) => {
-                  setHandleSessionLlmModelId(event.target.value);
-                  setHandleSessionLlmThinking("");
-                }}
-              >
-                {handleSessionRunConfig.modelOptions.length === 0 ? (
-                  <option value="">No models available</option>
-                ) : null}
-                {handleSessionRunConfig.modelOptions.map((option) => (
-                  <option key={option.value} value={option.value} disabled={option.disabled}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            {handleSessionRunConfig.reasoningOptions.length > 0 ? (
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Reasoning</label>
-                <Select
-                  aria-label="LLM reasoning"
-                  className="h-11 w-full bg-card/70"
-                  disabled={createSessionWithHandleMutation.isPending}
-                  value={handleSessionRunConfig.resolvedThinking}
-                  onChange={(event) => {
-                    setHandleSessionLlmThinking(event.target.value);
-                  }}
-                >
-                  {handleSessionRunConfig.reasoningOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            ) : null}
-          </div>
+          <RunConfigFields
+            disabled={createSessionWithHandleMutation.isPending}
+            selection={handleSessionRunConfig}
+            onProviderChange={(provider) => {
+              setHandleSessionLlmProvider(provider);
+              setHandleSessionLlmModelId("");
+              setHandleSessionLlmThinking("");
+            }}
+            onModelChange={(modelId) => {
+              setHandleSessionLlmModelId(modelId);
+              setHandleSessionLlmThinking("");
+            }}
+            onThinkingChange={setHandleSessionLlmThinking}
+          />
 
           {runConfigOptionsQuery.isLoading ? (
             <div className="flex items-center gap-2 rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/24 px-3 py-2 text-xs text-muted-foreground">
@@ -1809,10 +1751,6 @@ export function AgentDetailView({
             </div>
           ) : null}
 
-          <div className="rounded-[calc(var(--radius)-8px)] border border-border/60 bg-background/18 px-3 py-2 font-mono text-xs text-muted-foreground">
-            session_metadata: {JSON.stringify({})}
-          </div>
-
           <div className="flex justify-end gap-2 border-t border-border/60 pt-4">
             <Button
               type="button"
@@ -1828,7 +1766,7 @@ export function AgentDetailView({
               ) : (
                 <Bot className="h-4 w-4" />
               )}
-              Create session with handle
+              Create Session Handle
             </Button>
           </div>
         </form>

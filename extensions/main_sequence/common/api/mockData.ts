@@ -1335,14 +1335,18 @@ function buildEntitySummary(
     highlightFields = [],
     stats = [],
     extra,
+    extensions,
     readme,
+    summaryWarning,
   }: {
     badges?: Array<Record<string, unknown>>;
     inlineFields?: Array<Record<string, unknown>>;
     highlightFields?: Array<Record<string, unknown>>;
     stats?: Array<Record<string, unknown>>;
     extra?: Record<string, unknown>;
+    extensions?: Record<string, unknown>;
     readme?: Record<string, unknown>;
+    summaryWarning?: string | null;
   } = {},
 ) {
   return {
@@ -1356,7 +1360,9 @@ function buildEntitySummary(
     highlight_fields: highlightFields,
     stats,
     ...(extra ? { extra } : {}),
+    ...(extensions ? { extensions } : {}),
     ...(readme ? { readme } : {}),
+    ...(summaryWarning ? { summary_warning: summaryWarning } : {}),
   };
 }
 
@@ -1641,6 +1647,33 @@ function buildMetaTableSummary(metaTable: Record<string, unknown>) {
   );
 }
 
+function buildMetaTableGeneratedSearchDocument(
+  metaTable: Record<string, unknown> | null | undefined,
+  fallbackUid: string,
+) {
+  const title =
+    readString(metaTable?.identifier) ||
+    readString(metaTable?.meta_table_name) ||
+    readString(metaTable?.table_name) ||
+    readString(metaTable?.uid) ||
+    fallbackUid;
+  const description = readString(metaTable?.description) || "No stored description is available.";
+  const columns = readArray(metaTable?.columns);
+  const columnNames = columns
+    .map((column) => readString((column as Record<string, unknown>)?.name))
+    .filter(Boolean);
+
+  return [
+    `# ${title}`,
+    "",
+    description,
+    "",
+    columnNames.length > 0
+      ? `Columns: ${columnNames.join(", ")}`
+      : "No column metadata is available.",
+  ].join("\n");
+}
+
 function buildBucketSummary(bucket: Record<string, unknown>) {
   const objects = state.bucketObjects.filter(
     (entry) => readNumber(entry.bucket_id) === readNumber(bucket.id),
@@ -1864,14 +1897,13 @@ function buildBucketBrowse(bucketUid: string, searchParams: URLSearchParams) {
 
 function buildClusterList(searchParams: URLSearchParams) {
   const filtered = state.clusters.filter((cluster) =>
-    matchesSearch([cluster.id, cluster.uuid, cluster.cluster_name], searchParams.get("search")),
+    matchesSearch([cluster.id, cluster.uid, cluster.uuid, cluster.cluster_name], searchParams.get("search")),
   );
 
   return {
     search: searchParams.get("search") ?? "",
     rows: filtered.map((cluster) => ({
-      id: readNumber(cluster.id),
-      uuid: readString(cluster.uuid),
+      uid: readString(cluster.uid) || readString(cluster.uuid),
       cluster_name: readString(cluster.cluster_name),
     })),
     pagination: buildFrontendPagination(
@@ -1882,41 +1914,167 @@ function buildClusterList(searchParams: URLSearchParams) {
   };
 }
 
-function buildClusterDetail(cluster: Record<string, unknown>) {
-  return {
-    cluster: {
-      id: readNumber(cluster.id),
-      uuid: readString(cluster.uuid),
-      cluster_name: readString(cluster.cluster_name),
-      cluster_description: readString(cluster.cluster_description),
+function buildClusterSummary(cluster: Record<string, unknown>, searchParams: URLSearchParams) {
+  const clusterUid = readString(cluster.uid) || readString(cluster.uuid);
+  const status = readString(cluster.cluster_status) || "UNKNOWN";
+  const tone = readString(cluster.cluster_status_color) || "neutral";
+  const namespace = searchParams.get("namespace") ?? "";
+  const nodePool = searchParams.get("node_pool") ?? "";
+
+  return buildEntitySummary(clusterUid, "cluster", readString(cluster.cluster_name) || `Cluster ${clusterUid}`, {
+    badges: [
+      {
+        key: "cluster_status",
+        label: status,
+        tone,
+      },
+    ],
+    inlineFields: [
+      {
+        key: "uid",
+        label: "Cluster UID",
+        value: clusterUid,
+        kind: "code",
+      },
+      {
+        key: "location",
+        label: "Location",
+        value: readString(cluster.location) || "Unavailable",
+        kind: "text",
+      },
+      {
+        key: "provider",
+        label: "Provider",
+        value: readString(cluster.cloud_provider_label) || "Unknown",
+        kind: "text",
+      },
+      {
+        key: "active_namespace_filter",
+        label: "Namespace filter",
+        value: namespace || "All namespaces",
+        kind: "text",
+      },
+      {
+        key: "active_node_pool_filter",
+        label: "Node pool filter",
+        value: nodePool || "All node pools",
+        kind: "text",
+      },
+    ],
+    highlightFields: [
+      {
+        key: "cluster_name",
+        label: "Cluster name",
+        value: readString(cluster.cluster_name) || `Cluster ${clusterUid}`,
+        kind: "text",
+      },
+      {
+        key: "description",
+        label: "Description",
+        value: readString(cluster.cluster_description) || "No description",
+        kind: "text",
+      },
+    ],
+    stats: [
+      {
+        key: "node_pools",
+        label: "Node Pools",
+        display: String(readArray(cluster.node_pools).length),
+        value: readArray(cluster.node_pools).length,
+        kind: "number",
+        info: "GKE node pools available in this cluster.",
+      },
+      {
+        key: "nodes",
+        label: "Nodes",
+        display: String(readArray(cluster.nodes).length),
+        value: readArray(cluster.nodes).length,
+        kind: "number",
+        info: "Kubernetes nodes currently registered in the cluster.",
+      },
+      {
+        key: "namespaces",
+        label: "Namespaces",
+        display: String(readArray(cluster.namespaces).length),
+        value: readArray(cluster.namespaces).length,
+        kind: "number",
+        info: "Namespaces discovered through the Kubernetes API.",
+      },
+      {
+        key: "pods",
+        label: "Pods",
+        display: String(readArray(cluster.pods).length),
+        value: readArray(cluster.pods).length,
+        kind: "number",
+        info: "Pods across all namespaces.",
+      },
+      {
+        key: "deployments",
+        label: "Deployments",
+        display: String(readArray(cluster.deployments).length),
+        value: readArray(cluster.deployments).length,
+        kind: "number",
+        info: "Deployments across all namespaces.",
+      },
+      {
+        key: "services",
+        label: "Services",
+        display: String(readArray(cluster.services).length),
+        value: readArray(cluster.services).length,
+        kind: "number",
+        info: "ClusterIP / NodePort / LoadBalancer services.",
+      },
+      {
+        key: "pvcs",
+        label: "PVCs",
+        display: String(readArray(cluster.storage).length),
+        value: readArray(cluster.storage).length,
+        kind: "number",
+        info: "PersistentVolumeClaims in the cluster.",
+      },
+      {
+        key: "knative_services",
+        label: "Knative",
+        display: String(readArray(cluster.knative).length),
+        value: readArray(cluster.knative).length,
+        kind: "number",
+        info: "Knative Serving services in serving.knative.dev/v1.",
+      },
+    ],
+    extensions: {
+      cluster: {
+        uid: clusterUid,
+        cluster_name: readString(cluster.cluster_name),
+        cluster_description: readString(cluster.cluster_description),
+        location: readString(cluster.location),
+        allow_to_run_data_sources: readBoolean(cluster.allow_to_run_data_sources),
+        is_auto_pilot_cluster: readBoolean(cluster.is_auto_pilot_cluster),
+      },
+      cluster_status: {
+        status,
+        color: tone,
+      },
+      tabs: [
+        "node_pools",
+        "nodes",
+        "namespaces",
+        "pods",
+        "deployments",
+        "services",
+        "storage",
+        "knative",
+      ].map((tabId) => ({
+        key: tabId,
+        label: tabId.replace(/_/g, " "),
+        count: String(readArray(cluster[tabId]).length),
+      })),
+      filters: {
+        namespace,
+        node_pool: nodePool,
+      },
     },
-    cluster_status: {
-      status: readString(cluster.cluster_status),
-      color: readString(cluster.cluster_status_color),
-    },
-    cloud_provider_label: readString(cluster.cloud_provider_label),
-    location: readString(cluster.location),
-    cluster_configuration_name: readString(cluster.cluster_configuration_name),
-    allow_to_run_jupyter_hub: readBoolean(cluster.allow_to_run_jupyter_hub),
-    allow_to_run_data_sources: readBoolean(cluster.allow_to_run_data_sources),
-    is_auto_pilot_cluster: readBoolean(cluster.is_auto_pilot_cluster),
-    stats_items: readArray(cluster.stats_items),
-    tabs: [
-      "node_pools",
-      "nodes",
-      "namespaces",
-      "pods",
-      "deployments",
-      "services",
-      "storage",
-      "knative",
-    ].map((tabId) => ({
-      id: tabId,
-      label: tabId.replace(/_/g, " "),
-      count: String(readArray(cluster[tabId]).length),
-    })),
-    summary_warning: readOptionalString(cluster.summary_warning),
-  };
+    summaryWarning: readOptionalString(cluster.summary_warning),
+  });
 }
 
 function buildPermissionResponse(objectId: number | string, accessLevel: "view" | "edit") {
@@ -3745,7 +3903,7 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
           value: "",
         },
         {
-          key: "related_resource",
+          key: "related_resource_uid",
           label: "Related resource",
           editor: "remote_select",
           required: true,
@@ -3789,7 +3947,7 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
       display_name: readString(body?.display_name) || "New Project Data Source",
       is_default_data_source: readBoolean(body?.is_default_data_source),
       related_resource: state.physicalDataSources.find(
-        (source) => readString(source.uid) === readString(body?.related_resource),
+        (source) => readString(source.uid) === readString(body?.related_resource_uid),
       ) ?? null,
       creation_date: new Date().toISOString(),
       creation_date_display: "Just now",
@@ -3835,7 +3993,7 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
           value: readString(record?.display_name),
         },
         {
-          key: "related_resource",
+          key: "related_resource_uid",
           label: "Related resource",
           editor: "remote_select",
           required: true,
@@ -3873,7 +4031,7 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
       record.display_name = readString(body?.display_name) || record.display_name;
       record.is_default_data_source = readBoolean(body?.is_default_data_source);
       record.related_resource =
-        state.physicalDataSources.find((source) => readString(source.uid) === readString(body?.related_resource)) ??
+        state.physicalDataSources.find((source) => readString(source.uid) === readString(body?.related_resource_uid)) ??
         record.related_resource;
     }
 
@@ -3941,6 +4099,18 @@ function handlePhysicalDataSources(route: string, method: string, searchParams: 
           required: true,
           value: sourceType,
         },
+        {
+          key: "storage_access_mode",
+          label: "Storage access",
+          editor: "select",
+          required: false,
+          value: "read_write",
+          options: [
+            { value: "read_write", label: "Read/write" },
+            { value: "read_only", label: "Read-only" },
+            { value: "disabled", label: "Disabled" },
+          ],
+        },
       ],
       actions: {
         submit: {
@@ -3965,6 +4135,7 @@ function handlePhysicalDataSources(route: string, method: string, searchParams: 
       status: "healthy",
       status_label: "Healthy",
       status_tone: "success",
+      storage_access_mode: readString(body?.storage_access_mode) || "read_write",
       creation_date: new Date().toISOString(),
       creation_date_display: "Just now",
     };
@@ -3989,6 +4160,29 @@ function handlePhysicalDataSources(route: string, method: string, searchParams: 
     };
   }
 
+  const connectionsMatch = route.match(/^\/data_source\/([^/]+)\/connections\/$/);
+  if (connectionsMatch && method === "GET") {
+    const uid = connectionsMatch[1] ?? "";
+    const record = findByUid(state.physicalDataSources, uid);
+
+    if (!record) {
+      return [];
+    }
+
+    return [
+      {
+        uid: `${uid}__connection`,
+        display_name: `${readString(record.display_name) || "Physical data source"} connection`,
+        type_id: readString(record.class_type) || "database",
+        status: readString(record.status) || "healthy",
+        status_label: readString(record.status_label) || "Healthy",
+        status_tone: readString(record.status_tone) || "success",
+        creation_date: readString(record.creation_date) || null,
+        creation_date_display: readString(record.creation_date_display) || null,
+      },
+    ];
+  }
+
   const editMatch = route.match(/^\/data_source\/([^/]+)\/$/);
   if (editMatch && method === "GET" && searchParams.get("response_format") === "editor") {
     const record = findByUid(state.physicalDataSources, editMatch[1] ?? "");
@@ -4007,6 +4201,18 @@ function handlePhysicalDataSources(route: string, method: string, searchParams: 
           editor: "text",
           required: true,
           value: readString(record?.display_name),
+        },
+        {
+          key: "storage_access_mode",
+          label: "Storage access",
+          editor: "select",
+          required: false,
+          value: readString(record?.storage_access_mode) || "read_write",
+          options: [
+            { value: "read_write", label: "Read/write" },
+            { value: "read_only", label: "Read-only" },
+            { value: "disabled", label: "Disabled" },
+          ],
         },
       ],
       actions: {
@@ -4055,11 +4261,26 @@ function handleClusters(route: string, method: string, searchParams: URLSearchPa
     return buildClusterList(searchParams);
   }
 
+  const summaryMatch = route.match(/^\/cluster\/([^/]+)\/summary\/$/);
+  if (summaryMatch && method === "GET") {
+    const clusterUid = summaryMatch[1] ?? "";
+    const cluster =
+      state.clusters.find(
+        (candidate) =>
+          (readString(candidate.uid) || readString(candidate.uuid)) === clusterUid,
+      ) ?? null;
+    return buildClusterSummary(cluster ?? { uid: clusterUid, cluster_name: `Cluster ${clusterUid}` }, searchParams);
+  }
+
   const detailMatch = route.match(/^\/cluster\/([^/]+)\/$/);
   if (detailMatch && method === "GET" && searchParams.get("response_format") === "cluster_detail") {
     const clusterUid = detailMatch[1] ?? "";
-    const cluster = state.clusters.find((candidate) => readString(candidate.uuid) === clusterUid) ?? null;
-    return buildClusterDetail(cluster ?? { uuid: clusterUid, cluster_name: `Cluster ${clusterUid}` });
+    const cluster =
+      state.clusters.find(
+        (candidate) =>
+          (readString(candidate.uid) || readString(candidate.uuid)) === clusterUid,
+      ) ?? null;
+    return buildClusterSummary(cluster ?? { uid: clusterUid, cluster_name: `Cluster ${clusterUid}` }, searchParams);
   }
 
   const scaleMatch = route.match(/^\/cluster\/([^/]+)\/scale\/$/);
@@ -4073,7 +4294,11 @@ function handleClusters(route: string, method: string, searchParams: URLSearchPa
 
   const clusterTabMatch = route.match(/^\/cluster\/([^/]+)\/(node-pools|nodes|namespaces|pods|deployments|services|storage|knative)\/$/);
   if (clusterTabMatch && method === "GET") {
-    const cluster = state.clusters.find((candidate) => readString(candidate.uuid) === (clusterTabMatch[1] ?? "")) ?? null;
+    const cluster =
+      state.clusters.find(
+        (candidate) =>
+          (readString(candidate.uid) || readString(candidate.uuid)) === (clusterTabMatch[1] ?? ""),
+      ) ?? null;
     const key = (clusterTabMatch[2] ?? "").replace(/-/g, "_");
     const rows = readArray(cluster?.[key]);
 
@@ -4392,6 +4617,202 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
     };
   }
 
+  if (route === "/orm/api/ts_manager/meta_table/import-from-data-source/" && method === "POST") {
+    const body = parseBody(init);
+    const dataSourceUid = readString(body?.data_source_uid).trim();
+    const dryRun = body?.dry_run === true;
+    const includeViews = body?.include_views !== false;
+    const refreshExisting = body?.refresh_existing !== false;
+    const requestedNamespace = readOptionalString(body?.namespace)?.trim() ?? null;
+    const relationNames = new Set(
+      readArray<string>(body?.relation_names)
+        .map((value) => readString(value).trim())
+        .filter(Boolean),
+    );
+    const excludedRelationNames = new Set(
+      readArray<string>(body?.exclude_relation_names)
+        .map((value) => readString(value).trim())
+        .filter(Boolean),
+    );
+
+    const dataSource = findByUid(state.projectDataSources, dataSourceUid);
+
+    if (!dataSourceUid || !dataSource) {
+      throw new Error("DynamicTable Data Source not found.");
+    }
+
+    const physicalDataSource = isRecord(dataSource.related_resource)
+      ? (dataSource.related_resource as Record<string, unknown>)
+      : null;
+    const namespaceSeed =
+      readString(dataSource.display_name)
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "external-source";
+    const namespace = requestedNamespace ?? `${namespaceSeed}-${dataSourceUid.slice(0, 8)}-external`;
+    const baseRelations = [
+      { physical_table_name: "orders", relation_kind: "table", columns: 12, indexes: 3, foreign_keys: 2 },
+      { physical_table_name: "customers", relation_kind: "table", columns: 8, indexes: 2, foreign_keys: 0 },
+      { physical_table_name: "fills", relation_kind: "table", columns: 10, indexes: 2, foreign_keys: 1 },
+      ...(includeViews
+        ? [{ physical_table_name: "orders_latest", relation_kind: "view", columns: 12, indexes: 0, foreign_keys: 0 }]
+        : []),
+    ];
+    const filteredRelations = baseRelations
+      .filter((relation) => relationNames.size === 0 || relationNames.has(relation.physical_table_name))
+      .filter((relation) => !excludedRelationNames.has(relation.physical_table_name));
+    const existingTables = state.simpleTables.filter(
+      (table) => readOptionalString(table.namespace)?.trim() === namespace,
+    );
+    const stale = existingTables
+      .filter((table) => {
+        const physicalTableName =
+          readOptionalString(table.physical_table_name)?.trim() ||
+          readOptionalString(table.table_name)?.trim() ||
+          readOptionalString(table.identifier)?.trim();
+
+        return physicalTableName ? !filteredRelations.some((relation) => relation.physical_table_name === physicalTableName) : false;
+      })
+      .map((table) => ({
+        meta_table_uid: readOptionalString(table.uid)?.trim() ?? null,
+        physical_table_name:
+          readOptionalString(table.physical_table_name)?.trim() ||
+          readOptionalString(table.table_name)?.trim() ||
+          "unknown_table",
+        reason: "not_found_in_current_scan",
+      }));
+
+    let createdCount = 0;
+    let updatedCount = 0;
+    let unchangedCount = 0;
+
+    const relations = filteredRelations.map((relation) => {
+      const existingTable = existingTables.find((table) => {
+        const physicalTableName =
+          readOptionalString(table.physical_table_name)?.trim() ||
+          readOptionalString(table.table_name)?.trim() ||
+          readOptionalString(table.identifier)?.trim();
+
+        return physicalTableName === relation.physical_table_name;
+      });
+
+      const warnings =
+        relation.relation_kind === "view"
+          ? ["Views are imported as read-only metadata."]
+          : [];
+      const status = existingTable
+        ? refreshExisting
+          ? "updated"
+          : "unchanged"
+        : "created";
+
+      if (status === "created") {
+        createdCount += 1;
+      } else if (status === "updated") {
+        updatedCount += 1;
+      } else {
+        unchangedCount += 1;
+      }
+
+      let metaTableUid = readOptionalString(existingTable?.uid)?.trim() ?? null;
+
+      if (!dryRun && !existingTable) {
+        const nextMetaTableId = nextId(state.simpleTables);
+        metaTableUid = `mock-imported-meta-table-${nextMetaTableId}`;
+        state.simpleTables.unshift({
+          id: nextMetaTableId,
+          uid: metaTableUid,
+          identifier: relation.physical_table_name,
+          display_name: relation.physical_table_name,
+          title: relation.physical_table_name,
+          table_name: relation.physical_table_name,
+          meta_table_name: relation.physical_table_name,
+          physical_table_name: relation.physical_table_name,
+          namespace,
+          description: `Imported from ${readString(dataSource.display_name).trim() || "DynamicTable Data Source"}`,
+          creation_date: new Date().toISOString(),
+          open_for_everyone: false,
+          protect_from_deletion: false,
+          data_source: {
+            uid: dataSourceUid,
+            related_resource: physicalDataSource
+              ? {
+                  uid: readOptionalString(physicalDataSource.uid)?.trim() ?? null,
+                  display_name:
+                    readOptionalString(physicalDataSource.label)?.trim() ||
+                    readOptionalString(physicalDataSource.display_name)?.trim() ||
+                    "Physical data source",
+                  class_type: readOptionalString(physicalDataSource.class_type)?.trim() ?? null,
+                  status: readOptionalString(physicalDataSource.status)?.trim() ?? null,
+                }
+              : null,
+            related_resource_class_type:
+              readOptionalString(physicalDataSource?.class_type)?.trim() ?? null,
+          },
+          columns: [
+            {
+              name: "uid",
+              logical_name: "UID",
+              data_type: "uuid",
+              backend_type: "uuid",
+              nullable: false,
+              primary_key: true,
+              unique: true,
+              ordinal_position: 0,
+              description: "Primary key",
+              label: "UID",
+            },
+          ],
+          indexes_meta: [],
+          foreign_keys: [],
+          incoming_fks: [],
+        });
+      }
+
+      if (!dryRun && existingTable && refreshExisting) {
+        existingTable.description = `Refreshed from ${readString(dataSource.display_name).trim() || "DynamicTable Data Source"}`;
+      }
+
+      return {
+        physical_table_name: relation.physical_table_name,
+        relation_kind: relation.relation_kind,
+        status,
+        meta_table_uid: metaTableUid,
+        columns: relation.columns,
+        indexes: relation.indexes,
+        foreign_keys: relation.foreign_keys,
+        warnings,
+      };
+    });
+
+    const warnings = includeViews
+      ? ["Views are included in this import preview and are treated as read-only metadata."]
+      : [];
+
+    return {
+      ok: true,
+      dry_run: dryRun,
+      data_source_uid: dataSourceUid,
+      physical_data_source_uid: readOptionalString(physicalDataSource?.uid)?.trim() ?? null,
+      class_type: readOptionalString(physicalDataSource?.class_type)?.trim() ?? null,
+      schema: "public",
+      namespace,
+      counts: {
+        discovered: filteredRelations.length,
+        created: createdCount,
+        updated: updatedCount,
+        unchanged: unchangedCount,
+        skipped: 0,
+        failed: 0,
+        stale: stale.length,
+      },
+      relations,
+      stale,
+      warnings,
+    };
+  }
+
   const healFromPhysicalMatch = route.match(
     /^\/orm\/api\/ts_manager\/meta_table\/([^/]+)\/heal-from-physical\/$/,
   );
@@ -4497,6 +4918,18 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
     return buildMetaTableSummary(
       table ?? { id: Number(summaryMatch[1]), uid: summaryMatch[1], storage_hash: `table_${summaryMatch[1]}` },
     );
+  }
+
+  const generatedSearchDocumentMatch = route.match(
+    /^\/orm\/api\/ts_manager\/meta_table\/([^/]+)\/generated-search-document\/$/,
+  );
+  if (generatedSearchDocumentMatch && method === "GET") {
+    const uid = generatedSearchDocumentMatch[1] ?? "";
+    const table = findByUid(state.simpleTables, uid);
+
+    return {
+      generated_search_document: buildMetaTableGeneratedSearchDocument(table, uid),
+    };
   }
 
   const schemaMatch = route.match(/^\/orm\/api\/ts_manager\/meta_table\/([^/]+)\/schema-graph\/$/);
@@ -5027,9 +5460,14 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
 
   if (route === "/project-image/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const uids = new Set(readArray<string>(body?.uids));
+    const selectAll = readBoolean(body?.select_all);
+    const uids = new Set(
+      readArray<string>(body?.selected_uids).concat(readArray<string>(body?.uids)),
+    );
     const before = state.projectImages.length;
-    state.projectImages = state.projectImages.filter((image) => !uids.has(readString(image.uid)));
+    state.projectImages = state.projectImages.filter((image) =>
+      selectAll ? false : !uids.has(readString(image.uid)),
+    );
     return {
       deleted_count: before - state.projectImages.length,
     };

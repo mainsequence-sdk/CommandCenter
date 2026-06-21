@@ -4,10 +4,11 @@ This feature contains the Cluster registry surface and the direct cluster detail
 
 ## Files
 
-- `MainSequenceClustersPage.tsx`: loads the cluster list from the pods API, applies server-side search and pagination, and routes into the numeric-id cluster detail page.
-- `MainSequenceClusterDetailPage.tsx`: renders the `/clusters/:clusterId` detail route, fetches the summary payload, and loads tab datasets on demand.
+- `MainSequenceClustersPage.tsx`: loads the cluster list from the pods API, applies server-side search and pagination, and routes into the canonical cluster-uid detail page.
+- `MainSequenceClusterDetailPage.tsx`: renders the `/clusters/:clusterUid` detail route, fetches the standard `/summary/` payload for the header state, and loads tab datasets on demand.
 
 ## Notes
 
-- Treat cluster tab browsing as read-only in this phase, except for the header scale action.
-- The React detail route uses the numeric database id as the canonical identifier. UUID is only retained for the pod logs link path.
+- Treat cluster tab browsing as read-only in this phase.
+- The React detail route uses the canonical cluster `uid` returned by the pods API list endpoint, and that same identifier is reused for tab endpoints and pod logs navigation.
+- The header consumes the shared summary contract from `GET /orm/api/pods/cluster/{uid}/summary/`; cluster-specific values such as status, tabs, and active filters are read from `summary.extensions`.

@@ -7,7 +7,6 @@ import { useAuthStore } from "@/auth/auth-store";
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toaster";
 
 import {
@@ -27,6 +26,7 @@ import {
 } from "../../../main_sequence/common/components/MainSequenceResourceRequirementsSection";
 import { fetchAgentDetail } from "../../agent-search";
 import { normalizeAgentImageDriftRecord } from "../../image-drift";
+import { RunConfigFields } from "../../components/RunConfigFields";
 import {
   buildAvailableRunConfigCacheKey,
   fetchAvailableRunConfigOptions,
@@ -341,13 +341,9 @@ export function ProjectAgentConfigurator({
       selectedLlmThinking,
     ],
   );
-  const effectiveSelectedLlmProvider = runConfigSelection.effectiveProvider;
-  const effectiveSelectedLlmModelId = runConfigSelection.effectiveModelId;
-  const providerOptions = runConfigSelection.providerOptions;
   const filteredModelOptions = runConfigSelection.modelOptions;
   const selectedModelOption = runConfigSelection.selectedModelOption;
   const selectedDeploymentModel = runConfigSelection.selectedCatalogModel;
-  const selectedReasoningEffortOptions = runConfigSelection.reasoningOptions;
   const resolvedLlmProvider = runConfigSelection.resolvedProvider;
   const resolvedLlmModelId = runConfigSelection.resolvedModel;
   const resolvedLlmThinking = runConfigSelection.resolvedThinking;
@@ -359,7 +355,6 @@ export function ProjectAgentConfigurator({
       selectedCatalogModelIsUsable &&
       !(currentProjectAgentUid && currentProjectAgentDetailQuery.isLoading),
   );
-  const hasReasoningEffortOptions = selectedReasoningEffortOptions.length > 0;
   const currentAgentModelMissingFromCatalog =
     hasRuntimeModelCatalog && runConfigSelection.currentModelMissingFromCatalog;
   const resolvedCpuRequest = computeState.cpuRequest.trim();
@@ -804,9 +799,6 @@ export function ProjectAgentConfigurator({
     const reasoningOptions = selectedDeploymentModel?.reasoningEfforts ?? [];
 
     if (reasoningOptions.length === 0) {
-      if (selectedLlmThinking) {
-        setSelectedLlmThinking("");
-      }
       return;
     }
 
@@ -972,71 +964,19 @@ export function ProjectAgentConfigurator({
 
             {llmConfigurationCanRender && hasRuntimeModelCatalog ? (
               <div className="space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">Provider</label>
-                    <Select
-                      aria-label="LLM provider"
-                      className="h-11 w-full bg-card/70"
-                      disabled={providerOptions.length === 0}
-                      value={effectiveSelectedLlmProvider}
-                      onChange={(event) => {
-                        setSelectedLlmProvider(event.target.value);
-                      }}
-                    >
-                      {providerOptions.length === 0 ? (
-                        <option value="">No providers available</option>
-                      ) : null}
-                      {providerOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">Model</label>
-                    <Select
-                      aria-label="LLM model"
-                      className="h-11 w-full bg-card/70"
-                      disabled={filteredModelOptions.length === 0}
-                      value={effectiveSelectedLlmModelId}
-                      onChange={(event) => {
-                        setSelectedLlmModelId(event.target.value);
-                      }}
-                    >
-                      {filteredModelOptions.length === 0 ? (
-                        <option value="">No models available</option>
-                      ) : null}
-                      {filteredModelOptions.map((option) => (
-                        <option key={option.value} value={option.value} disabled={option.disabled}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-
-                  {hasReasoningEffortOptions ? (
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground">Reasoning</label>
-                      <Select
-                        aria-label="LLM reasoning"
-                        className="h-11 w-full bg-card/70"
-                        value={resolvedLlmThinking}
-                        onChange={(event) => {
-                          setSelectedLlmThinking(event.target.value);
-                        }}
-                      >
-                        {selectedReasoningEffortOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                  ) : null}
-                </div>
+                <RunConfigFields
+                  selection={runConfigSelection}
+                  onProviderChange={(provider) => {
+                    setSelectedLlmProvider(provider);
+                    setSelectedLlmModelId("");
+                    setSelectedLlmThinking("");
+                  }}
+                  onModelChange={(modelId) => {
+                    setSelectedLlmModelId(modelId);
+                    setSelectedLlmThinking("");
+                  }}
+                  onThinkingChange={setSelectedLlmThinking}
+                />
                 {currentAgentModelMissingFromCatalog ? (
                   <div className="rounded-[calc(var(--radius)-8px)] border border-warning/35 bg-warning/10 px-3 py-2 text-xs text-warning">
                     The current agent model is not in the available model catalog. Keeping the

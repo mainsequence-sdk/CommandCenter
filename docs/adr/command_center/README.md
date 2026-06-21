@@ -102,6 +102,8 @@ one file or one feature folder.
 
 ## AppComponent And API ADRs
 
+- [ADR 078: Client-Side SQL Server Connection Type](./adr-078-client-side-sql-server-connection.md)
+- [ADR 077: Client-Side MySQL Connection Type](./adr-077-client-side-mysql-connection.md)
 - [ADR 074: Adapter From API Debug Direct Mode](./adr-074-adapter-from-api-debug-direct-mode.md)
 - [ADR: AppComponent as a Binding-Native API Widget](./adr-app-component-binding-native-api-widget.md)
 - [ADR: Shared AppComponent Discovery and Safe-Response Caching](./adr-app-component-caching.md)
@@ -111,6 +113,8 @@ one file or one feature folder.
 
 ## Shell And Extension ADRs
 
+- [ADR 078: Client-Side SQL Server Connection Type](./adr-078-client-side-sql-server-connection.md)
+- [ADR 077: Client-Side MySQL Connection Type](./adr-077-client-side-mysql-connection.md)
 - [ADR 061: Usage Documentation App](./adr-061-usage-documentation-app.md)
 - [ADR 057: Slide Studio Printable PDF Projection](./adr-057-slide-studio-printable-pdf-projection.md)
 - [ADR 056: Slide Structural Containment in Workspace Graph](./adr-056-slide-structural-containment-in-workspace-graph.md)

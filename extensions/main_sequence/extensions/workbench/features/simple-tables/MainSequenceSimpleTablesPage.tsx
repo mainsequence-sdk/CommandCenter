@@ -28,6 +28,7 @@ import {
   bulkRefreshMetaTableSearchIndex,
   deleteMetaTable,
   fetchMetaTableDetail,
+  fetchMetaTableGeneratedSearchDocument,
   fetchMetaTableSummary,
   formatMainSequenceError,
   getTsManagerRecordIdentifier,
@@ -54,6 +55,7 @@ import { MainSequenceMetaTableSnapshotTab } from "./MainSequenceSimpleTableSnaps
 
 const mainSequenceMetaTableIdParam = "msMetaTableUid";
 const mainSequenceMetaTableTabParam = "msMetaTableTab";
+const mainSequenceMetaTableNamespaceParam = "msMetaTableNamespace";
 const metaTableDetailTabs = [
   { id: "details", label: "Details" },
   { id: "description", label: "Description" },
@@ -235,6 +237,41 @@ function formatManagementMode(value?: string | null) {
     .join(" ");
 }
 
+function getGeneratedSearchDocument(summary?: EntitySummaryHeader | null) {
+  const rawValue = summary?.extensions?.generated_search_document ?? null;
+
+  return typeof rawValue === "string" && rawValue.trim() ? rawValue.trim() : null;
+}
+
+function hasGeneratedSearchDocumentFlag(summary?: EntitySummaryHeader | null) {
+  const fields = [
+    ...(summary?.inline_fields ?? []),
+    ...(summary?.highlight_fields ?? []),
+    ...(summary?.badges ?? []),
+    ...(summary?.stats ?? []),
+  ];
+  const field = fields.find((item) => {
+    const key = typeof item.key === "string" ? item.key.trim().toLowerCase() : "";
+    const label = typeof item.label === "string" ? item.label.trim().toLowerCase() : "";
+
+    return key === "generated_search_document" || label === "generated search document";
+  });
+
+  if (!field || !("value" in field)) {
+    return false;
+  }
+
+  if (typeof field.value === "boolean") {
+    return field.value;
+  }
+
+  if (typeof field.value === "string") {
+    return ["1", "true", "yes", "available"].includes(field.value.trim().toLowerCase());
+  }
+
+  return field.value === 1;
+}
+
 function buildFallbackMetaTableSummary(
   metaTable: MetaTableRecord | MetaTableDetail,
 ): EntitySummaryHeader {
@@ -400,11 +437,15 @@ export function MainSequenceMetaTablesPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [filterValue, setFilterValue] = useState("");
-  const [selectedNamespaceValue, setSelectedNamespaceValue] = useState("");
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const requestedNamespaceValue =
+    searchParams.get(mainSequenceMetaTableNamespaceParam)?.trim() ?? "";
+  const [selectedNamespaceValue, setSelectedNamespaceValue] = useState(
+    requestedNamespaceValue || allNamespacesOptionValue,
+  );
   const [metaTablesPageIndex, setMetaTablesPageIndex] = useState(0);
   const [actionRequest, setActionRequest] = useState<MetaTableActionRequest | null>(null);
   const deferredFilterValue = useDeferredValue(filterValue);
-  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const selectedMetaTableIdentifier =
     searchParams.get(mainSequenceMetaTableIdParam)?.trim() || null;
   const requestedDetailTabId = searchParams.get(mainSequenceMetaTableTabParam);
@@ -423,9 +464,11 @@ export function MainSequenceMetaTablesPage() {
     selectedNamespaceValue && selectedNamespaceValue !== allNamespacesOptionValue
       ? selectedNamespaceValue
       : null;
-  const isMetaTableNamespaceBootstrapReady =
-    !metaTableNamespacesQuery.isLoading &&
-    (!metaTableNamespaceOptions.length || selectedNamespaceValue.length > 0);
+  const hasSelectedNamespaceOption =
+    selectedNamespaceValue === allNamespacesOptionValue ||
+    metaTableNamespaceOptions.some(
+      (namespace) => getNamespaceOptionValue(namespace) === selectedNamespaceValue,
+    );
 
   const metaTablesQuery = useQuery({
     queryKey: [
@@ -443,29 +486,21 @@ export function MainSequenceMetaTablesPage() {
         namespace: effectiveSelectedNamespace ?? undefined,
         search: deferredFilterValue || undefined,
       }),
-    enabled: isMetaTableNamespaceBootstrapReady && !metaTableNamespacesQuery.isError,
   });
 
   useEffect(() => {
-    if (metaTableNamespaceOptions.length === 0) {
-      if (!metaTableNamespacesQuery.isLoading && selectedNamespaceValue !== allNamespacesOptionValue) {
-        setSelectedNamespaceValue(allNamespacesOptionValue);
+    if (requestedNamespaceValue) {
+      if (selectedNamespaceValue !== requestedNamespaceValue) {
+        setSelectedNamespaceValue(requestedNamespaceValue);
       }
       return;
     }
 
-    if (selectedNamespaceValue === allNamespacesOptionValue) {
-      return;
-    }
-
-    const optionValues = new Set(metaTableNamespaceOptions.map(getNamespaceOptionValue));
-
-    if (!selectedNamespaceValue || !optionValues.has(selectedNamespaceValue)) {
-      setSelectedNamespaceValue(getNamespaceOptionValue(metaTableNamespaceOptions[0]!));
+    if (!selectedNamespaceValue) {
+      setSelectedNamespaceValue(allNamespacesOptionValue);
     }
   }, [
-    metaTableNamespaceOptions,
-    metaTableNamespacesQuery.isLoading,
+    requestedNamespaceValue,
     selectedNamespaceValue,
   ]);
 
@@ -536,6 +571,27 @@ export function MainSequenceMetaTablesPage() {
   const metaTableDescription =
     getMetaTableDescription(metaTableDetailQuery.data) ||
     getMetaTableDescription(selectedMetaTableFromList);
+  const selectedMetaTableActionTarget = metaTableDetailQuery.data ?? selectedMetaTableFromList;
+  const metaTableSummaryGeneratedSearchDocument = getGeneratedSearchDocument(
+    metaTableSummaryQuery.data ?? metaTableSummary,
+  );
+  const generatedSearchDocumentIsAvailable = hasGeneratedSearchDocumentFlag(
+    metaTableSummaryQuery.data ?? metaTableSummary,
+  );
+  const metaTableGeneratedSearchDocumentQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "meta_tables",
+      "generated_search_document",
+      selectedMetaTableIdentifier,
+    ],
+    queryFn: () => fetchMetaTableGeneratedSearchDocument(selectedMetaTableIdentifier!),
+    enabled: isMetaTableDetailOpen && selectedDetailTabId === "description",
+  });
+  const generatedSearchDocument =
+    metaTableGeneratedSearchDocumentQuery.data ??
+    metaTableSummaryGeneratedSearchDocument ??
+    null;
 
   const metaTableSelection = useRegistrySelection(filteredTables, getMetaTableUid);
 
@@ -1310,18 +1366,62 @@ export function MainSequenceMetaTablesPage() {
                   ) : selectedDetailTabId === "description" ? (
                     <Card variant="nested">
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-base">Description</CardTitle>
-                        <CardDescription>
-                          Description stored on the Meta Table resource.
-                        </CardDescription>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <CardTitle className="text-base">AI description</CardTitle>
+                            <CardDescription>
+                              This document is AI-generated using the meta table description and
+                              column metadata.
+                            </CardDescription>
+                          </div>
+                          {!generatedSearchDocument &&
+                          !generatedSearchDocumentIsAvailable &&
+                          !metaTableGeneratedSearchDocumentQuery.isLoading ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => {
+                                if (!selectedMetaTableActionTarget) {
+                                  return;
+                                }
+
+                                void actionMutation.mutateAsync({
+                                  kind: "refresh-search-index",
+                                  tables: [selectedMetaTableActionTarget],
+                                });
+                              }}
+                              disabled={!selectedMetaTableActionTarget || actionMutation.isPending}
+                            >
+                              {actionMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : null}
+                              Refresh search index
+                            </Button>
+                          ) : null}
+                        </div>
                       </CardHeader>
                       <CardContent className="pt-0">
-                        {metaTableDetailQuery.isLoading && !metaTableDescription ? (
+                        {(metaTableSummaryQuery.isLoading ||
+                          metaTableGeneratedSearchDocumentQuery.isLoading) &&
+                        !generatedSearchDocument ? (
                           <div className="flex min-h-40 items-center justify-center">
                             <div className="flex items-center gap-3 text-sm text-muted-foreground">
                               <Loader2 className="h-4 w-4 animate-spin" />
-                              Loading description
+                              Loading AI description
                             </div>
+                          </div>
+                        ) : generatedSearchDocument ? (
+                          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/32 px-5 py-5">
+                            <MarkdownContent content={generatedSearchDocument} />
+                          </div>
+                        ) : metaTableGeneratedSearchDocumentQuery.isError &&
+                          generatedSearchDocumentIsAvailable ? (
+                          <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-4 text-sm text-danger">
+                            {formatMainSequenceError(metaTableGeneratedSearchDocumentQuery.error)}
+                          </div>
+                        ) : generatedSearchDocumentIsAvailable ? (
+                          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/32 px-4 py-4 text-sm text-muted-foreground">
+                            The generated search document is marked as available, but the document endpoint returned no content.
                           </div>
                         ) : metaTableDescription ? (
                           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/32 px-5 py-5">
@@ -1329,7 +1429,10 @@ export function MainSequenceMetaTablesPage() {
                           </div>
                         ) : (
                           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/32 px-4 py-4 text-sm text-muted-foreground">
-                            No description is available for this meta table.
+                            <p>
+                              No AI-generated description is available yet. This can be generated with the{" "}
+                              <code>refresh_search_index</code> action.
+                            </p>
                           </div>
                         )}
                       </CardContent>
@@ -1377,6 +1480,9 @@ export function MainSequenceMetaTablesPage() {
                           disabled={metaTableNamespacesQuery.isLoading || metaTableNamespacesQuery.isError}
                         >
                           <option value={allNamespacesOptionValue}>All namespaces</option>
+                          {!hasSelectedNamespaceOption && effectiveSelectedNamespace ? (
+                            <option value={effectiveSelectedNamespace}>{effectiveSelectedNamespace}</option>
+                          ) : null}
                           {metaTableNamespaceOptions.map((namespace) => (
                             <option
                               key={namespace.namespace_uid}
@@ -1405,7 +1511,7 @@ export function MainSequenceMetaTablesPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              {metaTableNamespacesQuery.isLoading || metaTablesQuery.isLoading ? (
+              {metaTablesQuery.isLoading ? (
                 <div className="flex min-h-64 items-center justify-center">
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1414,17 +1520,15 @@ export function MainSequenceMetaTablesPage() {
                 </div>
               ) : null}
 
-              {metaTableNamespacesQuery.isError || metaTablesQuery.isError ? (
+              {metaTablesQuery.isError ? (
                 <div className="p-5">
                   <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-                    {formatMainSequenceError(metaTableNamespacesQuery.error ?? metaTablesQuery.error)}
+                    {formatMainSequenceError(metaTablesQuery.error)}
                   </div>
                 </div>
               ) : null}
 
-              {!metaTableNamespacesQuery.isLoading &&
-              !metaTableNamespacesQuery.isError &&
-              !metaTablesQuery.isLoading &&
+              {!metaTablesQuery.isLoading &&
               !metaTablesQuery.isError &&
               filteredTables.length === 0 ? (
                 <div className="px-5 py-14 text-center">
@@ -1438,9 +1542,7 @@ export function MainSequenceMetaTablesPage() {
                 </div>
               ) : null}
 
-              {!metaTableNamespacesQuery.isLoading &&
-              !metaTableNamespacesQuery.isError &&
-              !metaTablesQuery.isLoading &&
+              {!metaTablesQuery.isLoading &&
               !metaTablesQuery.isError &&
               filteredTables.length > 0 ? (
                 <div className="overflow-x-auto px-4 py-4">

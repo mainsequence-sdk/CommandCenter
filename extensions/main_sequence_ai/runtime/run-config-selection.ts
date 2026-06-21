@@ -35,6 +35,32 @@ export function buildCurrentModelOptionId(provider: string, model: string) {
   return ["current", provider.trim(), model.trim()].join("::");
 }
 
+export function parseCurrentModelOptionId(value: string | null | undefined) {
+  const normalizedValue = normalizeRunConfigValue(value);
+
+  if (!normalizedValue.startsWith("current::")) {
+    return null;
+  }
+
+  const segments = normalizedValue.split("::");
+
+  if (segments.length < 3 || segments[0] !== "current") {
+    return null;
+  }
+
+  const provider = segments[1]?.trim() ?? "";
+  const model = segments.slice(2).join("::").trim();
+
+  if (!provider || !model) {
+    return null;
+  }
+
+  return {
+    provider,
+    model,
+  };
+}
+
 function findCatalogModel(
   availableModels: AvailableChatModelOption[],
   provider: string,
@@ -59,9 +85,21 @@ export function resolveRunConfigSelection({
   selectedProvider,
   selectedThinking,
 }: RunConfigSelectionInput) {
-  const normalizedCurrentProvider = normalizeRunConfigValue(currentProvider);
-  const normalizedCurrentModel = normalizeRunConfigValue(currentModel);
+  const currentModelFromOptionId = parseCurrentModelOptionId(currentModel);
+  const normalizedCurrentProvider =
+    normalizeRunConfigValue(currentProvider) || currentModelFromOptionId?.provider || "";
+  const normalizedCurrentModel =
+    currentModelFromOptionId?.model || normalizeRunConfigValue(currentModel);
   const normalizedCurrentThinking = normalizeRunConfigValue(currentThinking);
+  const normalizedSelectedModelId = normalizeRunConfigValue(selectedModelId);
+  const selectedModelFromOptionId = parseCurrentModelOptionId(normalizedSelectedModelId);
+  const selectedFallbackCatalogModel = selectedModelFromOptionId
+    ? findCatalogModel(
+        availableModels,
+        selectedModelFromOptionId.provider,
+        selectedModelFromOptionId.model,
+      )
+    : null;
   const currentCatalogModel =
     normalizedCurrentProvider && normalizedCurrentModel
       ? findCatalogModel(availableModels, normalizedCurrentProvider, normalizedCurrentModel)
@@ -72,9 +110,12 @@ export function resolveRunConfigSelection({
       ? buildCurrentModelOptionId(normalizedCurrentProvider, normalizedCurrentModel)
       : "");
   const effectiveProvider =
-    normalizeRunConfigValue(selectedProvider) || normalizedCurrentProvider;
+    normalizeRunConfigValue(selectedProvider) ||
+    selectedFallbackCatalogModel?.provider?.trim() ||
+    selectedModelFromOptionId?.provider ||
+    normalizedCurrentProvider;
   const effectiveModelId =
-    normalizeRunConfigValue(selectedModelId) || currentModelOptionId;
+    selectedFallbackCatalogModel?.id || normalizedSelectedModelId || currentModelOptionId;
   const effectiveThinking =
     normalizeRunConfigValue(selectedThinking) || normalizedCurrentThinking;
   const providerOptions = availableProviders.map((entry) => ({
@@ -90,7 +131,7 @@ export function resolveRunConfigSelection({
 
   if (normalizedCurrentProvider && !hasCurrentProvider) {
     providerOptions.unshift({
-      label: `${normalizedCurrentProvider} (current)`,
+      label: normalizedCurrentProvider,
       value: normalizedCurrentProvider,
     });
   }
@@ -125,7 +166,7 @@ export function resolveRunConfigSelection({
     if (selectedProviderMatchesCurrent && !hasCurrentModel) {
       modelOptions.unshift({
         disabled: false,
-        label: `${normalizedCurrentModel} (current)`,
+        label: normalizedCurrentModel,
         provider: normalizedCurrentProvider,
         value: buildCurrentModelOptionId(normalizedCurrentProvider, normalizedCurrentModel),
         modelValue: normalizedCurrentModel,
@@ -136,7 +177,9 @@ export function resolveRunConfigSelection({
   const selectedModelOption =
     modelOptions.find((entry) => entry.value === effectiveModelId) ?? null;
   const selectedCatalogModel =
-    availableModels.find((entry) => entry.id === effectiveModelId) ?? null;
+    availableModels.find((entry) => entry.id === effectiveModelId) ??
+    selectedFallbackCatalogModel ??
+    null;
   const reasoningOptions: AvailableChatReasoningEffortOption[] =
     selectedCatalogModel?.reasoningEfforts.length
       ? [...selectedCatalogModel.reasoningEfforts]
@@ -149,7 +192,7 @@ export function resolveRunConfigSelection({
 
   if (effectiveThinking && !hasSelectedThinking) {
     reasoningOptions.unshift({
-      label: `${effectiveThinking} (current)`,
+      label: effectiveThinking,
       value: effectiveThinking,
     });
   }

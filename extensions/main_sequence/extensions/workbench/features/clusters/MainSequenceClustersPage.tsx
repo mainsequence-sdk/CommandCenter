@@ -57,7 +57,7 @@ export function MainSequenceClustersPage() {
       <PageHeader
         eyebrow="Main Sequence"
         title="Clusters"
-        description="Search cluster records by name or UUID and open the cluster detail route."
+        description="Search cluster records by name or UID and open the cluster detail route."
         actions={<Badge variant="neutral">{`${totalItems} clusters`}</Badge>}
       />
 
@@ -67,14 +67,14 @@ export function MainSequenceClustersPage() {
             <div>
               <CardTitle>Cluster registry</CardTitle>
               <CardDescription>
-                Load cluster rows from the pods cluster registry and route to the UID cluster detail page.
+                Load cluster rows from the pods cluster registry and route to the UID-based cluster detail page.
               </CardDescription>
             </div>
             <MainSequenceRegistrySearch
               accessory={<Badge variant="neutral">{`${totalItems} clusters`}</Badge>}
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
-              placeholder="Search by cluster name or UUID"
+              placeholder="Search by cluster name or UID"
               searchClassName="max-w-lg"
             />
           </div>
@@ -105,7 +105,7 @@ export function MainSequenceClustersPage() {
               </div>
               <div className="mt-4 text-sm font-medium text-foreground">No clusters found</div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Adjust the current search to locate a cluster by name or UUID.
+                Adjust the current search to locate a cluster by name or UID.
               </p>
             </div>
           ) : null}
@@ -122,19 +122,19 @@ export function MainSequenceClustersPage() {
                     style={{ fontSize: "var(--table-meta-font-size)" }}
                   >
                     <th className="px-4 py-[var(--table-standard-header-padding-y)]">Cluster name</th>
-                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">UUID</th>
+                    <th className="px-4 py-[var(--table-standard-header-padding-y)]">UID</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pageRows.map((row) => (
-                    <tr key={row.uuid}>
+                    <tr key={row.uid}>
                       <td className={getRegistryTableCellClassName(false, "left")}>
                         <button
                           type="button"
                           className="group inline-flex items-center gap-1.5 rounded-sm text-left font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
-                          onClick={() => openClusterDetail(row.uuid)}
+                          onClick={() => openClusterDetail(row.uid)}
                         >
-                          <span>{row.cluster_name || `Cluster ${row.id}`}</span>
+                          <span>{row.cluster_name || `Cluster ${row.uid}`}</span>
                           <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
                         </button>
                       </td>
@@ -142,9 +142,9 @@ export function MainSequenceClustersPage() {
                         <button
                           type="button"
                           className="block text-left font-mono text-xs text-muted-foreground underline decoration-border/50 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
-	                          onClick={() => openClusterDetail(row.uuid)}
+                          onClick={() => openClusterDetail(row.uid)}
                         >
-                          {row.uuid}
+                          {row.uid}
                         </button>
                       </td>
                     </tr>

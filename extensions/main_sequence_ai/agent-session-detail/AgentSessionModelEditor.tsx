@@ -3,7 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { useAuthStore } from "@/auth/auth-store";
-import { Select } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { RunConfigFields } from "../components/RunConfigFields";
 import type {
   AvailableChatModelOption,
   AvailableChatProviderOption,
@@ -14,53 +15,12 @@ import {
 } from "../runtime/available-models-api";
 import { patchAgentSessionModelConfig } from "../runtime/agent-sessions-api";
 import { resolveMainSequenceAiAssistantEndpointForAgentType } from "../runtime/assistant-endpoint";
+import {
+  normalizeRunConfigKey,
+  resolveRunConfigSelection,
+} from "../runtime/run-config-selection";
 import type { AgentSessionDetailSnapshot } from "./model";
 import { SessionField, SessionSection } from "./sessionDetailUi";
-
-function normalizeCatalogKey(value: string | null | undefined) {
-  return typeof value === "string" && value.trim() ? value.trim().toLowerCase() : null;
-}
-
-function findProviderValueBySessionProvider(
-  providers: readonly AvailableChatProviderOption[],
-  provider: string | null | undefined,
-) {
-  const normalizedProvider = normalizeCatalogKey(provider);
-
-  if (!normalizedProvider) {
-    return null;
-  }
-
-  const match = providers.find((entry) => normalizeCatalogKey(entry.value) === normalizedProvider);
-  return match?.value ?? null;
-}
-
-function findModelIdBySessionModel(
-  models: readonly AvailableChatModelOption[],
-  {
-    model,
-    provider,
-  }: {
-    model: string | null | undefined;
-    provider?: string | null;
-  },
-) {
-  const normalizedModel = normalizeCatalogKey(model);
-
-  if (!normalizedModel) {
-    return null;
-  }
-
-  const normalizedProvider = normalizeCatalogKey(provider);
-  const scopedModels = normalizedProvider
-    ? models.filter((entry) => normalizeCatalogKey(entry.provider) === normalizedProvider)
-    : models;
-  const match =
-    scopedModels.find((entry) => normalizeCatalogKey(entry.value) === normalizedModel) ??
-    scopedModels.find((entry) => normalizeCatalogKey(entry.label) === normalizedModel);
-
-  return match?.id ?? null;
-}
 
 function isAbortLikeError(error: unknown) {
   if (error instanceof DOMException && error.name === "AbortError") {
@@ -92,40 +52,58 @@ export function AgentSessionModelEditor({
   const [isLoadingAvailableModels, setIsLoadingAvailableModels] = useState(false);
   const [selectedProviderValue, setSelectedProviderValue] = useState<string | null>(null);
   const [selectedModelValue, setSelectedModelValue] = useState<string | null>(null);
+  const [selectedThinkingValue, setSelectedThinkingValue] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const availableModelsRequestRef = useRef<AbortController | null>(null);
   const sessionModelPatchRequestRef = useRef<AbortController | null>(null);
   const core = detail?.core ?? null;
-  const providerOptions = useMemo(
-    () => availableProviders.map((entry) => ({ label: entry.label, value: entry.value })),
-    [availableProviders],
+  const runConfigSelection = useMemo(
+    () =>
+      resolveRunConfigSelection({
+        availableModels,
+        availableProviders,
+        currentModel: core?.llmModel ?? "",
+        currentProvider: core?.llmProvider ?? "",
+        currentThinking: core?.llmThinking ?? "",
+        selectedModelId: selectedModelValue ?? "",
+        selectedProvider: selectedProviderValue ?? "",
+        selectedThinking: selectedThinkingValue ?? "",
+      }),
+    [
+      availableModels,
+      availableProviders,
+      core?.llmModel,
+      core?.llmProvider,
+      core?.llmThinking,
+      selectedModelValue,
+      selectedProviderValue,
+      selectedThinkingValue,
+    ],
   );
-  const modelOptions = useMemo(() => {
-    const scopedModels = selectedProviderValue
-      ? availableModels.filter((entry) => entry.provider === selectedProviderValue)
-      : availableModels;
-
-    return scopedModels.map((entry) => {
-      const unusable = Boolean(entry.auth?.required && !entry.auth?.usable);
-
-      return {
-        disabled: unusable,
-        label: unusable ? `${entry.label} (Not authenticated)` : entry.label,
-        provider: entry.provider,
-        value: entry.id,
-        modelValue: entry.value,
-      };
-    });
-  }, [availableModels, selectedProviderValue]);
-  const selectedProvider = selectedProviderValue ?? providerOptions[0]?.value ?? "";
-  const selectedModel = selectedModelValue ?? modelOptions[0]?.value ?? "";
   const showModelControls =
     isLoadingAvailableModels ||
     Boolean(availableModelsError) ||
     Boolean(updateError) ||
-    providerOptions.length > 0 ||
-    modelOptions.length > 0;
+    runConfigSelection.providerOptions.length > 0 ||
+    runConfigSelection.modelOptions.length > 0;
+  const resolvedProvider = runConfigSelection.resolvedProvider.trim();
+  const resolvedModel = runConfigSelection.resolvedModel.trim();
+  const resolvedThinking = runConfigSelection.resolvedThinking.trim();
+  const runConfigHasChanges =
+    normalizeRunConfigKey(resolvedProvider) !== normalizeRunConfigKey(core?.llmProvider) ||
+    normalizeRunConfigKey(resolvedModel) !== normalizeRunConfigKey(core?.llmModel) ||
+    normalizeRunConfigKey(resolvedThinking) !== normalizeRunConfigKey(core?.llmThinking);
+  const canUpdateSessionModel = Boolean(
+    detail?.sessionId &&
+      resolvedProvider &&
+      resolvedModel &&
+      runConfigSelection.selectedCatalogModelIsUsable &&
+      runConfigHasChanges &&
+      !isLoadingAvailableModels &&
+      !availableModelsError &&
+      !isUpdating,
+  );
 
   useEffect(() => {
     availableModelsRequestRef.current?.abort();
@@ -179,37 +157,11 @@ export function AgentSessionModelEditor({
     };
   }, [detail?.context.requestAgentType, detail?.sessionId, sessionToken, sessionTokenType, sessionUserId]);
 
-  useEffect(() => {
-    if (!core || availableProviders.length === 0 || availableModels.length === 0) {
-      return;
-    }
-
-    const matchedProviderValue = findProviderValueBySessionProvider(
-      availableProviders,
-      core.llmProvider,
-    );
-    const matchedModelId = findModelIdBySessionModel(availableModels, {
-      model: core.llmModel,
-      provider: matchedProviderValue ?? core.llmProvider,
-    });
-    const matchedModel = availableModels.find((model) => model.id === matchedModelId) ?? null;
-    const fallbackProvider = matchedProviderValue ?? availableProviders[0]?.value ?? null;
-    const fallbackModels = fallbackProvider
-      ? availableModels.filter((model) => model.provider === fallbackProvider)
-      : availableModels;
-    const fallbackModelId = fallbackModels[0]?.id ?? availableModels[0]?.id ?? null;
-
-    setSelectedProviderValue(matchedProviderValue ?? fallbackProvider);
-    setSelectedModelValue(matchedModel?.id ?? fallbackModelId);
-  }, [availableModels, availableProviders, core]);
-
   const persistSelectedSessionModelConfig = useCallback(
-    async ({ model, provider }: { model: string | null; provider: string | null }) => {
-      const normalizedProvider = provider?.trim();
-      const normalizedModel = model?.trim();
+    async () => {
       const sessionId = detail?.sessionId ?? null;
 
-      if (!sessionId || !normalizedProvider || !normalizedModel) {
+      if (!sessionId || !resolvedProvider || !resolvedModel) {
         return;
       }
 
@@ -221,8 +173,9 @@ export function AgentSessionModelEditor({
 
       try {
         await patchAgentSessionModelConfig({
-          llmModel: normalizedModel,
-          llmProvider: normalizedProvider,
+          llmModel: resolvedModel,
+          llmProvider: resolvedProvider,
+          llmThinking: resolvedThinking,
           sessionId,
           signal: controller.signal,
           token: sessionToken,
@@ -233,6 +186,9 @@ export function AgentSessionModelEditor({
           return;
         }
 
+        setSelectedProviderValue(null);
+        setSelectedModelValue(null);
+        setSelectedThinkingValue(null);
         refreshSessionDetail();
         refreshSessionInsights();
       } catch (error) {
@@ -255,7 +211,16 @@ export function AgentSessionModelEditor({
         }
       }
     },
-    [detail?.sessionId, refreshSessionDetail, refreshSessionInsights, sessionToken, sessionTokenType],
+    [
+      detail?.sessionId,
+      refreshSessionDetail,
+      refreshSessionInsights,
+      resolvedModel,
+      resolvedProvider,
+      resolvedThinking,
+      sessionToken,
+      sessionTokenType,
+    ],
   );
 
   if (!core || !showModelControls) {
@@ -289,78 +254,72 @@ export function AgentSessionModelEditor({
 
       {!isLoadingAvailableModels &&
       !availableModelsError &&
-      (providerOptions.length > 0 || modelOptions.length > 0) ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          {providerOptions.length > 0 ? (
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-foreground">Provider</div>
-              <Select
-                aria-label="Provider"
-                className="h-10 w-full bg-card/70"
-                disabled={isUpdating}
-                value={selectedProvider}
-                onChange={(event) => {
-                  const provider = event.target.value || null;
-                  const currentModel =
-                    availableModels.find((model) => model.id === selectedModelValue) ?? null;
-                  const nextModel =
-                    currentModel?.provider === provider
-                      ? currentModel
-                      : availableModels.find((model) => model.provider === provider) ?? null;
+      (runConfigSelection.providerOptions.length > 0 || runConfigSelection.modelOptions.length > 0) ? (
+        <div className="space-y-4">
+          <RunConfigFields
+            disabled={isUpdating}
+            selection={runConfigSelection}
+            onProviderChange={(provider) => {
+              const nextModel =
+                availableModels
+                  .filter(
+                    (model) =>
+                      normalizeRunConfigKey(model.provider) === normalizeRunConfigKey(provider),
+                  )
+                  .find((model) => !(model.auth?.required && !model.auth.usable)) ??
+                availableModels.find(
+                  (model) =>
+                    normalizeRunConfigKey(model.provider) === normalizeRunConfigKey(provider),
+                ) ??
+                null;
 
-                  setSelectedProviderValue(provider);
-                  setSelectedModelValue(nextModel?.id ?? null);
-                  void persistSelectedSessionModelConfig({
-                    provider,
-                    model: nextModel?.value ?? currentModel?.value ?? null,
-                  });
-                }}
-              >
-                {providerOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
+              setSelectedProviderValue(provider);
+              setSelectedModelValue(nextModel?.id ?? null);
+              setSelectedThinkingValue(
+                nextModel?.defaultReasoningEffort ?? nextModel?.reasoningEfforts[0]?.value ?? null,
+              );
+            }}
+            onModelChange={(modelId) => {
+              const nextModel = availableModels.find((model) => model.id === modelId) ?? null;
+
+              setSelectedModelValue(modelId);
+              if (nextModel?.provider) {
+                setSelectedProviderValue(nextModel.provider);
+              }
+              setSelectedThinkingValue(
+                nextModel?.defaultReasoningEffort ?? nextModel?.reasoningEfforts[0]?.value ?? null,
+              );
+            }}
+            onThinkingChange={setSelectedThinkingValue}
+          />
+
+          {runConfigSelection.currentModelMissingFromCatalog ? (
+            <div className="rounded-[calc(var(--radius)-8px)] border border-warning/35 bg-warning/10 px-3 py-2 text-xs text-warning">
+              The current session model is not in the available model catalog. Keeping the backend
+              session configuration until you select a different model.
             </div>
           ) : null}
 
-          {modelOptions.length > 0 ? (
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-foreground">Model</div>
-              <Select
-                aria-label="Model"
-                className="h-10 w-full bg-card/70"
-                disabled={isUpdating}
-                value={selectedModel}
-                onChange={(event) => {
-                  const modelId = event.target.value || null;
-                  const selectedOption = availableModels.find((model) => model.id === modelId) ?? null;
-
-                  setSelectedModelValue(modelId);
-                  if (selectedOption?.provider && selectedOption.provider !== selectedProviderValue) {
-                    setSelectedProviderValue(selectedOption.provider);
-                  }
-                  void persistSelectedSessionModelConfig({
-                    provider: selectedOption?.provider ?? selectedProviderValue,
-                    model: selectedOption?.value ?? null,
-                  });
-                }}
-              >
-                {modelOptions.map((option) => (
-                  <option key={option.value} value={option.value} disabled={option.disabled}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          ) : null}
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              size="sm"
+              disabled={!canUpdateSessionModel}
+              onClick={() => {
+                void persistSelectedSessionModelConfig();
+              }}
+            >
+              {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Update Session Model
+            </Button>
+          </div>
         </div>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <SessionField label="Current Provider" value={core.llmProvider} />
         <SessionField label="Current Model" value={core.llmModel} mono />
+        <SessionField label="Current Thinking" value={core.llmThinking} />
         <SessionField label="Engine" value={core.engineName} />
       </div>
     </SessionSection>

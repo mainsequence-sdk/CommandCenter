@@ -22,6 +22,22 @@ frontend id:  timescaledb.database
 backend type: timescaledb.database
 ```
 
+MySQL follows the same first-class connection pattern, with its adapter contract documented in
+[ADR 077: Client-Side MySQL Connection Type](../../adr/command_center/adr-077-client-side-mysql-connection.md):
+
+```text
+frontend id:  mysql.database
+backend type: mysql.database
+```
+
+SQL Server follows the shared SQL connection pattern, with its adapter contract documented in
+[ADR 078: Client-Side SQL Server Connection Type](../../adr/command_center/adr-078-client-side-sql-server-connection.md):
+
+```text
+frontend id:  mssql.database
+backend type: mssql.database
+```
+
 If the ids do not match, the backend cannot dispatch configured connection instances to the right
 runtime implementation.
 

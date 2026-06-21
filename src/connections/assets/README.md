@@ -6,6 +6,12 @@ Shared static assets for platform connection types live here.
 
 - `postgresql-logo.svg`: PostgreSQL elephant logo used by the PostgreSQL connection type. Source:
   PostgreSQL wiki logo page. Use is subject to the PostgreSQL trademark policy.
+- `mysql-logo.svg`: MySQL brand glyph used by the MySQL connection type. Source: Simple Icons
+  MySQL SVG, downloaded from `https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/mysql.svg`.
+- `mssql-logo.svg`: Microsoft SQL Server 2025 icon used by the `mssql.database` connection type.
+  Source: Microsoft SQL Server product icon, mirrored by Wikimedia Commons from
+  `https://www.microsoft.com/en-us/sql-server`; copyright status is listed as public domain for
+  simple geometry, but Microsoft trademark restrictions may still apply.
 - `fred-economic-data-logo.svg`: compact FRED Economic Data icon used by the FRED connection type.
 - `massive-icon-logo.svg`: icon exported from Massive-provided assets for the Massive Market Data connection.
 - `duck-db-logo.png`: DuckDB logo reused by connection-adjacent Main Sequence registry views such as

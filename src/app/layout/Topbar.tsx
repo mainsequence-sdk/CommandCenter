@@ -74,17 +74,31 @@ function hasMonthlyBudgetLimit(userBudget: UserCreditSummaryBudget | null) {
   return Number(userBudget?.monthly_limit_cents) > 0;
 }
 
-function formatBudgetCurrency(cents: number, currency: string) {
-  const amount = Number(cents || 0) / 100;
+function formatBudgetCurrency(
+  cents: number,
+  currency: string,
+  options: { fixedFractionDigits?: boolean } = {},
+) {
+  const normalizedCents = Number(cents || 0);
+  const amount = normalizedCents / 100;
   const normalizedCurrency = String(currency || "usd").toUpperCase();
-  const fractionDigits = Math.abs(cents) % 100 === 0 ? 0 : 2;
+  const fractionDigits = options.fixedFractionDigits
+    ? 2
+    : Math.abs(normalizedCents) % 100 === 0
+      ? 0
+      : 2;
 
   try {
-    return new Intl.NumberFormat(undefined, {
+    const numberFormatOptions: Intl.NumberFormatOptions = {
       style: "currency",
       currency: normalizedCurrency,
       maximumFractionDigits: fractionDigits,
-    }).format(amount);
+    };
+    if (options.fixedFractionDigits) {
+      numberFormatOptions.minimumFractionDigits = fractionDigits;
+    }
+
+    return new Intl.NumberFormat(undefined, numberFormatOptions).format(amount);
   } catch {
     return `$${amount.toFixed(fractionDigits)}`;
   }
@@ -190,36 +204,48 @@ function BudgetUsageIndicator({ onOpenBilling }: BudgetUsageIndicatorProps) {
         : "—";
   const hasOrganizationConsumption = Boolean(organizationConsumption);
   const userSpentLabel = userBudget
-    ? formatBudgetCurrency(userBudget.spent_this_period_cents, userBudget.currency)
+    ? formatBudgetCurrency(userBudget.spent_this_period_cents, userBudget.currency, {
+        fixedFractionDigits: true,
+      })
     : "—";
   const userLimitLabel =
     userBudget && hasUserBudgetLimit
-      ? formatBudgetCurrency(Number(userBudget.monthly_limit_cents), userBudget.currency)
+      ? formatBudgetCurrency(Number(userBudget.monthly_limit_cents), userBudget.currency, {
+          fixedFractionDigits: true,
+        })
       : null;
+  const userUsageLabel = userLimitLabel
+    ? `User ${userSpentLabel}/${userLimitLabel}`
+    : `User ${userSpentLabel}`;
+  const organizationTotalLabel = organizationConsumption
+    ? formatBudgetCurrency(organizationConsumption.total_cents, organizationConsumption.currency, {
+        fixedFractionDigits: true,
+      })
+    : null;
   const userTitle = userBudget
     ? userLimitLabel
-      ? `${userSpentLabel} / ${userLimitLabel}`
-      : `${userSpentLabel} consumed`
+      ? `User ${userSpentLabel} / ${userLimitLabel}`
+      : `User ${userSpentLabel} consumed`
     : summaryQuery.isError
       ? "Budget unavailable"
       : "Loading budget";
   const organizationTitle = organizationConsumption
     ? [
-        `${formatBudgetCurrency(
-          organizationConsumption.total_cents,
-          organizationConsumption.currency,
-        )} organization consumption`,
+        `Organization ${organizationTotalLabel} consumption`,
         `shared ${formatBudgetCurrency(
           organizationConsumption.organization_shared_cents,
           organizationConsumption.currency,
+          { fixedFractionDigits: true },
         )}`,
         `user-attributed ${formatBudgetCurrency(
           organizationConsumption.user_attributed_cents,
           organizationConsumption.currency,
+          { fixedFractionDigits: true },
         )}`,
         `unresolved ${formatBudgetCurrency(
           organizationConsumption.unresolved_cents,
           organizationConsumption.currency,
+          { fixedFractionDigits: true },
         )}`,
       ].join(" · ")
     : "";
@@ -304,15 +330,10 @@ function BudgetUsageIndicator({ onOpenBilling }: BudgetUsageIndicatorProps) {
         <div className="flex min-w-0 flex-1 items-center gap-1.5 border-l border-border/55 px-2.5">
           <span className="flex min-w-0 flex-1 flex-col truncate text-[11px] font-medium tabular-nums text-muted-foreground">
             <span className="truncate">
-              {userLimitLabel ? `${userSpentLabel}/${userLimitLabel}` : `${userSpentLabel} consumed`}
+              {userUsageLabel}
             </span>
-            {organizationConsumption ? (
-              <span className="truncate">
-                {`Org ${formatBudgetCurrency(
-                  organizationConsumption.total_cents,
-                  organizationConsumption.currency,
-                )}`}
-              </span>
+            {organizationTotalLabel ? (
+              <span className="truncate">{`Org ${organizationTotalLabel}`}</span>
             ) : null}
           </span>
           <button

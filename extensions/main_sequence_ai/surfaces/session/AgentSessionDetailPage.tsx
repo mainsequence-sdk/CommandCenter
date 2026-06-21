@@ -6,7 +6,6 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuthStore } from "@/auth/auth-store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/page-header";
 import { cn } from "@/lib/utils";
 import type { EntitySummaryHeader } from "../../../main_sequence/common/api";
 import { MainSequenceEntitySummaryCard } from "../../../main_sequence/common/components/MainSequenceEntitySummaryCard";
@@ -15,7 +14,7 @@ import { AgentSessionInsightsSections } from "../../agent-session-detail/AgentSe
 import { AgentSessionModelEditor } from "../../agent-session-detail/AgentSessionModelEditor";
 import { formatSessionTimestamp } from "../../agent-session-detail/sessionDetailUi";
 import { useAgentSessionDetail } from "../../agent-session-detail/useAgentSessionDetail";
-import { CHAT_PAGE_PATH } from "../../assistant-ui/chat-ui-store";
+import { getChatPagePath } from "../../assistant-ui/chat-ui-store";
 
 type SessionPageTab = "details" | "model" | "insights";
 
@@ -150,43 +149,35 @@ export function AgentSessionDetailPage() {
   const summary = activeDetail?.status === "ready" ? buildSessionSummary(activeDetail) : null;
   const sessionTitle =
     summary?.entity.title || activeDetail?.core?.title || sessionId || "Agent Session";
-  const sessionHandleUniqueId =
-    activeDetail?.status === "ready"
-      ? activeDetail.core?.boundHandle?.handleUniqueId ?? activeDetail.context.handleUniqueId ?? null
-      : null;
-  const headerSecondaryLabel = sessionHandleUniqueId
-    ? `Handle ${sessionHandleUniqueId}`
-    : sessionId
-      ? `UID ${sessionId}`
-      : null;
-  const headerDescription =
-    headerSecondaryLabel || "Inspect one backend AgentSession in the standard Main Sequence detail shell.";
+  const sessionChatPath = getChatPagePath(sessionId);
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6">
-      <PageHeader
-        eyebrow="Main Sequence AI"
-        title={sessionTitle}
-        description={headerDescription}
-        actions={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                navigate(-1);
-              }}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-            <Link to={CHAT_PAGE_PATH}>
-              <Button type="button" variant="outline" size="sm">Open Chat</Button>
-            </Link>
-          </>
-        }
-      />
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+        <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+          <Link to={sessionChatPath} className="shrink-0 transition-colors hover:text-foreground">
+            Agent Sessions
+          </Link>
+          <span>/</span>
+          <span className="min-w-0 truncate text-foreground">{sessionTitle}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              navigate(-1);
+            }}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <Link to={sessionChatPath}>
+            <Button type="button" variant="outline" size="sm">Open Chat</Button>
+          </Link>
+        </div>
+      </div>
 
       {!sessionId ? (
         <Card>

@@ -20,6 +20,10 @@ API clients, hooks, and picker components.
   Explore shell.
 - `mock-api/`: frontend-only local Mock API connection for JSON-backed query prototyping. This
   type is always available locally and is deliberately excluded from backend registry sync.
+- `mssql/`: SQL Server connection metadata built from shared SQL connection primitives with
+  `mssql.database` backend adapter contract.
+- `mysql/`: MySQL connection metadata built from shared SQL connection primitives with
+  MySQL-specific defaults and backend adapter contract.
 - `prometheus/`: Prometheus connection metadata and its custom Explore shell.
 - `postgresql/`: PostgreSQL connection metadata and its custom SQL Explore shell.
 - `timescaledb/`: TimescaleDB connection metadata that reuses the PostgreSQL-compatible

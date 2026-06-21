@@ -14,6 +14,7 @@ export interface PickerOption {
 
 interface PickerFieldProps {
   value: string;
+  displayValue?: string;
   onChange: (value: string) => void;
   options: PickerOption[];
   placeholder: string;
@@ -40,6 +41,7 @@ function matchesSearch(option: PickerOption, query: string) {
 
 export function PickerField({
   value,
+  displayValue,
   onChange,
   options,
   placeholder,
@@ -56,6 +58,8 @@ export function PickerField({
   const [open, setOpen] = useState(false);
   const [internalSearchValue, setInternalSearchValue] = useState("");
   const selectedOption = options.find((option) => option.value === value);
+  const resolvedDisplayValue = displayValue?.trim() ?? "";
+  const selectedLabel = selectedOption?.label ?? resolvedDisplayValue;
   const effectiveSearchValue = searchValue ?? internalSearchValue;
   const normalizedQuery = effectiveSearchValue.trim().toLowerCase();
   const filteredOptions = options.filter((option) => matchesSearch(option, normalizedQuery));
@@ -130,10 +134,10 @@ export function PickerField({
           <span
             className={cn(
               "block truncate",
-              selectedOption ? "text-foreground" : "text-muted-foreground",
+              selectedLabel ? "text-foreground" : "text-muted-foreground",
             )}
           >
-            {selectedOption?.label ?? placeholder}
+            {selectedLabel || placeholder}
           </span>
           {selectedOption?.description ? (
             <span className="block truncate text-xs text-muted-foreground">

@@ -163,14 +163,14 @@ export interface ProjectDataSourceBulkDeleteResponse {
 }
 
 export interface ProjectDataSourceEditorEntity {
-  id: number;
+  id?: number;
   uid?: string | null;
   type: string;
   title: string;
 }
 
 export interface ProjectDataSourceEditorField {
-  key: "display_name" | "related_resource" | "is_default_data_source";
+  key: "display_name" | "related_resource_uid" | "is_default_data_source";
   label: string;
   editor: "text" | "remote_select" | "checkbox";
   required: boolean;
@@ -209,7 +209,7 @@ export interface ProjectDataSourceRelatedResourceOption {
 
 export interface ProjectDataSourceEditorInput {
   display_name: string;
-  related_resource: string;
+  related_resource_uid: string;
   is_default_data_source: boolean;
 }
 
@@ -237,6 +237,7 @@ export interface PhysicalDataSourceListRow {
   status: string;
   status_label: string;
   status_tone: "success" | "warning" | "danger" | "neutral" | "info";
+  storage_access_mode?: PhysicalDataSourceStorageAccessMode | null;
   provisioned_size_gb?: number | null;
   creation_date: string | null;
   creation_date_display: string;
@@ -273,6 +274,18 @@ export interface PhysicalDataSourceBulkDeleteResponse {
   deleted_count: number;
 }
 
+export type PhysicalDataSourceStorageAccessMode =
+  | "read_write"
+  | "read_only"
+  | "disabled";
+
+export interface PhysicalDataSourceEditorFieldOption {
+  value: string | number | boolean;
+  label: string;
+  description?: string;
+  disabled?: boolean;
+}
+
 export interface PhysicalDataSourceEditorField {
   key:
     | "display_name"
@@ -286,14 +299,21 @@ export interface PhysicalDataSourceEditorField {
     | "tags"
     | "internal_code"
     | "class_type"
-    | "status";
+    | "status"
+    | "storage_access_mode";
   label: string;
-  editor: "text" | "password" | "number" | "textarea";
+  editor: "text" | "password" | "number" | "textarea" | "select";
   required: boolean;
   value?: string | number | boolean | null;
   read_only?: boolean;
   placeholder?: string;
   help_text?: string;
+  options?:
+    | Array<PhysicalDataSourceEditorFieldOption | string | number | boolean>
+    | null;
+  choices?:
+    | Array<PhysicalDataSourceEditorFieldOption | string | number | boolean>
+    | null;
 }
 
 export interface PhysicalDataSourceEditorActions {
@@ -335,12 +355,14 @@ export interface PhysicalDataSourceEditorCreateInput {
   database_name?: string;
   description?: string;
   tags?: string;
+  storage_access_mode?: PhysicalDataSourceStorageAccessMode;
 }
 
 export interface PhysicalDataSourceEditorUpdateInput {
   display_name?: string;
   description?: string;
   internal_code?: string;
+  storage_access_mode?: PhysicalDataSourceStorageAccessMode;
 }
 
 export interface PhysicalDataSourceEditorWriteResponse {
@@ -357,6 +379,34 @@ export interface PhysicalDataSourceDeleteResponse {
   uid?: string | null;
   redirect_path: string;
 }
+
+export interface PhysicalDataSourceConnectionRow extends Record<string, unknown> {
+  uid?: string | null;
+  connection_uid?: string | null;
+  display_name?: string | null;
+  name?: string | null;
+  unique_identifier?: string | null;
+  type_id?: string | null;
+  typeId?: string | null;
+  connection_type?: string | null;
+  class_type?: string | null;
+  status?: string | null;
+  status_label?: string | null;
+  status_tone?: string | null;
+  created_at?: string | null;
+  creation_date?: string | null;
+  creation_date_display?: string | null;
+}
+
+export type PhysicalDataSourceConnectionsResponse =
+  | PhysicalDataSourceConnectionRow[]
+  | {
+      rows?: PhysicalDataSourceConnectionRow[];
+      results?: PhysicalDataSourceConnectionRow[];
+      connections?: PhysicalDataSourceConnectionRow[];
+      count?: number;
+      [key: string]: unknown;
+    };
 
 export interface TimeScaleDBServiceRecord {
   id: number;
@@ -1129,6 +1179,11 @@ export interface MainSequenceSummaryExtensions extends SummaryExtensions {
   agent_capabilities?: boolean;
 }
 
+export interface ClusterSummaryFilters {
+  namespace?: string | null;
+  node_pool?: string | null;
+}
+
 export type VirtualFundSummaryResponse = SummaryResponse<MainSequenceSummaryExtensions>;
 
 export interface TargetPortfolioSummaryExtensions extends MainSequenceSummaryExtensions {
@@ -1448,8 +1503,7 @@ export interface AssetOrderFormFieldsResponse {
 }
 
 export interface ClusterListRow {
-  id: number;
-  uuid: string;
+  uid: string;
   cluster_name: string;
 }
 
@@ -1481,8 +1535,7 @@ export type ClusterDetailTabId =
   | "knative";
 
 export interface ClusterDetailEntity {
-  id: number;
-  uuid: string;
+  uid: string;
   cluster_name: string;
   cluster_description?: string | null;
   [key: string]: unknown;
@@ -1516,20 +1569,14 @@ export interface ClusterDetailTabDefinition {
   count?: string | number | null;
 }
 
-export interface ClusterDetailSummary {
-  cluster: ClusterDetailEntity;
-  cluster_status: ClusterDetailStatus;
-  cloud_provider_label?: string | null;
-  location?: string | null;
-  cluster_configuration_name?: string | null;
-  allow_to_run_jupyter_hub?: boolean;
-  allow_to_run_data_sources?: boolean;
-  is_auto_pilot_cluster?: boolean;
-  stats_items: ClusterDetailStatItem[];
-  tabs: ClusterDetailTabDefinition[];
-  summary_warning?: string | null;
-  [key: string]: unknown;
+export interface ClusterSummaryExtensions extends MainSequenceSummaryExtensions {
+  cluster?: ClusterDetailEntity;
+  cluster_status?: ClusterDetailStatus;
+  tabs?: ClusterDetailTabDefinition[];
+  filters?: ClusterSummaryFilters;
 }
+
+export type ClusterSummaryResponse = SummaryResponse<ClusterSummaryExtensions>;
 
 export interface ClusterNodePoolRow {
   name: string;
@@ -2042,6 +2089,116 @@ export interface MetaTableSyncFromPhysicalResponse {
   ok?: boolean;
   detail?: string;
   [key: string]: unknown;
+}
+
+export type MetaTableImportIdentifierStrategy =
+  | "none"
+  | "table_name"
+  | "namespace_table_name";
+
+export interface MetaTableImportFromDataSourceInput {
+  data_source_uid: string;
+  namespace?: string | null;
+  dry_run: boolean;
+  include_views?: boolean;
+  follow_foreign_keys?: boolean;
+  refresh_existing?: boolean;
+  strict?: boolean;
+  identifier_strategy?: MetaTableImportIdentifierStrategy;
+  relation_names?: string[];
+  exclude_relation_names?: string[];
+  stale_policy?: "report_only";
+}
+
+export interface MetaTableImportFromDataSourceCounts {
+  discovered: number;
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+  failed: number;
+  stale: number;
+}
+
+export interface MetaTableImportFromDataSourceRelation {
+  physical_table_name: string;
+  relation_kind: string;
+  status: string;
+  meta_table_uid?: string | null;
+  columns?: number | null;
+  indexes?: number | null;
+  foreign_keys?: number | null;
+  warnings?: string[];
+  error?: string | null;
+  [key: string]: unknown;
+}
+
+export interface MetaTableImportFromDataSourceStaleRecord {
+  meta_table_uid?: string | null;
+  physical_table_name: string;
+  reason: string;
+}
+
+export interface MetaTableImportFromDataSourceResponse {
+  ok: boolean;
+  dry_run: boolean;
+  data_source_uid: string;
+  physical_data_source_uid?: string | null;
+  class_type?: string | null;
+  schema?: string | null;
+  namespace?: string | null;
+  counts: MetaTableImportFromDataSourceCounts;
+  relations: MetaTableImportFromDataSourceRelation[];
+  stale: MetaTableImportFromDataSourceStaleRecord[];
+  warnings: string[];
+}
+
+function normalizeMetaTableImportText(value: unknown, fallback = "") {
+  if (typeof value === "string") {
+    return value.trim() || fallback;
+  }
+
+  const message = readMessageFromPayload(value);
+  return message || fallback;
+}
+
+function normalizeMetaTableImportTextList(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => normalizeMetaTableImportText(entry))
+      .filter((entry) => entry.length > 0);
+  }
+
+  const single = normalizeMetaTableImportText(value);
+  return single ? [single] : [];
+}
+
+function normalizeMetaTableImportFromDataSourceResponse(
+  response: MetaTableImportFromDataSourceResponse,
+): MetaTableImportFromDataSourceResponse {
+  return {
+    ...response,
+    warnings: normalizeMetaTableImportTextList(response.warnings),
+    relations: Array.isArray(response.relations)
+      ? response.relations.map((relation) => ({
+          ...relation,
+          warnings: normalizeMetaTableImportTextList(relation.warnings),
+          error:
+            relation.error === null || relation.error === undefined
+              ? null
+              : normalizeMetaTableImportText(
+                  relation.error,
+                  "The relation import failed.",
+                ),
+        }))
+      : [],
+    stale: Array.isArray(response.stale)
+      ? response.stale.map((staleRecord) => ({
+          ...staleRecord,
+          reason: normalizeMetaTableImportText(staleRecord.reason),
+        }))
+      : [],
+  };
 }
 
 export interface ColumnarDataSnapshot {
@@ -6845,6 +7002,13 @@ export function fetchPhysicalDataSourceSummary(physicalDataSourceUid: string) {
   );
 }
 
+export function fetchPhysicalDataSourceConnections(physicalDataSourceUid: string) {
+  return requestJson<PhysicalDataSourceConnectionsResponse>(
+    mainSequenceConnectionsEndpoint,
+    `data_source/${resolveMainSequenceUidPath(physicalDataSourceUid, "physical data source")}/connections/`,
+  );
+}
+
 export function createPhysicalDataSourceEditor(input: PhysicalDataSourceEditorCreateInput) {
   return requestJson<PhysicalDataSourceEditorWriteResponse>(
     mainSequenceConnectionsEndpoint,
@@ -7082,13 +7246,29 @@ export function listClusters({
   );
 }
 
-export function fetchClusterDetail(clusterUid: string) {
-  return requestJson<ClusterDetailSummary>(
+export function fetchClusterSummary(
+  clusterUid: string,
+  {
+    namespace,
+    nodePool,
+  }: {
+    namespace?: string;
+    nodePool?: string;
+  } = {},
+) {
+  return requestJson<ClusterSummaryResponse>(
     commandCenterConfig.mainSequence.endpoint,
-    `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/`,
+    `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/summary/`,
     undefined,
-    { response_format: "cluster_detail" },
+    {
+      namespace: namespace?.trim() || undefined,
+      node_pool: nodePool?.trim() || undefined,
+    },
   );
+}
+
+export function fetchClusterDetail(clusterUid: string) {
+  return fetchClusterSummary(clusterUid);
 }
 
 export async function listClusterNodePools(clusterUid: string) {
@@ -7673,11 +7853,71 @@ export function syncMetaTableFromPhysical(metaTableIdentifier: TsManagerPathIden
   );
 }
 
+export function importMetaTablesFromDataSource(
+  input: MetaTableImportFromDataSourceInput,
+) {
+  return requestJson<MetaTableImportFromDataSourceResponse>(
+    metaTableEndpoint,
+    "import-from-data-source/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        data_source_uid: input.data_source_uid,
+        namespace: input.namespace ?? null,
+        dry_run: input.dry_run,
+        include_views: input.include_views ?? true,
+        follow_foreign_keys: input.follow_foreign_keys ?? true,
+        refresh_existing: input.refresh_existing ?? true,
+        strict: input.strict ?? false,
+        identifier_strategy: input.identifier_strategy ?? "none",
+        relation_names: input.relation_names ?? [],
+        exclude_relation_names: input.exclude_relation_names ?? [],
+        stale_policy: input.stale_policy ?? "report_only",
+      }),
+    },
+  ).then((response) => normalizeMetaTableImportFromDataSourceResponse(response));
+}
+
 export function fetchMetaTableSummary(metaTableIdentifier: TsManagerPathIdentifier) {
   return requestJson<SummaryResponse>(
     metaTableEndpoint,
     `${resolveTsManagerPath(metaTableIdentifier)}/summary/`,
   );
+}
+
+function normalizeGeneratedSearchDocumentPayload(payload: unknown) {
+  if (typeof payload === "string") {
+    return payload.trim() || null;
+  }
+
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const candidates = [
+    record.generated_search_document,
+    record.search_document,
+    record.document,
+    record.content,
+    record.markdown,
+    isObjectRecord(record.extensions) ? record.extensions.generated_search_document : null,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return null;
+}
+
+export function fetchMetaTableGeneratedSearchDocument(metaTableIdentifier: TsManagerPathIdentifier) {
+  return requestJson<unknown>(
+    metaTableEndpoint,
+    `${resolveTsManagerPath(metaTableIdentifier)}/generated-search-document/`,
+  ).then((payload) => normalizeGeneratedSearchDocumentPayload(payload));
 }
 
 function readStringArray(value: unknown) {
@@ -9149,7 +9389,17 @@ export function deleteProjectImage(imageUid: string) {
 }
 
 export function bulkDeleteProjectImages(uids: string[]) {
-  return postMainSequenceBulkDelete("project-image/bulk-delete/", uids);
+  return requestJson<MainSequenceBulkDeleteResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    "project-image/bulk-delete/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        selected_uids: uids,
+        select_all: false,
+      }),
+    },
+  );
 }
 
 export function fetchProjectImageCommitHashes(projectUid: string, limit = 100) {

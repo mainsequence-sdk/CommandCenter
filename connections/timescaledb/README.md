@@ -9,9 +9,10 @@ extension probes succeed.
 
 - `index.ts`: exports the TimescaleDB connection type loaded by the root-level custom connection
   loader. It reuses the PostgreSQL-compatible public config schema, secure config schema, query
-  models, query editor, examples, and usage-guidance builder from `connections/postgresql/`.
-- `../postgresql/PostgreSqlConnectionQueryEditor.tsx`: shared SQL and schema-metadata editor used
-  by PostgreSQL and TimescaleDB.
+  models, examples, and usage-guidance builder from `connections/postgresql/`, which delegates
+  shared SQL authoring behavior to `src/connections/sql/`.
+- `src/connections/sql/SharedSqlConnectionQueryEditor.tsx`: shared SQL and schema-metadata editor
+  used by PostgreSQL, TimescaleDB, and MySQL.
 
 ## Behavior
 

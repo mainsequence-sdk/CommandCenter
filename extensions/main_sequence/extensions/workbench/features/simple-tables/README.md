@@ -13,9 +13,9 @@ The directory name is still `simple-tables` only because older local imports use
 ## Dependencies
 
 - Data is loaded through `extensions/main_sequence/common/api/index.ts` using `/orm/api/ts_manager/meta_table/`.
-- The top-level registry now bootstraps namespace options from `/orm/api/ts_manager/meta_table/namespaces/`
-  and defaults to the first returned namespace. Users can switch to `All namespaces` to remove the
-  namespace filter.
+- The top-level registry loads the MetaTable list immediately. Namespace options from
+  `/orm/api/ts_manager/meta_table/namespaces/` load in parallel for the filter picker instead of
+  blocking the registry.
 - Detail tabs use `/{uid}/summary/`, `/{uid}/`, `/{uid}/get-data-snapshot/`, and `/{uid}/schema-graph/`.
 - Destructive actions use:
   - `DELETE /orm/api/ts_manager/meta_table/{uid}/` for strict single-table delete
@@ -30,16 +30,25 @@ The directory name is still `simple-tables` only because older local imports use
 - The `Details` tab is built from the normalized `GET /orm/api/ts_manager/meta_table/{uid}/`
   contract. It renders top-level metadata plus `columns`, `indexes_meta`, `foreign_keys`, and
   `incoming_fks` directly from that payload instead of relying on Data Node source-table metadata.
+- The `Description` tab renders the generated search document, matching the Data Nodes detail
+  behavior. A summary field such as `Generated Search Document: Yes` is an availability flag, not
+  the document body; the tab fetches
+  `GET /orm/api/ts_manager/meta_table/{uid}/generated-search-document/` for the actual markdown
+  content and only exposes the refresh-search-index action when no generated document is available.
 - There is no MetaTable update-node endpoint. Update-node screens remain only under Data Nodes and LocalTimeSerie workflows.
 - Strict delete blocks on inbound foreign-key references. The UI exposes a separate `Delete with Cascade`
   action that uses the bulk cascade endpoint, even from detail view, when the operator intends to
   remove referencing MetaTables and Data Nodes too.
 - Bulk delete removes MetaTable registrations only; it does not drop physical database tables.
 - Top-level detail navigation is URL-backed with `msMetaTableUid` and `msMetaTableTab`.
+- Namespace preselection can also be deep-linked with `msMetaTableNamespace`, which is used by
+  the DynamicTable Data Source MetaTable import flow to open the imported namespace directly in the
+  registry.
 - Meta Table display identity uses table names, explicit identifiers, and UIDs. Do not surface
   `storage_hash`; that field is deprecated and is not part of the UI identity model.
-- The list view is namespace-first on purpose. It narrows the heavier Meta Table registry before
-  applying the page-local text filter.
+- The list view supports namespace filtering without blocking initial list rendering. Deep links can
+  preselect a namespace with `msMetaTableNamespace`; otherwise the registry starts from `All
+  namespaces` and lets the backend paginate the list.
 - Meta Table search must be backend-driven. The page forwards the current search string to
   `/orm/api/ts_manager/meta_table/` with the selected namespace and pagination params so matches
   can be found across the full registry, not only inside the currently loaded page.

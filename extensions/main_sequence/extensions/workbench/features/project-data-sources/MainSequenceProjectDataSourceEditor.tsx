@@ -1,8 +1,10 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Table2, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
+import { getAppPath } from "@/apps/utils";
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,22 @@ import {
   type ProjectDataSourceEditorWriteResponse,
 } from "../../../../common/api";
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
+import { MainSequenceProjectDataSourceMetaTableImportDialog } from "./MainSequenceProjectDataSourceMetaTableImportDialog";
+
+const metaTableNamespaceParam = "msMetaTableNamespace";
+
+function getProjectDataSourceRelatedResourceOptionValue(option: {
+  id: string;
+  uid?: string | null;
+}) {
+  const uid = typeof option.uid === "string" ? option.uid.trim() : "";
+
+  if (uid.length > 0) {
+    return uid;
+  }
+
+  return option.id.trim();
+}
 
 function getEditorField(
   payload: ProjectDataSourceEditorPayload | undefined,
@@ -60,23 +78,30 @@ export function MainSequenceProjectDataSourceEditor({
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
   const [relatedResourceUid, setRelatedResourceUid] = useState("");
   const [relatedResourceDisplayValue, setRelatedResourceDisplayValue] = useState("");
   const [isDefaultDataSource, setIsDefaultDataSource] = useState(false);
   const [relatedResourceSearchValue, setRelatedResourceSearchValue] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const deferredRelatedResourceSearchValue = useDeferredValue(relatedResourceSearchValue);
   const isEditMode = mode === "edit";
+  const editorQueryKey = useMemo(
+    () => ["main_sequence", "project_data_sources", "editor", mode, projectDataSourceUid ?? null],
+    [mode, projectDataSourceUid],
+  );
 
   const editorQuery = useQuery({
-    queryKey: ["main_sequence", "project_data_sources", "editor", mode, projectDataSourceUid ?? null],
+    queryKey: editorQueryKey,
     queryFn: () =>
       isEditMode && projectDataSourceUid
         ? fetchProjectDataSourceEditor(projectDataSourceUid)
         : fetchProjectDataSourceEditorConfig(),
     enabled: !isEditMode || Boolean(projectDataSourceUid),
   });
+  const editorPayload = editorQuery.data;
 
   const relatedResourceOptionsQuery = useQuery({
     queryKey: [
@@ -90,33 +115,9 @@ export function MainSequenceProjectDataSourceEditor({
     enabled: !!editorQuery.data,
   });
 
-  useEffect(() => {
-    const payload = editorQuery.data;
-
-    if (!payload) {
-      return;
-    }
-
-    const displayNameField = getEditorField(payload, "display_name");
-    const relatedResourceField = getEditorField(payload, "related_resource");
-    const defaultField = getEditorField(payload, "is_default_data_source");
-
-    setDisplayName(typeof displayNameField?.value === "string" ? displayNameField.value : "");
-    setRelatedResourceUid(
-      relatedResourceField?.value !== null &&
-        relatedResourceField?.value !== undefined &&
-        `${relatedResourceField.value}` !== "0"
-        ? String(relatedResourceField.value)
-        : "",
-    );
-    setRelatedResourceDisplayValue(relatedResourceField?.display_value ?? "");
-    setIsDefaultDataSource(Boolean(defaultField?.value));
-    setRelatedResourceSearchValue("");
-  }, [editorQuery.data]);
-
   const relatedResourceOptions = useMemo<PickerOption[]>(() => {
     const options: PickerOption[] = (relatedResourceOptionsQuery.data ?? []).map((option) => ({
-      value: option.uid ?? "",
+      value: getProjectDataSourceRelatedResourceOptionValue(option),
       label: option.label,
       description: [option.class_type, option.status].filter(Boolean).join(" · "),
       keywords: [option.class_type, option.status],
@@ -136,11 +137,47 @@ export function MainSequenceProjectDataSourceEditor({
     return options;
   }, [relatedResourceDisplayValue, relatedResourceUid, relatedResourceOptionsQuery.data]);
 
+  useEffect(() => {
+    const payload = editorQuery.data;
+
+    if (!payload) {
+      return;
+    }
+
+    const displayNameField = getEditorField(payload, "display_name");
+    const relatedResourceField = getEditorField(payload, "related_resource_uid");
+    const defaultField = getEditorField(payload, "is_default_data_source");
+
+    setDisplayName(typeof displayNameField?.value === "string" ? displayNameField.value : "");
+    const nextRelatedResourceUid =
+      relatedResourceField?.value !== null &&
+        relatedResourceField?.value !== undefined &&
+        `${relatedResourceField.value}` !== "0"
+        ? String(relatedResourceField.value)
+        : "";
+    setRelatedResourceUid(nextRelatedResourceUid);
+    setRelatedResourceDisplayValue(relatedResourceField?.display_value ?? "");
+    setIsDefaultDataSource(Boolean(defaultField?.value));
+    setRelatedResourceSearchValue("");
+  }, [editorQuery.data]);
+
+  useEffect(() => {
+    if (!relatedResourceUid || relatedResourceDisplayValue.trim().length > 0) {
+      return;
+    }
+
+    const matchingOption = relatedResourceOptions.find((option) => option.value === relatedResourceUid);
+
+    if (matchingOption) {
+      setRelatedResourceDisplayValue(matchingOption.label);
+    }
+  }, [relatedResourceDisplayValue, relatedResourceOptions, relatedResourceUid]);
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       const payload = {
         display_name: displayName.trim(),
-        related_resource: relatedResourceUid,
+        related_resource_uid: relatedResourceUid,
         is_default_data_source: isDefaultDataSource,
       };
 
@@ -155,11 +192,22 @@ export function MainSequenceProjectDataSourceEditor({
         queryKey: ["main_sequence", "project_data_sources"],
       });
 
+      if (isEditMode) {
+        await queryClient.invalidateQueries({
+          queryKey: editorQueryKey,
+        });
+        await editorQuery.refetch();
+      }
+
       toast({
         variant: "success",
         title: isEditMode ? "Project data source updated" : "Project data source created",
         description: result.detail,
       });
+
+      if (isEditMode) {
+        return;
+      }
 
       const redirectUid = extractProjectDataSourceUidFromRedirectPath(result.redirect_path) ?? result.uid;
       onOpenProjectDataSourceDetail(redirectUid);
@@ -206,14 +254,26 @@ export function MainSequenceProjectDataSourceEditor({
     },
   });
 
-  const payload = editorQuery.data;
-  const displayNameField = getEditorField(payload, "display_name");
-  const relatedResourceField = getEditorField(payload, "related_resource");
-  const isDefaultField = getEditorField(payload, "is_default_data_source");
+  const displayNameField = getEditorField(editorPayload, "display_name");
+  const relatedResourceField = getEditorField(editorPayload, "related_resource_uid");
+  const isDefaultField = getEditorField(editorPayload, "is_default_data_source");
   const editorTitle =
-    payload?.entity?.title ??
+    editorPayload?.entity?.title ??
     (isEditMode ? `Project data source ${projectDataSourceUid}` : "Create project data source");
   const canSubmit = displayName.trim().length > 0 && relatedResourceUid.trim().length > 0;
+
+  function openMetaTables(namespace: string | null | undefined) {
+    const searchParams = new URLSearchParams();
+
+    if (namespace?.trim()) {
+      searchParams.set(metaTableNamespaceParam, namespace.trim());
+    }
+
+    navigate({
+      pathname: getAppPath("main_sequence_workbench", "meta-tables"),
+      search: searchParams.toString() ? `?${searchParams.toString()}` : "",
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -231,6 +291,12 @@ export function MainSequenceProjectDataSourceEditor({
               <ArrowLeft className="h-4 w-4" />
               Back to list
             </Button>
+            {isEditMode && projectDataSourceUid ? (
+              <Button type="button" variant="outline" onClick={() => setImportDialogOpen(true)}>
+                <Table2 className="h-4 w-4" />
+                Import MetaTables
+              </Button>
+            ) : null}
             {isEditMode ? <Badge variant="neutral">Edit</Badge> : <Badge variant="neutral">Create</Badge>}
           </>
         }
@@ -259,7 +325,7 @@ export function MainSequenceProjectDataSourceEditor({
             </div>
           ) : null}
 
-          {!editorQuery.isLoading && !editorQuery.isError && payload ? (
+          {!editorQuery.isLoading && !editorQuery.isError && editorPayload ? (
             <>
               <div className="grid gap-5 lg:grid-cols-2">
                 <div className="space-y-2">
@@ -280,7 +346,12 @@ export function MainSequenceProjectDataSourceEditor({
                   </label>
                   <PickerField
                     value={relatedResourceUid}
-                    onChange={setRelatedResourceUid}
+                    displayValue={relatedResourceDisplayValue}
+                    onChange={(value) => {
+                      setRelatedResourceUid(value);
+                      const selectedOption = relatedResourceOptions.find((option) => option.value === value);
+                      setRelatedResourceDisplayValue(selectedOption?.label ?? "");
+                    }}
                     options={relatedResourceOptions}
                     placeholder="Select a physical data source"
                     searchValue={relatedResourceSearchValue}
@@ -320,7 +391,7 @@ export function MainSequenceProjectDataSourceEditor({
 
               <div className="flex flex-wrap justify-between gap-3 border-t border-border/70 pt-4">
                 <div>
-                  {isEditMode && payload.actions.delete ? (
+                  {isEditMode && editorPayload.actions.delete ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -382,6 +453,18 @@ export function MainSequenceProjectDataSourceEditor({
           variant: "error",
         }}
       />
+
+      {projectDataSourceUid ? (
+        <MainSequenceProjectDataSourceMetaTableImportDialog
+          dataSourceUid={projectDataSourceUid}
+          open={importDialogOpen}
+          onClose={() => setImportDialogOpen(false)}
+          onOpenMetaTables={(namespace) => {
+            setImportDialogOpen(false);
+            openMetaTables(namespace);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

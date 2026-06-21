@@ -40,6 +40,22 @@ describe("hydrateConnectionRuntime", () => {
     ).toBe(true);
   });
 
+  it("loads the MySQL custom connection definition", () => {
+    expect(
+      connectionRuntimeDefinitions.some(
+        (definition) => definition.id === "mysql.database",
+      ),
+    ).toBe(true);
+  });
+
+  it("loads the SQL Server custom connection definition", () => {
+    expect(
+      connectionRuntimeDefinitions.some(
+        (definition) => definition.id === "mssql.database",
+      ),
+    ).toBe(true);
+  });
+
   it("preserves stream metadata from local runtime query models", () => {
     const localDefinition = createDefinition({
       version: 2,

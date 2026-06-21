@@ -49,7 +49,9 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - `run-config-selection.ts`
   Shared provider/model/thinking selection resolver. It merges backend model catalogs with the
   current persisted agent or session defaults so callers can render standard run-config fields
-  without dropping a current value that is not present in the registered catalog.
+  without dropping a current value that is not present in the registered catalog. It also
+  normalizes fallback `current::{provider}::{model}` option ids back to canonical provider/model
+  values before rendering or submitting run configuration.
 - `model-catalog-api.ts`
   Shared global model-catalog fetch helper used by the provider settings screen.
 - `model-provider-auth-api.ts`

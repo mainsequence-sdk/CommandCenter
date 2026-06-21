@@ -156,6 +156,7 @@ export function AgentSessionDetailSections({
             <SessionField label="Agent UID" value={core.agentId || detail.context.agentId} mono />
             <SessionField label="Provider" value={core.llmProvider} />
             <SessionField label="Model" value={core.llmModel} mono />
+            <SessionField label="Thinking" value={core.llmThinking} />
             <SessionField label="Engine" value={core.engineName} />
           </div>
         </CardContent>

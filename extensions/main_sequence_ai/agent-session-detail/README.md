@@ -22,8 +22,9 @@ This module owns the shared AgentSession detail capability for the `Main Sequenc
   Shared read-only rendering for the backend insights payload, including model, usage, context,
   and last-turn sections.
 - `AgentSessionModelEditor.tsx`
-  Standalone provider/model selector that uses the same available-models and session PATCH
-  contracts as chat without depending on `ChatProvider`.
+  Standalone provider/model/thinking editor that uses the shared `RunConfigFields` selector and an
+  explicit update button before PATCHing the session config. It uses the same available-models and
+  session PATCH contracts as chat without depending on `ChatProvider`.
 - `routes.ts`
   Route helpers for the dedicated AgentSession page surface.
 

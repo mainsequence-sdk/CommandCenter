@@ -8,19 +8,19 @@ entry.
 
 - `index.ts`: exports the `postgresql.database` connection type definition plus reusable
   PostgreSQL-compatible public config schema, secure config schema, query models, usage-guidance
-  builder, and connection-definition factory. `connections/timescaledb/` imports these exports so
-  the shared database settings stay dry.
-- `PostgreSqlConnectionQueryEditor.tsx`: typed Connection Query widget editor for SQL table,
-  SQL time-series, schema-tables, and schema-columns payloads.
-- `postgreSqlAuthoring.tsx`: defines the shared `authoringContract` factory used by both Data
-  Sources Explore and widget-managed/standalone `connection-query` settings for source summary
-  cards and provider-specific Explore copy.
+  builder, and connection-definition factory. It delegates common SQL behavior to
+  `src/connections/sql/` so PostgreSQL, TimescaleDB, and MySQL keep the same authoring surface.
+- `PostgreSqlConnectionQueryEditor.tsx`: compatibility re-export for the shared SQL query editor
+  used by SQL table, SQL time-series, schema-tables, and schema-columns payloads.
+- `postgreSqlAuthoring.tsx`: compatibility wrapper around the shared SQL `authoringContract`
+  factory used by Data Sources Explore and widget-managed/standalone `connection-query` settings.
 
 ## Behavior
 
 - The connection type exposes database target fields, SSL mode, backend pool settings, write-only
-  password and TLS material, and data-source-level query policy fields. The same config schema is
-  reused by TimescaleDB. Command Center public config uses `database` and `username`; do not send
+  password and TLS material, and data-source-level query policy fields. PostgreSQL and TimescaleDB
+  reuse the same PostgreSQL-compatible schema object; MySQL uses the same shared SQL builders with
+  MySQL-specific defaults. Command Center public config uses `database` and `username`; do not send
   physical data-source model fields such as `database_name` or `database_user`.
 - PostgreSQL-compatible query models are `sql-table`, `sql-time-series`, `schema-tables`, and
   `schema-columns`. Legacy backend compatibility for `sql` and `sql-timeseries` may remain, but
@@ -36,8 +36,9 @@ entry.
   table-list query against `information_schema.tables` and `maxRows = 100` so Explore and widget
   settings start from the same safe default. SQL authoring, generated request preview, test
   execution, and normalized frame preview must not fork from the widget path.
-- SQL query payloads use the shared CodeMirror-backed `QuerySqlField` from connection components.
-  Keep SQL editing behavior there rather than adding PostgreSQL-only text areas.
+- SQL query payloads use the shared CodeMirror-backed `QuerySqlField` through
+  `src/connections/sql/SharedSqlConnectionQueryEditor.tsx`. Keep SQL editing behavior there
+  rather than adding PostgreSQL-only text areas.
 - Explore and widget settings both call the shared Connection Query workbench, which builds the
   standard `ConnectionQueryRequest` and executes it through the widget runtime helper. The backend
   adapter owns SQL macro expansion, connection pooling, query execution, row limits, health checks,
@@ -68,8 +69,8 @@ should include the query kind in audit logs and response metadata.
 ## Maintenance Constraints
 
 - PostgreSQL must remain a custom connection under `connections/`, not an app extension.
-- Keep connection-specific Explore/query summary behavior in `postgreSqlAuthoring.tsx`. Do not
-  reintroduce a PostgreSQL-only Explore shell.
+- Keep shared SQL Explore/query summary behavior in `src/connections/sql/`. Do not reintroduce a
+  PostgreSQL-only Explore shell.
 - Do not connect to PostgreSQL directly from the browser. Use `accessMode: "proxy"` and execute SQL
   through the backend adapter.
 - Treat SQL as trusted user-authored input executed by the configured database identity. Production

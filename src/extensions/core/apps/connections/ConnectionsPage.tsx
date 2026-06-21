@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, BookOpenText, Database, HeartPulse, Search } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   getConnectionRuntimeDefinition,
@@ -52,6 +52,7 @@ import {
 } from "../../../../../extensions/main_sequence/common/connectionBindings";
 
 type ConnectionsPageMode = "add-new" | "data-sources" | "explore";
+const connectionInstanceUidSearchParam = "connectionUid";
 const dataSourceRowGridClass =
   "lg:grid-cols-[minmax(260px,1.45fr)_minmax(180px,1fr)_120px_150px_90px_220px]";
 const multilineSecretFieldIds = new Set([
@@ -1393,18 +1394,45 @@ function DataSourcesContent({
 }: {
   typesById: Map<string, AnyConnectionTypeDefinition>;
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const instancesQuery = useConnectionInstances();
-  const [editingId, setEditingId] = useState<ConnectionId | "">("");
+  const routeSearchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const routeConnectionUid = routeSearchParams.get(connectionInstanceUidSearchParam)?.trim() ?? "";
+  const [editingId, setEditingId] = useState<ConnectionId | "">(routeConnectionUid);
   const instances = instancesQuery.data ?? [];
   const editingInstance = instances.find((instance) => sameConnectionId(instance.id, editingId));
   const editingType = editingInstance ? typesById.get(editingInstance.typeId) : undefined;
+
+  useEffect(() => {
+    if (!sameConnectionId(routeConnectionUid, editingId)) {
+      setEditingId(routeConnectionUid);
+    }
+  }, [editingId, routeConnectionUid]);
+
+  function setEditingConnectionId(nextConnectionId: ConnectionId | "") {
+    const nextParams = new URLSearchParams(location.search);
+
+    if (nextConnectionId) {
+      nextParams.set(connectionInstanceUidSearchParam, String(nextConnectionId));
+    } else {
+      nextParams.delete(connectionInstanceUidSearchParam);
+    }
+
+    setEditingId(nextConnectionId);
+    navigate({
+      pathname: location.pathname,
+      search: nextParams.toString() ? `?${nextParams.toString()}` : "",
+      hash: location.hash,
+    });
+  }
 
   if (editingInstance && editingType) {
     return (
       <EditConnectionPanel
         instance={editingInstance}
         selectedType={editingType}
-        onBack={() => setEditingId("")}
+        onBack={() => setEditingConnectionId("")}
       />
     );
   }
@@ -1412,7 +1440,7 @@ function DataSourcesContent({
   if (editingInstance && !editingType) {
     return (
         <div className="space-y-4">
-        <Button type="button" variant="ghost" className="px-0" onClick={() => setEditingId("")}>
+        <Button type="button" variant="ghost" className="px-0" onClick={() => setEditingConnectionId("")}>
           <ArrowLeft className="h-4 w-4" />
           Data sources
         </Button>
@@ -1446,7 +1474,7 @@ function DataSourcesContent({
               key={instance.id}
               instance={instance}
               connectionType={getConnectionTypeForInstance(typesById, instance)}
-              onEdit={() => setEditingId(instance.id)}
+              onEdit={() => setEditingConnectionId(instance.id)}
             />
           ))}
         </div>

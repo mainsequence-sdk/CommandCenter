@@ -91,6 +91,7 @@ import {
 } from "./agent-sessions";
 import {
   deleteAgentSessionRequest,
+  fetchAgentSessionDetail,
   fetchLatestAgentSessions,
   getAgentSessionRecordSessionId,
   normalizeAgentSessionLookupId,
@@ -1424,6 +1425,27 @@ export function ChatProvider({
           token: sessionToken,
           tokenType: sessionTokenType,
         });
+        let resolvedRemoteRecords = remoteRecords;
+
+        if (
+          requestedChatSessionId &&
+          !remoteRecords.some(
+            (record) => getAgentSessionRecordSessionId(record) === requestedChatSessionId,
+          )
+        ) {
+          const requestedRecord = await fetchAgentSessionDetail({
+            sessionId: requestedChatSessionId,
+            signal: controller.signal,
+            token: sessionToken,
+            tokenType: sessionTokenType,
+          });
+
+          if (controller.signal.aborted) {
+            return;
+          }
+
+          resolvedRemoteRecords = [requestedRecord, ...remoteRecords];
+        }
 
         if (controller.signal.aborted) {
           return;
@@ -1442,7 +1464,7 @@ export function ChatProvider({
             }
           });
 
-          const remoteSessions = remoteRecords.map((record) =>
+          const remoteSessions = resolvedRemoteRecords.map((record) =>
             toAgentSessionRecordFromApi(
               record,
               currentById.get(getAgentSessionRecordSessionId(record)),
@@ -1472,8 +1494,9 @@ export function ChatProvider({
           if (requestedSession) {
             setSessionSelectionMode("explicit");
             setCurrentSessionId(requestedSession.id);
-          } else if (requestedChatSessionId && !currentSession) {
-            setCurrentSessionId(nextSessions[0]?.id ?? null);
+          } else if (requestedChatSessionId) {
+            setSessionSelectionMode("explicit");
+            setCurrentSessionId(requestedChatSessionId);
           } else if (
             !currentSession &&
             sessionSelectionModeRef.current !== "explicit" &&

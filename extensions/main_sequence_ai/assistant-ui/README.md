@@ -138,6 +138,9 @@ remaining height. The two shells still differ intentionally:
 - the plain `/app/main_sequence_ai/chat` route does not auto-select a restored or latest backend
   session on first landing; selection there is driven by `?session=`, direct-launch flows, or an
   explicit user action
+- the session-pinned `/app/main_sequence_ai/chat?session=<session_uid>` route must select that exact
+  backend session; if it is not present in the latest-session page, `ChatProvider` fetches the
+  session detail directly instead of falling back to the newest session
 - when that plain chat route has no selected session yet, the page stays in a neutral idle shell:
   it does not show AgentSession readiness errors or loading states, and it also defers
   session-bound model discovery until the user selects or starts a session
