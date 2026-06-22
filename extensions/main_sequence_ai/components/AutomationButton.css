@@ -139,7 +139,13 @@
     box-shadow 180ms ease;
 }
 
-.main-sequence-ai-automation-panel::before {
+.main-sequence-ai-automation-panel__header {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.main-sequence-ai-automation-panel__header::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -151,21 +157,28 @@
   transition: opacity 180ms ease;
 }
 
-.main-sequence-ai-automation-panel__wave {
+.main-sequence-ai-automation-panel__header-wave {
   opacity: 0;
 }
 
 .main-sequence-ai-automation-panel--active {
   border-color: color-mix(in srgb, var(--primary) 48%, white 16%);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--primary) 14%, var(--card) 86%) 0%, color-mix(in srgb, var(--primary) 7%, var(--background) 93%) 100%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 9%, transparent),
+    0 16px 36px -34px color-mix(in srgb, var(--primary) 48%, transparent);
 }
 
-.main-sequence-ai-automation-panel--active::before {
+.main-sequence-ai-automation-panel__header--active {
+  background:
+    radial-gradient(120% 85% at 86% 50%, color-mix(in srgb, white 14%, var(--primary) 24%) 0%, color-mix(in srgb, var(--primary) 14%, transparent) 34%, transparent 66%),
+    linear-gradient(180deg, color-mix(in srgb, var(--primary) 16%, var(--card) 84%) 0%, color-mix(in srgb, var(--primary) 9%, var(--background) 91%) 100%);
+}
+
+.main-sequence-ai-automation-panel__header--active::before {
   opacity: 0.65;
 }
 
-.main-sequence-ai-automation-panel--active .main-sequence-ai-automation-panel__wave {
+.main-sequence-ai-automation-panel__header--active .main-sequence-ai-automation-panel__header-wave {
   opacity: 0.58;
 }
 

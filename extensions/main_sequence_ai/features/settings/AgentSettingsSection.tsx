@@ -493,42 +493,50 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
             : "main-sequence-ai-automation-panel"
         }
       >
-        {globalAutomationEnabled ? (
-          <AutomationDitherWaveLayer className="main-sequence-ai-automation-panel__wave" />
-        ) : null}
-        <div className="main-sequence-ai-automation-panel__content">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={globalAutomationEnabled}
-            aria-label="Toggle automation for all agents"
-            className="main-sequence-ai-automation-toggle"
-            disabled={deploymentDefaultsQuery.isLoading || saveDefaultsMutation.isPending}
-            onClick={() => {
-              const nextEnabled = !globalAutomationEnabled;
-              setGlobalAutomationEnabled(nextEnabled);
+        <div
+          className={
+            globalAutomationEnabled
+              ? "main-sequence-ai-automation-panel__header main-sequence-ai-automation-panel__header--active"
+              : "main-sequence-ai-automation-panel__header"
+          }
+        >
+          {globalAutomationEnabled ? (
+            <AutomationDitherWaveLayer className="main-sequence-ai-automation-panel__header-wave" />
+          ) : null}
+          <div className="main-sequence-ai-automation-panel__content">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={globalAutomationEnabled}
+              aria-label="Toggle automation for all agents"
+              className="main-sequence-ai-automation-toggle"
+              disabled={deploymentDefaultsQuery.isLoading || saveDefaultsMutation.isPending}
+              onClick={() => {
+                const nextEnabled = !globalAutomationEnabled;
+                setGlobalAutomationEnabled(nextEnabled);
 
-              if (!nextEnabled) {
-                saveDefaultsMutation.mutate({ globalActive: false });
-              }
-            }}
-          >
-            <span className="main-sequence-ai-automation-toggle__track">
-              <span className="main-sequence-ai-automation-toggle__thumb" />
-            </span>
-          </button>
-          <div className="main-sequence-ai-automation-panel__copy">
-            <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              Agent deployment automation
+                if (!nextEnabled) {
+                  saveDefaultsMutation.mutate({ globalActive: false });
+                }
+              }}
+            >
+              <span className="main-sequence-ai-automation-toggle__track">
+                <span className="main-sequence-ai-automation-toggle__thumb" />
+              </span>
+            </button>
+            <div className="main-sequence-ai-automation-panel__copy">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                Agent deployment automation
+              </div>
+              <div className="mt-1 text-sm font-medium text-topbar-foreground">
+                Automate All Agents
+              </div>
+              {globalAutomationEnabled ? (
+                <p className="max-w-3xl text-sm text-muted-foreground">
+                  Configure defaults for automated coding-agent deployments.
+                </p>
+              ) : null}
             </div>
-            <div className="mt-1 text-sm font-medium text-topbar-foreground">
-              Automate All Agents
-            </div>
-            {globalAutomationEnabled ? (
-              <p className="max-w-3xl text-sm text-muted-foreground">
-                Configure defaults for automated coding-agent deployments.
-              </p>
-            ) : null}
           </div>
         </div>
 
