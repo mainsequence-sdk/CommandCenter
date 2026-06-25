@@ -4,7 +4,7 @@
 - Date: 2026-05-06
 - Related:
   - [ADR: AgentSession Interaction Readiness Gate](./adr-agent-session-interaction-readiness-gate.md)
-  - [ADR: Main Sequence AI Runtime Endpoint Resolution](./adr-main-sequence-ai-runtime-endpoint-resolution.md)
+  - [ADR 077: Unified Astro Coding-Agent Bootstrap](./adr-077-unified-astro-coding-agent-bootstrap.md)
 
 ## Context
 

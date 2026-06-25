@@ -9,6 +9,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  Settings2,
   Sparkles,
   X,
 } from "lucide-react";
@@ -69,6 +70,8 @@ export function ChatPage() {
     isActiveSessionLoading,
     isCreatingAgentSession,
     minimizeToRail,
+    openDeploymentConfigurator,
+    railExperience,
     runStatus,
   } = useChatFeature();
   const [contextOpen, setContextOpen] = useState(false);
@@ -76,6 +79,8 @@ export function ChatPage() {
   const [sessionDetailOpen, setSessionDetailOpen] = useState(true);
   const contextPayload = JSON.stringify(context, null, 2);
   const busy = hasActiveChatStream || isActiveSessionLoading || isCreatingAgentSession;
+  const showDeploymentAction =
+    railExperience === "command-center" || Boolean(activeSessionSummary);
   const displayedRunStatus =
     activeSessionSummary?.working &&
     (runStatus === "idle" || runStatus === "complete")
@@ -124,6 +129,18 @@ export function ChatPage() {
           >
             <Plus className="h-4 w-4" />
           </Button>
+          {showDeploymentAction ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-[calc(var(--radius)-6px)] text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+              aria-label="Configure deployment"
+              title="Configure deployment"
+              onClick={openDeploymentConfigurator}
+            >
+              <Settings2 className="h-4 w-4" />
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             size="icon"
@@ -201,6 +218,23 @@ export function ChatPage() {
       ) : null}
 
       <section className="relative flex h-full min-h-0 flex-col overflow-hidden px-4">
+        {showDeploymentAction ? (
+          <div className="shrink-0 pt-4">
+            <div className="mx-auto flex w-full max-w-5xl justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-[calc(var(--radius)-6px)]"
+                aria-label="Configure deployment"
+                title="Configure deployment"
+                onClick={openDeploymentConfigurator}
+              >
+                <Settings2 className="h-4 w-4" />
+                Configure deployment
+              </Button>
+            </div>
+          </div>
+        ) : null}
         {showImageDriftWarning ? (
           <div className="shrink-0 py-4">
             <div className="rounded-[16px] border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">

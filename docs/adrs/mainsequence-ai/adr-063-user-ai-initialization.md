@@ -3,8 +3,7 @@
 - Status: Accepted
 - Date: 2026-05-08
 - Related:
-  - [ADR: Main Sequence AI Command Center Base Session](../../adr/mainsequence_ai/adr-main-sequence-ai-command-center-base-session.md)
-  - [ADR: Main Sequence AI Runtime Endpoint Resolution](../../adr/mainsequence_ai/adr-main-sequence-ai-runtime-endpoint-resolution.md)
+  - [ADR 077: Unified Astro Coding-Agent Bootstrap](../../adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap.md)
   - [ADR: AgentSession Interaction Readiness Gate](../../adr/mainsequence_ai/adr-agent-session-interaction-readiness-gate.md)
 
 ## Context

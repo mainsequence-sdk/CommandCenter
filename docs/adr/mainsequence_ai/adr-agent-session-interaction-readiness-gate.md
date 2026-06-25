@@ -3,8 +3,7 @@
 - Status: Proposed
 - Date: 2026-04-27
 - Related:
-  - [ADR: Main Sequence AI Command Center Base Session](./adr-main-sequence-ai-command-center-base-session.md)
-  - [ADR: Main Sequence AI Runtime Endpoint Resolution](./adr-main-sequence-ai-runtime-endpoint-resolution.md)
+  - [ADR 077: Unified Astro Coding-Agent Bootstrap](./adr-077-unified-astro-coding-agent-bootstrap.md)
   - [ADR: Agent Terminal Managed Session Creation and Agent Allowlist](./adr-agent-terminal-managed-session-creation.md)
 
 ## Context
@@ -265,8 +264,8 @@ Backend coordination is still required for behavior, not payload shape:
   detail, insights, and history readiness for one selected session id.
 - [x] Extend the session-detail controller or add a sibling controller so history readiness is
   tracked alongside detail and insights.
-- [x] Update `ChatProvider` so base-session bootstrap stages the session internally and only
-  exposes it as interactable after detail, insights, and history succeed.
+- [x] Update `ChatProvider` so selected backend sessions are staged internally and only exposed as
+  interactable after detail, insights, and history succeed.
 - [x] Update chat shell components so composer, model/provider controls, session explorer
   mutations, and focus behavior read the readiness gate.
 - [x] Update session switching to render a dedicated target-session loading state first, with

@@ -2,6 +2,7 @@ import { env } from "@/config/env";
 
 export type AgentCapabilityKind = "prompt" | "skill";
 export type AgentCapabilitySourceType = "inline" | "registry" | "repository" | "api" | "external";
+const defaultCapabilityContentMimeType = "text/markdown";
 
 export interface AgentCapabilityRecord {
   uid: string;
@@ -389,11 +390,13 @@ export async function fetchCapabilityDetail({
 
 export async function fetchCapabilityContent({
   capabilityUid,
+  allowMissing = false,
   signal,
   token,
   tokenType = "Bearer",
 }: {
   capabilityUid: string;
+  allowMissing?: boolean;
   signal?: AbortSignal;
   token?: string | null;
   tokenType?: string;
@@ -404,6 +407,14 @@ export async function fetchCapabilityContent({
     signal,
   });
 
+  if (allowMissing && response.status === 404) {
+    return normalizeCapabilityContentRecord({
+      content: "",
+      filename: null,
+      content_mime_type: defaultCapabilityContentMimeType,
+    });
+  }
+
   await ensureOk(response, `Capability content failed with status ${response.status}.`);
 
   const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
@@ -413,6 +424,26 @@ export async function fetchCapabilityContent({
   }
 
   return normalizeCapabilityContentRecord(await response.text());
+}
+
+export async function deleteCapabilityResource({
+  capabilityUid,
+  signal,
+  token,
+  tokenType = "Bearer",
+}: {
+  capabilityUid: string;
+  signal?: AbortSignal;
+  token?: string | null;
+  tokenType?: string;
+}) {
+  const response = await fetch(buildCapabilityDetailUrl(capabilityUid), {
+    method: "DELETE",
+    headers: buildHeaders({ token, tokenType }),
+    signal,
+  });
+
+  await ensureOk(response, `Capability delete failed with status ${response.status}.`);
 }
 
 export async function createCapabilityResource({

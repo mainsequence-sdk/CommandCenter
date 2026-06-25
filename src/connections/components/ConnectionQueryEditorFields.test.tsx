@@ -283,7 +283,105 @@ describe("QueryStringListField widget references", () => {
     expect(container.querySelector('[data-testid="value"]')?.textContent).toBe("null");
   });
 
-  it("moves the last token into the draft on Backspace instead of deleting it", async () => {
+  it("keeps a clicked token committed until the replacement is committed", async () => {
+    function Harness() {
+      const [value, setValue] = useState<string[] | undefined>(["AAPL"]);
+
+      return (
+        <WidgetVariableReferenceInputProvider sourceWidgets={sourceWidgets}>
+          <QueryStringListField
+            label="Symbols"
+            value={value}
+            onChange={setValue}
+            placeholder="AAPL, MSFT"
+          />
+          <div data-testid="value">{JSON.stringify(value ?? null)}</div>
+        </WidgetVariableReferenceInputProvider>
+      );
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+      await flushEffects();
+    });
+
+    const token = container.querySelector('[title="Click to edit"]');
+    expect(token).not.toBeNull();
+
+    await act(async () => {
+      token!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      await flushEffects();
+      await flushEffects();
+    });
+
+    const input = container.querySelector("input");
+    expect(input).not.toBeNull();
+    expect(input!.value).toBe("AAPL");
+    expect(container.querySelector('[data-testid="value"]')?.textContent).toBe('["AAPL"]');
+
+    await act(async () => {
+      setNativeInputValue(input!, "MSFT");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+      input!.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "Enter",
+        }),
+      );
+      await flushEffects();
+      await flushEffects();
+    });
+
+    expect(container.querySelector('[data-testid="value"]')?.textContent).toBe('["MSFT"]');
+  });
+
+  it("cancels a token edit without deleting the committed value when the draft is empty", async () => {
+    function Harness() {
+      const [value, setValue] = useState<string[] | undefined>(["AAPL"]);
+
+      return (
+        <WidgetVariableReferenceInputProvider sourceWidgets={sourceWidgets}>
+          <QueryStringListField
+            label="Symbols"
+            value={value}
+            onChange={setValue}
+            placeholder="AAPL, MSFT"
+          />
+          <div data-testid="value">{JSON.stringify(value ?? null)}</div>
+        </WidgetVariableReferenceInputProvider>
+      );
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+      await flushEffects();
+    });
+
+    const token = container.querySelector('[title="Click to edit"]');
+    expect(token).not.toBeNull();
+
+    await act(async () => {
+      token!.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+      await flushEffects();
+      await flushEffects();
+    });
+
+    const input = container.querySelector("input");
+    expect(input).not.toBeNull();
+
+    await act(async () => {
+      setNativeInputValue(input!, "");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+      input!.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+      await flushEffects();
+      await flushEffects();
+    });
+
+    expect(container.querySelector('[data-testid="value"]')?.textContent).toBe('["AAPL"]');
+  });
+
+  it("copies the last token into the draft on Backspace without deleting it", async () => {
     function Harness() {
       const [value, setValue] = useState<string[] | undefined>([
         "$(table-1).activeRow.symbol",
@@ -324,7 +422,9 @@ describe("QueryStringListField widget references", () => {
     });
 
     expect(input!.value).toBe("$(table-1).activeRow.symbol");
-    expect(container.querySelector('[data-testid="value"]')?.textContent).toBe("null");
+    expect(container.querySelector('[data-testid="value"]')?.textContent).toBe(
+      '["$(table-1).activeRow.symbol"]',
+    );
 
     await act(async () => {
       input!.dispatchEvent(

@@ -156,9 +156,9 @@ function buildStartNewAgentSessionUrl(agentId: string | number) {
   ).toString();
 }
 
-function buildGetOrCreateAgentSessionWithHandleUrl(agentUid: string | number) {
+function buildGetOrCreateAgentSessionUrl(agentUid: string | number) {
   return new URL(
-    `/orm/api/agents/v1/agents/${encodeURIComponent(String(agentUid))}/sessions/get_or_create_session_with_handle/`,
+    `/orm/api/agents/v1/agents/${encodeURIComponent(String(agentUid))}/sessions/get_or_create_session/`,
     env.apiBaseUrl,
   ).toString();
 }
@@ -599,26 +599,28 @@ export async function startNewAgentSessionRequest({
   };
 }
 
-export async function getOrCreateAgentSessionWithHandleRequest({
+export async function getOrCreateAgentSessionRequest({
   agentUid,
   handleUniqueId,
+  parentSessionUid,
   llmModel,
   llmProvider,
   llmThinking,
   name,
-  sessionMetadata = {},
   signal,
+  sessionUid,
   token,
   tokenType = "Bearer",
 }: {
   agentUid: string | number;
-  handleUniqueId: string;
-  llmModel: string;
-  llmProvider: string;
+  handleUniqueId?: string | null;
+  llmModel?: string | null;
+  llmProvider?: string | null;
   llmThinking?: string | null;
-  name: string;
-  sessionMetadata?: Record<string, unknown>;
+  name?: string | null;
+  parentSessionUid?: string | null;
   signal?: AbortSignal;
+  sessionUid?: string | number | null;
   token?: string | null;
   tokenType?: string;
 }): Promise<StartedAgentSessionResult> {
@@ -631,16 +633,55 @@ export async function getOrCreateAgentSessionWithHandleRequest({
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  const response = await fetch(buildGetOrCreateAgentSessionWithHandleUrl(agentUid), {
+  const normalizedSessionUid = normalizeAgentSessionLookupId(sessionUid);
+  const normalizedHandleUniqueId = normalizeIdentifier(handleUniqueId);
+
+  if (Boolean(normalizedSessionUid) === Boolean(normalizedHandleUniqueId)) {
+    throw new MainSequenceAiError(
+      "AgentSession get-or-create requires exactly one of session_uid or handle_unique_id.",
+      {
+        source: "frontend_runtime_guard",
+      },
+    );
+  }
+
+  const body: Record<string, string> = {};
+
+  if (normalizedSessionUid) {
+    body.session_uid = normalizedSessionUid;
+  } else if (normalizedHandleUniqueId) {
+    body.handle_unique_id = normalizedHandleUniqueId;
+
+    const normalizedName = normalizeIdentifier(name);
+    const normalizedParentSessionUid = normalizeAgentSessionLookupId(parentSessionUid);
+    const normalizedLlmProvider = normalizeIdentifier(llmProvider);
+    const normalizedLlmModel = normalizeIdentifier(llmModel);
+    const normalizedLlmThinking = typeof llmThinking === "string" ? llmThinking : null;
+
+    if (normalizedName) {
+      body.name = normalizedName;
+    }
+
+    if (normalizedParentSessionUid) {
+      body.parent_session_uid = normalizedParentSessionUid;
+    }
+
+    if (normalizedLlmProvider) {
+      body.llm_provider = normalizedLlmProvider;
+    }
+
+    if (normalizedLlmModel) {
+      body.llm_model = normalizedLlmModel;
+    }
+
+    if (normalizedLlmThinking !== null) {
+      body.llm_thinking = normalizedLlmThinking;
+    }
+  }
+
+  const response = await fetch(buildGetOrCreateAgentSessionUrl(agentUid), {
     method: "POST",
-    body: JSON.stringify({
-      handle_unique_id: handleUniqueId,
-      name,
-      llm_provider: llmProvider,
-      llm_model: llmModel,
-      llm_thinking: llmThinking ?? "",
-      session_metadata: sessionMetadata,
-    }),
+    body: JSON.stringify(body),
     headers,
     signal,
   });
@@ -660,11 +701,15 @@ export async function getOrCreateAgentSessionWithHandleRequest({
     throw new Error(buildAgentSessionCreationErrorMessage(payload));
   }
 
-  const record = extractStartedAgentSessionRecord(payload);
-  const sessionId = extractStartedAgentSessionId(payload);
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("AgentSession get-or-create succeeded but did not return an AgentSession object.");
+  }
+
+  const record = payload as AgentSessionApiRecord;
+  const sessionId = normalizeAgentSessionLookupId(record.uid);
 
   if (!sessionId) {
-    throw new Error("Session creation succeeded but no AgentSession uid was returned.");
+    throw new Error("AgentSession get-or-create succeeded but no AgentSession uid was returned.");
   }
 
   return {

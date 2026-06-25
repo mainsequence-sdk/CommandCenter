@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  bulkDeleteAgents,
   fetchAgentList,
   fetchAgentRuntimeRef,
   getAgentSearchResultLookupKey,
@@ -93,5 +94,38 @@ describe("agent search api", () => {
     const [url] = fetchMock.mock.calls[0];
     expect(String(url)).toContain("/orm/api/agents/v1/agents/agent-uid-123/runtime-ref/");
     expect(String(url)).not.toContain("get_runtime_id");
+  });
+
+  it("bulk deletes agents by public agent uid", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          requested_agent_uids: ["agent-uid-123"],
+          deleted_agent_uids: ["agent-uid-123"],
+          missing_agent_uids: [],
+          deleted_count: 1,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+
+    const result = await bulkDeleteAgents({
+      agentUids: ["agent-uid-123"],
+      token: "token-123",
+      tokenType: "Bearer",
+    });
+
+    expect(result.deleted_count).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/orm/api/agents/v1/agents/bulk-delete/");
+    expect(init?.method).toBe("POST");
+    expect(init?.body).toBe(JSON.stringify({ agent_uids: ["agent-uid-123"] }));
+    expect((init?.headers as Headers).get("Authorization")).toBe("Bearer token-123");
   });
 });

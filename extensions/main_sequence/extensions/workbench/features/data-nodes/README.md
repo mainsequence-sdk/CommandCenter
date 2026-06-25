@@ -5,7 +5,7 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
 ## Files
 
 - `MainSequenceDataNodesPage.tsx`: registry page for data nodes. It also owns the top-level detail tabs for summary, stats, description, data snapshot, UML schema graph, policies, permissions, and local-update navigation.
-- `MainSequenceDataNodeStatsTab.tsx`: detail-tab wrapper that loads `dynamic_table/{uid}/get-stats/` and renders the returned stats payload in a read-only JSON editor.
+- `MainSequenceDataNodeStatsTab.tsx`: detail-tab wrapper that loads `dynamic_table/{uid}/get-stats/` and renders the returned stats payload through the shared `JsonTreeViewer`, which gives every object and array node an explicit expand/collapse control.
 - `MainSequenceDataNodeSnapshotTab.tsx`: detail-tab wrapper that loads the latest tail observations for the selected data node and renders a searchable preview table.
 - `MainSequenceDataNodeSchemaGraphTab.tsx`: detail-tab wrapper for the data-node `/schema-graph/` endpoint. It reuses the shared UML explorer and depth/incoming controls.
 - `MainSequenceDataNodeLocalTimeSeriesTab.tsx`: local time series listing and interactions for a selected data node.
@@ -29,7 +29,9 @@ This feature owns DynamicTableMetaData and LocalTimeSerie update workflows.
   and `incoming_fks`.
 - The `Stats` tab calls `GET /orm/api/ts_manager/dynamic_table/{uid}/get-stats/` and expects
   `{ multi_index_stats, multi_index_column_stats }`. The payload is intentionally displayed as
-  JSON because these nested stats can vary by backend table shape.
+  JSON because these nested stats can vary by backend table shape. The UI now uses the shared
+  `JsonTreeViewer` so nested objects and arrays expose stable recursive toggles and deterministic
+  `Collapse all` / `Expand all` behavior instead of relying on editor fold gutters.
 - Data-node permissions use the shared `MainSequencePermissionsTab`, but they target the absolute `ts_manager/dynamic_table` object root instead of the default pods-scoped permission paths used by projects, constants, and secrets.
 - If a piece becomes useful outside this feature, move it to `../../components` and update this README.
 - Data-node detail navigation is URL-backed: `msDataNodeTab` selects the top-level detail tab, while `msLocalUpdateUid` and `msLocalUpdateTab` drive the nested local-update detail view.

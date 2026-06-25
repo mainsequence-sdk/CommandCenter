@@ -6,7 +6,6 @@ import { useAuthStore } from "@/auth/auth-store";
 import { applySessionAuthHeaders } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
-import type { EntitySummaryHeader } from "../../../../../extensions/main_sequence/common/api";
 
 const devAuthProxyPrefix = "/__command_center_auth__";
 
@@ -262,15 +261,12 @@ export interface BillingInvoicesResponse {
   next_starting_after: string | null;
 }
 
-export type BillingSummaryResponse = EntitySummaryHeader;
-
 export interface BillingUsageRow {
   usage_start_time: string;
   usage_end_time: string;
   source_type: string;
   source_object: string;
   total_cost: string;
-  is_estimate_state: boolean;
 }
 
 export interface BillingUsageColumnDef {
@@ -723,15 +719,6 @@ export function listBillingInvoices({
     {
       starting_after: startingAfter,
       origin_url: originUrl,
-    },
-  );
-}
-
-export function getBillingSummary() {
-  return requestAdminJson<BillingSummaryResponse>(
-    "/orm/api/pods/billing/summary/",
-    {
-      method: "GET",
     },
   );
 }

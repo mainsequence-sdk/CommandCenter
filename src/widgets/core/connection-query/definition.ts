@@ -141,7 +141,7 @@ function resolveConnectionQueryIo(
 
 export const connectionQueryWidget = defineWidget<ConnectionQueryWidgetProps>({
   id: CORE_CONNECTION_QUERY_WIDGET_ID,
-  widgetVersion: "1.6.4",
+  widgetVersion: "1.6.5",
   title: "Connection Query (HTTP)",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Core",

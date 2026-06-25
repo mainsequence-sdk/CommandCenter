@@ -18,10 +18,8 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   Fetches the assistant-runtime `GET /health` response and preserves the raw JSON or text payload
   for the Agents settings diagnostics panel.
 - `command-center-base-session-api.ts`
-  Shared transport for both per-session runtime access at
-  `POST /orm/api/agents/v1/sessions/{session_uid}/resolve_runtime_access/` and the Astro
-  operational handle bootstrap at
-  `POST /orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`.
+  Shared transport for per-session runtime access at
+  `POST /orm/api/agents/v1/sessions/{session_uid}/resolve_runtime_access/`.
 - `agent-session-request.ts`
   Builds the backend request-body fragments used for session-bound assistant runs, including the
   injected canonical AgentSession serializer payload.
@@ -38,7 +36,7 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   also owns managed session creation through
   `POST /orm/api/agents/v1/agents/{agent_id}/start_new_session/`, handle-bound session creation
   through
-  `POST /orm/api/agents/v1/agents/{agent_uid}/sessions/get_or_create_session_with_handle/`,
+  `POST /orm/api/agents/v1/agents/{agent_uid}/sessions/get_or_create_session/`,
   plus the AgentSession model-binding PATCH for `llm_provider` / `llm_model`.
 - `available-models-api.ts`
   Shared assistant-backend model catalog fetch helper used by the page chat composer. It also owns
@@ -86,27 +84,31 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - `assistant_ui.endpoint` may be blank when Main Sequence AI should rely entirely on backend
   runtime access. Render paths must not call the configured/static endpoint as a hard requirement
   for agent-runtime calls.
-- When `VITE_ASSISTANT_UI_PROXY_TARGET` is set, the per-session runtime-access request sends
-  `create_knative_service=false` so local proxied development does not ask the backend to create a
-  dynamic runtime service.
+- When `VITE_ASSISTANT_UI_PROXY_TARGET` is set for Command Center operational traffic, the frontend
+  still resolves Astro service identity, gets the canonical handle-bound AgentSession, and calls
+  `resolve_runtime_access/` with the normal empty `{}` body. The configured proxy endpoint replaces
+  the returned `rpc_url` only for assistant-runtime HTTP calls.
 - Requests that target a specific existing AgentSession should pass the session id through
   `currentSessionId`. Dynamic runtime resolution will then call
   `POST /orm/api/agents/v1/sessions/{session_uid}/resolve_runtime_access/` before hitting
-  runtime endpoints such as history, tools, or chat. Agent-runtime resolution no longer falls back
-  to the Astro Command Center base-session endpoint when no concrete `AgentSession` id is selected;
-  callers must provide a real backend session id.
+  runtime endpoints such as history, tools, or chat. Agent-runtime resolution no longer creates or
+  selects Astro implicitly when no concrete `AgentSession` id is selected; callers must provide a
+  real backend session id.
 - The frontend treats `image_drift` from that per-session `resolve_runtime_access` response as
   backend-owned status. It only normalizes the payload shape enough to surface a generic warning
   in chat when the backend says that the selected runtime needs an update.
 - Global, non-chat operational surfaces such as `Model Providers`, `Agents Settings`, and
   project-agent configuration modals should use the dedicated `command-center-base` runtime target instead of
   depending on chat-store side effects or a concrete `AgentSession`.
+- The `command-center-base` target first reads the user-scoped Astro deployment through
+  `GET /orm/api/agents/v1/coding-agent-services/?agent_type=astro-orchestrator&scope_kind=user&user_uid=<signed-in-user-uid>`.
+  If no result includes `agent_uid`, the UI should show the deploy-required state.
 - The `command-center-base` runtime target is allowed to resolve runtime access, call `/health`,
   and fetch model/provider catalogs. It must not implicitly fetch transcript history, insights, or
   other chat-hydration state.
 - The per-session `resolve_runtime_access` response may omit echoed session identity. The frontend
   normalizer must fall back to the requested session id instead of treating that response as an
-  invalid base-session payload.
+  invalid runtime-access payload.
 - `session-history-api.ts` reads
   `GET /orm/api/agents/v1/sessions/{session_uid}/history/` directly and treats a `404`
   history read as a valid empty session transcript. Fresh `start_new_session` records should not
@@ -126,9 +128,10 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - `start_new_session` sends a minimal JSON body with a generated `thread_id`; user ownership is
   resolved from the authenticated backend request context, not from a frontend-supplied
   `created_by_user_uid`.
-- `get_or_create_session_with_handle` sends only the backend handle contract:
-  `handle_unique_id`, `name`, `llm_provider`, `llm_model`, `llm_thinking`, and
-  `session_metadata`. User ownership is resolved from the authenticated backend request context.
+- `get_or_create_session` sends exactly one lookup key: `session_uid` or `handle_unique_id`.
+  Handle calls may include `name`, `parent_session_uid`, `llm_provider`, `llm_model`, and
+  `llm_thinking` when available. The response must be the canonical top-level
+  `AgentSessionSerializer`; wrapped `session` / `result` / `data` envelopes are not accepted.
 - If the backend assistant request shape changes, update `agent-session-request.ts` first so the
   page chat and terminal widget stay aligned.
 - Chat picker provider/model changes are persisted through

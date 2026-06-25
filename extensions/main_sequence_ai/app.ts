@@ -1,4 +1,4 @@
-import { Bot, FileText, LayoutTemplate, MessageSquare, Sparkles } from "lucide-react";
+import { Bot, FilePenLine, FileText, LayoutTemplate, MessageSquare, Sparkles } from "lucide-react";
 
 import {
   defineSurfaceAssistantContext,
@@ -12,6 +12,7 @@ import { ChatPage } from "./surfaces/chat/ChatPage";
 import { AgentsMonitorPage } from "./surfaces/monitor/AgentsMonitorPage";
 import { ProjectAgentDeploymentLogsPage } from "./surfaces/project-agent-deployment-logs/ProjectAgentDeploymentLogsPage";
 import { AgentSessionDetailPage } from "./surfaces/session/AgentSessionDetailPage";
+import { CapabilitiesPage } from "./surfaces/capabilities/CapabilitiesPage";
 
 export const mainSequenceAiApp: AppDefinition = {
   id: "main_sequence_ai",
@@ -89,6 +90,25 @@ export const mainSequenceAiApp: AppDefinition = {
       }),
       kind: "page",
       component: AgentsPage,
+    },
+    {
+      id: "capabilities",
+      title: "Capabilities",
+      navLabel: "Capabilities",
+      icon: FilePenLine,
+      description: "Resource-scoped registry for reusable prompt and skill capabilities.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on the Capabilities surface inside Main Sequence AI. This page lists reusable prompt and skill resources and opens the shared capability editor.",
+        availableActions: [
+          "Browse reusable capabilities",
+          "Create a new prompt capability",
+          "Create a new skill capability",
+          "Open one capability detail editor",
+        ],
+      }),
+      kind: "page",
+      component: CapabilitiesPage,
     },
     {
       id: "project-agent-deployment-logs",

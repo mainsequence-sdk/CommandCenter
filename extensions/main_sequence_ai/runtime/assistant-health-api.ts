@@ -43,12 +43,14 @@ export async function fetchAssistantHealth({
   assistantEndpoint,
   runtimeTarget = "command-center-base",
   signal,
+  sessionUserUid,
   token,
   tokenType = "Bearer",
 }: {
   assistantEndpoint?: string;
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   signal?: AbortSignal;
+  sessionUserUid?: string | null;
   token?: string | null;
   tokenType?: string;
 }): Promise<AssistantHealthSnapshot> {
@@ -67,6 +69,7 @@ export async function fetchAssistantHealth({
       signal,
       sessionToken: token,
       sessionTokenType: tokenType,
+      sessionUserUid,
     }));
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Unknown fetch error.";

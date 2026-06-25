@@ -40,7 +40,7 @@ Current surfaces in this folder:
 - `AdminInvoicesPage.tsx`: billing invoice registry backed by `/orm/api/pods/billing/invoices/`
   with cursor pagination, `origin_url` fallback support, and View/PDF invoice actions
 - `AdminBillingDetailsPage.tsx`: billing usage table backed by `/orm/api/pods/billing/usage/`
-  with a summary header from `/orm/api/pods/billing/summary/`, `datetime-local`
+  with a top budget summary built from `/user/api/user/credits/summary/`, `datetime-local`
   range filters, and quick date presets
 - `AdminHostedResourcesPage.tsx`: billing-owned hosted infrastructure surface with local tab
   navigation. The first `Databases` tab is wired to the hosted Timescale billing catalog and

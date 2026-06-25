@@ -19,10 +19,15 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "@/auth/auth-store";
+import { Dialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toaster";
 import { commandCenterConfig } from "@/config/command-center";
 import { env } from "@/config/env";
+import { fetchAstroCommandCenterAgentServiceByUser } from "../../main_sequence/common/api";
+import { AutomationDitherWaveLayer } from "../components/AutomationButton";
 import { useAgentSessionDetail } from "../agent-session-detail/useAgentSessionDetail";
+import { AstroAgentDeploymentConfigurator } from "../features/project-agents/AstroAgentDeploymentConfigurator";
+import { ProjectAgentConfigurator } from "../features/project-agents/ProjectAgentConfigurator";
 import {
   getAgentSearchResultLookupKey,
   type AgentImageDriftRecord,
@@ -39,8 +44,9 @@ import {
 } from "../agent-session-detail/model";
 import { buildAgentSessionRequestBodyFragment } from "../runtime/agent-session-request";
 import {
+  ASTRO_COMMAND_CENTER_HANDLE_UNIQUE_ID,
+  ASTRO_COMMAND_CENTER_SESSION_NAME,
   fetchAgentSessionRuntimeAccess,
-  fetchCommandCenterBaseSessionHandle,
 } from "../runtime/command-center-base-session-api";
 import type {
   AvailableChatModelOption,
@@ -82,7 +88,7 @@ import {
   readAgentSessions,
   summarizeAgentSession,
   toAgentSessionRecordFromApi,
-  toAgentSessionRecordFromBaseHandle,
+  toCommandCenterAgentSessionRecordFromApi,
   updateAgentSessionSnapshot,
   writeAgentSessions,
   type AgentSessionRecord,
@@ -94,6 +100,7 @@ import {
   fetchAgentSessionDetail,
   fetchLatestAgentSessions,
   getAgentSessionRecordSessionId,
+  getOrCreateAgentSessionRequest,
   normalizeAgentSessionLookupId,
   patchAgentSessionModelConfig,
   startNewAgentSessionRequest,
@@ -152,8 +159,10 @@ interface ChatFeatureContextValue {
   isCreatingAgentSession: boolean;
   isCancellingSession: boolean;
   isLoadingLatestSessions: boolean;
+  isAstroCommandCenterSession: boolean;
   latestSessionsError: string | null;
   minimizeToRail: () => void;
+  openDeploymentConfigurator: () => void;
   railExperience: "command-center" | "project-agent";
   railMode: ChatRailMode;
   refreshSessionDetail: () => void;
@@ -186,6 +195,14 @@ interface SessionRuntimeAccessUiMeta {
 }
 
 const ChatFeatureContext = createContext<ChatFeatureContextValue | null>(null);
+
+function DeploymentConfiguratorUnavailable({ message }: { message: string }) {
+  return (
+    <div className="rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/24 px-4 py-4 text-sm leading-6 text-muted-foreground">
+      {message}
+    </div>
+  );
+}
 
 function extractAgentId(data: unknown) {
   if (typeof data === "string") {
@@ -548,11 +565,82 @@ function createFallbackAgentSessionAgentFromId({
 }
 
 function isCommandCenterBaseSession(session: AgentSessionRecord | null | undefined) {
-  return session?.origin === "astro_command_center_base";
+  return (
+    session?.origin === "astro_command_center_base" ||
+    session?.handleUniqueId === ASTRO_COMMAND_CENTER_HANDLE_UNIQUE_ID
+  );
 }
 
 function findCommandCenterBaseSessionId(sessions: readonly AgentSessionRecord[]) {
   return sessions.find((session) => isCommandCenterBaseSession(session))?.id ?? null;
+}
+
+const ASTRO_DEPLOY_REQUIRED_MESSAGE =
+  "Astro has not been deployed. Deploy Astro before opening Command Center chat.";
+const ASTRO_COMMAND_CENTER_UNAVAILABLE_MESSAGE =
+  "Astro is not available yet. Deploy Astro and try again.";
+
+function mergeCommandCenterSession(
+  sessions: readonly AgentSessionRecord[],
+  commandCenterSession: AgentSessionRecord,
+) {
+  const commandCenterLookupId = resolveAgentSessionLookupId(commandCenterSession);
+
+  return sortAgentSessions([
+    commandCenterSession,
+    ...sessions.filter((session) => {
+      if (session.id === commandCenterSession.id) {
+        return false;
+      }
+
+      const lookupId = resolveAgentSessionLookupId(session);
+
+      if (commandCenterLookupId && lookupId === commandCenterLookupId) {
+        return false;
+      }
+
+      return session.handleUniqueId !== ASTRO_COMMAND_CENTER_HANDLE_UNIQUE_ID;
+    }),
+  ]);
+}
+
+async function fetchAstroCommandCenterAgentSession({
+  existingSessions,
+  signal,
+  token,
+  tokenType,
+  userUid,
+}: {
+  existingSessions: readonly AgentSessionRecord[];
+  signal: AbortSignal;
+  token?: string | null;
+  tokenType?: string;
+  userUid: string;
+}) {
+  const service = await fetchAstroCommandCenterAgentServiceByUser(userUid, { signal });
+
+  if (!service?.agent_uid) {
+    throw new Error(ASTRO_DEPLOY_REQUIRED_MESSAGE);
+  }
+
+  const { record, sessionId } = await getOrCreateAgentSessionRequest({
+    agentUid: service.agent_uid,
+    handleUniqueId: ASTRO_COMMAND_CENTER_HANDLE_UNIQUE_ID,
+    name: ASTRO_COMMAND_CENTER_SESSION_NAME,
+    signal,
+    token,
+    tokenType,
+  });
+
+  if (!record) {
+    throw new Error(ASTRO_COMMAND_CENTER_UNAVAILABLE_MESSAGE);
+  }
+
+  const existingSession =
+    existingSessions.find((session) => session.id === sessionId) ??
+    existingSessions.find((session) => resolveAgentSessionLookupId(session) === sessionId);
+
+  return toCommandCenterAgentSessionRecordFromApi(record, existingSession);
 }
 
 interface EmbeddedChatRailState {
@@ -653,6 +741,8 @@ export function ChatProvider({
   const [isLoadingLatestSessions, setIsLoadingLatestSessions] = useState(false);
   const [isCancellingSession, setIsCancellingSession] = useState(false);
   const [latestSessionsError, setLatestSessionsError] = useState<string | null>(null);
+  const [deploymentConfiguratorOpen, setDeploymentConfiguratorOpen] = useState(false);
+  const [deploymentAutomationHeaderActive, setDeploymentAutomationHeaderActive] = useState(false);
   const [hasAttemptedLatestSessionsBootstrap, setHasAttemptedLatestSessionsBootstrap] =
     useState(false);
   const [latestSessionsAgentFilterId, setLatestSessionsAgentFilterId] = useState<string | number | null>(null);
@@ -706,6 +796,9 @@ export function ChatProvider({
   const shouldHydrateChatRuntime =
     location.pathname === CHAT_PAGE_PATH || isRailOpen;
   const isProjectAgentRail = Boolean(directLaunchSessionId);
+  const openDeploymentConfigurator = useCallback(() => {
+    setDeploymentConfiguratorOpen(true);
+  }, []);
   const openPreferredRail = useCallback(() => {
     openRail(resolvePreferredChatRailMode());
   }, [openRail]);
@@ -994,6 +1087,118 @@ export function ChatProvider({
     agentId,
     sessionRuntimeAccessMetaBySessionId,
   ]);
+  const isAstroCommandCenterSession = useMemo(() => {
+    if (isProjectAgentRail || !activeSessionSummary) {
+      return false;
+    }
+
+    const requestAgentType = activeSessionSummary.requestAgentType.trim().toLowerCase();
+
+    return (
+      activeSessionSummary.isDefaultCommandCenterSession ||
+      activeSessionSummary.handleUniqueId === ASTRO_COMMAND_CENTER_HANDLE_UNIQUE_ID ||
+      requestAgentType === "astro-orchestrator"
+    );
+  }, [activeSessionSummary, isProjectAgentRail]);
+  const activeDeploymentAgentType = activeSessionSummary?.requestAgentType.trim().toLowerCase() || "";
+  const activeDeploymentProjectUid = activeSessionSummary?.projectId?.trim() || null;
+  const deploymentConfigurator = useMemo<{
+    content: ReactNode;
+    description: string;
+    hasAutomationHeader: boolean;
+    title: string;
+  }>(() => {
+    if (!activeSessionSummary) {
+      if (!isProjectAgentRail) {
+        return {
+          title: "Configure Astro Deployment",
+          description: "Deploy the Command Center orchestrator used by Astro chat.",
+          hasAutomationHeader: false,
+          content: (
+            <AstroAgentDeploymentConfigurator
+              onDeployed={() => {
+                setLatestSessionsError(null);
+                setLatestSessionsRefreshNonce((current) => current + 1);
+              }}
+            />
+          ),
+        };
+      }
+
+      return {
+        title: "Configure Deployment",
+        description: "Select a chat session before configuring its deployment.",
+        hasAutomationHeader: false,
+        content: (
+          <DeploymentConfiguratorUnavailable message="Select a chat session before configuring deployment." />
+        ),
+      };
+    }
+
+    if (isAstroCommandCenterSession || activeDeploymentAgentType === "astro-orchestrator") {
+      return {
+        title: "Configure Astro Deployment",
+        description: "Deploy the Command Center orchestrator used by Astro chat.",
+        hasAutomationHeader: false,
+        content: (
+          <AstroAgentDeploymentConfigurator
+            onDeployed={() => {
+              setLatestSessionsError(null);
+              setLatestSessionsRefreshNonce((current) => current + 1);
+            }}
+          />
+        ),
+      };
+    }
+
+    if (activeDeploymentAgentType === "project-executor") {
+      if (activeDeploymentProjectUid) {
+        return {
+          title: "Edit Agent Deployment",
+          description: "Configure the project agent deployment for this session.",
+          hasAutomationHeader: true,
+          content: (
+            <ProjectAgentConfigurator
+              projectUid={activeDeploymentProjectUid}
+              hasAgentCapabilities={true}
+              onAutomaticDeploymentStateChange={setDeploymentAutomationHeaderActive}
+            />
+          ),
+        };
+      }
+
+      return {
+        title: "Configure Deployment",
+        description: "Configure the deployment for this chat session.",
+        hasAutomationHeader: false,
+        content: (
+          <DeploymentConfiguratorUnavailable message="This project agent session is not linked to a project deployment." />
+        ),
+      };
+    }
+
+    return {
+      title: "Configure Deployment",
+      description: "Configure the deployment for this chat session.",
+      hasAutomationHeader: false,
+      content: (
+        <DeploymentConfiguratorUnavailable
+          message="Deployment configuration is not available for this agent type yet."
+        />
+      ),
+    };
+  }, [
+    activeDeploymentAgentType,
+    activeDeploymentProjectUid,
+    activeSessionSummary,
+    isAstroCommandCenterSession,
+    isProjectAgentRail,
+  ]);
+  useEffect(() => {
+    if (!deploymentConfiguratorOpen || !deploymentConfigurator.hasAutomationHeader) {
+      setDeploymentAutomationHeaderActive(false);
+    }
+  }, [deploymentConfigurator.hasAutomationHeader, deploymentConfiguratorOpen]);
   const activeSessionReadiness = useMemo<AgentSessionInteractionReadiness>(() => {
     if (env.useMockData) {
       return currentSessionId
@@ -1360,7 +1565,7 @@ export function ChatProvider({
 
     void (async () => {
       try {
-        const handle = await fetchAgentSessionRuntimeAccess({
+        const runtimeAccess = await fetchAgentSessionRuntimeAccess({
           sessionId: activeSessionLookupId,
           signal: controller.signal,
           token: sessionToken,
@@ -1372,7 +1577,7 @@ export function ChatProvider({
         }
 
         updateSessionRuntimeAccessMeta({
-          imageDrift: handle.runtimeAccess?.imageDrift ?? null,
+          imageDrift: runtimeAccess.imageDrift ?? null,
           sessionId: activeSession.id,
         });
       } catch {
@@ -1554,6 +1759,7 @@ export function ChatProvider({
     if (
       env.useMockData ||
       !sessionToken ||
+      !sessionUserUid ||
       latestSessionsAgentFilterId !== null ||
       shouldSuppressDirectLaunchRuntimePrefetch ||
       !hasAttemptedLatestSessionsBootstrap ||
@@ -1585,10 +1791,12 @@ export function ChatProvider({
 
     void (async () => {
       try {
-        const handle = await fetchCommandCenterBaseSessionHandle({
+        const nextSession = await fetchAstroCommandCenterAgentSession({
+          existingSessions: agentSessionsRef.current,
           signal: controller.signal,
           token: sessionToken,
           tokenType: sessionTokenType,
+          userUid: sessionUserUid,
         });
 
         if (controller.signal.aborted) {
@@ -1599,7 +1807,6 @@ export function ChatProvider({
           return;
         }
 
-        const nextSession = toAgentSessionRecordFromBaseHandle(handle);
         const nextSessions = sortAgentSessions([nextSession]);
 
         agentSessionsRef.current = nextSessions;
@@ -1612,12 +1819,11 @@ export function ChatProvider({
           return;
         }
 
-        const detail =
-          error instanceof Error
-            ? error.message
-            : "Command Center could not start the orchestrator session.";
-
-        setLatestSessionsError(`Command Center could not start the orchestrator session. ${detail}`);
+        setLatestSessionsError(
+          error instanceof Error && error.message === ASTRO_DEPLOY_REQUIRED_MESSAGE
+            ? ASTRO_DEPLOY_REQUIRED_MESSAGE
+            : ASTRO_COMMAND_CENTER_UNAVAILABLE_MESSAGE,
+        );
       } finally {
         finishCommandCenterBootstrapRequest(controller);
       }
@@ -1663,6 +1869,7 @@ export function ChatProvider({
     if (
       env.useMockData ||
       !sessionToken ||
+      !sessionUserUid ||
       isCreatingAgentSession ||
       latestSessionsError ||
       commandCenterBootstrapRequestRef.current
@@ -1678,10 +1885,12 @@ export function ChatProvider({
 
     void (async () => {
       try {
-        const handle = await fetchCommandCenterBaseSessionHandle({
+        const nextSession = await fetchAstroCommandCenterAgentSession({
+          existingSessions: agentSessionsRef.current,
           signal: controller.signal,
           token: sessionToken,
           tokenType: sessionTokenType,
+          userUid: sessionUserUid,
         });
 
         if (controller.signal.aborted) {
@@ -1689,14 +1898,7 @@ export function ChatProvider({
         }
 
         const currentSessions = agentSessionsRef.current;
-        const nextSession = toAgentSessionRecordFromBaseHandle(
-          handle,
-          currentSessions.find((session) => session.id === handle.sessionId),
-        );
-        const nextSessions = sortAgentSessions([
-          nextSession,
-          ...currentSessions.filter((session) => session.id !== nextSession.id),
-        ]);
+        const nextSessions = mergeCommandCenterSession(currentSessions, nextSession);
 
         agentSessionsRef.current = nextSessions;
         commandCenterSessionIdRef.current = nextSession.id;
@@ -1708,12 +1910,11 @@ export function ChatProvider({
           return;
         }
 
-        const detail =
-          error instanceof Error
-            ? error.message
-            : "Command Center could not load the orchestrator session.";
-
-        setLatestSessionsError(`Command Center could not load the orchestrator session. ${detail}`);
+        setLatestSessionsError(
+          error instanceof Error && error.message === ASTRO_DEPLOY_REQUIRED_MESSAGE
+            ? ASTRO_DEPLOY_REQUIRED_MESSAGE
+            : ASTRO_COMMAND_CENTER_UNAVAILABLE_MESSAGE,
+        );
       } finally {
         finishCommandCenterBootstrapRequest(controller);
       }
@@ -1731,6 +1932,7 @@ export function ChatProvider({
     location.pathname,
     sessionToken,
     sessionTokenType,
+    sessionUserUid,
   ]);
 
   useEffect(() => {
@@ -3641,8 +3843,10 @@ export function ChatProvider({
       isCreatingAgentSession,
       isCancellingSession,
       isLoadingLatestSessions,
+      isAstroCommandCenterSession,
       latestSessionsError,
       minimizeToRail,
+      openDeploymentConfigurator,
       railExperience: isProjectAgentRail ? "project-agent" : "command-center",
       railMode,
       refreshSessionDetail,
@@ -3698,9 +3902,11 @@ export function ChatProvider({
       isCreatingAgentSession,
       isCancellingSession,
       isLoadingLatestSessions,
+      isAstroCommandCenterSession,
       isProjectAgentRail,
       latestSessionsError,
       minimizeToRail,
+      openDeploymentConfigurator,
       railMode,
       refreshSessionDetail,
       refreshSessionInsights,
@@ -3723,6 +3929,28 @@ export function ChatProvider({
   return (
     <ChatFeatureContext.Provider value={value}>
       <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>
+      <Dialog
+        open={deploymentConfiguratorOpen}
+        onClose={() => {
+          setDeploymentConfiguratorOpen(false);
+          setDeploymentAutomationHeaderActive(false);
+        }}
+        closeOnBackdropClick
+        title={deploymentConfigurator.title}
+        description={deploymentConfigurator.description}
+        className="max-w-[min(1180px,calc(100vw-24px))]"
+        contentClassName="px-4 py-4 md:px-5 md:py-5"
+        headerClassName={
+          deploymentAutomationHeaderActive
+            ? "main-sequence-ai-automation-dialog-header"
+            : undefined
+        }
+        headerDecor={
+          deploymentAutomationHeaderActive ? <AutomationDitherWaveLayer /> : null
+        }
+      >
+        {deploymentConfigurator.content}
+      </Dialog>
     </ChatFeatureContext.Provider>
   );
 }

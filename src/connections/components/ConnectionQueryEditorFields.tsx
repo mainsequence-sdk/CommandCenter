@@ -393,32 +393,72 @@ export function QueryStringListField({
     [entries, normalizeEntry, suggestions],
   );
   const [draft, setDraft] = useState("");
-  const editingEntryRef = useRef(false);
+  const [editingEntry, setEditingEntry] = useState<string | null>(null);
 
   useEffect(() => {
     const nextEntries = normalizeStringList(value, normalizeEntry);
 
-    if (nextEntries.length === 0) {
-      if (editingEntryRef.current) {
-        editingEntryRef.current = false;
-        return;
+    if (editingEntry) {
+      if (!nextEntries.includes(editingEntry)) {
+        setEditingEntry(null);
+        setDraft("");
       }
-
-      setDraft("");
       return;
     }
 
-    editingEntryRef.current = false;
-  }, [normalizeEntry, value]);
+    if (nextEntries.length === 0) {
+      setDraft("");
+      return;
+    }
+  }, [editingEntry, normalizeEntry, value]);
 
   function updateEntries(nextEntries: string[]) {
     onChange(nextEntries.length > 0 ? nextEntries : undefined);
   }
 
-  function appendEntries(nextDraft = draft) {
-    const parsedEntries = parseStringList(nextDraft, normalizeEntry);
-
+  function commitParsedEntries(parsedEntries: string[]) {
     if (parsedEntries.length === 0) {
+      setEditingEntry(null);
+      setDraft("");
+      return;
+    }
+
+    if (editingEntry) {
+      const seen = new Set<string>();
+      const nextEntries: string[] = [];
+      let replaced = false;
+
+      entries.forEach((entry) => {
+        if (entry === editingEntry) {
+          if (!replaced) {
+            parsedEntries.forEach((replacement) => {
+              if (!seen.has(replacement)) {
+                seen.add(replacement);
+                nextEntries.push(replacement);
+              }
+            });
+            replaced = true;
+          }
+          return;
+        }
+
+        if (!seen.has(entry)) {
+          seen.add(entry);
+          nextEntries.push(entry);
+        }
+      });
+
+      if (!replaced) {
+        parsedEntries.forEach((entry) => {
+          if (!seen.has(entry)) {
+            seen.add(entry);
+            nextEntries.push(entry);
+          }
+        });
+      }
+
+      updateEntries(nextEntries);
+      setEditingEntry(null);
       setDraft("");
       return;
     }
@@ -437,15 +477,24 @@ export function QueryStringListField({
     setDraft("");
   }
 
-  function appendEntry(entry: string) {
-    const [nextEntry] = parseStringList(entry, normalizeEntry);
+  function appendEntries(nextDraft = draft) {
+    commitParsedEntries(parseStringList(nextDraft, normalizeEntry));
+  }
 
-    if (!nextEntry || entries.includes(nextEntry)) {
+  function appendEntry(entry: string) {
+    const parsedEntries = parseStringList(entry, normalizeEntry);
+
+    if (parsedEntries.length === 0) {
       return;
     }
 
-    updateEntries([...entries, nextEntry]);
-    setDraft("");
+    if (!editingEntry && parsedEntries.every((nextEntry) => entries.includes(nextEntry))) {
+      setDraft("");
+      inputRef.current?.focus();
+      return;
+    }
+
+    commitParsedEntries(parsedEntries);
     inputRef.current?.focus();
   }
 
@@ -458,8 +507,7 @@ export function QueryStringListField({
       return;
     }
 
-    editingEntryRef.current = true;
-    updateEntries(entries.filter((entry) => entry !== entryToEdit));
+    setEditingEntry(entryToEdit);
     setDraft(entryToEdit);
 
     const focusDraft = () => {
@@ -501,6 +549,10 @@ export function QueryStringListField({
     appendEntries(nextValue);
   }
 
+  const visibleEntries = editingEntry
+    ? entries.filter((entry) => entry !== editingEntry)
+    : entries;
+
   return (
     <ConnectionQueryField help={help} hideLabel={hideLabel} label={label}>
       <div
@@ -514,7 +566,7 @@ export function QueryStringListField({
         data-no-widget-drag="true"
       >
         <div className="flex flex-wrap gap-1.5">
-          {entries.map((entry) => (
+          {visibleEntries.map((entry) => (
             <span
               key={entry}
               className="inline-flex max-w-full cursor-text items-center gap-1 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-muted/55 px-2 py-1 font-mono text-xs text-foreground"
@@ -571,6 +623,13 @@ export function QueryStringListField({
 
               if (event.key === "Backspace" && draft.length === 0 && entries.length > 0) {
                 event.preventDefault();
+
+                if (editingEntry) {
+                  setEditingEntry(null);
+                  setDraft("");
+                  return;
+                }
+
                 const lastEntry = entries.at(-1);
 
                 if (lastEntry) {

@@ -4,11 +4,12 @@
 
 This extension owns the Main Sequence AI application and the assistant-ui integration used by the shell chat experience.
 
-It currently exposes one app with four visible surfaces plus one hidden deep-link surface:
+It currently exposes one app with five visible surfaces plus one hidden deep-link surface:
 
 - `Main Sequence AI`
 - `Chat`
 - `Agents`
+- `Capabilities`
 - `Deployment Logs`
 - `Agents Monitor`
 - `Agent Session` (hidden route surface)
@@ -47,8 +48,8 @@ an overlay rail.
   Shared AgentSession explorer and picker UI used by chat surfaces, widget settings, and the
   monitor launcher flow.
 - `features/agent-capabilities/`
-  Shared reusable capability and agent-binding UI used by the agent detail surface for prompt and
-  skill authoring.
+  Shared reusable capability editor, registry save orchestration, and agent-binding UI used by the
+  top-level Capabilities surface plus the agent detail capabilities tab.
 - `features/settings/`
   Extension-contributed shell settings sections, including global provider sign-in/sign-off,
   provider attempt workflows, and the full known model catalog.
@@ -64,6 +65,9 @@ an overlay rail.
   Standalone AgentSession detail shell that chat and widgets deep-link into.
 - `surfaces/agents/`
   Session picker surface with a left explorer and an intentionally empty canvas area.
+- `surfaces/capabilities/`
+  Resource-scoped prompt/skill registry surface with URL-backed detail selection and shared editor
+  reuse.
 - `surfaces/project-agent-deployment-logs/`
   Standalone routed surface for automatic project-agent deployment run logs.
 - `surfaces/monitor/`
@@ -96,8 +100,12 @@ chrome, not just a page-local feature.
 - The agents surface lives at `/app/main_sequence_ai/agents` and uses a full-bleed workspace-style
   shell with a thin left icon rail that opens the same AgentSession explorer/search used by the
   chat page. The canvas area on that page stays empty on purpose, while the agent detail route now
-  owns prompt/skill capability binding and markdown authoring through a dedicated `Capabilities`
+  owns prompt/skill capability binding and shared-editor access through a dedicated `Capabilities`
   tab.
+- The capabilities surface lives at `/app/main_sequence_ai/capabilities` and is the resource-scoped
+  registry home for reusable prompt and skill authoring. Existing capability detail state is
+  URL-backed through `msCapabilityUid`, while creation uses the shared editor with kind-specific
+  defaults before a UID exists.
 - The deployment logs surface lives at `/app/main_sequence_ai/project-agent-deployment-logs` and
   is opened from project-agent modal entry points instead of rendering logs inline.
 - Project-agent build/deploy/delete configuration is modal-only. The AI app no longer exposes a

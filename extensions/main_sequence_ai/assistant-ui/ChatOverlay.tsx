@@ -1,4 +1,4 @@
-import { AlertTriangle, Bot, Expand, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Bot, Expand, Settings2, Sparkles, X } from "lucide-react";
 
 import { ChatThread } from "./components/ChatThread";
 import { useChatFeature } from "./ChatProvider";
@@ -10,9 +10,16 @@ export function ChatOverlay({
   mode?: "overlay" | "docked";
   rightOffsetPx?: number;
 }) {
-  const { activeSessionSummary, closeRail, expandToPage, railExperience } = useChatFeature();
+  const {
+    activeSessionSummary,
+    closeRail,
+    expandToPage,
+    openDeploymentConfigurator,
+    railExperience,
+  } = useChatFeature();
   const isDocked = mode === "docked";
   const isProjectAgentRail = railExperience === "project-agent";
+  const showDeploymentAction = !isProjectAgentRail || Boolean(activeSessionSummary);
   const activeRequestAgentType = activeSessionSummary?.requestAgentType?.trim().toLowerCase() || null;
   const isCommandCenterOrchestratorSession = activeSessionSummary
     ? activeSessionSummary.isDefaultCommandCenterSession || activeRequestAgentType === "astro-orchestrator"
@@ -96,6 +103,17 @@ export function ChatOverlay({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {showDeploymentAction ? (
+              <button
+                type="button"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/55 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+                aria-label="Configure deployment"
+                title="Configure deployment"
+                onClick={openDeploymentConfigurator}
+              >
+                <Settings2 className="h-4 w-4" />
+              </button>
+            ) : null}
             <button
               type="button"
               className="inline-flex h-10 items-center justify-center gap-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/55 px-3.5 text-xs font-medium uppercase tracking-[0.14em] text-foreground transition-colors hover:bg-muted/60"

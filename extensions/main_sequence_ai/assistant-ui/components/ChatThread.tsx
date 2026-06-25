@@ -20,6 +20,7 @@ import {
   Bot,
   ChevronDown,
   Loader2,
+  Settings2,
   Sparkles,
   Square,
   Wrench,
@@ -70,6 +71,12 @@ function formatModelsUnavailableMessage(error: string | null) {
 
 function formatEmptyModelCatalogMessage() {
   return "No chat models are available yet. Register or sign in to a model provider before sending a message.";
+}
+
+function isAstroDeploymentMessage(message: string | null | undefined) {
+  const normalized = message?.trim() ?? "";
+
+  return normalized.startsWith("Astro ");
 }
 
 function formatContextUsageNumber(value: number | null) {
@@ -521,9 +528,17 @@ function SessionReadinessState({
   message: string;
   status: "loading" | "error" | "not_found";
 }) {
-  const { railExperience } = useChatFeature();
+  const {
+    isAstroCommandCenterSession,
+    openDeploymentConfigurator,
+    railExperience,
+  } = useChatFeature();
   const isProjectAgentRail = railExperience === "project-agent";
   const failure = status === "error" || status === "not_found";
+  const showAstroDeploymentAction =
+    failure &&
+    !isProjectAgentRail &&
+    (isAstroCommandCenterSession || isAstroDeploymentMessage(message) || message.trim().length > 0);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col items-center justify-center px-6 py-8 text-center">
@@ -547,6 +562,16 @@ function SessionReadinessState({
             : "Loading AgentSession"}
       </div>
       <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{message}</p>
+      {showAstroDeploymentAction ? (
+        <button
+          type="button"
+          className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-card/80 px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/60"
+          onClick={openDeploymentConfigurator}
+        >
+          <Settings2 className="h-3.5 w-3.5" />
+          Configure deployment
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -671,7 +696,11 @@ function Composer({
   sessionUnavailableMessage?: string | null;
   sessionLoadingMessage?: string | null;
 }) {
-  const { railExperience } = useChatFeature();
+  const {
+    isAstroCommandCenterSession,
+    openDeploymentConfigurator,
+    railExperience,
+  } = useChatFeature();
   const isProjectAgentRail = railExperience === "project-agent";
   const isPage = surface === "page";
   const placeholder = env.useMockData
@@ -691,6 +720,12 @@ function Composer({
     !isSessionIdle &&
     hasAvailableModels && (hasProviderOptions || hasModelOptions || hasReasoningEffortOptions);
   const sessionUnavailable = !env.useMockData && Boolean(sessionUnavailableMessage);
+  const showAstroDeploymentAction =
+    sessionUnavailable &&
+    !isProjectAgentRail &&
+    (isAstroCommandCenterSession ||
+      isAstroDeploymentMessage(sessionUnavailableMessage) ||
+      Boolean(sessionUnavailableMessage?.trim()));
   const sessionLoading = !env.useMockData && isSessionLoading && !sessionUnavailable;
   const blockTyping =
     isSessionIdle ||
@@ -846,8 +881,18 @@ function Composer({
         </div>
       ) : null}
       {sessionUnavailable ? (
-        <div className="mt-2 border-t border-border/50 pt-2 text-xs text-danger">
-          {sessionUnavailableMessage}
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2 text-xs text-danger">
+          <span>{sessionUnavailableMessage}</span>
+          {showAstroDeploymentAction ? (
+            <button
+              type="button"
+              className="inline-flex h-8 items-center justify-center gap-2 rounded-full border border-border/70 px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/30"
+              onClick={openDeploymentConfigurator}
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              Configure deployment
+            </button>
+          ) : null}
         </div>
       ) : null}
       {sessionLoading ? (

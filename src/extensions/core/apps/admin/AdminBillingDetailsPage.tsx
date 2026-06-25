@@ -9,12 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 
 import {
-  getBillingSummary,
+  getCurrentUserCreditsSummary,
   listBillingUsage,
   type BillingUsageColumnDef,
   type BillingUsageRow,
+  type UserCreditSummary,
 } from "./api";
 import { AdminSurfaceLayout } from "./shared";
+import type { EntitySummaryHeader } from "../../../../../extensions/main_sequence/common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../../extensions/main_sequence/common/components/MainSequenceEntitySummaryCard";
 
 type BillingRangePreset = "current" | "month" | "previous-month" | "current-year";
@@ -136,15 +138,228 @@ function formatUsageCell(
       .replace(/\b\w/g, (match) => match.toUpperCase());
   }
 
-  if (column.field === "is_estimate_state") {
-    return (
-      <Badge variant={rawValue ? "warning" : "success"}>
-        {rawValue ? "Estimated" : "Final"}
-      </Badge>
-    );
+  return String(rawValue ?? "—");
+}
+
+function clampBudgetPercent(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
   }
 
-  return String(rawValue ?? "—");
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function getBudgetPercent(spentCents: number, limitCents: number) {
+  if (!Number.isFinite(spentCents) || !Number.isFinite(limitCents) || limitCents <= 0) {
+    return null;
+  }
+
+  return clampBudgetPercent((spentCents / limitCents) * 100);
+}
+
+function hasMonthlyBudgetLimit(summary: UserCreditSummary["user_budget"]) {
+  return Number(summary.monthly_limit_cents) > 0;
+}
+
+function formatBudgetCurrency(
+  cents: number,
+  currency: string,
+  options: { fixedFractionDigits?: boolean } = {},
+) {
+  const normalizedCents = Number(cents || 0);
+  const amount = normalizedCents / 100;
+  const normalizedCurrency = String(currency || "usd").toUpperCase();
+  const fractionDigits = options.fixedFractionDigits
+    ? 2
+    : Math.abs(normalizedCents) % 100 === 0
+      ? 0
+      : 2;
+
+  try {
+    const numberFormatOptions: Intl.NumberFormatOptions = {
+      style: "currency",
+      currency: normalizedCurrency,
+      maximumFractionDigits: fractionDigits,
+    };
+    if (options.fixedFractionDigits) {
+      numberFormatOptions.minimumFractionDigits = fractionDigits;
+    }
+
+    return new Intl.NumberFormat(undefined, numberFormatOptions).format(amount);
+  } catch {
+    return `$${amount.toFixed(fractionDigits)}`;
+  }
+}
+
+function buildBudgetSummaryCard(summary: UserCreditSummary): EntitySummaryHeader {
+  const userBudget = summary.user_budget;
+  const organizationConsumption = summary.organization_consumption ?? null;
+  const hasLimit = hasMonthlyBudgetLimit(userBudget);
+  const userPercent = hasLimit
+    ? getBudgetPercent(
+        userBudget.spent_this_period_cents,
+        Number(userBudget.monthly_limit_cents),
+      )
+    : null;
+  const spentLabel = formatBudgetCurrency(userBudget.spent_this_period_cents, userBudget.currency, {
+    fixedFractionDigits: true,
+  });
+  const limitLabel = hasLimit
+    ? formatBudgetCurrency(Number(userBudget.monthly_limit_cents), userBudget.currency, {
+        fixedFractionDigits: true,
+      })
+    : null;
+  const remainingLabel =
+    userBudget.remaining_monthly_limit_cents !== null
+      ? formatBudgetCurrency(userBudget.remaining_monthly_limit_cents, userBudget.currency, {
+          fixedFractionDigits: true,
+        })
+      : null;
+  const availableLabel = formatBudgetCurrency(userBudget.available_cents, userBudget.currency, {
+    fixedFractionDigits: true,
+  });
+
+  const badges = [];
+
+  if (userPercent !== null) {
+    badges.push({
+      key: "user_budget_used",
+      label: `${userPercent}% used`,
+      tone: userPercent >= 90 ? "danger" : userPercent >= 75 ? "warning" : "success",
+    });
+  } else {
+    badges.push({
+      key: "user_budget_unlimited",
+      label: "No monthly limit",
+      tone: "info",
+    });
+  }
+
+  if (organizationConsumption) {
+    badges.push({
+      key: "organization_consumers",
+      label: `${organizationConsumption.consumer_count} consumers`,
+      tone: "neutral",
+    });
+  }
+
+  const inline_fields = [
+    {
+      key: "period_start",
+      label: "Period Start",
+      value: summary.period.start,
+      kind: "date",
+      meta: summary.period.timezone,
+    },
+    {
+      key: "period_end",
+      label: "Period End",
+      value: summary.period.end,
+      kind: "date",
+      meta: summary.period.timezone,
+    },
+  ];
+
+  const highlight_fields = [
+    {
+      key: "user_budget_window",
+      label: "User Budget",
+      value: limitLabel ? `${spentLabel} / ${limitLabel}` : spentLabel,
+      kind: "text",
+      meta: limitLabel ? "Spent / monthly limit" : "Spent this period",
+    },
+  ];
+
+  if (organizationConsumption) {
+    highlight_fields.push({
+      key: "organization_consumption_split",
+      label: "Organization Consumption",
+      value: [
+        `total ${formatBudgetCurrency(organizationConsumption.total_cents, organizationConsumption.currency, { fixedFractionDigits: true })}`,
+        `user-attributed ${formatBudgetCurrency(organizationConsumption.user_attributed_cents, organizationConsumption.currency, { fixedFractionDigits: true })}`,
+        `shared ${formatBudgetCurrency(organizationConsumption.organization_shared_cents, organizationConsumption.currency, { fixedFractionDigits: true })}`,
+        `unresolved ${formatBudgetCurrency(organizationConsumption.unresolved_cents, organizationConsumption.currency, { fixedFractionDigits: true })}`,
+      ].join(" · "),
+      kind: "text",
+      meta: "User and organization split",
+    });
+  }
+
+  const stats = [
+    {
+      key: "user_spent",
+      label: "User Spent",
+      value: userBudget.spent_this_period_cents / 100,
+      display: spentLabel,
+      kind: "currency",
+      info: "User-attributed spend in the current summary period.",
+    },
+    {
+      key: "available_credits",
+      label: "Available",
+      value: userBudget.available_cents / 100,
+      display: availableLabel,
+      kind: "currency",
+      info: "Currently available credits for the user budget context.",
+    },
+  ];
+
+  if (limitLabel) {
+    stats.push({
+      key: "monthly_limit",
+      label: "Monthly Limit",
+      value: Number(userBudget.monthly_limit_cents) / 100,
+      display: limitLabel,
+      kind: "currency",
+      info: "Configured monthly user budget limit.",
+    });
+  }
+
+  if (remainingLabel) {
+    stats.push({
+      key: "remaining_budget",
+      label: "Remaining",
+      value: Number(userBudget.remaining_monthly_limit_cents) / 100,
+      display: remainingLabel,
+      kind: "currency",
+      info: "Remaining user budget before hitting the monthly limit.",
+    });
+  }
+
+  if (organizationConsumption) {
+    stats.push({
+      key: "organization_total_consumption",
+      label: "Org Consumption",
+      value: organizationConsumption.total_cents / 100,
+      display: formatBudgetCurrency(
+        organizationConsumption.total_cents,
+        organizationConsumption.currency,
+        { fixedFractionDigits: true },
+      ),
+      kind: "currency",
+      info: "Total organization consumption in the same summary period.",
+    });
+    stats.push({
+      key: "organization_consumers",
+      label: "Consumers",
+      value: organizationConsumption.consumer_count,
+      display: String(organizationConsumption.consumer_count),
+      kind: "number",
+      info: "Number of consumers contributing to organization consumption.",
+    });
+  }
+
+  return {
+    entity: {
+      id: "user-credits-summary",
+      type: "credits",
+      title: "Budget Summary",
+    },
+    badges,
+    inline_fields,
+    highlight_fields,
+    stats,
+  };
 }
 
 function getCompactCellClassName(edge: "left" | "middle" | "right" = "middle") {
@@ -192,14 +407,24 @@ export function AdminBillingDetailsPage() {
     retry: false,
   });
   const billingSummaryQuery = useQuery({
-    queryKey: ["admin", "billing", "summary"],
-    queryFn: () => getBillingSummary(),
+    queryKey: ["admin", "billing", "credits-summary"],
+    queryFn: () => getCurrentUserCreditsSummary(),
     retry: false,
     staleTime: 60_000,
   });
 
   const usageRows = billingUsageQuery.data?.rows ?? [];
-  const usageColumns = billingUsageQuery.data?.columnDefs ?? [];
+  const billingSummaryCard = useMemo(
+    () => (billingSummaryQuery.data ? buildBudgetSummaryCard(billingSummaryQuery.data) : null),
+    [billingSummaryQuery.data],
+  );
+  const usageColumns = useMemo(
+    () =>
+      (billingUsageQuery.data?.columnDefs ?? []).filter(
+        (column) => column.field !== "is_estimate_state",
+      ),
+    [billingUsageQuery.data?.columnDefs],
+  );
 
   function applyRange(startDate: string, endDate: string, preset: BillingRangePreset | null = null) {
     const normalizedRange = normalizeRangeForQuery(startDate, endDate);
@@ -225,7 +450,7 @@ export function AdminBillingDetailsPage() {
           <CardContent className="flex min-h-32 items-center justify-center">
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Loading billing summary
+              Loading budget summary
             </div>
           </CardContent>
         </Card>
@@ -241,8 +466,8 @@ export function AdminBillingDetailsPage() {
         </Card>
       ) : null}
 
-      {!billingSummaryQuery.isLoading && !billingSummaryQuery.isError && billingSummaryQuery.data ? (
-        <MainSequenceEntitySummaryCard summary={billingSummaryQuery.data} />
+      {!billingSummaryQuery.isLoading && !billingSummaryQuery.isError && billingSummaryCard ? (
+        <MainSequenceEntitySummaryCard summary={billingSummaryCard} />
       ) : null}
 
       <Card>

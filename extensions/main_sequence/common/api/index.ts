@@ -3913,11 +3913,39 @@ export interface CreateResourceReleaseInput {
 export interface CreateProjectExecutorAgentServiceInput {
   project: string;
   project_related_image: string;
+  llm_provider?: string;
+  llm_model?: string;
+  llm_thinking?: string;
+  automatic_deployment?: boolean;
   cpu_request?: string;
+  cpu_limit?: string;
   memory_request?: string;
+  memory_limit?: string;
   gpu_request?: string;
   gpu_type?: string;
   spot?: boolean;
+}
+
+export interface DeployAstroCommandCenterAgentServiceInput {
+  llm_provider?: string | null;
+  llm_model?: string | null;
+  llm_thinking?: string | null;
+  cpu_request?: string | null;
+  cpu_limit?: string | null;
+  memory_request?: string | null;
+  memory_limit?: string | null;
+  gpu_request?: string | null;
+  gpu_type?: string | null;
+  spot?: boolean | null;
+}
+
+export interface DeployCodingAgentServiceInput {
+  agent_type: "astro-orchestrator" | "project-executor" | string;
+  scope: CodingAgentServiceScope;
+  llm_provider?: string | null;
+  llm_model?: string | null;
+  llm_thinking?: string | null;
+  [key: string]: unknown;
 }
 
 export interface BillingEstimateResources {
@@ -3990,26 +4018,49 @@ export interface ProjectExecutorRuntimeAccess {
   token?: string | null;
 }
 
-export interface ProjectExecutorAgentServiceSummary {
-  id?: number;
+export interface CodingAgentServiceScope {
+  kind: "user" | "project" | "unknown" | string;
+  user_uid?: string | null;
+  project_uid?: string | null;
+}
+
+export interface CodingAgentServiceSummary {
   uid: string;
   agent_uid?: string | null;
+  agent_type?: "astro-orchestrator" | "project-executor" | string | null;
+  scope?: CodingAgentServiceScope | null;
   automatic_deployment?: boolean;
+  is_ready: boolean;
+  image_drift?: unknown;
+  llm_provider?: string | null;
+  llm_model?: string | null;
+  llm_thinking?: string | null;
+  cpu_request?: string | null;
+  cpu_limit?: string | null;
+  memory_request?: string | null;
+  memory_limit?: string | null;
+  gpu_request?: string | null;
+  gpu_type?: string | null;
+  spot?: boolean | null;
+  related_job_uid?: string | null;
+  knative_service_runtime_uid?: string | null;
+  subdomain: string | null;
+  [key: string]: unknown;
+}
+
+export interface ProjectExecutorAgentServiceSummary extends CodingAgentServiceSummary {
+  id?: number;
   cpu_request?: string | null;
   cpu_limit?: string | null;
   memory_request?: string | null;
   memory_limit?: string | null;
   spot?: boolean | null;
-  is_ready: boolean;
   executor_bundle_image_has_drift?: boolean;
-  image_drift?: unknown;
   project?: number | string | null;
   project_uid?: string | null;
   runtime_image?: string | null;
   runtime_image_uid?: string | null;
   related_job?: number | string | null;
-  related_job_uid?: string | null;
-  subdomain: string | null;
 }
 
 export type ProjectExecutorAutomaticDeploymentRunStatus =
@@ -4070,6 +4121,22 @@ export type ProjectExecutorAgentServiceDeployStatus =
 export interface ProjectExecutorAgentServiceDeployResponse {
   uid: string;
   status: ProjectExecutorAgentServiceDeployStatus | string;
+  current_step?: string | null;
+  result?: {
+    service_uid?: string | null;
+    runtime_ready?: boolean | null;
+    [key: string]: unknown;
+  } | null;
+  error_code?: string | null;
+  error_detail?: string | null;
+  [key: string]: unknown;
+}
+
+export interface AstroCommandCenterAgentServiceDeployResponse {
+  uid: string;
+  agent_uid?: string | null;
+  agent_type?: "astro-orchestrator" | string | null;
+  status?: ProjectExecutorAgentServiceDeployStatus | string;
   current_step?: string | null;
   result?: {
     service_uid?: string | null;
@@ -4205,7 +4272,7 @@ export interface CreateProjectInput {
   project_name: string;
   data_source_uid?: string;
   default_base_image?: string;
-  github_organization?: string;
+  github_org_uid?: string;
 }
 
 export interface UpdateProjectSettingsInput {
@@ -9209,8 +9276,27 @@ export function estimateBillingCost(input: BillingEstimateInput) {
 export function getOrCreateProjectExecutorAgentService(
   input: CreateProjectExecutorAgentServiceInput,
 ) {
-  return requestJson<ProjectExecutorAgentServiceRecord>(
-    "/orm/api/agents/v1/project-executor-agent-services/get_or_create/",
+  return deployProjectExecutorAgentService({
+    project_uid: input.project,
+    llm_provider: input.llm_provider ?? "",
+    llm_model: input.llm_model ?? "",
+    llm_thinking: input.llm_thinking ?? "",
+    automatic_deployment: input.automatic_deployment,
+    cpu_request: input.cpu_request,
+    cpu_limit: input.cpu_limit ?? input.cpu_request,
+    memory_request: input.memory_request,
+    memory_limit: input.memory_limit ?? input.memory_request,
+    gpu_request: input.gpu_request,
+    gpu_type: input.gpu_type,
+    spot: input.spot,
+  }) as Promise<ProjectExecutorAgentServiceRecord>;
+}
+
+export function deployCodingAgentService<TResponse = CodingAgentServiceSummary>(
+  input: DeployCodingAgentServiceInput,
+) {
+  return requestJson<TResponse>(
+    "/orm/api/agents/v1/coding-agent-services/deploy/",
     "",
     {
       method: "POST",
@@ -9223,7 +9309,7 @@ export function deployProjectExecutorAgentService(input: {
   project_uid: string;
   llm_provider: string;
   llm_model: string;
-  llm_thinking?: string;
+  llm_thinking: string;
   automatic_deployment?: boolean;
   cpu_request?: string;
   cpu_limit?: string;
@@ -9233,31 +9319,195 @@ export function deployProjectExecutorAgentService(input: {
   gpu_type?: string;
   spot?: boolean;
 }) {
-  console.log("POST /orm/api/agents/v1/project-executor-agent-services/deploy/", input);
+  const missingFields = [
+    ["project_uid", input.project_uid],
+    ["llm_provider", input.llm_provider],
+    ["llm_model", input.llm_model],
+    ["llm_thinking", input.llm_thinking],
+    ["cpu_request", input.cpu_request],
+    ["cpu_limit", input.cpu_limit],
+    ["memory_request", input.memory_request],
+    ["memory_limit", input.memory_limit],
+  ].flatMap(([key, value]) => (typeof value === "string" && value.trim() ? [] : [key]));
 
-  return requestJson<ProjectExecutorAgentServiceDeployResponse>(
-    "/orm/api/agents/v1/project-executor-agent-services/deploy/",
-    "",
-    {
-      method: "POST",
-      body: JSON.stringify(input),
+  if (missingFields.length > 0) {
+    throw new Error(`Project executor deploy is missing required fields: ${missingFields.join(", ")}.`);
+  }
+
+  const {
+    project_uid: projectUid,
+    llm_provider: llmProvider,
+    llm_model: llmModel,
+    llm_thinking: llmThinking,
+    ...resourceBody
+  } = input;
+
+  return deployCodingAgentService<ProjectExecutorAgentServiceDeployResponse>({
+    agent_type: "project-executor",
+    scope: {
+      kind: "project",
+      project_uid: projectUid,
     },
+    llm_provider: llmProvider,
+    llm_model: llmModel,
+    llm_thinking: llmThinking,
+    ...resourceBody,
+  });
+}
+
+export function deployAstroCommandCenterAgentService(
+  input: DeployAstroCommandCenterAgentServiceInput = {},
+) {
+  const body: Record<string, unknown> = {
+    agent_type: "astro-orchestrator",
+    scope: {
+      kind: "user",
+    },
+  };
+  const llmProvider = input.llm_provider?.trim();
+  const llmModel = input.llm_model?.trim();
+  const llmThinking = input.llm_thinking?.trim();
+  const cpuRequest = input.cpu_request?.trim();
+  const cpuLimit = input.cpu_limit?.trim();
+  const memoryRequest = input.memory_request?.trim();
+  const memoryLimit = input.memory_limit?.trim();
+  const gpuRequest = input.gpu_request?.trim();
+  const gpuType = input.gpu_type?.trim();
+
+  if (llmProvider) {
+    body.llm_provider = llmProvider;
+  }
+
+  if (llmModel) {
+    body.llm_model = llmModel;
+  }
+
+  if (llmThinking) {
+    body.llm_thinking = llmThinking;
+  }
+
+  if (cpuRequest) {
+    body.cpu_request = cpuRequest;
+  }
+
+  if (cpuLimit) {
+    body.cpu_limit = cpuLimit;
+  }
+
+  if (memoryRequest) {
+    body.memory_request = memoryRequest;
+  }
+
+  if (memoryLimit) {
+    body.memory_limit = memoryLimit;
+  }
+
+  if (gpuRequest) {
+    body.gpu_request = gpuRequest;
+  }
+
+  if (gpuType) {
+    body.gpu_type = gpuType;
+  }
+
+  if (input.spot !== null && input.spot !== undefined) {
+    body.spot = input.spot;
+  }
+
+  return deployCodingAgentService<AstroCommandCenterAgentServiceDeployResponse>(
+    body as DeployCodingAgentServiceInput,
   );
 }
 
-export async function fetchProjectExecutorAgentServiceByProject(projectUid: string) {
-  try {
-    return await requestJson<ProjectExecutorAgentServiceSummary>(
-      `/orm/api/agents/v1/project-executor-agent-services/by-project/${resolveMainSequenceUidPath(projectUid, "project")}/`,
-      "",
-    );
-  } catch (error) {
-    if (error instanceof MainSequenceApiError && error.status === 404) {
-      return null;
-    }
+export async function fetchCodingAgentServiceByScope(
+  input:
+    | {
+        agentType: string;
+        scopeKind: "user";
+        userUid: string;
+        signal?: AbortSignal;
+      }
+    | {
+        agentType: string;
+        scopeKind: "project";
+        projectUid: string;
+        signal?: AbortSignal;
+      },
+) {
+  const payload = await requestJson<
+    PaginatedResponse<CodingAgentServiceSummary> | CodingAgentServiceSummary[]
+  >(
+    "/orm/api/agents/v1/coding-agent-services/",
+    "",
+    input.signal ? { signal: input.signal } : undefined,
+    input.scopeKind === "user"
+      ? {
+          agent_type: input.agentType,
+          scope_kind: "user",
+          user_uid: resolveMainSequenceUidPath(input.userUid, "user"),
+        }
+      : {
+          agent_type: input.agentType,
+          scope_kind: "project",
+          project_uid: resolveMainSequenceUidPath(input.projectUid, "project"),
+        },
+  );
+  const services = normalizeListResponse(payload);
 
-    throw error;
-  }
+  return (
+    services.find((service) => {
+      if (service.agent_type !== input.agentType || service.scope?.kind !== input.scopeKind) {
+        return false;
+      }
+
+      if (input.scopeKind === "user") {
+        return service.scope.user_uid === resolveMainSequenceUidPath(input.userUid, "user");
+      }
+
+      return service.scope.project_uid === resolveMainSequenceUidPath(input.projectUid, "project");
+    }) ?? null
+  );
+}
+
+export async function fetchAstroCommandCenterAgentServiceByUser(
+  userUid: string,
+  options: { signal?: AbortSignal } = {},
+) {
+  return fetchCodingAgentServiceByScope({
+    agentType: "astro-orchestrator",
+    scopeKind: "user",
+    userUid,
+    signal: options.signal,
+  });
+}
+
+function normalizeProjectExecutorAgentServiceSummary(
+  service: ProjectExecutorAgentServiceSummary,
+): ProjectExecutorAgentServiceSummary {
+  const projectUid =
+    service.project_uid ??
+    (service.scope?.kind === "project" ? service.scope.project_uid ?? null : null);
+
+  return {
+    ...service,
+    project_uid: projectUid,
+  };
+}
+
+export async function fetchProjectExecutorAgentServiceByProject(
+  projectUid: string,
+  options: { signal?: AbortSignal } = {},
+) {
+  const service = await fetchCodingAgentServiceByScope({
+    agentType: "project-executor",
+    scopeKind: "project",
+    projectUid,
+    signal: options.signal,
+  });
+
+  return service
+    ? normalizeProjectExecutorAgentServiceSummary(service as ProjectExecutorAgentServiceSummary)
+    : null;
 }
 
 export async function fetchProjectExecutorAutomaticDeploymentRuns({
@@ -9286,16 +9536,6 @@ export async function fetchProjectExecutorAutomaticDeploymentRuns({
   return normalizeListResponse(payload);
 }
 
-export function maintainProjectExecutorAgentService(serviceUid: string) {
-  return requestJson<ProjectExecutorAgentServiceMaintenanceResult>(
-    `/orm/api/agents/v1/project-executor-agent-services/${resolveMainSequenceUidPath(serviceUid, "project executor agent service")}/maintain-runtime/`,
-    "",
-    {
-      method: "POST",
-    },
-  );
-}
-
 export interface CodingAgentDeploymentDefaultsInput {
   global_active: boolean;
   llm_provider: string;
@@ -9307,6 +9547,7 @@ export interface CodingAgentDeploymentDefaultsInput {
   memory_limit: string;
   gpu_request: string;
   gpu_type: string;
+  spot?: boolean;
 }
 
 export interface CodingAgentDeploymentDefaultsRecord
@@ -9343,7 +9584,7 @@ export function updateProjectExecutorAgentServiceAutomation(
   automaticDeployment: boolean,
 ) {
   return requestJson<ProjectExecutorAgentServiceSummary>(
-    `/orm/api/agents/v1/project-executor-agent-services/${resolveMainSequenceUidPath(serviceUid, "project executor agent service")}/`,
+    `/orm/api/agents/v1/coding-agent-services/${resolveMainSequenceUidPath(serviceUid, "coding agent service")}/`,
     "",
     {
       method: "PATCH",
@@ -9351,12 +9592,17 @@ export function updateProjectExecutorAgentServiceAutomation(
         automatic_deployment: automaticDeployment,
       }),
     },
-  );
+  ).then(normalizeProjectExecutorAgentServiceSummary);
 }
 
-export function deleteProjectExecutorAgentServiceByProject(projectUid: string) {
+export async function deleteProjectExecutorAgentServiceByProject(projectUid: string) {
+  const service = await fetchProjectExecutorAgentServiceByProject(projectUid);
+  if (!service?.uid) {
+    return null;
+  }
+
   return requestJson<null>(
-    `/orm/api/agents/v1/project-executor-agent-services/by-project/${resolveMainSequenceUidPath(projectUid, "project")}/`,
+    `/orm/api/agents/v1/coding-agent-services/${resolveMainSequenceUidPath(service.uid, "coding agent service")}/`,
     "",
     {
       method: "DELETE",

@@ -39,13 +39,25 @@ function parseNumberLike(value: string | number | null | undefined) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export function normalizeMainSequenceCpuQuantity(value: unknown, fallback = "") {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : fallback;
+  }
+
+  const normalized = typeof value === "string" && value.trim() ? value.trim() : fallback;
+
+  return normalized.replace(/m{2,}$/i, "m");
+}
+
 function parseCpuRequest(value: string | number | null | undefined) {
-  if (typeof value === "string" && value.trim().toLowerCase().endsWith("m")) {
-    const parsed = parseNumberLike(value.trim().slice(0, -1));
+  const normalized = normalizeMainSequenceCpuQuantity(value);
+
+  if (normalized.toLowerCase().endsWith("m")) {
+    const parsed = parseNumberLike(normalized.slice(0, -1));
     return parsed === null ? null : parsed / 1000;
   }
 
-  return parseNumberLike(value);
+  return parseNumberLike(normalized);
 }
 
 function parseMemoryRequest(value: string | number | null | undefined) {

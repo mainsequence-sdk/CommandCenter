@@ -119,4 +119,27 @@ describe("agent capabilities api", () => {
       updatedAt: null,
     });
   });
+
+  it("treats missing capability content as an empty markdown draft when allowMissing is enabled", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ detail: "Capability content file was not found." }), {
+        status: 404,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+
+    const result = await fetchCapabilityContent({
+      capabilityUid: "capability-uid-1",
+      allowMissing: true,
+    });
+
+    expect(result).toEqual({
+      content: "",
+      filename: null,
+      contentMimeType: "text/markdown",
+      updatedAt: null,
+    });
+  });
 });

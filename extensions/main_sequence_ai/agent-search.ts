@@ -97,6 +97,13 @@ export interface AgentRuntimeRefResponse {
   service_name: string | null;
 }
 
+export interface AgentBulkDeleteResponse {
+  requested_agent_uids: string[];
+  deleted_agent_uids: string[];
+  missing_agent_uids: string[];
+  deleted_count: number;
+}
+
 function asRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -277,6 +284,10 @@ export function buildAgentRuntimeRefUrl(agentUid: string | number) {
 
 export function buildAgentSemanticSearchUrl() {
   return new URL("/orm/api/agents/v1/agents/semantic-search/", env.apiBaseUrl).toString();
+}
+
+export function buildAgentBulkDeleteUrl() {
+  return new URL("/orm/api/agents/v1/agents/bulk-delete/", env.apiBaseUrl).toString();
 }
 
 export function buildAgentSelectionDescription(agent: AgentSearchResult) {
@@ -488,6 +499,66 @@ export async function fetchAgentDetail({
   }
 
   return normalizeAgentDetailRecord(await response.json());
+}
+
+export async function bulkDeleteAgents({
+  agentUids,
+  token,
+  tokenType = "Bearer",
+}: {
+  agentUids: string[];
+  token?: string | null;
+  tokenType?: string;
+}) {
+  const normalizedAgentUids = Array.from(new Set(agentUids.map(normalizeString).filter(Boolean)));
+
+  if (normalizedAgentUids.length === 0) {
+    throw new Error("At least one agent UID is required before deleting agents.");
+  }
+
+  const headers = new Headers({
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  });
+
+  if (token) {
+    headers.set("Authorization", `${tokenType} ${token}`);
+  }
+
+  const response = await fetch(buildAgentBulkDeleteUrl(), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      agent_uids: normalizedAgentUids,
+    }),
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as
+      | { detail?: unknown; error?: unknown }
+      | null;
+    const detail = typeof payload?.detail === "string" ? payload.detail : "";
+    const error = typeof payload?.error === "string" ? payload.error : "";
+    throw new Error(detail || error || `Agent bulk delete failed with status ${response.status}.`);
+  }
+
+  const payload = (await response.json()) as Partial<AgentBulkDeleteResponse>;
+
+  return {
+    requested_agent_uids: Array.isArray(payload.requested_agent_uids)
+      ? payload.requested_agent_uids.filter((value): value is string => typeof value === "string")
+      : normalizedAgentUids,
+    deleted_agent_uids: Array.isArray(payload.deleted_agent_uids)
+      ? payload.deleted_agent_uids.filter((value): value is string => typeof value === "string")
+      : [],
+    missing_agent_uids: Array.isArray(payload.missing_agent_uids)
+      ? payload.missing_agent_uids.filter((value): value is string => typeof value === "string")
+      : [],
+    deleted_count:
+      typeof payload.deleted_count === "number" && Number.isFinite(payload.deleted_count)
+        ? payload.deleted_count
+        : 0,
+  } satisfies AgentBulkDeleteResponse;
 }
 
 export async function fetchAgentSummary({

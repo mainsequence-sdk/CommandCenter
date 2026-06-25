@@ -1,44 +1,52 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowUpRight,
   FilePenLine,
   Link2Off,
   Loader2,
   Plus,
   RefreshCcw,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
+import { getAppPath } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { MarkdownContent } from "@/components/ui/markdown-content";
 import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import { MainSequenceRegistrySearch } from "../../../main_sequence/common/components/MainSequenceRegistrySearch";
+import { AgentCapabilityEditor } from "./AgentCapabilityEditor";
 import {
   bindCapabilityToAgent,
-  createCapabilityResource,
   fetchAgentCapabilityBindings,
   fetchCapabilityContent,
   fetchCapabilityDetail,
   fetchReusableCapabilities,
   unbindCapabilityFromAgent,
-  updateCapabilityContent,
-  updateCapabilityResource,
   type AgentCapabilityBindingRecord,
   type AgentCapabilityKind,
-  type AgentCapabilityRecord,
   type AgentCapabilitySourceType,
 } from "./api";
+import {
+  getCapabilityDirtyState,
+  buildCapabilityEditorDraft,
+  parseCapabilityMetadataText,
+  synchronizeCapabilityDraft,
+  type AgentCapabilityEditorDraft,
+} from "./model";
+import {
+  AgentCapabilityPartialSaveError,
+  saveExistingCapabilityDraft,
+} from "./save";
 
 type CapabilityFilter = "all" | AgentCapabilityKind;
-type AddCapabilityMode = "create" | "bind-existing";
 
 interface CapabilityBindingDraft {
   role: string;
@@ -48,22 +56,6 @@ interface CapabilityBindingDraft {
   sourceType: AgentCapabilitySourceType;
   sourceRef: string;
 }
-
-interface CapabilityResourceDraft {
-  name: string;
-  kind: AgentCapabilityKind;
-  description: string;
-  sourceType: AgentCapabilitySourceType;
-  sourceRef: string;
-  capabilityPath: string;
-  content: string;
-  filename: string;
-}
-
-const capabilityKindOptions: Array<{ value: AgentCapabilityKind; label: string }> = [
-  { value: "prompt", label: "Prompt" },
-  { value: "skill", label: "Skill" },
-];
 
 const capabilitySourceTypeOptions: Array<{
   value: AgentCapabilitySourceType;
@@ -76,9 +68,19 @@ const capabilitySourceTypeOptions: Array<{
   { value: "external", label: "External" },
 ];
 
-function normalizeString(value: string) {
-  const trimmed = value.trim();
-  return trimmed;
+function buildDefaultBindingDraft(): CapabilityBindingDraft {
+  return {
+    role: "",
+    sortOrder: "0",
+    isEnabled: true,
+    isLocked: false,
+    sourceType: "inline",
+    sourceRef: "",
+  };
+}
+
+function buildApiErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 function formatCapabilityKind(kind: string) {
@@ -123,76 +125,6 @@ function formatCapabilityDateTime(value: string | null) {
   }).format(date);
 }
 
-function formatCapabilitySize(value: number | null) {
-  if (value === null || !Number.isFinite(value)) {
-    return null;
-  }
-
-  return new Intl.NumberFormat().format(value);
-}
-
-function buildBindingDraft(binding: AgentCapabilityBindingRecord): CapabilityBindingDraft {
-  return {
-    role: binding.role ?? "",
-    sortOrder:
-      binding.sortOrder !== null && Number.isFinite(binding.sortOrder)
-        ? String(binding.sortOrder)
-        : "0",
-    isEnabled: binding.isEnabled,
-    isLocked: binding.isLocked,
-    sourceType: binding.sourceType ?? binding.capability?.sourceType ?? "inline",
-    sourceRef: binding.sourceRef ?? "",
-  };
-}
-
-function buildResourceDraft(
-  capability: AgentCapabilityRecord,
-  content: string,
-  filename: string | null,
-): CapabilityResourceDraft {
-  return {
-    name: capability.name,
-    kind: capability.kind,
-    description: capability.description ?? "",
-    sourceType: capability.sourceType,
-    sourceRef: capability.sourceRef ?? "",
-    capabilityPath: capability.capabilityPath ?? "",
-    content,
-    filename:
-      filename ??
-      capability.capabilityPath?.split("/").pop() ??
-      (capability.kind === "prompt" ? "PROMPT.md" : "SKILL.md"),
-  };
-}
-
-function buildCreateDraft(kind: AgentCapabilityKind): CapabilityResourceDraft {
-  return {
-    name: "",
-    kind,
-    description: "",
-    sourceType: "inline",
-    sourceRef: "",
-    capabilityPath: kind === "prompt" ? "prompts/new-prompt/PROMPT.md" : "skills/new-skill/SKILL.md",
-    content: "",
-    filename: kind === "prompt" ? "PROMPT.md" : "SKILL.md",
-  };
-}
-
-function buildDefaultBindingDraft(): CapabilityBindingDraft {
-  return {
-    role: "",
-    sortOrder: "0",
-    isEnabled: true,
-    isLocked: false,
-    sourceType: "inline",
-    sourceRef: "",
-  };
-}
-
-function buildApiErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
-
 function CapabilityStateBadges({
   binding,
 }: {
@@ -207,7 +139,7 @@ function CapabilityStateBadges({
       <Badge variant={binding.isLocked ? "warning" : "neutral"}>
         {binding.isLocked ? "Locked" : "Unlocked"}
       </Badge>
-      <Badge variant={binding.capability?.isEditable === false ? "secondary" : "primary"}>
+      <Badge variant={binding.capability?.isEditable === false ? "warning" : "primary"}>
         {binding.capability?.isEditable === false ? "Read only" : "Editable"}
       </Badge>
     </div>
@@ -237,54 +169,6 @@ function CapabilityField({
   );
 }
 
-function CapabilityMarkdownComposer({
-  content,
-  disabled,
-  onChange,
-}: {
-  content: string;
-  disabled: boolean;
-  onChange: (nextValue: string) => void;
-}) {
-  return (
-    <div className="grid gap-4 xl:grid-cols-2">
-      <Card variant="nested">
-        <CardHeader>
-          <CardTitle>Markdown</CardTitle>
-          <CardDescription>
-            Author the reusable capability body. Preview updates as you type.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            className="min-h-[420px] bg-card/70 font-mono text-[13px] leading-6"
-            disabled={disabled}
-            value={content}
-            onChange={(event) => onChange(event.target.value)}
-            placeholder="# Capability content"
-          />
-        </CardContent>
-      </Card>
-
-      <Card variant="nested">
-        <CardHeader>
-          <CardTitle>Preview</CardTitle>
-          <CardDescription>Rendered markdown preview for the current draft.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="min-h-[420px] rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/45 px-4 py-4">
-            {content.trim() ? (
-              <MarkdownContent content={content} />
-            ) : (
-              <div className="text-sm text-muted-foreground">No markdown content yet.</div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 function CapabilityBindingSummary({
   binding,
 }: {
@@ -293,10 +177,10 @@ function CapabilityBindingSummary({
   return (
     <Card variant="nested">
       <CardHeader>
-        <CardTitle>Binding Metadata</CardTitle>
+        <CardTitle>Binding metadata</CardTitle>
         <CardDescription>
-          Agent-scoped binding state. The current backend contract exposes bind and unbind, not
-          in-place binding updates.
+          Agent-scoped binding state stays local to this tab. Resource authoring is shared through
+          the capability editor.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -304,15 +188,17 @@ function CapabilityBindingSummary({
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <CapabilityField label="Role" value={binding.role} mono />
           <CapabilityField
-            label="Sort Order"
+            label="Sort order"
             value={binding.sortOrder !== null ? String(binding.sortOrder) : null}
             mono
           />
           <CapabilityField
-            label="Binding Source"
+            label="Binding source"
             value={formatCapabilitySourceType(binding.sourceType)}
           />
-          <CapabilityField label="Binding Source Ref" value={binding.sourceRef} mono />
+          <CapabilityField label="Binding source ref" value={binding.sourceRef} mono />
+          <CapabilityField label="Capability UID" value={binding.capabilityUid} mono />
+          <CapabilityField label="Binding UID" value={binding.uid} mono />
         </div>
       </CardContent>
     </Card>
@@ -326,6 +212,7 @@ export function AgentCapabilitiesTab({
   agentUid: string;
   agentTitle: string;
 }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
@@ -334,18 +221,13 @@ export function AgentCapabilitiesTab({
   const [kindFilter, setKindFilter] = useState<CapabilityFilter>("all");
   const [selectedBinding, setSelectedBinding] = useState<AgentCapabilityBindingRecord | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [editorBindingDraft, setEditorBindingDraft] = useState<CapabilityBindingDraft | null>(null);
-  const [editorResourceDraft, setEditorResourceDraft] = useState<CapabilityResourceDraft | null>(null);
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [addMode, setAddMode] = useState<AddCapabilityMode>("create");
-  const [createBindingDraft, setCreateBindingDraft] = useState<CapabilityBindingDraft>(
-    buildDefaultBindingDraft(),
-  );
-  const [createResourceDraft, setCreateResourceDraft] = useState<CapabilityResourceDraft>(
-    buildCreateDraft("skill"),
-  );
+  const [initialDraft, setInitialDraft] = useState<AgentCapabilityEditorDraft | null>(null);
+  const [draft, setDraft] = useState<AgentCapabilityEditorDraft | null>(null);
+  const [bindDialogOpen, setBindDialogOpen] = useState(false);
+  const [bindingDraft, setBindingDraft] = useState<CapabilityBindingDraft>(buildDefaultBindingDraft());
   const [existingCapabilitySearch, setExistingCapabilitySearch] = useState("");
-  const [selectedExistingCapabilityUid, setSelectedExistingCapabilityUid] = useState<string>("");
+  const [selectedExistingCapabilityUid, setSelectedExistingCapabilityUid] = useState("");
+  const initializedCapabilityUidRef = useRef<string | null>(null);
 
   const bindingsQuery = useQuery({
     queryKey: ["main_sequence_ai", "agents", "capabilities", agentUid],
@@ -368,12 +250,11 @@ export function AgentCapabilitiesTab({
         token: sessionToken,
         tokenType: sessionTokenType,
       }),
-    enabled: addDialogOpen,
+    enabled: bindDialogOpen,
     staleTime: 60_000,
   });
 
   const selectedCapabilityUid = selectedBinding?.capabilityUid ?? null;
-
   const capabilityDetailQuery = useQuery({
     queryKey: ["main_sequence_ai", "capabilities", "detail", selectedCapabilityUid],
     queryFn: ({ signal }) =>
@@ -393,6 +274,7 @@ export function AgentCapabilitiesTab({
     queryFn: ({ signal }) =>
       fetchCapabilityContent({
         capabilityUid: selectedCapabilityUid ?? "",
+        allowMissing: true,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
@@ -403,77 +285,87 @@ export function AgentCapabilitiesTab({
   });
 
   useEffect(() => {
-    if (!editorOpen || !selectedBinding || !capabilityDetailQuery.data) {
+    if (!editorOpen || !selectedBinding || !capabilityDetailQuery.data || !capabilityContentQuery.data) {
       return;
     }
 
-    setEditorBindingDraft(buildBindingDraft(selectedBinding));
-    setEditorResourceDraft(
-      buildResourceDraft(
-        capabilityDetailQuery.data,
-        capabilityContentQuery.data?.content ?? "",
-        capabilityContentQuery.data?.filename ?? null,
-      ),
-    );
-  }, [capabilityContentQuery.data, capabilityDetailQuery.data, editorOpen, selectedBinding]);
+    if (initializedCapabilityUidRef.current === selectedBinding.capabilityUid) {
+      return;
+    }
+
+    const nextDraft = buildCapabilityEditorDraft({
+      capability: capabilityDetailQuery.data,
+      content: capabilityContentQuery.data,
+    });
+
+    initializedCapabilityUidRef.current = selectedBinding.capabilityUid;
+    setInitialDraft(nextDraft);
+    setDraft(nextDraft);
+  }, [
+    capabilityContentQuery.data,
+    capabilityDetailQuery.data,
+    editorOpen,
+    selectedBinding,
+  ]);
 
   useEffect(() => {
-    if (!addDialogOpen) {
-      setAddMode("create");
-      setCreateBindingDraft(buildDefaultBindingDraft());
-      setCreateResourceDraft(buildCreateDraft("skill"));
+    if (!bindDialogOpen) {
+      setBindingDraft(buildDefaultBindingDraft());
       setExistingCapabilitySearch("");
       setSelectedExistingCapabilityUid("");
     }
-  }, [addDialogOpen]);
+  }, [bindDialogOpen]);
+
+  const dirtyState = useMemo(() => {
+    if (!initialDraft || !draft) {
+      return {
+        resourceChanged: false,
+        contentChanged: false,
+        hasChanges: false,
+      };
+    }
+
+    return getCapabilityDirtyState(initialDraft, draft);
+  }, [draft, initialDraft]);
+
+  const metadataError = useMemo(() => {
+    if (!draft) {
+      return null;
+    }
+
+    try {
+      parseCapabilityMetadataText(draft.resource.metadataText);
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : "Metadata must be valid JSON.";
+    }
+  }, [draft]);
 
   const saveCapabilityMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedBinding || !editorResourceDraft) {
-        throw new Error("No capability binding is selected.");
+      if (!selectedBinding || !initialDraft || !draft) {
+        throw new Error("No bound capability is selected.");
       }
 
-      const capability = capabilityDetailQuery.data;
-      if (!capability) {
-        throw new Error("Capability detail is not loaded yet.");
+      if (metadataError) {
+        throw new Error(metadataError);
       }
 
-      const normalizedName = normalizeString(editorResourceDraft.name);
-      if (!normalizedName) {
-        throw new Error("Capability name is required.");
-      }
-
-      const normalizedContent = editorResourceDraft.content;
-
-      const updatedCapability = await updateCapabilityResource({
+      return saveExistingCapabilityDraft({
         capabilityUid: selectedBinding.capabilityUid,
-        payload: {
-          name: normalizedName,
-          kind: editorResourceDraft.kind,
-          description: editorResourceDraft.description.trim(),
-          source_type: editorResourceDraft.sourceType,
-          source_ref: editorResourceDraft.sourceRef.trim(),
-          capability_path: editorResourceDraft.capabilityPath.trim(),
-          metadata: capability.metadata,
-        },
+        initialDraft,
+        currentDraft: draft,
         token: sessionToken,
         tokenType: sessionTokenType,
       });
-
-      const updatedContent = await updateCapabilityContent({
-        capabilityUid: selectedBinding.capabilityUid,
-        payload: {
-          content: normalizedContent,
-          filename: editorResourceDraft.filename.trim() || undefined,
-          content_mime_type: "text/markdown",
-        },
-        token: sessionToken,
-        tokenType: sessionTokenType,
-      });
-
-      return { updatedCapability, updatedContent };
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      if (draft) {
+        const synchronizedDraft = synchronizeCapabilityDraft(draft);
+        setInitialDraft(synchronizedDraft);
+        setDraft(synchronizedDraft);
+      }
+
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["main_sequence_ai", "agents", "capabilities", agentUid],
@@ -490,11 +382,29 @@ export function AgentCapabilitiesTab({
       ]);
       toast({
         title: "Capability updated",
-        description: "Reusable capability metadata and markdown content were saved.",
+        description:
+          result.dirtyState.resourceChanged && result.dirtyState.contentChanged
+            ? "Reusable capability configuration and markdown content were saved."
+            : result.dirtyState.resourceChanged
+              ? "Reusable capability configuration was saved."
+              : "Reusable capability markdown content was saved.",
         variant: "success",
       });
     },
     onError: (error) => {
+      if (error instanceof AgentCapabilityPartialSaveError && draft) {
+        const synchronizedDraft = synchronizeCapabilityDraft(draft);
+        setInitialDraft((current) =>
+          current
+            ? {
+                ...current,
+                resource: synchronizedDraft.resource,
+              }
+            : synchronizedDraft,
+        );
+        setDraft(synchronizedDraft);
+      }
+
       toast({
         title: "Capability update failed",
         description: buildApiErrorMessage(error, "Unable to update this capability."),
@@ -519,6 +429,9 @@ export function AgentCapabilitiesTab({
       });
       setEditorOpen(false);
       setSelectedBinding(null);
+      setInitialDraft(null);
+      setDraft(null);
+      initializedCapabilityUidRef.current = null;
       toast({
         title: "Capability unbound",
         description: "The capability was removed from this agent without deleting the reusable resource.",
@@ -534,76 +447,27 @@ export function AgentCapabilitiesTab({
     },
   });
 
-  const createOrBindMutation = useMutation({
+  const bindExistingMutation = useMutation({
     mutationFn: async () => {
-      const normalizedRole = createBindingDraft.role.trim();
-      const normalizedSortOrder = Number.parseInt(createBindingDraft.sortOrder, 10);
-      const bindingPayload = {
-        role: normalizedRole || undefined,
-        sort_order: Number.isFinite(normalizedSortOrder) ? normalizedSortOrder : 0,
-        is_enabled: createBindingDraft.isEnabled,
-        is_locked: createBindingDraft.isLocked,
-        configuration: {},
-        source_type: createBindingDraft.sourceType,
-        source_ref: createBindingDraft.sourceRef.trim(),
-      };
+      const capabilityUid = selectedExistingCapabilityUid.trim();
 
-      if (addMode === "bind-existing") {
-        const capabilityUid = selectedExistingCapabilityUid.trim();
-
-        if (!capabilityUid) {
-          throw new Error("Select a reusable capability first.");
-        }
-
-        await bindCapabilityToAgent({
-          agentUid,
-          payload: {
-            capability_uid: capabilityUid,
-            ...bindingPayload,
-          },
-          token: sessionToken,
-          tokenType: sessionTokenType,
-        });
-        return;
+      if (!capabilityUid) {
+        throw new Error("Select a reusable capability first.");
       }
 
-      const normalizedName = createResourceDraft.name.trim();
-      if (!normalizedName) {
-        throw new Error("Capability name is required.");
-      }
-
-      const createdCapability = await createCapabilityResource({
-        payload: {
-          name: normalizedName,
-          kind: createResourceDraft.kind,
-          description: createResourceDraft.description.trim(),
-          source_type: createResourceDraft.sourceType,
-          source_ref: createResourceDraft.sourceRef.trim(),
-          capability_path: createResourceDraft.capabilityPath.trim(),
-          metadata: {},
-        },
-        token: sessionToken,
-        tokenType: sessionTokenType,
-      });
-
-      if (createResourceDraft.content.trim()) {
-        await updateCapabilityContent({
-          capabilityUid: createdCapability.uid,
-          payload: {
-            content: createResourceDraft.content,
-            filename: createResourceDraft.filename.trim() || undefined,
-            content_mime_type: "text/markdown",
-          },
-          token: sessionToken,
-          tokenType: sessionTokenType,
-        });
-      }
+      const normalizedSortOrder = Number.parseInt(bindingDraft.sortOrder, 10);
 
       await bindCapabilityToAgent({
         agentUid,
         payload: {
-          capability_uid: createdCapability.uid,
-          ...bindingPayload,
+          capability_uid: capabilityUid,
+          role: bindingDraft.role.trim() || undefined,
+          sort_order: Number.isFinite(normalizedSortOrder) ? normalizedSortOrder : 0,
+          is_enabled: bindingDraft.isEnabled,
+          is_locked: bindingDraft.isLocked,
+          configuration: {},
+          source_type: bindingDraft.sourceType,
+          source_ref: bindingDraft.sourceRef.trim(),
         },
         token: sessionToken,
         tokenType: sessionTokenType,
@@ -618,25 +482,17 @@ export function AgentCapabilitiesTab({
           queryKey: ["main_sequence_ai", "capabilities", "registry"],
         }),
       ]);
-      setAddDialogOpen(false);
+      setBindDialogOpen(false);
       toast({
-        title: addMode === "create" ? "Capability created" : "Capability bound",
-        description:
-          addMode === "create"
-            ? "The reusable capability was created and bound to this agent."
-            : "The reusable capability was bound to this agent.",
+        title: "Capability bound",
+        description: "The selected reusable capability was bound to this agent.",
         variant: "success",
       });
     },
     onError: (error) => {
       toast({
-        title: addMode === "create" ? "Capability create failed" : "Capability bind failed",
-        description: buildApiErrorMessage(
-          error,
-          addMode === "create"
-            ? "Unable to create and bind this capability."
-            : "Unable to bind the selected reusable capability.",
-        ),
+        title: "Capability bind failed",
+        description: buildApiErrorMessage(error, "Unable to bind the selected capability."),
         variant: "error",
       });
     },
@@ -660,7 +516,6 @@ export function AgentCapabilitiesTab({
         capability?.name ?? "",
         capability?.description ?? "",
         capability?.capabilityPath ?? "",
-        capability?.sourceRef ?? "",
         binding.role ?? "",
         binding.sourceRef ?? "",
         capability?.kind ?? "",
@@ -681,23 +536,23 @@ export function AgentCapabilitiesTab({
     const allCapabilities = reusableCapabilitiesQuery.data ?? [];
 
     return allCapabilities.filter((capability) => {
-      if (needle) {
-        const haystack = [
-          capability.name,
-          capability.description ?? "",
-          capability.capabilityPath ?? "",
-          capability.sourceRef ?? "",
-          capability.kind,
-        ]
-          .join(" ")
-          .toLowerCase();
-
-        if (!haystack.includes(needle)) {
-          return false;
-        }
+      if (capability.kind !== "prompt" && capability.kind !== "skill") {
+        return false;
       }
 
-      return capability.kind === "prompt" || capability.kind === "skill";
+      if (!needle) {
+        return true;
+      }
+
+      return [
+        capability.name,
+        capability.description ?? "",
+        capability.capabilityPath ?? "",
+        capability.uid,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle);
     });
   }, [existingCapabilitySearch, reusableCapabilitiesQuery.data]);
 
@@ -740,6 +595,14 @@ export function AgentCapabilitiesTab({
           <Button
             size="sm"
             variant="outline"
+            onClick={() => navigate(getAppPath("main_sequence_ai", "capabilities"))}
+          >
+            <ArrowUpRight className="h-4 w-4" />
+            Open Registry
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             disabled={bindingsQuery.isFetching}
             onClick={() => {
               void bindingsQuery.refetch();
@@ -752,14 +615,9 @@ export function AgentCapabilitiesTab({
             )}
             Refresh
           </Button>
-          <Button
-            size="sm"
-            onClick={() => {
-              setAddDialogOpen(true);
-            }}
-          >
+          <Button size="sm" onClick={() => setBindDialogOpen(true)}>
             <Plus className="h-4 w-4" />
-            Add Capability
+            Bind Existing
           </Button>
         </div>
       </div>
@@ -780,7 +638,7 @@ export function AgentCapabilitiesTab({
       {!bindingsQuery.isLoading && !bindingsQuery.isError && visibleBindings.length === 0 ? (
         <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/12 px-4 py-4 text-sm text-muted-foreground">
           {bindings.length === 0
-            ? `${agentTitle} does not have any bound prompt or skill capabilities yet.`
+            ? `${agentTitle} does not have any bound prompt or skill capabilities yet. Create or edit reusable resources in Capabilities, then bind them here.`
             : "No bound capabilities match the current filter."}
         </div>
       ) : null}
@@ -804,6 +662,9 @@ export function AgentCapabilitiesTab({
                   size="sm"
                   variant="outline"
                   onClick={() => {
+                    initializedCapabilityUidRef.current = null;
+                    setInitialDraft(null);
+                    setDraft(null);
                     setSelectedBinding(binding);
                     setEditorOpen(true);
                   }}
@@ -820,17 +681,13 @@ export function AgentCapabilitiesTab({
                     value={formatCapabilityKind(binding.capability?.kind ?? "skill")}
                   />
                   <CapabilityField
-                    label="Capability Source"
-                    value={formatCapabilitySourceType(binding.capability?.sourceType ?? null)}
-                  />
-                  <CapabilityField
-                    label="Binding Source"
-                    value={formatCapabilitySourceType(binding.sourceType)}
-                  />
-                  <CapabilityField
-                    label="Capability Path"
+                    label="Capability path"
                     value={binding.capability?.capabilityPath ?? null}
                     mono
+                  />
+                  <CapabilityField
+                    label="Binding source"
+                    value={formatCapabilitySourceType(binding.sourceType)}
                   />
                   <CapabilityField label="Capability UID" value={binding.capabilityUid} mono />
                   <CapabilityField label="Binding UID" value={binding.uid} mono />
@@ -850,12 +707,12 @@ export function AgentCapabilitiesTab({
       <Dialog
         open={editorOpen}
         onClose={() => {
-          if (
-            !saveCapabilityMutation.isPending &&
-            !unbindMutation.isPending
-          ) {
+          if (!saveCapabilityMutation.isPending && !unbindMutation.isPending) {
             setEditorOpen(false);
             setSelectedBinding(null);
+            setInitialDraft(null);
+            setDraft(null);
+            initializedCapabilityUidRef.current = null;
           }
         }}
         closeOnBackdropClick
@@ -865,7 +722,7 @@ export function AgentCapabilitiesTab({
       >
         {selectedBinding ? (
           <div className="space-y-5">
-            {capabilityDetailQuery.isLoading || capabilityContentQuery.isLoading || !editorResourceDraft || !editorBindingDraft ? (
+            {capabilityDetailQuery.isLoading || capabilityContentQuery.isLoading || !draft ? (
               <div className="flex items-center gap-2 rounded-[16px] border border-border/60 bg-background/45 px-3 py-3 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading reusable capability detail
@@ -881,199 +738,21 @@ export function AgentCapabilitiesTab({
               </div>
             ) : null}
 
-            {editorResourceDraft && editorBindingDraft ? (
+            {draft ? (
               <>
                 <CapabilityBindingSummary binding={selectedBinding} />
 
-                <Card variant="nested">
-                  <CardHeader>
-                    <CardTitle>Reusable Capability</CardTitle>
-                    <CardDescription>
-                      Resource metadata for the shared capability. Binding metadata stays separate.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {editorCapabilityIsReadonly ? (
-                      <div className="rounded-[calc(var(--radius)-8px)] border border-warning/35 bg-warning/10 px-3 py-3 text-sm text-warning">
-                        This reusable capability is marked read only by the backend. Metadata and
-                        markdown content are shown for inspection only.
-                      </div>
-                    ) : null}
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-muted-foreground">Name</label>
-                        <Input
-                          className="h-11 bg-card/70"
-                          disabled={editorCapabilityIsReadonly || saveCapabilityMutation.isPending}
-                          value={editorResourceDraft.name}
-                          onChange={(event) =>
-                            setEditorResourceDraft((current) =>
-                              current ? { ...current, name: event.target.value } : current,
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-muted-foreground">Kind</label>
-                        <Select
-                          className="h-11 w-full bg-card/70"
-                          disabled={editorCapabilityIsReadonly || saveCapabilityMutation.isPending}
-                          value={editorResourceDraft.kind}
-                          onChange={(event) =>
-                            setEditorResourceDraft((current) =>
-                              current
-                                ? {
-                                    ...current,
-                                    kind: event.target.value as AgentCapabilityKind,
-                                  }
-                                : current,
-                            )
-                          }
-                        >
-                          {capabilityKindOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-muted-foreground">Source Type</label>
-                        <Select
-                          className="h-11 w-full bg-card/70"
-                          disabled={editorCapabilityIsReadonly || saveCapabilityMutation.isPending}
-                          value={editorResourceDraft.sourceType}
-                          onChange={(event) =>
-                            setEditorResourceDraft((current) =>
-                              current
-                                ? {
-                                    ...current,
-                                    sourceType: event.target.value as AgentCapabilitySourceType,
-                                  }
-                                : current,
-                            )
-                          }
-                        >
-                          {capabilitySourceTypeOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs text-muted-foreground">Source Ref</label>
-                        <Input
-                          className="h-11 bg-card/70"
-                          disabled={editorCapabilityIsReadonly || saveCapabilityMutation.isPending}
-                          value={editorResourceDraft.sourceRef}
-                          onChange={(event) =>
-                            setEditorResourceDraft((current) =>
-                              current ? { ...current, sourceRef: event.target.value } : current,
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-1.5 md:col-span-2">
-                        <label className="text-xs text-muted-foreground">Capability Path</label>
-                        <Input
-                          className="h-11 bg-card/70 font-mono text-[13px]"
-                          disabled={editorCapabilityIsReadonly || saveCapabilityMutation.isPending}
-                          value={editorResourceDraft.capabilityPath}
-                          onChange={(event) =>
-                            setEditorResourceDraft((current) =>
-                              current ? { ...current, capabilityPath: event.target.value } : current,
-                            )
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground">Description</label>
-                      <Textarea
-                        className="min-h-[132px] bg-card/70"
-                        disabled={editorCapabilityIsReadonly || saveCapabilityMutation.isPending}
-                        value={editorResourceDraft.description}
-                        onChange={(event) =>
-                          setEditorResourceDraft((current) =>
-                            current ? { ...current, description: event.target.value } : current,
-                          )
-                        }
-                      />
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                      <CapabilityField label="Capability UID" value={selectedBinding.capabilityUid} mono />
-                      <CapabilityField
-                        label="Has Content"
-                        value={capabilityDetailQuery.data?.hasContent ? "Yes" : "No"}
-                      />
-                      <CapabilityField
-                        label="Content MIME Type"
-                        value={capabilityDetailQuery.data?.contentMimeType ?? null}
-                        mono
-                      />
-                      <CapabilityField
-                        label="Content Size"
-                        value={formatCapabilitySize(capabilityDetailQuery.data?.contentSize ?? null)}
-                        mono
-                      />
-                      <CapabilityField
-                        label="Content SHA256"
-                        value={capabilityDetailQuery.data?.contentSha256 ?? null}
-                        mono
-                      />
-                      <CapabilityField
-                        label="Updated"
-                        value={formatCapabilityDateTime(capabilityDetailQuery.data?.updatedAt ?? null)}
-                      />
-                      <CapabilityField
-                        label="Created By User"
-                        value={capabilityDetailQuery.data?.createdByUserUid ?? null}
-                        mono
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card variant="nested">
-                  <CardHeader>
-                    <CardTitle>Content File</CardTitle>
-                    <CardDescription>
-                      Content updates use the dedicated capability content endpoint.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="mb-4 space-y-1.5">
-                      <label className="text-xs text-muted-foreground">Filename</label>
-                      <Input
-                        className="h-11 bg-card/70 font-mono text-[13px]"
-                        disabled={editorCapabilityIsReadonly || saveCapabilityMutation.isPending}
-                        value={editorResourceDraft.filename}
-                        onChange={(event) =>
-                          setEditorResourceDraft((current) =>
-                            current ? { ...current, filename: event.target.value } : current,
-                          )
-                        }
-                      />
-                    </div>
-                    <CapabilityMarkdownComposer
-                      content={editorResourceDraft.content}
-                      disabled={editorCapabilityIsReadonly || saveCapabilityMutation.isPending}
-                      onChange={(nextContent) =>
-                        setEditorResourceDraft((current) =>
-                          current ? { ...current, content: nextContent } : current,
-                        )
-                      }
-                    />
-                  </CardContent>
-                </Card>
+                <AgentCapabilityEditor
+                  capability={capabilityDetailQuery.data ?? selectedBinding.capability}
+                  draft={draft}
+                  mode="edit"
+                  readOnly={editorCapabilityIsReadonly}
+                  disabled={saveCapabilityMutation.isPending || unbindMutation.isPending}
+                  resourceDirty={dirtyState.resourceChanged}
+                  contentDirty={dirtyState.contentChanged}
+                  metadataError={metadataError}
+                  onChange={setDraft}
+                />
 
                 <div className="flex flex-wrap justify-between gap-2 border-t border-border/60 pt-4">
                   <Button
@@ -1097,8 +776,23 @@ export function AgentCapabilitiesTab({
                       variant="ghost"
                       disabled={unbindMutation.isPending || saveCapabilityMutation.isPending}
                       onClick={() => {
+                        if (initialDraft) {
+                          setDraft(initialDraft);
+                        }
+                      }}
+                    >
+                      Reset
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={unbindMutation.isPending || saveCapabilityMutation.isPending}
+                      onClick={() => {
                         setEditorOpen(false);
                         setSelectedBinding(null);
+                        setInitialDraft(null);
+                        setDraft(null);
+                        initializedCapabilityUidRef.current = null;
                       }}
                     >
                       Close
@@ -1107,7 +801,9 @@ export function AgentCapabilitiesTab({
                       disabled={
                         editorCapabilityIsReadonly ||
                         saveCapabilityMutation.isPending ||
-                        unbindMutation.isPending
+                        unbindMutation.isPending ||
+                        Boolean(metadataError) ||
+                        !dirtyState.hasChanges
                       }
                       onClick={() => {
                         void saveCapabilityMutation.mutateAsync();
@@ -1129,40 +825,23 @@ export function AgentCapabilitiesTab({
       </Dialog>
 
       <Dialog
-        open={addDialogOpen}
+        open={bindDialogOpen}
         onClose={() => {
-          if (!createOrBindMutation.isPending) {
-            setAddDialogOpen(false);
+          if (!bindExistingMutation.isPending) {
+            setBindDialogOpen(false);
           }
         }}
         closeOnBackdropClick
-        title="Add Capability"
+        title="Bind Existing Capability"
         description={agentTitle}
         className="max-w-[min(1180px,calc(100vw-24px))]"
       >
         <div className="space-y-5">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant={addMode === "create" ? "default" : "outline"}
-              onClick={() => setAddMode("create")}
-            >
-              Create New
-            </Button>
-            <Button
-              size="sm"
-              variant={addMode === "bind-existing" ? "default" : "outline"}
-              onClick={() => setAddMode("bind-existing")}
-            >
-              Bind Existing
-            </Button>
-          </div>
-
           <Card variant="nested">
             <CardHeader>
-              <CardTitle>Agent Binding</CardTitle>
+              <CardTitle>Agent binding</CardTitle>
               <CardDescription>
-                This binding metadata is sent during the bind operation.
+                This binding metadata is sent during POST /orm/api/agents/v1/agents/{`{agent_uid}`}/capabilities/bind/.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1170,10 +849,10 @@ export function AgentCapabilitiesTab({
                 <label className="text-xs text-muted-foreground">Role</label>
                 <Input
                   className="h-11 bg-card/70"
-                  disabled={createOrBindMutation.isPending}
-                  value={createBindingDraft.role}
+                  disabled={bindExistingMutation.isPending}
+                  value={bindingDraft.role}
                   onChange={(event) =>
-                    setCreateBindingDraft((current) => ({
+                    setBindingDraft((current) => ({
                       ...current,
                       role: event.target.value,
                     }))
@@ -1182,13 +861,13 @@ export function AgentCapabilitiesTab({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Sort Order</label>
+                <label className="text-xs text-muted-foreground">Sort order</label>
                 <Input
                   className="h-11 bg-card/70"
-                  disabled={createOrBindMutation.isPending}
-                  value={createBindingDraft.sortOrder}
+                  disabled={bindExistingMutation.isPending}
+                  value={bindingDraft.sortOrder}
                   onChange={(event) =>
-                    setCreateBindingDraft((current) => ({
+                    setBindingDraft((current) => ({
                       ...current,
                       sortOrder: event.target.value,
                     }))
@@ -1197,13 +876,13 @@ export function AgentCapabilitiesTab({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Binding Source Type</label>
+                <label className="text-xs text-muted-foreground">Binding source type</label>
                 <Select
                   className="h-11 w-full bg-card/70"
-                  disabled={createOrBindMutation.isPending}
-                  value={createBindingDraft.sourceType}
+                  disabled={bindExistingMutation.isPending}
+                  value={bindingDraft.sourceType}
                   onChange={(event) =>
-                    setCreateBindingDraft((current) => ({
+                    setBindingDraft((current) => ({
                       ...current,
                       sourceType: event.target.value as AgentCapabilitySourceType,
                     }))
@@ -1218,13 +897,13 @@ export function AgentCapabilitiesTab({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Binding Source Ref</label>
+                <label className="text-xs text-muted-foreground">Binding source ref</label>
                 <Input
                   className="h-11 bg-card/70"
-                  disabled={createOrBindMutation.isPending}
-                  value={createBindingDraft.sourceRef}
+                  disabled={bindExistingMutation.isPending}
+                  value={bindingDraft.sourceRef}
                   onChange={(event) =>
-                    setCreateBindingDraft((current) => ({
+                    setBindingDraft((current) => ({
                       ...current,
                       sourceRef: event.target.value,
                     }))
@@ -1236,9 +915,9 @@ export function AgentCapabilitiesTab({
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-border/70"
-                  checked={createBindingDraft.isEnabled}
+                  checked={bindingDraft.isEnabled}
                   onChange={(event) =>
-                    setCreateBindingDraft((current) => ({
+                    setBindingDraft((current) => ({
                       ...current,
                       isEnabled: event.target.checked,
                     }))
@@ -1251,9 +930,9 @@ export function AgentCapabilitiesTab({
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-border/70"
-                  checked={createBindingDraft.isLocked}
+                  checked={bindingDraft.isLocked}
                   onChange={(event) =>
-                    setCreateBindingDraft((current) => ({
+                    setBindingDraft((current) => ({
                       ...current,
                       isLocked: event.target.checked,
                     }))
@@ -1264,286 +943,152 @@ export function AgentCapabilitiesTab({
             </CardContent>
           </Card>
 
-          {addMode === "create" ? (
-            <>
-              <Card variant="nested">
-                <CardHeader>
-                  <CardTitle>Reusable Capability Metadata</CardTitle>
+          <Card variant="nested">
+            <CardHeader className="border-b border-border/60 pb-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <CardTitle>Reusable capability registry</CardTitle>
                   <CardDescription>
-                    Create a reusable prompt or skill resource first, then bind it to this agent.
+                    Bind one existing prompt or skill. New resource creation lives on the top-level
+                    Capabilities surface.
                   </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground">Name</label>
-                      <Input
-                        className="h-11 bg-card/70"
-                        disabled={createOrBindMutation.isPending}
-                        value={createResourceDraft.name}
-                        onChange={(event) =>
-                          setCreateResourceDraft((current) => ({
-                            ...current,
-                            name: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(getAppPath("main_sequence_ai", "capabilities"))}
+                  >
+                    <ArrowUpRight className="h-4 w-4" />
+                    Open Registry
+                  </Button>
+                  <MainSequenceRegistrySearch
+                    accessory={
+                      <Badge variant="neutral">{`${reusableCapabilities.length} available`}</Badge>
+                    }
+                    selectionCount={0}
+                    value={existingCapabilitySearch}
+                    onChange={(event) => setExistingCapabilitySearch(event.target.value)}
+                    placeholder="Filter by name, path, UID, or description"
+                    searchClassName="max-w-md"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3 p-4">
+              {reusableCapabilitiesQuery.isLoading ? (
+                <div className="flex items-center gap-3 rounded-[calc(var(--radius)-6px)] border border-border/60 bg-background/24 px-4 py-4 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading reusable capabilities
+                </div>
+              ) : null}
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground">Kind</label>
-                      <Select
-                        className="h-11 w-full bg-card/70"
-                        disabled={createOrBindMutation.isPending}
-                        value={createResourceDraft.kind}
-                        onChange={(event) => {
-                          const nextKind = event.target.value as AgentCapabilityKind;
-                          setCreateResourceDraft((current) => ({
-                            ...current,
-                            kind: nextKind,
-                            capabilityPath:
-                              nextKind === "prompt"
-                                ? "prompts/new-prompt/PROMPT.md"
-                                : "skills/new-skill/SKILL.md",
-                            filename: nextKind === "prompt" ? "PROMPT.md" : "SKILL.md",
-                          }));
-                        }}
+              {reusableCapabilitiesQuery.isError ? (
+                <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                  {buildApiErrorMessage(
+                    reusableCapabilitiesQuery.error,
+                    "Unable to load reusable capabilities.",
+                  )}
+                </div>
+              ) : null}
+
+              {!reusableCapabilitiesQuery.isLoading &&
+              !reusableCapabilitiesQuery.isError &&
+              reusableCapabilities.length === 0 ? (
+                <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/12 px-4 py-4 text-sm text-muted-foreground">
+                  No reusable prompt or skill capabilities matched the current filter.
+                </div>
+              ) : null}
+
+              {!reusableCapabilitiesQuery.isLoading &&
+              !reusableCapabilitiesQuery.isError &&
+              reusableCapabilities.length > 0 ? (
+                <div className="grid gap-3">
+                  {reusableCapabilities.map((capability) => {
+                    const selected = capability.uid === selectedExistingCapabilityUid;
+                    const alreadyBound = boundCapabilityUids.has(capability.uid);
+
+                    return (
+                      <button
+                        key={capability.uid}
+                        type="button"
+                        className={cn(
+                          "rounded-[calc(var(--radius)-8px)] border px-4 py-4 text-left transition-colors",
+                          selected
+                            ? "border-primary/40 bg-primary/10"
+                            : "border-border/70 bg-background/24 hover:bg-background/36",
+                        )}
+                        onClick={() => setSelectedExistingCapabilityUid(capability.uid)}
                       >
-                        {capabilityKindOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="font-medium text-foreground">{capability.name}</div>
+                          <Badge variant="neutral">{formatCapabilityKind(capability.kind)}</Badge>
+                          <Badge variant={capability.hasContent ? "primary" : "secondary"}>
+                            {capability.hasContent ? "Has content" : "Empty"}
+                          </Badge>
+                          <Badge variant={capability.isEditable ? "success" : "warning"}>
+                            {capability.isEditable ? "Editable" : "Read only"}
+                          </Badge>
+                          {alreadyBound ? <Badge variant="warning">Already bound</Badge> : null}
+                        </div>
+                        <div className="mt-2 font-mono text-[13px] text-muted-foreground">
+                          {capability.capabilityPath ?? capability.uid}
+                        </div>
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          {capability.description?.trim() || "No description provided."}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
 
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground">Source Type</label>
-                      <Select
-                        className="h-11 w-full bg-card/70"
-                        disabled={createOrBindMutation.isPending}
-                        value={createResourceDraft.sourceType}
-                        onChange={(event) =>
-                          setCreateResourceDraft((current) => ({
-                            ...current,
-                            sourceType: event.target.value as AgentCapabilitySourceType,
-                          }))
-                        }
-                      >
-                        {capabilitySourceTypeOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-muted-foreground">Source Ref</label>
-                      <Input
-                        className="h-11 bg-card/70"
-                        disabled={createOrBindMutation.isPending}
-                        value={createResourceDraft.sourceRef}
-                        onChange={(event) =>
-                          setCreateResourceDraft((current) => ({
-                            ...current,
-                            sourceRef: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-
-                    <div className="space-y-1.5 md:col-span-2">
-                      <label className="text-xs text-muted-foreground">Capability Path</label>
-                      <Input
-                        className="h-11 bg-card/70 font-mono text-[13px]"
-                        disabled={createOrBindMutation.isPending}
-                        value={createResourceDraft.capabilityPath}
-                        onChange={(event) =>
-                          setCreateResourceDraft((current) => ({
-                            ...current,
-                            capabilityPath: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">Description</label>
-                    <Textarea
-                      className="min-h-[120px] bg-card/70"
-                      disabled={createOrBindMutation.isPending}
-                      value={createResourceDraft.description}
-                      onChange={(event) =>
-                        setCreateResourceDraft((current) => ({
-                          ...current,
-                          description: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-muted-foreground">Filename</label>
-                    <Input
-                      className="h-11 bg-card/70 font-mono text-[13px]"
-                      disabled={createOrBindMutation.isPending}
-                      value={createResourceDraft.filename}
-                      onChange={(event) =>
-                        setCreateResourceDraft((current) => ({
-                          ...current,
-                          filename: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <CapabilityMarkdownComposer
-                content={createResourceDraft.content}
-                disabled={createOrBindMutation.isPending}
-                onChange={(nextContent) =>
-                  setCreateResourceDraft((current) => ({
-                    ...current,
-                    content: nextContent,
-                  }))
-                }
-              />
-            </>
-          ) : (
-            <Card variant="nested">
-              <CardHeader>
-                <CardTitle>Reusable Capability Registry</CardTitle>
-                <CardDescription>
-                  Bind an existing reusable prompt or skill resource to this agent.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <MainSequenceRegistrySearch
-                  accessory={
-                    <Badge variant="neutral">{`${reusableCapabilities.length} capabilities`}</Badge>
-                  }
-                  selectionCount={0}
-                  value={existingCapabilitySearch}
-                  onChange={(event) => setExistingCapabilitySearch(event.target.value)}
-                  placeholder="Filter by name, path, source, or description"
-                  searchClassName="max-w-xl"
-                />
-
-                {reusableCapabilitiesQuery.isLoading ? (
-                  <div className="flex items-center gap-2 rounded-[16px] border border-border/60 bg-background/45 px-3 py-3 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading reusable capabilities
-                  </div>
-                ) : null}
-
-                {reusableCapabilitiesQuery.isError ? (
-                  <div className="rounded-[16px] border border-danger/30 bg-danger/8 px-3 py-3 text-sm text-danger">
-                    {buildApiErrorMessage(
-                      reusableCapabilitiesQuery.error,
-                      "Unable to load reusable capabilities.",
-                    )}
-                  </div>
-                ) : null}
-
-                {!reusableCapabilitiesQuery.isLoading &&
-                !reusableCapabilitiesQuery.isError &&
-                reusableCapabilities.length === 0 ? (
-                  <div className="rounded-[16px] border border-dashed border-border/60 px-3 py-4 text-sm text-muted-foreground">
-                    No reusable prompt or skill capabilities were returned.
-                  </div>
-                ) : null}
-
-                {!reusableCapabilitiesQuery.isLoading &&
-                !reusableCapabilitiesQuery.isError &&
-                reusableCapabilities.length > 0 ? (
-                  <div className="space-y-2">
-                    {reusableCapabilities.map((capability) => {
-                      const selected = selectedExistingCapabilityUid === capability.uid;
-                      const alreadyBound = boundCapabilityUids.has(capability.uid);
-
-                      return (
-                        <button
-                          key={capability.uid}
-                          type="button"
-                          disabled={alreadyBound}
-                          className={cn(
-                            "flex w-full items-start justify-between gap-3 rounded-[16px] border px-4 py-4 text-left transition-colors",
-                            selected
-                              ? "border-primary/35 bg-primary/10"
-                              : "border-border/70 bg-background/35 hover:bg-background/55",
-                            alreadyBound && "cursor-not-allowed opacity-60",
-                          )}
-                          onClick={() => setSelectedExistingCapabilityUid(capability.uid)}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <div className="text-sm font-medium text-foreground">{capability.name}</div>
-                              <Badge variant="neutral">{formatCapabilityKind(capability.kind)}</Badge>
-                              {alreadyBound ? <Badge variant="warning">Already bound</Badge> : null}
-                            </div>
-                            {capability.description ? (
-                              <div className="mt-2 text-sm leading-6 text-muted-foreground">
-                                {capability.description}
-                              </div>
-                            ) : null}
-                            <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                              {capability.capabilityPath ? (
-                                <span className="font-mono">{capability.capabilityPath}</span>
-                              ) : null}
-                              <span>{formatCapabilitySourceType(capability.sourceType)}</span>
-                              {capability.hasContent ? <span>Has content</span> : <span>No content</span>}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-
-                {selectedExistingCapability ? (
-                  <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/45 px-3 py-3 text-sm text-muted-foreground">
-                    Selected reusable capability:{" "}
-                    <span className="font-medium text-foreground">{selectedExistingCapability.name}</span>
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
-          )}
-
-          {selectedCapabilityAlreadyBound && addMode === "bind-existing" ? (
-            <div className="rounded-[16px] border border-warning/35 bg-warning/10 px-3 py-3 text-sm text-warning">
-              This reusable capability is already bound to the current agent.
+          {selectedExistingCapability ? (
+            <div className="rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/24 px-4 py-4">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="neutral">{formatCapabilityKind(selectedExistingCapability.kind)}</Badge>
+                <Badge variant={selectedExistingCapability.hasContent ? "primary" : "secondary"}>
+                  {selectedExistingCapability.hasContent ? "Has content" : "Empty"}
+                </Badge>
+                <Badge variant={selectedExistingCapability.isEditable ? "success" : "warning"}>
+                  {selectedExistingCapability.isEditable ? "Editable" : "Read only"}
+                </Badge>
+              </div>
+              <div className="mt-3 font-mono text-[13px] text-foreground">
+                {selectedExistingCapability.uid}
+              </div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {selectedExistingCapability.description?.trim() || "No description provided."}
+              </div>
             </div>
           ) : null}
 
-          <div className="flex justify-end gap-2 border-t border-border/60 pt-4">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-border/60 pt-4">
             <Button
-              type="button"
               variant="ghost"
-              disabled={createOrBindMutation.isPending}
-              onClick={() => setAddDialogOpen(false)}
+              disabled={bindExistingMutation.isPending}
+              onClick={() => setBindDialogOpen(false)}
             >
               Cancel
             </Button>
             <Button
               disabled={
-                createOrBindMutation.isPending ||
-                (addMode === "bind-existing" &&
-                  (!selectedExistingCapabilityUid || selectedCapabilityAlreadyBound))
+                bindExistingMutation.isPending ||
+                !selectedExistingCapabilityUid.trim() ||
+                selectedCapabilityAlreadyBound
               }
               onClick={() => {
-                void createOrBindMutation.mutateAsync();
+                void bindExistingMutation.mutateAsync();
               }}
             >
-              {createOrBindMutation.isPending ? (
+              {bindExistingMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Plus className="h-4 w-4" />
               )}
-              {addMode === "create" ? "Create And Bind" : "Bind Capability"}
+              Bind Capability
             </Button>
           </div>
         </div>

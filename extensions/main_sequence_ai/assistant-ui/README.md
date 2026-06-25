@@ -44,10 +44,14 @@ remaining height. The two shells still differ intentionally:
 - that warning metadata is now resolved directly for the selected backend session as part of chat
   hydration, so it still appears when assistant-runtime model catalogs come from cache or when
   local proxy mode bypasses runtime `rpc_url` resolution for the actual chat transport
-- when the full chat page or right rail has finished loading latest sessions and the merged
-  session list has no backend `AgentSession` at all, `ChatProvider` initializes the Command Center
-  orchestrator through the get-or-create base-session endpoint, inserts that returned session, and
-  then lets the normal AgentSession detail, insights, and history readiness gate run
+- when the full chat page or right rail needs the Command Center orchestrator, `ChatProvider` first
+  reads the user-scoped Astro service with
+  `/orm/api/agents/v1/coding-agent-services/?agent_type=astro-orchestrator&scope_kind=user&user_uid=<user_uid>`.
+  If no service with an `agent_uid` is returned, chat shows the deploy-required state instead of
+  creating anything. If an `agent_uid` is present, it calls
+  `/orm/api/agents/v1/agents/{agent_uid}/sessions/get_or_create_session/` for the canonical
+  `astro-orchestrator-command-center` handle and then lets the normal AgentSession detail,
+  insights, and history readiness gate run
 - history user turns that arrive with `provenance.origin = "agent"` stay in the user lane, but the
   bubble now uses a robot badge plus a separate agent-origin tint so A2A-origin prompts are visually
   distinct from direct human user prompts
@@ -117,14 +121,20 @@ remaining height. The two shells still differ intentionally:
   but the overlay composer still exposes the model controls and compact context-window usage footer
 - the right-side rail has two presentation modes:
   - the default Command Center rail now rebinds itself to the canonical
-    `astro-orchestrator` base-handle session whenever the rail opens; it must not keep using an
-    arbitrary previously selected non-orchestrator session
+    `astro-orchestrator-command-center` handle session whenever the rail opens; it must not keep
+    using an arbitrary previously selected non-orchestrator session
   - direct project-agent launches use a dedicated `Project Agent` rail variant with its own
     provider instance, header, theme-derived accent styling, session chip, and copy, and it
     intentionally stays isolated from the default Command Center rail selection
   - the project-agent rail is additive, not a replacement for the normal Command Center rail:
     Command Center `Cmd+J` and the project-agent launcher can both stay open at the same time
     because they no longer share one rail-open flag or one selected session/runtime
+- Active chat sessions expose a configuration-wheel deployment action in the rail/page chrome.
+  `ChatProvider.openDeploymentConfigurator` routes supported session agent types to their real
+  deployment configurator: Astro command-center sessions use `AstroAgentDeploymentConfigurator`,
+  `project-executor` sessions with a project UID use `ProjectAgentConfigurator`, and unsupported
+  session types show a plain unavailable state without attempting deployment APIs. Astro
+  deploy-required and unavailable states use the same action.
 - thinking blocks on the full page start collapsed by default, with a trimmed one-line preview of
   the latest reasoning/tool activity in the collapsed header; their header label is `Thinking`
   only while the local message stream is still running and switches to `Reasoning` immediately
@@ -264,6 +274,11 @@ This boundary owns a feature-local session layer that:
 - session-bound runtime calls now resolve runtime access from
   `/orm/api/agents/v1/sessions/{session_uid}/resolve_runtime_access/` instead of routing
   every selected session through a separate Astro Command Center bootstrap endpoint
+- the normal Command Center chat rail resolves the user-scoped Astro service through
+  `GET /orm/api/agents/v1/coding-agent-services/?agent_type=astro-orchestrator&scope_kind=user&user_uid=<signed-in-user-uid>`
+  and then gets/selects the canonical `astro-orchestrator-command-center` handle session through
+  `/orm/api/agents/v1/agents/{agent_uid}/sessions/get_or_create_session/`; it does not deploy Astro
+  and it does not resolve runtime access until the first chat/runtime interaction
 - a fresh backend `start_new_session` with no persisted transcript is treated as a valid empty
   history state; a `404` history response is normalized to an empty thread instead of surfacing a
   session error banner
@@ -297,11 +312,10 @@ If no backend `AgentSession` is available, the assistant does not silently reint
 session as the default. The composer stays disabled until a real backend session is available or
 the user explicitly selects a valid backend-attached session.
 
-When `VITE_ASSISTANT_UI_PROXY_TARGET` is set, assistant-runtime calls use the configured Vite
-proxy endpoint and the per-session runtime-access request sends
-`create_knative_service=false`. When that proxy target is unset, agent-runtime calls resolve
-through the selected session's `resolve_runtime_access` contract and use the returned
-`runtime_access.rpc_url` plus runtime-scoped bearer token.
+When `VITE_ASSISTANT_UI_PROXY_TARGET` is set, Command Center operational traffic still resolves
+Astro service identity, gets the canonical handle session, and calls `resolve_runtime_access/` with
+the normal empty `{}` body. Assistant-runtime calls use the configured Vite proxy endpoint instead
+of the returned `runtime_access.rpc_url`, while still using the runtime-scoped bearer token.
 When `VITE_ASSISTANT_UI_EXECUTOR_TARGET` is also set, session-bound proxy traffic branches by
 agent type: `project-executor` sessions use the dedicated executor proxy route,
 while all other sessions stay on the standard assistant proxy route.

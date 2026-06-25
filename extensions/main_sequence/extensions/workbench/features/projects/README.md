@@ -80,6 +80,7 @@ This feature owns the Main Sequence project registry and project detail experien
   transport-owned `Authorization` and `X-FastAPI-ID` headers win over any user-configured header
   entries.
 - The project registry polls every 60 seconds only while the current page still contains an uninitialized project, and those rows render a spinner instead of a warning pill.
+- The bulk `Delete Projects with Repositories` action is intentionally double-confirmed. The first confirmation explains the project delete scope, and the second final confirmation requires the repository-specific phrase before the destructive delete request is sent.
 - The project images tab polls every 60 seconds only while the current page still contains a building image, and those rows render a spinner instead of a warning pill.
 - The project images tab displays backend-provided image `tags` in the list view and includes those tags in the local filter.
 - The project registry, project jobs tab, project images tab, job-runs tab, and project data-node
@@ -94,3 +95,4 @@ This feature owns the Main Sequence project registry and project detail experien
   selected CPU, memory, GPU, GPU type, and capacity mode to the billing estimate endpoint and shows
   the total plus CPU/memory/GPU rates.
 - The create-project dialog auto-selects the first available data source and default base image once form options load.
+- Project creation sends the selected GitHub organization as `github_org_uid`; do not use the older `github_organization` request key.

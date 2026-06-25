@@ -5,7 +5,7 @@ import {
   fetchLatestAgentSessions,
   getAgentSessionRecordHandleUniqueId,
   getAgentSessionRecordSessionId,
-  getOrCreateAgentSessionWithHandleRequest,
+  getOrCreateAgentSessionRequest,
   normalizeAgentSessionLookupId,
   startNewAgentSessionRequest,
   type AgentSessionApiRecord,
@@ -158,7 +158,7 @@ describe("agent session api", () => {
     expect(requestUrl.searchParams.has("agent_id")).toBe(false);
   });
 
-  it("creates or reuses sessions with a handle using only the backend handle payload", async () => {
+  it("creates or reuses sessions with a handle using the canonical session endpoint", async () => {
     fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -181,21 +181,21 @@ describe("agent session api", () => {
       ),
     );
 
-    const result = await getOrCreateAgentSessionWithHandleRequest({
+    const result = await getOrCreateAgentSessionRequest({
       agentUid: "agent-uid-123",
       handleUniqueId: "project:alpha:primary-agent",
       name: "Primary agent session",
       llmProvider: "openai",
       llmModel: "gpt-5",
       llmThinking: "",
-      sessionMetadata: {},
     });
 
     expect(result.sessionId).toBe("session-uid-123");
+    expect(result.record?.uid).toBe("session-uid-123");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, requestInit] = fetchMock.mock.calls[0];
     expect(String(url)).toContain(
-      "/orm/api/agents/v1/agents/agent-uid-123/sessions/get_or_create_session_with_handle/",
+      "/orm/api/agents/v1/agents/agent-uid-123/sessions/get_or_create_session/",
     );
     expect(JSON.parse(String(requestInit?.body))).toEqual({
       handle_unique_id: "project:alpha:primary-agent",
@@ -203,7 +203,122 @@ describe("agent session api", () => {
       llm_provider: "openai",
       llm_model: "gpt-5",
       llm_thinking: "",
-      session_metadata: {},
     });
+  });
+
+  it("resolves a canonical session by session uid", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          uid: "session-uid-123",
+          agent_type: "astro-orchestrator",
+          agent_name: "Astro Orchestrator",
+          status: "running",
+          started_at: "2026-06-03T15:00:00Z",
+          ended_at: null,
+          llm_provider: "openai",
+          llm_model: "gpt-5",
+          engine_name: "python",
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+
+    const result = await getOrCreateAgentSessionRequest({
+      agentUid: "agent-uid-123",
+      sessionUid: "session-uid-123",
+    });
+
+    expect(result.sessionId).toBe("session-uid-123");
+    const [, requestInit] = fetchMock.mock.calls[0];
+    expect(JSON.parse(String(requestInit?.body))).toEqual({
+      session_uid: "session-uid-123",
+    });
+  });
+
+  it("creates or reuses sessions with only a handle lookup key", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          uid: "session-uid-123",
+          agent_type: "astro-orchestrator",
+          agent_name: "Astro Orchestrator",
+          status: "running",
+          started_at: "2026-06-03T15:00:00Z",
+          ended_at: null,
+          llm_provider: "openai",
+          llm_model: "gpt-5",
+          engine_name: "python",
+        }),
+        {
+          status: 201,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+
+    await getOrCreateAgentSessionRequest({
+      agentUid: "agent-uid-123",
+      handleUniqueId: "project:alpha:primary-agent",
+    });
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    expect(JSON.parse(String(requestInit?.body))).toEqual({
+      handle_unique_id: "project:alpha:primary-agent",
+    });
+  });
+
+  it("rejects session get-or-create requests with multiple lookup keys", async () => {
+    await expect(
+      getOrCreateAgentSessionRequest({
+        agentUid: "agent-uid-123",
+        sessionUid: "session-uid-123",
+        handleUniqueId: "project:alpha:primary-agent",
+      }),
+    ).rejects.toThrow("exactly one of session_uid or handle_unique_id");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects session get-or-create requests without a lookup key", async () => {
+    await expect(
+      getOrCreateAgentSessionRequest({
+        agentUid: "agent-uid-123",
+      }),
+    ).rejects.toThrow("exactly one of session_uid or handle_unique_id");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects wrapped session get-or-create responses", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          session: {
+            uid: "session-uid-123",
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+
+    await expect(
+      getOrCreateAgentSessionRequest({
+        agentUid: "agent-uid-123",
+        handleUniqueId: "project:alpha:primary-agent",
+      }),
+    ).rejects.toThrow("no AgentSession uid was returned");
   });
 });

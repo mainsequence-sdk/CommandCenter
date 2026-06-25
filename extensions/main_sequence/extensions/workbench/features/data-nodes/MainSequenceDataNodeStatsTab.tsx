@@ -1,72 +1,25 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
-import { json } from "@codemirror/lang-json";
-import {
-  defaultHighlightStyle,
-  syntaxHighlighting,
-} from "@codemirror/language";
-import { EditorView } from "@codemirror/view";
 import { useQuery } from "@tanstack/react-query";
-import CodeMirror from "@uiw/react-codemirror";
 import { BarChart3, Loader2, RefreshCcw } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  JsonTreeViewer,
+  type JsonTreeViewerHandle,
+} from "@/components/ui/json-tree-viewer";
 
 import {
   fetchDataNodeStats,
   formatMainSequenceError,
 } from "../../../../common/api";
 
-const statsEditorTheme = EditorView.theme({
-  "&": {
-    backgroundColor: "transparent",
-    color: "var(--foreground)",
-  },
-  ".cm-content": {
-    caretColor: "var(--foreground)",
-    fontFamily:
-      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
-    fontSize: "0.75rem",
-    lineHeight: "1.5rem",
-    padding: "0.75rem 0.5rem",
-  },
-  ".cm-gutters": {
-    backgroundColor: "color-mix(in srgb, var(--muted) 24%, transparent)",
-    borderRight: "1px solid color-mix(in srgb, var(--border) 70%, transparent)",
-    color: "var(--muted-foreground)",
-  },
-  ".cm-line": {
-    padding: "0 0.625rem",
-  },
-  ".cm-scroller": {
-    fontFamily:
-      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace",
-    minHeight: "440px",
-  },
-  ".cm-selectionBackground": {
-    backgroundColor: "color-mix(in srgb, var(--primary) 28%, transparent) !important",
-  },
-  ".cm-activeLine": {
-    backgroundColor: "color-mix(in srgb, var(--muted) 18%, transparent)",
-  },
-  ".cm-activeLineGutter": {
-    backgroundColor: "color-mix(in srgb, var(--muted) 24%, transparent)",
-    color: "var(--foreground)",
-  },
-});
-
-function formatStatsJson(value: unknown) {
-  return JSON.stringify(
-    value ?? {
-      multi_index_stats: {},
-      multi_index_column_stats: {},
-    },
-    null,
-    2,
-  );
-}
+const emptyStatsPayload = {
+  multi_index_stats: {},
+  multi_index_column_stats: {},
+};
 
 function countObjectKeys(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -79,20 +32,16 @@ export function MainSequenceDataNodeStatsTab({
 }: {
   dataNodeUid: string;
 }) {
+  const jsonViewerRef = useRef<JsonTreeViewerHandle | null>(null);
   const statsQuery = useQuery({
     queryKey: ["main_sequence", "data_nodes", "stats", dataNodeUid],
     queryFn: () => fetchDataNodeStats(dataNodeUid),
     enabled: Boolean(String(dataNodeUid).trim()),
   });
-  const editorExtensions = useMemo(
-    () => [
-      statsEditorTheme,
-      json(),
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-    ],
-    [],
+  const statsPayload = useMemo(
+    () => statsQuery.data ?? emptyStatsPayload,
+    [statsQuery.data],
   );
-  const statsJson = useMemo(() => formatStatsJson(statsQuery.data), [statsQuery.data]);
   const multiIndexStatsKeyCount = countObjectKeys(statsQuery.data?.multi_index_stats);
   const multiIndexColumnStatsKeyCount = countObjectKeys(statsQuery.data?.multi_index_column_stats);
 
@@ -112,6 +61,24 @@ export function MainSequenceDataNodeStatsTab({
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="neutral">{`${multiIndexStatsKeyCount} stats keys`}</Badge>
             <Badge variant="neutral">{`${multiIndexColumnStatsKeyCount} column stats keys`}</Badge>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => jsonViewerRef.current?.collapseAll()}
+              disabled={statsQuery.isLoading || statsQuery.isError}
+            >
+              Collapse all
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => jsonViewerRef.current?.expandAll()}
+              disabled={statsQuery.isLoading || statsQuery.isError}
+            >
+              Expand all
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -160,24 +127,12 @@ export function MainSequenceDataNodeStatsTab({
                 /orm/api/ts_manager/dynamic_table/{dataNodeUid}/get-stats/
               </span>
             </div>
-            <CodeMirror
-              value={statsJson}
-              readOnly
-              editable={false}
-              basicSetup={{
-                lineNumbers: true,
-                foldGutter: true,
-                autocompletion: false,
-                highlightActiveLine: true,
-                highlightActiveLineGutter: true,
-                highlightSelectionMatches: true,
-                searchKeymap: true,
-                lintKeymap: false,
-              }}
-              extensions={editorExtensions}
-              theme="none"
-              minHeight="440px"
-              aria-label="Data node stats JSON"
+            <JsonTreeViewer
+              ref={jsonViewerRef}
+              ariaLabel="Data node stats JSON"
+              className="min-h-[440px]"
+              defaultExpandedDepth={1}
+              value={statsPayload}
             />
           </div>
         ) : null}

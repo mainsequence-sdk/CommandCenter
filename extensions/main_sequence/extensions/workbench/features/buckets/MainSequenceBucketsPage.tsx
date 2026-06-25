@@ -74,15 +74,11 @@ export function MainSequenceBucketsPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState("");
-  const [exactNameValue, setExactNameValue] = useState("");
-  const [nameInValue, setNameInValue] = useState("");
   const [bucketsPageIndex, setBucketsPageIndex] = useState(0);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [bucketName, setBucketName] = useState("");
   const [pendingDeleteBuckets, setPendingDeleteBuckets] = useState<BucketRecord[]>([]);
   const deferredSearchValue = useDeferredValue(searchValue);
-  const deferredExactNameValue = useDeferredValue(exactNameValue);
-  const deferredNameInValue = useDeferredValue(nameInValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const selectedBucketUid = searchParams.get(mainSequenceBucketUidParam)?.trim() ?? "";
   const [bucketBrowserState, setBucketBrowserState] = useState<BucketBrowserState>(() =>
@@ -101,22 +97,18 @@ export function MainSequenceBucketsPage() {
       "list",
       bucketsPageIndex,
       deferredSearchValue.trim(),
-      deferredExactNameValue.trim(),
-      deferredNameInValue.trim(),
     ],
     queryFn: () =>
       listBuckets({
         limit: mainSequenceRegistryPageSize,
         offset: bucketsPageIndex * mainSequenceRegistryPageSize,
         search: deferredSearchValue,
-        name: deferredExactNameValue,
-        nameIn: deferredNameInValue,
       }),
   });
 
   useEffect(() => {
     setBucketsPageIndex(0);
-  }, [deferredSearchValue, deferredExactNameValue, deferredNameInValue]);
+  }, [deferredSearchValue]);
 
   useEffect(() => {
     const totalPages = Math.max(
@@ -304,7 +296,7 @@ export function MainSequenceBucketsPage() {
             <div>
               <CardTitle>Bucket registry</CardTitle>
               <CardDescription>
-                Search, filter by exact name, or delete selected buckets.
+                Search or delete selected buckets.
               </CardDescription>
             </div>
             <MainSequenceRegistrySearch
@@ -319,28 +311,6 @@ export function MainSequenceBucketsPage() {
               placeholder="Search buckets"
               selectionCount={bucketSelection.selectedCount}
             />
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Exact name
-                </label>
-                <Input
-                  value={exactNameValue}
-                  onChange={(event) => setExactNameValue(event.target.value)}
-                  placeholder="research-artifacts"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Name in
-                </label>
-                <Input
-                  value={nameInValue}
-                  onChange={(event) => setNameInValue(event.target.value)}
-                  placeholder="research-artifacts, pipeline-cache"
-                />
-              </div>
-            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -370,7 +340,7 @@ export function MainSequenceBucketsPage() {
               </div>
               <div className="mt-4 text-sm font-medium text-foreground">No buckets found</div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Adjust the active search or name filters, or create a new bucket.
+                Adjust the active search or create a new bucket.
               </p>
             </div>
           ) : null}

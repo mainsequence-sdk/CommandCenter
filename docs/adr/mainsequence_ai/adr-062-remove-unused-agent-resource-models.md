@@ -3,9 +3,8 @@
 - Status: Proposed
 - Date: 2026-05-07
 - Related:
-  - [ADR 061: Reintroduce Astro Command Center Handle for Non-Chat Runtime Operations](./adr-061-command-center-handle-runtime-operations.md)
   - [ADR 060: Main Sequence AI Session-Backed Chat Request Contract](./adr-060-session-backed-chat-request-contract.md)
-  - [ADR: Main Sequence AI Runtime Endpoint Resolution](./adr-main-sequence-ai-runtime-endpoint-resolution.md)
+  - [ADR 077: Unified Astro Coding-Agent Bootstrap](./adr-077-unified-astro-coding-agent-bootstrap.md)
 
 ## Context
 
@@ -21,7 +20,8 @@ The current `Main Sequence AI` frontend runtime does not use the following ORM r
 Concretely, the active assistant/chat architecture in Command Center uses:
 
 - `POST /orm/api/agents/v1/sessions/{agent_session_id}/resolve_runtime_access/`
-- `POST /orm/api/agents/v1/user-orchestrator-agent-services/session-handles/get_or_create_astro_command_center/`
+- `POST /orm/api/agents/v1/agents/{agent_uid}/sessions/get_or_create_session/` for handle-bound
+  AgentSession creation/reuse when an Astro `agent_uid` already exists
 - assistant-runtime endpoints rooted at the resolved `runtime_access.rpc_url`, especially:
   - `/api/chat`
   - `/api/chat/history`

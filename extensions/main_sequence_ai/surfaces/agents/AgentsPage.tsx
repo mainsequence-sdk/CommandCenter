@@ -1,19 +1,24 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, Bot, Loader2 } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowUpRight, Bot, Loader2, Trash2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { useAuthStore } from "@/auth/auth-store";
+import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { useToast } from "@/components/ui/toaster";
 import { mainSequenceRegistryPageSize } from "../../../main_sequence/common/api";
 import { MainSequenceRegistryPagination } from "../../../main_sequence/common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../main_sequence/common/components/MainSequenceRegistrySearch";
+import { MainSequenceSelectionCheckbox } from "../../../main_sequence/common/components/MainSequenceSelectionCheckbox";
 import { getRegistryTableCellClassName } from "../../../main_sequence/common/components/registryTable";
+import { useRegistrySelection } from "../../../main_sequence/common/hooks/useRegistrySelection";
 import {
+  bulkDeleteAgents,
   fetchAgentList,
   fetchAgentSemanticSearch,
   getAgentSearchResultLookupKey,
@@ -35,6 +40,8 @@ const mainSequenceAgentTabParam = "msAgentTab";
 export function AgentsPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const sessionToken = useAuthStore((state) => state.session?.token ?? null);
   const sessionTokenType = useAuthStore((state) => state.session?.tokenType ?? "Bearer");
   const {
@@ -54,6 +61,7 @@ export function AgentsPage() {
   const [semanticQueryInput, setSemanticQueryInput] = useState("");
   const [semanticQuery, setSemanticQuery] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
+  const [agentDeleteRequest, setAgentDeleteRequest] = useState<AgentSearchResult[] | null>(null);
   const deferredFilterValue = useDeferredValue(filterValue);
   const sessionMutationBusy =
     hasActiveChatStream || isActiveSessionLoading || isCreatingAgentSession;
@@ -81,6 +89,38 @@ export function AgentsPage() {
         tokenType: sessionTokenType,
         limit: 20,
       }),
+  });
+  const deleteAgentMutation = useMutation({
+    mutationFn: (agents: AgentSearchResult[]) =>
+      bulkDeleteAgents({
+        agentUids: agents.map((agent) => agent.uid ?? ""),
+        token: sessionToken,
+        tokenType: sessionTokenType,
+      }),
+    onSuccess: async (result) => {
+      setAgentDeleteRequest(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["main_sequence_ai", "agents", "list"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["main_sequence_ai", "agents", "semantic-search"],
+        }),
+      ]);
+      toast({
+        variant: "success",
+        title: result.deleted_count === 1 ? "Agent deleted" : "Agents deleted",
+        description:
+          result.deleted_count === 1
+            ? "1 agent was deleted."
+            : `${result.deleted_count} agents were deleted.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Unable to delete agent",
+        description: error instanceof Error ? error.message : "The agent could not be deleted.",
+      });
+    },
   });
 
   useEffect(() => {
@@ -133,6 +173,26 @@ export function AgentsPage() {
         .includes(needle);
     });
   }, [deferredFilterValue, agentsQuery.data?.results]);
+  const selectableAgents = useMemo(
+    () => filteredAgents.filter((agent) => Boolean(agent.uid?.trim())),
+    [filteredAgents],
+  );
+  const agentSelection = useRegistrySelection(selectableAgents, (agent) => agent.uid ?? "");
+  const agentBulkActions =
+    agentSelection.selectedCount > 0
+      ? [
+          {
+            id: "delete-agents",
+            label: "Delete Agents",
+            icon: Trash2,
+            tone: "danger" as const,
+            onSelect: () => {
+              deleteAgentMutation.reset();
+              setAgentDeleteRequest(agentSelection.selectedItems);
+            },
+          },
+        ]
+      : [];
   const selectedAgentFromList = useMemo(
     () =>
       (agentsQuery.data?.results ?? []).find((agent) => {
@@ -302,10 +362,14 @@ export function AgentsPage() {
             </div>
             <MainSequenceRegistrySearch
               accessory={<Badge variant="neutral">{`${agentsQuery.data?.count ?? 0} agents`}</Badge>}
+              actionMenuLabel="Actions"
+              bulkActions={agentBulkActions}
+              clearSelectionLabel="Clear"
+              onClearSelection={agentSelection.clearSelection}
               value={filterValue}
               onChange={(event) => setFilterValue(event.target.value)}
               placeholder="Filter by name, UID, unique identifier, provider, model, or engine"
-              selectionCount={0}
+              selectionCount={agentSelection.selectedCount}
             />
           </div>
         </CardHeader>
@@ -353,6 +417,14 @@ export function AgentsPage() {
               <table className="w-full min-w-[1180px] border-separate border-spacing-y-2 text-sm">
                 <thead>
                   <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                    <th className="w-12 px-3 pb-2">
+                      <MainSequenceSelectionCheckbox
+                        ariaLabel="Select all visible agents"
+                        checked={agentSelection.allSelected}
+                        indeterminate={agentSelection.someSelected}
+                        onChange={agentSelection.toggleAll}
+                      />
+                    </th>
                     <th className="px-4 pb-2">Agent</th>
                     <th className="px-4 pb-2">Identifier</th>
                     <th className="px-4 pb-2">Type</th>
@@ -363,13 +435,23 @@ export function AgentsPage() {
                 <tbody>
                   {filteredAgents.map((agent, index) => {
                     const lookupKey = getAgentSearchResultLookupKey(agent);
+                    const selectableAgentUid = agent.uid?.trim() || "";
+                    const selected = selectableAgentUid
+                      ? agentSelection.isSelected(selectableAgentUid)
+                      : false;
 
                     return (
                       <AgentRow
                         key={getAgentSearchResultRowKey(agent, index)}
                         agent={agent}
+                        selected={selected}
                         disabled={sessionMutationBusy}
                         canOpenDetail={Boolean(lookupKey)}
+                        onToggleSelection={
+                          selectableAgentUid
+                            ? () => agentSelection.toggleSelection(selectableAgentUid)
+                            : null
+                        }
                         onOpenDetail={() => {
                           if (lookupKey) {
                             openAgentDetail(lookupKey);
@@ -400,20 +482,78 @@ export function AgentsPage() {
           ) : null}
         </CardContent>
       </Card>
+
+      <ActionConfirmationDialog
+        title="Delete Agents"
+        open={agentDeleteRequest !== null}
+        onClose={() => {
+          if (!deleteAgentMutation.isPending) {
+            deleteAgentMutation.reset();
+            setAgentDeleteRequest(null);
+          }
+        }}
+        tone="danger"
+        actionLabel="delete selected agents"
+        objectLabel={(agentDeleteRequest?.length ?? 0) === 1 ? "agent" : "agents"}
+        confirmWord="DELETE AGENTS"
+        confirmButtonLabel="Delete Agents"
+        description="This deletes the selected agents."
+        specialText="This action cannot be undone."
+        objectSummary={
+          agentDeleteRequest?.length === 1 ? (
+            <>
+              <div className="font-medium">{agentDeleteRequest[0]?.name || "Unnamed agent"}</div>
+              <div className="mt-1 font-mono text-xs text-muted-foreground">
+                {agentDeleteRequest[0]?.uid}
+              </div>
+            </>
+          ) : agentDeleteRequest ? (
+            <>
+              <div className="font-medium">{agentDeleteRequest.length} agents selected</div>
+              <div className="mt-1 text-muted-foreground">
+                {agentDeleteRequest
+                  .slice(0, 3)
+                  .map((agent) => agent.name || agent.agent_unique_id || agent.uid)
+                  .join(", ")}
+                {agentDeleteRequest.length > 3 ? ", ..." : ""}
+              </div>
+            </>
+          ) : null
+        }
+        error={
+          deleteAgentMutation.isError
+            ? deleteAgentMutation.error instanceof Error
+              ? deleteAgentMutation.error.message
+              : "The agent could not be deleted."
+            : undefined
+        }
+        isPending={deleteAgentMutation.isPending}
+        onConfirm={() => {
+          if (!agentDeleteRequest || agentDeleteRequest.length === 0) {
+            return;
+          }
+
+          return deleteAgentMutation.mutateAsync(agentDeleteRequest);
+        }}
+      />
     </div>
   );
 }
 
 function AgentRow({
   agent,
+  selected,
   disabled,
   canOpenDetail,
+  onToggleSelection,
   onOpenDetail,
   onStartSession,
 }: {
   agent: AgentSearchResult;
+  selected: boolean;
   disabled: boolean;
   canOpenDetail: boolean;
+  onToggleSelection: (() => void) | null;
   onOpenDetail: () => void;
   onStartSession: () => void;
 }) {
@@ -423,13 +563,25 @@ function AgentRow({
       : "No model configured";
   const description = agent.description?.trim() || "No description provided.";
   const agentName = agent.name?.trim() || "Unnamed agent";
-  const secondaryIdentifier = agent.uid?.trim() || (agent.id > 0 ? `ID ${agent.id}` : "");
+  const primaryIdentifier =
+    agent.agent_unique_id?.trim() || agent.uid?.trim() || "No identifier";
+  const agentUid = agent.uid?.trim() || "";
+  const secondaryIdentifier = agentUid && agentUid !== primaryIdentifier ? agentUid : "";
 
   return (
     <tr>
-      <td className={getRegistryTableCellClassName(false, "left")}>
+      <td className={getRegistryTableCellClassName(selected, "left")}>
+        {onToggleSelection ? (
+          <MainSequenceSelectionCheckbox
+            ariaLabel={`Select ${agentName}`}
+            checked={selected}
+            onChange={onToggleSelection}
+          />
+        ) : null}
+      </td>
+      <td className={getRegistryTableCellClassName(selected)}>
         <div className="flex items-start gap-2">
-          <Bot className="mt-0.5 h-4 w-4 text-muted-foreground" />
+          <Bot className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <div className="min-w-0">
             <button
               type="button"
@@ -441,7 +593,7 @@ function AgentRow({
               <span className="font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors group-hover:decoration-primary group-focus-visible:decoration-primary">
                 {agentName}
               </span>
-              <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary" />
+              <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary" />
             </button>
             <div
               className="mt-0.5 line-clamp-2 text-muted-foreground"
@@ -453,10 +605,8 @@ function AgentRow({
           </div>
         </div>
       </td>
-      <td className={getRegistryTableCellClassName(false)}>
-        <div className="font-mono text-foreground">
-          {agent.agent_unique_id || agent.uid || "No identifier"}
-        </div>
+      <td className={getRegistryTableCellClassName(selected)}>
+        <div className="font-mono text-foreground">{primaryIdentifier}</div>
         {secondaryIdentifier ? (
           <div
             className="mt-0.5 font-mono text-muted-foreground"
@@ -466,13 +616,13 @@ function AgentRow({
           </div>
         ) : null}
       </td>
-      <td className={getRegistryTableCellClassName(false)}>
+      <td className={getRegistryTableCellClassName(selected)}>
         <div className="text-foreground">{agent.agentType || "Unknown type"}</div>
       </td>
-      <td className={getRegistryTableCellClassName(false)}>
+      <td className={getRegistryTableCellClassName(selected)}>
         <div className="text-foreground">{modelSummary}</div>
       </td>
-      <td className={getRegistryTableCellClassName(false, "right")}>
+      <td className={getRegistryTableCellClassName(selected, "right")}>
         <div className="flex justify-end">
           <Button
             size="sm"

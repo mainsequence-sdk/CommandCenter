@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Loader2, RefreshCcw } from "lucide-react";
+import { Loader2, RefreshCcw, Rocket } from "lucide-react";
 
 import type { AppShellMenuRenderProps } from "@/apps/types";
 import { useAuthStore } from "@/auth/auth-store";
@@ -11,16 +11,21 @@ import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toaster";
 import {
   buildMainSequenceCostEstimateResources,
+  normalizeMainSequenceCpuQuantity,
   MainSequenceResourceField,
   MainSequenceResourceRequirementsSection,
 } from "../../../main_sequence/common/components/MainSequenceResourceRequirementsSection";
 import {
+  deployAstroCommandCenterAgentService,
   fetchCodingAgentDeploymentDefaults,
   formatMainSequenceError,
   saveCodingAgentDeploymentDefaults,
 } from "../../../main_sequence/common/api";
 import { AutomationDitherWaveLayer } from "../../components/AutomationButton";
-import { buildMainSequenceAiAssistantUrl } from "../../runtime/assistant-endpoint";
+import {
+  buildMainSequenceAiAssistantUrl,
+  clearMainSequenceAiResolvedRuntimeAccess,
+} from "../../runtime/assistant-endpoint";
 import { fetchAssistantHealth } from "../../runtime/assistant-health-api";
 import { fetchModelCatalog, type ModelCatalogItem } from "../../runtime/model-catalog-api";
 import { useAssistantRuntimeAccess } from "./useAssistantRuntimeAccess";
@@ -145,6 +150,8 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
   const healthQuery = useQuery({
     queryKey: ["main-sequence-ai", "assistant-health", assistantEndpoint, sessionToken],
     enabled: hasAssistantRuntimeEndpoint,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1_000 * 2 ** attempt, 5_000),
     queryFn: ({ signal }) => {
       if (!assistantEndpoint) {
         throw new Error("Assistant runtime endpoint is not resolved.");
@@ -152,6 +159,7 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
 
       return fetchAssistantHealth({
         assistantEndpoint,
+        sessionUserUid,
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
@@ -182,6 +190,8 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
         tokenType: sessionTokenType,
       });
     },
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1_000 * 2 ** attempt, 5_000),
     staleTime: 300_000,
   });
 
@@ -308,8 +318,8 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
         llm_provider: selectedProvider.trim(),
         llm_model: selectedModelValue.trim(),
         llm_thinking: selectedThinking.trim(),
-        cpu_request: computeState.cpuRequest.trim() || "500m",
-        cpu_limit: computeState.cpuLimit.trim() || "2000m",
+        cpu_request: normalizeMainSequenceCpuQuantity(computeState.cpuRequest, "500m"),
+        cpu_limit: normalizeMainSequenceCpuQuantity(computeState.cpuLimit, "2000m"),
         memory_request: computeState.memoryRequest.trim() || "1Gi",
         memory_limit: computeState.memoryLimit.trim() || "4Gi",
         gpu_request: computeState.gpuRequest.trim(),
@@ -341,6 +351,43 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
     },
   });
 
+  const deployAstroMutation = useMutation({
+    mutationFn: () => {
+      const defaults = deploymentDefaultsQuery.data;
+      const llmProvider = selectedProvider.trim() || normalizeConfigValue(defaults?.llm_provider);
+      const llmModel = selectedModelValue.trim() || normalizeConfigValue(defaults?.llm_model);
+      const llmThinking = selectedThinking.trim() || normalizeConfigValue(defaults?.llm_thinking);
+
+      return deployAstroCommandCenterAgentService({
+        llm_provider: llmProvider || undefined,
+        llm_model: llmModel || undefined,
+        llm_thinking: llmThinking || undefined,
+      });
+    },
+    onSuccess: () => {
+      clearMainSequenceAiResolvedRuntimeAccess();
+      void assistantRuntime.refetch();
+
+      if (hasAssistantRuntimeEndpoint) {
+        void healthQuery.refetch();
+        void modelCatalogQuery.refetch();
+      }
+
+      toast({
+        variant: "success",
+        title: "Astro deploy requested",
+        description: "Astro will be available in chat when the runtime reports healthy.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Astro deploy failed",
+        description: formatMainSequenceError(error),
+      });
+    },
+  });
+
   useEffect(() => {
     const record = deploymentDefaultsQuery.data;
 
@@ -349,8 +396,8 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
     }
 
     const nextComputeState = {
-      cpuRequest: normalizeConfigValue(record.cpu_request, "500m"),
-      cpuLimit: normalizeConfigValue(record.cpu_limit, "2000m"),
+      cpuRequest: normalizeMainSequenceCpuQuantity(record.cpu_request, "500m"),
+      cpuLimit: normalizeMainSequenceCpuQuantity(record.cpu_limit, "2000m"),
       memoryRequest: normalizeConfigValue(record.memory_request, "1Gi"),
       memoryLimit: normalizeConfigValue(record.memory_limit, "4Gi"),
       gpuRequest: normalizeConfigValue(record.gpu_request),
@@ -436,7 +483,8 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
   const settingsRefreshing =
     assistantRuntime.isLoading ||
     healthQuery.isFetching ||
-    deploymentDefaultsQuery.isFetching;
+    deploymentDefaultsQuery.isFetching ||
+    deployAstroMutation.isPending;
 
   return (
     <div className="space-y-4 py-4">
@@ -454,6 +502,21 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
             ) : null}
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={!sessionToken || deployAstroMutation.isPending}
+              onClick={() => {
+                deployAstroMutation.mutate();
+              }}
+            >
+              {deployAstroMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Rocket className="h-4 w-4" />
+              )}
+              Deploy Astro
+            </Button>
             <Button
               type="button"
               size="sm"
@@ -652,7 +715,7 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
                   onChange={(event) =>
                     setComputeState((current) => ({
                       ...current,
-                      cpuRequest: event.target.value,
+                      cpuRequest: normalizeMainSequenceCpuQuantity(event.target.value),
                     }))
                   }
                   placeholder="500m"
@@ -665,7 +728,7 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
                   onChange={(event) =>
                     setComputeState((current) => ({
                       ...current,
-                      cpuLimit: event.target.value,
+                      cpuLimit: normalizeMainSequenceCpuQuantity(event.target.value),
                     }))
                   }
                   placeholder="2000m"
@@ -768,6 +831,13 @@ export function AgentSettingsSection(_props: AppShellMenuRenderProps) {
           {assistantRuntime.error instanceof Error
             ? assistantRuntime.error.message
             : "Unable to resolve Command Center runtime access."}
+        </div>
+      ) : null}
+
+      {assistantRuntime.isRuntimeStarting ? (
+        <div className="rounded-[calc(var(--radius)-4px)] border border-warning/35 bg-warning/10 p-4 text-sm text-warning">
+          Astro runtime is starting. Health and model-catalog checks will become available after the
+          runtime reports ready.
         </div>
       ) : null}
 

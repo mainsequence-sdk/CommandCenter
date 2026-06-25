@@ -392,6 +392,7 @@ export async function startModelProviderSignIn({
     runtimeTarget,
     sessionToken: token,
     sessionTokenType: tokenType,
+    sessionUserUid: resolvedCreatedByUserUid,
   });
 
   if (!response.ok) {
@@ -458,6 +459,7 @@ export async function fetchModelProviderSignInAttempt({
     signal,
     sessionToken: token,
     sessionTokenType: tokenType,
+    sessionUserUid: resolvedCreatedByUserUid,
   });
 
   if (!response.ok) {
@@ -520,6 +522,7 @@ export async function submitModelProviderManualSignIn({
     body: JSON.stringify({ input }),
     sessionToken: token,
     sessionTokenType: tokenType,
+    sessionUserUid: resolvedCreatedByUserUid,
   });
 
   if (!response.ok) {
@@ -565,6 +568,7 @@ export async function cancelModelProviderSignIn({
     runtimeTarget,
     sessionToken: token,
     sessionTokenType: tokenType,
+    sessionUserUid: resolvedCreatedByUserUid,
   });
 
   if (!response.ok) {
@@ -605,6 +609,7 @@ export async function signOffModelProvider({
     runtimeTarget,
     sessionToken: token,
     sessionTokenType: tokenType,
+    sessionUserUid: resolvedCreatedByUserUid,
   });
 
   if (!response.ok) {

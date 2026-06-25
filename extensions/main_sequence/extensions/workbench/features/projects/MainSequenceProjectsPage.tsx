@@ -265,6 +265,8 @@ export function MainSequenceProjectsPage() {
   const [projectAgentConfiguratorOpen, setProjectAgentConfiguratorOpen] = useState(false);
   const [projectAgentAutomationHeaderActive, setProjectAgentAutomationHeaderActive] = useState(false);
   const [projectDeleteRequest, setProjectDeleteRequest] = useState<ProjectDeleteRequest | null>(null);
+  const [projectRepositoryDeleteFinalRequest, setProjectRepositoryDeleteFinalRequest] =
+    useState<ProjectDeleteRequest | null>(null);
   const deferredFilterValue = useDeferredValue(filterValue);
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const selectedProjectUid = searchParams.get(mainSequenceProjectUidParam)?.trim() || null;
@@ -442,6 +444,7 @@ export function MainSequenceProjectsPage() {
     onSuccess: async (result, request) => {
       const deletedCount = result.deleted_count ?? request.projects.length;
       setProjectDeleteRequest(null);
+      setProjectRepositoryDeleteFinalRequest(null);
       await queryClient.invalidateQueries({ queryKey: ["main_sequence", "projects", "list"] });
 
       if (deletedCount > 0) {
@@ -631,7 +634,7 @@ export function MainSequenceProjectsPage() {
       project_name: formState.projectName.trim(),
       data_source_uid: formState.dataSourceUid.trim(),
       default_base_image: formState.defaultBaseImageUid.trim(),
-      github_organization: formState.githubOrgId.trim() || undefined,
+      github_org_uid: formState.githubOrgId.trim() || undefined,
     });
   };
 
@@ -1079,17 +1082,25 @@ export function MainSequenceProjectsPage() {
                                   />
                                 </td>
                                 <td className={getRegistryTableCellClassName(selected)}>
-                                  <button
-                                    type="button"
-                                    className="group inline-flex cursor-pointer items-center gap-1.5 rounded-sm text-left outline-none transition-colors hover:text-primary focus-visible:text-primary"
-                                    onClick={() => openProjectDetail(project.uid)}
-                                    title={`Open ${project.project_name}`}
-                                  >
-                                    <span className="font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors group-hover:decoration-primary group-focus-visible:decoration-primary">
-                                      {project.project_name}
-                                    </span>
-                                    <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary" />
-                                  </button>
+                                  <div className="min-w-0">
+                                    <button
+                                      type="button"
+                                      className="group inline-flex max-w-[280px] cursor-pointer items-center gap-1.5 rounded-sm text-left outline-none transition-colors hover:text-primary focus-visible:text-primary"
+                                      onClick={() => openProjectDetail(project.uid)}
+                                      title={`Open ${project.project_name}`}
+                                    >
+                                      <span className="truncate font-medium text-foreground underline decoration-border/50 underline-offset-4 transition-colors group-hover:decoration-primary group-focus-visible:decoration-primary">
+                                        {project.project_name}
+                                      </span>
+                                      <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary group-focus-visible:text-primary" />
+                                    </button>
+                                    <div
+                                      className="mt-1 max-w-[280px] truncate font-mono text-xs text-muted-foreground"
+                                      title={project.uid}
+                                    >
+                                      {project.uid}
+                                    </div>
+                                  </div>
                                 </td>
                                 <td className={getRegistryTableCellClassName(selected)}>
                                   <div className="text-sm text-foreground">{project.created_by || "Unknown"}</div>
@@ -1415,7 +1426,73 @@ export function MainSequenceProjectsPage() {
             return;
           }
 
-          void deleteProjectMutation.mutateAsync(projectDeleteRequest);
+          if (projectDeleteRequest.deleteRepositories) {
+            setProjectRepositoryDeleteFinalRequest(projectDeleteRequest);
+            setProjectDeleteRequest(null);
+            return;
+          }
+
+          return deleteProjectMutation.mutateAsync(projectDeleteRequest);
+        }}
+      />
+
+      <ActionConfirmationDialog
+        title="Final Confirmation: Delete Repositories"
+        open={projectRepositoryDeleteFinalRequest !== null}
+        onClose={() => {
+          if (!deleteProjectMutation.isPending) {
+            setProjectRepositoryDeleteFinalRequest(null);
+          }
+        }}
+        tone="danger"
+        actionLabel="permanently delete projects and repositories"
+        objectLabel={
+          (projectRepositoryDeleteFinalRequest?.projects.length ?? 0) > 1 ? "projects" : "project"
+        }
+        confirmWord="DELETE PROJECT REPOSITORIES"
+        confirmButtonLabel="Permanently Delete Repositories"
+        description="This is the second and final confirmation for repository deletion."
+        specialText="This deletes the selected project records and their linked repositories. Repository deletion is permanent and cannot be undone."
+        objectSummary={
+          projectRepositoryDeleteFinalRequest?.projects.length === 1 ? (
+            <>
+              <div className="font-medium">
+                {projectRepositoryDeleteFinalRequest.projects[0]?.project_name}
+              </div>
+              <div className="mt-1 font-mono text-xs text-muted-foreground">
+                {projectRepositoryDeleteFinalRequest.projects[0]?.uid}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="font-medium">
+                {projectRepositoryDeleteFinalRequest?.projects.length ?? 0} projects selected
+              </div>
+              <div className="mt-1 text-muted-foreground">
+                {projectRepositoryDeleteFinalRequest?.projects
+                  .slice(0, 3)
+                  .map((project) => project.project_name)
+                  .join(", ")}
+                {(projectRepositoryDeleteFinalRequest?.projects.length ?? 0) > 3 ? ", ..." : ""}
+              </div>
+            </>
+          )
+        }
+        error={
+          deleteProjectMutation.isError
+            ? formatMainSequenceError(deleteProjectMutation.error)
+            : undefined
+        }
+        isPending={deleteProjectMutation.isPending}
+        onConfirm={() => {
+          if (
+            !projectRepositoryDeleteFinalRequest ||
+            projectRepositoryDeleteFinalRequest.projects.length === 0
+          ) {
+            return;
+          }
+
+          return deleteProjectMutation.mutateAsync(projectRepositoryDeleteFinalRequest);
         }}
       />
 

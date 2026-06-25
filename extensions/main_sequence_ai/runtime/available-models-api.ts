@@ -569,6 +569,7 @@ export async function fetchAvailableRunConfigOptions({
     signal,
     sessionToken: token,
     sessionTokenType: tokenType,
+    sessionUserUid: resolvedCreatedByUserUid,
   });
   onResolvedAccess?.(resolvedAccess);
 

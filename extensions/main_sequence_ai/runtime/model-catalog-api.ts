@@ -257,6 +257,7 @@ export async function fetchModelCatalog({
     signal,
     sessionToken: token,
     sessionTokenType: tokenType,
+    sessionUserUid: resolvedCreatedByUserUid,
   });
 
   if (!response.ok) {

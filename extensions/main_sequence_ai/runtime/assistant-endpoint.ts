@@ -1,11 +1,17 @@
 import { commandCenterConfig, type AssistantUiProtocol } from "@/config/command-center";
+import { fetchAstroCommandCenterAgentServiceByUser } from "../../main_sequence/common/api";
 import type { AgentImageDriftRecord } from "../agent-search";
 import {
+  ASTRO_COMMAND_CENTER_HANDLE_UNIQUE_ID,
+  ASTRO_COMMAND_CENTER_SESSION_NAME,
   fetchAgentSessionRuntimeAccess,
-  fetchCommandCenterBaseSessionHandle,
-  type CommandCenterBaseSessionHandle,
+  type AgentSessionRuntimeAccess,
 } from "./command-center-base-session-api";
-import { normalizeAgentSessionLookupId } from "./agent-sessions-api";
+import {
+  getOrCreateAgentSessionRequest,
+  normalizeAgentSessionLookupId,
+  type StartedAgentSessionResult,
+} from "./agent-sessions-api";
 import { MainSequenceAiError } from "./error-source";
 
 const rawEnv = import.meta.env as Record<string, string | undefined>;
@@ -34,8 +40,15 @@ let cachedDynamicAssistantAccessSessionId: string | null = null;
 let inFlightDynamicAssistantAccessRefresh: Promise<MainSequenceAiResolvedAssistantAccess> | null = null;
 let inFlightDynamicAssistantAccessSessionId: string | null = null;
 let cachedCommandCenterBaseAssistantAccess: MainSequenceAiResolvedAssistantAccess | null = null;
+let cachedCommandCenterBaseAssistantAccessEndpoint: string | null = null;
+let cachedCommandCenterBaseAssistantAccessUserUid: string | null = null;
+let cachedCommandCenterBaseAgentUid: string | null = null;
+let cachedCommandCenterBaseAgentUserUid: string | null = null;
+let cachedCommandCenterBaseSessionResult: StartedAgentSessionResult | null = null;
 let inFlightCommandCenterBaseAssistantAccessRefresh: Promise<MainSequenceAiResolvedAssistantAccess> | null =
   null;
+let inFlightCommandCenterBaseAssistantAccessEndpoint: string | null = null;
+let inFlightCommandCenterBaseAssistantAccessUserUid: string | null = null;
 
 export function normalizeMainSequenceAiAssistantEndpoint(endpoint: string) {
   const trimmed = endpoint.trim();
@@ -165,12 +178,22 @@ export function buildMainSequenceAiAssistantHeaders({
 }
 
 function normalizeDynamicAssistantAccess(
-  payload: CommandCenterBaseSessionHandle,
+  payload: AgentSessionRuntimeAccess,
+  {
+    assistantEndpoint,
+  }: {
+    assistantEndpoint?: string | null;
+  } = {},
 ): MainSequenceAiResolvedAssistantAccess {
-  const rpcUrl = payload.runtimeAccess?.rpcUrl?.trim();
-  const runtimeToken = payload.runtimeAccess?.token?.trim();
+  const rpcUrl = payload.rpcUrl?.trim();
+  const runtimeToken = payload.token?.trim();
+  const resolvedAssistantEndpoint = assistantEndpoint?.trim()
+    ? normalizeMainSequenceAiAssistantEndpoint(assistantEndpoint)
+    : rpcUrl
+      ? normalizeMainSequenceAiAssistantEndpoint(rpcUrl)
+      : null;
 
-  if (!rpcUrl) {
+  if (!resolvedAssistantEndpoint) {
     throw new MainSequenceAiError("resolve_runtime_access response did not include rpc_url.", {
       source: "frontend_runtime_parser",
     });
@@ -183,14 +206,14 @@ function normalizeDynamicAssistantAccess(
   }
 
   return {
-    assistantEndpoint: normalizeMainSequenceAiAssistantEndpoint(rpcUrl),
-    codingAgentId: payload.runtimeAccess?.codingAgentId ?? null,
-    codingAgentServiceId: payload.runtimeAccess?.codingAgentServiceId ?? null,
-    imageDrift: payload.runtimeAccess?.imageDrift ?? null,
-    isReady: payload.runtimeAccess?.isReady ?? null,
-    knativeServiceRuntimeId: payload.runtimeAccess?.knativeServiceRuntimeId ?? null,
+    assistantEndpoint: resolvedAssistantEndpoint,
+    codingAgentId: payload.codingAgentId,
+    codingAgentServiceId: payload.codingAgentServiceId,
+    imageDrift: payload.imageDrift,
+    isReady: payload.isReady,
+    knativeServiceRuntimeId: payload.knativeServiceRuntimeId,
     mode: "dynamic",
-    runtimeAccessMode: payload.runtimeAccess?.mode ?? null,
+    runtimeAccessMode: payload.mode,
     token: runtimeToken,
   };
 }
@@ -214,7 +237,14 @@ export function clearMainSequenceAiResolvedRuntimeAccess() {
   cachedDynamicAssistantAccessSessionId = null;
   inFlightDynamicAssistantAccessSessionId = null;
   cachedCommandCenterBaseAssistantAccess = null;
+  cachedCommandCenterBaseAssistantAccessEndpoint = null;
+  cachedCommandCenterBaseAssistantAccessUserUid = null;
+  cachedCommandCenterBaseAgentUid = null;
+  cachedCommandCenterBaseAgentUserUid = null;
+  cachedCommandCenterBaseSessionResult = null;
   inFlightCommandCenterBaseAssistantAccessRefresh = null;
+  inFlightCommandCenterBaseAssistantAccessEndpoint = null;
+  inFlightCommandCenterBaseAssistantAccessUserUid = null;
 }
 
 function normalizeRuntimeSessionId(value: string | number | null | undefined) {
@@ -249,16 +279,16 @@ export async function fetchMainSequenceAiCommandCenterRuntimeHandle({
     );
   }
 
-  const handle = await fetchAgentSessionRuntimeAccess({
+  const runtimeAccess = await fetchAgentSessionRuntimeAccess({
     sessionId: normalizedCurrentSessionId,
     signal,
     token: sessionToken,
     tokenType: sessionTokenType,
   });
-  const access = normalizeDynamicAssistantAccess(handle);
+  const access = normalizeDynamicAssistantAccess(runtimeAccess);
   cacheDynamicAssistantAccess(access, normalizedCurrentSessionId);
 
-  return { access, handle };
+  return { access, runtimeAccess };
 }
 
 async function refreshDynamicAssistantAccess({
@@ -315,13 +345,17 @@ async function refreshDynamicAssistantAccess({
 }
 
 export async function fetchMainSequenceAiOperationalCommandCenterRuntimeHandle({
+  assistantEndpoint,
   signal,
   sessionToken,
   sessionTokenType = "Bearer",
+  sessionUserUid,
 }: {
+  assistantEndpoint?: string | null;
   signal?: AbortSignal;
   sessionToken?: string | null;
   sessionTokenType?: string;
+  sessionUserUid?: string | null;
 }) {
   if (!sessionToken) {
     throw new MainSequenceAiError(
@@ -332,25 +366,101 @@ export async function fetchMainSequenceAiOperationalCommandCenterRuntimeHandle({
     );
   }
 
-  const handle = await fetchCommandCenterBaseSessionHandle({
+  if (!sessionUserUid?.trim()) {
+    throw new MainSequenceAiError(
+      "Signed-in user uid is required before resolving Command Center runtime access.",
+      {
+        source: "frontend",
+      },
+    );
+  }
+
+  const normalizedSessionUserUid = sessionUserUid.trim();
+  if (cachedCommandCenterBaseAgentUserUid !== normalizedSessionUserUid) {
+    cachedCommandCenterBaseAgentUid = null;
+    cachedCommandCenterBaseSessionResult = null;
+  }
+
+  const agentUid =
+    cachedCommandCenterBaseAgentUserUid === normalizedSessionUserUid
+      ? cachedCommandCenterBaseAgentUid
+      : null;
+  const serviceAgentUid =
+    agentUid ??
+    (await fetchAstroCommandCenterAgentServiceByUser(normalizedSessionUserUid, {
+      signal,
+    }))?.agent_uid ??
+    null;
+
+  if (!serviceAgentUid) {
+    throw new MainSequenceAiError(
+      "Astro has not been deployed. Deploy Astro before opening Command Center runtime access.",
+      {
+        source: "frontend_runtime_guard",
+      },
+    );
+  }
+
+  cachedCommandCenterBaseAgentUid = serviceAgentUid;
+  cachedCommandCenterBaseAgentUserUid = normalizedSessionUserUid;
+
+  const sessionResult =
+    cachedCommandCenterBaseSessionResult ??
+    (await getOrCreateAgentSessionRequest({
+      agentUid: serviceAgentUid,
+      handleUniqueId: ASTRO_COMMAND_CENTER_HANDLE_UNIQUE_ID,
+      name: ASTRO_COMMAND_CENTER_SESSION_NAME,
+      signal,
+      token: sessionToken,
+      tokenType: sessionTokenType,
+    }));
+
+  cachedCommandCenterBaseSessionResult = sessionResult;
+
+  const runtimeAccess = await fetchAgentSessionRuntimeAccess({
+    sessionId: sessionResult.sessionId,
     signal,
     token: sessionToken,
     tokenType: sessionTokenType,
   });
-  const access = normalizeDynamicAssistantAccess(handle);
+  const access = normalizeDynamicAssistantAccess(runtimeAccess, {
+    assistantEndpoint,
+  });
   cachedCommandCenterBaseAssistantAccess = access;
+  cachedCommandCenterBaseAssistantAccessEndpoint = assistantEndpoint?.trim()
+    ? normalizeMainSequenceAiAssistantEndpoint(assistantEndpoint)
+    : null;
+  cachedCommandCenterBaseAssistantAccessUserUid = normalizedSessionUserUid;
 
-  return { access, handle };
+  return {
+    access,
+    runtimeAccess,
+    agentUid: serviceAgentUid,
+    sessionResult,
+  };
 }
 
 async function refreshCommandCenterBaseAssistantAccess({
+  assistantEndpoint,
   sessionToken,
   sessionTokenType = "Bearer",
+  sessionUserUid,
 }: {
+  assistantEndpoint?: string | null;
   sessionToken?: string | null;
   sessionTokenType?: string;
+  sessionUserUid?: string | null;
 }) {
-  if (inFlightCommandCenterBaseAssistantAccessRefresh) {
+  const normalizedAssistantEndpoint = assistantEndpoint?.trim()
+    ? normalizeMainSequenceAiAssistantEndpoint(assistantEndpoint)
+    : null;
+  const normalizedSessionUserUid = sessionUserUid?.trim() || null;
+
+  if (
+    inFlightCommandCenterBaseAssistantAccessRefresh &&
+    inFlightCommandCenterBaseAssistantAccessEndpoint === normalizedAssistantEndpoint &&
+    inFlightCommandCenterBaseAssistantAccessUserUid === normalizedSessionUserUid
+  ) {
     return inFlightCommandCenterBaseAssistantAccessRefresh;
   }
 
@@ -365,22 +475,31 @@ async function refreshCommandCenterBaseAssistantAccess({
 
   const refreshPromise = (async () => {
     const { access } = await fetchMainSequenceAiOperationalCommandCenterRuntimeHandle({
+      assistantEndpoint: normalizedAssistantEndpoint,
       sessionToken,
       sessionTokenType,
+      sessionUserUid,
     });
     return access;
   })();
 
   inFlightCommandCenterBaseAssistantAccessRefresh = refreshPromise;
+  inFlightCommandCenterBaseAssistantAccessEndpoint = normalizedAssistantEndpoint;
+  inFlightCommandCenterBaseAssistantAccessUserUid = normalizedSessionUserUid;
 
   try {
     return await refreshPromise;
   } catch (error) {
     cachedCommandCenterBaseAssistantAccess = null;
+    cachedCommandCenterBaseAssistantAccessEndpoint = null;
+    cachedCommandCenterBaseAssistantAccessUserUid = null;
+    cachedCommandCenterBaseSessionResult = null;
     throw error;
   } finally {
     if (inFlightCommandCenterBaseAssistantAccessRefresh === refreshPromise) {
       inFlightCommandCenterBaseAssistantAccessRefresh = null;
+      inFlightCommandCenterBaseAssistantAccessEndpoint = null;
+      inFlightCommandCenterBaseAssistantAccessUserUid = null;
     }
   }
 }
@@ -392,6 +511,7 @@ export async function resolveMainSequenceAiAssistantAccess({
   runtimeTarget = "agent-runtime",
   sessionToken,
   sessionTokenType = "Bearer",
+  sessionUserUid,
 }: {
   assistantEndpoint?: string;
   currentSessionId?: string | number | null;
@@ -399,7 +519,31 @@ export async function resolveMainSequenceAiAssistantAccess({
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   sessionToken?: string | null;
   sessionTokenType?: string;
+  sessionUserUid?: string | null;
 }): Promise<MainSequenceAiResolvedAssistantAccess> {
+  if (runtimeTarget === "command-center-base") {
+    const configuredAssistantEndpoint =
+      assistantEndpoint?.trim()
+        ? normalizeMainSequenceAiAssistantEndpoint(assistantEndpoint)
+        : resolveMainSequenceAiConfiguredAssistantEndpoint();
+
+    if (
+      !forceRefresh &&
+      cachedCommandCenterBaseAssistantAccess &&
+      cachedCommandCenterBaseAssistantAccessEndpoint === configuredAssistantEndpoint &&
+      cachedCommandCenterBaseAssistantAccessUserUid === (sessionUserUid?.trim() || null)
+    ) {
+      return cachedCommandCenterBaseAssistantAccess;
+    }
+
+    return refreshCommandCenterBaseAssistantAccess({
+      assistantEndpoint: configuredAssistantEndpoint,
+      sessionToken,
+      sessionTokenType,
+      sessionUserUid,
+    });
+  }
+
   if (
     runtimeTarget === "configured" ||
     (isMainSequenceAiAssistantProxyMode() && Boolean(assistantEndpoint?.trim()))
@@ -426,17 +570,6 @@ export async function resolveMainSequenceAiAssistantAccess({
       runtimeAccessMode: null,
       token: sessionToken ?? null,
     };
-  }
-
-  if (runtimeTarget === "command-center-base") {
-    if (!forceRefresh && cachedCommandCenterBaseAssistantAccess) {
-      return cachedCommandCenterBaseAssistantAccess;
-    }
-
-    return refreshCommandCenterBaseAssistantAccess({
-      sessionToken,
-      sessionTokenType,
-    });
   }
 
   const normalizedCurrentSessionId = normalizeRuntimeSessionId(currentSessionId);
@@ -495,6 +628,7 @@ export async function fetchMainSequenceAiAssistantResponse({
   runtimeTarget = "agent-runtime",
   sessionToken,
   sessionTokenType = "Bearer",
+  sessionUserUid,
   ...init
 }: Omit<RequestInit, "headers"> & {
   accept?: string;
@@ -506,6 +640,7 @@ export async function fetchMainSequenceAiAssistantResponse({
   runtimeTarget?: MainSequenceAiAssistantRuntimeTarget;
   sessionToken?: string | null;
   sessionTokenType?: string;
+  sessionUserUid?: string | null;
 }) {
   const execute = async (forceRefresh: boolean) => {
     const resolvedAccess = await resolveMainSequenceAiAssistantAccess({
@@ -515,6 +650,7 @@ export async function fetchMainSequenceAiAssistantResponse({
       runtimeTarget,
       sessionToken,
       sessionTokenType,
+      sessionUserUid,
     });
     const url = buildMainSequenceAiAssistantUrl(resolvedAccess.assistantEndpoint, requestPath);
     const response = await fetch(url, {

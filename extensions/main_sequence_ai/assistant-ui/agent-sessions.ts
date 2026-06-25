@@ -12,7 +12,6 @@ import {
   getAgentSessionRecordSessionId,
   normalizeAgentSessionLookupId,
 } from "../runtime/agent-sessions-api";
-import type { CommandCenterBaseSessionHandle } from "../runtime/command-center-base-session-api";
 
 export const DEFAULT_AGENT_TYPE = "astro-orchestrator";
 export const DEFAULT_AGENT_LABEL = "Astro Orchestrator";
@@ -280,6 +279,19 @@ export function attachSerializedSessionToSession(
   } satisfies AgentSessionRecord;
 }
 
+export function toCommandCenterAgentSessionRecordFromApi(
+  record: AgentSessionApiRecord,
+  existing?: AgentSessionRecord,
+): AgentSessionRecord {
+  const nextSession = toAgentSessionRecordFromApi(record, existing);
+
+  return {
+    ...nextSession,
+    origin: "astro_command_center_base",
+    serializedSession: cloneJson(record as AgentSessionSerializedRecord),
+  };
+}
+
 export function applyModelConfigToSerializedSession(
   serializedSession: AgentSessionSerializedRecord | null,
   {
@@ -374,46 +386,6 @@ export function promoteAgentSessionFromStream({
     },
     messages,
   });
-}
-
-export function toAgentSessionRecordFromBaseHandle(
-  handle: CommandCenterBaseSessionHandle,
-  existing?: AgentSessionRecord,
-): AgentSessionRecord {
-  const nextAgent = existing?.agent ?? createDefaultAgentSessionAgent();
-  const requestAgentType = handle.agent.requestAgentType?.trim() || "";
-  const displayLabel = handle.agent.displayLabel?.trim() || "";
-
-  return {
-    id: handle.sessionId,
-    title:
-      existing?.title ||
-      displayLabel,
-    preview: existing?.preview ?? null,
-    runtimeSessionId: handle.runtimeSessionId ?? existing?.runtimeSessionId ?? handle.sessionId,
-    sessionKey: handle.sessionKey ?? existing?.sessionKey ?? null,
-    handleUniqueId: handle.handleUniqueId ?? existing?.handleUniqueId ?? null,
-    threadId: handle.threadId ?? existing?.threadId ?? null,
-    projectId: handle.projectId ?? existing?.projectId ?? null,
-    cwd: handle.cwd ?? existing?.cwd ?? null,
-    runtimeState: handle.runtimeState ?? existing?.runtimeState ?? null,
-    working: handle.working ?? existing?.working ?? false,
-    updatedAt: handle.updatedAt ?? existing?.updatedAt ?? new Date().toISOString(),
-    agent: {
-      ...nextAgent,
-      id: handle.agent.id ?? nextAgent.id,
-      name: nextAgent.name,
-      displayLabel,
-      requestAgentType,
-      agentUniqueId: handle.agent.agentUniqueId?.trim() || "",
-      llmProvider: handle.agent.llmProvider?.trim() || nextAgent.llmProvider || "",
-      llmModel: handle.agent.llmModel?.trim() || nextAgent.llmModel || "",
-    },
-    origin: "astro_command_center_base",
-    isPlaceholder: false,
-    serializedSession: existing?.serializedSession ?? null,
-    messages: existing?.messages ?? [],
-  };
 }
 
 export function readAgentSessions(userId: string | null) {

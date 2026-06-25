@@ -51,6 +51,7 @@ import { CHAT_PAGE_PATH } from "../../assistant-ui/chat-ui-store";
 import { AutomationDitherWaveLayer } from "../../components/AutomationButton";
 import { RunConfigFields } from "../../components/RunConfigFields";
 import { AgentCapabilitiesTab } from "../../features/agent-capabilities/AgentCapabilitiesTab";
+import { AstroAgentDeploymentConfigurator } from "../../features/project-agents/AstroAgentDeploymentConfigurator";
 import { ProjectAgentConfigurator } from "../../features/project-agents/ProjectAgentConfigurator";
 import {
   buildAvailableRunConfigCacheKey,
@@ -64,7 +65,7 @@ import {
   getAgentSessionRecordSummary,
   getAgentSessionRecordTitle,
   getAgentSessionRecordHandleUniqueId,
-  getOrCreateAgentSessionWithHandleRequest,
+  getOrCreateAgentSessionRequest,
   type AgentSessionApiRecord,
 } from "../../runtime/agent-sessions-api";
 import { resolveRunConfigSelection } from "../../runtime/run-config-selection";
@@ -160,6 +161,17 @@ function isProjectExecutorAgentCandidate(value: unknown): boolean {
       (slug === "project-executor" ||
         slug === "project-executor-agent" ||
         slug.includes("project-executor")),
+  );
+}
+
+function isAstroOrchestratorAgentCandidate(value: unknown): boolean {
+  const slug = normalizeAgentTypeSlug(value);
+
+  return Boolean(
+    slug &&
+      (slug === "astro-orchestrator" ||
+        slug === "astro-orchestrator-agent" ||
+        slug.includes("astro-orchestrator")),
   );
 }
 
@@ -789,7 +801,7 @@ function AgentSessionsTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[980px] border-separate border-spacing-y-2 text-sm">
+      <table className="w-full min-w-[1120px] border-separate border-spacing-y-2 text-sm">
         <thead>
           <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             <th className="w-12 px-3 pb-2">
@@ -802,6 +814,7 @@ function AgentSessionsTable({
             </th>
             <th className="px-4 pb-2">Session</th>
             <th className="px-4 pb-2">Status</th>
+            <th className="px-4 pb-2">Handle</th>
             <th className="px-4 pb-2">Model</th>
             <th className="px-4 pb-2">Started</th>
             <th className="px-4 pb-2 text-right">Action</th>
@@ -840,17 +853,19 @@ function AgentSessionsTable({
                   <div className="mt-1 text-xs text-muted-foreground">
                     {getAgentSessionRecordSummary(record) || `Session ${sessionId}`}
                   </div>
-                  {handleUniqueId ? (
-                    <div className="mt-1 font-mono text-xs text-muted-foreground">
-                      Handle: {handleUniqueId}
-                    </div>
-                  ) : null}
                 </td>
                 <td className={getRegistryTableCellClassName(selected)}>
                   <div className="inline-flex items-center gap-2 text-foreground">
                     {record.working ? <Loader2 className="h-3.5 w-3.5 animate-spin text-warning" /> : null}
                     <span>{record.status || "Unknown"}</span>
                   </div>
+                </td>
+                <td className={getRegistryTableCellClassName(selected)}>
+                  {handleUniqueId ? (
+                    <div className="font-mono text-foreground">{handleUniqueId}</div>
+                  ) : (
+                    <div className="text-muted-foreground">No handle</div>
+                  )}
                 </td>
                 <td className={getRegistryTableCellClassName(selected)}>
                   <div className="text-foreground">{modelSummary}</div>
@@ -1064,6 +1079,22 @@ export function AgentDetailView({
     summaryExtensionsForAgentType?.agentType,
     summaryExtensionsForAgentType?.agent_kind,
   ].some(isProjectExecutorAgentCandidate);
+  const isAstroOrchestratorAgent = [
+    detail?.agent_type,
+    detail?.agentType,
+    detail?.type,
+    detail?.agent_kind,
+    detail?.kind,
+    detail?.image_drift?.agent_kind,
+    initialAgent?.agentType,
+    summaryRecordForAgentType?.agent_type,
+    summaryRecordForAgentType?.agentType,
+    summaryRecordForAgentType?.agent_kind,
+    summaryEntityForAgentType?.type,
+    summaryExtensionsForAgentType?.agent_type,
+    summaryExtensionsForAgentType?.agentType,
+    summaryExtensionsForAgentType?.agent_kind,
+  ].some(isAstroOrchestratorAgentCandidate);
   const projectExecutorProjectUid = useMemo(
     () =>
       readProjectUidFromUnknown(detail) ||
@@ -1116,7 +1147,7 @@ export function AgentDetailView({
   const resolvedProjectExecutorProjectUid =
     projectExecutorProjectUid || runtimeProjectUidQuery.data || null;
   const showDeploymentEditorAction =
-    isProjectExecutorAgent || Boolean(resolvedProjectExecutorProjectUid);
+    isProjectExecutorAgent || isAstroOrchestratorAgent || Boolean(resolvedProjectExecutorProjectUid);
   const imageDrift = useMemo(
     () =>
       resolveAgentImageDrift({
@@ -1142,6 +1173,7 @@ export function AgentDetailView({
         getAgentSessionRecordTitle(record),
         getAgentSessionRecordSummary(record) ?? "",
         getAgentSessionRecordSessionId(record),
+        getAgentSessionRecordHandleUniqueId(record) ?? "",
         record.status ?? "",
         record.llm_provider ?? "",
         record.llm_model ?? "",
@@ -1244,18 +1276,17 @@ export function AgentDetailView({
       const resolvedProvider = handleSessionRunConfig.resolvedProvider.trim();
       const resolvedModel = handleSessionRunConfig.resolvedModel.trim();
 
-      if (!normalizedHandleUniqueId || !normalizedName || !resolvedProvider || !resolvedModel) {
-        throw new Error("Handle ID, name, provider, and model are required.");
+      if (!normalizedHandleUniqueId) {
+        throw new Error("Handle ID is required.");
       }
 
-      return getOrCreateAgentSessionWithHandleRequest({
+      return getOrCreateAgentSessionRequest({
         agentUid: agentUidForActions,
         handleUniqueId: normalizedHandleUniqueId,
         name: normalizedName,
         llmProvider: resolvedProvider,
         llmModel: resolvedModel,
         llmThinking: handleSessionRunConfig.resolvedThinking.trim(),
-        sessionMetadata: {},
         token: sessionToken,
         tokenType: sessionTokenType,
       });
@@ -1279,9 +1310,6 @@ export function AgentDetailView({
   });
   const canCreateSessionWithHandle = Boolean(
     handleUniqueId.trim() &&
-      handleSessionName.trim() &&
-      handleSessionRunConfig.resolvedProvider.trim() &&
-      handleSessionRunConfig.resolvedModel.trim() &&
       handleSessionRunConfig.selectedCatalogModelIsUsable &&
       !createSessionWithHandleMutation.isPending,
   );
@@ -1618,7 +1646,7 @@ export function AgentDetailView({
                 renderSelectionSummary={(selectionCount) => `${selectionCount} sessions selected`}
                 value={sessionFilterValue}
                 onChange={(event) => setSessionFilterValue(event.target.value)}
-                placeholder="Filter by title, UID, status, provider, model, or engine"
+                placeholder="Filter by title, UID, handle, status, provider, model, or engine"
                 searchClassName="max-w-lg"
                 selectionCount={sessionSelection.selectedCount}
               />
@@ -1792,7 +1820,9 @@ export function AgentDetailView({
           deploymentAutomationHeaderActive ? <AutomationDitherWaveLayer /> : null
         }
       >
-        {resolvedProjectExecutorProjectUid ? (
+        {isAstroOrchestratorAgent ? (
+          <AstroAgentDeploymentConfigurator />
+        ) : resolvedProjectExecutorProjectUid ? (
           <ProjectAgentConfigurator
             projectUid={resolvedProjectExecutorProjectUid}
             hasAgentCapabilities={true}

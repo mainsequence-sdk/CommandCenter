@@ -4,7 +4,7 @@
 - Date: 2026-04-23
 - Related:
   - [ADR: Widget Agent Context Bindings for Agent Terminal Consumers](../command_center/adr-widget-agent-context-bindings.md)
-  - [ADR: Main Sequence AI Command Center Base Session](./adr-main-sequence-ai-command-center-base-session.md)
+  - [ADR 077: Unified Astro Coding-Agent Bootstrap](./adr-077-unified-astro-coding-agent-bootstrap.md)
 
 ## Context
 

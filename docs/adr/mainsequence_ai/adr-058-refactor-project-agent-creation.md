@@ -3,8 +3,7 @@
 - Status: Proposed
 - Date: 2026-05-05
 - Related:
-  - [ADR: Main Sequence AI Command Center Base Session](./adr-main-sequence-ai-command-center-base-session.md)
-  - [ADR: Main Sequence AI Runtime Endpoint Resolution](./adr-main-sequence-ai-runtime-endpoint-resolution.md)
+  - [ADR 077: Unified Astro Coding-Agent Bootstrap](./adr-077-unified-astro-coding-agent-bootstrap.md)
   - [ADR: AgentSession Interaction Readiness Gate](./adr-agent-session-interaction-readiness-gate.md)
   - [ADR: Extension-Contributed Shell Settings Menus](../command_center/adr-extension-contributed-shell-settings-menus.md)
 

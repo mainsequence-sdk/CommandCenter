@@ -32,21 +32,23 @@ result opens the agent detail view instead of starting a session.
   fails, the header shows the backend error instead of inventing fallback header data. The header
   actions also include a `Runtime` lookup that resolves
   `/orm/api/agents/v1/agents/{agent_uid}/runtime-ref/`, reads `runtime_uid`, and deep-links into
-  the Foundry `scalable-services` detail view when a runtime exists. For `project-executor` agents, the header
-  also exposes `Configure agent deployment` when the agent detail payload includes a public
-  `project_uid` or nested `project.uid`; that action opens the shared deployment configurator modal. Session
+  the Foundry `scalable-services` detail view when a runtime exists. The header also exposes
+  `Configure agent deployment` for supported coding agents. `project-executor` agents route into
+  the project-scoped deployment configurator using a public `project_uid` from the detail payload
+  or linked runtime lookup, while `astro-orchestrator` agents route directly into the Astro
+  deployment configurator. Session
   launch actions are grouped under one `Session` menu, including handle-bound session creation,
   which posts the shared handle-session contract through `agent-sessions-api.ts` and uses the
   shared run-config resolver to prepopulate provider, model, and thinking fields from the agent
   defaults plus the registered model catalog. The sessions tab owns selection state and bulk
-  deletion for recent AgentSession rows, and the capabilities tab owns reusable prompt/skill
-  binding and markdown authoring.
+  deletion for recent AgentSession rows, and the capabilities tab owns bound-resource listing,
+  bind/unbind actions, and shared prompt/skill editor access.
 - `extensions/main_sequence_ai/agent-search.ts`
   Shared agent list, semantic search, agent detail, and quick-search clients used by the AI
   surfaces and pickers.
 - `extensions/main_sequence_ai/features/agent-capabilities/`
-  Shared capability resource and agent-binding clients plus the capabilities tab implementation used
-  by agent detail.
+  Shared capability resource clients, save orchestration, reusable capability editor, and the
+  agent-binding tab implementation used by agent detail.
 - `extensions/main_sequence_ai/assistant-ui/ChatProvider.tsx`
   Supplies the `startAgentSession(...)` action used by the row-level session launcher.
 
@@ -72,6 +74,9 @@ result opens the agent detail view instead of starting a session.
   Sequence entity pages.
 - Keep agent list/detail/session launch lookups UID-first. Do not use synthesized numeric `0`
   values as row keys, visible identifiers, or backend lookup values.
+- Agent list deletion is a bulk action routed through
+  `POST /orm/api/agents/v1/agents/bulk-delete/` with `agent_uids: string[]`. Keep deletion
+  UID-only and do not add per-row delete buttons or numeric-ID fallbacks.
 - Keep AgentSession deletion in the detail Sessions tab routed through the shared
   `deleteAgentSessionRequest(...)` client so the DELETE contract stays centralized.
 - Keep the `Agent Card` tab wired directly to the `agent_card` field from the agent detail
@@ -80,16 +85,20 @@ result opens the agent detail view instead of starting a session.
   continue to use the dedicated `/content/` endpoint instead of inventing a flattened save route.
 - Keep image-drift status sourced from the agent detail serializer and rendered through the shared
   summary header contract instead of a custom one-off header block.
-- Keep project-executor deployment editing bound to a public project UID from the agent detail
-  serializer. Do not derive project context from numeric project IDs or deployment-run internals.
+- Keep coding-agent deployment editing routed by agent type. `project-executor` still requires a
+  public project UID from the agent detail serializer or linked runtime lookup, while
+  `astro-orchestrator` opens the user-scoped Astro deployment configurator directly. Do not derive
+  project context from numeric project IDs.
 - Keep the header summary query bound to the agent `/summary/` endpoint. Do not synthesize a local
   fallback summary when that contract fails.
 - Keep session-launch behavior delegated to `ChatProvider` so this page does not grow its own
   session creation contract.
-- Keep handle-bound session creation routed through
-  `getOrCreateAgentSessionWithHandleRequest(...)` and `resolveRunConfigSelection(...)`. Do not add
-  local provider/model/thinking merge logic or pass frontend user identity fields in the handle
-  session payload.
+- Keep handle-bound session creation routed through `getOrCreateAgentSessionRequest(...)` and
+  `resolveRunConfigSelection(...)`. Do not add local provider/model/thinking merge logic or pass
+  frontend user identity fields in the handle session payload.
+- Keep the capabilities tab binding-scoped. Resource registry browsing and capability creation now
+  live on the top-level `Capabilities` surface, while this tab keeps bind/unbind and shared-editor
+  access for already relevant resources.
 - Keep the capabilities tab limited to supported `prompt` and `skill` kinds in this phase. Do not
   expose `extension` authoring until the backend accepts it.
 - Keep the `Runtime` action routed through the dedicated `runtime-ref` lookup helper using the

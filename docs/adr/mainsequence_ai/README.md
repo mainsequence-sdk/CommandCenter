@@ -16,17 +16,15 @@ This section is the decision log for `Main Sequence AI` application architecture
 
 ## ADRs
 
+- [ADR 078: Capability Registry Surface and Agent Capability Editor Widget](./adr-078-capability-registry-surface-and-editor-widget.md)
+- [ADR 077: Unified Astro Coding-Agent Bootstrap](./adr-077-unified-astro-coding-agent-bootstrap.md)
 - [ADR 076: Agent Detail Capabilities Tab](./adr-076-agent-detail-capabilities-tab.md)
 - [ADR 063: Project Agent Configuration Source of Truth](./adr-063-project-agent-configuration-source-of-truth.md)
 - [ADR 062: Remove Unused Agent Capability and Session Resource Models](./adr-062-remove-unused-agent-resource-models.md)
-- [ADR 061: Reintroduce Astro Command Center Handle for Non-Chat Runtime Operations](./adr-061-command-center-handle-runtime-operations.md)
 - [ADR 060: Main Sequence AI Session-Backed Chat Request Contract](./adr-060-session-backed-chat-request-contract.md)
-- [ADR 059: Main Sequence AI Global Settings Runtime Resolution](./adr-059-global-settings-runtime-resolution.md)
 - [ADR 058: Refactor Project Agent Creation](./adr-058-refactor-project-agent-creation.md)
 - [ADR: AgentSession Interaction Readiness Gate](./adr-agent-session-interaction-readiness-gate.md)
 - [ADR: Agent Terminal Managed Session Creation and Agent Allowlist](./adr-agent-terminal-managed-session-creation.md)
-- [ADR: Main Sequence AI Command Center Base Session](./adr-main-sequence-ai-command-center-base-session.md)
-- [ADR: Main Sequence AI Runtime Endpoint Resolution](./adr-main-sequence-ai-runtime-endpoint-resolution.md)
 - [ADR: Main Sequence AI Workspace Reference Widget](./adr-agent-monitor-workspace-reference-widget.md)
 
 ## Guidelines

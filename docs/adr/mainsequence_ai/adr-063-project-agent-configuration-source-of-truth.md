@@ -5,7 +5,7 @@
 - Related:
   - [ADR 058: Refactor Project Agent Creation](./adr-058-refactor-project-agent-creation.md)
   - [ADR 060: Main Sequence AI Session-Backed Chat Request Contract](./adr-060-session-backed-chat-request-contract.md)
-  - [ADR 061: Reintroduce Astro Command Center Handle for Non-Chat Runtime Operations](./adr-061-command-center-handle-runtime-operations.md)
+  - [ADR 077: Unified Astro Coding-Agent Bootstrap](./adr-077-unified-astro-coding-agent-bootstrap.md)
   - [ADR 074: UID-Only Main Sequence Backend Identifier Contracts](../main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts.md)
 
 ## Context

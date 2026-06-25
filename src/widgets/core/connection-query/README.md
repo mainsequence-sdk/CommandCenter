@@ -82,6 +82,9 @@ backend-owned connection instances.
   sidebar settings use that schema as a fallback path rather than overriding typed query editors.
   Canvas exposure still uses the shared schema form so eligible fields can be shown as individual
   dashboard companion cards.
+- String-list path controls such as symbols use the shared connection query list editor. Editing a
+  committed token keeps the saved query value intact until the replacement is committed; explicit
+  removal is only done through the token remove button.
 - The standard `variables` request envelope is only shown and sent when the selected query model
   advertises `supportsVariables: true`. Connector-specific query kwargs must stay in the selected
   connection editor.
