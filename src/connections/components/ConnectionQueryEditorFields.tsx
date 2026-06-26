@@ -8,7 +8,6 @@ import {
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
-import { X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -345,6 +344,10 @@ function parseStringList(
     });
 }
 
+function stringifyStringList(entries: readonly string[]) {
+  return entries.join("\n");
+}
+
 export function QueryStringListField({
   disabled,
   help,
@@ -366,10 +369,15 @@ export function QueryStringListField({
   suggestions?: readonly QueryStringListSuggestion[];
   value?: unknown;
 }) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const entries = useMemo(
     () => normalizeStringList(value, normalizeEntry),
     [normalizeEntry, value],
+  );
+  const [draft, setDraft] = useState(() => stringifyStringList(entries));
+  const draftEntries = useMemo(
+    () => parseStringList(draft, normalizeEntry),
+    [draft, normalizeEntry],
   );
   const availableSuggestions = useMemo(
     () =>
@@ -378,7 +386,7 @@ export function QueryStringListField({
           ? normalizeEntry(suggestion.value)
           : suggestion.value.trim();
 
-        if (!normalizedValue || entries.includes(normalizedValue)) {
+        if (!normalizedValue || draftEntries.includes(normalizedValue)) {
           return [];
         }
 
@@ -390,95 +398,29 @@ export function QueryStringListField({
           },
         ];
       }),
-    [entries, normalizeEntry, suggestions],
+    [draftEntries, normalizeEntry, suggestions],
   );
-  const [draft, setDraft] = useState("");
-  const [editingEntry, setEditingEntry] = useState<string | null>(null);
+  const focusedRef = useRef(false);
 
   useEffect(() => {
-    const nextEntries = normalizeStringList(value, normalizeEntry);
-
-    if (editingEntry) {
-      if (!nextEntries.includes(editingEntry)) {
-        setEditingEntry(null);
-        setDraft("");
-      }
+    if (focusedRef.current) {
       return;
     }
 
-    if (nextEntries.length === 0) {
-      setDraft("");
-      return;
-    }
-  }, [editingEntry, normalizeEntry, value]);
+    setDraft(stringifyStringList(entries));
+  }, [entries]);
 
   function updateEntries(nextEntries: string[]) {
     onChange(nextEntries.length > 0 ? nextEntries : undefined);
   }
 
-  function commitParsedEntries(parsedEntries: string[]) {
-    if (parsedEntries.length === 0) {
-      setEditingEntry(null);
-      setDraft("");
-      return;
-    }
-
-    if (editingEntry) {
-      const seen = new Set<string>();
-      const nextEntries: string[] = [];
-      let replaced = false;
-
-      entries.forEach((entry) => {
-        if (entry === editingEntry) {
-          if (!replaced) {
-            parsedEntries.forEach((replacement) => {
-              if (!seen.has(replacement)) {
-                seen.add(replacement);
-                nextEntries.push(replacement);
-              }
-            });
-            replaced = true;
-          }
-          return;
-        }
-
-        if (!seen.has(entry)) {
-          seen.add(entry);
-          nextEntries.push(entry);
-        }
-      });
-
-      if (!replaced) {
-        parsedEntries.forEach((entry) => {
-          if (!seen.has(entry)) {
-            seen.add(entry);
-            nextEntries.push(entry);
-          }
-        });
-      }
-
-      updateEntries(nextEntries);
-      setEditingEntry(null);
-      setDraft("");
-      return;
-    }
-
-    const seen = new Set(entries);
-    const nextEntries = [...entries];
-
-    parsedEntries.forEach((entry) => {
-      if (!seen.has(entry)) {
-        seen.add(entry);
-        nextEntries.push(entry);
-      }
-    });
-
+  function commitDraft(nextDraft: string, options?: { syncDraft?: boolean }) {
+    const nextEntries = parseStringList(nextDraft, normalizeEntry);
     updateEntries(nextEntries);
-    setDraft("");
-  }
 
-  function appendEntries(nextDraft = draft) {
-    commitParsedEntries(parseStringList(nextDraft, normalizeEntry));
+    if (options?.syncDraft) {
+      setDraft(stringifyStringList(nextEntries));
+    }
   }
 
   function appendEntry(entry: string) {
@@ -488,44 +430,21 @@ export function QueryStringListField({
       return;
     }
 
-    if (!editingEntry && parsedEntries.every((nextEntry) => entries.includes(nextEntry))) {
-      setDraft("");
-      inputRef.current?.focus();
-      return;
-    }
+    const seen = new Set(draftEntries);
+    const nextEntries = [...draftEntries];
 
-    commitParsedEntries(parsedEntries);
-    inputRef.current?.focus();
-  }
-
-  function removeEntry(entryToRemove: string) {
-    updateEntries(entries.filter((entry) => entry !== entryToRemove));
-  }
-
-  function editEntry(entryToEdit: string) {
-    if (disabled) {
-      return;
-    }
-
-    setEditingEntry(entryToEdit);
-    setDraft(entryToEdit);
-
-    const focusDraft = () => {
-      const input = inputRef.current;
-
-      if (!input) {
-        return;
+    parsedEntries.forEach((nextEntry) => {
+      if (!seen.has(nextEntry)) {
+        seen.add(nextEntry);
+        nextEntries.push(nextEntry);
       }
+    });
 
-      input.focus();
-      input.setSelectionRange(entryToEdit.length, entryToEdit.length);
-    };
+    const nextDraft = stringifyStringList(nextEntries);
 
-    if (typeof window.requestAnimationFrame === "function") {
-      window.requestAnimationFrame(focusDraft);
-    } else {
-      focusDraft();
-    }
+    setDraft(nextDraft);
+    updateEntries(nextEntries);
+    textareaRef.current?.focus();
   }
 
   function commitReferenceDraft(
@@ -536,124 +455,50 @@ export function QueryStringListField({
     },
   ) {
     if (!isWidgetReferenceExpression(nextValue)) {
+      commitDraft(nextValue);
       return;
     }
 
-    const shouldCommitImmediately =
+    const shouldNormalizeDraft =
       options?.reason === "enter" || options?.completionKind === "field";
 
-    if (!shouldCommitImmediately) {
-      return;
+    if (shouldNormalizeDraft) {
+      commitDraft(nextValue, { syncDraft: true });
     }
-
-    appendEntries(nextValue);
   }
-
-  const visibleEntries = editingEntry
-    ? entries.filter((entry) => entry !== editingEntry)
-    : entries;
 
   return (
     <ConnectionQueryField help={help} hideLabel={hideLabel} label={label}>
-      <div
-        className={[
-          "min-h-24 rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-2 py-2 shadow-sm transition-colors focus-within:border-primary/70 focus-within:ring-2 focus-within:ring-ring/30",
-          disabled ? "cursor-not-allowed opacity-50" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-        onClick={() => inputRef.current?.focus()}
-        data-no-widget-drag="true"
-      >
-        <div className="flex flex-wrap gap-1.5">
-          {visibleEntries.map((entry) => (
-            <span
-              key={entry}
-              className="inline-flex max-w-full cursor-text items-center gap-1 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-muted/55 px-2 py-1 font-mono text-xs text-foreground"
-              title="Click to edit"
-              onMouseDown={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                editEntry(entry);
-              }}
-            >
-              <span className="truncate">{entry}</span>
-              <button
-                type="button"
-                className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none"
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  removeEntry(entry);
-                }}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }}
-                disabled={disabled}
-                aria-label={`Remove ${entry}`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-          <Input
-            ref={inputRef}
-            value={draft}
-            onChange={(event) => {
-              const nextDraft = event.target.value;
+      <div className="space-y-2" data-no-widget-drag="true">
+        <Textarea
+          ref={textareaRef}
+          value={draft}
+          onFocus={() => {
+            focusedRef.current = true;
+          }}
+          onChange={(event) => {
+            const nextDraft = event.target.value;
 
-              if (/[\n,]/.test(nextDraft)) {
-                appendEntries(nextDraft);
-                return;
-              }
-
-              setDraft(nextDraft);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === ",") {
-                event.preventDefault();
-                appendEntries();
-                return;
-              }
-
-              if (event.key === "Backspace" && draft.length === 0 && entries.length > 0) {
-                event.preventDefault();
-
-                if (editingEntry) {
-                  setEditingEntry(null);
-                  setDraft("");
-                  return;
-                }
-
-                const lastEntry = entries.at(-1);
-
-                if (lastEntry) {
-                  editEntry(lastEntry);
-                }
-              }
-            }}
-            onBlur={() => {
-              appendEntries();
-            }}
-            onWidgetReferenceCommit={({ value, option, reason }) => {
-              commitReferenceDraft(value, {
-                completionKind: option?.kind,
-                reason,
-              });
-            }}
-            disabled={disabled}
-            placeholder={entries.length === 0 ? placeholder?.split(/\n|,/)[0] : "Add value"}
-            spellCheck={false}
-            className="h-7 min-w-40 flex-1 border-0 bg-transparent px-1 py-0 font-mono text-xs shadow-none focus:border-0 focus:ring-0"
-          />
-        </div>
+            setDraft(nextDraft);
+            commitDraft(nextDraft);
+          }}
+          onBlur={() => {
+            focusedRef.current = false;
+            commitDraft(draft, { syncDraft: true });
+          }}
+          onWidgetReferenceCommit={({ value, option, reason }) => {
+            commitReferenceDraft(value, {
+              completionKind: option?.kind,
+              reason,
+            });
+          }}
+          disabled={disabled}
+          placeholder={placeholder}
+          spellCheck={false}
+          className="min-h-24 font-mono text-xs"
+        />
         {availableSuggestions.length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-1.5 border-t border-border/60 pt-2">
+          <div className="flex flex-wrap gap-1.5">
             {availableSuggestions.map((suggestion) => (
               <button
                 key={suggestion.value}

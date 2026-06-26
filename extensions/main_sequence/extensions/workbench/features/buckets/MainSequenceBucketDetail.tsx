@@ -21,6 +21,7 @@ import {
   type BucketSummaryHeader,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
+import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 
 export type BucketBrowserSort = "name" | "created_by_pod" | "creation_date" | "resource" | "size";
 
@@ -371,6 +372,17 @@ export function MainSequenceBucketDetail({
             startIndex: browsePayload.pagination.start_index,
             endIndex: browsePayload.pagination.end_index,
           }}
+          paginationFooter={
+            <MainSequenceRegistryPagination
+              count={browsePayload.pagination.total_items}
+              hasNextPage={browsePayload.pagination.has_next}
+              hasPreviousPage={browsePayload.pagination.has_previous}
+              itemLabel="files"
+              pageIndex={Math.max(0, browsePayload.pagination.page - 1)}
+              pageSize={browsePayload.pagination.page_size}
+              onPageChange={(pageIndex) => updatePage(pageIndex + 1)}
+            />
+          }
           searchValue={browserState.search}
           sort={browserState.sort}
         />

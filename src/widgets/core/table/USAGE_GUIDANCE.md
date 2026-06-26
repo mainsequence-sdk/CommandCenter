@@ -43,6 +43,9 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
   materialized frame columns. The table uses `meta.tableVisuals` as source defaults for labels,
   formats, decimal precision, widths, thresholds, and numeric visuals. Editing a setting creates
   only a local override for the touched field.
+- Local column order wins once a schema is saved. Source field metadata still fills matching
+  column defaults, and source columns that are new to the saved schema are appended after the local
+  order.
 - Put source-owned display defaults on the incoming `core.tabular_frame@v1` value under
   `meta.tableVisuals.columns`. Each key must match a field in `columns`, a row property, or a
   formula display column key. The supported source metadata fields are `label`, `format`,

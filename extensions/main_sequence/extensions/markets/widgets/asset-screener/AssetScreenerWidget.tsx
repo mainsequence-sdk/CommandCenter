@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { Database } from "lucide-react";
 import type { ISparklineCellRendererParams } from "ag-grid-community";
 
@@ -823,6 +823,27 @@ export function AssetScreenerWidget({
       ...row,
     }));
   }, [resolvedTableProps.columns, resolvedTableProps.rows, tableFrame.rowObjects]);
+  // TEMP DEBUG (asset-screener row selection) — remove once diagnosed.
+  // selectionAssetKey = the key the grid/selection actually uses (post-stitch).
+  // sourceAssetKey    = the raw asset.assetKey for that row.
+  // A row is unselectable / resolves wrong when its selectionAssetKey is
+  // "(EMPTY)", duplicated across rows, or differs from sourceAssetKey.
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return;
+    }
+
+    console.log("[asset-screener:row-keys] instance", instanceId);
+    console.table(
+      resolvedRowObjects.map((row, index) => ({
+        index,
+        selectionAssetKey:
+          typeof row.__assetKey === "string" ? row.__assetKey : "(EMPTY)",
+        sourceAssetKey: state.filteredRows[index]?.asset.assetKey ?? "(EMPTY)",
+        symbol: state.filteredRows[index]?.asset.symbol ?? "",
+      })),
+    );
+  }, [instanceId, resolvedRowObjects, state.filteredRows]);
   const selectionState = useMemo(
     () => normalizeAssetScreenerSelectionStateMode(
       normalizeTableWidgetSelectionState(runtimeState),

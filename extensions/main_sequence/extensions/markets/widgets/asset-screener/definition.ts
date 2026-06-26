@@ -459,7 +459,7 @@ const mockSeedData = {
 
 export const mainSequenceAssetScreenerWidget = defineWidget<MainSequenceAssetScreenerWidgetProps>({
   id: MAIN_SEQUENCE_MARKETS_ASSET_SCREENER_WIDGET_ID,
-  widgetVersion: "1.11.4",
+  widgetVersion: "1.11.5",
   title: "Asset Screener",
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Markets",

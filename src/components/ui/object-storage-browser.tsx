@@ -91,6 +91,7 @@ export function ObjectStorageBrowser({
   onSearchChange,
   onSortChange,
   pagination,
+  paginationFooter,
   searchValue,
   sort,
 }: {
@@ -108,6 +109,7 @@ export function ObjectStorageBrowser({
   onSearchChange: (value: string) => void;
   onSortChange: (sort: string) => void;
   pagination: ObjectStoragePagination;
+  paginationFooter?: ReactNode;
   searchValue: string;
   sort: string;
 }) {
@@ -308,38 +310,40 @@ export function ObjectStorageBrowser({
             </div>
           )}
 
-          <div className="flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-muted-foreground">
-              {pagination.totalItems > 0
-                ? `${orderedFolders.length} folders · showing ${pagination.startIndex}-${pagination.endIndex} of ${pagination.totalItems} files`
-                : orderedFolders.length > 0
-                  ? `${orderedFolders.length} folders in this level`
-                  : "No files to paginate"}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!pagination.hasPrevious}
-                onClick={() => onPageChange(pagination.page - 1)}
-              >
-                Previous
-              </Button>
-              <div className="rounded-full border border-border/70 bg-background/28 px-3 py-1 text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                Page {pagination.page} / {pagination.totalPages}
+          {paginationFooter ?? (
+            <div className="flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-muted-foreground">
+                {pagination.totalItems > 0
+                  ? `${orderedFolders.length} folders · showing ${pagination.startIndex}-${pagination.endIndex} of ${pagination.totalItems} files`
+                  : orderedFolders.length > 0
+                    ? `${orderedFolders.length} folders in this level`
+                    : "No files to paginate"}
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!pagination.hasNext}
-                onClick={() => onPageChange(pagination.page + 1)}
-              >
-                Next
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!pagination.hasPrevious}
+                  onClick={() => onPageChange(pagination.page - 1)}
+                >
+                  Previous
+                </Button>
+                <div className="rounded-full border border-border/70 bg-background/28 px-3 py-1 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                  Page {pagination.page} / {pagination.totalPages}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!pagination.hasNext}
+                  onClick={() => onPageChange(pagination.page + 1)}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

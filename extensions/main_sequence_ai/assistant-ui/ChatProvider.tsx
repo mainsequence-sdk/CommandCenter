@@ -575,6 +575,54 @@ function findCommandCenterBaseSessionId(sessions: readonly AgentSessionRecord[])
   return sessions.find((session) => isCommandCenterBaseSession(session))?.id ?? null;
 }
 
+// Stable identities for a session. The same logical AgentSession can come back
+// from different endpoints under a different uid (uid vs runtime_session_uid),
+// so we collapse the client id and runtime id into one namespace (`id:`) and
+// treat the bound handle (`handle:`) as an extra anchor. This lets us recognize
+// "the session the user is reading" across a list rebuild even when its id
+// representation shifts.
+function collectAgentSessionIdentityKeys(session: AgentSessionRecord): Set<string> {
+  const keys = new Set<string>();
+  const rawId = normalizeAgentSessionLookupId(session.id);
+
+  if (rawId) {
+    keys.add(`id:${rawId}`);
+  }
+
+  const runtimeId = normalizeAgentSessionLookupId(session.runtimeSessionId);
+
+  if (runtimeId) {
+    keys.add(`id:${runtimeId}`);
+  }
+
+  const handleUniqueId = session.handleUniqueId?.trim();
+
+  if (handleUniqueId) {
+    keys.add(`handle:${handleUniqueId}`);
+  }
+
+  return keys;
+}
+
+function agentSessionsShareIdentity(
+  a: AgentSessionRecord | null | undefined,
+  b: AgentSessionRecord | null | undefined,
+): boolean {
+  if (!a || !b) {
+    return false;
+  }
+
+  const keysB = collectAgentSessionIdentityKeys(b);
+
+  for (const key of collectAgentSessionIdentityKeys(a)) {
+    if (keysB.has(key)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 const ASTRO_DEPLOY_REQUIRED_MESSAGE =
   "Astro has not been deployed. Deploy Astro before opening Command Center chat.";
 const ASTRO_COMMAND_CENTER_UNAVAILABLE_MESSAGE =
@@ -778,6 +826,10 @@ export function ChatProvider({
   const selectedReasoningEffortValueRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
   const loadedSessionIdRef = useRef<string | null>(null);
+  // Backend lookup id (runtimeSessionId ?? id) of whatever loadedSessionIdRef
+  // points at, so a re-selection of the same backend session under a new client
+  // id can re-anchor instead of wiping + refetching the thread.
+  const loadedSessionLookupIdRef = useRef<string | null>(null);
   const activeChatStreamSessionIdRef = useRef<string | null>(null);
   const activeChatStreamLookupSessionIdRef = useRef<string | null>(null);
   const sessionPickerSyncRef = useRef<string | null>(null);
@@ -1366,6 +1418,7 @@ export function ChatProvider({
     setHasAttemptedLatestSessionsBootstrap(false);
     setSessionRuntimeAccessMetaBySessionId({});
     loadedSessionIdRef.current = null;
+    loadedSessionLookupIdRef.current = null;
     cancelCommandCenterBootstrapRequest();
     commandCenterBootstrapAttemptKeyRef.current = null;
   }, [
@@ -1675,23 +1728,54 @@ export function ChatProvider({
               currentById.get(getAgentSessionRecordSessionId(record)),
             ),
           );
-          const currentSession = currentSessions.find(
-            (session) => session.id === currentSessionIdRef.current,
-          );
-          const keepLocalDraft =
-            currentSession &&
-            (!currentSession.runtimeSessionId || currentSession.isPlaceholder);
+          const currentSession =
+            currentSessions.find((session) => session.id === currentSessionIdRef.current) ?? null;
 
-          const nextSessions = sortAgentSessions(
-            [
-              ...(keepLocalDraft
-                ? [
-                    currentSession,
-                    ...remoteSessions.filter((session) => session.id !== currentSession.id),
-                  ]
-                : remoteSessions),
-            ],
-          );
+          // Keep the session the user is actively reading anchored across this
+          // rebuild. A token refresh refetches the latest-sessions list, and the
+          // same logical session can return under a different uid or fall out of
+          // the latest-N page entirely. Matching on every stable identity — and
+          // re-anchoring the match to the existing client id — stops the
+          // selection + hydration guards from treating it as a different session
+          // and tearing down the live conversation ("Loading AgentSession…").
+          const activeRemoteIndex =
+            currentSession !== null
+              ? remoteSessions.findIndex((session) =>
+                  agentSessionsShareIdentity(session, currentSession),
+                )
+              : -1;
+
+          let nextSessionsBase: AgentSessionRecord[];
+
+          if (currentSession && activeRemoteIndex >= 0) {
+            // Re-map the matched record using the local record as `existing` so
+            // origin/handle/messages survive, but pin the existing client id so
+            // selection state never churns.
+            const reanchoredActiveSession: AgentSessionRecord = {
+              ...toAgentSessionRecordFromApi(
+                resolvedRemoteRecords[activeRemoteIndex],
+                currentSession,
+              ),
+              id: currentSession.id,
+            };
+
+            nextSessionsBase = remoteSessions.map((session, index) =>
+              index === activeRemoteIndex ? reanchoredActiveSession : session,
+            );
+          } else if (currentSession) {
+            // The active session was not in the latest-N page; keep the local
+            // copy instead of dropping it and yanking the user elsewhere.
+            nextSessionsBase = [
+              currentSession,
+              ...remoteSessions.filter(
+                (session) => !agentSessionsShareIdentity(session, currentSession),
+              ),
+            ];
+          } else {
+            nextSessionsBase = remoteSessions;
+          }
+
+          const nextSessions = sortAgentSessions(nextSessionsBase);
           const requestedSession = requestedChatSessionId
             ? nextSessions.find((session) => session.id === requestedChatSessionId) ?? null
             : null;
@@ -1710,7 +1794,9 @@ export function ChatProvider({
             setCurrentSessionId(nextSessions[0]?.id ?? null);
           } else if (
             currentSession &&
-            !nextSessions.some((session) => session.id === currentSession.id)
+            !nextSessions.some((session) =>
+              agentSessionsShareIdentity(session, currentSession),
+            )
           ) {
             setCurrentSessionId(nextSessions[0]?.id ?? null);
           }
@@ -2531,6 +2617,7 @@ export function ChatProvider({
 
     if (nextSessionId !== currentId) {
       loadedSessionIdRef.current = nextSessionId;
+      loadedSessionLookupIdRef.current = null;
       currentSessionIdRef.current = nextSessionId;
       setCurrentSessionId(nextSessionId);
     }
@@ -2696,6 +2783,7 @@ export function ChatProvider({
         if (currentSessionIdRef.current === sessionId) {
           sessionHistoryRequestRef.current?.abort();
           loadedSessionIdRef.current = null;
+          loadedSessionLookupIdRef.current = null;
         }
 
         setAgentSessions((currentSessions) => {
@@ -3043,14 +3131,36 @@ export function ChatProvider({
         return;
       }
 
-      sessionHistoryRequestRef.current?.abort();
-
       const session = agentSessions.find((entry) => entry.id === sessionId);
       if (!session) {
         return;
       }
 
       const lookupSessionId = resolveAgentSessionLookupId(session);
+
+      // Defense-in-depth: the list rebuild keeps client ids stable, but if any
+      // other path re-selects the *same* backend session under a new client id,
+      // re-anchor the loaded id instead of tearing down and refetching the
+      // thread (which flashes "Loading AgentSession…" over a live conversation).
+      if (
+        lookupSessionId &&
+        loadedSessionLookupIdRef.current !== null &&
+        loadedSessionLookupIdRef.current === lookupSessionId
+      ) {
+        loadedSessionIdRef.current = sessionId;
+        setSessionHistoryReadyBySessionId((current) => ({
+          ...current,
+          [sessionId]: true,
+        }));
+        setIsLoadingSessionHistoryBySessionId((current) => ({
+          ...current,
+          [sessionId]: false,
+        }));
+        return;
+      }
+
+      sessionHistoryRequestRef.current?.abort();
+
       if (isSessionHistoryBlockedByActiveStream({ lookupSessionId, sessionId })) {
         if (env.debugChat) {
           console.info("[main_sequence_ai] skipped history hydration during active stream", {
@@ -3083,6 +3193,7 @@ export function ChatProvider({
       setAgentId(null);
       clearThread();
       loadedSessionIdRef.current = sessionId;
+      loadedSessionLookupIdRef.current = lookupSessionId;
 
       if (env.useMockData) {
         setMessages(session.messages);
@@ -3709,6 +3820,7 @@ export function ChatProvider({
     expectedNewSessionRef.current = false;
     setAgentId(null);
     loadedSessionIdRef.current = currentSessionIdRef.current;
+    loadedSessionLookupIdRef.current = null;
 
     setAgentSessions((currentSessions) =>
       sortAgentSessions(

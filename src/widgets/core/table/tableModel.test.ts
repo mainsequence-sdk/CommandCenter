@@ -443,6 +443,56 @@ describe("table widget table controls", () => {
     expect(reordered[1]).not.toBe(original[0]);
   });
 
+  it("preserves saved schema order when source schema fallback has a different order", () => {
+    const frameInput = buildTableWidgetFrameFromRemoteData(
+      null,
+      [
+        {
+          symbol: "AAPL",
+          last_price: 214.31,
+          volume: 1250,
+        },
+      ],
+      ["symbol", "last_price", "volume"],
+      [],
+      {
+        tableVisuals: {
+          columns: {
+            symbol: { label: "Symbol" },
+            last_price: { label: "Last", decimals: 2 },
+            volume: { label: "Volume" },
+          },
+        },
+      },
+    );
+
+    const resolved = resolveTableWidgetPropsWithFrame({
+      schema: [
+        { key: "volume", label: "Volume", format: "number" },
+        { key: "symbol", label: "Ticker", format: "text" },
+        { key: "last_price", label: "Last", format: "number" },
+      ],
+    }, frameInput);
+
+    expect(resolved.schema.map((column) => column.key)).toEqual([
+      "volume",
+      "symbol",
+      "last_price",
+    ]);
+    expect(resolved.columns).toEqual(["volume", "symbol", "last_price"]);
+    expect(buildTableWidgetRowObjects(resolved.columns, resolved.rows)[0]).toMatchObject({
+      volume: 1250,
+      symbol: "AAPL",
+      last_price: 214.31,
+    });
+    expect(resolved.schema.find((column) => column.key === "symbol")).toMatchObject({
+      label: "Ticker",
+    });
+    expect(resolved.schema.find((column) => column.key === "last_price")).toMatchObject({
+      decimals: 2,
+    });
+  });
+
   it("ignores source tableTransforms metadata and applies only table visuals", () => {
     const frameInput = buildTableWidgetFrameFromRemoteData(
       null,

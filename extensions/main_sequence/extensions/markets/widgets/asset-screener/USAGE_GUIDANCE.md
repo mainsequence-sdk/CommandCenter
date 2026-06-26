@@ -85,6 +85,9 @@ fields such as `unique_identifier`, `assetKey`, `asset_identifier`, `symbol`, or
   labels, formats, formula columns, decimal precision, visibility, widths, thresholds, heatmaps,
   data bars, gauges, value-label chips, conditional rules, local column overrides, density,
   grouping, live merge mapping, and selection output settings.
+- Reorder columns in that embedded `Table Settings` column list. Once saved, the local table schema
+  order wins over the incoming source frame order while matching source metadata continues to fill
+  labels, formatting, and visuals.
 - Asset Screener supplies the market-derived table frame and applies market presentation defaults
   on top of that shared Pro Table configuration. The normal table toolbar, quick search,
   pagination footer, and generic stable-row-key editing are intentionally suppressed in the

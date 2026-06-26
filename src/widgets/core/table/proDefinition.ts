@@ -4,7 +4,7 @@ import { CORE_PRO_TABLE_WIDGET_ID } from "@/widgets/widget-type-normalization";
 
 export const proTableWidget = buildTableWidgetDefinition({
   widgetId: CORE_PRO_TABLE_WIDGET_ID,
-  widgetVersion: "1.1.2",
+  widgetVersion: "1.1.3",
   title: proTableSharedOptions.editionLabel,
   edition: "pro",
   capabilities: proTableSharedOptions.capabilities,

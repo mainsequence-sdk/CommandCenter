@@ -411,6 +411,41 @@ describe("AssetScreenerWidget", () => {
     expect(rows[0]?.ytd).toBe(18);
   });
 
+  it("preserves the embedded table schema order after columns are reordered", () => {
+    const resolved = buildAssetScreenerResolvedTableProps({
+      density: "compact",
+      frame: {
+        columns: ["Symbol", "last_price", "volume"],
+        rows: [["AAPL", 214.31, 1250]],
+        schemaFallback: [
+          { key: "Symbol", label: "Symbol", format: "text" },
+          { key: "last_price", label: "Last", format: "number", decimals: 2 },
+          { key: "volume", label: "Volume", format: "number" },
+        ],
+      },
+      tableSettings: {
+        schema: [
+          { key: "volume", label: "Volume", format: "number" },
+          { key: "Symbol", label: "Ticker", format: "text" },
+          { key: "last_price", label: "Last", format: "number" },
+        ],
+      },
+    });
+
+    expect(resolved.schema.map((column) => column.key)).toEqual([
+      "volume",
+      "Symbol",
+      "last_price",
+    ]);
+    expect(resolved.columns).toEqual(["volume", "Symbol", "last_price"]);
+    expect(resolved.schema.find((column) => column.key === "Symbol")).toMatchObject({
+      label: "Ticker",
+    });
+    expect(resolved.schema.find((column) => column.key === "last_price")).toMatchObject({
+      decimals: 2,
+    });
+  });
+
   it("renders source-declared return formulas from table visual column metadata", () => {
     const props = {
       ...assetScreenerDefaultProps,

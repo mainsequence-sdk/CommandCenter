@@ -3069,6 +3069,28 @@ export function buildTableWidgetRowObjects(
   );
 }
 
+function reorderTableWidgetFrameRowsByColumnOrder({
+  sourceColumns,
+  targetColumns,
+  rows,
+}: {
+  sourceColumns: readonly string[];
+  targetColumns: readonly string[];
+  rows: readonly TableWidgetFrameRow[];
+}) {
+  const sourceColumnIndexByKey = new Map(
+    sourceColumns.map((columnKey, index) => [columnKey, index] as const),
+  );
+
+  return rows.map<TableWidgetFrameRow>((row) =>
+    targetColumns.map((columnKey) => {
+      const sourceIndex = sourceColumnIndexByKey.get(columnKey);
+
+      return sourceIndex === undefined ? null : normalizeCellValue(row[sourceIndex]);
+    }),
+  );
+}
+
 function resolveTableWidgetSchemaFromFrame(
   props: Pick<TableWidgetProps, "columnOverrides" | "schema">,
   frameInput: Pick<
@@ -3091,21 +3113,28 @@ function resolveTableWidgetSchemaFromFrame(
     const normalizedSchemaByKey = new Map(
       normalizedSchema.map((column) => [column.key, column] as const),
     );
+    const schemaFallbackByKey = new Map(
+      schemaFallback.map((column) => [column.key, column] as const),
+    );
 
-    return cloneTableWidgetSchema(schemaFallback).map((column) => {
-      const savedColumn = normalizedSchemaByKey.get(column.key);
+    const orderedSavedColumns = normalizedSchema.map((savedColumn) => {
+      const sourceColumn = schemaFallbackByKey.get(savedColumn.key);
 
-      return savedColumn
+      return sourceColumn
         ? {
-            ...column,
+            ...sourceColumn,
             ...savedColumn,
-            key: column.key,
+            key: sourceColumn.key,
           }
-        : column;
-    }).concat(
-      normalizedSchema
-        .filter((column) => !schemaFallback.some((entry) => entry.key === column.key))
-        .map((column) => ({ ...column })),
+        : { ...savedColumn };
+    });
+
+    const newSourceColumns = schemaFallback
+      .filter((column) => !normalizedSchemaByKey.has(column.key))
+      .map((column) => ({ ...column }));
+
+    return orderedSavedColumns.concat(
+      newSourceColumns,
     );
   }
 
@@ -3169,6 +3198,12 @@ export function resolveTableWidgetPropsWithFrame(
       schemaFallback: resolvedFrameWithLocalFormulas?.schemaFallback ?? [],
     },
   );
+  const orderedColumns = schema.map((column) => column.key);
+  const orderedRows = reorderTableWidgetFrameRowsByColumnOrder({
+    sourceColumns: columns,
+    targetColumns: orderedColumns,
+    rows,
+  });
 
   return {
     tableSourceMode,
@@ -3190,8 +3225,8 @@ export function resolveTableWidgetPropsWithFrame(
     limit: normalizedLimit,
     supportsUniqueIdentifierList: Boolean(resolvedFrameInput?.supportsUniqueIdentifierList),
     formulasEnabled: normalizeTableWidgetFormulasEnabled(migratedProps.formulasEnabled),
-    columns,
-    rows,
+    columns: orderedColumns,
+    rows: orderedRows,
     schema,
     density: migratedProps.density === "compact" ? "compact" : "comfortable",
     groupBy: normalizeGroupBy(migratedProps.groupBy),

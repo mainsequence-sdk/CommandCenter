@@ -10,3 +10,6 @@ This feature contains bucket registry and bucket browser screens for Main Sequen
 ## Notes
 
 - Keep bucket browsing state and storage-specific interactions in this folder.
+- Bucket file pagination uses the shared `MainSequenceRegistryPagination` control. The browser URL
+  and bucket API state remain one-based (`msBucketPage=1`), while the shared pager receives a
+  zero-based `pageIndex` and emits zero-based page changes.

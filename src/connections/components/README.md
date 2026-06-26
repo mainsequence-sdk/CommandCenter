@@ -18,13 +18,10 @@ Reusable UI components for connection-aware settings and app surfaces.
   These controls keep CodeMirror-backed query code, SQL, JSON-object, string-list, number, boolean,
   and source-summary fields consistent when a connection type renders its own query kwargs inside
   the Connection Query widget. Query code fields render a shared editor surface so connection
-  Explore screens and widgets share one query authoring path. String-list fields render committed
-  tokens; pressing Enter or comma adds the typed value to the parent query immediately, so Save
-  actions do not lose in-progress column or identifier edits. Clicking or backspacing a token
-  opens an edit draft while keeping the committed value intact until the replacement is committed;
-  the token remove button is the explicit deletion path. They may also render local suggestion
-  tokens and per-connection normalization without making resource calls while the user edits a
-  query.
+  Explore screens and widgets share one query authoring path. String-list fields render a normal
+  multiline text editor that accepts newline- or comma-separated values and writes the parsed
+  `string[]` back to the parent query while typing. They may also render local suggestion buttons
+  and per-connection normalization without making resource calls while the user edits a query.
 
 ## Maintenance Constraints
 

@@ -226,6 +226,9 @@ order.
   shared Pro-table path for schema columns, formulas, local column overrides, value labels,
   conditional rules, heatmaps, data bars, gauges, live merge mapping, grouping, density, and
   selection outputs.
+- Embedded table column order is owned by the shared table schema resolver. When a user reorders
+  columns in the Asset Screener settings, the saved `table.schema` order must win over the source
+  frame order while still inheriting source visual metadata for matching keys.
 - The Asset Screener uses the shared table frame with column floating filters disabled and a
   transparent surface and no internal toolbar or footer strip. Per-column filter rows,
   quick-filter search, in-panel titles, row-count headers, empty-state footers, pagination panels,

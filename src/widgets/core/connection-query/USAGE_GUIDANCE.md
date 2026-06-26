@@ -23,9 +23,9 @@ When a workspace runtime data store is available, the retained frame is publishe
   `query.kind`; legacy drafts may fall back to `query.kind` only when it matches a query model on
   the selected connection type.
 - Configure the selected path's connection-owned fields directly below the path selector.
-- For list fields such as symbols or identifiers, edit committed tokens in place. The old value
-  stays committed until the replacement is confirmed with Enter, comma, or blur; use the token
-  remove button when the value should actually be deleted.
+- For list fields such as symbols or identifiers, type values directly in the multiline editor.
+  Values can be separated with newlines or commas and are stored as the parsed `string[]` while
+  typing.
 - Configure the query using the connection-specific editor when available. These editors render
   connection-owned kwargs such as Data Node columns and identifier filters, SQL parameters,
   PostgreSQL time-series field mapping, or Prometheus matchers. Use the generic JSON editor only

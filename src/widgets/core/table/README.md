@@ -121,6 +121,9 @@ tabular frame.
 - In settings, source-driven visual defaults remain visible even before any local override is
   saved. The first user edit materializes only the touched local override instead of copying the
   full source metadata into widget props.
+- When a local schema is saved, its column order is authoritative. Source `fields` or
+  `meta.tableVisuals.columns` still provide fallback metadata for matching keys, and newly added
+  source columns are appended after the saved local order.
 - `Date/time` columns parse common ISO strings plus epoch seconds, milliseconds, microseconds, and
   nanoseconds automatically. Advanced column settings may provide a local-time input pattern when
   auto parsing is ambiguous, and an output pattern for display. Supported pattern tokens are
