@@ -1,4 +1,12 @@
-import { type CSSProperties, type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { Bot, ChevronLeft, LogOut, Palette, Users2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -14,11 +22,11 @@ import { LogoMark } from "@/components/brand/LogoMark";
 import { Avatar } from "@/components/ui/avatar";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
 import { env } from "@/config/env";
+import { resolveSettingsSectionPath } from "@/features/settings/SettingsPage";
 import { cn } from "@/lib/utils";
 import { useShellStore } from "@/stores/shell-store";
 import { useOptionalChatFeature } from "../../../extensions/main_sequence_ai/assistant-ui/ChatProvider";
 import { CHAT_PAGE_PATH } from "../../../extensions/main_sequence_ai/assistant-ui/chat-ui-store";
-import { SettingsDialog } from "./SettingsDialog";
 import { UserMenu } from "./UserMenu";
 
 const baseItemClass =
@@ -248,7 +256,6 @@ export function Sidebar() {
   const chatFeature = useOptionalChatFeature();
   const userSettingsOpen = useShellStore((state) => state.userSettingsOpen);
   const userSettingsSectionId = useShellStore((state) => state.userSettingsSectionId);
-  const openUserSettings = useShellStore((state) => state.openUserSettings);
   const closeUserSettings = useShellStore((state) => state.closeUserSettings);
 
   const userName = user?.name?.trim() || app.name;
@@ -292,6 +299,20 @@ export function Sidebar() {
         ]
       : []),
   ];
+
+  const openSettingsPage = useCallback((sectionId?: string | null) => {
+    closeAppPanel();
+    navigate(resolveSettingsSectionPath(sectionId ?? "account"));
+  }, [closeAppPanel, navigate]);
+
+  useEffect(() => {
+    if (!userSettingsOpen) {
+      return;
+    }
+
+    openSettingsPage(userSettingsSectionId);
+    closeUserSettings();
+  }, [closeUserSettings, openSettingsPage, userSettingsOpen, userSettingsSectionId]);
 
   return (
     <aside
@@ -395,7 +416,7 @@ export function Sidebar() {
                 />
               }
               onOpenSettings={() => {
-                openUserSettings();
+                openSettingsPage("account");
               }}
               menuActions={userMenuActions}
               onLogout={() => {
@@ -470,7 +491,7 @@ export function Sidebar() {
                   </>
                 }
                 onOpenSettings={() => {
-                  openUserSettings();
+                  openSettingsPage("account");
                 }}
                 menuActions={userMenuActions}
                 onLogout={() => {
@@ -497,13 +518,6 @@ export function Sidebar() {
         )}
       </div>
 
-      <SettingsDialog
-        mode="user"
-        open={userSettingsOpen}
-        requestedSectionId={userSettingsSectionId}
-        user={user ?? undefined}
-        onClose={closeUserSettings}
-      />
     </aside>
   );
 }

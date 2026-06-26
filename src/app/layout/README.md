@@ -14,12 +14,8 @@ Shared shell navigation and chrome for the Command Center application.
 - `AppNavigationPanel.tsx`: per-app left-side surface navigation panel.
 - `AppSurfaceSelector.tsx`: topbar surface switcher for the current app.
 - `FavoriteSurfacesMenu.tsx`: favorites flyout for saved surfaces and workspaces.
-- `SettingsDialog.tsx`: shell-level settings and diagnostics.
-  It now also merges registry-backed extension-contributed settings sections for `user` and
-  `admin` audiences into the shared left-nav dialog shell.
-  Grouped extension contributions in the user settings nav render as compact non-wrapping
-  disclosure rows, and the `Main Sequence AI` group is intentionally pinned to the bottom of that
-  nav.
+- `SettingsDialog.tsx`: reusable account/platform settings section renderer. Account and platform
+  sections are composed by the routed Settings module under `src/features/settings/`.
   The shared account section also owns the authenticated profile-picture upload action and updates
   the in-memory shell session avatar immediately after the dedicated `/user/api/user/profile-picture/`
   upload succeeds.
@@ -35,19 +31,17 @@ Shared shell navigation and chrome for the Command Center application.
 - Clicking the current-app chip should navigate to the app home route via `getAppPath(app.id)`.
 - Surface-level navigation stays in `AppSurfaceSelector.tsx`; it is the control for switching within the current app.
 - App metadata must not interrupt normal navigation flows with a modal on the primary app-title click path.
-- The topbar now separates the `Organization Admin` menu from `Admin Settings`.
-- `Organization Admin` is organization-scoped navigation. `Admin Settings` is a separate
-  platform-admin-only modal and must not be exposed through the org-admin menu.
-- Platform-owned controls such as widget-registry publication belong in `Admin Settings`, not in
-  the organization-admin surface tree.
-- Extension-owned settings pages should render through the shared `SettingsDialog` contribution
-  contract instead of creating one-off shell modals.
-- Shell state can now target a specific contributed user-settings section so feature UIs can open
-  the shared dialog directly to the relevant extension-owned page.
+- Settings is a routed app at `/app/settings/*`. User settings, organization admin, billing,
+  organization-owned application settings, extension-contributed settings, and platform diagnostics
+  are reached through that app.
+- Organization-admin pages keep their existing `org_admin:view` gates. Platform-owned controls keep
+  their platform-admin gates inside the Settings app.
+- Shell state can still target a specific contributed user-settings section; the sidebar translates
+  that legacy modal intent into the closest routed Settings page.
 
 ## Maintenance Notes
 
 - Keep the topbar, sidebar, and per-app navigation semantics aligned. A control that looks like navigation should navigate.
 - If app details or metadata are needed later, expose them behind an explicit secondary affordance rather than the primary app-title control.
-- Keep shell settings chrome centralized. Extensions can contribute sections, but the shell still
-  owns the modal, nav, and interaction model.
+- Keep Settings chrome centralized in `src/features/settings/`. Extensions can contribute sections,
+  but they should render inside the routed Settings module instead of introducing new shell modals.

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getAppById } from "@/app/registry";
 import { SurfaceFavoriteButton } from "@/app/layout/SurfaceFavoriteButton";
@@ -29,6 +29,7 @@ export function AdminSurfaceLayout({
 }) {
   const navigate = useNavigate();
   const params = useParams();
+  const location = useLocation();
   const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
   const favoriteSurfaceIds = useShellStore((state) => state.favoriteSurfaceIds);
   const toggleSurfaceFavorite = useShellStore((state) => state.toggleSurfaceFavorite);
@@ -36,6 +37,11 @@ export function AdminSurfaceLayout({
   const surfaces = app ? getAccessibleSurfaces(app, permissions) : [];
   const groups = getSurfaceNavigationGroups(surfaces);
   const currentSurfaceId = params.surfaceId ?? app?.defaultSurfaceId ?? "";
+  const embeddedInSettings = location.pathname.startsWith("/app/settings/");
+
+  if (embeddedInSettings) {
+    return <div className="space-y-6">{children}</div>;
+  }
 
   return (
     <div className="h-full min-h-0 overflow-auto">

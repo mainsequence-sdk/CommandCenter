@@ -67,10 +67,14 @@ import { useTheme } from "@/themes/ThemeProvider";
 import type { AppIcon, AppShellMenuAudience } from "@/apps/types";
 
 interface SettingsDialogProps {
+  className?: string;
   mode: "platform" | "user";
   onClose: () => void;
+  onSectionChange?: (sectionId: string) => void;
   open: boolean;
+  presentation?: "dialog" | "page";
   requestedSectionId?: string | null;
+  showNavigation?: boolean;
   user?: AppUser;
 }
 
@@ -1651,10 +1655,14 @@ function buildConfigurationGroups({
 }
 
 export function SettingsDialog({
+  className,
   mode,
   onClose,
+  onSectionChange,
   open,
+  presentation = "dialog",
   requestedSectionId,
+  showNavigation = true,
   user,
 }: SettingsDialogProps) {
   const { i18n, t } = useTranslation();
@@ -2035,15 +2043,15 @@ export function SettingsDialog({
     setActiveSection(navItems[0]?.id ?? "general");
   }, [activeSection, navItems, open]);
 
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      title={title}
-      description={description}
-      className="min-h-[min(720px,calc(100vh-32px))] max-w-[min(1200px,calc(100vw-24px))]"
+  const settingsBody = (
+    <div
+      className={cn(
+        showNavigation
+          ? "grid min-h-[560px] gap-0 md:grid-cols-[220px_minmax(0,1fr)]"
+          : "min-h-0",
+      )}
     >
-      <div className="grid min-h-[560px] gap-0 md:grid-cols-[220px_minmax(0,1fr)]">
+      {showNavigation ? (
         <aside className="border-b border-white/8 px-3 py-3 md:border-b-0 md:border-r md:px-4 md:py-4">
           <nav className="space-y-3">
             {navGroups.map((group) => (
@@ -2070,6 +2078,7 @@ export function SettingsDialog({
                       icon={item.icon}
                       label={item.label}
                       onClick={() => {
+                        onSectionChange?.(item.id);
                         setActiveSection(item.id);
                       }}
                     />
@@ -2079,8 +2088,9 @@ export function SettingsDialog({
             ))}
           </nav>
         </aside>
+      ) : null}
 
-        <div className="min-w-0 px-5 py-5 md:px-8 md:py-7">
+        <div className={cn("min-w-0", showNavigation ? "px-5 py-5 md:px-8 md:py-7" : "")}>
           {activeSection === "general" ? (
             <SettingsSection
               title={t("settingsDialog.webUiTitle")}
@@ -2701,69 +2711,96 @@ export function SettingsDialog({
             </SettingsSection>
           ) : null}
         </div>
-      </div>
-      <ActionConfirmationDialog
-        open={deleteAccountDialogOpen}
-        onClose={() => {
-          if (deleteAccountMutation.isPending) {
-            return;
-          }
+    </div>
+  );
 
-          setDeleteAccountError(null);
-          setDeleteAccountDialogOpen(false);
-        }}
-        title="Delete account"
-        actionLabel="delete"
-        objectLabel="account"
-        objectSummary={
-          <div className="space-y-1">
-            <div className="font-medium text-foreground">{user?.name ?? "Current user"}</div>
-            <div className="font-mono text-xs text-muted-foreground">
-              {user?.email ?? "No email available"}
-            </div>
-          </div>
+  const deleteAccountConfirmation = (
+    <ActionConfirmationDialog
+      open={deleteAccountDialogOpen}
+      onClose={() => {
+        if (deleteAccountMutation.isPending) {
+          return;
         }
-        description="This permanently removes your account from Command Center."
-        specialText="This will delete all history and resources. Back up your projects before deleting."
-        confirmWord="DELETE"
-        confirmButtonLabel="Delete account"
-        tone="danger"
-        error={renderDeleteAccountError(deleteAccountError)}
-        isPending={deleteAccountMutation.isPending}
-        onConfirm={async () => {
-          setDeleteAccountError(null);
-          return deleteAccountMutation.mutateAsync();
-        }}
-        onSuccess={(result) => {
-          const payload = result as DeleteCurrentUserAccountResponse;
 
-          if (payload?.code !== "account_deleted") {
-            setDeleteAccountError({
-              title: "Unable to delete account",
-              detail: "The delete-account response was not recognized.",
-            });
-            return;
-          }
+        setDeleteAccountError(null);
+        setDeleteAccountDialogOpen(false);
+      }}
+      title="Delete account"
+      actionLabel="delete"
+      objectLabel="account"
+      objectSummary={
+        <div className="space-y-1">
+          <div className="font-medium text-foreground">{user?.name ?? "Current user"}</div>
+          <div className="font-mono text-xs text-muted-foreground">
+            {user?.email ?? "No email available"}
+          </div>
+        </div>
+      }
+      description="This permanently removes your account from Command Center."
+      specialText="This will delete all history and resources. Back up your projects before deleting."
+      confirmWord="DELETE"
+      confirmButtonLabel="Delete account"
+      tone="danger"
+      error={renderDeleteAccountError(deleteAccountError)}
+      isPending={deleteAccountMutation.isPending}
+      onConfirm={async () => {
+        setDeleteAccountError(null);
+        return deleteAccountMutation.mutateAsync();
+      }}
+      onSuccess={(result) => {
+        const payload = result as DeleteCurrentUserAccountResponse;
 
+        if (payload?.code !== "account_deleted") {
+          setDeleteAccountError({
+            title: "Unable to delete account",
+            detail: "The delete-account response was not recognized.",
+          });
+          return;
+        }
+
+        useAuthStore.getState().clearLocalSession();
+        setDeleteAccountDialogOpen(false);
+        setDeleteAccountError(null);
+        onClose();
+        window.location.replace("/login?account_deleted=1");
+      }}
+      onError={(error) => {
+        if (isAuthRequestError(error) && error.status === 401) {
           useAuthStore.getState().clearLocalSession();
           setDeleteAccountDialogOpen(false);
           setDeleteAccountError(null);
           onClose();
-          window.location.replace("/login?account_deleted=1");
-        }}
-        onError={(error) => {
-          if (isAuthRequestError(error) && error.status === 401) {
-            useAuthStore.getState().clearLocalSession();
-            setDeleteAccountDialogOpen(false);
-            setDeleteAccountError(null);
-            onClose();
-            window.location.replace("/login");
-            return;
-          }
+          window.location.replace("/login");
+          return;
+        }
 
-          setDeleteAccountError(buildDeleteAccountErrorState(error));
-        }}
-      />
+        setDeleteAccountError(buildDeleteAccountErrorState(error));
+      }}
+    />
+  );
+
+  if (presentation === "page") {
+    return (
+      <div className={cn("min-w-0", className)}>
+        {settingsBody}
+        {deleteAccountConfirmation}
+      </div>
+    );
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={title}
+      description={description}
+      className={cn(
+        "min-h-[min(720px,calc(100vh-32px))] max-w-[min(1200px,calc(100vw-24px))]",
+        className,
+      )}
+    >
+      {settingsBody}
+      {deleteAccountConfirmation}
     </Dialog>
   );
 }

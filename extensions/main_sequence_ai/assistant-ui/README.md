@@ -71,8 +71,8 @@ remaining height. The two shells still differ intentionally:
   workflow as `Provider -> Model -> Thinking`
 - reasoning-effort options are derived from the currently selected model rather than a single
   global list
-- the model dropdown now includes a direct `Sign in to provider` action that opens the shared user
-  settings dialog on the `Model Providers` contributed section
+- the model dropdown now includes a direct `Sign in to provider` action that opens the shared
+  Settings app on the Main Sequence AI Model Providers section
 - if the backend returns no models, the entire selector row is hidden and no fallback model or
   fallback reasoning effort is forced
 - if the backend model catalog request fails in live mode, the composer is disabled and shows an

@@ -2,11 +2,11 @@
 
 ## Purpose
 
-This directory owns `Main Sequence AI` settings sections contributed into the shared shell settings
-dialog.
+This directory owns `Main Sequence AI` settings sections contributed into the shared routed
+Settings app.
 
-These are registry-backed settings contributions, not standalone modal implementations. The shell
-still owns the dialog chrome and left-nav; this directory only owns the extension-specific content.
+The shared Settings app owns navigation chrome; this directory owns only the extension-specific
+content.
 
 ## Entry Points
 
@@ -25,7 +25,11 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 ## Dependencies
 
 - `extensions/main_sequence_ai/app.ts`
-  Registers these sections through `shellMenuContributions` on the app definition.
+  Registers these sections through `shellMenuContributions`.
+- `src/features/settings/SettingsPage.tsx`
+  Adapts extension shell settings contributions into routed Settings application pages.
+- `src/app/layout/SettingsDialog.tsx`
+  Provides the reusable account/platform settings renderer used by the routed Settings page.
 - `extensions/main_sequence_ai/runtime/model-catalog-api.ts`
   Supplies the global model catalog used only by the settings screen.
 - `extensions/main_sequence_ai/runtime/model-provider-auth-api.ts`
@@ -36,13 +40,10 @@ still owns the dialog chrome and left-nav; this directory only owns the extensio
 - `extensions/main_sequence_ai/runtime/assistant-endpoint.ts`
   Resolves the configured proxy endpoint or the backend Astro Command Center operational runtime
   access used by settings requests.
-- `src/app/layout/SettingsDialog.tsx`
-  Shared shell-owned settings dialog that renders contributed sections.
-
 ## Maintenance Notes
 
-- Keep this directory focused on extension-owned settings content only. Do not reimplement shell
-  dialog chrome here.
+- Keep this directory focused on extension-owned settings content only. Do not add app-shell chrome
+  or duplicate Settings navigation here.
 - The health panel intentionally shows the raw `/health` response so backend changes are visible
   without adding a frontend-specific status contract.
 - The `Automate All Agents` control is a toggle. When enabled, it expands the same deployment

@@ -114,6 +114,7 @@ export function AppShell() {
   const routeApp = routeSegments[1] ? getAppById(routeSegments[1]) : undefined;
   const routeSurface =
     routeApp && routeSegments[2] ? getAppSurfaceById(routeApp.id, routeSegments[2]) : undefined;
+  const settingsRoute = routeSegments[1] === "settings";
   const widgetCatalogRoute =
     routeSegments[1] === "workspace-studio" &&
     routeSegments[2] === "widget-catalog";
@@ -125,6 +126,7 @@ export function AppShell() {
     workspaceCanvasRoute;
   const shelllessRoute = kioskMode || workspacePublicPreviewRoute || workspacePrintRoute;
   const fullBleedSurface =
+    settingsRoute ||
     Boolean(routeSurface?.fullBleed) ||
     workspaceCanvasRoute ||
     workspacePublicPreviewRoute ||

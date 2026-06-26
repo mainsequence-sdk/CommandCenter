@@ -1,14 +1,13 @@
 import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { ExternalLink, Rows3, Search, Settings2, ShieldCheck } from "lucide-react";
+import { ExternalLink, Rows3, Search } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getAppById, getAppSurfaceById } from "@/app/registry";
 import {
-  getAccessibleAdminMenuApps,
   getAccessibleApps,
   getFavoriteSurfaceEntries,
   getAccessibleSurfaceEntries,
@@ -20,10 +19,6 @@ import {
   getSurfacePath,
 } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
-import {
-  hasOrganizationAdminAccess,
-  hasPlatformAdminAccess,
-} from "@/auth/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,11 +35,9 @@ import {
   getFavoriteWorkspaceEntries,
   isWorkspaceFavoriteId,
 } from "@/features/dashboards/workspace-favorites";
-import { AdminMenu } from "./AdminMenu";
 import { AppSurfaceSelector } from "./AppSurfaceSelector";
 import { FavoriteSurfacesMenu, type FavoriteMenuItem } from "./FavoriteSurfacesMenu";
 import { NotificationsMenu } from "./NotificationsMenu";
-import { SettingsDialog } from "./SettingsDialog";
 import { ThemeMenu } from "./ThemeMenu";
 
 const WORKSPACE_CANVAS_SURFACE_IDS = new Set(["workspaces", "slide-studio"]);
@@ -361,7 +354,6 @@ export function Topbar() {
   const searchRef = useRef<HTMLInputElement | null>(null);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
   const searchPanelRef = useRef<HTMLDivElement | null>(null);
-  const [platformSettingsOpen, setPlatformSettingsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchPaletteMode, setSearchPaletteMode] = useState(false);
   const [searchPanelStyle, setSearchPanelStyle] = useState<CSSProperties>();
@@ -382,8 +374,6 @@ export function Topbar() {
   const setWorkspaceCanvasMenuHidden = useShellStore((state) => state.setWorkspaceCanvasMenuHidden);
   const initializeWorkspaceStudio = useCustomWorkspaceStudioStore((state) => state.initialize);
   const workspaceListItems = useCustomWorkspaceStudioStore((state) => state.workspaceListItems);
-  const canAccessOrganizationAdmin = hasOrganizationAdminAccess(user);
-  const canAccessPlatformAdminSettings = hasPlatformAdminAccess(user);
   const workspaceRouteParams = useMemo(
     () => new URLSearchParams(location.search),
     [location.search],
@@ -397,8 +387,9 @@ export function Topbar() {
     Boolean(requestedWorkspaceId);
 
   const accessibleApps = getAccessibleApps(permissions);
-  const adminMenuApps = getAccessibleAdminMenuApps(permissions);
   const accessibleSurfaces = getAccessibleSurfaceEntries(permissions);
+  const searchableApps = accessibleApps.filter((app) => app.id !== "admin");
+  const searchableSurfaces = accessibleSurfaces.filter((surface) => surface.appId !== "admin");
   const favoriteSurfaces = getFavoriteSurfaceEntries(permissions, favoriteSurfaceIds);
   const favoriteWorkspaces = env.includeWorkspaces
     ? getFavoriteWorkspaceEntries(workspaceListItems, favoriteWorkspaceIds)
@@ -426,9 +417,12 @@ export function Topbar() {
     ],
     [favoriteSurfaces, favoriteWorkspaces],
   );
-  const currentApp = params.appId ? getAppById(params.appId) : undefined;
+  const routeSegments = location.pathname.split("/").filter(Boolean);
+  const routeAppId = params.appId ?? routeSegments[1];
+  const routeSurfaceId = params.surfaceId ?? routeSegments[2];
+  const currentApp = routeAppId ? getAppById(routeAppId) : undefined;
   const currentSurface =
-    currentApp && params.surfaceId ? getAppSurfaceById(currentApp.id, params.surfaceId) : undefined;
+    currentApp && routeSurfaceId ? getAppSurfaceById(currentApp.id, routeSurfaceId) : undefined;
   const currentAppVisible =
     currentApp && accessibleApps.some((app) => app.id === currentApp.id) ? currentApp : undefined;
   const currentAppSurfaces = currentAppVisible
@@ -454,13 +448,13 @@ export function Topbar() {
   const selectedSurfaceId = currentSurfaceVisible?.id ?? currentDefaultSurface?.id ?? "";
   const normalizedQuery = commandValue.trim().toLowerCase();
   const searchItems = [
-    ...accessibleApps.map((app) => ({
+    ...searchableApps.map((app) => ({
       title: app.title,
       subtitle: t("searchResults.openAppSubtitle"),
       to: getAppPath(app.id),
       visible: true,
     })),
-    ...accessibleSurfaces.map((surface) => ({
+    ...searchableSurfaces.map((surface) => ({
       title: `${surface.appTitle} / ${surface.navLabel ?? surface.title}`,
       subtitle: t("searchResults.openSurfaceSubtitle"),
       to: getSurfacePath(surface),
@@ -476,16 +470,6 @@ export function Topbar() {
     )
     .slice(0, 8);
   const showSearchPanel = searchOpen && (searchPaletteMode || normalizedQuery.length > 0);
-  const adminMenuActions = [
-    ...adminMenuApps.map((app) => ({
-      icon: app.icon,
-      label: app.title,
-      onSelect: () => {
-        navigate(getAppPath(app.id));
-      },
-    })),
-  ];
-
   useEffect(() => {
     function focusSearch() {
       setSearchPaletteMode(true);
@@ -726,7 +710,7 @@ export function Topbar() {
 
         <BudgetUsageIndicator
           onOpenBilling={() => {
-            navigate(getAppPath("admin", "billing-details"));
+            navigate("/app/settings/billing/credits");
           }}
         />
 
@@ -762,45 +746,6 @@ export function Topbar() {
 
         <NotificationsMenu />
 
-        {canAccessOrganizationAdmin ? (
-          <>
-            <AdminMenu
-              actions={adminMenuActions}
-              align="end"
-              placement="bottom"
-              triggerLabel={t("userMenu.openAdmin")}
-              triggerClassName="min-w-0 gap-2 rounded-md border border-border/80 bg-card/70 px-3 py-1.5 text-left text-topbar-foreground transition-colors hover:bg-muted/50"
-              triggerContent={
-                <>
-                  <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{t("userMenu.admin")}</span>
-                </>
-              }
-            />
-            {canAccessPlatformAdminSettings ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="min-w-0 gap-2 rounded-md border border-border/80 bg-card/70 px-3 py-1.5 text-topbar-foreground transition-colors hover:bg-muted/50"
-                onClick={() => {
-                  setPlatformSettingsOpen(true);
-                }}
-              >
-                <Settings2 className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{t("userMenu.adminSettings")}</span>
-              </Button>
-            ) : null}
-            <SettingsDialog
-              mode="platform"
-              open={platformSettingsOpen}
-              user={user ?? undefined}
-              onClose={() => {
-                setPlatformSettingsOpen(false);
-              }}
-            />
-          </>
-        ) : null}
       </div>
 
     </header>

@@ -113,6 +113,7 @@ one file or one feature folder.
 
 ## Shell And Extension ADRs
 
+- [ADR 079: Unified Routed Settings Module](./adr-079-unified-routed-settings-module.md)
 - [ADR 078: Client-Side SQL Server Connection Type](./adr-078-client-side-sql-server-connection.md)
 - [ADR 077: Client-Side MySQL Connection Type](./adr-077-client-side-mysql-connection.md)
 - [ADR 061: Usage Documentation App](./adr-061-usage-documentation-app.md)

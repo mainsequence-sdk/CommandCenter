@@ -2,9 +2,13 @@
 
 This app is owned by the core extension.
 
+These pages are now reached through the routed Settings module under `/app/settings/*`. The legacy
+`admin` app registration stays in place for compatibility and for the existing admin page metadata,
+but the primary shell no longer exposes a separate Organization Admin topbar button.
+
 Keep the admin app implementation in this folder:
 
-- shared in-app navigation and surface chrome
+- shared in-app navigation and surface chrome for legacy/direct admin routes
 - organization-facing admin tools that belong to the built-in organization-admin domain
 
 Registration stays in:
@@ -56,12 +60,12 @@ Current surfaces in this folder:
 Maintenance notes:
 
 - Add new admin surfaces here instead of reviving `src/features/admin/`
-- Keep the app extension-owned so admin navigation, favorites, and search stay consistent with
-  `Access & RBAC`
-- This app is for organization-scoped administration only. Platform-only controls belong in the
-  separate `Admin Settings` modal, not in this app. That now includes explicit widget-registry
-  publication.
-- Legacy `/app/admin-panel` links should continue redirecting into this app
+- Keep the pages extension-owned so their API helpers, confirmations, and organization gates remain
+  unchanged while Settings owns the new navigation container.
+- This folder is for organization-scoped administration only. Platform-only controls belong in the
+  Platform group of the routed Settings module.
+- Legacy `/app/admin-panel` and `/app/admin/*` links should continue redirecting into the matching
+  `/app/settings/*` route.
 - Keep organization user bulk actions aligned with `/user/api/user/` backend endpoints and
   their confirmation semantics
 - Billing surfaces currently span both pod-manager billing endpoints and the org-admin

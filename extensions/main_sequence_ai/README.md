@@ -51,8 +51,8 @@ an overlay rail.
   Shared reusable capability editor, registry save orchestration, and agent-binding UI used by the
   top-level Capabilities surface plus the agent detail capabilities tab.
 - `features/settings/`
-  Extension-contributed shell settings sections, including global provider sign-in/sign-off,
-  provider attempt workflows, and the full known model catalog.
+  Extension-contributed shell settings sections, including provider sign-in/sign-off, provider
+  attempt workflows, agent automation defaults, and the full known model catalog.
 - `components/`
   Reusable Main Sequence AI UI primitives shared across surfaces and settings, including the
   visual-only automation CTA.
@@ -93,8 +93,8 @@ chrome, not just a page-local feature.
 - The full-page chat surface lives at `/app/main_sequence_ai/chat`.
 - The dedicated AgentSession detail surface lives at `/app/main_sequence_ai/session?session=<id>`
   and is intentionally hidden from top navigation while still remaining directly routable.
-- The app now contributes a `Model Providers` user-settings section into the shared shell settings
-  dialog through the registry-backed `shellMenuContributions` contract.
+- The app contributes `Agents Settings` and `Model Providers` sections into the routed Settings app
+  so provider setup and automation defaults stay reachable from the shared Settings entrypoint.
 - The full-page chat now includes a hideable left explorer for local `AgentSessions`. Those
   sessions are browser-persisted per signed-in user until a backend session catalog exists.
 - The agents surface lives at `/app/main_sequence_ai/agents` and uses a full-bleed workspace-style

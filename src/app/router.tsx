@@ -15,6 +15,7 @@ import { ResetPasswordPage } from "@/features/auth/ResetPasswordPage";
 import { SocialAuthCallbackPage } from "@/features/auth/SocialAuthCallbackPage";
 import { ExtensionsGalleryPage } from "@/features/extensions/ExtensionsGalleryPage";
 import { NotFoundPage } from "@/features/misc/NotFoundPage";
+import { LegacyAdminSettingsRedirect, SettingsPage } from "@/features/settings/SettingsPage";
 import { ThemeStudioPage } from "@/features/themes/ThemeStudioPage";
 import { WidgetExplorerPage } from "@/features/widgets/WidgetExplorerPage";
 import { PublicWorkspacePage } from "@/features/dashboards/PublicWorkspacePage";
@@ -122,7 +123,7 @@ export const router = createBrowserRouter([
         path: "admin-panel",
         element: (
           <PermissionRoute anyOf={["org_admin:view"]}>
-            <Navigate to="/app/admin/organization-users" replace />
+            <Navigate to="/app/settings/organization/users" replace />
           </PermissionRoute>
         ),
       },
@@ -130,9 +131,29 @@ export const router = createBrowserRouter([
         path: "admin-panel/:surfaceId",
         element: (
           <PermissionRoute anyOf={["org_admin:view"]}>
-            <Navigate to="/app/admin/organization-users" replace />
+            <LegacyAdminSettingsRedirect />
           </PermissionRoute>
         ),
+      },
+      {
+        path: "admin",
+        element: (
+          <PermissionRoute anyOf={["org_admin:view"]}>
+            <Navigate to="/app/settings/organization/users" replace />
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: "admin/:surfaceId",
+        element: (
+          <PermissionRoute anyOf={["org_admin:view"]}>
+            <LegacyAdminSettingsRedirect />
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: "settings/*",
+        element: <SettingsPage />,
       },
       {
         path: "teams",
