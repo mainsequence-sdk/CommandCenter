@@ -21,6 +21,7 @@ The directory name is still `simple-tables` only because older local imports use
   - `DELETE /orm/api/ts_manager/meta_table/{uid}/` for strict single-table delete
   - `POST /orm/api/ts_manager/meta_table/bulk-delete-with-cascade/` for recursive cascade delete across one or more selected MetaTables
   - `/bulk-delete/` only for multi-select registry delete
+  - `POST /orm/api/ts_manager/meta_table/bulk-clear-data/` for destructive selected-row data clearing with `confirm_clear_data: true`
   - `/bulk-refresh-table-search-index/` for search-index refresh
   - `POST /orm/api/ts_manager/meta_table/{uid}/heal-from-physical/` to introspect the physical table and sync projection details
 - Shared registry controls come from `extensions/main_sequence/common/components/` and `extensions/main_sequence/common/hooks/`.
@@ -40,6 +41,12 @@ The directory name is still `simple-tables` only because older local imports use
   action that uses the bulk cascade endpoint, even from detail view, when the operator intends to
   remove referencing MetaTables and Data Nodes too.
 - Bulk delete removes MetaTable registrations only; it does not drop physical database tables.
+- Bulk clear data keeps the MetaTable registrations and sends the selected MetaTable UIDs with
+  `confirm_clear_data: true` after a danger confirmation dialog. The dialog includes an explicit
+  checkbox for protected tables; only when checked does the request include
+  `override_protection: true`. The backend treats `protect_from_deletion` as protection against
+  destructive storage actions, including truncating/clearing physical rows, and still restricts
+  that override to organization admins.
 - Top-level detail navigation is URL-backed with `msMetaTableUid` and `msMetaTableTab`.
 - Namespace preselection can also be deep-linked with `msMetaTableNamespace`, which is used by
   the DynamicTable Data Source MetaTable import flow to open the imported namespace directly in the
@@ -56,6 +63,8 @@ The directory name is still `simple-tables` only because older local imports use
   label as the namespace name and put the row count on a supporting line as `Meta tables: <count>`
   instead of appending a bare number in parentheses.
 - The `Data Snapshot` tab intentionally uses the lightweight preview endpoint instead of the heavier Data Node widget pipeline.
+- The `Data Snapshot` tab caps displayed cell text to 320 characters so massive JSON/text rows do
+  not expand the registry detail layout. Filtering still uses the original loaded values.
 - The `ULM diagram` tab calls `/{uid}/schema-graph/` and exposes `depth` and `include_incoming`.
   The backend payload is a custom graph contract (`root_uid`, `depth`, `include_incoming`,
   `nodes`, `edges`), not a MetaTable serializer. The shared API layer normalizes that response for

@@ -945,6 +945,10 @@ function tableWidgetFormatFromSourceVisual(
     return "currency";
   }
 
+  if (visual.format === "datetime") {
+    return "datetime";
+  }
+
   return "number";
 }
 
@@ -1043,6 +1047,8 @@ export function buildTableWidgetColumnVisualOverrideFromSourceVisual(
     override.visible = visual.visible;
   }
 
+  override.dateTimeInputFormat = visual.dateTimeInputFormat;
+  override.dateTimeOutputFormat = visual.dateTimeOutputFormat;
   override.barMode = visual.barMode ?? (visual.kind === "bar" ? "fill" : undefined);
   override.gradientMode = visual.gradientMode ?? (visual.kind === "heatmap" ? "fill" : undefined);
   override.gaugeMode = visual.gaugeMode;
@@ -1124,6 +1130,8 @@ export function buildTableWidgetSourceVisualContractFromFrame(
         typeof visual?.decimals === "number" && Number.isFinite(visual.decimals)
           ? Math.max(0, Math.min(Math.trunc(visual.decimals), 6))
           : undefined,
+      dateTimeInputFormat: visual?.dateTimeInputFormat,
+      dateTimeOutputFormat: visual?.dateTimeOutputFormat,
       minWidth:
         typeof visual?.width === "number" && Number.isFinite(visual.width) && visual.width > 0
           ? Math.trunc(visual.width)

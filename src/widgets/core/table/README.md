@@ -95,7 +95,7 @@ tabular frame.
 - Source-owned table formatting is passed on the incoming canonical frame as
   `meta.tableVisuals.columns`. Each column entry may declare `label`, `format`, `decimals`,
   `visible`, `width`, `thresholds`, `colorScale`, `range`, heatmap/data-bar/ring-gauge controls,
-  inline-series hints, and formula display-column metadata. The parser lives in
+  datetime input/output formats, inline-series hints, and formula display-column metadata. The parser lives in
   `tableFrameMetadata.ts`; fields not normalized there are ignored by source metadata and must stay
   in local widget settings or be added deliberately to that contract.
 - `meta.tableVisuals.columns` can also describe source-declared formula display columns with
@@ -128,6 +128,8 @@ tabular frame.
   nanoseconds automatically. Advanced column settings may provide a local-time input pattern when
   auto parsing is ambiguous, and an output pattern for display. Supported pattern tokens are
   `yyyy`, `yy`, `MM`, `M`, `dd`, `d`, `HH`, `H`, `hh`, `h`, `mm`, `m`, `ss`, `s`, `SSS`, and `a`.
+  Source visual metadata can also set `format: "datetime"` plus `dateTimeInputFormat` and
+  `dateTimeOutputFormat` as source-owned defaults.
 - Formatting and selection are presentation/runtime concerns and never mutate the published
   `dataset` tabular frame.
 - `TableFrameView` is the reusable table presentation layer. Domain-specific widgets should adapt

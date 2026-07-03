@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,11 +13,13 @@ import { Select } from "@/components/ui/select";
 
 import {
   fetchPricingCurveDiscountCurve,
+  fetchPricingCurveSelections,
   fetchPricingCurveSummary,
   formatMainSequenceError,
   listPricingMarketDataSets,
   type EntitySummaryHeader,
   type PricingCurveDiscountCurveResponse,
+  type PricingCurveSelectionRow,
   type PricingMarketDataSet,
   type PricingCurveRow,
 } from "../../../../common/api";
@@ -30,8 +33,37 @@ import {
   type ZeroCurveSeries,
 } from "../../widgets/zero-curve/zeroCurveModel";
 
+export const pricingCurveDetailTabs = [
+  { id: "curve", label: "Curve" },
+  { id: "selections", label: "Curve Selections" },
+] as const;
+
+export type PricingCurveDetailTabId = (typeof pricingCurveDetailTabs)[number]["id"];
+
+export const defaultPricingCurveDetailTabId: PricingCurveDetailTabId = "curve";
+
+export function isPricingCurveDetailTabId(
+  value: string | null,
+): value is PricingCurveDetailTabId {
+  return pricingCurveDetailTabs.some((tab) => tab.id === value);
+}
+
 function readText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
 }
 
 function getCurveTitle(
@@ -51,7 +83,6 @@ function getCurveDescription(curveUid: string, initialCurve: PricingCurveRow | n
   const parts = [
     readText(initialCurve?.curve_type),
     readText(initialCurve?.source),
-    readText(initialCurve?.index_uid) ? `Index UID ${readText(initialCurve?.index_uid)}` : null,
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(" / ") : `Pricing curve UID ${curveUid}`;
@@ -263,26 +294,153 @@ function CurveDetailContextSection({
   );
 }
 
+function CurveSelectionsSection({
+  count,
+  error,
+  isLoading,
+  selections,
+}: {
+  count: number | null;
+  error: unknown;
+  isLoading: boolean;
+  selections: PricingCurveSelectionRow[];
+}) {
+  return (
+    <Card>
+      <CardHeader className="border-b border-border/70">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle>Curve Selections</CardTitle>
+            <CardDescription>
+              Shows where this curve is selected by pricing market-data set bindings.
+            </CardDescription>
+          </div>
+          {count !== null ? <Badge variant="neutral">{`${count} selections`}</Badge> : null}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5 pt-5">
+        {isLoading ? (
+          <div className="flex min-h-40 items-center justify-center">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading curve selections
+            </div>
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+            {formatMainSequenceError(error)}
+          </div>
+        ) : null}
+
+        {!isLoading && !error && selections.length === 0 ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-8 text-center text-sm text-muted-foreground">
+            This curve is not selected by any pricing market-data binding.
+          </div>
+        ) : null}
+
+        {!isLoading && !error && selections.length > 0 ? (
+          <div className="overflow-x-auto rounded-[calc(var(--radius)-4px)] border border-border/70">
+            <table className="w-full min-w-[960px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border/70 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                  <th className="px-4 py-3">Market Data Set</th>
+                  <th className="px-4 py-3">Selector</th>
+                  <th className="px-4 py-3">Role Key</th>
+                  <th className="px-4 py-3">Quote Side</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Source</th>
+                  <th className="px-4 py-3">Binding UID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selections.map((selection) => (
+                  <tr
+                    key={selection.binding_uid}
+                    className="border-b border-border/60 last:border-0"
+                  >
+                    <td className="px-4 py-3 align-top">
+                      <div className="font-medium text-foreground">
+                        {readText(selection.market_data_set.display_name) ??
+                          selection.market_data_set.set_key}
+                      </div>
+                      <div className="mt-1 font-mono text-xs text-muted-foreground">
+                        {selection.market_data_set.set_key}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <div className="font-medium text-foreground">
+                        {readText(selection.selector.index_identifier) ??
+                          readText(selection.selector.display_name) ??
+                          selection.selector.selector_key}
+                      </div>
+                      <div className="mt-1 font-mono text-xs text-muted-foreground">
+                        {selection.selector.type} / {selection.selector.selector_key}
+                      </div>
+                      {readText(selection.selector.index_uid) ? (
+                        <div className="mt-1 font-mono text-xs text-muted-foreground">
+                          index selector UID {selection.selector.index_uid}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 align-top font-mono text-xs">
+                      {readText(selection.role_key) ?? "Not available"}
+                    </td>
+                    <td className="px-4 py-3 align-top font-mono text-xs">
+                      {readText(selection.quote_side) ?? "Not available"}
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <Badge variant="neutral">{readText(selection.status) ?? "Unknown"}</Badge>
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      {readText(selection.source) ?? "Not available"}
+                    </td>
+                    <td className="px-4 py-3 align-top font-mono text-xs text-muted-foreground">
+                      {selection.binding_uid}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
+        <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-4 py-3 text-xs text-muted-foreground">
+          Selector index fields describe how a binding selected the curve. They do not make the curve
+          own that index.
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function MainSequencePricingCurveDetailView({
   curveDate,
   curveUid,
   initialCurve,
   onBack,
   onResetContext,
+  onSelectTab,
   onSelectCurveDate,
   onSelectMarketDataSet,
   selectedMarketDataSetUid,
+  selectedTabId,
 }: {
   curveDate: string;
   curveUid: string;
   initialCurve: PricingCurveRow | null;
   onBack: () => void;
   onResetContext: () => void;
+  onSelectTab: (tabId: PricingCurveDetailTabId) => void;
   onSelectCurveDate: (value: string) => void;
   onSelectMarketDataSet: (value: string) => void;
   selectedMarketDataSetUid: string;
+  selectedTabId: PricingCurveDetailTabId;
 }) {
   const navigate = useNavigate();
+  const isCurveTab = selectedTabId === "curve";
+  const isSelectionsTab = selectedTabId === "selections";
   const curveSummaryQuery = useQuery({
     queryKey: ["main_sequence", "pricing_curves", "summary", curveUid],
     queryFn: () => fetchPricingCurveSummary(curveUid),
@@ -291,6 +449,12 @@ export function MainSequencePricingCurveDetailView({
   const marketDataSetsQuery = useQuery({
     queryKey: ["main_sequence", "pricing_market_data", "sets", "curve_detail_picker"],
     queryFn: () => listPricingMarketDataSets({ limit: 500, offset: 0 }),
+    enabled: isCurveTab,
+  });
+  const curveSelectionsQuery = useQuery({
+    queryKey: ["main_sequence", "pricing_curves", "curve_selections", curveUid],
+    queryFn: () => fetchPricingCurveSelections(curveUid),
+    enabled: Boolean(curveUid) && isSelectionsTab,
   });
   const discountCurveQuery = useQuery({
     queryKey: [
@@ -307,6 +471,7 @@ export function MainSequencePricingCurveDetailView({
         valuationDate: curveDate || undefined,
       }),
     enabled:
+      isCurveTab &&
       Boolean(curveUid) &&
       Boolean(selectedMarketDataSetUid.trim()),
   });
@@ -314,6 +479,11 @@ export function MainSequencePricingCurveDetailView({
   const summary = curveSummaryQuery.data ?? null;
   const marketDataSets = marketDataSetsQuery.data?.results ?? [];
   const discountCurve = discountCurveQuery.data ?? null;
+  const curveSelections = curveSelectionsQuery.data?.results ?? [];
+  const curveSelectionCount =
+    readNumber(summary?.extensions?.curve_selection_count) ??
+    readNumber(curveSelectionsQuery.data?.count) ??
+    null;
   const pageTitle = useMemo(
     () => getCurveTitle(curveUid, summary, initialCurve),
     [curveUid, initialCurve, summary],
@@ -328,6 +498,10 @@ export function MainSequencePricingCurveDetailView({
   );
 
   useEffect(() => {
+    if (!isCurveTab) {
+      return;
+    }
+
     const firstSetUid = marketDataSets[0]?.uid?.trim();
 
     if (!firstSetUid) {
@@ -344,9 +518,13 @@ export function MainSequencePricingCurveDetailView({
     if (!selectedExists) {
       onSelectMarketDataSet(firstSetUid);
     }
-  }, [marketDataSets, onSelectMarketDataSet, selectedMarketDataSetUid]);
+  }, [isCurveTab, marketDataSets, onSelectMarketDataSet, selectedMarketDataSetUid]);
 
   useEffect(() => {
+    if (!isCurveTab) {
+      return;
+    }
+
     const responseDate = discountCurve?.valuation_date?.trim();
 
     if (!responseDate || responseDate === curveDate) {
@@ -354,7 +532,7 @@ export function MainSequencePricingCurveDetailView({
     }
 
     onSelectCurveDate(responseDate);
-  }, [curveDate, discountCurve?.valuation_date, onSelectCurveDate]);
+  }, [curveDate, discountCurve?.valuation_date, isCurveTab, onSelectCurveDate]);
 
   return (
     <div className="space-y-6">
@@ -403,92 +581,129 @@ export function MainSequencePricingCurveDetailView({
         />
       ) : null}
 
-      <CurveDetailContextSection
-        curveDate={curveDate}
-        curveResponse={discountCurve}
-        isLoadingMarketDataSets={marketDataSetsQuery.isLoading}
-        marketDataSetError={marketDataSetsQuery.isError ? marketDataSetsQuery.error : null}
-        marketDataSets={marketDataSets}
-        onResetContext={onResetContext}
-        onSelectCurveDate={onSelectCurveDate}
-        onSelectMarketDataSet={onSelectMarketDataSet}
-        selectedMarketDataSetUid={selectedMarketDataSetUid}
-      />
-
       <Card>
-        <CardHeader className="border-b border-border/70">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1">
-              <CardTitle>Zero Curve</CardTitle>
-              <CardDescription>
-                Discount-curve nodes for the selected market-data set and valuation date.
-              </CardDescription>
-            </div>
+        <CardHeader className="border-b border-border/70 pb-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {pricingCurveDetailTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  selectedTabId === tab.id
+                    ? "border-primary/50 bg-primary/12 text-primary"
+                    : "border-border/70 bg-background/35 text-muted-foreground hover:border-primary/35 hover:text-foreground"
+                }`}
+                onClick={() => onSelectTab(tab.id)}
+              >
+                {tab.label}
+                {tab.id === "selections" && curveSelectionCount !== null
+                  ? ` (${curveSelectionCount.toLocaleString()})`
+                  : ""}
+              </button>
+            ))}
           </div>
         </CardHeader>
-        <CardContent className="space-y-5 pt-5">
-          {discountCurveQuery.isLoading ? (
-            <div className="flex min-h-40 items-center justify-center">
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading zero curve
-              </div>
-            </div>
-          ) : null}
-
-          {discountCurveQuery.isError ? (
-            <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-              {formatMainSequenceError(discountCurveQuery.error)}
-            </div>
-          ) : null}
-
-          {discountCurve ? (
-            <div className="grid gap-3 md:grid-cols-4">
-              <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-3">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Effective Date
-                </div>
-                <div className="mt-2 font-mono text-sm text-foreground">
-                  {discountCurve.effective_date}
-                </div>
-              </div>
-              <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-3">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Request Mode
-                </div>
-                <div className="mt-2 text-sm font-medium text-foreground">
-                  {discountCurve.request_mode}
-                </div>
-              </div>
-              <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-3">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Binding
-                </div>
-                <div className="mt-2 text-sm font-medium text-foreground">
-                  {discountCurve.binding.storage_table_identifier}
-                </div>
-              </div>
-              <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-3">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  Nodes
-                </div>
-                <div className="mt-2 text-sm font-medium text-foreground">
-                  {discountCurve.nodes.length.toLocaleString()}
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {!discountCurveQuery.isLoading && !discountCurveQuery.isError ? (
-            <div className="h-[420px]">
-              <ZeroCurveChartSurface
-                series={discountCurveSeries}
-                emptyDescription="The selected discount-curve response did not return any parsable nodes."
-              />
-            </div>
-          ) : null}
-        </CardContent>
       </Card>
+
+      {selectedTabId === "curve" ? (
+        <>
+          <CurveDetailContextSection
+            curveDate={curveDate}
+            curveResponse={discountCurve}
+            isLoadingMarketDataSets={marketDataSetsQuery.isLoading}
+            marketDataSetError={marketDataSetsQuery.isError ? marketDataSetsQuery.error : null}
+            marketDataSets={marketDataSets}
+            onResetContext={onResetContext}
+            onSelectCurveDate={onSelectCurveDate}
+            onSelectMarketDataSet={onSelectMarketDataSet}
+            selectedMarketDataSetUid={selectedMarketDataSetUid}
+          />
+
+          <Card>
+            <CardHeader className="border-b border-border/70">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <CardTitle>Zero Curve</CardTitle>
+                  <CardDescription>
+                    Discount-curve nodes for the selected market-data set and valuation date.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5 pt-5">
+              {discountCurveQuery.isLoading ? (
+                <div className="flex min-h-40 items-center justify-center">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading zero curve
+                  </div>
+                </div>
+              ) : null}
+
+              {discountCurveQuery.isError ? (
+                <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                  {formatMainSequenceError(discountCurveQuery.error)}
+                </div>
+              ) : null}
+
+              {discountCurve ? (
+                <div className="grid gap-3 md:grid-cols-4">
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-3">
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      Effective Date
+                    </div>
+                    <div className="mt-2 font-mono text-sm text-foreground">
+                      {discountCurve.effective_date}
+                    </div>
+                  </div>
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-3">
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      Request Mode
+                    </div>
+                    <div className="mt-2 text-sm font-medium text-foreground">
+                      {discountCurve.request_mode}
+                    </div>
+                  </div>
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-3">
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      Binding
+                    </div>
+                    <div className="mt-2 text-sm font-medium text-foreground">
+                      {discountCurve.binding.storage_table_identifier}
+                    </div>
+                  </div>
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-3">
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      Nodes
+                    </div>
+                    <div className="mt-2 text-sm font-medium text-foreground">
+                      {discountCurve.nodes.length.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {!discountCurveQuery.isLoading && !discountCurveQuery.isError ? (
+                <div className="h-[420px]">
+                  <ZeroCurveChartSurface
+                    series={discountCurveSeries}
+                    emptyDescription="The selected discount-curve response did not return any parsable nodes."
+                  />
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        </>
+      ) : null}
+
+      {selectedTabId === "selections" ? (
+        <CurveSelectionsSection
+          count={curveSelectionCount}
+          error={curveSelectionsQuery.isError ? curveSelectionsQuery.error : null}
+          isLoading={curveSelectionsQuery.isLoading}
+          selections={curveSelections}
+        />
+      ) : null}
     </div>
   );
 }

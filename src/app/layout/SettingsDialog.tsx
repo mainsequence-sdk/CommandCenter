@@ -2214,6 +2214,14 @@ export function SettingsDialog({
                 label={t("settingsDialog.email")}
                 value={user?.email ?? t("common.unavailable")}
               />
+              <SettingsRow
+                label="UID"
+                value={
+                  <span className="block break-all font-mono text-xs">
+                    {user?.uid ?? t("common.unavailable")}
+                  </span>
+                }
+              />
               {hasTeamsValue ? (
                 <SettingsRow
                   label={t("settingsDialog.team")}

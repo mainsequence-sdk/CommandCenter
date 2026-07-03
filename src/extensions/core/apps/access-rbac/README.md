@@ -20,6 +20,9 @@ Notable behavior:
 
 - Access & RBAC is organization-admin-facing. It no longer shares the same access gate as the
   platform-only `Admin Settings` modal.
+- Access & RBAC is a first-class primary navigation app gated by `org_admin:view`. Do not park it
+  behind the legacy `admin-menu` placement; organization admin settings live under the unified
+  Settings app, while RBAC needs its own visible shell entry.
 - The conceptual RBAC overview now lives in the Documentation app under
   `Organization Admin -> RBAC`. The legacy `/app/access-rbac/overview` route is retained only as a
   redirect, and `Overview` is no longer part of the normal Access & RBAC navigation.

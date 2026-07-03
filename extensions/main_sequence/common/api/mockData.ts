@@ -1097,7 +1097,6 @@ function buildMockPricingCurves() {
       unique_identifier: "USD-SOFR-3M-DISCOUNT",
       display_name: "USD SOFR 3M Discount Curve",
       curve_type: "discount",
-      index_uid: "mock-index-usd-sofr-3m",
       interpolation_method: "log_linear_discount",
       compounding: "compounded_annual",
       source: "mock",
@@ -1108,7 +1107,6 @@ function buildMockPricingCurves() {
       unique_identifier: "EUR-ESTR-OIS-DISCOUNT",
       display_name: "EUR ESTR OIS Discount Curve",
       curve_type: "discount",
-      index_uid: "mock-index-eur-estr",
       interpolation_method: "linear_zero",
       compounding: "continuous",
       source: "mock",
@@ -1159,12 +1157,6 @@ function buildPricingCurveSummary(curveUid: string) {
         value: curve.unique_identifier,
         kind: "code",
       },
-      {
-        key: "index_uid",
-        label: "Index UID",
-        value: curve.index_uid,
-        kind: "code",
-      },
     ],
     highlight_fields: [
       {
@@ -1198,8 +1190,54 @@ function buildPricingCurveSummary(curveUid: string) {
     summary_warning: null,
     extensions: {
       detail_url: `/api/v1/pricing/curves/${curve.uid}/`,
+      curve_selection_count: 1,
+      curve_selections_url: `/api/v1/pricing/curves/${curve.uid}/curve-selections/`,
       metadata_json: curve.metadata_json,
     },
+  };
+}
+
+function buildMockPricingCurveSelections(curveUid: string) {
+  const curve = buildMockPricingCurves().find((row) => row.uid === curveUid);
+
+  if (!curve) {
+    throw new Error(`Mock pricing curve ${curveUid} was not found.`);
+  }
+
+  const isUsdCurve = curve.uid.includes("usd");
+  const selectorKey = isUsdCurve ? "mock-index-usd-sofr-3m" : "mock-index-eur-estr";
+  const selectorIdentifier = isUsdCurve ? "USD-SOFR" : "EUR-ESTR";
+  const marketDataSet = buildMockPricingMarketDataSets()[0]!;
+
+  return {
+    curve: {
+      uid: curve.uid,
+      unique_identifier: curve.unique_identifier,
+      display_name: curve.display_name,
+      curve_type: curve.curve_type,
+    },
+    count: 1,
+    results: [
+      {
+        binding_uid: `mock-curve-selection-binding-${curve.uid}`,
+        market_data_set: {
+          uid: marketDataSet.uid,
+          set_key: marketDataSet.set_key,
+          display_name: marketDataSet.display_name,
+        },
+        role_key: "z_spread_base",
+        quote_side: "offer",
+        selector: {
+          type: "index",
+          selector_key: selectorKey,
+          index_uid: selectorKey,
+          index_identifier: selectorIdentifier,
+          display_name: selectorIdentifier,
+        },
+        status: "ACTIVE",
+        source: curve.source,
+      },
+    ],
   };
 }
 
@@ -1305,15 +1343,10 @@ function filterMockPricingMarketDataSets(searchParams: URLSearchParams) {
 function filterMockPricingCurves(searchParams: URLSearchParams) {
   const search = searchParams.get("search");
   const curveType = searchParams.get("curve_type");
-  const indexUid = searchParams.get("index_uid");
   const source = searchParams.get("source");
 
   return buildMockPricingCurves().filter((curve) => {
     if (curveType && curve.curve_type !== curveType) {
-      return false;
-    }
-
-    if (indexUid && curve.index_uid !== indexUid) {
       return false;
     }
 
@@ -2311,6 +2344,14 @@ function handlePricingCurves(route: string, method: string, searchParams: URLSea
 
   if (summaryMatch && method === "GET") {
     return buildPricingCurveSummary(decodeURIComponent(summaryMatch[1] ?? ""));
+  }
+
+  const curveSelectionsMatch = route.match(
+    /^\/api\/v1\/pricing\/curves\/([^/]+)\/curve-selections\/$/,
+  );
+
+  if (curveSelectionsMatch && method === "GET") {
+    return buildMockPricingCurveSelections(decodeURIComponent(curveSelectionsMatch[1] ?? ""));
   }
 
   const discountCurveMatch = route.match(/^\/api\/v1\/pricing\/curves\/([^/]+)\/discount-curve\/$/);
@@ -4549,6 +4590,30 @@ function handleSimpleTables(route: string, method: string, searchParams: URLSear
     state.simpleTables = state.simpleTables.filter((table) => !uids.has(readString(table.uid)));
     return {
       deleted_count: before - state.simpleTables.length,
+    };
+  }
+
+  if (route === "/orm/api/ts_manager/meta_table/bulk-clear-data/" && method === "POST") {
+    const body = parseBody(init);
+
+    if (body?.confirm_clear_data !== true) {
+      throw new Error("confirm_clear_data must be true.");
+    }
+
+    const selectAll = readBoolean(body?.select_all);
+    const uids = new Set(
+      readArray<string>(body?.uids).concat(readArray<string>(body?.selected_uids)),
+    );
+    const clearedCount = selectAll
+      ? state.simpleTables.length
+      : state.simpleTables.filter((table) => uids.has(readString(table.uid))).length;
+
+    return {
+      detail: "Cleared MetaTable data in mock mode.",
+      cleared_count: clearedCount,
+      selected_count: clearedCount,
+      select_all: selectAll,
+      override_protection: readBoolean(body?.override_protection),
     };
   }
 

@@ -49,18 +49,20 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Put source-owned display defaults on the incoming `core.tabular_frame@v1` value under
   `meta.tableVisuals.columns`. Each key must match a field in `columns`, a row property, or a
   formula display column key. The supported source metadata fields are `label`, `format`,
-  `decimals`, `visible`, `width`, `thresholds`, `colorScale`, `range`, `heatmap`, `barMode`,
-  `gradientMode`, `heatmapPalette`, `gaugeMode`, `visualRangeMode`, `visualMin`, `visualMax`,
-  `kind`, `encoding`, `order`, `formulaExpression`, and `formulaResultFormat`.
+  `dateTimeInputFormat`, `dateTimeOutputFormat`, `decimals`, `visible`, `width`, `thresholds`,
+  `colorScale`, `range`, `heatmap`, `barMode`, `gradientMode`, `heatmapPalette`, `gaugeMode`,
+  `visualRangeMode`, `visualMin`, `visualMax`, `kind`, `encoding`, `order`,
+  `formulaExpression`, and `formulaResultFormat`.
 - Example source formatting metadata:
 
   ```json
   {
     "status": "ready",
-    "columns": ["symbol", "last_price", "previous_close", "pnl"],
+    "columns": ["symbol", "event_time", "last_price", "previous_close", "pnl"],
     "rows": [
       {
         "symbol": "BTC",
+        "event_time": "26/04/2026 10:21:02.203",
         "last_price": 109420.12,
         "previous_close": 107980,
         "pnl": -1250
@@ -72,6 +74,13 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
           "symbol": {
             "label": "Symbol",
             "width": 120
+          },
+          "event_time": {
+            "label": "Event time",
+            "format": "datetime",
+            "dateTimeInputFormat": "dd/MM/yyyy HH:mm:ss.SSS",
+            "dateTimeOutputFormat": "yyyy-MM-dd HH:mm:ss.SSS",
+            "width": 190
           },
           "last_price": {
             "label": "Last",
@@ -110,9 +119,11 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
   }
   ```
 
-- Source metadata `format` accepts `number`, `price`, `percent`, `volume`, `currency`, or
-  `formula`. `price` and `volume` are accepted source aliases and render through the table's numeric
-  formatting path; `volume` also requests compact numeric display.
+- Source metadata `format` accepts `number`, `price`, `percent`, `volume`, `currency`,
+  `datetime`, or `formula`. `price` and `volume` are accepted source aliases and render through the
+  table's numeric formatting path; `volume` also requests compact numeric display. `datetime`
+  renders through the Date/time path and can use source-owned `dateTimeInputFormat` and
+  `dateTimeOutputFormat`.
 - Source frames can propose formula display columns through `meta.tableVisuals.columns` by setting
   `format: "formula"`, `formulaExpression`, and `formulaResultFormat`. Include any raw input fields
   the expression references in the frame and set `visible: false` on those input columns when they
@@ -145,6 +156,8 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
 - Use `Quick filter` when users need one global search box across rendered rows. Turn it off for denser table embeds.
 - Use `Column filters` when users need searchable per-column filter controls in the table header.
 - Use the `Date/time` column format for epoch timestamps or date strings that should be rendered as readable dates. Auto parsing handles ISO-like strings plus epoch seconds, milliseconds, microseconds, and nanoseconds. Set `Input format` only when auto parsing is ambiguous; set `Output format` to control the rendered text.
+- Source frames can set `meta.tableVisuals.columns.<key>.format` to `datetime` and optionally pass
+  `dateTimeInputFormat` and `dateTimeOutputFormat` for source-owned Date/time defaults.
 - Date/time pattern tokens include `yyyy`, `yy`, `MM`, `M`, `dd`, `d`, `HH`, `H`, `hh`, `h`, `mm`, `m`, `ss`, `s`, `SSS`, and `a`. Example: input `dd/MM/yyyy HH:mm:ss` and output `yyyy-MM-dd HH:mm:ss`.
 - Bind downstream widgets to the table `dataset` output when they should consume the same canonical tabular frame.
 - To compose dashboards from table interaction, enable `Selection outputs`, choose single-row,
@@ -210,8 +223,7 @@ Formatted table for a bound `core.tabular_frame@v1` dataset, a widget-owned hidd
   the settings status card before debugging schema or formatting rules.
 - Formatting is presentation-only. Hiding a column, applying a prefix, or adding a heatmap does not modify the published table `dataset` output.
 - `meta.tableVisuals` is source-owned defaults, not a full replacement for widget settings. Prefix,
-  suffix, alignment, pinning, and Date/time input/output patterns are local widget settings unless
-  the table source metadata contract is extended.
+  suffix, alignment, and pinning remain local widget settings.
 - Changing the upstream transform can change the output columns. Reset columns from the current frame when the saved column schema no longer matches the incoming row shape.
 - Prefix and suffix are literal display text. Do not use them to convert units or change numeric scale upstream.
 - Date/time formatting is presentation-only. It does not convert the published `dataset` output values for downstream widgets.
@@ -258,10 +270,10 @@ breaking the existing Community widget.
 - Configure labels, formats, grouping, search, filters, pagination, and selection outputs through
   the same shared settings surface.
 - Source-owned display defaults use the same `meta.tableVisuals.columns` block as `table`. Put
-  source labels, `format`, `decimals`, `visible`, `width`, thresholds, heatmap/data-bar/ring-gauge
-  controls, and formula display-column metadata there when the upstream frame should propose the
-  initial table presentation. Local widget edits still override those source defaults field by
-  field.
+  source labels, `format`, Date/time input/output formats, `decimals`, `visible`, `width`,
+  thresholds, heatmap/data-bar/ring-gauge controls, and formula display-column metadata there when
+  the upstream frame should propose the initial table presentation. Local widget edits still
+  override those source defaults field by field.
 - `Formulas` is enabled by default on `pro-table`. Mark a column as `Formula`, then author one
   expression in that column's `Advanced` section.
 - Wrap field names in brackets. Use arithmetic such as `([last_price] - [open]) / [open] * 100`

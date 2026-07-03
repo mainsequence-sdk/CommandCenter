@@ -25,7 +25,9 @@ data-node metadata and remote rows.
   semantics as core tabular consumers.
 - `widgetBindings.ts`: shared binding ids for Data Node-family composition.
 - `DataNodePreviewTable.tsx`: reusable simple table preview used inside settings flows that inspect
-  fetched data-node rows without mounting the full table formatter widget.
+  fetched data-node rows without mounting the full table formatter widget. Callers can opt into
+  `maxCellCharacters` when previews may contain massive JSON/text values that should not expand the
+  layout.
 - `DataNodeFieldSchemaInspector.tsx`: reusable modal-driven schema inspector used by Data Node
   widgets to show the resolved field contract, provenance, warnings, and representative sample
   values without dumping long schema tables inline into settings pages.

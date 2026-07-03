@@ -18,9 +18,15 @@ import {
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
-import { MainSequencePricingCurveDetailView } from "./MainSequencePricingCurveDetailView";
+import {
+  defaultPricingCurveDetailTabId,
+  isPricingCurveDetailTabId,
+  MainSequencePricingCurveDetailView,
+  type PricingCurveDetailTabId,
+} from "./MainSequencePricingCurveDetailView";
 
 const mainSequencePricingCurveUidParam = "msPricingCurveUid";
+const mainSequencePricingCurveTabParam = "msPricingCurveTab";
 const mainSequencePricingCurveDateParam = "msPricingCurveDate";
 const mainSequencePricingCurveMarketDataSetUidParam = "msPricingMarketDataSetUid";
 
@@ -85,12 +91,11 @@ function PricingCurvesTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[1160px] border-separate border-spacing-y-2 text-sm">
+      <table className="w-full min-w-[1040px] border-separate border-spacing-y-2 text-sm">
         <thead>
           <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             <th className="px-4 pb-2">Curve</th>
             <th className="px-4 pb-2">Type</th>
-            <th className="px-4 pb-2">Index UID</th>
             <th className="px-4 pb-2">Interpolation</th>
             <th className="px-4 pb-2">Compounding</th>
             <th className="px-4 pb-2">Source</th>
@@ -124,11 +129,6 @@ function PricingCurvesTable({
                 <Badge variant="neutral">{formatText(row.curve_type)}</Badge>
               </td>
               <td className={getRegistryTableCellClassName(false)}>
-                <div className="max-w-56 truncate font-mono text-xs">
-                  {formatText(row.index_uid)}
-                </div>
-              </td>
-              <td className={getRegistryTableCellClassName(false)}>
                 <div className="font-mono text-xs">{formatText(row.interpolation_method)}</div>
               </td>
               <td className={getRegistryTableCellClassName(false)}>
@@ -158,6 +158,10 @@ export function MainSequencePricingCurvesPage() {
   const searchValue = searchParams.get("search") ?? "";
   const selectedCurveUid =
     searchParams.get(mainSequencePricingCurveUidParam)?.trim() || null;
+  const requestedCurveTabId = searchParams.get(mainSequencePricingCurveTabParam);
+  const selectedCurveTabId = isPricingCurveDetailTabId(requestedCurveTabId)
+    ? requestedCurveTabId
+    : defaultPricingCurveDetailTabId;
   const selectedCurveDate =
     searchParams.get(mainSequencePricingCurveDateParam)?.trim() || "";
   const selectedMarketDataSetUid =
@@ -222,14 +226,22 @@ export function MainSequencePricingCurvesPage() {
   function openCurveDetail(curve: PricingCurveRow) {
     updateSearchParams((nextParams) => {
       nextParams.set(mainSequencePricingCurveUidParam, curve.uid);
+      nextParams.set(mainSequencePricingCurveTabParam, defaultPricingCurveDetailTabId);
     });
   }
 
   function closeCurveDetail() {
     updateSearchParams((nextParams) => {
       nextParams.delete(mainSequencePricingCurveUidParam);
+      nextParams.delete(mainSequencePricingCurveTabParam);
       nextParams.delete(mainSequencePricingCurveDateParam);
       nextParams.delete(mainSequencePricingCurveMarketDataSetUidParam);
+    });
+  }
+
+  function selectCurveDetailTab(tabId: PricingCurveDetailTabId) {
+    updateSearchParams((nextParams) => {
+      nextParams.set(mainSequencePricingCurveTabParam, tabId);
     });
   }
 
@@ -260,6 +272,7 @@ export function MainSequencePricingCurvesPage() {
         initialCurve={selectedCurveFromList}
         onBack={closeCurveDetail}
         onResetContext={resetCurveDetailContext}
+        onSelectTab={selectCurveDetailTab}
         onSelectCurveDate={(value) =>
           updateCurveDetailContext(mainSequencePricingCurveDateParam, value)
         }
@@ -267,6 +280,7 @@ export function MainSequencePricingCurvesPage() {
           updateCurveDetailContext(mainSequencePricingCurveMarketDataSetUidParam, value)
         }
         selectedMarketDataSetUid={selectedMarketDataSetUid}
+        selectedTabId={selectedCurveTabId}
       />
     );
   }

@@ -813,7 +813,7 @@ export const accessRbacApp: AppDefinition = {
   description: "Organization access governance for policy review, assignments, inspection, and entitlement coverage.",
   source: "core",
   icon: KeyRound,
-  navigationPlacement: "admin-menu",
+  navigationOrder: 900,
   topNavigationStyle: "hidden",
   requiredPermissions: ["org_admin:view"],
   defaultSurfaceId: "policies",

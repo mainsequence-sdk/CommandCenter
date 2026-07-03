@@ -14,6 +14,7 @@ import { MainSequenceRegistrySearch } from "../../../../common/components/MainSe
 import { DataNodePreviewTable } from "../../widgets/data-node-shared/DataNodePreviewTable";
 
 const snapshotRowLimit = 100;
+const snapshotMaxCellCharacters = 320;
 
 function buildSnapshotSearchText(row: Record<string, unknown>, columns: string[]) {
   return columns
@@ -104,6 +105,7 @@ export function MainSequenceMetaTableSnapshotTab({
           <DataNodePreviewTable
             columns={snapshotColumns}
             rows={filteredRows}
+            maxCellCharacters={snapshotMaxCellCharacters}
             maxRows={snapshotRowLimit}
             emptyMessage="No snapshot rows are available for this meta table."
           />

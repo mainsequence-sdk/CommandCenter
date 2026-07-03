@@ -44,7 +44,13 @@
   `response_format=frontend_detail`, render `/summary/` through the shared summary card, and load
   `/get_pricing_details/` only for the pricing-details tab.
 - `listPricingCurves(...)` calls `/api/v1/pricing/curves/` with `limit`, `offset`, `search`,
-  then normalizes the standard paginated response for the Pricing Curves registry surface.
+  `curve_type`, and `source`, then normalizes the standard paginated response for the Pricing
+  Curves registry surface. It does not send `index_uid`; curve-to-index usage is owned by market
+  data curve-selection bindings.
+- `fetchPricingCurveSelections(...)` calls
+  `/api/v1/pricing/curves/{uid}/curve-selections/` and returns the market-data set bindings that
+  select the curve. `selector.index_uid` is selector metadata for the binding, not a curve-owned
+  field.
 - `fetchPricingCurveDiscountCurve(...)` calls
   `/api/v1/pricing/curves/{uid}/discount-curve/` with required `market_data_set` and optional
   `valuation_date`, and returns the typed discount-curve response used by the Pricing Curve detail

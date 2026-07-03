@@ -6,7 +6,7 @@ import { communityTableEditionCapabilities } from "./tableVariant";
 
 export const tableWidget = buildTableWidgetDefinition({
   widgetId: CORE_TABLE_WIDGET_ID,
-  widgetVersion: "3.6.3",
+  widgetVersion: "3.6.4",
   title: "Table",
   edition: "community",
   capabilities: communityTableEditionCapabilities,

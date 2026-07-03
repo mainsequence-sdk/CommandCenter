@@ -7,9 +7,9 @@ import {
   ChevronDown,
   CircleUserRound,
   CreditCard,
-  Folder,
   Github,
   KeyRound,
+  LineChart,
   ReceiptText,
   Settings2,
   ShieldCheck,
@@ -61,6 +61,7 @@ interface SettingsRouteDefinition {
   icon: ComponentType<{ className?: string }>;
   applicationId?: string;
   applicationLabel?: string;
+  applicationIcon?: ComponentType<{ className?: string }>;
   requiredPermissions?: string[];
   adminScope?: "organization" | "platform";
   render: (context: SettingsRouteContext) => ReactNode;
@@ -77,6 +78,7 @@ interface SettingsGroupDefinition {
 interface ApplicationRouteGroup {
   key: string;
   label?: string;
+  icon?: ComponentType<{ className?: string }>;
   routes: SettingsRouteDefinition[];
   firstIndex: number;
 }
@@ -195,6 +197,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       icon: entry.icon ?? entry.appIcon,
       applicationId: entry.appId,
       applicationLabel: entry.appTitle,
+      applicationIcon: entry.appIcon,
       requiredPermissions: entry.requiredPermissions,
       render: ({ user }) => settingsContributionPage(entry, user),
     }));
@@ -315,11 +318,14 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
     },
     {
       path: "applications/main-sequence-markets",
-      label: "Main Sequence Markets",
+      label: "Market Data Connection",
       title: "Main Sequence Markets",
       description: "Select the Adapter From API connection used by Main Sequence Markets.",
       groupId: "applications",
       icon: AppWindow,
+      applicationId: "main_sequence_markets",
+      applicationLabel: "Main Sequence Markets",
+      applicationIcon: LineChart,
       adminScope: "organization",
       requiredPermissions: ["org_admin:view"],
       render: () => <AdminMainSequenceMarketsPage />,
@@ -520,6 +526,7 @@ function groupApplicationRoutes(routes: SettingsRouteDefinition[]) {
     groupedRoutes.set(key, {
       key,
       label: route.applicationLabel,
+      icon: route.applicationIcon,
       routes: [route],
       firstIndex: index,
     });
@@ -593,7 +600,7 @@ export function SettingsPage() {
           navigate(getSettingsPath(route.path));
         }}
       >
-        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        {options.nested ? null : <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
         <span className="min-w-0 flex-1 truncate">{route.label}</span>
         {route.adminScope ? (
           <Badge
@@ -678,6 +685,8 @@ export function SettingsPage() {
                       <div className="mt-1 space-y-0.5 pl-2">
                         {group.id === "applications"
                           ? groupApplicationRoutes(group.routes).map((applicationGroup) => {
+                              const ApplicationIcon = applicationGroup.icon ?? AppWindow;
+
                               if (!applicationGroup.label) {
                                 return applicationGroup.routes.map((route) => renderRouteButton(route));
                               }
@@ -685,7 +694,7 @@ export function SettingsPage() {
                               return (
                                 <div key={applicationGroup.key} className="space-y-0.5">
                                   <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70">
-                                    <Folder className="h-3.5 w-3.5 shrink-0" />
+                                    <ApplicationIcon className="h-3.5 w-3.5 shrink-0" />
                                     <span className="min-w-0 truncate">{applicationGroup.label}</span>
                                   </div>
                                   {applicationGroup.routes.map((route) =>

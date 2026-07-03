@@ -738,7 +738,6 @@ export interface PricingCurveRow extends Record<string, unknown> {
   unique_identifier: string;
   display_name: string;
   curve_type: string;
-  index_uid: string | null;
   interpolation_method: string | null;
   compounding: string | null;
   source: string | null;
@@ -750,7 +749,6 @@ export interface PricingCurveFilters {
   offset?: number;
   search?: string;
   curveType?: string;
-  indexUid?: string;
   source?: string;
 }
 
@@ -787,6 +785,43 @@ export interface PricingCurveDiscountCurveResponse {
   effective_date: string;
   request_mode: string;
   nodes: PricingCurveDiscountCurveNode[];
+}
+
+export interface PricingCurveSelectionCurve {
+  uid: string;
+  unique_identifier: string;
+  display_name: string;
+  curve_type: string;
+}
+
+export interface PricingCurveSelectionMarketDataSet {
+  uid: string;
+  set_key: string;
+  display_name: string;
+}
+
+export interface PricingCurveSelectionSelector {
+  type: string;
+  selector_key: string;
+  index_uid?: string | null;
+  index_identifier?: string | null;
+  display_name?: string | null;
+}
+
+export interface PricingCurveSelectionRow {
+  binding_uid: string;
+  market_data_set: PricingCurveSelectionMarketDataSet;
+  role_key: string;
+  quote_side: string;
+  selector: PricingCurveSelectionSelector;
+  status: string;
+  source: string | null;
+}
+
+export interface PricingCurveSelectionsResponse {
+  curve: PricingCurveSelectionCurve;
+  count: number;
+  results: PricingCurveSelectionRow[];
 }
 
 export interface AssetCategoryListRow {
@@ -2052,6 +2087,21 @@ export interface MetaTableDetail extends MetaTableRecord {
 
 export interface MetaTableBulkDeleteInput {
   uids: string[];
+}
+
+export interface MetaTableBulkClearDataInput {
+  uids?: string[];
+  selectedUids?: string[];
+  selectAll?: boolean;
+  overrideProtection?: boolean;
+}
+
+export interface MetaTableBulkClearDataResponse {
+  detail?: string;
+  cleared_count?: number;
+  affected_count?: number;
+  selected_count?: number;
+  [key: string]: unknown;
 }
 
 export interface MetaTableDeleteWithCascadeInput {
@@ -5355,7 +5405,6 @@ function buildPricingCurveSearch({
   offset = 0,
   search,
   curveType,
-  indexUid,
   source,
 }: PricingCurveFilters = {}) {
   return {
@@ -5363,7 +5412,6 @@ function buildPricingCurveSearch({
     offset,
     search: search?.trim() || undefined,
     curve_type: curveType?.trim() || undefined,
-    index_uid: indexUid?.trim() || undefined,
     source: source?.trim() || undefined,
   } satisfies Record<string, QueryValue>;
 }
@@ -5385,6 +5433,13 @@ export function fetchPricingCurveSummary(curveUid: string) {
   return requestJson<EntitySummaryHeader>(
     pricingCurvesEndpoint,
     `${resolveMainSequenceUidPath(curveUid, "pricing curve")}/summary/`,
+  );
+}
+
+export function fetchPricingCurveSelections(curveUid: string) {
+  return requestJson<PricingCurveSelectionsResponse>(
+    pricingCurvesEndpoint,
+    `${resolveMainSequenceUidPath(curveUid, "pricing curve")}/curve-selections/`,
   );
 }
 
@@ -7864,6 +7919,39 @@ export function bulkDeleteMetaTables({
     {
       method: "POST",
       body: JSON.stringify({ uids }),
+    },
+  );
+}
+
+export function bulkClearMetaTableData(input: MetaTableBulkClearDataInput) {
+  const uids = input.uids?.map((uid) => uid.trim()).filter(Boolean) ?? [];
+  const selectedUids = input.selectedUids?.map((uid) => uid.trim()).filter(Boolean) ?? [];
+  const body: Record<string, unknown> = {
+    confirm_clear_data: true,
+  };
+
+  if (uids.length > 0) {
+    body.uids = uids;
+  }
+
+  if (selectedUids.length > 0) {
+    body.selected_uids = selectedUids;
+  }
+
+  if (input.selectAll === true) {
+    body.select_all = true;
+  }
+
+  if (input.overrideProtection === true) {
+    body.override_protection = true;
+  }
+
+  return requestJson<MetaTableBulkClearDataResponse>(
+    metaTableEndpoint,
+    "bulk-clear-data/",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
     },
   );
 }

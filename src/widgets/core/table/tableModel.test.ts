@@ -567,6 +567,62 @@ describe("table widget table controls", () => {
     expect(resolved.schema.some((column) => column.key === "one_day_return")).toBe(false);
   });
 
+  it("accepts datetime as a source table visual format", () => {
+    const frameInput = buildTableWidgetFrameFromRemoteData(
+      null,
+      [
+        {
+          event_time: "26/04/2026 10:21:02.203",
+          price: 109420.12,
+        },
+      ],
+      ["event_time", "price"],
+      [],
+      {
+        tableVisuals: {
+          columns: {
+            event_time: {
+              label: "Event time",
+              format: "datetime",
+              dateTimeInputFormat: "dd/MM/yyyy HH:mm:ss.SSS",
+              dateTimeOutputFormat: "yyyy-MM-dd HH:mm:ss.SSS",
+            },
+            price: {
+              label: "Price",
+              format: "price",
+              decimals: 2,
+            },
+          },
+        },
+      },
+    );
+
+    const resolved = resolveTableWidgetPropsWithFrame({}, frameInput);
+    const columns = resolveTableWidgetColumns(resolved);
+    const eventTimeColumn = columns.find((column) => column.key === "event_time");
+
+    expect(resolved.schema.find((column) => column.key === "event_time")).toMatchObject({
+      label: "Event time",
+      format: "datetime",
+      dateTimeInputFormat: "dd/MM/yyyy HH:mm:ss.SSS",
+      dateTimeOutputFormat: "yyyy-MM-dd HH:mm:ss.SSS",
+    });
+    expect(resolved.columnOverrides.event_time).toMatchObject({
+      dateTimeInputFormat: "dd/MM/yyyy HH:mm:ss.SSS",
+      dateTimeOutputFormat: "yyyy-MM-dd HH:mm:ss.SSS",
+    });
+    expect(eventTimeColumn).toMatchObject({
+      format: "datetime",
+      dateTimeInputFormat: "dd/MM/yyyy HH:mm:ss.SSS",
+      dateTimeOutputFormat: "yyyy-MM-dd HH:mm:ss.SSS",
+    });
+    expect(
+      eventTimeColumn
+        ? formatTableWidgetValue("26/04/2026 10:21:02.203", eventTimeColumn)
+        : null,
+    ).toBe("2026-04-26 10:21:02.203");
+  });
+
   it("accepts source-declared formula columns from table visual metadata", () => {
     const frameInput = buildTableWidgetFrameFromRemoteData(
       null,

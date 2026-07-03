@@ -23,6 +23,7 @@ import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toaster";
 
 import {
+  bulkClearMetaTableData,
   bulkDeleteMetaTablesWithCascade,
   bulkDeleteMetaTables,
   bulkRefreshMetaTableSearchIndex,
@@ -41,6 +42,7 @@ import {
   type MainSequenceNamespaceOptionRecord,
   type MetaTableDetail,
   type MetaTableDeleteWithCascadeResponse,
+  type MetaTableBulkClearDataResponse,
   type MetaTableSyncFromPhysicalResponse,
   type MetaTableRecord,
 } from "../../../../common/api";
@@ -69,6 +71,7 @@ const allNamespacesOptionValue = "__all__";
 type MetaTableActionKind =
   | "delete"
   | "delete-with-cascade"
+  | "clear-data"
   | "refresh-search-index"
   | "sync-from-physical";
 
@@ -445,6 +448,7 @@ export function MainSequenceMetaTablesPage() {
   );
   const [metaTablesPageIndex, setMetaTablesPageIndex] = useState(0);
   const [actionRequest, setActionRequest] = useState<MetaTableActionRequest | null>(null);
+  const [clearDataOverrideProtection, setClearDataOverrideProtection] = useState(false);
   const deferredFilterValue = useDeferredValue(filterValue);
   const selectedMetaTableIdentifier =
     searchParams.get(mainSequenceMetaTableIdParam)?.trim() || null;
@@ -615,6 +619,11 @@ export function MainSequenceMetaTablesPage() {
             uids,
             confirm_cascade_delete: true,
           });
+        case "clear-data":
+          return bulkClearMetaTableData({
+            uids,
+            overrideProtection: clearDataOverrideProtection,
+          });
         case "refresh-search-index":
           return bulkRefreshMetaTableSearchIndex(uids);
         case "sync-from-physical":
@@ -673,6 +682,29 @@ export function MainSequenceMetaTablesPage() {
               ? syncResult.detail.trim()
               : `${request.tables[0] ? getPrimaryLabel(request.tables[0]) : "MetaTable"} was synced from the physical table.`,
         });
+      } else if (request.kind === "clear-data") {
+        const clearDataResult =
+          result && typeof result === "object"
+            ? (result as MetaTableBulkClearDataResponse)
+            : null;
+        const clearedCount =
+          Number(clearDataResult?.cleared_count) ||
+          Number(clearDataResult?.affected_count) ||
+          Number(clearDataResult?.selected_count) ||
+          request.tables.length;
+
+        await queryClient.invalidateQueries({
+          queryKey: ["main_sequence", "meta_tables", "snapshot"],
+        });
+
+        toast({
+          variant: "success",
+          title: "Meta table data cleared",
+          description:
+            typeof clearDataResult?.detail === "string" && clearDataResult.detail.trim()
+              ? clearDataResult.detail.trim()
+              : `Data cleared for ${clearedCount} meta table${clearedCount === 1 ? "" : "s"}.`,
+        });
       } else if (request.kind === "delete-with-cascade") {
         const cascadeResult =
           result && typeof result === "object"
@@ -727,6 +759,8 @@ export function MainSequenceMetaTablesPage() {
         title:
           actionRequest?.kind === "refresh-search-index"
             ? "Search index refresh failed"
+            : actionRequest?.kind === "clear-data"
+              ? "Clear data failed"
             : actionRequest?.kind === "sync-from-physical"
               ? "Sync from physical failed"
             : "Meta table action failed",
@@ -779,6 +813,7 @@ export function MainSequenceMetaTablesPage() {
     }
 
     actionMutation.reset();
+    setClearDataOverrideProtection(false);
     setActionRequest({
       kind,
       tables,
@@ -820,6 +855,13 @@ export function MainSequenceMetaTablesPage() {
             onSelect: () => openBulkAction("delete-with-cascade"),
           },
           {
+            id: "clear-meta-table-data",
+            label: "Clear data",
+            icon: Trash2,
+            tone: "danger" as const,
+            onSelect: () => openBulkAction("clear-data"),
+          },
+          {
             id: "refresh-table-search-index",
             label: "Refresh table search index",
             tone: "primary" as const,
@@ -853,6 +895,35 @@ export function MainSequenceMetaTablesPage() {
           specialText:
             "This will recursively delete referencing MetaTables and Data Nodes, and it will drop platform-managed physical tables.",
         };
+      case "clear-data":
+        return {
+          title: "Clear MetaTable data",
+          actionLabel: "clear data",
+          confirmButtonLabel: "Clear data",
+          confirmWord: "CLEAR DATA",
+          tone: "danger" as const,
+          specialText: (
+            <div className="space-y-3">
+              <div>
+                This will clear physical data for the selected MetaTables. The MetaTable
+                registrations remain, but the stored table data is removed.
+              </div>
+              <label className="flex items-start gap-3 rounded-[calc(var(--radius)-8px)] border border-danger/25 bg-danger/10 px-3 py-2">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 accent-danger"
+                  checked={clearDataOverrideProtection}
+                  onChange={(event) => setClearDataOverrideProtection(event.target.checked)}
+                />
+                <span>
+                  Override protected-table storage guard. This sends{" "}
+                  <span className="font-mono">override_protection=true</span>; the backend still
+                  allows it only for organization admins.
+                </span>
+              </label>
+            </div>
+          ),
+        };
       case "sync-from-physical":
         return {
           title: "Sync from physical",
@@ -873,7 +944,7 @@ export function MainSequenceMetaTablesPage() {
           specialText: "This will refresh the table search index",
         };
     }
-  }, [actionRequest]);
+  }, [actionRequest, clearDataOverrideProtection]);
 
   const bulkActionObjectSummary = useMemo(() => {
     if (!actionRequest) {
@@ -1694,6 +1765,7 @@ export function MainSequenceMetaTablesPage() {
           onClose={() => {
             if (!actionMutation.isPending) {
               setActionRequest(null);
+              setClearDataOverrideProtection(false);
             }
           }}
           tone={bulkActionConfig.tone}
@@ -1704,6 +1776,8 @@ export function MainSequenceMetaTablesPage() {
           description={
             actionRequest.kind === "refresh-search-index"
               ? "This action refreshes the search index for the selected meta tables."
+              : actionRequest.kind === "clear-data"
+                ? "This action clears data for the selected meta tables without deleting the MetaTable registrations."
               : actionRequest.kind === "sync-from-physical"
                 ? "This action syncs the selected MetaTable projection from the backing physical table."
               : actionRequest.kind === "delete-with-cascade"

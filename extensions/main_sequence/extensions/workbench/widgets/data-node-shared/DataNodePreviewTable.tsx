@@ -25,16 +25,26 @@ function formatPreviewValue(value: unknown) {
   }
 }
 
+function cropPreviewValue(value: string, maxCharacters?: number) {
+  if (!maxCharacters || maxCharacters < 1 || value.length <= maxCharacters) {
+    return value;
+  }
+
+  return `${value.slice(0, maxCharacters)}…`;
+}
+
 export function DataNodePreviewTable({
   className,
   columns,
   emptyMessage = "No records are available for the selected period.",
+  maxCellCharacters,
   maxRows = 20,
   rows,
 }: {
   className?: string;
   columns: string[];
   emptyMessage?: string;
+  maxCellCharacters?: number;
   maxRows?: number;
   rows: DataNodeRemoteDataRow[];
 }) {
@@ -77,17 +87,32 @@ export function DataNodePreviewTable({
         <tbody>
           {displayedRows.map((row, rowIndex) => (
             <tr key={`${rowIndex}-${columns.map((column) => String(row[column] ?? "")).join("|")}`}>
-              {columns.map((column, columnIndex) => (
-                <td
-                  key={`${rowIndex}-${column}`}
-                  className={cn(
-                    "border-b border-border/50 px-2.5 py-[var(--table-compact-cell-padding-y)] align-top text-foreground",
-                    columnIndex === 0 ? "font-mono text-[11px]" : "text-[11px]",
-                  )}
-                >
-                  {formatPreviewValue(row[column])}
-                </td>
-              ))}
+              {columns.map((column, columnIndex) => {
+                const formattedValue = formatPreviewValue(row[column]);
+                const displayValue = cropPreviewValue(formattedValue, maxCellCharacters);
+                const isCropped = displayValue !== formattedValue;
+
+                return (
+                  <td
+                    key={`${rowIndex}-${column}`}
+                    className={cn(
+                      "border-b border-border/50 px-2.5 py-[var(--table-compact-cell-padding-y)] align-top text-foreground",
+                      maxCellCharacters ? "max-w-[420px]" : "",
+                      columnIndex === 0 ? "font-mono text-[11px]" : "text-[11px]",
+                    )}
+                    title={isCropped ? formattedValue.slice(0, 2_000) : undefined}
+                  >
+                    <span className="block whitespace-pre-wrap break-words">
+                      {displayValue}
+                      {isCropped ? (
+                        <span className="ml-1 text-muted-foreground">
+                          ({formattedValue.length.toLocaleString()} chars)
+                        </span>
+                      ) : null}
+                    </span>
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

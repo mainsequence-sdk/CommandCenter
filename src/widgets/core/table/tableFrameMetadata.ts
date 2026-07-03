@@ -88,9 +88,11 @@ export interface TableFrameThresholdRuleMetadata {
 
 export interface TableFrameVisualColumnMetadata {
   label?: string;
-  format?: "number" | "price" | "percent" | "volume" | "currency" | "formula";
+  format?: "number" | "price" | "percent" | "volume" | "currency" | "datetime" | "formula";
   formulaExpression?: string;
   formulaResultFormat?: TableFrameVisualFormulaResultFormat;
+  dateTimeInputFormat?: string;
+  dateTimeOutputFormat?: string;
   decimals?: number;
   visible?: boolean;
   colorScale?: TableFrameColorScaleMetadata;
@@ -279,6 +281,7 @@ function normalizeVisualFormat(value: unknown): TableFrameVisualColumnMetadata["
     value === "percent" ||
     value === "volume" ||
     value === "currency" ||
+    value === "datetime" ||
     value === "formula"
     ? value
     : undefined;
@@ -316,6 +319,8 @@ function normalizeVisualColumnMetadata(value: unknown): TableFrameVisualColumnMe
     format: normalizeVisualFormat(value.format),
     formulaExpression: normalizeString(value.formulaExpression),
     formulaResultFormat: normalizeVisualFormulaResultFormat(value.formulaResultFormat),
+    dateTimeInputFormat: normalizeString(value.dateTimeInputFormat),
+    dateTimeOutputFormat: normalizeString(value.dateTimeOutputFormat),
     decimals:
       typeof value.decimals === "number" && Number.isFinite(value.decimals)
         ? Math.max(0, Math.min(Math.trunc(value.decimals), 6))
