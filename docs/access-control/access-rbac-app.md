@@ -2,9 +2,8 @@
 
 ## Overview
 
-Access control in Command Center no longer needs to live as a single utility page. When governance
-work grows, the platform supports a dedicated admin app so policy review, assignments, and
-entitlement coverage can scale as a real product surface.
+Access control in Command Center no longer lives as a loose utility page. It is an organization
+admin section inside Settings for inspecting shell visibility and opening team administration.
 
 In the core extension, that app is `Access & RBAC`.
 
@@ -12,56 +11,40 @@ Its implementation now lives under:
 
 - `src/extensions/core/apps/access-rbac/`
 
-It lives in the admin menu, not in the primary left rail, and it is permission-gated with
-`org_admin:view`.
+It lives in Settings under `Access & RBAC`, not in the primary left rail, and it is
+permission-gated with `org_admin:view`.
 
-The app manages its own surface menu inside the page itself, so its navigation does not leak into
-the global topbar.
+The standalone app registration remains for legacy/deep-link metadata, but normal users reach it
+through Settings.
 
 ## Why it is an app
 
 This matters once access management becomes substantial.
 
-A standalone admin app gives you:
+A dedicated settings section gives you:
 
-- multiple surfaces instead of one overloaded page
-- grouped in-app navigation
-- favorites support for admin views
+- focused routes instead of one overloaded page
+- grouped Settings navigation
 - searchability through the same app-and-surface model as the rest of the platform
-- a clean separation between policy, assignments, operational review, and user inspection
+- a clean separation between resolved shell access inspection and team administration
 - a clean separation between organization-admin workflows and the platform-only `Admin Settings`
   modal
 
 ## Surface model
 
-The shipped `Access & RBAC` app is organized into six surfaces:
+The shipped `Access & RBAC` Settings section is organized around two normal surfaces:
 
-- `Overview`: governance model only
-- `Policies`: backend-backed Command Center shell policy studio
-- `Main Sequence access`: reference page for Main Sequence object-level user and team assignments
-- `Coverage`: effective shell access across apps, surfaces, widgets, and utilities
-- `User access inspector`: lookup one user, edit shell-access assignments, and inspect the resulting effective coverage
+- `Inspector`: lookup one user and inspect resolved shell access as applications and submenus
 - `Teams`: organization team registry, membership management, and sharing
 
-Those surfaces are grouped into three sections:
-
-- `User access inspection`
-- `Teams`
-- `Concept & Help`
-
-That grouping is declared in the app registry, not hardcoded in the navigation UI.
+The conceptual RBAC overview lives in the Documentation app. Legacy `Overview`, `Policies`,
+`Coverage`, and assignment links redirect to the inspector or documentation as appropriate.
 
 ## Registration pattern
 
 Register the app like any other `AppDefinition`, but place it in the admin menu:
 
 ```ts
-const informationSection = {
-  id: "information",
-  label: "Concept & Help",
-  order: 40,
-};
-
 const inspectionSection = {
   id: "inspection",
   label: "User access inspection",
@@ -77,28 +60,14 @@ const teamsSection = {
 const accessRbacApp: AppDefinition = {
   id: "access-rbac",
   title: "Access & RBAC",
-  description: "Administrative application for policy review and assignments.",
+  description: "Organization access governance for resolved shell access inspection and teams.",
   source: "core",
   icon: KeyRound,
   navigationPlacement: "admin-menu",
   topNavigationStyle: "hidden",
   requiredPermissions: ["org_admin:view"],
-  defaultSurfaceId: "overview",
+  defaultSurfaceId: "user-inspector",
   surfaces: [
-    {
-      id: "overview",
-      title: "Overview",
-      kind: "page",
-      navigationSection: informationSection,
-      component: AccessRbacOverviewPage,
-    },
-    {
-      id: "assignments",
-      title: "Main Sequence object access",
-      kind: "page",
-      navigationSection: informationSection,
-      component: AccessRbacAssignmentsPage,
-    },
     {
       id: "user-inspector",
       title: "Organization user inspector",
@@ -119,10 +88,10 @@ const accessRbacApp: AppDefinition = {
 
 ## Legacy compatibility
 
-The legacy `/app/access` route can stay alive as a redirect to the app surface:
+The legacy `/app/access` route can stay alive as a redirect to the Settings inspector:
 
 ```ts
-<Navigate to="/app/access-rbac/overview" replace />
+<Navigate to="/app/settings/access-rbac/inspector" replace />
 ```
 
 That keeps old links working while the platform converges on the app-and-surfaces model.
@@ -130,48 +99,24 @@ That keeps old links working while the platform converges on the app-and-surface
 The legacy `/app/teams` route can also redirect into the RBAC app:
 
 ```ts
-<Navigate to="/app/access-rbac/teams" replace />
+<Navigate to="/app/settings/access-rbac/teams" replace />
 ```
 
-## Reusable control layer
+## Shell Access Contract
 
-The object assignment surface is intentionally built around the reusable
-`RbacAssignmentMatrix` component.
+Access & RBAC no longer exposes a frontend policy editor. Shell profile definition and assignment
+are backend-owned. The frontend calls
+`/api/v1/command_center/users/<user_uid>/shell-access/` and renders the returned
+`accessible_apps` and `accessible_surfaces` fields as a read-only tree.
 
-That means teams can mount the same control in:
-
-- project detail flows
-- secret management
-- job governance
-- custom extension resources
-
-The app owns the orchestration and explanation. The component owns the assignment interaction.
-
-The policies surface now follows the same pattern with `RbacPolicyStudio`.
-
-That component provides:
-
-- CRUD against `/api/v1/command_center/access-policies/`
-- `slugified_name` as the visible policy key while detail routes still use integer ids
-- fixed built-in `light-user`, `dev-user`, and `org-admin-user` policies that stay read-only in the org-admin UI
-- hidden backend-enforced `platform-admin` policy
-- editable shell permission bundles
-
-The shell app access model is now explicit:
+The shell app access model stays top-down:
 
 - `workspaces:view` unlocks the Workspaces shell app
 - `main_sequence_markets:view` unlocks Main Sequence Markets
 - `main_sequence_foundry:view` unlocks Main Sequence Foundry
 
-The User Inspector complements that by managing `/api/v1/command_center/users/<user_uid>/shell-access/`
-for one user at a time.
+The normal shell-access read response does not include profile ids, `effective_permissions`,
+`grant_permissions`, or `deny_permissions`.
 
-That inspector:
-
-- assigns visible custom policies to the user
-- applies direct grants and direct denies
-- previews the resolved `effective_permissions` before saving
-- computes app, surface, widget, and utility visibility from the backend response
-
-The app owns the current Command Center policy model and shell-access contract. The reusable
-studio/inspector UI owns the editing interaction.
+This contract does not change Teams, team membership, workspace sharing, object sharing, or
+resource sharing. Those remain separate product models and backend authorization boundaries.

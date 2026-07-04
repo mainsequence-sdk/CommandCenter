@@ -122,14 +122,17 @@ function AssistantSidebarTrigger({
       className={cn(
         collapsed
           ? "flex h-9 w-full items-center justify-center rounded-md transition-colors"
-          : "flex w-full items-center gap-3 rounded-[calc(var(--radius)-6px)] px-2 py-2 text-left transition-colors",
+          : cn(
+              baseItemClass,
+              "justify-start gap-3 rounded-[calc(var(--radius)-6px)] px-2 text-left",
+            ),
         active
           ? collapsed
             ? "text-topbar-foreground"
-            : "border-primary/35 bg-primary/12 text-topbar-foreground"
+            : "bg-sidebar-foreground/[0.06] text-topbar-foreground"
           : collapsed
             ? "text-sidebar-foreground/72 hover:bg-sidebar-foreground/[0.04] hover:text-topbar-foreground"
-            : "border-border/70 bg-muted/45 text-sidebar-foreground/72 hover:bg-sidebar-foreground/[0.04] hover:text-topbar-foreground",
+            : "text-sidebar-foreground/72 hover:bg-sidebar-foreground/[0.04] hover:text-topbar-foreground",
       )}
       title={`Open Astro (${shortcutLabel})`}
       onClick={onClick}
@@ -138,9 +141,11 @@ function AssistantSidebarTrigger({
         className={cn(
           collapsed
             ? "inline-flex h-8 w-8 flex-col items-center justify-center gap-0.5 rounded-md border border-border/70 bg-background/55 px-0 text-muted-foreground shadow-sm"
-            : "inline-flex items-center justify-center rounded-md border border-border/70 bg-background/55 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground shadow-sm",
-          collapsed ? "min-w-[34px]" : "min-w-[52px]",
-          active && "border-primary/30 bg-primary/10 text-topbar-foreground",
+            : tileClass,
+          collapsed && "min-w-[34px]",
+          active
+            ? "text-topbar-foreground"
+            : "group-hover:text-topbar-foreground",
         )}
       >
         {collapsed ? (
@@ -151,17 +156,22 @@ function AssistantSidebarTrigger({
             </span>
           </>
         ) : (
-          shortcutVisual
+          <Bot className="h-4 w-4" />
         )}
       </span>
       {!collapsed ? (
-        <span className="min-w-0">
+        <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-topbar-foreground">
             Astro
           </span>
           <span className="block truncate text-xs text-muted-foreground">
             Open assistant
           </span>
+        </span>
+      ) : null}
+      {!collapsed ? (
+        <span className="ml-auto rounded-md border border-border/60 bg-background/40 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          {shortcutVisual}
         </span>
       ) : null}
     </button>
@@ -323,7 +333,7 @@ export function Sidebar() {
         sidebarCollapsed ? "w-[52px]" : "min-w-[248px] max-w-[280px]",
       )}
     >
-      <div className="shrink-0 px-2 pt-2">
+      <div className={cn("shrink-0 px-2", sidebarCollapsed ? "pt-2" : "pt-0")}>
         {sidebarCollapsed ? (
           <button
             type="button"
@@ -334,12 +344,17 @@ export function Sidebar() {
             <LogoMark className="h-8 w-8" />
           </button>
         ) : (
-          <div className="flex h-10 items-center gap-3 px-2">
-            <LogoMark className="h-8 w-8" />
-            <BrandWordmark className="flex-1" imageClassName="h-4 w-auto max-w-none" />
+          <div className="relative flex h-12 items-center px-3 pr-10">
+            <div className="flex items-center gap-2.5">
+              <LogoMark className="h-8 w-8" />
+              <BrandWordmark
+                className="max-w-[164px] overflow-hidden"
+                imageClassName="h-7 w-auto max-w-none"
+              />
+            </div>
             <button
               type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-md text-sidebar-foreground/60 transition-colors hover:bg-sidebar-foreground/[0.04] hover:text-topbar-foreground"
+              className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-sidebar-foreground/60 transition-colors hover:bg-sidebar-foreground/[0.04] hover:text-topbar-foreground"
               title={t("navigation.collapseSidebar")}
               onClick={collapseSidebar}
             >
@@ -450,8 +465,8 @@ export function Sidebar() {
                 />
               </div>
             ) : null}
-            {env.includeAui && chatFeature ? (
-              <div className="mb-2 px-2">
+            <div className="space-y-1 px-2">
+              {env.includeAui && chatFeature ? (
                 <AssistantSidebarTrigger
                   active={assistantActive}
                   collapsed={false}
@@ -459,9 +474,7 @@ export function Sidebar() {
                   shortcutLabel={assistantShortcutLabel}
                   shortcutVisual={assistantShortcutVisual}
                 />
-              </div>
-            ) : null}
-            <div className="mb-2 flex items-center gap-3 px-2">
+              ) : null}
               <UserMenu
                 name={userName}
                 avatarSrc={user?.avatarUrl}
@@ -471,7 +484,7 @@ export function Sidebar() {
                 align="start"
                 placement="right"
                 triggerLabel={userName}
-                triggerClassName="w-full justify-start rounded-[calc(var(--radius)-6px)] px-2 py-1.5 hover:bg-sidebar-foreground/[0.04]"
+                triggerClassName="h-11 w-full justify-start gap-3 rounded-[calc(var(--radius)-6px)] px-2 py-0 hover:bg-sidebar-foreground/[0.04]"
                 triggerContent={
                   <>
                     <Avatar
@@ -499,21 +512,21 @@ export function Sidebar() {
                   navigate("/login");
                 }}
               />
+              <button
+                type="button"
+                className={cn(baseItemClass, "justify-start gap-3 rounded-[calc(var(--radius)-6px)] px-2")}
+                title={t("userMenu.signOut")}
+                onClick={() => {
+                  logout();
+                  navigate("/login");
+                }}
+              >
+                <span className={cn(tileClass, "group-hover:text-topbar-foreground")}>
+                  <LogOut className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-medium">{t("userMenu.signOut")}</span>
+              </button>
             </div>
-            <button
-              type="button"
-              className={cn(baseItemClass, "justify-start gap-3 rounded-md px-2.5")}
-              title={t("userMenu.signOut")}
-              onClick={() => {
-                logout();
-                navigate("/login");
-              }}
-            >
-              <span className={cn(tileClass, "group-hover:text-topbar-foreground")}>
-                <LogOut className="h-4 w-4" />
-              </span>
-              <span className="text-sm font-medium">{t("userMenu.signOut")}</span>
-            </button>
           </>
         )}
       </div>

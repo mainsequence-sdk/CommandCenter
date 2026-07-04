@@ -1552,7 +1552,7 @@ function buildConfigurationGroups({
     {
       title: "Command Center Access",
       description:
-        "Dedicated endpoints for reusable shell policies and per-user shell-access assignments.",
+        "Dedicated endpoints for backend-owned shell metadata and read-only per-user shell visibility.",
       fields: [
         {
           label: "Access policies list URL",
@@ -1567,11 +1567,6 @@ function buildConfigurationGroups({
         {
           label: "User shell access URL",
           value: commandCenterAccess.users.shellAccessUrl,
-          monospace: true,
-        },
-        {
-          label: "User shell access preview URL",
-          value: commandCenterAccess.users.shellAccessPreviewUrl,
           monospace: true,
         },
       ],
@@ -2538,7 +2533,7 @@ export function SettingsDialog({
                 description={t("settingsDialog.authUserGroupHelp")}
                 value={
                   <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-                    {"/api/v1/command_center/users/{user_uid}/shell-access/ -> effective_permissions"}
+                    {"/api/v1/command_center/users/{user_uid}/shell-access/ -> accessible_apps, accessible_surfaces"}
                   </span>
                 }
               />

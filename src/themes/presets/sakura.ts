@@ -6,7 +6,7 @@ export const sakuraTheme: ThemePreset = {
   description: "Soft blush light theme inspired by Light Pink with cherry-petal surfaces and rose accents.",
   source: "core",
   mode: "light",
-  tightness: "default",
+  tightness: "tight",
   surfaceHierarchy: "soft",
   tokens: {
     background: "#FFF4F8",

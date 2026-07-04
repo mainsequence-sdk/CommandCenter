@@ -15,6 +15,8 @@ Routed Settings module for account, billing, organization, application, and plat
   keep their data fetching, mutations, confirmations, and access checks.
 - Organization-admin pages retain `org_admin:view` gates and render without their old internal
   admin sidebar when embedded under `/app/settings/*`.
+- Access & RBAC is exposed as its own Settings navigation group, also gated by `org_admin:view`.
+  Its existing pages render without the standalone Access & RBAC sidebar when embedded here.
 - Platform settings retain the same platform-admin resolver and are exposed under the `Platform`
   Settings group.
 - Extension `shellMenuContributions` are adapted into Settings application routes so existing

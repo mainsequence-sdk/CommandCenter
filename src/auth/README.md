@@ -11,6 +11,8 @@ Shared authentication client code for Command Center.
 - `jwt-auth.ts`: JWT parsing, claim mapping, persistence, and session bootstrap.
 - `mock-jwt-auth.ts`: mock auth transport and in-memory endpoint behavior used when
   `env.useMockData` is enabled.
+- `permissions.ts`: frontend permission catalog, built-in role defaults, and deprecated permission
+  filtering for stale backend/mock grants.
 - `types.ts`: shared app-user and auth-facing type definitions.
 
 ## Maintenance Notes
@@ -27,6 +29,8 @@ Shared authentication client code for Command Center.
   paths in the UI.
 - Any new authenticated self-service account action added to `api.ts` should usually be mirrored in
   `mock-jwt-auth.ts` so mock mode keeps the same shell flows testable.
+- Removed shell permissions should be deleted from role defaults and `CORE_PERMISSION_DEFINITIONS`,
+  then kept in `DEPRECATED_PERMISSION_IDS` only long enough to filter stale backend or mock payloads.
 - Destructive self-service actions such as account deletion should leave session teardown to the
   caller after the backend confirms success.
 - Self-service account deletion uses `DELETE /user/api/user/delete-account/`. Only a `200` with

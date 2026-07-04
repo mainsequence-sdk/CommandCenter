@@ -130,7 +130,7 @@ Important behavior:
 - the frontend no longer requires `user_details` to return a backend numeric `id`; session identity
   prefers `claim_mapping.user_id` and falls back to `uid`
 - `/api/v1/command_center/users/<user_uid>/shell-access/` is then fetched and its
-  `effective_permissions` become the shell source of truth
+  `accessible_apps` / `accessible_surfaces` become the shell source of truth
 - stored JWT sessions are rehydrated against shell-access on app boot
 - request field names are configurable so you can send `username` instead of `email` if needed
 - response field paths support dotted lookups such as `data.access`
@@ -139,8 +139,8 @@ Important behavior:
 - the frontend config maps the user-details identity fields and the platform-admin fields
 - the frontend no longer treats `config/command-center.yaml` as the source of truth for organization policy
 - auth groups can still be displayed for reference, but they do not unlock org-admin shell access
-- the shell now resolves org-admin access from `effective_permissions` returned by the dedicated
-  shell-access endpoint
+- the shell resolves org-admin access from backend-owned shell-access output returned by the
+  dedicated shell-access endpoint
 
 ## Runtime credential browser auth
 
@@ -191,22 +191,21 @@ No snapshot-specific auth endpoint is added on the frontend.
 
 ## Command Center shell-access contract
 
-Identity and Command Center shell visibility are now separate contracts.
+Identity and Command Center shell visibility are separate contracts.
 
 - `/user/api/user/get_user_details/` provides identity/profile data for the signed-in user
-- `/api/v1/command_center/access-policies/` owns reusable shell policy definitions
-- `/api/v1/command_center/users/<user_uid>/shell-access/` owns per-user shell policy assignments
-  plus direct permission grants and denies
+- `/api/v1/command_center/access-policies/` owns backend-managed shell profile definitions
+- `/api/v1/command_center/users/<user_uid>/shell-access/` returns resolved per-user shell access
 
 Configured endpoints live in `config/command-center.yaml` under `command_center_access`.
 
 Policy endpoints:
 
 - `GET /api/v1/command_center/access-policies/`
-- `POST /api/v1/command_center/access-policies/`
 - `GET /api/v1/command_center/access-policies/<id>/`
-- `PATCH /api/v1/command_center/access-policies/<id>/`
-- `DELETE /api/v1/command_center/access-policies/<id>/`
+
+Backend or platform-only tooling may still expose policy write endpoints, but the normal Command
+Center organization-admin frontend does not create, update, or delete shell policies.
 
 Policy response shape:
 
@@ -228,47 +227,34 @@ Policy response shape:
 
 Important behavior:
 
-- the frontend uses `slugified_name` as the stable policy key
+- the frontend treats policy rows as backend-owned metadata
 - policy detail routes still use the integer `id`
-- the org-admin-facing UI hides the backend-enforced `platform-admin` policy
 - the built-in `light-user`, `dev-user`, and `org-admin-user` policies are expected to be created
-  by the backend and are treated as read-only in the frontend
+  by the backend and are treated as compatibility metadata in the frontend
 
 Shell-access endpoints:
 
 - `GET /api/v1/command_center/users/<user_uid>/shell-access/`
-- `PATCH /api/v1/command_center/users/<user_uid>/shell-access/`
-- `POST /api/v1/command_center/users/<user_uid>/shell-access/preview/`
+
+The normal Command Center frontend uses this as a read-only endpoint.
 
 Shell-access response shape:
 
 ```json
 {
   "user_uid": "11111111-1111-4111-8111-111111111111",
-  "policy_ids": ["research-analyst"],
-  "grant_permissions": ["orders:read"],
-  "deny_permissions": [],
-  "derived": {
-    "is_org_admin": true,
-    "groups": [
-      {
-        "id": 3,
-        "name": "Organization Admin",
-        "normalized_name": "org_admin"
-      }
-    ]
-  },
-  "effective_permissions": [
-    "workspaces:view",
-    "main_sequence_markets:view",
-    "widget.catalog:view",
-    "orders:read",
-    "org_admin:view"
+  "accessible_apps": [
+    "workspace_studio",
+    "main_sequence_markets"
+  ],
+  "accessible_surfaces": [
+    "workspace_studio.workspaces",
+    "main_sequence_markets.overview"
   ]
 }
 ```
 
-Write shapes:
+Backend-owned policy write shape:
 
 ```json
 {
@@ -282,6 +268,19 @@ Write shapes:
   ]
 }
 ```
+
+Important behavior:
+
+- login and refresh now resolve shell access from the dedicated shell-access endpoint
+- User Inspector reads shell access and does not write profile assignments, direct grants, or direct
+  denies
+- apps and surfaces should be read from `accessible_apps` and `accessible_surfaces`
+- the normal shell-access read response does not include profile ids, `effective_permissions`,
+  `grant_permissions`, or `deny_permissions`
+- until all shell route gates consume app/surface ids directly, the frontend maps resolved
+  app/surface ids back into the existing permission array used by route guards
+- shell access is not a replacement for backend resource authorization, Teams, team membership,
+  workspace sharing, object sharing, or resource sharing
 
 ## Widget type registry sync contract
 
@@ -320,23 +319,6 @@ Important backend expectations:
 The frontend now validates the manifest before publish and blocks admin publication when required
 contract sections are missing. Backend validation should still remain strict, because the registry
 is now intended to power agentic tooling as well as human catalog browsing.
-
-```json
-{
-  "policy_ids": ["research-analyst", "ops-reviewer"],
-  "grant_permissions": ["orders:read"],
-  "deny_permissions": ["orders:submit"]
-}
-```
-
-Important behavior:
-
-- login and refresh now resolve shell access from the dedicated shell-access endpoint
-- User Inspector writes only to the dedicated shell-access endpoint
-- it does not patch `/user/api/user/<id>/`
-- apps, surfaces, widgets, and utility actions remain derived from `effective_permissions`
-- hidden or system policy ids returned by the backend are preserved in the write payload even when
-  they are not viewable in the organization-admin UI
 
 ## Preferences endpoint contract
 

@@ -67,10 +67,11 @@ This feature owns unauthenticated sign-in and password-reset entry points for th
   comes from `/api/v1/command_center/users/<user_uid>/shell-access/`.
 - A `403` from shell-access fails the Command Center login with a clear access-denied message
   instead of showing the backend permission-class response directly.
-- Organization admin shell access is resolved from `effective_permissions`, not from auth groups.
-- Command Center shell visibility is a separate concern: reusable policies come from
-  `/api/v1/command_center/access-policies/`, while per-user assignments and overrides come from
-  `/api/v1/command_center/users/<user_uid>/shell-access/`.
+- Organization admin shell visibility is resolved from backend-owned `accessible_apps` and
+  `accessible_surfaces`, not from auth groups or frontend-managed policy assignments.
+- Command Center shell visibility is a separate concern from Teams, sharing, and object-level
+  authorization: the frontend reads `/api/v1/command_center/users/<user_uid>/shell-access/` and
+  treats it as a read-only visualization gate.
 - Runtime credential auth is supported for machine-run browsers that inject
   `command-center.jwt-auth` before navigation. The stored session uses `authMode:
   "runtime_credential"` and `MAINSEQUENCE_ACCESS_TOKEN` or `tokens.accessToken`; requests still

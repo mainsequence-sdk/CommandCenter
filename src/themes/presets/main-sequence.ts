@@ -6,7 +6,7 @@ export const mainSequenceTheme: ThemePreset = {
   description: "Main Sequence default dark theme with branded shell gradients.",
   source: "core",
   mode: "dark",
-  tightness: "relaxed",
+  tightness: "tight",
   surfaceHierarchy: "soft",
   tokens: {
     background: "#0B1017",

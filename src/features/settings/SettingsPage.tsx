@@ -43,9 +43,17 @@ import { AdminMainSequenceMarketsPage } from "@/extensions/core/apps/admin/Admin
 import { AdminManageCreditsPage } from "@/extensions/core/apps/admin/AdminManageCreditsPage";
 import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOrganizationUsersPage";
 import { AdminWidgetConfigurationsPage } from "@/extensions/core/apps/admin/AdminWidgetConfigurationsPage";
+import { AccessRbacInspectorPage } from "@/extensions/core/apps/access-rbac/AccessRbacInspectorPage";
+import { AccessRbacTeamsPage } from "@/extensions/core/apps/access-rbac/AccessRbacTeamsPage";
 import { cn } from "@/lib/utils";
 
-type SettingsGroupId = "account" | "billing" | "organization" | "applications" | "platform";
+type SettingsGroupId =
+  | "account"
+  | "billing"
+  | "organization"
+  | "access-rbac"
+  | "applications"
+  | "platform";
 
 interface SettingsRouteContext {
   navigate: ReturnType<typeof useNavigate>;
@@ -106,6 +114,13 @@ const settingsGroups: SettingsGroupDefinition[] = [
     order: 30,
   },
   {
+    id: "access-rbac",
+    label: "Access & RBAC",
+    description: "Resolved shell access inspection and teams.",
+    icon: KeyRound,
+    order: 35,
+  },
+  {
     id: "applications",
     label: "Applications",
     description: "Application-specific settings and providers.",
@@ -132,6 +147,10 @@ const adminRouteMap: Record<string, string> = {
   "billing-details": "billing/details",
   "hosted-resources": "billing/hosted-resources",
   "manage-credits": "billing/manage-credits",
+};
+
+const legacySettingsRouteMap: Record<string, string> = {
+  "access-rbac/policies": "access-rbac/inspector",
 };
 
 function normalizeRoutePath(value?: string) {
@@ -317,6 +336,28 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       render: () => <AdminWidgetConfigurationsPage />,
     },
     {
+      path: "access-rbac/inspector",
+      label: "Inspector",
+      title: "Organization User Inspector",
+      description: "Search users and inspect their effective shell access.",
+      groupId: "access-rbac",
+      icon: UserCog,
+      adminScope: "organization",
+      requiredPermissions: ["org_admin:view"],
+      render: () => <AccessRbacInspectorPage />,
+    },
+    {
+      path: "access-rbac/teams",
+      label: "Teams",
+      title: "Teams",
+      description: "Manage organization teams, memberships, and team sharing.",
+      groupId: "access-rbac",
+      icon: Users2,
+      adminScope: "organization",
+      requiredPermissions: ["org_admin:view"],
+      render: () => <AccessRbacTeamsPage />,
+    },
+    {
       path: "applications/main-sequence-markets",
       label: "Market Data Connection",
       title: "Main Sequence Markets",
@@ -481,6 +522,9 @@ function routeSectionId(sectionId: string) {
       return "platform/connection-registry";
     case "access-catalog":
       return "platform/access-catalog";
+    case "access-rbac":
+    case "rbac":
+      return "access-rbac/inspector";
     case "shell-settings-host::user-credits":
       return "billing/credits";
     default:
@@ -573,6 +617,7 @@ export function SettingsPage() {
   const allRoutes = useMemo(() => makeSettingsRoutes(shellEntries), [shellEntries]);
   const accessibleRoutes = allRoutes.filter((route) => canAccessSettingsRoute(route, user));
   const selectedPath = normalizeRoutePath(params["*"]);
+  const legacyRedirectPath = legacySettingsRouteMap[selectedPath];
   const selectedRoute = allRoutes.find((route) => route.path === selectedPath);
   const selectedAccessible = selectedRoute
     ? canAccessSettingsRoute(selectedRoute, user)
@@ -630,6 +675,10 @@ export function SettingsPage() {
         }}
       />
     );
+  }
+
+  if (legacyRedirectPath) {
+    return <Navigate to={getSettingsPath(legacyRedirectPath)} replace />;
   }
 
   const selectedTitle = selectedRoute?.title ?? "Settings";

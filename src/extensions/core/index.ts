@@ -8,11 +8,8 @@ import {
 
 import type { AppExtension } from "@/app/registry/types";
 import { defineSurfaceAssistantContext, type AppDefinition } from "@/apps/types";
-import { AccessRbacAssignmentsPage } from "@/extensions/core/apps/access-rbac/AccessRbacAssignmentsPage";
-import { AccessRbacCoveragePage } from "@/extensions/core/apps/access-rbac/AccessRbacCoveragePage";
 import { AccessRbacInspectorPage } from "@/extensions/core/apps/access-rbac/AccessRbacInspectorPage";
 import { AccessRbacOverviewPage } from "@/extensions/core/apps/access-rbac/AccessRbacOverviewPage";
-import { AccessRbacPoliciesPage } from "@/extensions/core/apps/access-rbac/AccessRbacPoliciesPage";
 import { AccessRbacTeamsPage } from "@/extensions/core/apps/access-rbac/AccessRbacTeamsPage";
 import { AdminActivePlansPage } from "@/extensions/core/apps/admin/AdminActivePlansPage";
 import { AdminBillingDetailsPage } from "@/extensions/core/apps/admin/AdminBillingDetailsPage";
@@ -295,6 +292,12 @@ const settingsOrganizationSection = {
   order: 30,
 };
 
+const settingsAccessRbacSection = {
+  id: "access-rbac",
+  label: "Access & RBAC",
+  order: 35,
+};
+
 const settingsApplicationsSection = {
   id: "applications",
   label: "Applications",
@@ -313,6 +316,7 @@ export const settingsApp: AppDefinition = {
   description: "Unified account, billing, organization, application, and platform settings.",
   source: "core",
   icon: Settings2,
+  navigationPlacement: "admin-menu",
   navigationOrder: 980,
   topNavigationStyle: "hidden",
   defaultSurfaceId: "account/profile",
@@ -410,6 +414,28 @@ export const settingsApp: AppDefinition = {
       fullBleed: true,
       requiredPermissions: ["org_admin:view"],
       navigationSection: settingsOrganizationSection,
+      component: HiddenShellSettingsHostPage,
+    },
+    {
+      id: "access-rbac/inspector",
+      title: "Organization User Inspector",
+      navLabel: "Inspector",
+      description: "Search users and inspect their effective shell access.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["org_admin:view"],
+      navigationSection: settingsAccessRbacSection,
+      component: HiddenShellSettingsHostPage,
+    },
+    {
+      id: "access-rbac/teams",
+      title: "Teams",
+      navLabel: "Teams",
+      description: "Manage organization teams, memberships, and team sharing.",
+      kind: "page",
+      fullBleed: true,
+      requiredPermissions: ["org_admin:view"],
+      navigationSection: settingsAccessRbacSection,
       component: HiddenShellSettingsHostPage,
     },
     {
@@ -810,26 +836,26 @@ const accessTeamsSection = {
 export const accessRbacApp: AppDefinition = {
   id: "access-rbac",
   title: "Access & RBAC",
-  description: "Organization access governance for policy review, assignments, inspection, and entitlement coverage.",
+  description: "Organization access governance for resolved shell access inspection and teams.",
   source: "core",
   icon: KeyRound,
-  navigationOrder: 900,
+  navigationPlacement: "admin-menu",
   topNavigationStyle: "hidden",
   requiredPermissions: ["org_admin:view"],
-  defaultSurfaceId: "policies",
+  defaultSurfaceId: "user-inspector",
   surfaces: [
     {
       id: "overview",
       title: "Overview",
       navLabel: "Overview",
-      description: "Governance model, role layers, and how resource assignments fit into the platform.",
+      description: "Governance model, role layers, and how platform access fits together.",
       hidden: true,
       ...defineSurfaceAssistantContext({
         summary:
           "User opened the legacy Access & RBAC overview route, which now redirects to the documentation page for RBAC concepts.",
         availableActions: [
           "Read RBAC documentation",
-          "Return to policy and coverage pages",
+          "Return to policy and inspector pages",
         ],
       }),
       kind: "page",
@@ -837,63 +863,6 @@ export const accessRbacApp: AppDefinition = {
       requiredPermissions: ["org_admin:view"],
       navigationSection: accessInformationSection,
       component: AccessRbacOverviewPage,
-    },
-    {
-      id: "policies",
-      title: "Policy model",
-      navLabel: "Policies",
-      description: "Built-in role matrix and platform permission contract.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on the Access & RBAC policy model page. This view explains built-in roles and the permission contract.",
-        availableActions: [
-          "Review built-in role definitions",
-          "Inspect the permission contract",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: accessInformationSection,
-      component: AccessRbacPoliciesPage,
-    },
-    {
-      id: "assignments",
-      title: "Main Sequence object access",
-      navLabel: "Main Sequence access",
-      description: "Reference how Main Sequence object-level access is assigned to users and teams.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Main Sequence object access. This page explains how object-level access is assigned to users and teams.",
-        availableActions: [
-          "Review assignment rules",
-          "Inspect user and team access concepts",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: accessInformationSection,
-      component: AccessRbacAssignmentsPage,
-    },
-    {
-      id: "coverage",
-      title: "Coverage",
-      navLabel: "Coverage",
-      description: "Inspect how current permissions resolve across apps, surfaces, widgets, and utilities.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Coverage. This page shows how permissions resolve across apps, surfaces, widgets, and utilities.",
-        availableActions: [
-          "Inspect permission coverage",
-          "Review effective access across the shell",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: accessInformationSection,
-      component: AccessRbacCoveragePage,
     },
     {
       id: "user-inspector",

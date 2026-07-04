@@ -6,7 +6,7 @@ export const graphiteTheme: ThemePreset = {
   description: "Dark default terminal theme.",
   source: "core",
   mode: "dark",
-  tightness: "relaxed",
+  tightness: "tight",
   surfaceHierarchy: "soft",
   tokens: {
     background: "#0B1017",

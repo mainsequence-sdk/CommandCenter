@@ -130,7 +130,6 @@ command_center_access:
     detail_url: /api/v1/command_center/access-policies/{id}/
   users:
     shell_access_url: /api/v1/command_center/users/{user_uid}/shell-access/
-    shell_access_preview_url: /api/v1/command_center/users/{user_uid}/shell-access/preview/
 
 notifications:
   list_url: /user/api/notifications/
@@ -177,10 +176,9 @@ notifications:
 - `auth.jwt.claim_mapping.platform_permissions` and `auth.jwt.user_details.response_mapping.platform_permissions`: field paths used to resolve platform-only permissions such as `platform_admin:access`
 - `auth.jwt.claim_mapping.is_platform_admin` and `auth.jwt.user_details.response_mapping.is_platform_admin`: optional boolean field paths used to mark a session as platform-admin
 - `access_rbac.users.list_url`: authenticated endpoint used by the Access & RBAC app user inspector to search the user directory
-- `command_center_access.access_policies.list_url`: authenticated list/create endpoint for visible Command Center shell policies
-- `command_center_access.access_policies.detail_url`: authenticated detail/update/delete endpoint for one Command Center shell policy; the frontend replaces `{id}` with the integer policy id
-- `command_center_access.users.shell_access_url`: authenticated read/update endpoint for one user's Command Center shell assignments; the frontend replaces `{user_uid}` with the inspected user UID
-- `command_center_access.users.shell_access_preview_url`: authenticated preview endpoint that resolves a draft shell-access payload without saving it
+- `command_center_access.access_policies.list_url`: authenticated list endpoint for backend-owned Command Center shell policy metadata
+- `command_center_access.access_policies.detail_url`: authenticated detail endpoint for backend-owned Command Center shell policy metadata; the frontend replaces `{id}` with the integer policy id
+- `command_center_access.users.shell_access_url`: authenticated read-only endpoint for one user's resolved Command Center shell visibility; the frontend replaces `{user_uid}` with the inspected user UID
 - `notifications.list_url`: endpoint used to fetch the notification feed
 - `notifications.detail_url`: endpoint used to fetch a single notification body
 - `notifications.mark_read_url`: endpoint used to mark one notification as read
@@ -219,12 +217,10 @@ The application:
 - revalidates persisted JWT sessions against the configured user-details endpoint before granting access
 - maps configured token claims and user-details fields into the frontend session user
 - derives organization-admin and platform-admin access from backend-owned claims or user-details fields
-- resolves shell visibility from the authenticated user's shell-access `effective_permissions`
+- resolves shell visibility from the authenticated user's shell-access `accessible_apps` and `accessible_surfaces`
 - queries the configured Access & RBAC users endpoint when an admin searches the user directory
-- loads shell policy definitions through `command_center_access.access_policies.*`
-- loads, previews, and saves user shell-access assignments through `command_center_access.users.*`
-- expects the fixed `light-user`, `dev-user`, and `org-admin-user` shell policies to be created by the backend
-- hides the backend-enforced `platform-admin` policy from the organization-admin policy UI
+- loads backend-owned shell policy metadata through `command_center_access.access_policies.*` when needed
+- reads user shell visibility through `command_center_access.users.shell_access_url`
 - refreshes the notifications feed using `app.notifications_refresh_interval_ms`
 - uses user initials for account surfaces when no user-specific avatar is provided
 

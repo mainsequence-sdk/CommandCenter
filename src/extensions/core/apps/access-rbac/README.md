@@ -20,21 +20,21 @@ Notable behavior:
 
 - Access & RBAC is organization-admin-facing. It no longer shares the same access gate as the
   platform-only `Admin Settings` modal.
-- Access & RBAC is a first-class primary navigation app gated by `org_admin:view`. Do not park it
-  behind the legacy `admin-menu` placement; organization admin settings live under the unified
-  Settings app, while RBAC needs its own visible shell entry.
+- Access & RBAC appears as its own top-level section inside the routed Settings page, gated by
+  `org_admin:view`. Keep the standalone app registration available for legacy/deep-link metadata,
+  but do not expose it as a separate primary sidebar app.
 - The conceptual RBAC overview now lives in the Documentation app under
   `Organization Admin -> RBAC`. The legacy `/app/access-rbac/overview` route is retained only as a
   redirect, and `Overview` is no longer part of the normal Access & RBAC navigation.
-- The `Policies` surface is now backed by `/api/v1/command_center/access-policies/` and only
-  exposes visible Command Center shell policies. System policies remain backend-owned and
-  read-only in the frontend editor, while hidden admin-class policies stay backend-only.
+- The policy editor is no longer part of normal Access & RBAC navigation. Shell profile definition
+  and assignment are backend-owned; the frontend reads resolved shell access only.
 - Backend policy/bootstrap flows should derive app and surface coverage from the generated access
   catalog in `src/app/registry/access-catalog-sync.ts`, which includes all registered surfaces,
   including hidden deep-link surfaces.
 - The shell app gates now use app-level permissions: `workspaces:view`,
   `main_sequence_markets:view`, and `main_sequence_foundry:view`.
-- The `User access inspector` surface now edits `/api/v1/command_center/users/<user_uid>/shell-access/`
-  instead of mutating `/user/api/user/<id>/`.
+- The `User access inspector` surface reads
+  `/api/v1/command_center/users/<user_uid>/shell-access/` and renders the returned
+  `accessible_apps` / `accessible_surfaces` as a read-only application and submenu tree.
 - The Teams surface is now registry-first and links into a dedicated detail route for each team.
 - Team detail routes stay inside the Access & RBAC shell and force the sidebar highlight to remain on the `Teams` surface.

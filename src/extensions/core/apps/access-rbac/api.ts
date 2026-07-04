@@ -1,8 +1,8 @@
 import {
-  PLATFORM_ADMIN_PERMISSION,
   PROMETHEUS_CONNECTION_PERMISSIONS,
   WORKSPACES_PUBLISH_PERMISSION,
   buildEffectivePermissions,
+  filterDeprecatedPermissions,
   getPermissionsForRole,
   normalizeBuiltinRole,
   normalizeOrganizationRole,
@@ -39,36 +39,10 @@ export interface AccessPolicy {
   isEditable: boolean;
 }
 
-export interface UserShellAccessGroup {
-  id: number;
-  name: string;
-  normalizedName: string;
-  permissions: Permission[];
-}
-
 export interface UserShellAccess {
   userUid: string;
-  policyIds: string[];
-  grantPermissions: Permission[];
-  denyPermissions: Permission[];
-  derived: {
-    isOrgAdmin: boolean;
-    groups: UserShellAccessGroup[];
-  };
-  effectivePermissions: Permission[];
-}
-
-export interface AccessPolicyWriteInput {
-  slugifiedName: string;
-  label: string;
-  description: string;
-  permissions: Permission[];
-}
-
-export interface UserShellAccessPatchInput {
-  policyIds: string[];
-  grantPermissions: Permission[];
-  denyPermissions: Permission[];
+  accessibleApps: string[];
+  accessibleSurfaces: string[];
 }
 
 const hiddenAccessPolicySlugs = new Set(["platform-admin"]);
@@ -230,12 +204,8 @@ function normalizeStringList(value: unknown) {
 }
 
 function normalizePermissions(value: unknown) {
-  return Array.from(new Set(normalizeStringList(value))) as Permission[];
-}
-
-function normalizeAssignablePermissions(value: unknown) {
-  return normalizePermissions(value).filter(
-    (permission) => permission !== PLATFORM_ADMIN_PERMISSION,
+  return filterDeprecatedPermissions(
+    Array.from(new Set(normalizeStringList(value))),
   ) as Permission[];
 }
 
@@ -467,12 +437,6 @@ export function isVisibleAccessPolicy(policy: Pick<AccessPolicy, "slugifiedName"
   return !isHiddenAccessPolicySlug(policy.slugifiedName);
 }
 
-export function isAssignableAccessPolicy(
-  policy: Pick<AccessPolicy, "slugifiedName" | "isSystem">,
-) {
-  return isVisibleAccessPolicy(policy) && !policy.isSystem;
-}
-
 function deriveName(email: string, role: string) {
   if (!email) {
     return role ? role.charAt(0).toUpperCase() + role.slice(1) : "User";
@@ -626,7 +590,9 @@ function normalizeAccessPolicyRecord(record: Record<string, unknown>): AccessPol
     label: builtinDetails?.label ?? readString(record.label, slugifiedName || "Policy"),
     description: builtinDetails?.description ?? readString(record.description),
     permissions: builtinDetails
-      ? Array.from(new Set([...builtinDetails.permissions, ...normalizePermissions(record.permissions)]))
+      ? Array.from(
+          new Set([...builtinDetails.permissions, ...normalizePermissions(record.permissions)]),
+        )
       : normalizePermissions(record.permissions),
     isSystem:
       builtinDetails?.isSystem ??
@@ -640,70 +606,24 @@ function normalizeAccessPolicyRecord(record: Record<string, unknown>): AccessPol
   };
 }
 
-function normalizeShellAccessGroup(record: unknown): UserShellAccessGroup | null {
-  if (!isRecord(record)) {
-    return null;
-  }
-
-  const normalizedName = readString(record.normalized_name) || readString(record.normalizedName);
-  const id = readNumber(record.id);
-  const name = readString(record.name);
-
-  if (id === undefined || !name) {
-    return null;
-  }
-
-  return {
-    id,
-    name,
-    normalizedName,
-    permissions: normalizePermissions(record.permissions),
-  };
-}
-
 function normalizeShellAccessRecord(record: Record<string, unknown>): UserShellAccess {
-  const derived = isRecord(record.derived) ? record.derived : {};
-  const groups = Array.isArray(derived.groups)
-    ? derived.groups
-        .map((entry) => normalizeShellAccessGroup(entry))
-        .filter((entry): entry is UserShellAccessGroup => entry !== null)
-    : [];
+  const resolvedAccess = isRecord(record.resolved_access)
+    ? record.resolved_access
+    : isRecord(record.resolvedAccess)
+      ? record.resolvedAccess
+      : {};
+  const accessibleAppsSource =
+    record.accessible_apps ?? record.accessibleApps ?? resolvedAccess.accessible_apps ?? resolvedAccess.accessibleApps;
+  const accessibleSurfacesSource =
+    record.accessible_surfaces ??
+    record.accessibleSurfaces ??
+    resolvedAccess.accessible_surfaces ??
+    resolvedAccess.accessibleSurfaces;
 
   return {
     userUid: readStringish(record.user_uid ?? record.userUid ?? record.uid, ""),
-    policyIds: normalizeStringList(record.policy_ids ?? record.policyIds),
-    grantPermissions: normalizePermissions(
-      record.grant_permissions ?? record.grantPermissions,
-    ),
-    denyPermissions: normalizePermissions(
-      record.deny_permissions ?? record.denyPermissions,
-    ),
-    derived: {
-      isOrgAdmin:
-        readBoolean(derived.is_org_admin ?? derived.isOrgAdmin) ??
-        groups.some((group) => group.normalizedName.trim().toLowerCase() === "org_admin"),
-      groups,
-    },
-    effectivePermissions: normalizePermissions(
-      record.effective_permissions ?? record.effectivePermissions,
-    ),
-  };
-}
-
-function normalizeAccessPolicyInput(input: AccessPolicyWriteInput) {
-  return {
-    slugified_name: normalizePolicySlug(input.slugifiedName),
-    label: readString(input.label, "Policy"),
-    description: readString(input.description),
-    permissions: normalizeAssignablePermissions(input.permissions),
-  };
-}
-
-function normalizeShellAccessPatchInput(input: UserShellAccessPatchInput) {
-  return {
-    policy_ids: Array.from(new Set(input.policyIds.map((entry) => normalizePolicySlug(entry)).filter(Boolean))),
-    grant_permissions: normalizeAssignablePermissions(input.grantPermissions),
-    deny_permissions: normalizeAssignablePermissions(input.denyPermissions),
+    accessibleApps: normalizeStringList(accessibleAppsSource),
+    accessibleSurfaces: normalizeStringList(accessibleSurfacesSource),
   };
 }
 
@@ -814,82 +734,11 @@ export async function listAccessPolicies({
   return includeHidden ? deduped : deduped.filter((policy) => isVisibleAccessPolicy(policy));
 }
 
-export async function createAccessPolicy(input: AccessPolicyWriteInput) {
-  const payload = await requestAccessRbacJson<Record<string, unknown>>(
-    commandCenterConfig.commandCenterAccess.accessPolicies.listUrl,
-    {
-      method: "POST",
-      body: normalizeAccessPolicyInput(input),
-    },
-  );
-
-  return normalizeAccessPolicyRecord(payload);
-}
-
-export async function updateAccessPolicy(policyId: number, input: AccessPolicyWriteInput) {
-  const payload = await requestAccessRbacJson<Record<string, unknown>>(
-    buildConfigPath(commandCenterConfig.commandCenterAccess.accessPolicies.detailUrl, {
-      id: policyId,
-    }),
-    {
-      method: "PATCH",
-      body: normalizeAccessPolicyInput(input),
-    },
-  );
-
-  return normalizeAccessPolicyRecord(payload);
-}
-
-export async function deleteAccessPolicy(policyId: number) {
-  await requestAccessRbacJson<null>(
-    buildConfigPath(commandCenterConfig.commandCenterAccess.accessPolicies.detailUrl, {
-      id: policyId,
-    }),
-    {
-      method: "DELETE",
-    },
-  );
-}
-
 export async function getUserShellAccess(userUid: string) {
   const payload = await requestAccessRbacJson<Record<string, unknown>>(
     buildConfigPath(commandCenterConfig.commandCenterAccess.users.shellAccessUrl, {
       user_uid: userUid,
     }),
-  );
-
-  return normalizeShellAccessRecord(payload);
-}
-
-export async function updateUserShellAccess(
-  userUid: string,
-  input: UserShellAccessPatchInput,
-) {
-  const payload = await requestAccessRbacJson<Record<string, unknown>>(
-    buildConfigPath(commandCenterConfig.commandCenterAccess.users.shellAccessUrl, {
-      user_uid: userUid,
-    }),
-    {
-      method: "PATCH",
-      body: normalizeShellAccessPatchInput(input),
-    },
-  );
-
-  return normalizeShellAccessRecord(payload);
-}
-
-export async function previewUserShellAccess(
-  userUid: string,
-  input: UserShellAccessPatchInput,
-) {
-  const payload = await requestAccessRbacJson<Record<string, unknown>>(
-    buildConfigPath(commandCenterConfig.commandCenterAccess.users.shellAccessPreviewUrl, {
-      user_uid: userUid,
-    }),
-    {
-      method: "POST",
-      body: normalizeShellAccessPatchInput(input),
-    },
   );
 
   return normalizeShellAccessRecord(payload);

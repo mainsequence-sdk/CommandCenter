@@ -752,9 +752,69 @@ async function fetchUserDetails(tokens: StoredJwtTokens) {
 }
 
 function normalizeShellAccessPermissions(payload: Record<string, unknown>) {
-  return normalizePermissions(
-    payload.effective_permissions ?? payload.effectivePermissions,
-  );
+  return derivePermissionsFromResolvedShellAccess(payload);
+}
+
+const shellAccessAppPermissionMap: Record<string, Permission[]> = {
+  workspace_studio: ["workspaces:view"],
+  "workspace-studio": ["workspaces:view"],
+  main_sequence_markets: ["main_sequence_markets:view"],
+  "main-sequence-markets": ["main_sequence_markets:view"],
+  widget_catalog: ["widget.catalog:view"],
+  "widget-catalog": ["widget.catalog:view"],
+  main_sequence_workbench: ["main_sequence_foundry:view"],
+  main_sequence_foundry: ["main_sequence_foundry:view"],
+  "main-sequence-foundry": ["main_sequence_foundry:view"],
+  organization_admin: ["org_admin:view"],
+  admin: ["org_admin:view"],
+  "access-rbac": ["org_admin:view"],
+  settings: ["org_admin:view"],
+  platform_admin: ["platform_admin:access"],
+};
+
+const shellAccessSurfacePermissionMap: Record<string, Permission[]> = {
+  "workspace_studio.widget-catalog": ["workspaces:view", "widget.catalog:view"],
+  "workspace-studio.widget-catalog": ["workspaces:view", "widget.catalog:view"],
+  "workspace_studio.widget_catalog": ["workspaces:view", "widget.catalog:view"],
+  "workspace-studio.widget_catalog": ["workspaces:view", "widget.catalog:view"],
+  "access-rbac.inspector": ["org_admin:view"],
+  "access-rbac.user-inspector": ["org_admin:view"],
+  "access-rbac.teams": ["org_admin:view"],
+  "settings.organization/users": ["org_admin:view"],
+  "settings.organization/plans": ["org_admin:view"],
+  "settings.organization/security-sessions": ["org_admin:view"],
+  "settings.organization/github": ["org_admin:view"],
+  "settings.organization/widgets": ["org_admin:view"],
+  "settings.access-rbac/inspector": ["org_admin:view"],
+  "settings.access-rbac/teams": ["org_admin:view"],
+  "settings.applications/main-sequence-markets": ["org_admin:view"],
+  "settings.billing/invoices": ["org_admin:view"],
+  "settings.billing/details": ["org_admin:view"],
+  "settings.billing/hosted-resources": ["org_admin:view"],
+  "settings.billing/manage-credits": ["org_admin:view"],
+  "settings.platform/auth": ["platform_admin:access"],
+  "settings.platform/configuration": ["platform_admin:access"],
+  "settings.platform/widget-registry": ["platform_admin:access"],
+  "settings.platform/connection-registry": ["platform_admin:access"],
+  "settings.platform/access-catalog": ["platform_admin:access"],
+};
+
+function derivePermissionsFromResolvedShellAccess(payload: Record<string, unknown>) {
+  const appIds = normalizeStringList(payload.accessible_apps ?? payload.accessibleApps);
+  const surfaceIds = normalizeStringList(payload.accessible_surfaces ?? payload.accessibleSurfaces);
+  const permissions = new Set<Permission>();
+
+  appIds.forEach((appId) => {
+    shellAccessAppPermissionMap[appId]?.forEach((permission) => permissions.add(permission));
+  });
+
+  surfaceIds.forEach((surfaceKey) => {
+    shellAccessSurfacePermissionMap[surfaceKey]?.forEach((permission) =>
+      permissions.add(permission),
+    );
+  });
+
+  return Array.from(permissions);
 }
 
 function resolveSessionRole({
@@ -787,8 +847,8 @@ async function fetchUserShellAccess(
 ) {
   const shellAccessTemplate = commandCenterConfig.commandCenterAccess.users.shellAccessUrl.trim();
 
-  if (!shellAccessTemplate || !userUid) {
-    return null;
+  if (!shellAccessTemplate) {
+    return [] as Permission[];
   }
 
   const shellAccessPath = buildConfigPath(shellAccessTemplate, {
@@ -817,12 +877,8 @@ async function fetchUserShellAccess(
 
 function applyShellAccessPermissions(
   user: AppUser,
-  shellPermissions: Permission[] | null,
+  shellPermissions: Permission[],
 ) {
-  if (!shellPermissions) {
-    return user;
-  }
-
   const permissions = buildEffectivePermissions({
     permissions: shellPermissions,
     platformPermissions: user.platformPermissions,

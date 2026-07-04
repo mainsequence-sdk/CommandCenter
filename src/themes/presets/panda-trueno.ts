@@ -7,7 +7,7 @@ export const pandaTruenoTheme: ThemePreset = {
     "AE86-inspired light theme with pearl white panels, black trim, electric blue stripe energy, and amber lamp accents.",
   source: "core",
   mode: "light",
-  tightness: "default",
+  tightness: "tight",
   surfaceHierarchy: "framed",
   tokens: {
     background: "#F3F3EF",

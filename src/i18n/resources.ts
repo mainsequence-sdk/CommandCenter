@@ -120,13 +120,13 @@ export const resources = {
           "This endpoint is queried on demand to show the current RBAC groups returned for the signed-in session.",
         authRoleGroupMapping: "Platform access mapping",
         authRoleGroupMappingHelp:
-          "The frontend maps backend-owned auth fields into shell identity, then resolves shell permissions from the shell-access endpoint.",
+          "The frontend maps backend-owned auth fields into shell identity, then resolves shell visibility from the shell-access endpoint.",
         authAdminGroup: "User-details groups field",
         authAdminGroupHelp:
           "Field path that returns RBAC group objects for the authenticated user for diagnostics and display.",
         authUserGroup: "Shell access source",
         authUserGroupHelp:
-          "Organization-admin shell access now comes from shell-access effective_permissions, not from auth groups.",
+          "Organization-admin shell access now comes from shell-access accessible apps and surfaces, not from auth groups.",
         authUserFallback: "Fallback for all other authenticated users",
         authCurrentGroups: "Current RBAC groups",
         authCurrentGroupsHelp:

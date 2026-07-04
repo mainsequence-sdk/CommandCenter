@@ -150,7 +150,6 @@ export interface CommandCenterConfig {
     };
     users: {
       shellAccessUrl: string;
-      shellAccessPreviewUrl: string;
     };
   };
   mainSequence: {
@@ -315,7 +314,6 @@ interface DefaultCommandCenterConfig {
     };
     users: {
       shell_access_url: string;
-      shell_access_preview_url: string;
     };
   };
   main_sequence: {
@@ -481,8 +479,6 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
     },
     users: {
       shell_access_url: "/api/v1/command_center/users/{user_uid}/shell-access/",
-      shell_access_preview_url:
-        "/api/v1/command_center/users/{user_uid}/shell-access/preview/",
     },
   },
   main_sequence: {
@@ -1004,10 +1000,6 @@ export const commandCenterConfig: CommandCenterConfig = {
       shellAccessUrl: readString(
         parsedCommandCenterAccessUsers.shell_access_url,
         defaultRawConfig.command_center_access.users.shell_access_url,
-      ),
-      shellAccessPreviewUrl: readString(
-        parsedCommandCenterAccessUsers.shell_access_preview_url,
-        defaultRawConfig.command_center_access.users.shell_access_preview_url,
       ),
     },
   },

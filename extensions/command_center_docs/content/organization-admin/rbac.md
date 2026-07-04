@@ -10,7 +10,8 @@ the platform without automatically gaining access to every governed object insid
 
 ## Command Center
 
-At the Command Center level, RBAC decides what a user can see and operate in the platform.
+At the Command Center level, RBAC decides what shell applications and submenus a user can see.
+Backend APIs still enforce their own resource and action permissions.
 
 ### Authentication and session
 
@@ -20,9 +21,9 @@ effective permissions used throughout the platform.
 
 ### Organization access class
 
-After identity is resolved, Command Center determines platform access from the dedicated
-shell-access flow and uses the returned `effective_permissions` as the source of truth for
-organization-admin access.
+After identity is resolved, Command Center determines shell visibility from the dedicated
+shell-access flow. The response fields are `accessible_apps` and `accessible_surfaces`; raw
+permission strings are not part of the normal shell-access read response.
 
 ### Resolution flow
 
@@ -31,22 +32,21 @@ backend user details / JWT claims
         |
         +-- identity bootstrap ----------------------> signed-in user profile
         |
-        +-- /command_center/access-policies/ --------> reusable platform policy definitions
+        +-- backend-owned shell profiles ------------> app and submenu selections
         |
-        +-- /command_center/users/<user_uid>/shell-access/ -> user policy assignments plus direct grants/denies
-        |                                              resolve into effective permissions
+        +-- /command_center/users/<user_uid>/shell-access/ -> resolved app/surface access
         |
-        +-- effective_permissions --------------------> platform gates decide what is visible,
+        +-- accessible_apps / accessible_surfaces ----> shell gates decide what is visible,
                                                        searchable, and reachable
 ```
 
 ### Permission gates
 
-Permissions are the real enforcement layer inside Command Center.
+Shell access is a visualization gate inside Command Center.
 
-Policies and user-specific overrides determine whether apps, pages, tools, widgets, and utilities
-are visible and reachable. This is what controls the platform experience for organization-admin
-workflows.
+Backend-owned profiles determine whether apps and submenus are visible and reachable. Organization
+admins inspect the resolved tree in Access & RBAC; they do not edit raw policy bundles, direct
+grants, or direct denies from the frontend.
 
 ## Main Sequence
 
@@ -62,6 +62,17 @@ Object-level RBAC in Main Sequence is separate from the Command Center access cl
 An individual Main Sequence resource can grant direct `view` or `edit` access to a user or team
 without changing whether Command Center treats that person as an Admin or a User at the platform
 level.
+
+Actual object permissions are edited from the resource detail pages that own the object, such as
+projects, secrets, constants, namespaces, data nodes, and similar Main Sequence resources. The RBAC
+settings pages explain and inspect platform access; they do not pick a Main Sequence object for
+editing.
+
+For Main Sequence objects, the common rules are:
+
+- organization admins retain access even when they are not explicitly assigned
+- edit access implies view access
+- assignments are made to users and organization teams, not ad-hoc groups
 
 ## Why The Split Matters
 

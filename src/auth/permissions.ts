@@ -13,6 +13,7 @@ export const ORGANIZATION_ADMIN_PERMISSION = "org_admin:view";
 export const PLATFORM_ADMIN_PERMISSION = "platform_admin:access";
 export const LEGACY_ADMIN_PERMISSION = "rbac:view";
 export const WORKSPACES_PUBLISH_PERMISSION = "workspaces:publish";
+export const DEPRECATED_PERMISSION_IDS = ["news:read"] as const satisfies Permission[];
 export const PROMETHEUS_CONNECTION_PERMISSIONS = [
   "prometheus:query",
 ] as const satisfies Permission[];
@@ -29,6 +30,16 @@ export const MSSQL_CONNECTION_PERMISSIONS = [
   "mssql:query",
 ] as const satisfies Permission[];
 
+const deprecatedPermissionIdSet = new Set<string>(DEPRECATED_PERMISSION_IDS);
+
+export function isDeprecatedPermission(permission: string) {
+  return deprecatedPermissionIdSet.has(permission.trim());
+}
+
+export function filterDeprecatedPermissions<T extends string>(permissions: readonly T[]) {
+  return permissions.filter((permission) => !isDeprecatedPermission(permission));
+}
+
 export const ROLE_LABELS: Record<BuiltinAppRole, string> = {
   user: "User",
   org_admin: "Organization Admin",
@@ -40,7 +51,6 @@ export const ROLE_PERMISSIONS: Record<BuiltinAppRole, Permission[]> = {
     "workspaces:view",
     "widget.catalog:view",
     "main_sequence_markets:view",
-    "news:read",
     "orders:read",
     "orders:submit",
     "main_sequence_foundry:view",
@@ -52,7 +62,6 @@ export const ROLE_PERMISSIONS: Record<BuiltinAppRole, Permission[]> = {
     "widget.catalog:view",
     ORGANIZATION_ADMIN_PERMISSION,
     "main_sequence_markets:view",
-    "news:read",
     "orders:read",
     "orders:submit",
     "main_sequence_foundry:view",
@@ -66,7 +75,6 @@ export const ROLE_PERMISSIONS: Record<BuiltinAppRole, Permission[]> = {
     ORGANIZATION_ADMIN_PERMISSION,
     PLATFORM_ADMIN_PERMISSION,
     "main_sequence_markets:view",
-    "news:read",
     "orders:read",
     "orders:submit",
     "main_sequence_foundry:view",
@@ -128,12 +136,6 @@ export const CORE_PERMISSION_DEFINITIONS = [
     category: "Markets",
   },
   {
-    id: "news:read",
-    label: "News / read",
-    description: "Read news and event feed surfaces.",
-    category: "Markets",
-  },
-  {
     id: "orders:read",
     label: "Orders / read",
     description: "View execution and order management surfaces.",
@@ -186,7 +188,7 @@ export const ALL_PERMISSIONS: Permission[] = Array.from(
     ...MYSQL_CONNECTION_PERMISSIONS,
     ...MSSQL_CONNECTION_PERMISSIONS,
   ]),
-);
+).filter((permission) => !isDeprecatedPermission(permission));
 
 function normalizeRoleToken(value?: string | null) {
   return value
@@ -265,7 +267,7 @@ export function getPermissionsForRole(role?: string | null) {
     return [] as Permission[];
   }
 
-  return ROLE_PERMISSIONS[normalized];
+  return filterDeprecatedPermissions(ROLE_PERMISSIONS[normalized]);
 }
 
 export function buildEffectivePermissions({
@@ -312,7 +314,7 @@ export function buildEffectivePermissions({
     MSSQL_CONNECTION_PERMISSIONS.forEach((permission) => merged.add(permission));
   }
 
-  return Array.from(merged);
+  return filterDeprecatedPermissions(Array.from(merged));
 }
 
 export function hasOrganizationAdminAccess(

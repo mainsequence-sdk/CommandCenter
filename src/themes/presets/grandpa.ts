@@ -6,7 +6,7 @@ export const grandpaTheme: ThemePreset = {
   description: "Bloomberg-style terminal preset with dark gray chrome, amber emphasis, and utility blue highlights.",
   source: "core",
   mode: "dark",
-  tightness: "relaxed",
+  tightness: "tight",
   surfaceHierarchy: "framed",
   tokens: {
     background: "#050505",

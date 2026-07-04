@@ -6,7 +6,7 @@ export const neonMintTheme: ThemePreset = {
   description: "High-contrast dark shell with mint and cyan accents.",
   source: "core",
   mode: "dark",
-  tightness: "relaxed",
+  tightness: "tight",
   surfaceHierarchy: "soft",
   tokens: {
     background: "#07110E",

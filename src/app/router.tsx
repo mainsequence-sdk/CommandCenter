@@ -38,6 +38,23 @@ function LegacyWidgetDetailsRedirect() {
   );
 }
 
+const accessRbacSettingsRouteMap: Record<string, string> = {
+  assignments: "inspector",
+  coverage: "inspector",
+  "main-sequence-access": "inspector",
+  policies: "inspector",
+  teams: "teams",
+  "user-inspector": "inspector",
+  inspector: "inspector",
+};
+
+function LegacyAccessRbacRedirect() {
+  const { surfaceId = "inspector" } = useParams();
+  const target = accessRbacSettingsRouteMap[surfaceId] ?? "inspector";
+
+  return <Navigate to={`/app/settings/access-rbac/${target}`} replace />;
+}
+
 export const router = createBrowserRouter([
   {
     path: "/login",
@@ -115,7 +132,7 @@ export const router = createBrowserRouter([
         path: "access",
         element: (
           <PermissionRoute anyOf={["org_admin:view"]}>
-            <Navigate to="/app/access-rbac" replace />
+            <Navigate to="/app/settings/access-rbac/inspector" replace />
           </PermissionRoute>
         ),
       },
@@ -156,10 +173,26 @@ export const router = createBrowserRouter([
         element: <SettingsPage />,
       },
       {
+        path: "access-rbac",
+        element: (
+          <PermissionRoute anyOf={["org_admin:view"]}>
+            <Navigate to="/app/settings/access-rbac/inspector" replace />
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: "access-rbac/:surfaceId",
+        element: (
+          <PermissionRoute anyOf={["org_admin:view"]}>
+            <LegacyAccessRbacRedirect />
+          </PermissionRoute>
+        ),
+      },
+      {
         path: "teams",
         element: (
           <PermissionRoute anyOf={["org_admin:view"]}>
-            <Navigate to="/app/access-rbac/teams" replace />
+            <Navigate to="/app/settings/access-rbac/teams" replace />
           </PermissionRoute>
         ),
       },
