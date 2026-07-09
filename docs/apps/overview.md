@@ -69,7 +69,7 @@ Once an app is selected, surface switching moves into the topbar.
 - the adjacent topbar selector lists accessible surfaces grouped into sections
 - the left contextual app panel exposes the selected app's surfaces inside those same sections
 - surfaces without an explicit section fall back to kind-based groups such as `Pages` and `Tools`
-- surfaces are filtered by both app and surface permissions
+- surfaces are filtered by backend `accessible_apps` and `accessible_surfaces`
 - hidden surfaces are excluded from normal navigation flow
 - the main content area stays focused on the active surface instead of repeating app metadata
 
@@ -128,7 +128,6 @@ export interface AppDefinition {
   icon: AppIcon;
   navigationPlacement?: "primary" | "admin-menu";
   topNavigationStyle?: "selector" | "hidden";
-  requiredPermissions?: string[];
   defaultSurfaceId: string;
   surfaces: AppSurfaceDefinition[];
 }
@@ -137,6 +136,9 @@ export interface AppDefinition {
 Use `navigationPlacement: "admin-menu"` for admin-only applications that should stay out of the
 primary left rail while still behaving like first-class apps. `Access & RBAC` is the core example
 of that pattern.
+
+Runtime app and surface visibility is not derived from app metadata. It comes from the backend
+shell-access response: `accessible_apps` and `accessible_surfaces`.
 
 Use `topNavigationStyle: "hidden"` when an app manages its own surface navigation inside the page
 itself and should not expose a surface switcher in the global topbar. `Access & RBAC` now uses

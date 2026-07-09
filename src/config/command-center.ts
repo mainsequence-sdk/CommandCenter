@@ -43,8 +43,6 @@ export interface CommandCenterAuthConfig {
       role: string;
       organizationRole: string;
       permissions: string;
-      platformPermissions: string;
-      isPlatformAdmin: string;
       dateJoined: string;
       isActive: string;
       lastLogin: string;
@@ -61,8 +59,6 @@ export interface CommandCenterAuthConfig {
         role: string;
         organizationRole: string;
         permissions: string;
-        platformPermissions: string;
-        isPlatformAdmin: string;
         dateJoined: string;
         isActive: string;
         lastLogin: string;
@@ -141,9 +137,6 @@ export interface CommandCenterConfig {
     };
   };
   commandCenterAccess: {
-    accessCatalog: {
-      syncUrl: string;
-    };
     accessPolicies: {
       listUrl: string;
       detailUrl: string;
@@ -270,8 +263,6 @@ interface DefaultCommandCenterConfig {
         role: string;
         organization_role: string;
         permissions: string;
-        platform_permissions: string;
-        is_platform_admin: string;
         date_joined: string;
         is_active: string;
         last_login: string;
@@ -288,8 +279,6 @@ interface DefaultCommandCenterConfig {
           role: string;
           organization_role: string;
           permissions: string;
-          platform_permissions: string;
-          is_platform_admin: string;
           date_joined: string;
           is_active: string;
           last_login: string;
@@ -305,9 +294,6 @@ interface DefaultCommandCenterConfig {
     };
   };
   command_center_access: {
-    access_catalog: {
-      sync_url: string;
-    };
     access_policies: {
       list_url: string;
       detail_url: string;
@@ -435,8 +421,6 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
         role: "role",
         organization_role: "organization_role",
         permissions: "permissions",
-        platform_permissions: "platform_permissions",
-        is_platform_admin: "is_platform_admin",
         date_joined: "date_joined",
         is_active: "is_active",
         last_login: "last_login",
@@ -453,8 +437,6 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
           role: "role",
           organization_role: "organization_role",
           permissions: "permissions",
-          platform_permissions: "platform_permissions",
-          is_platform_admin: "is_platform_admin",
           date_joined: "date_joined",
           is_active: "is_active",
           last_login: "last_login",
@@ -470,9 +452,6 @@ const defaultRawConfig: DefaultCommandCenterConfig = {
     },
   },
   command_center_access: {
-    access_catalog: {
-      sync_url: "/api/v1/command_center/access-catalog/sync/",
-    },
     access_policies: {
       list_url: "/api/v1/command_center/access-policies/",
       detail_url: "/api/v1/command_center/access-policies/{id}/",
@@ -626,7 +605,6 @@ const parsedConnections = getNestedObject(parsedConfig, "connections");
 const parsedAuth = getNestedObject(parsedConfig, "auth");
 const parsedAccessRbac = getNestedObject(parsedConfig, "access_rbac");
 const parsedCommandCenterAccess = getNestedObject(parsedConfig, "command_center_access");
-const parsedCommandCenterAccessCatalog = getNestedObject(parsedCommandCenterAccess, "access_catalog");
 const parsedMainSequence = getNestedObject(parsedConfig, "main_sequence");
 const parsedNotifications = getNestedObject(parsedConfig, "notifications");
 const parsedAuthJwt = getNestedObject(parsedAuth, "jwt");
@@ -876,14 +854,6 @@ export const commandCenterConfig: CommandCenterConfig = {
           parsedAuthClaimMapping.permissions,
           defaultRawConfig.auth.jwt.claim_mapping.permissions,
         ),
-        platformPermissions: readString(
-          parsedAuthClaimMapping.platform_permissions,
-          defaultRawConfig.auth.jwt.claim_mapping.platform_permissions,
-        ),
-        isPlatformAdmin: readString(
-          parsedAuthClaimMapping.is_platform_admin,
-          defaultRawConfig.auth.jwt.claim_mapping.is_platform_admin,
-        ),
         dateJoined: readString(
           parsedAuthClaimMapping.date_joined,
           defaultRawConfig.auth.jwt.claim_mapping.date_joined,
@@ -939,14 +909,6 @@ export const commandCenterConfig: CommandCenterConfig = {
             parsedAuthUserDetailsMapping.permissions,
             defaultRawConfig.auth.jwt.user_details.response_mapping.permissions,
           ),
-          platformPermissions: readString(
-            parsedAuthUserDetailsMapping.platform_permissions,
-            defaultRawConfig.auth.jwt.user_details.response_mapping.platform_permissions,
-          ),
-          isPlatformAdmin: readString(
-            parsedAuthUserDetailsMapping.is_platform_admin,
-            defaultRawConfig.auth.jwt.user_details.response_mapping.is_platform_admin,
-          ),
           dateJoined: readString(
             parsedAuthUserDetailsMapping.date_joined,
             defaultRawConfig.auth.jwt.user_details.response_mapping.date_joined,
@@ -963,10 +925,10 @@ export const commandCenterConfig: CommandCenterConfig = {
             parsedAuthUserDetailsMapping.mfa_enabled,
             defaultRawConfig.auth.jwt.user_details.response_mapping.mfa_enabled,
           ),
-        organizationTeams: readString(
-          parsedAuthUserDetailsMapping.organization_teams,
-          defaultRawConfig.auth.jwt.user_details.response_mapping.organization_teams,
-        ),
+          organizationTeams: readString(
+            parsedAuthUserDetailsMapping.organization_teams,
+            defaultRawConfig.auth.jwt.user_details.response_mapping.organization_teams,
+          ),
         },
       },
     },
@@ -980,12 +942,6 @@ export const commandCenterConfig: CommandCenterConfig = {
     },
   },
   commandCenterAccess: {
-    accessCatalog: {
-      syncUrl: readString(
-        parsedCommandCenterAccessCatalog.sync_url,
-        defaultRawConfig.command_center_access.access_catalog.sync_url,
-      ),
-    },
     accessPolicies: {
       listUrl: readString(
         parsedCommandCenterAccessPolicies.list_url,

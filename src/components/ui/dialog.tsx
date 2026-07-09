@@ -57,7 +57,7 @@ export function Dialog({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-5">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-3 md:p-4">
       {closeOnBackdropClick ? (
         <button
           type="button"
@@ -70,7 +70,7 @@ export function Dialog({
       )}
       <div
         className={cn(
-          "relative z-10 flex w-full max-w-[min(1120px,calc(100vw-24px))] flex-col overflow-hidden rounded-[28px] border border-border/70 bg-[linear-gradient(155deg,color-mix(in_srgb,var(--card)_92%,var(--background)_8%)_0%,color-mix(in_srgb,var(--card)_96%,var(--background)_4%)_46%,color-mix(in_srgb,var(--background)_94%,var(--card)_6%)_100%)] text-card-foreground shadow-[0_32px_120px_rgba(0,0,0,0.34)] backdrop-blur-2xl",
+          "relative z-10 flex w-full max-w-[min(1120px,calc(100vw-24px))] flex-col overflow-hidden rounded-[var(--radius)] border border-border/70 bg-[linear-gradient(155deg,color-mix(in_srgb,var(--card)_92%,var(--background)_8%)_0%,color-mix(in_srgb,var(--card)_96%,var(--background)_4%)_46%,color-mix(in_srgb,var(--background)_94%,var(--card)_6%)_100%)] text-card-foreground shadow-[0_32px_120px_rgba(0,0,0,0.34)] backdrop-blur-2xl",
           className,
         )}
         role="dialog"
@@ -85,7 +85,7 @@ export function Dialog({
         </div>
         <div
           className={cn(
-            "relative flex items-start justify-between gap-4 border-b border-border/70 px-5 py-4 md:px-6",
+            "relative flex items-start justify-between gap-3 border-b border-border/70 px-4 py-3 md:px-5",
             headerClassName,
           )}
         >
@@ -95,7 +95,7 @@ export function Dialog({
               {title}
             </h2>
             {description ? (
-              <p id="dialog-description" className="mt-1 text-sm text-muted-foreground">
+              <p id="dialog-description" className="mt-0.5 text-sm text-muted-foreground">
                 {description}
               </p>
             ) : null}
@@ -111,7 +111,7 @@ export function Dialog({
         </div>
         <div
           className={cn(
-            "relative max-h-[min(84vh,860px)] overflow-auto px-5 py-5 md:px-6 md:py-6",
+            "relative max-h-[min(84vh,860px)] overflow-auto px-4 py-4 md:px-5 md:py-5",
             contentClassName,
           )}
         >

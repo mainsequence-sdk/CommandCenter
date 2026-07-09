@@ -24,6 +24,10 @@ This nested extension owns the administrative and operational Main Sequence Foun
 - Move code into `../../common/` only when it is meant to be reused by another Main Sequence extension.
 - Foundry surfaces in `app.ts` now also carry assistant-facing summaries and action lists through
   `assistantContext`; keep those descriptions aligned with the actual page capabilities.
+- Foundry menu groupings are shell-access metadata as well as navigation. `Clusters` and
+  `TimeScaleDB Services` belong to the `Tenancy Infrastructure` section so they can later be
+  separated from the single user-facing Foundry application into infrastructure-focused access
+  slices.
 - `index.ts` currently registers `main-sequence-dependency-graph` and
   `main-sequence-project-infra-graph` in the live widget catalog, plus Main Sequence connection
   types in the connection catalog. The former Data Node source, table, graph, and statistic widgets

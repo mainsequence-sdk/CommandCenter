@@ -168,7 +168,6 @@ export interface OrganizationUserCreateResponse {
   first_name: string;
   last_name: string;
   profile_picture: string | null;
-  groups: string[];
   plan: string;
   teams: Array<{
     id: number;

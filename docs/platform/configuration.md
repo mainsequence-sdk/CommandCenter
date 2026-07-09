@@ -5,7 +5,7 @@
 Command Center keeps user-editable runtime configuration outside `src/` so branding and backend integration details are separated from application functionality.
 
 Organization authorization policy does not belong in this file. The YAML maps where to read
-backend-provided auth fields, but it must not define which users are `ORG_ADMIN` or platform-admin.
+backend-provided auth fields, but it must not define which users are `ORG_ADMIN`.
 
 The current configuration entrypoint is:
 
@@ -94,8 +94,6 @@ auth:
       role: role
       organization_role: organization_role
       permissions: permissions
-      platform_permissions: platform_permissions
-      is_platform_admin: is_platform_admin
       date_joined: date_joined
       is_active: is_active
       last_login: last_login
@@ -110,8 +108,6 @@ auth:
         role: role
         organization_role: organization_role
         permissions: permissions
-        platform_permissions: platform_permissions
-        is_platform_admin: is_platform_admin
         date_joined: date_joined
         is_active: is_active
         last_login: last_login
@@ -121,8 +117,6 @@ auth:
 access_rbac:
   users:
     list_url: /user/api/user/
-  groups:
-    list_url: /user/api/user/get_rbac_groups/
 
 command_center_access:
   access_policies:
@@ -173,8 +167,6 @@ notifications:
 - `auth.jwt.user_details.url`: authenticated endpoint fetched immediately after successful login and refresh
 - `auth.jwt.user_details.response_mapping.*`: field paths used to map the user-details payload into the frontend session user
 - `auth.jwt.user_details.response_mapping.user_id` is optional. The frontend prefers `claim_mapping.user_id` and otherwise falls back to `uid`, so `/user/api/user/get_user_details/` does not need to expose a backend numeric `id`.
-- `auth.jwt.claim_mapping.platform_permissions` and `auth.jwt.user_details.response_mapping.platform_permissions`: field paths used to resolve platform-only permissions such as `platform_admin:access`
-- `auth.jwt.claim_mapping.is_platform_admin` and `auth.jwt.user_details.response_mapping.is_platform_admin`: optional boolean field paths used to mark a session as platform-admin
 - `access_rbac.users.list_url`: authenticated endpoint used by the Access & RBAC app user inspector to search the user directory
 - `command_center_access.access_policies.list_url`: authenticated list endpoint for backend-owned Command Center shell policy metadata
 - `command_center_access.access_policies.detail_url`: authenticated detail endpoint for backend-owned Command Center shell policy metadata; the frontend replaces `{id}` with the integer policy id
@@ -216,7 +208,7 @@ The application:
 - fetches configured user details after JWT login succeeds
 - revalidates persisted JWT sessions against the configured user-details endpoint before granting access
 - maps configured token claims and user-details fields into the frontend session user
-- derives organization-admin and platform-admin access from backend-owned claims or user-details fields
+- derives organization-admin access from backend-owned claims or user-details fields
 - resolves shell visibility from the authenticated user's shell-access `accessible_apps` and `accessible_surfaces`
 - queries the configured Access & RBAC users endpoint when an admin searches the user directory
 - loads backend-owned shell policy metadata through `command_center_access.access_policies.*` when needed
@@ -245,7 +237,7 @@ Expected payload shape:
 ```json
 {
   "language": "en",
-  "favoriteSurfaceIds": ["access-rbac.overview"],
+  "favoriteSurfaceIds": ["settings.access-rbac.inspector"],
   "favoriteWorkspaceIds": ["workspace-studio::workspace::abc123"]
 }
 ```

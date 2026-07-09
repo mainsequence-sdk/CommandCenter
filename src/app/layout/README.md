@@ -34,8 +34,8 @@ Shared shell navigation and chrome for the Command Center application.
 - Settings is a routed app at `/app/settings/*`. User settings, organization admin, billing,
   organization-owned application settings, extension-contributed settings, and platform diagnostics
   are reached through that app.
-- Organization-admin pages keep their existing `org_admin:view` gates. Platform-owned controls keep
-  their platform-admin gates inside the Settings app.
+- Organization-admin pages keep their existing `org_admin:view` gates. System controls are shown
+  through backend-owned shell access inside the Settings app.
 - Shell state can still target a specific contributed user-settings section; the sidebar translates
   that legacy modal intent into the closest routed Settings page.
 

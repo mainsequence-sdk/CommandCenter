@@ -2,7 +2,6 @@ import { Cable } from "lucide-react";
 
 import type { AppExtension } from "@/app/registry/types";
 import { defineSurfaceAssistantContext, type AppDefinition } from "@/apps/types";
-import { PLATFORM_ADMIN_PERMISSION } from "@/auth/permissions";
 import {
   ConnectionDataSourcesPage,
   ConnectionsAddNewPage,
@@ -19,20 +18,11 @@ const connectionsSection = {
 const connectionsApp: AppDefinition = {
   id: "connections",
   title: "Connections",
-  description: "Platform-admin connection registry and backend-owned data-source instances.",
+  description: "Connection registry and backend-owned data-source instances.",
   source: "connections",
   icon: Cable,
   navigationOrder: 500,
   topNavigationStyle: "hidden",
-  requiredPermissions: [PLATFORM_ADMIN_PERMISSION],
-  permissionDefinitions: [
-    {
-      id: PLATFORM_ADMIN_PERMISSION,
-      label: "Platform admin / access",
-      description: "Open platform-level admin settings and diagnostics.",
-      category: "Shell",
-    },
-  ],
   defaultSurfaceId: "add-new-connection",
   surfaces: [
     {
@@ -52,7 +42,6 @@ const connectionsApp: AppDefinition = {
       }),
       kind: "page",
       fullBleed: true,
-      requiredPermissions: [PLATFORM_ADMIN_PERMISSION],
       navigationSection: connectionsSection,
       component: ConnectionsAddNewPage,
     },
@@ -73,7 +62,6 @@ const connectionsApp: AppDefinition = {
       }),
       kind: "page",
       fullBleed: true,
-      requiredPermissions: [PLATFORM_ADMIN_PERMISSION],
       navigationSection: connectionsSection,
       component: ConnectionDataSourcesPage,
     },
@@ -97,7 +85,6 @@ const connectionsApp: AppDefinition = {
       }),
       kind: "page",
       fullBleed: true,
-      requiredPermissions: [PLATFORM_ADMIN_PERMISSION],
       navigationSection: connectionsSection,
       component: ConnectionsExplorePage,
     },

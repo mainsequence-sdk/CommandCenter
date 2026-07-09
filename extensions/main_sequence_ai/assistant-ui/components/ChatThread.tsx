@@ -79,6 +79,30 @@ function isAstroDeploymentMessage(message: string | null | undefined) {
   return normalized.startsWith("Astro ");
 }
 
+function isGenericFetchFailure(message: string | null | undefined) {
+  const normalized = message?.trim() ?? "";
+
+  return (
+    normalized === "Failed to fetch" ||
+    normalized.includes("Failed to fetch") ||
+    normalized.includes("ERR_ADDRESS_UNREACHABLE")
+  );
+}
+
+function formatSessionUnavailableMessage(message: string | null | undefined) {
+  const normalized = message?.trim();
+
+  if (!normalized) {
+    return "AgentSession failed to load.";
+  }
+
+  if (isGenericFetchFailure(normalized)) {
+    return `Could not reach the Command Center API at ${env.apiBaseUrl}. Start the backend or enable mock data for local chat.`;
+  }
+
+  return normalized;
+}
+
 function formatContextUsageNumber(value: number | null) {
   if (value === null || !Number.isFinite(value)) {
     return null;
@@ -538,7 +562,9 @@ function SessionReadinessState({
   const showAstroDeploymentAction =
     failure &&
     !isProjectAgentRail &&
-    (isAstroCommandCenterSession || isAstroDeploymentMessage(message) || message.trim().length > 0);
+    !isGenericFetchFailure(message) &&
+    (isAstroCommandCenterSession || isAstroDeploymentMessage(message));
+  const displayMessage = formatSessionUnavailableMessage(message);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col items-center justify-center px-6 py-8 text-center">
@@ -561,7 +587,7 @@ function SessionReadinessState({
             ? "Loading project agent session"
             : "Loading AgentSession"}
       </div>
-      <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{message}</p>
+      <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">{displayMessage}</p>
       {showAstroDeploymentAction ? (
         <button
           type="button"
@@ -723,9 +749,9 @@ function Composer({
   const showAstroDeploymentAction =
     sessionUnavailable &&
     !isProjectAgentRail &&
+    !isGenericFetchFailure(sessionUnavailableMessage) &&
     (isAstroCommandCenterSession ||
-      isAstroDeploymentMessage(sessionUnavailableMessage) ||
-      Boolean(sessionUnavailableMessage?.trim()));
+      isAstroDeploymentMessage(sessionUnavailableMessage));
   const sessionLoading = !env.useMockData && isSessionLoading && !sessionUnavailable;
   const blockTyping =
     isSessionIdle ||
@@ -739,6 +765,8 @@ function Composer({
   const modelsUnavailableMessage = modelCatalogError
     ? formatModelsUnavailableMessage(availableModelsError)
     : formatEmptyModelCatalogMessage();
+  const formattedSessionUnavailableMessage =
+    sessionUnavailableMessage ? formatSessionUnavailableMessage(sessionUnavailableMessage) : null;
   const openUserSettings = useShellStore((state) => state.openUserSettings);
 
   const composerBody = (
@@ -882,7 +910,7 @@ function Composer({
       ) : null}
       {sessionUnavailable ? (
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2 text-xs text-danger">
-          <span>{sessionUnavailableMessage}</span>
+          <span>{formattedSessionUnavailableMessage}</span>
           {showAstroDeploymentAction ? (
             <button
               type="button"

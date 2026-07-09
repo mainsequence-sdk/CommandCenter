@@ -1,5 +1,5 @@
 import type { AppDefinition, AppSurfaceDefinition } from "@/apps/types";
-import { adminApp, workspaceStudioApp } from "@/extensions/core";
+import { workspaceStudioApp } from "@/extensions/core";
 import { mainSequenceWorkbenchApp } from "../../main_sequence/extensions/workbench/app";
 import { mainSequenceAiApp } from "../../main_sequence_ai/app";
 
@@ -468,5 +468,5 @@ export const documentationSourceApps = {
   workspaces: workspaceStudioApp.id,
   foundry: mainSequenceWorkbenchApp.id,
   "main-sequence-ai": mainSequenceAiApp.id,
-  "organization-admin": adminApp.id,
+  "organization-admin": "settings.organization",
 } as const;

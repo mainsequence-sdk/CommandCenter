@@ -9,7 +9,9 @@ place to work with projects, jobs, data resources, and deployment-oriented infra
 - `Jobs` for cross-project job browsing and run inspection.
 - `Resources` for release-style resource surfaces such as Streamlit.
 - `Data` for buckets, data sources, data nodes, and tables.
-- `Deployment Services` for service and infrastructure-oriented records.
+- `Tenancy Infrastructure` for clusters and TimeScaleDB service records.
+- `Deployment Services` for hidden service-oriented detail surfaces opened from runtime-linked
+  flows.
 
 ## Typical Use
 

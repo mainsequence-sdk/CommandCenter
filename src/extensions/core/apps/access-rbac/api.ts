@@ -1,13 +1,9 @@
 import {
-  PROMETHEUS_CONNECTION_PERMISSIONS,
-  WORKSPACES_PUBLISH_PERMISSION,
-  buildEffectivePermissions,
   filterDeprecatedPermissions,
-  getPermissionsForRole,
   normalizeBuiltinRole,
   normalizeOrganizationRole,
 } from "@/auth/permissions";
-import type { AppUser, OrganizationTeam, Permission } from "@/auth/types";
+import type { AppPlan, AppUser, OrganizationTeam, Permission } from "@/auth/types";
 import { useAuthStore } from "@/auth/auth-store";
 import { applySessionAuthHeaders } from "@/auth/session-headers";
 import { commandCenterConfig } from "@/config/command-center";
@@ -29,70 +25,11 @@ export interface AccessRbacUsersPage {
   results: AppUser[];
 }
 
-export interface AccessPolicy {
-  id: number;
-  slugifiedName: string;
-  label: string;
-  description: string;
-  permissions: Permission[];
-  isSystem: boolean;
-  isEditable: boolean;
-}
-
 export interface UserShellAccess {
   userUid: string;
   accessibleApps: string[];
   accessibleSurfaces: string[];
 }
-
-const hiddenAccessPolicySlugs = new Set(["platform-admin"]);
-const builtinOrgAdminPolicyDetails = {
-  label: "Org Admin User",
-  description:
-    "Organization-admin-only shell access for users who should only see organization administration surfaces.",
-  permissions: ["org_admin:view", WORKSPACES_PUBLISH_PERMISSION],
-  isSystem: true,
-  isEditable: false,
-  isVisible: true,
-} as const;
-export const BUILTIN_ACCESS_POLICY_DETAILS = {
-  "light-user": {
-    slugifiedName: "light-user",
-    label: "Light User",
-    description:
-      "Base shell access for users who should only see Workspaces and Main Sequence Markets.",
-    permissions: ["workspaces:view", "main_sequence_markets:view"],
-    isSystem: true,
-    isEditable: false,
-    isVisible: true,
-  },
-  "dev-user": {
-    slugifiedName: "dev-user",
-    label: "Dev User",
-    description:
-      "Developer shell access for users who should see Main Sequence Foundry and use Prometheus data sources.",
-    permissions: [
-      "workspaces:view",
-      "main_sequence_markets:view",
-      "main_sequence_foundry:view",
-      ...PROMETHEUS_CONNECTION_PERMISSIONS,
-    ],
-    isSystem: true,
-    isEditable: false,
-    isVisible: true,
-  },
-  "org-admin-user": {
-    slugifiedName: "org-admin-user",
-    ...builtinOrgAdminPolicyDetails,
-  },
-  "org-admin": {
-    slugifiedName: "org-admin",
-    ...builtinOrgAdminPolicyDetails,
-  },
-} as const;
-const builtinLockedAccessPolicySlugs = new Set(
-  Object.keys(BUILTIN_ACCESS_POLICY_DETAILS).map((slug) => normalizePolicySlug(slug)),
-);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -147,6 +84,51 @@ function readNumber(value: unknown) {
   return undefined;
 }
 
+function normalizePlan(value: unknown): AppPlan | undefined {
+  if (typeof value === "string" && value.trim()) {
+    const name = value.trim();
+
+    return {
+      name,
+      plan_type: name,
+    };
+  }
+
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const planType = readString(value.plan_type ?? value.planType ?? value.type);
+  const name =
+    readString(value.name) ||
+    readString(value.plan_name ?? value.planName) ||
+    planType;
+  const price = readNumber(value.price);
+  const description = readString(value.description);
+
+  if (!name && price === undefined && !description && !planType) {
+    return undefined;
+  }
+
+  const plan: AppPlan = {
+    name: name || "Plan",
+  };
+
+  if (price !== undefined) {
+    plan.price = price;
+  }
+
+  if (description) {
+    plan.description = description;
+  }
+
+  if (planType) {
+    plan.plan_type = planType;
+  }
+
+  return plan;
+}
+
 function readPathValue(source: Record<string, unknown>, path: string) {
   return path
     .split(".")
@@ -158,14 +140,6 @@ function readPathValue(source: Record<string, unknown>, path: string) {
 
       return current[segment];
     }, source);
-}
-
-function normalizePolicySlug(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 function normalizeStringList(value: unknown) {
@@ -207,35 +181,6 @@ function normalizePermissions(value: unknown) {
   return filterDeprecatedPermissions(
     Array.from(new Set(normalizeStringList(value))),
   ) as Permission[];
-}
-
-function normalizeGroupNames(value: unknown) {
-  if (Array.isArray(value)) {
-    return value.flatMap<string>((entry) => {
-      if (typeof entry === "string") {
-        const trimmed = entry.trim();
-        return trimmed ? [trimmed] : [];
-      }
-
-      if (isRecord(entry)) {
-        const normalizedName = readString(entry.normalized_name);
-        return normalizedName ? [normalizedName] : [];
-      }
-
-      return [];
-    });
-  }
-
-  if (typeof value === "string") {
-    return normalizeStringList(value);
-  }
-
-  if (isRecord(value)) {
-    const normalizedName = readString(value.normalized_name);
-    return normalizedName ? [normalizedName] : [];
-  }
-
-  return [] as string[];
 }
 
 function normalizeOrganizationTeams(value: unknown): OrganizationTeam[] | undefined {
@@ -425,18 +370,6 @@ function normalizeListPayload<T>(payload: PaginatedResponse<T> | T[]) {
   return Array.isArray(payload) ? payload : payload.results;
 }
 
-function isHiddenAccessPolicySlug(slug: string) {
-  return hiddenAccessPolicySlugs.has(normalizePolicySlug(slug));
-}
-
-function isBuiltinLockedAccessPolicySlug(slug: string) {
-  return builtinLockedAccessPolicySlugs.has(normalizePolicySlug(slug));
-}
-
-export function isVisibleAccessPolicy(policy: Pick<AccessPolicy, "slugifiedName">) {
-  return !isHiddenAccessPolicySlug(policy.slugifiedName);
-}
-
 function deriveName(email: string, role: string) {
   if (!email) {
     return role ? role.charAt(0).toUpperCase() + role.slice(1) : "User";
@@ -460,7 +393,6 @@ function deriveName(email: string, role: string) {
 
 function normalizeUserRecord(record: Record<string, unknown>): AppUser {
   const mapping = commandCenterConfig.auth.jwt.userDetails.responseMapping;
-  const groups = normalizeGroupNames(readPathValue(record, "groups"));
   const organizationRole =
     normalizeOrganizationRole(
       readString(
@@ -469,35 +401,14 @@ function normalizeUserRecord(record: Record<string, unknown>): AppUser {
           readPathValue(record, "organizationRole"),
       ),
     ) ?? undefined;
-  const platformPermissions = normalizePermissions(
-    readPathValue(record, mapping.platformPermissions) ??
-      readPathValue(record, "platform_permissions") ??
-      readPathValue(record, "platformPermissions"),
-  );
   const normalizedRecordRole = normalizeBuiltinRole(readString(
     readPathValue(record, mapping.role) ?? readPathValue(record, "role"),
     "user",
   )) ?? "user";
-  const isPlatformAdmin =
-    readBoolean(
-      readPathValue(record, mapping.isPlatformAdmin) ??
-        readPathValue(record, "is_platform_admin") ??
-        readPathValue(record, "isPlatformAdmin"),
-    ) ??
-    (platformPermissions.includes("platform_admin:access") || normalizedRecordRole === "platform_admin");
-  const role =
-    isPlatformAdmin
-      ? "platform_admin"
-      : normalizedRecordRole;
-  const permissions = buildEffectivePermissions({
-    permissions: normalizePermissions(
-      readPathValue(record, mapping.permissions) ?? readPathValue(record, "permissions"),
-    ),
-    role,
-    organizationRole,
-    platformPermissions,
-    isPlatformAdmin,
-  });
+  const role = normalizedRecordRole;
+  const permissions = normalizePermissions(
+    readPathValue(record, mapping.permissions) ?? readPathValue(record, "permissions"),
+  );
   const email = readString(
     readPathValue(record, mapping.email) ?? readPathValue(record, "email"),
   );
@@ -508,7 +419,7 @@ function normalizeUserRecord(record: Record<string, unknown>): AppUser {
     readPathValue(record, "last_name") ?? readPathValue(record, "lastName"),
   );
   const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
-  const plan = readString(
+  const plan = normalizePlan(
     readPathValue(record, "plan") ??
       readPathValue(record, "active_plan_type") ??
       readPathValue(record, "organization_plan") ??
@@ -550,14 +461,11 @@ function normalizeUserRecord(record: Record<string, unknown>): AppUser {
     email,
     first_name: firstName || undefined,
     last_name: lastName || undefined,
-    plan: plan || undefined,
+    plan,
     team,
     role,
     organizationRole,
-    platformPermissions,
-    isPlatformAdmin,
-    permissions: permissions.length ? permissions : getPermissionsForRole(role),
-    groups,
+    permissions,
     dateJoined:
       readString(readPathValue(record, mapping.dateJoined) ?? readPathValue(record, "date_joined")) ||
       undefined,
@@ -574,56 +482,11 @@ function normalizeUserRecord(record: Record<string, unknown>): AppUser {
   };
 }
 
-function normalizeAccessPolicyRecord(record: Record<string, unknown>): AccessPolicy {
-  const slugifiedName = normalizePolicySlug(
-    readString(record.slugified_name) || readString(record.slugifiedName) || readString(record.label),
-  );
-  const isBuiltinLocked = isBuiltinLockedAccessPolicySlug(slugifiedName);
-  const builtinDetails =
-    BUILTIN_ACCESS_POLICY_DETAILS[
-      slugifiedName as keyof typeof BUILTIN_ACCESS_POLICY_DETAILS
-    ];
-
-  return {
-    id: readNumber(record.id) ?? 0,
-    slugifiedName,
-    label: builtinDetails?.label ?? readString(record.label, slugifiedName || "Policy"),
-    description: builtinDetails?.description ?? readString(record.description),
-    permissions: builtinDetails
-      ? Array.from(
-          new Set([...builtinDetails.permissions, ...normalizePermissions(record.permissions)]),
-        )
-      : normalizePermissions(record.permissions),
-    isSystem:
-      builtinDetails?.isSystem ??
-      readBoolean(record.is_system) ??
-      readBoolean(record.isSystem) ??
-      isBuiltinLocked,
-    isEditable:
-      builtinDetails?.isEditable ??
-      ((readBoolean(record.is_editable) ?? readBoolean(record.isEditable) ?? !isBuiltinLocked) &&
-        !isBuiltinLocked),
-  };
-}
-
 function normalizeShellAccessRecord(record: Record<string, unknown>): UserShellAccess {
-  const resolvedAccess = isRecord(record.resolved_access)
-    ? record.resolved_access
-    : isRecord(record.resolvedAccess)
-      ? record.resolvedAccess
-      : {};
-  const accessibleAppsSource =
-    record.accessible_apps ?? record.accessibleApps ?? resolvedAccess.accessible_apps ?? resolvedAccess.accessibleApps;
-  const accessibleSurfacesSource =
-    record.accessible_surfaces ??
-    record.accessibleSurfaces ??
-    resolvedAccess.accessible_surfaces ??
-    resolvedAccess.accessibleSurfaces;
-
   return {
     userUid: readStringish(record.user_uid ?? record.userUid ?? record.uid, ""),
-    accessibleApps: normalizeStringList(accessibleAppsSource),
-    accessibleSurfaces: normalizeStringList(accessibleSurfacesSource),
+    accessibleApps: normalizeStringList(record.accessible_apps ?? record.accessibleApps),
+    accessibleSurfaces: normalizeStringList(record.accessible_surfaces ?? record.accessibleSurfaces),
   };
 }
 
@@ -688,50 +551,6 @@ export async function listAccessRbacUsersPage({
     previous: payload.previous,
     results: payload.results.map((record) => normalizeUserRecord(record)),
   };
-}
-
-export async function listAccessPolicies({
-  includeHidden = false,
-  limit = 100,
-}: {
-  includeHidden?: boolean;
-  limit?: number;
-} = {}) {
-  const results: AccessPolicy[] = [];
-  let offset = 0;
-
-  while (true) {
-    const payload = await requestAccessRbacJson<
-      PaginatedResponse<Record<string, unknown>> | Record<string, unknown>[]
-    >(commandCenterConfig.commandCenterAccess.accessPolicies.listUrl, {
-      search: {
-        limit,
-        offset,
-      },
-    });
-
-    const pageItems = normalizeListPayload(payload).map((record) =>
-      normalizeAccessPolicyRecord(record),
-    );
-
-    results.push(...pageItems);
-
-    if (Array.isArray(payload)) {
-      break;
-    }
-
-    offset += payload.results.length;
-
-    if (!payload.next || offset >= payload.count) {
-      break;
-    }
-  }
-
-  const deduped = Array.from(
-    new Map(results.map((policy) => [policy.slugifiedName, policy])).values(),
-  );
-
-  return includeHidden ? deduped : deduped.filter((policy) => isVisibleAccessPolicy(policy));
 }
 
 export async function getUserShellAccess(userUid: string) {

@@ -20,11 +20,6 @@ import {
   type WidgetTypeSyncResponse,
 } from "@/app/registry/widget-type-sync";
 import {
-  buildAccessCatalogDraft,
-  syncAccessCatalog,
-  type AccessCatalogSyncResponse,
-} from "@/app/registry/access-catalog-sync";
-import {
   buildConnectionTypeSyncDraft,
   syncConnectionTypes,
   type ConnectionTypeSyncResponse,
@@ -38,7 +33,6 @@ import {
   getCurrentUserMfaStatus,
   isAuthRequestError,
   listCurrentUserSessions,
-  requestPasswordChangeEmail,
   revokeCurrentUserSession,
   revokeOtherCurrentUserSessions,
   uploadCurrentUserProfilePicture,
@@ -123,6 +117,16 @@ function formatSessionTimestamp(value: string | null) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(parsed);
+}
+
+function formatPlanPrice(value?: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "";
+  }
+
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 function normalizeMfaCode(value: string) {
@@ -347,14 +351,12 @@ function SettingsRow({
   value: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+    <div className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
       <div className="min-w-0">
         <div className="text-sm font-medium text-topbar-foreground">{label}</div>
-        {description ? (
-          <div className="mt-1 text-sm text-muted-foreground">{description}</div>
-        ) : null}
+        {description ? <div className="mt-0.5 text-sm text-muted-foreground">{description}</div> : null}
       </div>
-      <div className="shrink-0 text-sm text-foreground sm:max-w-[320px] sm:text-right">
+      <div className="min-w-0 text-sm text-foreground sm:max-w-[420px] sm:shrink-0 sm:text-right">
         {value}
       </div>
     </div>
@@ -376,7 +378,7 @@ function SettingsNavButton({
     <button
       type="button"
       className={cn(
-        "flex w-full items-center gap-3 rounded-[calc(var(--radius)-4px)] px-3 py-2.5 text-left text-sm transition-colors",
+        "flex w-full items-center gap-2.5 rounded-[calc(var(--radius)-5px)] px-2.5 py-1.5 text-left text-sm transition-colors",
         active
           ? "bg-white/[0.08] text-topbar-foreground"
           : "text-muted-foreground hover:bg-white/[0.04] hover:text-topbar-foreground",
@@ -409,7 +411,7 @@ function SettingsNavGroup({
           <button
             type="button"
             className={cn(
-              "flex min-h-10 w-full min-w-0 items-center gap-3 rounded-[calc(var(--radius)-4px)] px-3 py-2.5 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20",
+              "flex min-h-8 w-full min-w-0 items-center gap-2.5 rounded-[calc(var(--radius)-5px)] px-2.5 py-1.5 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-white/20",
               expanded
                 ? "bg-white/[0.04] text-topbar-foreground"
                 : "text-muted-foreground hover:bg-white/[0.04] hover:text-topbar-foreground",
@@ -425,13 +427,13 @@ function SettingsNavGroup({
             />
           </button>
         ) : (
-          <div className="px-3 pt-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground first:pt-0">
+          <div className="px-2.5 pt-2 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground first:pt-0">
             <span className="block truncate">{label}</span>
           </div>
         )
       ) : null}
       {expanded ? (
-        <div className={cn("space-y-1", collapsible ? "ml-3 border-l border-white/8 pl-2" : null)}>
+        <div className={cn("space-y-0.5", collapsible ? "ml-2.5 border-l border-white/8 pl-2" : null)}>
           {children}
         </div>
       ) : null}
@@ -449,14 +451,14 @@ function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="min-w-0">
-      <div className="mb-6 border-b border-white/8 pb-4">
-        <div className="text-lg font-semibold text-topbar-foreground">{title}</div>
+    <section className="min-w-0 overflow-hidden rounded-[var(--radius)] border border-border/80 bg-card/85 text-card-foreground shadow-[var(--shadow-panel)] backdrop-blur">
+      <div className="border-b border-border/70 px-4 py-3">
+        <div className="text-base font-semibold text-topbar-foreground">{title}</div>
         {description ? (
           <div className="mt-1 text-sm text-muted-foreground">{description}</div>
         ) : null}
       </div>
-      <div className="divide-y divide-white/8">{children}</div>
+      <div className="divide-y divide-border/60 px-4">{children}</div>
     </section>
   );
 }
@@ -467,7 +469,7 @@ function SettingsCodeBlock({
   value: string;
 }) {
   return (
-    <pre className="max-h-[420px] overflow-auto rounded-[calc(var(--radius)-6px)] border border-white/8 bg-black/20 p-4 text-left font-mono text-xs leading-6 text-topbar-foreground">
+    <pre className="max-h-[420px] overflow-auto rounded-[calc(var(--radius)-6px)] border border-white/8 bg-black/20 p-3 text-left font-mono text-xs leading-5 text-topbar-foreground">
       <code>{value}</code>
     </pre>
   );
@@ -555,7 +557,7 @@ function WidgetRegistrySettingsSection({
   return (
     <SettingsSection
       title="Widget registry"
-      description="Publish the live frontend widget catalog to the backend widget-type registry explicitly from this platform-admin surface."
+      description="Publish the live frontend widget catalog to the backend widget-type registry explicitly from this settings surface."
     >
       <SettingsRow
         label="Sync endpoint"
@@ -969,253 +971,6 @@ function ConnectionRegistrySettingsSection({
   );
 }
 
-function AccessCatalogSettingsSection({
-  syncUrl,
-}: {
-  syncUrl: string;
-}) {
-  const { toast } = useToast();
-  const draftQuery = useQuery({
-    queryKey: ["access-catalog", "sync-payload"],
-    queryFn: buildAccessCatalogDraft,
-    staleTime: Number.POSITIVE_INFINITY,
-  });
-  const [lastResult, setLastResult] = useState<AccessCatalogSyncResponse | null>(null);
-  const appUidsPreview = useMemo(
-    () => (draftQuery.data?.payload.apps ?? []).map((app) => app.uid),
-    [draftQuery.data?.payload.apps],
-  );
-  const surfacePreview = useMemo(
-    () =>
-      (draftQuery.data?.payload.surfaces ?? []).slice(0, 16).map((surface) => ({
-        appUid: surface.appUid,
-        surfaceUid: surface.surfaceUid,
-        kind: surface.kind,
-        hidden: surface.hidden,
-        routePath: surface.routePath,
-        effectiveRequiredPermissions: surface.effectiveRequiredPermissions,
-      })),
-    [draftQuery.data?.payload.surfaces],
-  );
-  const permissionIdsPreview = useMemo(
-    () => (draftQuery.data?.payload.permissions ?? []).map((permission) => permission.id),
-    [draftQuery.data?.payload.permissions],
-  );
-  const syncMutation = useMutation({
-    mutationFn: async () => {
-      const nextDraft = await buildAccessCatalogDraft();
-      return {
-        draft: nextDraft,
-        result: await syncAccessCatalog(nextDraft.payload),
-      };
-    },
-    onSuccess: ({ result }) => {
-      setLastResult(result);
-      void draftQuery.refetch();
-      toast({
-        variant: "success",
-        title: "Access catalog published",
-        description:
-          result.status === "synced"
-            ? `Created ${result.created ?? 0}, updated ${result.updated ?? 0}, deactivated ${result.deactivated ?? 0}.`
-            : "Backend access catalog already matched the current frontend manifest.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: "error",
-        title: "Access catalog publish failed",
-        description:
-          error instanceof Error ? error.message : "Unable to publish access catalog.",
-      });
-    },
-  });
-
-  return (
-    <SettingsSection
-      title="Access catalog"
-      description="Publish the generated frontend access catalog to the backend so shell policy tooling can derive apps, surfaces, and permissions from one registry manifest."
-    >
-      <SettingsRow
-        label="Sync endpoint"
-        description="Backend endpoint that receives the versioned access catalog manifest."
-        value={
-          <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-            {syncUrl || "Not configured"}
-          </span>
-        }
-      />
-      <SettingsRow
-        label="Manifest"
-        description="Generated preview from the current app registry, including hidden deep-link surfaces."
-        value={
-          draftQuery.isLoading ? (
-            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Building manifest
-            </span>
-          ) : draftQuery.isError ? (
-            <span className="text-sm text-danger">
-              {draftQuery.error instanceof Error
-                ? draftQuery.error.message
-                : "Unable to build access catalog manifest."}
-            </span>
-          ) : (
-            <div className="space-y-2 text-right">
-              <div className="flex flex-wrap justify-end gap-2">
-                <Badge variant="neutral">
-                  {(draftQuery.data?.payload.apps.length ?? 0).toLocaleString()} apps
-                </Badge>
-                <Badge variant="neutral">
-                  {(draftQuery.data?.payload.surfaces.length ?? 0).toLocaleString()} surfaces
-                </Badge>
-                <Badge variant="neutral">
-                  {(draftQuery.data?.payload.permissions.length ?? 0).toLocaleString()} permissions
-                </Badge>
-                <Badge
-                  variant={
-                    (draftQuery.data?.validationIssues.length ?? 0) > 0 ? "warning" : "neutral"
-                  }
-                >
-                  {(draftQuery.data?.validationIssues.length ?? 0).toLocaleString()} issues
-                </Badge>
-              </div>
-              <div className="font-mono text-[11px] text-muted-foreground">
-                {draftQuery.data?.payload.registryVersion ?? "—"}
-              </div>
-            </div>
-          )
-        }
-      />
-      <SettingsRow
-        label="Checksum"
-        description="Backend no-op protection for identical access catalog manifests."
-        value={
-          <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-            {draftQuery.data?.payload.checksum ?? "Unavailable"}
-          </span>
-        }
-      />
-      <SettingsRow
-        label="Publish"
-        description="This writes the current frontend access catalog to the backend access-catalog registry."
-        value={
-          <div className="flex flex-col items-end gap-2">
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                syncMutation.mutate();
-              }}
-              disabled={
-                !syncUrl.trim() ||
-                draftQuery.isLoading ||
-                draftQuery.isError ||
-                (draftQuery.data?.validationIssues.length ?? 0) > 0 ||
-                draftQuery.isFetching ||
-                syncMutation.isPending
-              }
-            >
-              {syncMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Publishing
-                </>
-              ) : (
-                "Publish access catalog"
-              )}
-            </Button>
-            <div className="text-xs text-muted-foreground">
-              {lastResult
-                ? `Last result: ${lastResult.status} at ${formatRegistrySyncTimestamp(lastResult.lastSyncedAt)}`
-                : "No publish has been run from this session yet."}
-            </div>
-          </div>
-        }
-      />
-
-      <div className="space-y-4 py-4">
-        {(draftQuery.data?.validationIssues.length ?? 0) > 0 ? (
-          <div className="rounded-[calc(var(--radius)-4px)] border border-warning/40 bg-warning/10 p-4">
-            <div className="text-sm font-medium text-topbar-foreground">Manifest validation issues</div>
-            <div className="mt-1 text-sm text-muted-foreground">
-              Publication stays disabled until access catalog metadata is valid.
-            </div>
-            <div className="mt-3">
-              <SettingsCodeBlock
-                value={(draftQuery.data?.validationIssues ?? [])
-                  .map((issue) => `[${issue.section}] ${issue.message}`)
-                  .join("\n")}
-              />
-            </div>
-          </div>
-        ) : null}
-
-        <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
-          <div className="text-sm font-medium text-topbar-foreground">App UID preview</div>
-          <div className="mt-1 text-sm text-muted-foreground">
-            All app UIDs included in the generated access catalog.
-          </div>
-          <div className="mt-3">
-            <SettingsCodeBlock value={appUidsPreview.join("\n") || "No apps available."} />
-          </div>
-        </div>
-
-        <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
-          <div className="text-sm font-medium text-topbar-foreground">Surface preview</div>
-          <div className="mt-1 text-sm text-muted-foreground">
-            First 16 generated surfaces, including hidden deep-link routes and effective required permissions.
-          </div>
-          <div className="mt-3">
-            <SettingsCodeBlock
-              value={
-                surfacePreview.length > 0
-                  ? JSON.stringify(surfacePreview, null, 2)
-                  : "No surfaces available."
-              }
-            />
-          </div>
-        </div>
-
-        <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
-          <div className="text-sm font-medium text-topbar-foreground">Permission id preview</div>
-          <div className="mt-1 text-sm text-muted-foreground">
-            Generated permission catalog ids resolved from core and app-defined permission definitions.
-          </div>
-          <div className="mt-3">
-            <SettingsCodeBlock
-              value={permissionIdsPreview.join("\n") || "No permissions available."}
-            />
-          </div>
-        </div>
-
-        {lastResult ? (
-          <div className="rounded-[calc(var(--radius)-4px)] border border-white/8 bg-white/[0.02] p-4">
-            <div className="text-sm font-medium text-topbar-foreground">Last publish result</div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Badge variant={lastResult.status === "synced" ? "primary" : "neutral"}>
-                {lastResult.status}
-              </Badge>
-              {typeof lastResult.created === "number" ? (
-                <Badge variant="neutral">Created: {lastResult.created}</Badge>
-              ) : null}
-              {typeof lastResult.updated === "number" ? (
-                <Badge variant="neutral">Updated: {lastResult.updated}</Badge>
-              ) : null}
-              {typeof lastResult.deactivated === "number" ? (
-                <Badge variant="neutral">Deactivated: {lastResult.deactivated}</Badge>
-              ) : null}
-              {typeof lastResult.total === "number" ? (
-                <Badge variant="neutral">Total: {lastResult.total}</Badge>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </SettingsSection>
-  );
-}
-
 interface SettingsConfigFieldSpec {
   label: string;
   value: string;
@@ -1437,16 +1192,6 @@ function buildConfigurationGroups({
           monospace: true,
         },
         {
-          label: "Platform permissions claim",
-          value: auth.jwt.claimMapping.platformPermissions,
-          monospace: true,
-        },
-        {
-          label: "Platform admin flag claim",
-          value: auth.jwt.claimMapping.isPlatformAdmin,
-          monospace: true,
-        },
-        {
           label: "Date joined claim",
           value: auth.jwt.claimMapping.dateJoined,
           monospace: true,
@@ -1467,7 +1212,7 @@ function buildConfigurationGroups({
     },
     {
       title: "User Details Mapping",
-      description: "Field mapping for the user-details endpoint and the backend-owned admin access contract.",
+      description: "Field mapping for the user-details endpoint and shell identity contract.",
       fields: [
         { label: "User details URL", value: auth.jwt.userDetails.url, monospace: true },
         {
@@ -1503,16 +1248,6 @@ function buildConfigurationGroups({
         {
           label: "Permissions response field",
           value: auth.jwt.userDetails.responseMapping.permissions,
-          monospace: true,
-        },
-        {
-          label: "Platform permissions response field",
-          value: auth.jwt.userDetails.responseMapping.platformPermissions,
-          monospace: true,
-        },
-        {
-          label: "Platform admin flag response field",
-          value: auth.jwt.userDetails.responseMapping.isPlatformAdmin,
           monospace: true,
         },
         {
@@ -1676,23 +1411,6 @@ export function SettingsDialog({
     useState<CurrentUserMfaSetupResponse | null>(null);
   const [authenticatedMfaCode, setAuthenticatedMfaCode] = useState("");
   const profilePictureInputRef = useRef<HTMLInputElement | null>(null);
-  const requestPasswordChangeMutation = useMutation({
-    mutationFn: requestPasswordChangeEmail,
-    onSuccess: (result) => {
-      toast({
-        variant: "success",
-        title: "Password change email sent",
-        description: result.detail,
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: "error",
-        title: "Unable to send password change email",
-        description: error instanceof Error ? error.message : "The request failed.",
-      });
-    },
-  });
   const deleteAccountMutation = useMutation({
     mutationFn: deleteCurrentUserAccount,
   });
@@ -1828,6 +1546,12 @@ export function SettingsDialog({
   const teamsValue =
     organizationTeamNames.length > 0 ? organizationTeamNames.join(", ") : legacyTeam ?? "";
   const hasTeamsValue = teamsValue.trim().length > 0;
+  const plan = user?.plan;
+  const planName = plan?.name?.trim() ?? "";
+  const planDescription = plan?.description?.trim() ?? "";
+  const planType = plan?.plan_type?.trim() ?? "";
+  const planPrice = formatPlanPrice(plan?.price);
+  const hasPlanValue = Boolean(planName || planDescription || planType || planPrice);
   const sessions = userSessionsQuery.data ?? [];
   const currentMfaEnabled = mfaStatusQuery.data?.mfa_enabled ?? user?.mfaEnabled;
   const activeSessionCount = sessions.filter((session) => session.is_active).length;
@@ -1838,11 +1562,11 @@ export function SettingsDialog({
   const authRefreshUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.refreshUrl);
   const authUserDetailsUrl = resolveSettingsUrl(env.apiBaseUrl, auth.jwt.userDetails.url);
   const configurationSource = commandCenterConfigSource;
-  const permissions = user?.permissions ?? [];
+  const shellAccess = user?.shellAccess;
   const shellMenuAudience: AppShellMenuAudience = mode === "platform" ? "admin" : "user";
   const contributedSections = useMemo(
-    () => getAccessibleShellMenuEntries(permissions, shellMenuAudience),
-    [permissions, shellMenuAudience],
+    () => getAccessibleShellMenuEntries(shellAccess, shellMenuAudience),
+    [shellAccess, shellMenuAudience],
   );
   const groupedMainSequenceAiSections = useMemo(
     () =>
@@ -1901,11 +1625,6 @@ export function SettingsDialog({
             id: "connection-registry" as const,
             label: "Connection Registry",
             icon: Cable,
-          },
-          {
-            id: "access-catalog" as const,
-            label: "Access Catalog",
-            icon: ShieldCheck,
           },
         ]
       : []),
@@ -2042,13 +1761,13 @@ export function SettingsDialog({
     <div
       className={cn(
         showNavigation
-          ? "grid min-h-[560px] gap-0 md:grid-cols-[220px_minmax(0,1fr)]"
+          ? "grid min-h-[520px] gap-0 md:grid-cols-[220px_minmax(0,1fr)]"
           : "min-h-0",
       )}
     >
       {showNavigation ? (
-        <aside className="border-b border-white/8 px-3 py-3 md:border-b-0 md:border-r md:px-4 md:py-4">
-          <nav className="space-y-3">
+        <aside className="border-b border-white/8 px-3 py-3 md:border-b-0 md:border-r md:px-3 md:py-3">
+          <nav className="space-y-2.5">
             {navGroups.map((group) => (
               <SettingsNavGroup
                 key={group.key}
@@ -2085,7 +1804,7 @@ export function SettingsDialog({
         </aside>
       ) : null}
 
-        <div className={cn("min-w-0", showNavigation ? "px-5 py-5 md:px-8 md:py-7" : "")}>
+        <div className={cn("min-w-0", showNavigation ? "px-4 py-4 md:px-5 md:py-5" : "")}>
           {activeSection === "general" ? (
             <SettingsSection
               title={t("settingsDialog.webUiTitle")}
@@ -2159,45 +1878,55 @@ export function SettingsDialog({
               title={t("settingsDialog.accountTitle")}
               description={t("settingsDialog.accountDescription")}
             >
-              <div className="flex items-center gap-4 py-4">
-                <div className="flex shrink-0 flex-col items-center gap-2">
-                  <Avatar
-                    name={user?.name ?? t("common.unknownUser")}
-                    src={user?.avatarUrl}
-                    className="h-14 w-14 border border-white/10 bg-white/[0.03]"
-                    iconClassName="h-5 w-5"
-                  />
-                  <input
-                    ref={profilePictureInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    className="hidden"
-                    onChange={handleProfilePictureChange}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={uploadProfilePictureMutation.isPending}
-                    onClick={() => {
-                      profilePictureInputRef.current?.click();
-                    }}
-                  >
-                    {uploadProfilePictureMutation.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : null}
-                    {uploadProfilePictureMutation.isPending ? "Uploading..." : "Change picture"}
-                  </Button>
-                  <div className="text-center text-[11px] leading-4 text-muted-foreground">
-                    JPEG or PNG, max 5 MB.
+              <div className="py-4">
+                <div className="flex flex-col gap-4 rounded-[calc(var(--radius)-4px)] border border-border/70 bg-background/35 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar
+                      name={user?.name ?? t("common.unknownUser")}
+                      src={user?.avatarUrl}
+                      className="h-16 w-16 shrink-0 border border-white/10 bg-white/[0.03]"
+                      iconClassName="h-6 w-6"
+                    />
+                    <div className="min-w-0">
+                      <div className="truncate text-base font-semibold text-topbar-foreground">
+                        {user?.name ?? t("common.unknownUser")}
+                      </div>
+                      <div className="truncate text-sm text-muted-foreground">
+                        {user?.email ?? t("common.unavailable")}
+                      </div>
+                      {hasPlanValue ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {planName ? <Badge variant="neutral">{planName}</Badge> : null}
+                          {planType ? <Badge variant="neutral">{planType}</Badge> : null}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-                <div className="min-w-0">
-                  <div className="truncate text-base font-semibold text-topbar-foreground">
-                    {user?.name ?? t("common.unknownUser")}
-                  </div>
-                  <div className="truncate text-sm text-muted-foreground">
-                    {user?.email ?? t("common.unavailable")}
+                  <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+                    <input
+                      ref={profilePictureInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="hidden"
+                      onChange={handleProfilePictureChange}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={uploadProfilePictureMutation.isPending}
+                      onClick={() => {
+                        profilePictureInputRef.current?.click();
+                      }}
+                    >
+                      {uploadProfilePictureMutation.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : null}
+                      {uploadProfilePictureMutation.isPending ? "Uploading..." : "Change picture"}
+                    </Button>
+                    <div className="text-[11px] leading-4 text-muted-foreground">
+                      JPEG or PNG, max 5 MB.
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2217,31 +1946,29 @@ export function SettingsDialog({
                   </span>
                 }
               />
+              {hasPlanValue ? (
+                <SettingsRow
+                  label="Plan"
+                  value={
+                    <div className="space-y-2 sm:text-right">
+                      <div className="font-medium text-topbar-foreground">
+                        {planName || t("common.unavailable")}
+                      </div>
+                      {planDescription ? (
+                        <div className="text-sm text-muted-foreground">{planDescription}</div>
+                      ) : null}
+                      <div className="flex flex-wrap justify-start gap-1.5 sm:justify-end">
+                        {planType ? <Badge variant="neutral">{planType}</Badge> : null}
+                        {planPrice ? <Badge variant="neutral">Price: {planPrice}</Badge> : null}
+                      </div>
+                    </div>
+                  }
+                />
+              ) : null}
               {hasTeamsValue ? (
                 <SettingsRow
                   label={t("settingsDialog.team")}
                   value={teamsValue}
-                />
-              ) : null}
-              {!env.bypassAuth && user?.email ? (
-                <SettingsRow
-                  label="Password"
-                  description="Send a password change email to the address on this account."
-                  value={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={requestPasswordChangeMutation.isPending}
-                      onClick={() => {
-                        requestPasswordChangeMutation.mutate();
-                      }}
-                    >
-                      {requestPasswordChangeMutation.isPending
-                        ? "Sending email..."
-                        : "Send password change email"}
-                    </Button>
-                  }
                 />
               ) : null}
             </SettingsSection>
@@ -2331,16 +2058,16 @@ export function SettingsDialog({
                   </Button>
                 }
               />
-              <div className="space-y-3 py-4">
+              <div className="space-y-2.5 py-3">
                 {mfaStatusQuery.isError ? (
-                  <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-3 py-2.5 text-sm text-danger">
                     {mfaStatusQuery.error instanceof Error
                       ? mfaStatusQuery.error.message
                       : "Unable to load MFA status."}
                   </div>
                 ) : null}
                 {authenticatedMfaSetup ? (
-                  <div className="rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.02] p-4">
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.02] p-3">
                     <div className="text-sm font-medium text-topbar-foreground">
                       Finish MFA enrollment
                     </div>
@@ -2348,7 +2075,7 @@ export function SettingsDialog({
                       {authenticatedMfaSetup.detail ||
                         "Scan the QR code or enter the manual key, then verify with your first authenticator code."}
                     </div>
-                    <div className="mt-4 flex flex-wrap items-start gap-4">
+                    <div className="mt-3 flex flex-wrap items-start gap-3">
                       {authenticatedMfaSetup.qr_png_base64 ? (
                         <img
                           src={`data:image/png;base64,${authenticatedMfaSetup.qr_png_base64}`}
@@ -2361,7 +2088,7 @@ export function SettingsDialog({
                           <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                             Manual entry key
                           </div>
-                          <div className="mt-2 rounded-[calc(var(--radius)-6px)] border border-white/10 bg-black/20 px-3 py-2 font-mono text-sm text-topbar-foreground">
+                          <div className="mt-2 rounded-[calc(var(--radius)-6px)] border border-white/10 bg-black/20 px-2.5 py-1.5 font-mono text-sm text-topbar-foreground">
                             {authenticatedMfaSetup.manual_entry_key}
                           </div>
                         </div>
@@ -2416,19 +2143,19 @@ export function SettingsDialog({
                   </div>
                 ) : null}
                 {userSessionsQuery.isLoading ? (
-                  <div className="rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.02] px-4 py-3 text-sm text-muted-foreground">
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.02] px-3 py-2.5 text-sm text-muted-foreground">
                     Loading sessions
                   </div>
                 ) : null}
                 {userSessionsQuery.isError ? (
-                  <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-3 py-2.5 text-sm text-danger">
                     {userSessionsQuery.error instanceof Error
                       ? userSessionsQuery.error.message
                       : "Unable to load login sessions."}
                   </div>
                 ) : null}
                 {!userSessionsQuery.isLoading && !userSessionsQuery.isError && sessions.length === 0 ? (
-                  <div className="rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.02] px-4 py-4 text-sm text-muted-foreground">
+                  <div className="rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.02] px-3 py-3 text-sm text-muted-foreground">
                     No tracked sessions were returned.
                   </div>
                 ) : null}
@@ -2444,7 +2171,7 @@ export function SettingsDialog({
                           key={session.id}
                           className="group rounded-[calc(var(--radius)-6px)] border border-white/8 bg-white/[0.02]"
                         >
-                          <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                          <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-2.5 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
                             <div className="min-w-0">
                               <div className="text-sm font-medium text-topbar-foreground">
                                 {session.device_label || "Unknown device"}
@@ -2472,7 +2199,7 @@ export function SettingsDialog({
                               </span>
                             </div>
                           </summary>
-                          <div className="border-t border-white/8 px-4 py-3">
+                          <div className="border-t border-white/8 px-3 py-2.5">
                             <div
                               className="max-w-[600px] truncate text-xs text-muted-foreground"
                               title={session.user_agent}
@@ -2520,8 +2247,8 @@ export function SettingsDialog({
               description={t("settingsDialog.authDescription")}
             >
               <SettingsRow
-                label={t("settingsDialog.authRoleGroupMapping")}
-                description={t("settingsDialog.authRoleGroupMappingHelp")}
+                label={t("settingsDialog.authIdentityMapping")}
+                description={t("settingsDialog.authIdentityMappingHelp")}
                 value={
                   <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
                     auth.jwt.claim_mapping.* + auth.jwt.user_details.response_mapping.*
@@ -2529,29 +2256,11 @@ export function SettingsDialog({
                 }
               />
               <SettingsRow
-                label={t("settingsDialog.authUserGroup")}
-                description={t("settingsDialog.authUserGroupHelp")}
+                label={t("settingsDialog.authShellAccessSource")}
+                description={t("settingsDialog.authShellAccessSourceHelp")}
                 value={
                   <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
                     {"/api/v1/command_center/users/{user_uid}/shell-access/ -> accessible_apps, accessible_surfaces"}
-                  </span>
-                }
-              />
-              <SettingsRow
-                label="Platform permissions field"
-                description="Backend-owned platform permission mapping used for Admin Settings access."
-                value={
-                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-                    {auth.jwt.claimMapping.platformPermissions}
-                  </span>
-                }
-              />
-              <SettingsRow
-                label="Platform admin flag field"
-                description="Optional backend flag that can elevate a session to platform-admin access."
-                value={
-                  <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-                    {auth.jwt.userDetails.responseMapping.isPlatformAdmin}
                   </span>
                 }
               />
@@ -2653,12 +2362,6 @@ export function SettingsDialog({
 
           {mode === "platform" && activeSection === "connection-registry" ? (
             <ConnectionRegistrySettingsSection syncUrl={config.connections.types.syncUrl} />
-          ) : null}
-
-          {mode === "platform" && activeSection === "access-catalog" ? (
-            <AccessCatalogSettingsSection
-              syncUrl={config.commandCenterAccess.accessCatalog.syncUrl}
-            />
           ) : null}
 
           {activeSection === "about" ? (

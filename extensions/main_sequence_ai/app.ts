@@ -14,6 +14,8 @@ import { ProjectAgentDeploymentLogsPage } from "./surfaces/project-agent-deploym
 import { AgentSessionDetailPage } from "./surfaces/session/AgentSessionDetailPage";
 import { CapabilitiesPage } from "./surfaces/capabilities/CapabilitiesPage";
 
+export const MAIN_SEQUENCE_AI_VIEW_PERMISSION = "main_sequence_ai:view";
+
 export const mainSequenceAiApp: AppDefinition = {
   id: "main_sequence_ai",
   title: "Main Sequence AI",
@@ -21,6 +23,14 @@ export const mainSequenceAiApp: AppDefinition = {
   source: "main_sequence_ai",
   icon: Sparkles,
   navigationOrder: 400,
+  permissionDefinitions: [
+    {
+      id: MAIN_SEQUENCE_AI_VIEW_PERMISSION,
+      label: "Main Sequence AI / view",
+      description: "Open the Main Sequence AI application and assistant surfaces.",
+      category: "Main Sequence AI",
+    },
+  ],
   defaultSurfaceId: "chat",
   shellMenuContributions: [
     {

@@ -77,9 +77,9 @@ Important distinction:
 - JWT/session storage is auth/session state, not product preference state
 - shell preferences use a separate optional backend integration and are safe to leave browser-local in development
 - workspace persistence is also a separate optional integration and can stay browser-local until the backend endpoints are ready
-- organization-admin navigation and platform-only Admin Settings are separate access concerns
+- organization-admin navigation and system Admin Settings are separate access concerns
 - hiding the Admin Settings modal in the frontend is not the security boundary; the backend must
-  enforce platform-admin authorization on every sensitive endpoint
+  enforce authorization on every sensitive endpoint
 
 ## JWT configuration contract
 
@@ -108,8 +108,6 @@ auth:
       role: role
       organization_role: organization_role
       permissions: permissions
-      platform_permissions: platform_permissions
-      is_platform_admin: is_platform_admin
     user_details:
       url: /user/api/user/get_user_details/
       response_mapping:
@@ -119,8 +117,6 @@ auth:
         role: role
         organization_role: organization_role
         permissions: permissions
-        platform_permissions: platform_permissions
-        is_platform_admin: is_platform_admin
 ```
 
 Important behavior:
@@ -134,11 +130,13 @@ Important behavior:
 - stored JWT sessions are rehydrated against shell-access on app boot
 - request field names are configurable so you can send `username` instead of `email` if needed
 - response field paths support dotted lookups such as `data.access`
-- RBAC fields can be read from either the token payload, the token response payload, or the user-details payload
-- organization-admin and platform-admin access are now backend-owned values
-- the frontend config maps the user-details identity fields and the platform-admin fields
+- Explicit non-shell permission fields can be read from either the token payload, the token
+  response payload, or the user-details payload
+- `user_details` may include `plan` as an object with `name`, `price`, `description`, and
+  `plan_type`; Account settings renders that object when present
+- organization-admin access is a backend-owned value
+- the frontend config maps user-details identity and permission fields
 - the frontend no longer treats `config/command-center.yaml` as the source of truth for organization policy
-- auth groups can still be displayed for reference, but they do not unlock org-admin shell access
 - the shell resolves org-admin access from backend-owned shell-access output returned by the
   dedicated shell-access endpoint
 
@@ -194,43 +192,9 @@ No snapshot-specific auth endpoint is added on the frontend.
 Identity and Command Center shell visibility are separate contracts.
 
 - `/user/api/user/get_user_details/` provides identity/profile data for the signed-in user
-- `/api/v1/command_center/access-policies/` owns backend-managed shell profile definitions
 - `/api/v1/command_center/users/<user_uid>/shell-access/` returns resolved per-user shell access
 
 Configured endpoints live in `config/command-center.yaml` under `command_center_access`.
-
-Policy endpoints:
-
-- `GET /api/v1/command_center/access-policies/`
-- `GET /api/v1/command_center/access-policies/<id>/`
-
-Backend or platform-only tooling may still expose policy write endpoints, but the normal Command
-Center organization-admin frontend does not create, update, or delete shell policies.
-
-Policy response shape:
-
-```json
-{
-  "id": 7,
-  "slugified_name": "research-analyst",
-  "label": "Research Analyst",
-  "description": "Workspaces and Main Sequence Markets access without admin tools.",
-  "permissions": [
-    "workspaces:view",
-    "main_sequence_markets:view",
-    "widget.catalog:view"
-  ],
-  "is_system": false,
-  "is_editable": true
-}
-```
-
-Important behavior:
-
-- the frontend treats policy rows as backend-owned metadata
-- policy detail routes still use the integer `id`
-- the built-in `light-user`, `dev-user`, and `org-admin-user` policies are expected to be created
-  by the backend and are treated as compatibility metadata in the frontend
 
 Shell-access endpoints:
 
@@ -244,27 +208,14 @@ Shell-access response shape:
 {
   "user_uid": "11111111-1111-4111-8111-111111111111",
   "accessible_apps": [
-    "workspace_studio",
-    "main_sequence_markets"
+    "workspace-studio",
+    "main_sequence_markets",
+    "settings.platform"
   ],
   "accessible_surfaces": [
-    "workspace_studio.workspaces",
-    "main_sequence_markets.overview"
-  ]
-}
-```
-
-Backend-owned policy write shape:
-
-```json
-{
-  "slugified_name": "research-analyst",
-  "label": "Research Analyst",
-  "description": "Workspaces and Main Sequence Markets access without admin tools.",
-  "permissions": [
-    "workspaces:view",
-    "main_sequence_markets:view",
-    "widget.catalog:view"
+    "workspace-studio.workspaces",
+    "main_sequence_markets.assets",
+    "settings.platform.auth"
   ]
 }
 ```
@@ -272,13 +223,13 @@ Backend-owned policy write shape:
 Important behavior:
 
 - login and refresh now resolve shell access from the dedicated shell-access endpoint
-- User Inspector reads shell access and does not write profile assignments, direct grants, or direct
-  denies
+- User Inspector reads shell access and does not write shell-access assignments, direct grants, or
+  direct denies
 - apps and surfaces should be read from `accessible_apps` and `accessible_surfaces`
-- the normal shell-access read response does not include profile ids, `effective_permissions`,
-  `grant_permissions`, or `deny_permissions`
-- until all shell route gates consume app/surface ids directly, the frontend maps resolved
-  app/surface ids back into the existing permission array used by route guards
+- the normal shell-access read response does not include policy ids,
+  `effective_permissions`, `grant_permissions`, `deny_permissions`, or `surface_profiles`
+- shell route gates consume backend app/surface ids directly; the frontend does not map shell ids
+  back into permission arrays
 - shell access is not a replacement for backend resource authorization, Teams, team membership,
   workspace sharing, object sharing, or resource sharing
 
@@ -341,7 +292,7 @@ Expected payload shape:
 ```json
 {
   "language": "en",
-  "favoriteSurfaceIds": ["access-rbac.overview"],
+  "favoriteSurfaceIds": ["settings.access-rbac.inspector"],
   "favoriteWorkspaceIds": ["workspace-studio::workspace::abc123"]
 }
 ```
@@ -451,7 +402,8 @@ When wiring the shell to your backend:
 - optionally point the `preferences.*` endpoints at your per-user preference and favorite APIs if you want server-side persistence for language and favorites
 - optionally point the `workspaces.*` endpoints at your workspace list/detail APIs if you want server-side persistence for workspace documents
 - map the credential field names your backend expects
-- map RBAC group names into shell access classes if your backend model is group-based
+- return Command Center shell visibility from `/api/v1/command_center/users/<user_uid>/shell-access/`
+  as `accessible_apps` and `accessible_surfaces`
 - hydrate permissions from the backend token claims, token response payload, or user-details payload
 - treat frontend permissions as UX hints plus navigation rules
 - keep server authorization authoritative

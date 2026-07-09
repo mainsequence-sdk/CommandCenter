@@ -106,7 +106,6 @@ export const demoApp: AppDefinition = {
   description: "Mock application suite with industry-specific demo surfaces.",
   source: "demo",
   icon: LayoutDashboard,
-  requiredPermissions: ["workspaces:view"],
   defaultSurfaceId: "overview",
   surfaces: [
     {
@@ -124,7 +123,6 @@ export const demoApp: AppDefinition = {
       }),
       kind: "page",
       navigationSection: financialMarketsSection,
-      requiredPermissions: ["workspaces:view"],
       component: DemoOverviewPage,
     },
     {
@@ -142,7 +140,6 @@ export const demoApp: AppDefinition = {
       }),
       kind: "dashboard",
       navigationSection: financialMarketsSection,
-      requiredPermissions: ["main_sequence_markets:view"],
       dashboard: financialMarketsMonitorDashboard,
     },
     {
@@ -160,7 +157,6 @@ export const demoApp: AppDefinition = {
       }),
       kind: "page",
       navigationSection: supplyChainSection,
-      requiredPermissions: ["workspaces:view"],
       component: SupplyChainControlTowerPage,
     },
     {
@@ -178,7 +174,6 @@ export const demoApp: AppDefinition = {
       }),
       kind: "page",
       navigationSection: healthcareSection,
-      requiredPermissions: ["workspaces:view"],
       component: HealthcareOperationsPage,
     },
   ],

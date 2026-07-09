@@ -1,27 +1,7 @@
-import {
-  KeyRound,
-  LayoutTemplate,
-  Settings2,
-  ShieldCheck,
-  Wallet,
-} from "lucide-react";
+import { LayoutTemplate, Settings2 } from "lucide-react";
 
 import type { AppExtension } from "@/app/registry/types";
 import { defineSurfaceAssistantContext, type AppDefinition } from "@/apps/types";
-import { AccessRbacInspectorPage } from "@/extensions/core/apps/access-rbac/AccessRbacInspectorPage";
-import { AccessRbacOverviewPage } from "@/extensions/core/apps/access-rbac/AccessRbacOverviewPage";
-import { AccessRbacTeamsPage } from "@/extensions/core/apps/access-rbac/AccessRbacTeamsPage";
-import { AdminActivePlansPage } from "@/extensions/core/apps/admin/AdminActivePlansPage";
-import { AdminBillingDetailsPage } from "@/extensions/core/apps/admin/AdminBillingDetailsPage";
-import { AdminGithubOrganizationsPage } from "@/extensions/core/apps/admin/AdminGithubOrganizationsPage";
-import { AdminHostedResourcesPage } from "@/extensions/core/apps/admin/AdminHostedResourcesPage";
-import { AdminInvoicesPage } from "@/extensions/core/apps/admin/AdminInvoicesPage";
-import { AdminLoginSessionsPage } from "@/extensions/core/apps/admin/AdminLoginSessionsPage";
-import { AdminMainSequenceMarketsPage } from "@/extensions/core/apps/admin/AdminMainSequenceMarketsPage";
-import { AdminManageCreditsPage } from "@/extensions/core/apps/admin/AdminManageCreditsPage";
-import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOrganizationUsersPage";
-import { AdminWidgetConfigurationsPage } from "@/extensions/core/apps/admin/AdminWidgetConfigurationsPage";
-import { UserCreditsSettingsSection } from "@/extensions/core/UserCreditsSettingsSection";
 import { SavedWidgetsPage } from "@/features/dashboards/SavedWidgetsPage";
 import { SlideStudioPage } from "@/features/dashboards/SlideStudioPage";
 import { WorkspacesPage } from "@/features/dashboards/WorkspacesPage";
@@ -36,7 +16,6 @@ import { neonMintTheme } from "@/themes/presets/neon-mint";
 import { pandaTruenoTheme } from "@/themes/presets/panda-trueno";
 import { quartzLightTheme } from "@/themes/presets/quartz-light";
 import { sakuraTheme } from "@/themes/presets/sakura";
-import { sapphireTheme } from "@/themes/presets/sapphire";
 import { markdownNoteWidget } from "@/widgets/core/markdown-note/definition";
 import { richTextNoteWidget } from "@/widgets/core/rich-text-note/definition";
 import { appComponentWidget } from "@/widgets/core/app-component/definition";
@@ -59,7 +38,6 @@ export const workspaceStudioApp: AppDefinition = {
   icon: LayoutTemplate,
   navigationOrder: 100,
   topNavigationStyle: "hidden",
-  requiredPermissions: ["workspaces:view"],
   permissionDefinitions: [
     {
       id: "workspaces:view",
@@ -175,7 +153,6 @@ export const workspaceStudioApp: AppDefinition = {
       }),
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["workspaces:view"],
       component: WorkspacesPage,
     },
     {
@@ -195,7 +172,6 @@ export const workspaceStudioApp: AppDefinition = {
       }),
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["workspaces:view"],
       component: SlideStudioPage,
     },
     {
@@ -215,7 +191,6 @@ export const workspaceStudioApp: AppDefinition = {
       }),
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["widget.catalog:view"],
       component: WidgetCatalogPage,
     },
     {
@@ -234,45 +209,14 @@ export const workspaceStudioApp: AppDefinition = {
       }),
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["workspaces:view"],
       component: SavedWidgetsPage,
     },
   ],
 };
 
-function HiddenShellSettingsHostPage() {
+function HiddenSettingsCatalogPage() {
   return null;
 }
-
-const shellSettingsHostApp: AppDefinition = {
-  id: "shell-settings-host",
-  title: "Shell Settings",
-  description: "Internal host for shared shell settings contributions.",
-  source: "core",
-  icon: KeyRound,
-  defaultSurfaceId: "hidden",
-  shellMenuContributions: [
-    {
-      id: "user-credits",
-      audience: "user",
-      label: "Credits & Billing",
-      description: "Review your personal credit balance and current spending policy.",
-      icon: Wallet,
-      order: 30,
-      component: UserCreditsSettingsSection,
-    },
-  ],
-  surfaces: [
-    {
-      id: "hidden",
-      title: "Hidden",
-      description: "Internal host surface for shell settings contributions.",
-      kind: "page",
-      hidden: true,
-      component: HiddenShellSettingsHostPage,
-    },
-  ],
-};
 
 const settingsAccountSection = {
   id: "account",
@@ -306,14 +250,14 @@ const settingsApplicationsSection = {
 
 const settingsPlatformSection = {
   id: "platform",
-  label: "Platform",
+  label: "System",
   order: 50,
 };
 
 export const settingsApp: AppDefinition = {
   id: "settings",
   title: "Settings",
-  description: "Unified account, billing, organization, application, and platform settings.",
+  description: "Unified account, billing, organization, application, and system settings.",
   source: "core",
   icon: Settings2,
   navigationPlacement: "admin-menu",
@@ -329,7 +273,7 @@ export const settingsApp: AppDefinition = {
       kind: "page",
       fullBleed: true,
       navigationSection: settingsAccountSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "account/preferences",
@@ -339,7 +283,7 @@ export const settingsApp: AppDefinition = {
       kind: "page",
       fullBleed: true,
       navigationSection: settingsAccountSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "account/security",
@@ -349,7 +293,17 @@ export const settingsApp: AppDefinition = {
       kind: "page",
       fullBleed: true,
       navigationSection: settingsAccountSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
+    },
+    {
+      id: "account/sessions",
+      title: "Sessions",
+      navLabel: "Sessions",
+      description: "Review and revoke active account sessions.",
+      kind: "page",
+      fullBleed: true,
+      navigationSection: settingsAccountSection,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "billing/credits",
@@ -359,7 +313,7 @@ export const settingsApp: AppDefinition = {
       kind: "page",
       fullBleed: true,
       navigationSection: settingsBillingSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "organization/users",
@@ -368,9 +322,8 @@ export const settingsApp: AppDefinition = {
       description: "Browse organization-scoped users and account state.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
       navigationSection: settingsOrganizationSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "organization/plans",
@@ -379,9 +332,8 @@ export const settingsApp: AppDefinition = {
       description: "Review organization plan inventory and assignments.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
       navigationSection: settingsOrganizationSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "organization/security-sessions",
@@ -390,9 +342,8 @@ export const settingsApp: AppDefinition = {
       description: "Review and revoke organization-scoped tracked login sessions.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
       navigationSection: settingsOrganizationSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "organization/github",
@@ -401,9 +352,8 @@ export const settingsApp: AppDefinition = {
       description: "Review linked GitHub organizations and integration status.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
       navigationSection: settingsOrganizationSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "organization/widgets",
@@ -412,9 +362,8 @@ export const settingsApp: AppDefinition = {
       description: "Review backend-registered widget types with organization configuration.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
       navigationSection: settingsOrganizationSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "access-rbac/inspector",
@@ -423,9 +372,8 @@ export const settingsApp: AppDefinition = {
       description: "Search users and inspect their effective shell access.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
       navigationSection: settingsAccessRbacSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "access-rbac/teams",
@@ -434,9 +382,8 @@ export const settingsApp: AppDefinition = {
       description: "Manage organization teams, memberships, and team sharing.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
       navigationSection: settingsAccessRbacSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "applications/main-sequence-markets",
@@ -445,9 +392,8 @@ export const settingsApp: AppDefinition = {
       description: "Select the Adapter From API connection used by Main Sequence Markets.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
       navigationSection: settingsApplicationsSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "billing/invoices",
@@ -456,9 +402,8 @@ export const settingsApp: AppDefinition = {
       description: "Review organization invoice history and statements.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
       navigationSection: settingsBillingSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "billing/details",
@@ -467,9 +412,8 @@ export const settingsApp: AppDefinition = {
       description: "Review organization billing profile and invoice recipients.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
       navigationSection: settingsBillingSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "billing/hosted-resources",
@@ -478,9 +422,8 @@ export const settingsApp: AppDefinition = {
       description: "Review organization-hosted infrastructure inventory.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
       navigationSection: settingsBillingSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "billing/manage-credits",
@@ -489,31 +432,28 @@ export const settingsApp: AppDefinition = {
       description: "Manage organization credit balance, auto-reload, and user budgets.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
       navigationSection: settingsBillingSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "platform/auth",
       title: "Authentication",
       navLabel: "Authentication",
-      description: "Platform authentication settings and diagnostics.",
+      description: "System authentication settings and diagnostics.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["platform_admin:access"],
       navigationSection: settingsPlatformSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "platform/configuration",
       title: "Configuration",
       navLabel: "Configuration",
-      description: "Platform environment and runtime configuration.",
+      description: "System environment and runtime configuration.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["platform_admin:access"],
       navigationSection: settingsPlatformSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "platform/widget-registry",
@@ -522,9 +462,8 @@ export const settingsApp: AppDefinition = {
       description: "Review frontend widget registry and backend sync state.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["platform_admin:access"],
       navigationSection: settingsPlatformSection,
-      component: HiddenShellSettingsHostPage,
+      component: HiddenSettingsCatalogPage,
     },
     {
       id: "platform/connection-registry",
@@ -533,376 +472,8 @@ export const settingsApp: AppDefinition = {
       description: "Review available connection type definitions.",
       kind: "page",
       fullBleed: true,
-      requiredPermissions: ["platform_admin:access"],
       navigationSection: settingsPlatformSection,
-      component: HiddenShellSettingsHostPage,
-    },
-    {
-      id: "platform/access-catalog",
-      title: "Access Catalog",
-      navLabel: "Access Catalog",
-      description: "Review app and permission coverage in the shell registry.",
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["platform_admin:access"],
-      navigationSection: settingsPlatformSection,
-      component: HiddenShellSettingsHostPage,
-    },
-  ],
-};
-
-export const adminApp: AppDefinition = {
-  id: "admin",
-  title: "Organization Admin",
-  description: "Organization-scoped administration for users, plans, billing, and provider integrations.",
-  source: "core",
-  icon: ShieldCheck,
-  navigationPlacement: "admin-menu",
-  topNavigationStyle: "hidden",
-  requiredPermissions: ["org_admin:view"],
-  defaultSurfaceId: "organization-users",
-  surfaces: [
-    {
-      id: "organization-users",
-      title: "Organization Users",
-      navLabel: "Directory",
-      description: "Browse organization-scoped users from the shared user endpoint.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Organization Users. This page shows organization-scoped users and their account state.",
-        availableActions: [
-          "Search organization users",
-          "Inspect user records",
-          "Review account and access-related fields",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: {
-        id: "organization-users",
-        label: "Organization Users",
-        description: "Directory surfaces backed by organization-scoped user data.",
-        order: 40,
-      },
-      component: AdminOrganizationUsersPage,
-    },
-    {
-      id: "active-plans",
-      title: "Active Plans",
-      navLabel: "Active Plans",
-      description: "Reserved surface for organization plan inventory and assignments.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Active Plans. This page is intended for reviewing organization plans and assignments.",
-        availableActions: [
-          "Review active plan inventory",
-          "Inspect current plan assignments",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: {
-        id: "organization-users",
-        label: "Organization Users",
-        description: "Directory surfaces backed by organization-scoped user data.",
-        order: 40,
-      },
-      component: AdminActivePlansPage,
-    },
-    {
-      id: "security-sessions",
-      title: "Security Sessions",
-      navLabel: "Security",
-      description: "Review and revoke organization-scoped tracked login sessions.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Security Sessions. This page lists tracked organization login sessions and allows scoped revocation.",
-        availableActions: [
-          "Search tracked sessions",
-          "Filter by auth source and state",
-          "Revoke a session in organization scope",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: {
-        id: "organization-users",
-        label: "Organization Users",
-        description: "Directory surfaces backed by organization-scoped user data.",
-        order: 40,
-      },
-      component: AdminLoginSessionsPage,
-    },
-    {
-      id: "widget-configurations",
-      title: "Widget Configurations",
-      navLabel: "Widgets",
-      description: "Review backend-registered widget types that support organization-scoped configuration.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Widget Configurations. This page lists backend-registered widget types that can be configured per organization.",
-        availableActions: [
-          "Review configurable widget types",
-          "Inspect which widgets already have organization override rows",
-          "Confirm whether a configurable widget is present in the current frontend build",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: {
-        id: "widgets",
-        label: "Widgets",
-        description: "Organization-scoped widget availability and configuration capability.",
-        order: 42,
-      },
-      component: AdminWidgetConfigurationsPage,
-    },
-    {
-      id: "main-sequence-markets",
-      title: "Main Sequence Markets",
-      navLabel: "Main Sequence Markets",
-      description: "Select the Adapter From API connection used by Main Sequence Markets.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Main Sequence Markets admin settings. This page selects the organization Adapter From API connection used by the Markets application.",
-        availableActions: [
-          "Review eligible Adapter From API connections",
-          "Select the Markets primary API connection",
-          "Clear duplicate Markets bindings",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: {
-        id: "applications",
-        label: "Applications",
-        description: "Organization-scoped application configuration.",
-        order: 43,
-      },
-      component: AdminMainSequenceMarketsPage,
-    },
-    {
-      id: "github-organizations",
-      title: "GitHub Organizations",
-      navLabel: "GitHub Orgs",
-      description: "Reserved surface for GitHub organization management.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on GitHub Organizations. This page is intended for reviewing and managing linked GitHub organizations.",
-        availableActions: [
-          "Review linked GitHub organizations",
-          "Inspect integration status",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: {
-        id: "organization-users",
-        label: "Organization Users",
-        description: "Directory surfaces backed by organization-scoped user data.",
-        order: 40,
-      },
-      component: AdminGithubOrganizationsPage,
-    },
-    {
-      id: "invoices",
-      title: "Invoices",
-      navLabel: "Invoices",
-      description: "Reserved surface for organization invoice history and statement downloads.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Invoices. This page is intended for reviewing organization invoice history and statements.",
-        availableActions: [
-          "Review invoice history",
-          "Inspect billing records",
-          "Download or reference statements",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: {
-        id: "billing",
-        label: "Billing",
-        description: "Organization billing records and payment configuration.",
-        order: 45,
-      },
-      component: AdminInvoicesPage,
-    },
-    {
-      id: "billing-details",
-      title: "Billing Details",
-      navLabel: "Billing Details",
-      description: "Reserved surface for organization billing profile and invoice recipients.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Billing Details. This page is intended for reviewing the organization billing profile and invoice recipients.",
-        availableActions: [
-          "Review billing profile details",
-          "Inspect invoice recipient settings",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: {
-        id: "billing",
-        label: "Billing",
-        description: "Organization billing records and payment configuration.",
-        order: 45,
-      },
-      component: AdminBillingDetailsPage,
-    },
-    {
-      id: "hosted-resources",
-      title: "Hosted Resources",
-      navLabel: "Hosted Resources",
-      description: "Organization-hosted infrastructure inventory grouped by resource type.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Hosted Resources. This page is intended for reviewing organization-hosted infrastructure grouped by billing resource type.",
-        availableActions: [
-          "Review hosted resource categories",
-          "Inspect organization-managed database inventory",
-          "Open future hosted infrastructure tabs",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: {
-        id: "billing",
-        label: "Billing",
-        description: "Organization billing records and payment configuration.",
-        order: 45,
-      },
-      component: AdminHostedResourcesPage,
-    },
-    {
-      id: "manage-credits",
-      title: "Manage Credits",
-      navLabel: "Manage Credits",
-      description: "Review organization credit balance, auto-reload settings, and user budget allocations.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on Manage Credits. This page is intended for reviewing organization prepaid credits, auto-reload state, and user budget allocations.",
-        availableActions: [
-          "Review organization credit balance",
-          "Inspect auto-reload status",
-          "Allocate or update per-user credit budgets",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: {
-        id: "billing",
-        label: "Billing",
-        description: "Organization billing records and payment configuration.",
-        order: 45,
-      },
-      component: AdminManageCreditsPage,
-    },
-  ],
-};
-
-const accessInformationSection = {
-  id: "information",
-  label: "Concept & Help",
-  description: "Reference surfaces that explain the current governance model.",
-  order: 40,
-};
-
-const accessInspectionSection = {
-  id: "inspection",
-  label: "User access inspection",
-  description: "Inspect effective access for specific users.",
-  order: 30,
-};
-
-const accessTeamsSection = {
-  id: "teams",
-  label: "Teams",
-  description: "Organization team management and sharing.",
-  order: 35,
-};
-
-export const accessRbacApp: AppDefinition = {
-  id: "access-rbac",
-  title: "Access & RBAC",
-  description: "Organization access governance for resolved shell access inspection and teams.",
-  source: "core",
-  icon: KeyRound,
-  navigationPlacement: "admin-menu",
-  topNavigationStyle: "hidden",
-  requiredPermissions: ["org_admin:view"],
-  defaultSurfaceId: "user-inspector",
-  surfaces: [
-    {
-      id: "overview",
-      title: "Overview",
-      navLabel: "Overview",
-      description: "Governance model, role layers, and how platform access fits together.",
-      hidden: true,
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User opened the legacy Access & RBAC overview route, which now redirects to the documentation page for RBAC concepts.",
-        availableActions: [
-          "Read RBAC documentation",
-          "Return to policy and inspector pages",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: accessInformationSection,
-      component: AccessRbacOverviewPage,
-    },
-    {
-      id: "user-inspector",
-      title: "Organization user inspector",
-      navLabel: "Inspector",
-      description: "Search users and inspect their effective shell access.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on the Organization user inspector. This page is used to search users and inspect their effective shell access.",
-        availableActions: [
-          "Search for a user",
-          "Inspect a user's effective access",
-          "Review role and permission resolution",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: accessInspectionSection,
-      component: AccessRbacInspectorPage,
-    },
-    {
-      id: "teams",
-      title: "Teams",
-      navLabel: "Registry",
-      description: "Manage organization teams, memberships, and team sharing.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on the Teams registry. This page shows organization teams, memberships, and team sharing state.",
-        availableActions: [
-          "Browse teams",
-          "Inspect memberships",
-          "Review or manage team sharing",
-        ],
-      }),
-      kind: "page",
-      fullBleed: true,
-      requiredPermissions: ["org_admin:view"],
-      navigationSection: accessTeamsSection,
-      component: AccessRbacTeamsPage,
+      component: HiddenSettingsCatalogPage,
     },
   ],
 };
@@ -926,7 +497,7 @@ const coreExtension: AppExtension = {
     workspaceRowWidget,
     workspaceSlideWidget,
   ],
-  apps: [workspaceStudioApp, settingsApp, shellSettingsHostApp, adminApp, accessRbacApp],
+  apps: [workspaceStudioApp, settingsApp],
   themes: [
     mainSequenceSpaceTheme,
     mainSequenceTheme,
@@ -935,7 +506,6 @@ const coreExtension: AppExtension = {
     draculaTheme,
     grandpaTheme,
     graphiteTheme,
-    sapphireTheme,
     pandaTruenoTheme,
     sakuraTheme,
     quartzLightTheme,

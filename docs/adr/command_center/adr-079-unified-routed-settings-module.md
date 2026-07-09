@@ -66,7 +66,6 @@ Canonical route shape:
 /app/settings/platform/configuration
 /app/settings/platform/widget-registry
 /app/settings/platform/connection-registry
-/app/settings/platform/access-catalog
 /app/settings/organization/github
 ```
 
@@ -102,7 +101,7 @@ Recommended initial mapping:
 | `Billing` | credits, invoices, billing details, hosted resources, manage credits |
 | `Organization` | users, active plans, security sessions, GitHub organizations, widget configurations |
 | `Applications` | Main Sequence Markets, Main Sequence AI provider/agent settings, and other application settings |
-| `Platform` | configuration, widget registry, connection registry, access catalog |
+| `Platform` | configuration, widget registry, connection registry |
 
 Organization pages require `org_admin:view`. Platform-only diagnostics keep their existing
 platform-admin permission requirements inside Settings.
@@ -124,24 +123,13 @@ than the modal settings nav, but it must be quieter:
 The submenu should not render every page as a loud card or long descriptive row. It is navigation,
 not documentation.
 
-## Routing And Compatibility
+## Routing
 
 The new `settingsApp` should be registered through the app registry as a normal app.
 
-The old admin routes should redirect:
-
-```text
-/app/admin/organization-users -> /app/settings/organization/users
-/app/admin/active-plans -> /app/settings/organization/plans
-/app/admin/security-sessions -> /app/settings/organization/security-sessions
-/app/admin/widget-configurations -> /app/settings/organization/widgets
-/app/admin/main-sequence-markets -> /app/settings/applications/main-sequence-markets
-/app/admin/github-organizations -> /app/settings/organization/github
-/app/admin/invoices -> /app/settings/billing/invoices
-/app/admin/billing-details -> /app/settings/billing/details
-/app/admin/hosted-resources -> /app/settings/billing/hosted-resources
-/app/admin/manage-credits -> /app/settings/billing/manage-credits
-```
+Settings is the canonical frontend namespace for account, billing, organization, Access & RBAC,
+application, and platform settings. The shell should not register or advertise standalone
+`admin`, `access-rbac`, or internal shell-settings app ids.
 
 The old user settings modal entry should navigate to:
 
@@ -158,7 +146,6 @@ security -> /app/settings/account/security
 configuration -> /app/settings/platform/configuration
 registry -> /app/settings/platform/widget-registry
 connection-registry -> /app/settings/platform/connection-registry
-access-catalog -> /app/settings/platform/access-catalog
 main_sequence_ai::agents-settings -> /app/settings/applications/main_sequence_ai/agents-settings
 main_sequence_ai::model-providers -> /app/settings/applications/main_sequence_ai/model-providers
 ```
@@ -181,7 +168,6 @@ export interface AppSettingsContribution {
   icon?: AppIcon;
   order?: number;
   routeSegment?: string;
-  requiredPermissions?: string[];
   group?: {
     id: string;
     label: string;
@@ -206,30 +192,22 @@ The settings registry should flatten contributions with app metadata:
 - `appTitle`
 - `appSource`
 - `appIcon`
-- `requiredPermissions`
 - route path
+- backend shell-access surface id
 
 ## Permission Rules
 
-Visibility requires all of:
+Visibility requires backend shell access for:
 
-- app-level permissions pass
-- contribution-level permissions pass
-- route-level permissions pass
+- the concrete Settings section app such as `settings.account`, `settings.organization`,
+  `settings.access-rbac`, `settings.applications`, or `settings.platform`
+- the concrete Settings section surface such as `settings.platform.auth`
 
 The Settings shell should never show inaccessible group headers.
 
-The migration must preserve the current gate semantics exactly. Moving pages into one Settings
-module must not make organization, billing, platform, provider, application, or diagnostic pages
-visible to users who cannot see them today. A shared Settings route is only a navigation container;
-it is not a permission escalation boundary.
-
-Existing gates that must be preserved include:
-
-- `adminApp.requiredPermissions` and each admin surface `requiredPermissions`
-- organization-admin gates such as `org_admin:view`
-- platform-admin-only settings currently exposed through `SettingsDialog` platform mode
-- extension-contributed settings entry permissions
+Moving pages into one Settings module must not make organization, billing, platform, provider,
+application, or diagnostic pages visible unless the backend returns the matching settings surface.
+A shared Settings route is only a navigation container; it is not a permission escalation boundary.
 - route-level `PermissionRoute` checks
 - page-local guards that disable or hide mutations for non-admin users
 - backend-enforced permission failures, which must still render as page errors instead of being
@@ -302,12 +280,11 @@ Negative:
 
 - [ ] Inventory every current `SettingsDialog` section, including user, platform, contributed, and
       hidden/internal sections.
-- [ ] Inventory every current `adminApp` surface in `src/extensions/core/index.ts`.
-- [ ] Inventory every current visibility gate, including app-level permissions, surface
-      permissions, `PermissionRoute` wrappers, contributed-section permissions, and page-local
-      mutation guards.
+- [ ] Inventory every current organization-admin Settings surface in `src/extensions/core/index.ts`.
+- [ ] Inventory every current visibility gate, including backend shell-access surfaces,
+      `PermissionRoute` wrappers, contributed sections, and page-local mutation guards.
 - [ ] Decide the final route slug for each existing section and admin surface.
-- [ ] Write a route redirect table for all old `/app/admin/...` URLs.
+- [ ] Remove standalone admin route names from the shell route table.
 - [ ] Write a section-id redirect table for old settings dialog section ids.
 - [ ] Confirm the first accessible default settings route for user-only, org-admin, and
       platform-admin sessions.
@@ -376,14 +353,12 @@ Negative:
       deletion.
 - [ ] Update i18n keys from `settingsDialog.*` and `userMenu.settings` where labels change.
 
-### Phase 7: Redirects And Compatibility
+### Phase 7: Route Cleanup
 
-- [ ] Add SPA redirects from all old `/app/admin/...` routes to the matching `/app/settings/...`
-      routes.
-- [ ] Add compatibility handling for old settings section links.
-- [ ] Keep permission boundaries on redirected targets.
-- [ ] Verify redirects do not bypass permissions: the target route must run the same permission
-      checks as direct navigation.
+- [ ] Remove old standalone admin route names from the active SPA route table.
+- [ ] Add compatibility handling only for old settings section ids that are still emitted by
+      existing shell controls.
+- [ ] Keep backend shell-access boundaries on every Settings target.
 - [ ] Add route tests for user-only, org-admin, and platform-admin access.
 - [ ] Verify browser back/forward works across Settings pages.
 
@@ -416,7 +391,7 @@ Negative:
 - [ ] Manually verify org-admin session: Settings shows Organization pages and no separate
       Organization Admin button.
 - [ ] Manually verify platform-admin session: Settings shows Platform diagnostics.
-- [ ] Manually verify old `/app/admin/...` URLs redirect correctly.
+- [ ] Manually verify old standalone admin URLs are not advertised by the shell.
 - [ ] Manually verify old settings entry opens the routed Settings app instead of a modal.
 
 ## Acceptance Criteria

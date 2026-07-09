@@ -184,7 +184,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={forwardedRef}
           className={cn(
-            "flex h-10 w-full rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus:border-primary/70 focus:ring-2 focus:ring-ring/30",
+            "flex h-8 w-full rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-2.5 py-1.5 text-sm text-foreground shadow-sm outline-none transition-colors focus:border-primary/70 focus:ring-2 focus:ring-ring/30",
             className,
           )}
           disabled={disabled}
@@ -221,7 +221,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           aria-expanded={open}
           aria-haspopup="listbox"
           className={cn(
-            "flex min-h-10 items-center justify-between gap-3 rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2 text-left text-sm text-foreground shadow-sm outline-none transition-colors hover:border-primary/35 hover:bg-muted/25 focus:border-primary/70 focus:ring-2 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50",
+            "flex min-h-8 items-center justify-between gap-2 rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-2.5 py-1.5 text-left text-sm text-foreground shadow-sm outline-none transition-colors hover:border-primary/35 hover:bg-muted/25 focus:border-primary/70 focus:ring-2 focus:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50",
             fitContent ? "w-auto min-w-full" : "w-full",
             open && "border-primary/60 bg-muted/35",
             className,
@@ -277,7 +277,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
               <>
                 <button
                   type="button"
-                  className="mb-1 flex w-full items-center rounded-[calc(var(--radius)-6px)] px-3 py-2 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                  className="mb-1 flex w-full items-center rounded-[calc(var(--radius)-6px)] px-2.5 py-1.5 text-left text-sm font-medium text-primary transition-colors hover:bg-primary/10"
                   onClick={() => {
                     actionOnSelect();
                     setOpen(false);
@@ -289,7 +289,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
               </>
             ) : null}
             {searchable ? (
-              <div className="border-b border-border/70 p-2">
+              <div className="border-b border-border/70 p-1.5">
                 <div className="relative">
                   <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input
@@ -298,14 +298,14 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                     value={searchValue}
                     onChange={(event) => setSearchValue(event.target.value)}
                     placeholder={searchPlaceholder}
-                    className="h-9 w-full rounded-[calc(var(--radius)-7px)] border border-border/70 bg-background/55 px-3 pl-9 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/65 focus:ring-2 focus:ring-ring/25"
+                    className="h-8 w-full rounded-[calc(var(--radius)-7px)] border border-border/70 bg-background/55 px-2.5 pl-8 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/65 focus:ring-2 focus:ring-ring/25"
                   />
                 </div>
               </div>
             ) : null}
             <div className="max-h-72 overflow-y-auto">
               {visibleOptions.length === 0 ? (
-                <div className="rounded-[calc(var(--radius)-6px)] px-3 py-6 text-sm text-muted-foreground">
+                <div className="rounded-[calc(var(--radius)-6px)] px-2.5 py-4 text-sm text-muted-foreground">
                   {emptyMessage}
                 </div>
               ) : null}
@@ -320,7 +320,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                     aria-selected={selected}
                     disabled={option.disabled}
                     className={cn(
-                      "flex w-full gap-3 rounded-[calc(var(--radius)-6px)] px-3 py-2 text-left text-sm transition-colors hover:bg-muted/45 disabled:pointer-events-none disabled:opacity-40",
+                      "flex w-full gap-2 rounded-[calc(var(--radius)-6px)] px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted/45 disabled:pointer-events-none disabled:opacity-40",
                       option.description ? "items-start" : "items-center",
                       selected && "bg-primary/12 text-topbar-foreground",
                     )}

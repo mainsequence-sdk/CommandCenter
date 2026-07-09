@@ -20,12 +20,12 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col gap-4 border-b border-border/60 pb-5 lg:flex-row lg:items-end lg:justify-between",
+        "flex flex-col gap-3 border-b border-border/60 pb-3 lg:flex-row lg:items-end lg:justify-between",
         className,
       )}
       style={style}
     >
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         {eyebrow ? (
           <div
             className="uppercase tracking-[0.18em] text-muted-foreground"

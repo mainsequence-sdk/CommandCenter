@@ -1,4 +1,4 @@
-export const builtinAppRoles = ["user", "org_admin", "platform_admin"] as const;
+export const builtinAppRoles = ["user", "org_admin"] as const;
 
 export type BuiltinAppRole = (typeof builtinAppRoles)[number];
 export type AppRole = string;
@@ -6,11 +6,23 @@ export type AppRole = string;
 export type Permission = string;
 export type AuthMode = "jwt" | "runtime_credential";
 
+export interface ShellAccess {
+  accessibleApps: string[];
+  accessibleSurfaces: string[];
+}
+
 export interface OrganizationTeam {
   id: number;
   name: string;
   description: string;
   is_active: boolean;
+}
+
+export interface AppPlan {
+  name: string;
+  price?: number;
+  description?: string;
+  plan_type?: string;
 }
 
 export interface AppUser {
@@ -21,14 +33,12 @@ export interface AppUser {
   first_name?: string;
   last_name?: string;
   avatarUrl?: string;
-  plan?: string;
+  plan?: AppPlan;
   team: string;
   role: AppRole;
   organizationRole?: string;
-  platformPermissions?: Permission[];
-  isPlatformAdmin?: boolean;
   permissions: Permission[];
-  groups?: string[];
+  shellAccess?: ShellAccess;
   dateJoined?: string;
   isActive?: boolean;
   lastLogin?: string;

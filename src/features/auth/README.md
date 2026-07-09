@@ -49,7 +49,6 @@ This feature owns unauthenticated sign-in and password-reset entry points for th
   `/auth/browser/mfa/verify/` with browser credentials, while `mfa_setup_required` callbacks use
   `/user/api/user/mfa/setup/` and `/user/api/user/mfa/setup/verify/`, then follow the returned
   `redirect_url` until the backend redirects back with a social auth code.
-- Authenticated users can also request a password change email from the settings dialog through the shared auth API helpers.
 - JWT login now handles three token-endpoint outcomes: direct token success, `mfa_required`
   re-submit with `mfa_code`, and `mfa_setup_required` enrollment before login completion.
 - MFA setup uses the backend-returned `setup_url` and `setup_verify_url` exactly as returned.
@@ -62,13 +61,12 @@ This feature owns unauthenticated sign-in and password-reset entry points for th
 - Authenticated users can review and revoke their own tracked login sessions from the user
   settings `Security` section, see the MFA-enabled state carried on the signed-in user profile, and
   revoke sessions through `/user/api/user/sessions/`, session revoke, and revoke-others endpoints.
-- Session auth now separates organization-scoped admin access from platform-admin access.
 - JWT login now resolves in two steps: identity comes from `user_details`, then shell visibility
   comes from `/api/v1/command_center/users/<user_uid>/shell-access/`.
 - A `403` from shell-access fails the Command Center login with a clear access-denied message
   instead of showing the backend permission-class response directly.
 - Organization admin shell visibility is resolved from backend-owned `accessible_apps` and
-  `accessible_surfaces`, not from auth groups or frontend-managed policy assignments.
+  `accessible_surfaces`.
 - Command Center shell visibility is a separate concern from Teams, sharing, and object-level
   authorization: the frontend reads `/api/v1/command_center/users/<user_uid>/shell-access/` and
   treats it as a read-only visualization gate.

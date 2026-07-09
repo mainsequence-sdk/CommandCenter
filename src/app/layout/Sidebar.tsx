@@ -30,11 +30,12 @@ import { CHAT_PAGE_PATH } from "../../../extensions/main_sequence_ai/assistant-u
 import { UserMenu } from "./UserMenu";
 
 const baseItemClass =
-  "group relative z-10 flex h-11 w-full min-w-0 items-center text-sidebar-foreground/52 transition-colors hover:text-topbar-foreground";
+  "group relative z-10 flex h-10 w-full min-w-0 items-center text-sidebar-foreground/78 transition-colors hover:text-sidebar-foreground dark:text-sidebar-foreground/52 dark:hover:text-topbar-foreground";
 
 const tileClass =
   "flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-transparent transition-colors";
 const documentationAppId = "command-center-docs";
+const mainSequenceAiAppId = "main_sequence_ai";
 
 function HoverTooltip({
   children,
@@ -124,15 +125,15 @@ function AssistantSidebarTrigger({
           ? "flex h-9 w-full items-center justify-center rounded-md transition-colors"
           : cn(
               baseItemClass,
-              "justify-start gap-3 rounded-[calc(var(--radius)-6px)] px-2 text-left",
+              "justify-start gap-2.5 rounded-[calc(var(--radius)-6px)] px-2 text-left",
             ),
         active
           ? collapsed
             ? "text-topbar-foreground"
             : "bg-sidebar-foreground/[0.06] text-topbar-foreground"
           : collapsed
-            ? "text-sidebar-foreground/72 hover:bg-sidebar-foreground/[0.04] hover:text-topbar-foreground"
-            : "text-sidebar-foreground/72 hover:bg-sidebar-foreground/[0.04] hover:text-topbar-foreground",
+            ? "text-sidebar-foreground/82 hover:bg-sidebar-foreground/[0.04] hover:text-sidebar-foreground dark:text-sidebar-foreground/72 dark:hover:text-topbar-foreground"
+            : "text-sidebar-foreground/88 hover:bg-sidebar-foreground/[0.04] hover:text-sidebar-foreground dark:text-sidebar-foreground/72 dark:hover:text-topbar-foreground",
       )}
       title={`Open Astro (${shortcutLabel})`}
       onClick={onClick}
@@ -221,9 +222,9 @@ function SidebarAppNavigationButton({
         baseItemClass,
         collapsed
           ? "justify-center"
-          : "justify-start gap-2.5 rounded-[calc(var(--radius)-6px)] pl-3 pr-4",
+          : "justify-start gap-2 rounded-[calc(var(--radius)-6px)] pl-3 pr-3",
         isActive &&
-          "text-topbar-foreground before:absolute before:-left-2 before:top-0 before:bottom-0 before:w-[2px] before:bg-topbar-foreground",
+          "text-sidebar-foreground before:absolute before:-left-2 before:top-0 before:bottom-0 before:w-[2px] before:bg-sidebar-foreground dark:text-topbar-foreground dark:before:bg-topbar-foreground",
       )}
     >
       <span
@@ -271,6 +272,7 @@ export function Sidebar() {
   const userName = user?.name?.trim() || app.name;
   const userRoleLabel = getAccessProfileLabel(user);
   const permissions = user?.permissions ?? [];
+  const shellAccess = user?.shellAccess;
   const assistantShortcutLabel =
     typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform)
       ? "⌘ + J"
@@ -280,22 +282,33 @@ export function Sidebar() {
       ? "⌘J"
       : "⌃J";
   const themeStudioAllowed = hasAnyPermission(permissions, ["theme:manage"]);
+  const mainSequenceAiAllowed = Boolean(
+    shellAccess?.accessibleApps.includes(mainSequenceAiAppId),
+  );
+  const teamsAllowed = Boolean(
+    shellAccess?.accessibleApps.includes("settings.access-rbac") &&
+      shellAccess?.accessibleSurfaces.includes("settings.access-rbac.teams"),
+  );
 
-  const accessibleApps = getAccessiblePrimaryApps(permissions);
+  const accessibleApps = getAccessiblePrimaryApps(shellAccess);
   const documentationApp = accessibleApps.find((appItem) => appItem.id === documentationAppId);
   const primaryApps = accessibleApps.filter((appItem) => appItem.id !== documentationAppId);
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const activeAppId = pathSegments[1];
   const assistantActive = Boolean(chatFeature?.isRailOpen) || location.pathname === CHAT_PAGE_PATH;
   const userMenuActions = [
-    {
-      icon: Users2,
-      label: "Teams",
-      onSelect: () => {
-        closeAppPanel();
-        navigate("/app/teams");
-      },
-    },
+    ...(teamsAllowed
+      ? [
+          {
+            icon: Users2,
+            label: "Teams",
+            onSelect: () => {
+              closeAppPanel();
+              navigate("/app/settings/access-rbac/teams");
+            },
+          },
+        ]
+      : []),
     ...(themeStudioAllowed
       ? [
           {
@@ -333,15 +346,15 @@ export function Sidebar() {
         sidebarCollapsed ? "w-[52px]" : "min-w-[248px] max-w-[280px]",
       )}
     >
-      <div className={cn("shrink-0 px-2", sidebarCollapsed ? "pt-2" : "pt-0")}>
+      <div className={cn("shrink-0", sidebarCollapsed ? "px-px pt-px" : "px-2 pt-0")}>
         {sidebarCollapsed ? (
           <button
             type="button"
-            className="flex h-10 w-full items-center justify-center rounded-md text-topbar-foreground transition-colors hover:bg-sidebar-foreground/[0.04]"
+            className="flex h-[50px] w-full items-center justify-center rounded-md text-topbar-foreground transition-colors hover:bg-sidebar-foreground/[0.04]"
             title={t("navigation.expandSidebar", { app: app.shortName })}
             onClick={expandSidebar}
           >
-            <LogoMark className="h-8 w-8" />
+            <LogoMark className="h-[50px] w-[50px]" size={50} />
           </button>
         ) : (
           <div className="relative flex h-12 items-center px-3 pr-10">
@@ -364,7 +377,7 @@ export function Sidebar() {
         )}
       </div>
 
-      <nav className="mt-2 flex min-h-0 flex-1 flex-col overflow-x-visible overflow-y-auto px-2">
+      <nav className="mt-1.5 flex min-h-0 flex-1 flex-col overflow-x-visible overflow-y-auto px-2">
         {primaryApps.length ? (
           <div className="mb-2">
             {!sidebarCollapsed ? (
@@ -390,7 +403,7 @@ export function Sidebar() {
 
       </nav>
 
-      <div className="mt-auto shrink-0 px-2 pb-3 pt-2">
+      <div className="mt-auto shrink-0 px-2 pb-2 pt-1.5">
         {sidebarCollapsed ? (
           <div className="flex w-full flex-col items-center gap-2">
             {documentationApp ? (
@@ -403,7 +416,7 @@ export function Sidebar() {
                 onToggleAppPanel={toggleAppPanel}
               />
             ) : null}
-            {env.includeAui && chatFeature ? (
+            {env.includeAui && chatFeature && mainSequenceAiAllowed ? (
               <AssistantSidebarTrigger
                 active={assistantActive}
                 collapsed
@@ -466,7 +479,7 @@ export function Sidebar() {
               </div>
             ) : null}
             <div className="space-y-1 px-2">
-              {env.includeAui && chatFeature ? (
+              {env.includeAui && chatFeature && mainSequenceAiAllowed ? (
                 <AssistantSidebarTrigger
                   active={assistantActive}
                   collapsed={false}
@@ -484,7 +497,7 @@ export function Sidebar() {
                 align="start"
                 placement="right"
                 triggerLabel={userName}
-                triggerClassName="h-11 w-full justify-start gap-3 rounded-[calc(var(--radius)-6px)] px-2 py-0 hover:bg-sidebar-foreground/[0.04]"
+                triggerClassName="h-10 w-full justify-start gap-2.5 rounded-[calc(var(--radius)-6px)] px-2 py-0 hover:bg-sidebar-foreground/[0.04]"
                 triggerContent={
                   <>
                     <Avatar
@@ -514,7 +527,7 @@ export function Sidebar() {
               />
               <button
                 type="button"
-                className={cn(baseItemClass, "justify-start gap-3 rounded-[calc(var(--radius)-6px)] px-2")}
+                className={cn(baseItemClass, "justify-start gap-2.5 rounded-[calc(var(--radius)-6px)] px-2")}
                 title={t("userMenu.signOut")}
                 onClick={() => {
                   logout();

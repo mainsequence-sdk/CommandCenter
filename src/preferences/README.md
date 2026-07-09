@@ -33,7 +33,7 @@ Expected payload shape:
 {
   "language": "en",
   "themeId": "main-sequence-space",
-  "favoriteSurfaceIds": ["access-rbac.overview"],
+  "favoriteSurfaceIds": ["settings.access-rbac.inspector"],
   "favoriteWorkspaceIds": ["workspace-studio::workspace::abc123"]
 }
 ```

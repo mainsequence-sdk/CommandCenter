@@ -38,7 +38,6 @@ export function AppDetailsDialog({
   const AppIcon = app.icon;
   const defaultSurface =
     surfaces.find((surface) => surface.id === app.defaultSurfaceId) ?? surfaces[0];
-  const permissions = (app.requiredPermissions ?? ["none"]).join(", ");
 
   return (
     <Dialog
@@ -110,7 +109,7 @@ export function AppDetailsDialog({
             label="Default Surface"
             value={defaultSurface?.title ?? app.defaultSurfaceId}
           />
-          <DetailBlock label="Permissions" value={permissions} />
+          <DetailBlock label="Shell App ID" value={app.id} mono />
           <DetailBlock label="Documentation" value="Not configured" />
         </aside>
       </div>

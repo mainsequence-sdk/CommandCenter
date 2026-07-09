@@ -1,15 +1,19 @@
 import { Navigate, useParams } from "react-router-dom";
 
 import { getAppById, getAppSurfaceById } from "@/app/registry";
-import { canAccessApp, getAccessibleApps, getAppPath, getDefaultSurface } from "@/apps/utils";
-import { hasAllPermissions } from "@/auth/permissions";
+import {
+  canAccessSurface,
+  getAccessibleApps,
+  getAppPath,
+  getDefaultSurface,
+} from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
 import { DashboardCanvas } from "@/features/dashboards/DashboardCanvas";
 
 export function AppPage() {
   const { appId, surfaceId } = useParams();
-  const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
-  const accessibleApps = getAccessibleApps(permissions);
+  const shellAccess = useAuthStore((state) => state.session?.user.shellAccess);
+  const accessibleApps = getAccessibleApps(shellAccess);
 
   if (accessibleApps.length === 0) {
     return (
@@ -26,7 +30,7 @@ export function AppPage() {
     return <Navigate to={getAppPath(accessibleApps[0]!.id)} replace />;
   }
 
-  const defaultSurface = getDefaultSurface(app, permissions);
+  const defaultSurface = getDefaultSurface(app, shellAccess);
 
   if (!defaultSurface) {
     return (
@@ -43,8 +47,7 @@ export function AppPage() {
   const surface = getAppSurfaceById(app.id, surfaceId);
   const surfaceRouteAccessible =
     Boolean(surface) &&
-    canAccessApp(app, permissions) &&
-    hasAllPermissions(permissions, surface?.requiredPermissions ?? []);
+    canAccessSurface(app, surface!, shellAccess, { includeHidden: true });
 
   if (!surface || !surfaceRouteAccessible) {
     return <Navigate to={getAppPath(app.id, defaultSurface.id)} replace />;

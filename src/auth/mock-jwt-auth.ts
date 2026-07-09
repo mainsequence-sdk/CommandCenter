@@ -1,5 +1,5 @@
-import { getPermissionsForRole } from "@/auth/permissions";
-import type { AppRole, AppUser, OrganizationTeam, Permission } from "@/auth/types";
+import type { AppPlan, AppRole, AppUser, OrganizationTeam, Permission } from "@/auth/types";
+import { normalizeMockShellAccess } from "@/auth/mock-shell-access";
 import { commandCenterConfig } from "@/config/command-center";
 
 const mockJsonModules = import.meta.glob("/mock_data/command_center/auth.json", {
@@ -18,16 +18,17 @@ type MockAuthUserRecord = {
   team: string;
   role: AppRole;
   organization_role?: string;
-  platform_permissions?: Permission[];
-  is_platform_admin?: boolean;
   permissions: Permission[];
-  groups?: string[];
+  shell_access?: {
+    accessible_apps?: string[];
+    accessible_surfaces?: string[];
+  };
   date_joined?: string;
   is_active?: boolean;
   last_login?: string;
   mfa_enabled?: boolean;
   organization_teams?: OrganizationTeam[];
-  plan?: string;
+  plan?: AppPlan;
 };
 
 type MockAuthConfig = {
@@ -146,8 +147,6 @@ function buildMockClaims(user: MockAuthUserRecord, expiresAtSeconds: number) {
     [claimMapping.role]: user.role,
     [claimMapping.permissions]: user.permissions,
     [claimMapping.organizationRole]: user.organization_role ?? "",
-    [claimMapping.platformPermissions]: user.platform_permissions ?? [],
-    [claimMapping.isPlatformAdmin]: user.is_platform_admin ?? false,
     [claimMapping.dateJoined]: user.date_joined ?? "2026-03-26T08:00:00Z",
     [claimMapping.isActive]: user.is_active ?? true,
     [claimMapping.lastLogin]: user.last_login ?? new Date().toISOString(),
@@ -197,10 +196,9 @@ function findUserByUid(uid: string) {
 
 function isPrivilegedMockUser(user: MockAuthUserRecord) {
   return Boolean(
-    user.is_platform_admin ||
-      user.organization_role === "ORG_ADMIN" ||
+    user.organization_role === "ORG_ADMIN" ||
       user.permissions.includes("org_admin:view") ||
-      user.permissions.includes("platform_admin:access"),
+      user.role === "org_admin",
   );
 }
 
@@ -278,16 +276,17 @@ function buildUserDetails(user: MockAuthUserRecord) {
     team: user.team,
     role: user.role,
     organization_role: user.organization_role ?? "",
-    platform_permissions: user.platform_permissions ?? [],
-    is_platform_admin: user.is_platform_admin ?? false,
     permissions: user.permissions,
-    groups: user.groups ?? [],
     date_joined: user.date_joined ?? "2026-03-26T08:00:00Z",
     is_active: user.is_active ?? true,
     last_login: user.last_login ?? new Date().toISOString(),
     mfa_enabled: user.mfa_enabled ?? false,
     organization_teams: user.organization_teams ?? [],
-    plan: user.plan ?? "enterprise",
+    plan: user.plan ?? {
+      name: "Enterprise",
+      description: "Organization plan for administration and team workflows.",
+      plan_type: "enterprise",
+    },
   };
 }
 
@@ -586,16 +585,12 @@ export function handleMockJwtAuthorizedGet(
   }
 
   if (pathname === shellAccessPathname) {
+    const shellAccess = normalizeMockShellAccess(user.shell_access);
+
     return {
       user_uid: user.uid,
-      policy_ids: [],
-      grant_permissions: [],
-      deny_permissions: [],
-      derived: {
-        is_org_admin: user.permissions.includes("org_admin:view"),
-        groups: [],
-      },
-      effective_permissions: user.permissions,
+      accessible_apps: shellAccess.accessibleApps,
+      accessible_surfaces: shellAccess.accessibleSurfaces,
     };
   }
 
@@ -658,18 +653,6 @@ export function handleMockAuthRequest(
 
     return {
       detail: "Password changed successfully. Please log in again.",
-    };
-  }
-
-  if (pathname === "/user/api/user/request-password-change/" && method === "POST") {
-    const user = accessToken ? resolveMockUserFromAccessToken(accessToken) : null;
-
-    if (!user) {
-      throw new Error(getMockUnauthorizedMessage());
-    }
-
-    return {
-      detail: "Password change email sent. Please check your inbox.",
     };
   }
 
@@ -931,13 +914,8 @@ export function buildMockSessionUser(identifier: string): AppUser | null {
     team: user.team,
     role: user.role,
     organizationRole: user.organization_role,
-    platformPermissions: user.platform_permissions ?? [],
-    isPlatformAdmin: user.is_platform_admin ?? false,
-    permissions:
-      user.permissions.length > 0
-        ? user.permissions
-        : getPermissionsForRole(user.role),
-    groups: user.groups ?? [],
+    permissions: user.permissions,
+    shellAccess: normalizeMockShellAccess(user.shell_access),
     dateJoined: user.date_joined,
     isActive: user.is_active,
     lastLogin: user.last_login,

@@ -161,13 +161,13 @@ function resolveSpecialRouteContext(
     };
   }
 
-  const teamDetailMatch = matchPath("/app/access-rbac/teams/:teamId", input.pathname);
+  const teamDetailMatch = matchPath("/app/settings/access-rbac/teams/:teamId", input.pathname);
 
   if (teamDetailMatch) {
     return resolveLinkedSurfaceContext(
       input,
-      "access-rbac",
-      "teams",
+      "settings",
+      "access-rbac/teams",
       {
         summary:
           "User is viewing a specific organization team inside Access & RBAC.",

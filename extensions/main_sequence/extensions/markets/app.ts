@@ -56,7 +56,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
   source: "main_sequence_markets",
   icon: LineChart,
   navigationOrder: 300,
-  requiredPermissions: ["main_sequence_markets:view"],
   permissionDefinitions: [
     {
       id: "main_sequence_markets:view",
@@ -84,7 +83,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       }),
       navigationSection: assetsSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceAssetCategoriesPage,
     },
     {
@@ -103,7 +101,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       }),
       navigationSection: assetsSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceAssetsPage,
     },
     {
@@ -123,7 +120,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       }),
       navigationSection: assetsSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceIndicesPage,
     },
     {
@@ -145,7 +141,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       }),
       navigationSection: pricingSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequencePricingCurvesPage,
     },
     {
@@ -165,7 +160,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       }),
       navigationSection: pricingSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequencePricingMarketDataPage,
     },
     {
@@ -185,7 +179,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       }),
       navigationSection: platformSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceCalendarsPage,
     },
     {
@@ -206,7 +199,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       }),
       navigationSection: platformSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceMarketsSettingsPage,
     },
     {
@@ -227,7 +219,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       }),
       navigationSection: portfoliosSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceFundsPage,
     },
     {
@@ -246,7 +237,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       }),
       navigationSection: portfoliosSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequencePortfolioGroupsPage,
     },
     {
@@ -268,7 +258,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       }),
       navigationSection: portfoliosSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequencePortfolioSignalsPage,
     },
     {
@@ -287,7 +276,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       }),
       navigationSection: portfoliosSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceTargetPortfoliosPage,
     },
     {
@@ -306,7 +294,6 @@ export const mainSequenceMarketsApp: AppDefinition = {
       }),
       navigationSection: managedAccountsSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_markets:view"],
       component: MainSequenceManagedAccountsPage,
     },
   ],

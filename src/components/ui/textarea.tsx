@@ -74,7 +74,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
       <textarea
         ref={composedRef}
         className={cn(
-          "min-h-40 w-full rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/70 focus:ring-2 focus:ring-ring/30",
+          "min-h-32 w-full rounded-[calc(var(--radius)-6px)] border border-input bg-card/70 px-2.5 py-1.5 text-sm text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/70 focus:ring-2 focus:ring-ring/30",
           variableReference.eligible ? WIDGET_VARIABLE_REFERENCE_INPUT_CLASS : undefined,
           showReferenceToken ? "text-transparent caret-transparent" : undefined,
           className,

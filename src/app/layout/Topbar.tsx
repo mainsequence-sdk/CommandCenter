@@ -364,6 +364,7 @@ export function Topbar() {
 
   const user = useAuthStore((state) => state.session?.user);
   const permissions = user?.permissions ?? [];
+  const shellAccess = user?.shellAccess;
   const commandValue = useShellStore((state) => state.commandValue);
   const favoriteSurfaceIds = useShellStore((state) => state.favoriteSurfaceIds);
   const favoriteWorkspaceIds = useShellStore((state) => state.favoriteWorkspaceIds);
@@ -386,11 +387,11 @@ export function Topbar() {
     Boolean(workspaceStudioSurfaceId && WORKSPACE_CANVAS_SURFACE_IDS.has(workspaceStudioSurfaceId)) &&
     Boolean(requestedWorkspaceId);
 
-  const accessibleApps = getAccessibleApps(permissions);
-  const accessibleSurfaces = getAccessibleSurfaceEntries(permissions);
-  const searchableApps = accessibleApps.filter((app) => app.id !== "admin");
-  const searchableSurfaces = accessibleSurfaces.filter((surface) => surface.appId !== "admin");
-  const favoriteSurfaces = getFavoriteSurfaceEntries(permissions, favoriteSurfaceIds);
+  const accessibleApps = getAccessibleApps(shellAccess);
+  const accessibleSurfaces = getAccessibleSurfaceEntries(shellAccess);
+  const searchableApps = accessibleApps;
+  const searchableSurfaces = accessibleSurfaces;
+  const favoriteSurfaces = getFavoriteSurfaceEntries(shellAccess, favoriteSurfaceIds);
   const favoriteWorkspaces = env.includeWorkspaces
     ? getFavoriteWorkspaceEntries(workspaceListItems, favoriteWorkspaceIds)
     : [];
@@ -426,11 +427,11 @@ export function Topbar() {
   const currentAppVisible =
     currentApp && accessibleApps.some((app) => app.id === currentApp.id) ? currentApp : undefined;
   const currentAppSurfaces = currentAppVisible
-    ? getAccessibleSurfaces(currentAppVisible, permissions)
+    ? getAccessibleSurfaces(currentAppVisible, shellAccess)
     : [];
   const currentAppSurfaceGroups = getSurfaceNavigationGroups(currentAppSurfaces);
   const currentDefaultSurface = currentAppVisible
-    ? getDefaultSurface(currentAppVisible, permissions)
+    ? getDefaultSurface(currentAppVisible, shellAccess)
     : undefined;
   const currentSurfaceVisible =
     currentAppVisible &&

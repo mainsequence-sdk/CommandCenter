@@ -10,7 +10,6 @@ export interface PermissionDefinition {
 
 export const ORGANIZATION_ADMIN_ROLE = "ORG_ADMIN";
 export const ORGANIZATION_ADMIN_PERMISSION = "org_admin:view";
-export const PLATFORM_ADMIN_PERMISSION = "platform_admin:access";
 export const LEGACY_ADMIN_PERMISSION = "rbac:view";
 export const WORKSPACES_PUBLISH_PERMISSION = "workspaces:publish";
 export const DEPRECATED_PERMISSION_IDS = ["news:read"] as const satisfies Permission[];
@@ -43,47 +42,6 @@ export function filterDeprecatedPermissions<T extends string>(permissions: reado
 export const ROLE_LABELS: Record<BuiltinAppRole, string> = {
   user: "User",
   org_admin: "Organization Admin",
-  platform_admin: "Platform Admin",
-};
-
-export const ROLE_PERMISSIONS: Record<BuiltinAppRole, Permission[]> = {
-  user: [
-    "workspaces:view",
-    "widget.catalog:view",
-    "main_sequence_markets:view",
-    "orders:read",
-    "orders:submit",
-    "main_sequence_foundry:view",
-    ...PROMETHEUS_CONNECTION_PERMISSIONS,
-  ],
-  org_admin: [
-    "workspaces:view",
-    WORKSPACES_PUBLISH_PERMISSION,
-    "widget.catalog:view",
-    ORGANIZATION_ADMIN_PERMISSION,
-    "main_sequence_markets:view",
-    "orders:read",
-    "orders:submit",
-    "main_sequence_foundry:view",
-    ...PROMETHEUS_CONNECTION_PERMISSIONS,
-  ],
-  platform_admin: [
-    "workspaces:view",
-    WORKSPACES_PUBLISH_PERMISSION,
-    "widget.catalog:view",
-    "theme:manage",
-    ORGANIZATION_ADMIN_PERMISSION,
-    PLATFORM_ADMIN_PERMISSION,
-    "main_sequence_markets:view",
-    "orders:read",
-    "orders:submit",
-    "main_sequence_foundry:view",
-    ...PROMETHEUS_CONNECTION_PERMISSIONS,
-    ...POSTGRESQL_CONNECTION_PERMISSIONS,
-    ...TIMESCALEDB_CONNECTION_PERMISSIONS,
-    ...MYSQL_CONNECTION_PERMISSIONS,
-    ...MSSQL_CONNECTION_PERMISSIONS,
-  ],
 };
 
 export const CORE_PERMISSION_DEFINITIONS = [
@@ -109,12 +67,6 @@ export const CORE_PERMISSION_DEFINITIONS = [
     id: ORGANIZATION_ADMIN_PERMISSION,
     label: "Organization admin / access",
     description: "Open organization-scoped administration surfaces.",
-    category: "Shell",
-  },
-  {
-    id: PLATFORM_ADMIN_PERMISSION,
-    label: "Platform admin / access",
-    description: "Open platform-level admin settings and diagnostics.",
     category: "Shell",
   },
   {
@@ -206,22 +158,10 @@ export function normalizeBuiltinRole(role?: string | null): BuiltinAppRole | nul
 
   if (
     [
-      "platform_admin",
-      "platformadmin",
-      "superuser",
-      "super_user",
-      "system_admin",
-    ].includes(normalized)
-  ) {
-    return "platform_admin";
-  }
-
-  if (
-    [
+      "admin",
       "org_admin",
       "organization_admin",
       "organizationadmin",
-      "admin",
     ].includes(normalized)
   ) {
     return "org_admin";
@@ -260,111 +200,26 @@ export function normalizeOrganizationRole(role?: string | null) {
   return normalized.toUpperCase();
 }
 
-export function getPermissionsForRole(role?: string | null) {
-  const normalized = normalizeBuiltinRole(role);
-
-  if (!normalized) {
-    return [] as Permission[];
-  }
-
-  return filterDeprecatedPermissions(ROLE_PERMISSIONS[normalized]);
-}
-
-export function buildEffectivePermissions({
-  permissions = [],
-  role,
-  organizationRole,
-  platformPermissions = [],
-  isPlatformAdmin = false,
-}: {
-  permissions?: string[];
-  role?: string | null;
-  organizationRole?: string | null;
-  platformPermissions?: string[];
-  isPlatformAdmin?: boolean;
-}) {
-  const normalizedRole = normalizeBuiltinRole(role);
-  const merged = new Set<Permission>(
-    permissions.length > 0
-      ? permissions
-      : normalizedRole
-        ? ROLE_PERMISSIONS[normalizedRole].filter(
-            (permission) => permission !== ORGANIZATION_ADMIN_PERMISSION,
-          )
-        : [],
-  );
-
-  platformPermissions.forEach((permission) => {
-    if (permission.trim()) {
-      merged.add(permission);
-    }
-  });
-
-  const platformAdmin =
-    isPlatformAdmin ||
-    normalizedRole === "platform_admin" ||
-    merged.has(PLATFORM_ADMIN_PERMISSION);
-
-  if (platformAdmin) {
-    merged.add(PLATFORM_ADMIN_PERMISSION);
-    merged.add(ORGANIZATION_ADMIN_PERMISSION);
-    PROMETHEUS_CONNECTION_PERMISSIONS.forEach((permission) => merged.add(permission));
-    POSTGRESQL_CONNECTION_PERMISSIONS.forEach((permission) => merged.add(permission));
-    MYSQL_CONNECTION_PERMISSIONS.forEach((permission) => merged.add(permission));
-    MSSQL_CONNECTION_PERMISSIONS.forEach((permission) => merged.add(permission));
-  }
-
-  return filterDeprecatedPermissions(Array.from(merged));
-}
-
 export function hasOrganizationAdminAccess(
-  user?: Pick<AppUser, "organizationRole" | "role" | "permissions" | "isPlatformAdmin"> | null,
+  user?: Pick<AppUser, "organizationRole" | "role" | "permissions"> | null,
 ) {
   if (!user) {
     return false;
   }
 
-  if (user.isPlatformAdmin) {
+  if (
+    normalizeOrganizationRole(user.organizationRole) === ORGANIZATION_ADMIN_ROLE ||
+    normalizeBuiltinRole(user.role) === "org_admin"
+  ) {
     return true;
   }
 
   return hasAnyPermission(user.permissions ?? [], [ORGANIZATION_ADMIN_PERMISSION]);
 }
 
-export function hasPlatformAdminAccess(
-  user?: Pick<
-    AppUser,
-    "role" | "permissions" | "platformPermissions" | "isPlatformAdmin"
-  > | null,
-) {
-  if (!user) {
-    return false;
-  }
-
-  if (user.isPlatformAdmin) {
-    return true;
-  }
-
-  if (normalizeBuiltinRole(user.role) === "platform_admin") {
-    return true;
-  }
-
-  return hasAnyPermission(
-    [...(user.permissions ?? []), ...(user.platformPermissions ?? [])],
-    [PLATFORM_ADMIN_PERMISSION],
-  );
-}
-
 export function getAccessProfileLabel(
-  user?: Pick<
-    AppUser,
-    "role" | "permissions" | "platformPermissions" | "isPlatformAdmin" | "organizationRole"
-  > | null,
+  user?: Pick<AppUser, "role" | "permissions" | "organizationRole"> | null,
 ) {
-  if (hasPlatformAdminAccess(user)) {
-    return ROLE_LABELS.platform_admin;
-  }
-
   if (hasOrganizationAdminAccess(user)) {
     return ROLE_LABELS.org_admin;
   }

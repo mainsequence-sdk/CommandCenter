@@ -21,16 +21,14 @@ import {
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
 import type { AppShellMenuEntry } from "@/app/registry/types";
-import { getAccessibleShellMenuEntries } from "@/apps/utils";
-import { useAuthStore } from "@/auth/auth-store";
 import {
-  hasAllPermissions,
-  hasOrganizationAdminAccess,
-  hasPlatformAdminAccess,
-} from "@/auth/permissions";
+  getAccessibleShellMenuEntries,
+  getShellAppIdForSurface,
+  getShellSurfaceKey,
+} from "@/apps/utils";
+import { useAuthStore } from "@/auth/auth-store";
 import type { AppUser } from "@/auth/types";
 import { SettingsDialog } from "@/app/layout/SettingsDialog";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { AdminActivePlansPage } from "@/extensions/core/apps/admin/AdminActivePlansPage";
@@ -45,6 +43,7 @@ import { AdminOrganizationUsersPage } from "@/extensions/core/apps/admin/AdminOr
 import { AdminWidgetConfigurationsPage } from "@/extensions/core/apps/admin/AdminWidgetConfigurationsPage";
 import { AccessRbacInspectorPage } from "@/extensions/core/apps/access-rbac/AccessRbacInspectorPage";
 import { AccessRbacTeamsPage } from "@/extensions/core/apps/access-rbac/AccessRbacTeamsPage";
+import { UserCreditsSettingsSection } from "@/extensions/core/UserCreditsSettingsSection";
 import { cn } from "@/lib/utils";
 
 type SettingsGroupId =
@@ -54,6 +53,8 @@ type SettingsGroupId =
   | "access-rbac"
   | "applications"
   | "platform";
+
+type SettingsLayoutMode = "narrow" | "standard" | "wide" | "full";
 
 interface SettingsRouteContext {
   navigate: ReturnType<typeof useNavigate>;
@@ -70,8 +71,7 @@ interface SettingsRouteDefinition {
   applicationId?: string;
   applicationLabel?: string;
   applicationIcon?: ComponentType<{ className?: string }>;
-  requiredPermissions?: string[];
-  adminScope?: "organization" | "platform";
+  layout?: SettingsLayoutMode;
   render: (context: SettingsRouteContext) => ReactNode;
 }
 
@@ -129,29 +129,12 @@ const settingsGroups: SettingsGroupDefinition[] = [
   },
   {
     id: "platform",
-    label: "Platform",
-    description: "Platform admin configuration and registries.",
+    label: "System",
+    description: "System configuration and registries.",
     icon: ShieldCheck,
     order: 50,
   },
 ];
-
-const adminRouteMap: Record<string, string> = {
-  "organization-users": "organization/users",
-  "active-plans": "organization/plans",
-  "security-sessions": "organization/security-sessions",
-  "github-organizations": "organization/github",
-  "widget-configurations": "organization/widgets",
-  "main-sequence-markets": "applications/main-sequence-markets",
-  invoices: "billing/invoices",
-  "billing-details": "billing/details",
-  "hosted-resources": "billing/hosted-resources",
-  "manage-credits": "billing/manage-credits",
-};
-
-const legacySettingsRouteMap: Record<string, string> = {
-  "access-rbac/policies": "access-rbac/inspector",
-};
 
 function normalizeRoutePath(value?: string) {
   return (value ?? "").replace(/^\/+|\/+$/g, "");
@@ -159,6 +142,25 @@ function normalizeRoutePath(value?: string) {
 
 function getSettingsPath(path: string) {
   return `/app/settings/${path}`;
+}
+
+function getSettingsLayoutClassName(
+  layout: SettingsLayoutMode | undefined,
+  target: "header" | "content",
+) {
+  const base = "mx-auto w-full";
+
+  switch (layout) {
+    case "narrow":
+      return cn(base, "max-w-[900px]");
+    case "wide":
+      return cn(base, "max-w-[1480px]");
+    case "full":
+      return cn(base, "max-w-none");
+    case "standard":
+    default:
+      return cn(base, "max-w-[1120px]", target === "content" ? "2xl:max-w-[1240px]" : null);
+  }
 }
 
 function settingsDialogPage({
@@ -194,19 +196,11 @@ function settingsContributionPage(entry: AppShellMenuEntry, user?: AppUser) {
 }
 
 function makeShellContributionPath(entry: AppShellMenuEntry) {
-  if (entry.id === "shell-settings-host::user-credits") {
-    return "billing/credits";
-  }
-
   return `applications/${entry.appId}/${entry.contributionId}`;
 }
 
 function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
-  const personalCreditEntry = shellEntries.find(
-    (entry) => entry.id === "shell-settings-host::user-credits",
-  );
   const contributedRoutes = shellEntries
-    .filter((entry) => entry.id !== "shell-settings-host::user-credits")
     .map<SettingsRouteDefinition>((entry) => ({
       path: makeShellContributionPath(entry),
       label: entry.label,
@@ -217,7 +211,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       applicationId: entry.appId,
       applicationLabel: entry.appTitle,
       applicationIcon: entry.appIcon,
-      requiredPermissions: entry.requiredPermissions,
+      layout: "standard",
       render: ({ user }) => settingsContributionPage(entry, user),
     }));
 
@@ -229,6 +223,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Manage account identity, profile image, and display details.",
       groupId: "account",
       icon: UserCog,
+      layout: "narrow",
       render: ({ navigate, user }) =>
         settingsDialogPage({ mode: "user", sectionId: "account", user, navigate }),
     },
@@ -239,6 +234,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Manage theme, language, and local shell preferences.",
       groupId: "account",
       icon: SlidersHorizontal,
+      layout: "narrow",
       render: ({ navigate, user }) =>
         settingsDialogPage({ mode: "user", sectionId: "general", user, navigate }),
     },
@@ -249,6 +245,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Manage password, MFA, account deletion, and active sessions.",
       groupId: "account",
       icon: KeyRound,
+      layout: "narrow",
       render: ({ navigate, user }) =>
         settingsDialogPage({ mode: "user", sectionId: "security", user, navigate }),
     },
@@ -259,6 +256,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Review and revoke active account sessions.",
       groupId: "account",
       icon: ShieldCheck,
+      layout: "wide",
       render: ({ navigate, user }) =>
         settingsDialogPage({ mode: "user", sectionId: "security", user, navigate }),
     },
@@ -269,16 +267,8 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Review personal credit balance and spending policy.",
       groupId: "billing",
       icon: Wallet,
-      render: ({ user }) =>
-        personalCreditEntry
-          ? settingsContributionPage(personalCreditEntry, user)
-          : (
-              <Card>
-                <CardContent className="p-5 text-sm text-muted-foreground">
-                  Credits are not available for this session.
-                </CardContent>
-              </Card>
-            ),
+      layout: "standard",
+      render: () => <UserCreditsSettingsSection />,
     },
     {
       path: "organization/users",
@@ -287,8 +277,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Browse organization-scoped users and account state.",
       groupId: "organization",
       icon: Users2,
-      adminScope: "organization",
-      requiredPermissions: ["org_admin:view"],
+      layout: "wide",
       render: () => <AdminOrganizationUsersPage />,
     },
     {
@@ -298,8 +287,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Review organization plan inventory and assignments.",
       groupId: "organization",
       icon: BadgeDollarSign,
-      adminScope: "organization",
-      requiredPermissions: ["org_admin:view"],
+      layout: "wide",
       render: () => <AdminActivePlansPage />,
     },
     {
@@ -309,8 +297,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Review and revoke organization-scoped tracked login sessions.",
       groupId: "organization",
       icon: ShieldCheck,
-      adminScope: "organization",
-      requiredPermissions: ["org_admin:view"],
+      layout: "wide",
       render: () => <AdminLoginSessionsPage />,
     },
     {
@@ -320,8 +307,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Review linked GitHub organizations and integration status.",
       groupId: "organization",
       icon: Github,
-      adminScope: "organization",
-      requiredPermissions: ["org_admin:view"],
+      layout: "wide",
       render: () => <AdminGithubOrganizationsPage />,
     },
     {
@@ -331,8 +317,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Review backend-registered widget types with organization configuration.",
       groupId: "organization",
       icon: AppWindow,
-      adminScope: "organization",
-      requiredPermissions: ["org_admin:view"],
+      layout: "wide",
       render: () => <AdminWidgetConfigurationsPage />,
     },
     {
@@ -342,8 +327,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Search users and inspect their effective shell access.",
       groupId: "access-rbac",
       icon: UserCog,
-      adminScope: "organization",
-      requiredPermissions: ["org_admin:view"],
+      layout: "wide",
       render: () => <AccessRbacInspectorPage />,
     },
     {
@@ -353,8 +337,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Manage organization teams, memberships, and team sharing.",
       groupId: "access-rbac",
       icon: Users2,
-      adminScope: "organization",
-      requiredPermissions: ["org_admin:view"],
+      layout: "wide",
       render: () => <AccessRbacTeamsPage />,
     },
     {
@@ -367,8 +350,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       applicationId: "main_sequence_markets",
       applicationLabel: "Main Sequence Markets",
       applicationIcon: LineChart,
-      adminScope: "organization",
-      requiredPermissions: ["org_admin:view"],
+      layout: "standard",
       render: () => <AdminMainSequenceMarketsPage />,
     },
     {
@@ -378,8 +360,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Review organization invoice history and statements.",
       groupId: "billing",
       icon: ReceiptText,
-      adminScope: "organization",
-      requiredPermissions: ["org_admin:view"],
+      layout: "wide",
       render: () => <AdminInvoicesPage />,
     },
     {
@@ -389,8 +370,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Review organization billing profile and invoice recipients.",
       groupId: "billing",
       icon: CreditCard,
-      adminScope: "organization",
-      requiredPermissions: ["org_admin:view"],
+      layout: "standard",
       render: () => <AdminBillingDetailsPage />,
     },
     {
@@ -400,8 +380,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Review organization-hosted infrastructure inventory.",
       groupId: "billing",
       icon: Building2,
-      adminScope: "organization",
-      requiredPermissions: ["org_admin:view"],
+      layout: "wide",
       render: () => <AdminHostedResourcesPage />,
     },
     {
@@ -411,19 +390,17 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Manage organization credit balance, auto-reload, and user budgets.",
       groupId: "billing",
       icon: Wallet,
-      adminScope: "organization",
-      requiredPermissions: ["org_admin:view"],
+      layout: "wide",
       render: () => <AdminManageCreditsPage />,
     },
     {
       path: "platform/auth",
       label: "Authentication",
       title: "Authentication",
-      description: "Platform authentication settings and diagnostics.",
+      description: "System authentication settings and diagnostics.",
       groupId: "platform",
       icon: ShieldCheck,
-      adminScope: "platform",
-      requiredPermissions: ["platform_admin:access"],
+      layout: "standard",
       render: ({ navigate, user }) =>
         settingsDialogPage({ mode: "platform", sectionId: "auth", user, navigate }),
     },
@@ -431,11 +408,10 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       path: "platform/configuration",
       label: "Configuration",
       title: "Configuration",
-      description: "Platform environment and runtime configuration.",
+      description: "System environment and runtime configuration.",
       groupId: "platform",
       icon: Settings2,
-      adminScope: "platform",
-      requiredPermissions: ["platform_admin:access"],
+      layout: "wide",
       render: ({ navigate, user }) =>
         settingsDialogPage({ mode: "platform", sectionId: "configuration", user, navigate }),
     },
@@ -446,8 +422,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Review frontend widget registry and backend sync state.",
       groupId: "platform",
       icon: AppWindow,
-      adminScope: "platform",
-      requiredPermissions: ["platform_admin:access"],
+      layout: "wide",
       render: ({ navigate, user }) =>
         settingsDialogPage({ mode: "platform", sectionId: "registry", user, navigate }),
     },
@@ -458,8 +433,7 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       description: "Review available connection type definitions.",
       groupId: "platform",
       icon: Building2,
-      adminScope: "platform",
-      requiredPermissions: ["platform_admin:access"],
+      layout: "wide",
       render: ({ navigate, user }) =>
         settingsDialogPage({
           mode: "platform",
@@ -468,18 +442,6 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
           navigate,
         }),
     },
-    {
-      path: "platform/access-catalog",
-      label: "Access Catalog",
-      title: "Access Catalog",
-      description: "Review app and permission coverage in the shell registry.",
-      groupId: "platform",
-      icon: KeyRound,
-      adminScope: "platform",
-      requiredPermissions: ["platform_admin:access"],
-      render: ({ navigate, user }) =>
-        settingsDialogPage({ mode: "platform", sectionId: "access-catalog", user, navigate }),
-    },
     ...contributedRoutes,
   ];
 
@@ -487,21 +449,13 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
 }
 
 function canAccessSettingsRoute(route: SettingsRouteDefinition, user?: AppUser) {
-  const permissions = [...(user?.permissions ?? []), ...(user?.platformPermissions ?? [])];
+  const shellAccess = user?.shellAccess;
+  const accessibleApps = shellAccess?.accessibleApps ?? [];
+  const accessibleSurfaces = shellAccess?.accessibleSurfaces ?? [];
+  const ownerAppId = getShellAppIdForSurface("settings", route.path);
+  const routeSurfaceKey = getShellSurfaceKey("settings", route.path);
 
-  if (!hasAllPermissions(permissions, route.requiredPermissions ?? [])) {
-    return false;
-  }
-
-  if (route.adminScope === "organization") {
-    return hasOrganizationAdminAccess(user);
-  }
-
-  if (route.adminScope === "platform") {
-    return hasPlatformAdminAccess(user);
-  }
-
-  return true;
+  return accessibleApps.includes(ownerAppId) && accessibleSurfaces.includes(routeSurfaceKey);
 }
 
 function routeSectionId(sectionId: string) {
@@ -520,13 +474,9 @@ function routeSectionId(sectionId: string) {
       return "platform/widget-registry";
     case "connection-registry":
       return "platform/connection-registry";
-    case "access-catalog":
-      return "platform/access-catalog";
     case "access-rbac":
     case "rbac":
       return "access-rbac/inspector";
-    case "shell-settings-host::user-credits":
-      return "billing/credits";
     default:
       if (sectionId.includes("::")) {
         const [appId, contributionId] = sectionId.split("::");
@@ -584,11 +534,11 @@ function groupApplicationRoutes(routes: SettingsRouteDefinition[]) {
 function SettingsAccessDenied({ route }: { route: SettingsRouteDefinition }) {
   return (
     <Card>
-      <CardContent className="p-6">
+      <CardContent className="p-4">
         <div className="text-sm font-medium text-foreground">Access restricted</div>
         <div className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          This settings section keeps the same access gate as before. Your current session
-          does not include the permissions required to open {route.title}.
+          Your current backend shell access does not include the settings surface required to
+          open {route.title}.
         </div>
       </CardContent>
     </Card>
@@ -598,7 +548,7 @@ function SettingsAccessDenied({ route }: { route: SettingsRouteDefinition }) {
 function SettingsNotFound() {
   return (
     <Card>
-      <CardContent className="p-6">
+      <CardContent className="p-4">
         <div className="text-sm font-medium text-foreground">Settings section not found</div>
         <div className="mt-2 max-w-2xl text-sm text-muted-foreground">
           The requested settings route does not exist.
@@ -612,18 +562,17 @@ export function SettingsPage() {
   const params = useParams();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.session?.user);
-  const permissions = user?.permissions ?? [];
-  const shellEntries = getAccessibleShellMenuEntries(permissions, "user");
+  const shellEntries = getAccessibleShellMenuEntries(user?.shellAccess, "user");
   const allRoutes = useMemo(() => makeSettingsRoutes(shellEntries), [shellEntries]);
   const accessibleRoutes = allRoutes.filter((route) => canAccessSettingsRoute(route, user));
   const selectedPath = normalizeRoutePath(params["*"]);
-  const legacyRedirectPath = legacySettingsRouteMap[selectedPath];
   const selectedRoute = allRoutes.find((route) => route.path === selectedPath);
   const selectedAccessible = selectedRoute
     ? canAccessSettingsRoute(selectedRoute, user)
     : false;
   const firstAccessibleRoute = accessibleRoutes[0];
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [collapsedApplicationGroups, setCollapsedApplicationGroups] = useState<Record<string, boolean>>({});
   const groups = groupRoutes(accessibleRoutes);
   const renderRouteButton = (
     route: SettingsRouteDefinition,
@@ -647,14 +596,6 @@ export function SettingsPage() {
       >
         {options.nested ? null : <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
         <span className="min-w-0 flex-1 truncate">{route.label}</span>
-        {route.adminScope ? (
-          <Badge
-            variant={route.adminScope === "platform" ? "warning" : "neutral"}
-            className="h-5 px-1.5 text-[9px]"
-          >
-            {route.adminScope === "platform" ? "Platform" : "Org"}
-          </Badge>
-        ) : null}
       </button>
     );
   };
@@ -677,22 +618,21 @@ export function SettingsPage() {
     );
   }
 
-  if (legacyRedirectPath) {
-    return <Navigate to={getSettingsPath(legacyRedirectPath)} replace />;
-  }
-
   const selectedTitle = selectedRoute?.title ?? "Settings";
   const selectedDescription = selectedRoute?.description ?? "Configure Command Center.";
+  const selectedLayout = selectedRoute?.layout ?? "standard";
+  const headerClassName = getSettingsLayoutClassName(selectedLayout, "header");
+  const contentClassName = getSettingsLayoutClassName(selectedLayout, "content");
 
   return (
     <div className="h-full min-h-0 overflow-hidden bg-background">
-      <div className="grid h-full min-h-0 w-full gap-0 xl:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="grid h-full min-h-0 w-full gap-0 xl:grid-cols-[260px_minmax(0,1fr)]">
         <aside
           data-theme-chrome="sidebar"
           className="min-h-0 border-b border-border/70 bg-background text-sidebar-foreground xl:border-b-0 xl:border-r"
         >
           <div className="flex h-full min-h-0 flex-col">
-            <div className="border-b border-border/70 px-5 py-4">
+            <div className="border-b border-border/70 px-4 py-4">
               <div className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">
                 Settings
               </div>
@@ -700,7 +640,7 @@ export function SettingsPage() {
                 Account and administration
               </div>
             </div>
-            <div className="min-h-0 flex-1 space-y-3 overflow-auto px-3 py-3">
+            <div className="min-h-0 flex-1 space-y-3 overflow-auto px-2.5 py-3">
               {groups.map((group) => {
                 const GroupIcon = group.icon;
                 const groupActive = group.routes.some((route) => route.path === selectedPath);
@@ -735,6 +675,12 @@ export function SettingsPage() {
                         {group.id === "applications"
                           ? groupApplicationRoutes(group.routes).map((applicationGroup) => {
                               const ApplicationIcon = applicationGroup.icon ?? AppWindow;
+                              const applicationGroupActive = applicationGroup.routes.some(
+                                (route) => route.path === selectedPath,
+                              );
+                              const applicationCollapsed =
+                                collapsedApplicationGroups[applicationGroup.key] ??
+                                !applicationGroupActive;
 
                               if (!applicationGroup.label) {
                                 return applicationGroup.routes.map((route) => renderRouteButton(route));
@@ -742,13 +688,33 @@ export function SettingsPage() {
 
                               return (
                                 <div key={applicationGroup.key} className="space-y-0.5">
-                                  <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70">
+                                  <button
+                                    type="button"
+                                    className={cn(
+                                      "flex w-full items-center gap-2 rounded-[calc(var(--radius)-7px)] px-2 py-1.5 text-left text-xs font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-foreground/[0.04] hover:text-foreground",
+                                      applicationGroupActive && "text-foreground",
+                                    )}
+                                    onClick={() => {
+                                      setCollapsedApplicationGroups((current) => ({
+                                        ...current,
+                                        [applicationGroup.key]: !applicationCollapsed,
+                                      }));
+                                    }}
+                                  >
                                     <ApplicationIcon className="h-3.5 w-3.5 shrink-0" />
                                     <span className="min-w-0 truncate">{applicationGroup.label}</span>
-                                  </div>
-                                  {applicationGroup.routes.map((route) =>
-                                    renderRouteButton(route, { nested: true }),
-                                  )}
+                                    <ChevronDown
+                                      className={cn(
+                                        "ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+                                        applicationCollapsed && "-rotate-90",
+                                      )}
+                                    />
+                                  </button>
+                                  {!applicationCollapsed
+                                    ? applicationGroup.routes.map((route) =>
+                                        renderRouteButton(route, { nested: true }),
+                                      )
+                                    : null}
                                 </div>
                               );
                             })
@@ -763,14 +729,16 @@ export function SettingsPage() {
         </aside>
 
         <main className="min-h-0 min-w-0 overflow-auto">
-          <div className="border-b border-border/70 px-6 py-5 md:px-8">
-            <PageHeader
-              eyebrow="Settings"
-              title={selectedTitle}
-              description={selectedDescription}
-            />
+          <div className="border-b border-border/70 px-4 py-3 md:px-6">
+            <div className={headerClassName}>
+              <PageHeader
+                eyebrow="Settings"
+                title={selectedTitle}
+                description={selectedDescription}
+              />
+            </div>
           </div>
-          <div className="space-y-6 px-6 py-6 md:px-8">
+          <div className={cn(contentClassName, "space-y-4 px-4 py-4 md:px-6")}>
             {selectedRoute && selectedAccessible
               ? selectedRoute.render({ navigate, user: user ?? undefined })
               : selectedRoute
@@ -781,13 +749,6 @@ export function SettingsPage() {
       </div>
     </div>
   );
-}
-
-export function LegacyAdminSettingsRedirect() {
-  const { surfaceId } = useParams();
-  const target = adminRouteMap[normalizeRoutePath(surfaceId)] ?? "organization/users";
-
-  return <Navigate to={getSettingsPath(target)} replace />;
 }
 
 export function resolveSettingsSectionPath(sectionId?: string | null) {

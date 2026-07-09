@@ -18,7 +18,7 @@ export function SurfaceFavoriteButton({
     <button
       type="button"
       className={cn(
-        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/45 hover:text-primary",
+        "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/68 transition-colors hover:bg-muted/45 hover:text-primary dark:text-muted-foreground",
         favorite && "text-primary",
         className,
       )}
@@ -31,7 +31,7 @@ export function SurfaceFavoriteButton({
         onToggle();
       }}
     >
-      <Star className={cn("h-3.5 w-3.5", favorite && "fill-current")} />
+      <Star className={cn("h-3 w-3", favorite && "fill-current")} />
     </button>
   );
 }

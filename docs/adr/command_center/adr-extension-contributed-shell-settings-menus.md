@@ -101,7 +101,6 @@ export interface AppShellMenuContribution {
   description?: string;
   icon?: AppIcon;
   order?: number;
-  requiredPermissions?: string[];
   group?: {
     id: string;
     label: string;
@@ -115,7 +114,7 @@ Important rules:
 
 - `audience="user"` means it can appear in user settings/menu flows
 - `audience="admin"` means it can appear in admin settings/menu flows
-- `requiredPermissions` is evaluated in addition to app-level permissions
+- visibility is evaluated from backend shell access for the owning app
 - `component` is the shell-rendered content panel for that entry
 - `group` is optional but gives us a stable section model for future scale
 

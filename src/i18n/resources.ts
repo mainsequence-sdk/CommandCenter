@@ -54,7 +54,7 @@ export const resources = {
         notificationSearchReadySubtitle: "Use Command+K or Control+K to jump across apps.",
         notificationAdminReadyTitle: "Organization admin surfaces available",
         notificationAdminReadySubtitle:
-          "Access & RBAC and Organization Admin are ready. Admin Settings requires platform-admin access.",
+          "Access & RBAC and Organization Admin are ready.",
         notificationUserReadyTitle: "User settings available",
         notificationUserReadySubtitle: "Open the left user menu to manage your preferences.",
       },
@@ -74,7 +74,7 @@ export const resources = {
         adminTitle: "Admin Settings",
         userTitle: "User Settings",
         adminDescription:
-          "Platform-level auth visibility, configuration diagnostics, and superuser settings.",
+          "System auth visibility, configuration diagnostics, and admin settings.",
         userDescription: "Personal preferences and command center display options.",
         generalNav: "General",
         authNav: "Auth",
@@ -85,7 +85,7 @@ export const resources = {
         accountDescription: "Current session identity and access profile.",
         authTitle: "Auth",
         authDescription:
-          "JWT endpoints and the read-only mapping from backend-owned org-admin and platform-admin fields into the shell session.",
+          "JWT endpoints and backend-owned identity fields used to resolve the current shell session.",
         configurationTitle: "Configuration",
         configurationDescription:
           "Read-only visibility into the YAML-backed application configuration loaded by this command center.",
@@ -115,26 +115,12 @@ export const resources = {
         authTokenUrl: "Token endpoint",
         authRefreshUrl: "Refresh endpoint",
         authUserDetailsUrl: "User details endpoint",
-        authGroupsUrl: "Groups endpoint",
-        authGroupsUrlHelp:
-          "This endpoint is queried on demand to show the current RBAC groups returned for the signed-in session.",
-        authRoleGroupMapping: "Platform access mapping",
-        authRoleGroupMappingHelp:
+        authIdentityMapping: "Identity mapping",
+        authIdentityMappingHelp:
           "The frontend maps backend-owned auth fields into shell identity, then resolves shell visibility from the shell-access endpoint.",
-        authAdminGroup: "User-details groups field",
-        authAdminGroupHelp:
-          "Field path that returns RBAC group objects for the authenticated user for diagnostics and display.",
-        authUserGroup: "Shell access source",
-        authUserGroupHelp:
-          "Organization-admin shell access now comes from shell-access accessible apps and surfaces, not from auth groups.",
-        authUserFallback: "Fallback for all other authenticated users",
-        authCurrentGroups: "Current RBAC groups",
-        authCurrentGroupsHelp:
-          "Request the configured groups endpoint and show the backend RBAC groups for the current session.",
-        authShowCurrentGroups: "Show current groups",
-        authLoadingCurrentGroups: "Loading groups...",
-        authNoCurrentGroups: "No groups were returned for this session.",
-        authCurrentGroupsError: "Unable to load current groups.",
+        authShellAccessSource: "Shell access source",
+        authShellAccessSourceHelp:
+          "Shell access comes from backend-returned accessible apps and surfaces.",
         product: "Product",
         currentTheme: "Current Theme",
         currentLanguage: "Current Language",
@@ -269,7 +255,7 @@ export const resources = {
           "Usa Command+K o Control+K para saltar entre apps y superficies.",
         notificationAdminReadyTitle: "Superficies de administración de la organización disponibles",
         notificationAdminReadySubtitle:
-          "Access & RBAC y Administración de la organización ya están listos. Admin Settings requiere acceso de platform-admin.",
+          "Access & RBAC y Administración de la organización ya están listos.",
         notificationUserReadyTitle: "Configuración de usuario disponible",
         notificationUserReadySubtitle:
           "Abre el menú de usuario izquierdo para gestionar tus preferencias.",
@@ -299,7 +285,7 @@ export const resources = {
         accountDescription: "Identidad de la sesión actual y perfil de acceso.",
         authTitle: "Auth",
         authDescription:
-          "Endpoints JWT y el mapeo de grupos RBAC que resuelve roles del backend en los grupos de aplicación Admin y User del shell.",
+          "Endpoints JWT y campos de identidad del backend usados para resolver la sesión actual del shell.",
         configurationTitle: "Configuración",
         configurationDescription:
           "Visibilidad de solo lectura sobre la configuración de la aplicación cargada desde YAML por este command center.",
@@ -316,26 +302,12 @@ export const resources = {
         authTokenUrl: "Endpoint de token",
         authRefreshUrl: "Endpoint de refresh",
         authUserDetailsUrl: "Endpoint de detalles de usuario",
-        authGroupsUrl: "Endpoint de grupos",
-        authGroupsUrlHelp:
-          "Este endpoint se consulta bajo demanda para mostrar los grupos RBAC actuales devueltos para la sesión activa.",
-        authRoleGroupMapping: "Mapeo de acceso de plataforma",
-        authRoleGroupMappingHelp:
-          "Esta clave de configuración mapea grupos RBAC del backend a los grupos de aplicación Admin y User del shell.",
-        authAdminGroup: "Grupo RBAC de Admin",
-        authAdminGroupHelp:
-          "Si este grupo RBAC del backend está presente, el shell resuelve al usuario como Admin.",
-        authUserGroup: "Grupo de aplicación User",
-        authUserGroupHelp:
-          "Este mapeo es el fallback no admin que usa el shell cuando no coincide ningún grupo RBAC de admin.",
-        authUserFallback: "Fallback para todos los demás usuarios autenticados",
-        authCurrentGroups: "Grupos RBAC actuales",
-        authCurrentGroupsHelp:
-          "Consulta el endpoint configurado de grupos y muestra los grupos RBAC del backend para la sesión actual.",
-        authShowCurrentGroups: "Mostrar grupos actuales",
-        authLoadingCurrentGroups: "Cargando grupos...",
-        authNoCurrentGroups: "No se devolvieron grupos para esta sesión.",
-        authCurrentGroupsError: "No se pudieron cargar los grupos actuales.",
+        authIdentityMapping: "Mapeo de identidad",
+        authIdentityMappingHelp:
+          "El frontend mapea campos de autenticación del backend a la identidad del shell y luego resuelve la visibilidad desde el endpoint de shell-access.",
+        authShellAccessSource: "Fuente de acceso del shell",
+        authShellAccessSourceHelp:
+          "El acceso del shell viene de las aplicaciones y superficies accesibles devueltas por el backend.",
         resetThemeOverrides: "Restablecer ajustes del tema",
         environmentTitle: "Entorno",
         environmentDescription: "Contexto operativo de la sesión actual del command center.",
@@ -477,7 +449,7 @@ export const resources = {
           "Nutze Command+K oder Control+K, um zwischen Apps und Flächen zu springen.",
         notificationAdminReadyTitle: "Flächen für Organisationsverwaltung verfügbar",
         notificationAdminReadySubtitle:
-          "Access & RBAC und Organisationsverwaltung sind bereit. Admin Settings erfordert Platform-Admin-Zugriff.",
+          "Access & RBAC und Organisationsverwaltung sind bereit. Admin Settings verwendet Shell-Zugriff.",
         notificationUserReadyTitle: "Benutzereinstellungen verfügbar",
         notificationUserReadySubtitle:
           "Öffne das linke Benutzermenü, um deine Präferenzen zu verwalten.",
@@ -507,7 +479,7 @@ export const resources = {
         accountDescription: "Identität der aktuellen Sitzung und Zugriffsprofil.",
         authTitle: "Auth",
         authDescription:
-          "JWT-Endpunkte und die RBAC-Gruppenabbildung, die Backend-Rollen in die Shell-Anwendungsgruppen Admin und User auflöst.",
+          "JWT-Endpunkte und backend-eigene Identitätsfelder zur Auflösung der aktuellen Shell-Sitzung.",
         configurationTitle: "Konfiguration",
         configurationDescription:
           "Schreibgeschützte Einsicht in die YAML-basierte Anwendungskonfiguration, die dieses Command Center lädt.",
@@ -525,26 +497,12 @@ export const resources = {
         authTokenUrl: "Token-Endpunkt",
         authRefreshUrl: "Refresh-Endpunkt",
         authUserDetailsUrl: "Benutzerdetails-Endpunkt",
-        authGroupsUrl: "Gruppen-Endpunkt",
-        authGroupsUrlHelp:
-          "Dieser Endpunkt wird bei Bedarf abgefragt, um die aktuellen RBAC-Gruppen der aktiven Sitzung anzuzeigen.",
-        authRoleGroupMapping: "Plattform-Zugriffsabbildung",
-        authRoleGroupMappingHelp:
-          "Dieser Konfigurationsschlüssel ordnet Backend-RBAC-Gruppen den Shell-Anwendungsgruppen Admin und User zu.",
-        authAdminGroup: "Admin-RBAC-Gruppe",
-        authAdminGroupHelp:
-          "Wenn diese Backend-RBAC-Gruppe vorhanden ist, löst die Shell den Benutzer als Admin auf.",
-        authUserGroup: "User-Anwendungsgruppe",
-        authUserGroupHelp:
-          "Diese Abbildung ist der Nicht-Admin-Fallback, den die Shell nutzt, wenn keine Admin-RBAC-Gruppe passt.",
-        authUserFallback: "Fallback für alle anderen authentifizierten Benutzer",
-        authCurrentGroups: "Aktuelle RBAC-Gruppen",
-        authCurrentGroupsHelp:
-          "Ruft den konfigurierten Gruppen-Endpunkt ab und zeigt die Backend-RBAC-Gruppen der aktuellen Sitzung an.",
-        authShowCurrentGroups: "Aktuelle Gruppen anzeigen",
-        authLoadingCurrentGroups: "Gruppen werden geladen...",
-        authNoCurrentGroups: "Für diese Sitzung wurden keine Gruppen zurückgegeben.",
-        authCurrentGroupsError: "Aktuelle Gruppen konnten nicht geladen werden.",
+        authIdentityMapping: "Identitätszuordnung",
+        authIdentityMappingHelp:
+          "Das Frontend ordnet backend-eigene Auth-Felder der Shell-Identität zu und löst die Shell-Sichtbarkeit anschließend über den Shell-Access-Endpunkt auf.",
+        authShellAccessSource: "Shell-Access-Quelle",
+        authShellAccessSourceHelp:
+          "Shell-Zugriff kommt aus den vom Backend zurückgegebenen zugänglichen Apps und Oberflächen.",
         resetThemeOverrides: "Theme-Anpassungen zurücksetzen",
         environmentTitle: "Umgebung",
         environmentDescription: "Operativer Kontext der aktuellen Command-Center-Sitzung.",
@@ -687,7 +645,7 @@ export const resources = {
           "Utilisez Command+K ou Control+K pour naviguer entre apps et surfaces.",
         notificationAdminReadyTitle: "Surfaces d'administration de l'organisation disponibles",
         notificationAdminReadySubtitle:
-          "Access & RBAC et Administration de l'organisation sont prêts. Admin Settings exige un accès platform-admin.",
+          "Access & RBAC et Administration de l'organisation sont prêts.",
         notificationUserReadyTitle: "Paramètres utilisateur disponibles",
         notificationUserReadySubtitle:
           "Ouvrez le menu utilisateur de gauche pour gérer vos préférences.",
@@ -719,7 +677,7 @@ export const resources = {
         accountDescription: "Identité de la session actuelle et profil d’accès.",
         authTitle: "Auth",
         authDescription:
-          "Endpoints JWT et mappage des groupes RBAC qui résolvent les rôles backend vers les groupes d’application Admin et User du shell.",
+          "Endpoints JWT et champs d’identité backend utilisés pour résoudre la session shell actuelle.",
         configurationTitle: "Configuration",
         configurationDescription:
           "Vue en lecture seule de la configuration applicative chargée depuis le YAML par ce command center.",
@@ -737,26 +695,12 @@ export const resources = {
         authTokenUrl: "Endpoint token",
         authRefreshUrl: "Endpoint refresh",
         authUserDetailsUrl: "Endpoint détails utilisateur",
-        authGroupsUrl: "Endpoint groupes",
-        authGroupsUrlHelp:
-          "Cet endpoint est interrogé à la demande pour afficher les groupes RBAC actuels renvoyés pour la session active.",
-        authRoleGroupMapping: "Mappage d’accès plateforme",
-        authRoleGroupMappingHelp:
-          "Cette clé de configuration mappe les groupes RBAC backend vers les groupes d’application Admin et User du shell.",
-        authAdminGroup: "Groupe RBAC Admin",
-        authAdminGroupHelp:
-          "Si ce groupe RBAC backend est présent, le shell résout l’utilisateur comme Admin.",
-        authUserGroup: "Groupe d’application User",
-        authUserGroupHelp:
-          "Ce mappage est le fallback non admin utilisé par le shell quand aucun groupe RBAC admin ne correspond.",
-        authUserFallback: "Fallback pour tous les autres utilisateurs authentifiés",
-        authCurrentGroups: "Groupes RBAC actuels",
-        authCurrentGroupsHelp:
-          "Interroge l’endpoint de groupes configuré et affiche les groupes RBAC backend de la session actuelle.",
-        authShowCurrentGroups: "Afficher les groupes actuels",
-        authLoadingCurrentGroups: "Chargement des groupes...",
-        authNoCurrentGroups: "Aucun groupe n’a été renvoyé pour cette session.",
-        authCurrentGroupsError: "Impossible de charger les groupes actuels.",
+        authIdentityMapping: "Mappage d’identité",
+        authIdentityMappingHelp:
+          "Le frontend mappe les champs d’authentification backend vers l’identité du shell, puis résout la visibilité depuis l’endpoint shell-access.",
+        authShellAccessSource: "Source d’accès shell",
+        authShellAccessSourceHelp:
+          "L’accès shell vient des applications et surfaces accessibles renvoyées par le backend.",
         resetThemeOverrides: "Réinitialiser les surcharges du thème",
         environmentTitle: "Environnement",
         environmentDescription: "Contexte opérationnel de la session actuelle du command center.",
@@ -898,7 +842,7 @@ export const resources = {
           "Usa Command+K o Control+K per saltare tra app e superfici.",
         notificationAdminReadyTitle: "Superfici di amministrazione organizzazione disponibili",
         notificationAdminReadySubtitle:
-          "Access & RBAC e Amministrazione organizzazione sono pronti. Admin Settings richiede accesso platform-admin.",
+          "Access & RBAC e Amministrazione organizzazione sono pronti.",
         notificationUserReadyTitle: "Impostazioni utente disponibili",
         notificationUserReadySubtitle:
           "Apri il menu utente a sinistra per gestire le tue preferenze.",
@@ -929,7 +873,7 @@ export const resources = {
         accountDescription: "Identità della sessione corrente e profilo di accesso.",
         authTitle: "Auth",
         authDescription:
-          "Endpoint JWT e mappatura dei gruppi RBAC che risolve i ruoli backend nei gruppi applicativi Admin e User della shell.",
+          "Endpoint JWT e campi identità del backend usati per risolvere la sessione shell corrente.",
         configurationTitle: "Configurazione",
         configurationDescription:
           "Visibilità in sola lettura della configurazione applicativa caricata da YAML da questo command center.",
@@ -947,26 +891,12 @@ export const resources = {
         authTokenUrl: "Endpoint token",
         authRefreshUrl: "Endpoint refresh",
         authUserDetailsUrl: "Endpoint dettagli utente",
-        authGroupsUrl: "Endpoint gruppi",
-        authGroupsUrlHelp:
-          "Questo endpoint viene interrogato su richiesta per mostrare i gruppi RBAC correnti restituiti per la sessione attiva.",
-        authRoleGroupMapping: "Mappatura accesso piattaforma",
-        authRoleGroupMappingHelp:
-          "Questa chiave di configurazione mappa i gruppi RBAC backend nei gruppi applicativi Admin e User della shell.",
-        authAdminGroup: "Gruppo RBAC Admin",
-        authAdminGroupHelp:
-          "Se questo gruppo RBAC backend è presente, la shell risolve l'utente come Admin.",
-        authUserGroup: "Gruppo applicativo User",
-        authUserGroupHelp:
-          "Questa mappatura è il fallback non admin che la shell usa quando nessun gruppo RBAC admin corrisponde.",
-        authUserFallback: "Fallback per tutti gli altri utenti autenticati",
-        authCurrentGroups: "Gruppi RBAC correnti",
-        authCurrentGroupsHelp:
-          "Interroga l'endpoint gruppi configurato e mostra i gruppi RBAC backend per la sessione corrente.",
-        authShowCurrentGroups: "Mostra gruppi correnti",
-        authLoadingCurrentGroups: "Caricamento gruppi...",
-        authNoCurrentGroups: "Nessun gruppo restituito per questa sessione.",
-        authCurrentGroupsError: "Impossibile caricare i gruppi correnti.",
+        authIdentityMapping: "Mappatura identità",
+        authIdentityMappingHelp:
+          "Il frontend mappa i campi auth del backend nell'identità della shell, quindi risolve la visibilità dall'endpoint shell-access.",
+        authShellAccessSource: "Origine accesso shell",
+        authShellAccessSourceHelp:
+          "L'accesso shell arriva dalle app e superfici accessibili restituite dal backend.",
         resetThemeOverrides: "Reimposta override tema",
         environmentTitle: "Ambiente",
         environmentDescription: "Contesto operativo della sessione corrente del command center.",

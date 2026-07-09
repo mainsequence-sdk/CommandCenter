@@ -19,7 +19,7 @@ export function ChatOverlay({
   } = useChatFeature();
   const isDocked = mode === "docked";
   const isProjectAgentRail = railExperience === "project-agent";
-  const showDeploymentAction = !isProjectAgentRail || Boolean(activeSessionSummary);
+  const showDeploymentAction = !isProjectAgentRail && Boolean(activeSessionSummary);
   const activeRequestAgentType = activeSessionSummary?.requestAgentType?.trim().toLowerCase() || null;
   const isCommandCenterOrchestratorSession = activeSessionSummary
     ? activeSessionSummary.isDefaultCommandCenterSession || activeRequestAgentType === "astro-orchestrator"

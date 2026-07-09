@@ -57,7 +57,7 @@ describe("social auth pending session", () => {
     const result = await createSocialAuthStartRequest({
       providerId: "google",
       providerStartUrl: "http://127.0.0.1:8000/auth/social/google/start/",
-      redirectTarget: "/app/access-rbac/overview",
+      redirectTarget: "/app/settings/access-rbac/inspector",
       tokenExchangeUrl: "http://127.0.0.1:8000/auth/social/token/",
     });
 

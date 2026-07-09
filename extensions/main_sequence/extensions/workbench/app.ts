@@ -34,6 +34,12 @@ const operationsSection: AppSurfaceNavigationSection = {
   order: 20,
 };
 
+const tenancyInfrastructureSection: AppSurfaceNavigationSection = {
+  id: "tenancy-infrastructure",
+  label: "Tenancy Infrastructure",
+  order: 25,
+};
+
 const resourcesSection: AppSurfaceNavigationSection = {
   id: "resources",
   label: "Resources",
@@ -49,7 +55,7 @@ const dataSection: AppSurfaceNavigationSection = {
 const deploymentServicesSection: AppSurfaceNavigationSection = {
   id: "deployment-services",
   label: "Deployment Services",
-  order: 25,
+  order: 28,
 };
 
 export const mainSequenceWorkbenchApp: AppDefinition = {
@@ -59,7 +65,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
   source: "main_sequence_workbench",
   icon: Command,
   navigationOrder: 200,
-  requiredPermissions: ["main_sequence_foundry:view"],
   permissionDefinitions: [
     {
       id: "main_sequence_foundry:view",
@@ -102,7 +107,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       }),
       navigationSection: workspaceSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceProjectsPage,
     },
     {
@@ -121,7 +125,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       }),
       navigationSection: operationsSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceJobsPage,
     },
     {
@@ -140,7 +143,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       }),
       navigationSection: resourcesSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceStreamlitPage,
     },
     {
@@ -159,7 +161,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       navigationSection: deploymentServicesSection,
       kind: "page",
       hidden: true,
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceScalableServicesPage,
     },
     {
@@ -175,9 +176,8 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
           "Inspect service status",
         ],
       }),
-      navigationSection: deploymentServicesSection,
+      navigationSection: tenancyInfrastructureSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceTimeScaleDbServicesPage,
     },
     {
@@ -194,9 +194,8 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
           "Inspect cluster state",
         ],
       }),
-      navigationSection: operationsSection,
+      navigationSection: tenancyInfrastructureSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceClustersPage,
     },
     {
@@ -215,7 +214,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       }),
       navigationSection: dataSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceBucketsPage,
     },
     {
@@ -234,7 +232,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       }),
       navigationSection: workspaceSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceConstantsPage,
     },
     {
@@ -253,7 +250,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       }),
       navigationSection: workspaceSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceSecretsPage,
     },
     {
@@ -272,7 +268,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       }),
       navigationSection: dataSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceProjectDataSourcesPage,
     },
     {
@@ -291,7 +286,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       }),
       navigationSection: dataSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequencePhysicalDataSourcesPage,
     },
     {
@@ -310,7 +304,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       }),
       navigationSection: dataSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceDataNodesPage,
     },
     {
@@ -330,7 +323,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       }),
       navigationSection: dataSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceNamespacesPage,
     },
     {
@@ -349,7 +341,6 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       }),
       navigationSection: dataSection,
       kind: "page",
-      requiredPermissions: ["main_sequence_foundry:view"],
       component: MainSequenceMetaTablesPage,
     },
   ],

@@ -334,8 +334,8 @@ function normalizeNotificationListPayload(payload: NotificationListPayload) {
 }
 
 function getRegisteredNotificationSources() {
-  const permissions = useAuthStore.getState().session?.user?.permissions ?? [];
-  return collectAppNotificationSources(getAccessibleApps(permissions));
+  const shellAccess = useAuthStore.getState().session?.user?.shellAccess;
+  return collectAppNotificationSources(getAccessibleApps(shellAccess));
 }
 
 function mergeNotificationUpdate(

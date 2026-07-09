@@ -64,7 +64,6 @@ const surfaces = apps.flatMap<AppSurfaceEntry>((app) =>
     appDescription: app.description,
     appSource: app.source,
     appIcon: app.icon,
-    appRequiredPermissions: app.requiredPermissions,
   })),
 );
 const shellMenuEntries = apps.flatMap<AppShellMenuEntry>((app) =>
@@ -77,7 +76,6 @@ const shellMenuEntries = apps.flatMap<AppShellMenuEntry>((app) =>
     appDescription: app.description,
     appSource: app.source,
     appIcon: app.icon,
-    appRequiredPermissions: app.requiredPermissions,
   })),
 );
 const dashboards = surfaces

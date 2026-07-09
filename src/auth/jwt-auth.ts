@@ -1,5 +1,6 @@
 import {
   type AppUser,
+  type AppPlan,
   type AuthMode,
   type AuthLoginChallenge,
   type CompleteMfaSetupInput,
@@ -7,6 +8,7 @@ import {
   type OrganizationTeam,
   type Permission,
   type Session,
+  type ShellAccess,
 } from "@/auth/types";
 import {
   exchangeSocialAuthCode as exchangeSocialAuthCodeRequest,
@@ -19,10 +21,6 @@ import {
   isMockHttpError,
 } from "@/auth/mock-jwt-auth";
 import {
-  ORGANIZATION_ADMIN_PERMISSION,
-  PLATFORM_ADMIN_PERMISSION,
-  buildEffectivePermissions,
-  getPermissionsForRole,
   normalizeBuiltinRole,
   normalizeOrganizationRole,
 } from "@/auth/permissions";
@@ -219,50 +217,6 @@ function normalizeStringList(value: unknown) {
   return [] as string[];
 }
 
-function normalizeGroupNames(value: unknown) {
-  if (Array.isArray(value)) {
-    return value.flatMap<string>((entry) => {
-      if (typeof entry === "string") {
-        const trimmed = entry.trim();
-        return trimmed ? [trimmed] : [];
-      }
-
-      if (isRecord(entry)) {
-        const normalizedName = readString(entry.normalized_name);
-        return normalizedName ? [normalizedName] : [];
-      }
-
-      return [];
-    });
-  }
-
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-
-    if (!trimmed) {
-      return [] as string[];
-    }
-
-    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        return normalizeGroupNames(parsed);
-      } catch {
-        return [trimmed];
-      }
-    }
-
-    return normalizeStringList(trimmed);
-  }
-
-  if (isRecord(value)) {
-    const normalizedName = readString(value.normalized_name);
-    return normalizedName ? [normalizedName] : [];
-  }
-
-  return [] as string[];
-}
-
 function buildConfigPath(
   template: string,
   params: Record<string, string | number>,
@@ -316,6 +270,64 @@ function normalizeOrganizationTeams(value: unknown): OrganizationTeam[] | undefi
       },
     ];
   });
+}
+
+function normalizePlan(value: unknown): AppPlan | undefined {
+  let rawValue = value;
+
+  if (typeof rawValue === "string" && rawValue.trim()) {
+    const trimmed = rawValue.trim();
+
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      try {
+        rawValue = JSON.parse(trimmed);
+      } catch {
+        return {
+          name: trimmed,
+          plan_type: trimmed,
+        };
+      }
+    } else {
+      return {
+        name: trimmed,
+        plan_type: trimmed,
+      };
+    }
+  }
+
+  if (!isRecord(rawValue)) {
+    return undefined;
+  }
+
+  const planType = readString(rawValue.plan_type ?? rawValue.planType ?? rawValue.type);
+  const name =
+    readString(rawValue.name) ||
+    readString(rawValue.plan_name ?? rawValue.planName) ||
+    planType;
+  const price = readNumber(rawValue.price);
+  const description = readString(rawValue.description);
+
+  if (!name && price === undefined && !description && !planType) {
+    return undefined;
+  }
+
+  const plan: AppPlan = {
+    name: name || "Plan",
+  };
+
+  if (price !== undefined) {
+    plan.price = price;
+  }
+
+  if (description) {
+    plan.description = description;
+  }
+
+  if (planType) {
+    plan.plan_type = planType;
+  }
+
+  return plan;
 }
 
 function decodeBase64Url(value: string) {
@@ -751,94 +763,24 @@ async function fetchUserDetails(tokens: StoredJwtTokens) {
   );
 }
 
-function normalizeShellAccessPermissions(payload: Record<string, unknown>) {
-  return derivePermissionsFromResolvedShellAccess(payload);
-}
+function normalizeShellAccessPayload(payload: Record<string, unknown>): ShellAccess {
+  const hasApps =
+    Object.prototype.hasOwnProperty.call(payload, "accessible_apps") ||
+    Object.prototype.hasOwnProperty.call(payload, "accessibleApps");
+  const hasSurfaces =
+    Object.prototype.hasOwnProperty.call(payload, "accessible_surfaces") ||
+    Object.prototype.hasOwnProperty.call(payload, "accessibleSurfaces");
 
-const shellAccessAppPermissionMap: Record<string, Permission[]> = {
-  workspace_studio: ["workspaces:view"],
-  "workspace-studio": ["workspaces:view"],
-  main_sequence_markets: ["main_sequence_markets:view"],
-  "main-sequence-markets": ["main_sequence_markets:view"],
-  widget_catalog: ["widget.catalog:view"],
-  "widget-catalog": ["widget.catalog:view"],
-  main_sequence_workbench: ["main_sequence_foundry:view"],
-  main_sequence_foundry: ["main_sequence_foundry:view"],
-  "main-sequence-foundry": ["main_sequence_foundry:view"],
-  organization_admin: ["org_admin:view"],
-  admin: ["org_admin:view"],
-  "access-rbac": ["org_admin:view"],
-  settings: ["org_admin:view"],
-  platform_admin: ["platform_admin:access"],
-};
-
-const shellAccessSurfacePermissionMap: Record<string, Permission[]> = {
-  "workspace_studio.widget-catalog": ["workspaces:view", "widget.catalog:view"],
-  "workspace-studio.widget-catalog": ["workspaces:view", "widget.catalog:view"],
-  "workspace_studio.widget_catalog": ["workspaces:view", "widget.catalog:view"],
-  "workspace-studio.widget_catalog": ["workspaces:view", "widget.catalog:view"],
-  "access-rbac.inspector": ["org_admin:view"],
-  "access-rbac.user-inspector": ["org_admin:view"],
-  "access-rbac.teams": ["org_admin:view"],
-  "settings.organization/users": ["org_admin:view"],
-  "settings.organization/plans": ["org_admin:view"],
-  "settings.organization/security-sessions": ["org_admin:view"],
-  "settings.organization/github": ["org_admin:view"],
-  "settings.organization/widgets": ["org_admin:view"],
-  "settings.access-rbac/inspector": ["org_admin:view"],
-  "settings.access-rbac/teams": ["org_admin:view"],
-  "settings.applications/main-sequence-markets": ["org_admin:view"],
-  "settings.billing/invoices": ["org_admin:view"],
-  "settings.billing/details": ["org_admin:view"],
-  "settings.billing/hosted-resources": ["org_admin:view"],
-  "settings.billing/manage-credits": ["org_admin:view"],
-  "settings.platform/auth": ["platform_admin:access"],
-  "settings.platform/configuration": ["platform_admin:access"],
-  "settings.platform/widget-registry": ["platform_admin:access"],
-  "settings.platform/connection-registry": ["platform_admin:access"],
-  "settings.platform/access-catalog": ["platform_admin:access"],
-};
-
-function derivePermissionsFromResolvedShellAccess(payload: Record<string, unknown>) {
-  const appIds = normalizeStringList(payload.accessible_apps ?? payload.accessibleApps);
-  const surfaceIds = normalizeStringList(payload.accessible_surfaces ?? payload.accessibleSurfaces);
-  const permissions = new Set<Permission>();
-
-  appIds.forEach((appId) => {
-    shellAccessAppPermissionMap[appId]?.forEach((permission) => permissions.add(permission));
-  });
-
-  surfaceIds.forEach((surfaceKey) => {
-    shellAccessSurfacePermissionMap[surfaceKey]?.forEach((permission) =>
-      permissions.add(permission),
-    );
-  });
-
-  return Array.from(permissions);
-}
-
-function resolveSessionRole({
-  permissions,
-  platformPermissions = [],
-  isPlatformAdmin = false,
-}: {
-  permissions: Permission[];
-  platformPermissions?: Permission[];
-  isPlatformAdmin?: boolean;
-}) {
-  if (
-    isPlatformAdmin ||
-    permissions.includes(PLATFORM_ADMIN_PERMISSION) ||
-    platformPermissions.includes(PLATFORM_ADMIN_PERMISSION)
-  ) {
-    return "platform_admin" as const;
+  if (!hasApps || !hasSurfaces) {
+    throw new Error("Shell access response must include accessible_apps and accessible_surfaces.");
   }
 
-  if (permissions.includes(ORGANIZATION_ADMIN_PERMISSION)) {
-    return "org_admin" as const;
-  }
-
-  return "user" as const;
+  return {
+    accessibleApps: normalizeStringList(payload.accessible_apps ?? payload.accessibleApps),
+    accessibleSurfaces: normalizeStringList(
+      payload.accessible_surfaces ?? payload.accessibleSurfaces,
+    ),
+  };
 }
 
 async function fetchUserShellAccess(
@@ -848,7 +790,7 @@ async function fetchUserShellAccess(
   const shellAccessTemplate = commandCenterConfig.commandCenterAccess.users.shellAccessUrl.trim();
 
   if (!shellAccessTemplate) {
-    return [] as Permission[];
+    throw new Error("Command Center shell-access endpoint is not configured.");
   }
 
   const shellAccessPath = buildConfigPath(shellAccessTemplate, {
@@ -872,27 +814,16 @@ async function fetchUserShellAccess(
     throw error;
   }
 
-  return normalizeShellAccessPermissions(payload);
+  return normalizeShellAccessPayload(payload);
 }
 
-function applyShellAccessPermissions(
+function applyShellAccess(
   user: AppUser,
-  shellPermissions: Permission[],
+  shellAccess: ShellAccess,
 ) {
-  const permissions = buildEffectivePermissions({
-    permissions: shellPermissions,
-    platformPermissions: user.platformPermissions,
-    isPlatformAdmin: user.isPlatformAdmin,
-  });
-
   return {
     ...user,
-    role: resolveSessionRole({
-      permissions,
-      platformPermissions: user.platformPermissions,
-      isPlatformAdmin: user.isPlatformAdmin,
-    }),
-    permissions,
+    shellAccess,
   } satisfies AppUser;
 }
 
@@ -904,9 +835,9 @@ async function hydrateUserShellAccess(
     throw new Error("User details did not provide a uid required for shell-access resolution.");
   }
 
-  const shellPermissions = await fetchUserShellAccess(tokens, user.uid);
+  const shellAccess = await fetchUserShellAccess(tokens, user.uid);
 
-  return applyShellAccessPermissions(user, shellPermissions);
+  return applyShellAccess(user, shellAccess);
 }
 
 export function resolveSessionUserId({
@@ -938,9 +869,6 @@ function buildUserProfileFromSources({
   const claimMapping = commandCenterConfig.auth.jwt.claimMapping;
   const userDetailsMapping = commandCenterConfig.auth.jwt.userDetails.responseMapping;
   const allSources = [userDetails, ...tokenSources].filter(isRecord);
-  const groups = normalizeGroupNames(
-    userDetails ? readPathValue(userDetails, "groups") : undefined,
-  );
   const fallbackRole = readString(
     resolveMappedValue(userDetailsMapping.role, allSources) ??
       resolveMappedValue(claimMapping.role, tokenSources),
@@ -953,31 +881,12 @@ function buildUserProfileFromSources({
           resolveMappedValue(claimMapping.organizationRole, tokenSources),
       ),
     ) ?? undefined;
-  const platformPermissions = normalizePermissions(
-    (userDetails && resolveMappedValue(userDetailsMapping.platformPermissions, [userDetails])) ??
-      resolveMappedValue(claimMapping.platformPermissions, tokenSources),
-  );
-  const platformAdminFlag = readBoolean(
-    (userDetails && resolveMappedValue(userDetailsMapping.isPlatformAdmin, [userDetails])) ??
-      resolveMappedValue(claimMapping.isPlatformAdmin, tokenSources),
-  );
-  const normalizedFallbackRole = normalizeBuiltinRole(fallbackRole) ?? "user";
-  const isPlatformAdmin =
-    platformAdminFlag ??
-    (platformPermissions.includes("platform_admin:access") ||
-      normalizedFallbackRole === "platform_admin");
-  const role = isPlatformAdmin ? "platform_admin" : "user";
-  const rawPermissions = normalizePermissions(
+  const normalizedFallbackRole = normalizeBuiltinRole(fallbackRole);
+  const role = normalizedFallbackRole ?? (fallbackRole || "user");
+  const permissions = normalizePermissions(
     (userDetails && resolveMappedValue(userDetailsMapping.permissions, [userDetails])) ??
       resolveMappedValue(claimMapping.permissions, tokenSources),
   );
-  const permissions = buildEffectivePermissions({
-    permissions: rawPermissions,
-    role,
-    organizationRole,
-    platformPermissions,
-    isPlatformAdmin,
-  });
   const dateJoined = readString(
     (userDetails && resolveMappedValue(userDetailsMapping.dateJoined, [userDetails])) ??
       resolveMappedValue(claimMapping.dateJoined, tokenSources),
@@ -1022,7 +931,7 @@ function buildUserProfileFromSources({
       resolveMappedValue("lastName", tokenSources),
   );
   const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
-  const plan = readString(
+  const plan = normalizePlan(
     (userDetails &&
       (resolveMappedValue("plan", [userDetails]) ??
         resolveMappedValue("active_plan_type", [userDetails]) ??
@@ -1085,14 +994,11 @@ function buildUserProfileFromSources({
     avatarUrl,
     first_name: firstName || undefined,
     last_name: lastName || undefined,
-    plan: plan || undefined,
+    plan,
     team,
     role,
     organizationRole,
-    platformPermissions,
-    isPlatformAdmin,
-    permissions: permissions.length ? permissions : getPermissionsForRole(role),
-    groups,
+    permissions,
     dateJoined: dateJoined || undefined,
     isActive,
     lastLogin: lastLogin || undefined,
@@ -1175,26 +1081,15 @@ function parseStoredSession(value: unknown): Session | null {
     return null;
   }
 
-  const role = normalizeBuiltinRole(readString(value.user.role, "user")) ?? "user";
+  const storedRole = readString(value.user.role, "user");
+  const role = normalizeBuiltinRole(storedRole) ?? storedRole;
   const organizationRole =
     normalizeOrganizationRole(
       readString(value.user.organizationRole ?? value.user.organization_role),
     ) ?? undefined;
-  const platformPermissions = normalizePermissions(
-    value.user.platformPermissions ?? value.user.platform_permissions,
-  );
-  const isPlatformAdmin =
-    readBoolean(value.user.isPlatformAdmin ?? value.user.is_platform_admin) ??
-    (platformPermissions.includes("platform_admin:access") || role === "platform_admin");
-  const permissions = buildEffectivePermissions({
-    permissions: normalizePermissions(value.user.permissions),
-    role,
-    organizationRole,
-    platformPermissions,
-    isPlatformAdmin,
-  });
+  const permissions = normalizePermissions(value.user.permissions);
 
-  if (!permissions.length && !readString(value.token)) {
+  if (!readString(value.token)) {
     return null;
   }
 
@@ -1213,14 +1108,17 @@ function parseStoredSession(value: unknown): Session | null {
       name: storedName,
       email: storedEmail,
       avatarUrl: readString(value.user.avatarUrl) || undefined,
-      plan: readString(value.user.plan) || undefined,
+      plan: normalizePlan(value.user.plan),
       team: readString(value.user.team, "Unknown"),
       role,
       organizationRole,
-      platformPermissions,
-      isPlatformAdmin,
       permissions,
-      groups: normalizeGroupNames(value.user.groups),
+      shellAccess: isRecord(value.user.shellAccess)
+        ? {
+            accessibleApps: normalizeStringList(value.user.shellAccess.accessibleApps),
+            accessibleSurfaces: normalizeStringList(value.user.shellAccess.accessibleSurfaces),
+          }
+        : undefined,
       dateJoined: readString(value.user.dateJoined) || undefined,
       isActive: readBoolean(value.user.isActive),
       lastLogin: readString(value.user.lastLogin) || undefined,

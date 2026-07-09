@@ -1,8 +1,8 @@
 # Core Connections App
 
 This directory owns shared page implementation for the platform Connections app. The app is
-registered by `src/extensions/connections/index.ts` as a standalone extension gated by the existing
-`platform_admin:access` permission.
+registered by `src/extensions/connections/index.ts` as a standalone extension visible through
+backend-owned shell access.
 
 ## Entry Points
 
@@ -61,6 +61,6 @@ registered by `src/extensions/connections/index.ts` as a standalone extension ga
 
 ## Maintenance Constraints
 
-- Keep this app platform-admin only through normal `AppDefinition.requiredPermissions` and surface
-  permissions in the standalone Connections extension. Do not add custom shell visibility hacks.
+- Keep this app visible only through backend shell access in the standalone Connections extension.
+  Do not add custom frontend shell visibility checks or local permission fallbacks.
 - Do not render or persist secret values. The UI may display only `secureFields` indicators.

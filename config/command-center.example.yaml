@@ -82,8 +82,6 @@ auth:
       role: role
       organization_role: organization_role
       permissions: permissions
-      platform_permissions: platform_permissions
-      is_platform_admin: is_platform_admin
       date_joined: date_joined
       is_active: is_active
       last_login: last_login
@@ -99,8 +97,6 @@ auth:
         role: role
         organization_role: organization_role
         permissions: permissions
-        platform_permissions: platform_permissions
-        is_platform_admin: is_platform_admin
         date_joined: date_joined
         is_active: is_active
         last_login: last_login

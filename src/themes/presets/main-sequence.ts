@@ -2,8 +2,8 @@ import type { ThemePreset } from "@/themes/types";
 
 export const mainSequenceTheme: ThemePreset = {
   id: "main-sequence",
-  label: "Main Sequence",
-  description: "Main Sequence default dark theme with branded shell gradients.",
+  label: "Sapphire",
+  description: "Sapphire dark theme with branded shell gradients.",
   source: "core",
   mode: "dark",
   tightness: "tight",

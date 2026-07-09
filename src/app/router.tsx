@@ -15,7 +15,7 @@ import { ResetPasswordPage } from "@/features/auth/ResetPasswordPage";
 import { SocialAuthCallbackPage } from "@/features/auth/SocialAuthCallbackPage";
 import { ExtensionsGalleryPage } from "@/features/extensions/ExtensionsGalleryPage";
 import { NotFoundPage } from "@/features/misc/NotFoundPage";
-import { LegacyAdminSettingsRedirect, SettingsPage } from "@/features/settings/SettingsPage";
+import { SettingsPage } from "@/features/settings/SettingsPage";
 import { ThemeStudioPage } from "@/features/themes/ThemeStudioPage";
 import { WidgetExplorerPage } from "@/features/widgets/WidgetExplorerPage";
 import { PublicWorkspacePage } from "@/features/dashboards/PublicWorkspacePage";
@@ -36,23 +36,6 @@ function LegacyWidgetDetailsRedirect() {
       replace
     />
   );
-}
-
-const accessRbacSettingsRouteMap: Record<string, string> = {
-  assignments: "inspector",
-  coverage: "inspector",
-  "main-sequence-access": "inspector",
-  policies: "inspector",
-  teams: "teams",
-  "user-inspector": "inspector",
-  inspector: "inspector",
-};
-
-function LegacyAccessRbacRedirect() {
-  const { surfaceId = "inspector" } = useParams();
-  const target = accessRbacSettingsRouteMap[surfaceId] ?? "inspector";
-
-  return <Navigate to={`/app/settings/access-rbac/${target}`} replace />;
 }
 
 export const router = createBrowserRouter([
@@ -129,80 +112,12 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: "access",
-        element: (
-          <PermissionRoute anyOf={["org_admin:view"]}>
-            <Navigate to="/app/settings/access-rbac/inspector" replace />
-          </PermissionRoute>
-        ),
-      },
-      {
-        path: "admin-panel",
-        element: (
-          <PermissionRoute anyOf={["org_admin:view"]}>
-            <Navigate to="/app/settings/organization/users" replace />
-          </PermissionRoute>
-        ),
-      },
-      {
-        path: "admin-panel/:surfaceId",
-        element: (
-          <PermissionRoute anyOf={["org_admin:view"]}>
-            <LegacyAdminSettingsRedirect />
-          </PermissionRoute>
-        ),
-      },
-      {
-        path: "admin",
-        element: (
-          <PermissionRoute anyOf={["org_admin:view"]}>
-            <Navigate to="/app/settings/organization/users" replace />
-          </PermissionRoute>
-        ),
-      },
-      {
-        path: "admin/:surfaceId",
-        element: (
-          <PermissionRoute anyOf={["org_admin:view"]}>
-            <LegacyAdminSettingsRedirect />
-          </PermissionRoute>
-        ),
+        path: "settings/access-rbac/teams/:teamId",
+        element: <AccessRbacTeamDetailPage />,
       },
       {
         path: "settings/*",
         element: <SettingsPage />,
-      },
-      {
-        path: "access-rbac",
-        element: (
-          <PermissionRoute anyOf={["org_admin:view"]}>
-            <Navigate to="/app/settings/access-rbac/inspector" replace />
-          </PermissionRoute>
-        ),
-      },
-      {
-        path: "access-rbac/:surfaceId",
-        element: (
-          <PermissionRoute anyOf={["org_admin:view"]}>
-            <LegacyAccessRbacRedirect />
-          </PermissionRoute>
-        ),
-      },
-      {
-        path: "teams",
-        element: (
-          <PermissionRoute anyOf={["org_admin:view"]}>
-            <Navigate to="/app/settings/access-rbac/teams" replace />
-          </PermissionRoute>
-        ),
-      },
-      {
-        path: "access-rbac/teams/:teamId",
-        element: (
-          <PermissionRoute anyOf={["org_admin:view"]}>
-            <AccessRbacTeamDetailPage />
-          </PermissionRoute>
-        ),
       },
       {
         path: "dashboard/:dashboardId",

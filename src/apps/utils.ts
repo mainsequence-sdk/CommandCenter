@@ -1,5 +1,5 @@
 import { appRegistry, getAppById, getAppSurfaceById } from "@/app/registry";
-import { hasAllPermissions } from "@/auth/permissions";
+import type { ShellAccess } from "@/auth/types";
 import type {
   AppDefinition,
   AppNavigationPlacement,
@@ -15,8 +15,57 @@ export function getAppPath(appId: string, surfaceId?: string) {
   return surfaceId ? `/app/${appId}/${surfaceId}` : `/app/${appId}`;
 }
 
-export function canAccessApp(app: AppDefinition, permissions: string[]) {
-  return hasAllPermissions(permissions, app.requiredPermissions ?? []);
+function normalizeShellAccess(shellAccess?: ShellAccess | null) {
+  return {
+    appIds: new Set(shellAccess?.accessibleApps ?? []),
+    surfaceIds: new Set(shellAccess?.accessibleSurfaces ?? []),
+  };
+}
+
+function getSettingsSurfaceParts(surfaceId: string) {
+  const [sectionId, ...surfacePathParts] = surfaceId.split("/").filter(Boolean);
+
+  if (!sectionId || surfacePathParts.length === 0) {
+    return null;
+  }
+
+  return {
+    appId: `settings.${sectionId}`,
+    surfaceId: surfacePathParts.join("/"),
+  };
+}
+
+export function getShellAppIdForSurface(appId: string, surfaceId: string) {
+  if (appId === "settings") {
+    return getSettingsSurfaceParts(surfaceId)?.appId ?? appId;
+  }
+
+  return appId;
+}
+
+export function getShellSurfaceIdForSurface(appId: string, surfaceId: string) {
+  if (appId === "settings") {
+    return getSettingsSurfaceParts(surfaceId)?.surfaceId ?? surfaceId;
+  }
+
+  return surfaceId;
+}
+
+export function getShellSurfaceKey(appId: string, surfaceId: string) {
+  const shellAppId = getShellAppIdForSurface(appId, surfaceId);
+  const shellSurfaceId = getShellSurfaceIdForSurface(appId, surfaceId);
+
+  return `${shellAppId}.${shellSurfaceId}`;
+}
+
+export function canAccessApp(app: AppDefinition, shellAccess?: ShellAccess | null) {
+  const { appIds } = normalizeShellAccess(shellAccess);
+
+  if (app.id === "settings") {
+    return Array.from(appIds).some((appId) => appId.startsWith("settings."));
+  }
+
+  return appIds.has(app.id);
 }
 
 export function getAppNavigationPlacement(app: Pick<AppDefinition, "navigationPlacement">) {
@@ -26,21 +75,25 @@ export function getAppNavigationPlacement(app: Pick<AppDefinition, "navigationPl
 export function canAccessSurface(
   app: AppDefinition,
   surface: AppSurfaceDefinition,
-  permissions: string[],
+  shellAccess?: ShellAccess | null,
+  options: { includeHidden?: boolean } = {},
 ) {
+  const normalizedShellAccess = normalizeShellAccess(shellAccess);
+  const shellAppId = getShellAppIdForSurface(app.id, surface.id);
+
   return (
-    canAccessApp(app, permissions) &&
-    !surface.hidden &&
-    hasAllPermissions(permissions, surface.requiredPermissions ?? [])
+    normalizedShellAccess.appIds.has(shellAppId) &&
+    (options.includeHidden || !surface.hidden) &&
+    normalizedShellAccess.surfaceIds.has(getShellSurfaceKey(app.id, surface.id))
   );
 }
 
-export function getAccessibleSurfaces(app: AppDefinition, permissions: string[]) {
-  return app.surfaces.filter((surface) => canAccessSurface(app, surface, permissions));
+export function getAccessibleSurfaces(app: AppDefinition, shellAccess?: ShellAccess | null) {
+  return app.surfaces.filter((surface) => canAccessSurface(app, surface, shellAccess));
 }
 
-export function getDefaultSurface(app: AppDefinition, permissions: string[]) {
-  const visibleSurfaces = getAccessibleSurfaces(app, permissions);
+export function getDefaultSurface(app: AppDefinition, shellAccess?: ShellAccess | null) {
+  const visibleSurfaces = getAccessibleSurfaces(app, shellAccess);
 
   return (
     visibleSurfaces.find((surface) => surface.id === app.defaultSurfaceId) ??
@@ -48,14 +101,14 @@ export function getDefaultSurface(app: AppDefinition, permissions: string[]) {
   );
 }
 
-export function getAccessibleApps(permissions: string[]) {
+export function getAccessibleApps(shellAccess?: ShellAccess | null) {
   return appRegistry.apps
     .filter((app) => {
-      if (!canAccessApp(app, permissions)) {
+      if (!canAccessApp(app, shellAccess)) {
         return false;
       }
 
-      return getAccessibleSurfaces(app, permissions).length > 0;
+      return getAccessibleSurfaces(app, shellAccess).length > 0;
     })
     .sort((left, right) => {
       const leftOrder = left.navigationOrder ?? 1000;
@@ -70,35 +123,32 @@ export function getAccessibleApps(permissions: string[]) {
 }
 
 export function getAccessibleAppsByPlacement(
-  permissions: string[],
+  shellAccess: ShellAccess | null | undefined,
   placement: AppNavigationPlacement,
 ) {
-  return getAccessibleApps(permissions).filter(
+  return getAccessibleApps(shellAccess).filter(
     (app) => getAppNavigationPlacement(app) === placement,
   );
 }
 
-export function getAccessiblePrimaryApps(permissions: string[]) {
-  return getAccessibleAppsByPlacement(permissions, "primary");
+export function getAccessiblePrimaryApps(shellAccess?: ShellAccess | null) {
+  return getAccessibleAppsByPlacement(shellAccess, "primary");
 }
 
-export function getAccessibleAdminMenuApps(permissions: string[]) {
-  return getAccessibleAppsByPlacement(permissions, "admin-menu");
+export function getAccessibleAdminMenuApps(shellAccess?: ShellAccess | null) {
+  return getAccessibleAppsByPlacement(shellAccess, "admin-menu");
 }
 
 export function canAccessShellMenuContribution(
   app: AppDefinition,
   contribution: AppShellMenuContribution,
-  permissions: string[],
+  shellAccess?: ShellAccess | null,
 ) {
-  return (
-    canAccessApp(app, permissions) &&
-    hasAllPermissions(permissions, contribution.requiredPermissions ?? [])
-  );
+  return canAccessApp(app, shellAccess);
 }
 
 export function getAccessibleShellMenuEntries(
-  permissions: string[],
+  shellAccess: ShellAccess | null | undefined,
   audience: AppShellMenuAudience,
 ) {
   return appRegistry.shellMenuEntries
@@ -113,7 +163,7 @@ export function getAccessibleShellMenuEntries(
         return false;
       }
 
-      return canAccessShellMenuContribution(app, entry, permissions);
+      return canAccessShellMenuContribution(app, entry, shellAccess);
     })
     .sort((left, right) => {
       const leftGroupOrder = left.group?.order ?? Number.POSITIVE_INFINITY;
@@ -138,7 +188,7 @@ export function getAccessibleShellMenuEntries(
     });
 }
 
-export function getAccessibleSurfaceEntries(permissions: string[]) {
+export function getAccessibleSurfaceEntries(shellAccess?: ShellAccess | null) {
   return appRegistry.surfaces.filter((surface) => {
     const app = getAppById(surface.appId);
     const appSurface = getAppSurfaceById(surface.appId, surface.id);
@@ -147,7 +197,7 @@ export function getAccessibleSurfaceEntries(permissions: string[]) {
       return false;
     }
 
-    return canAccessSurface(app, appSurface, permissions);
+    return canAccessSurface(app, appSurface, shellAccess);
   });
 }
 
@@ -168,10 +218,10 @@ export function isSurfaceFavorited(
 }
 
 export function getFavoriteSurfaceEntries(
-  permissions: string[],
+  shellAccess: ShellAccess | null | undefined,
   favoriteSurfaceIds: string[],
 ) {
-  const accessibleSurfaces = getAccessibleSurfaceEntries(permissions);
+  const accessibleSurfaces = getAccessibleSurfaceEntries(shellAccess);
   const accessibleSurfaceMap = new Map(
     accessibleSurfaces.map((surface) => [getSurfaceFavoriteId(surface.appId, surface.id), surface]),
   );

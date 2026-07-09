@@ -64,8 +64,8 @@ Maintenance notes:
   unchanged while Settings owns the new navigation container.
 - This folder is for organization-scoped administration only. Platform-only controls belong in the
   Platform group of the routed Settings module.
-- Legacy `/app/admin-panel` and `/app/admin/*` links should continue redirecting into the matching
-  `/app/settings/*` route.
+- Do not add standalone admin route namespaces back. These pages are Settings-owned surfaces and
+  should be opened through `/app/settings/*`.
 - Keep organization user bulk actions aligned with `/user/api/user/` backend endpoints and
   their confirmation semantics
 - Billing surfaces currently span both pod-manager billing endpoints and the org-admin

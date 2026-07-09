@@ -13,14 +13,10 @@ types.
   components to backend-synced connection type records.
 - `types.ts`: shared `AppExtension` / `AppRegistry` contracts used by extensions and shell code.
   This now includes flattened shell-settings contribution entries derived from app definitions.
-- `widget-type-sync.ts`: builds the explicit backend widget-type manifest, validates contract completeness, and exposes the explicit publish request used by platform-admin settings.
+- `widget-type-sync.ts`: builds the explicit backend widget-type manifest, validates contract completeness, and exposes the explicit publish request used by admin settings.
 - `connection-type-sync.ts`: builds the backend connection-type manifest from
   `appRegistry.connections`, including optional connection-backed physical data-source metadata,
-  and exposes the explicit publish request used by platform-admin settings.
-- `access-catalog-sync.ts`: builds a generated shell-access catalog from `appRegistry.apps`,
-  `appRegistry.surfaces`, and the permission catalog so backend policy/bootstrap flows can derive
-  all registered surfaces from one frontend truth source instead of hardcoded lists, and exposes
-  the explicit sync request for `/api/v1/command_center/access-catalog/sync/`.
+  and exposes the explicit publish request used by admin settings.
 
 ## Notable Behavior
 
@@ -51,17 +47,13 @@ types.
   treat backend registration as an availability gate. A widget that exists in the local frontend
   build but does not have an active backend `RegisteredWidgetType` row must stay hidden from normal
   widget-picking surfaces.
-- Backend widget-type publication is now an explicit platform-admin action. Normal sign-in and app bootstrap must not write widget registry state to the backend.
-- Backend connection-type publication is also an explicit platform-admin action. The shared
+- Backend widget-type publication is now an explicit admin settings action. Normal sign-in and app bootstrap must not write widget registry state to the backend.
+- Backend connection-type publication is also an explicit admin settings action. The shared
   Connections app treats active backend connection types as the user-facing availability gate.
 - Connection definitions marked `registrySync: "local-only"` are runtime-only frontend shims. They
   may appear in local pickers but must be excluded from backend connection-type sync payloads.
-- Access-policy bootstrap should treat the access catalog as generated registry metadata. Hidden
-  deep-link surfaces remain part of that catalog so backend policy tooling can reason about every
-  registered surface, not only browsable navigation entries.
-- Access-catalog sync uses UID field names for backend-facing application and surface identifiers
-  (`uid`, `appUid`, `surfaceUid`, and `defaultSurfaceUid`). The values are still the frontend
-  registry slugs, but the synced contract must not expose `appId` or `surfaceId` fields.
+- Backend-owned shell inventory must use the app and surface identifiers exposed by the
+  registry. The frontend no longer publishes a shell-access manifest from Settings.
 - Connection-type sync projects optional `physicalDataSource` metadata so backend adapters such as
   `timescaledb.database` can declare physical-source eligibility, required capabilities, default
   registration mode, and lifecycle ownership.
@@ -74,8 +66,6 @@ types.
 - Keep widget-type sync aligned with backend catalog expectations whenever `WidgetDefinition` metadata changes materially.
 - Keep connection-type sync aligned with backend catalog expectations whenever
   `ConnectionTypeDefinition` metadata changes materially.
-- Keep access-catalog sync aligned with backend shell-access expectations whenever app definitions,
-  surface metadata, or permission definitions change materially.
 - Keep widget `USAGE_GUIDANCE.md` files aligned with the catalog meaning of each widget type; that
   Markdown content is the source for the backend-synced description and usage guidance.
 - Widget authors must bump `widgetVersion` when configuration model, IO contract, execution behavior, or other agent-relevant authoring semantics change materially.

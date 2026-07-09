@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { Check, X } from "lucide-react";
 
 import { appRegistry, getAppById } from "@/app/registry";
 import {
@@ -12,9 +11,6 @@ import {
 } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
 import {
-  ALL_PERMISSIONS,
-  ROLE_LABELS,
-  ROLE_PERMISSIONS,
   getRoleLabel,
   hasAllPermissions,
 } from "@/auth/permissions";
@@ -30,9 +26,7 @@ import {
 } from "@/components/ui/rbac-assignment-matrix";
 import { listTeams } from "@/features/teams/api";
 import { useRegisteredWidgetTypesCatalog } from "@/widgets/registered-widget-types-api";
-import { builtinAppRoles } from "@/auth/types";
 
-const roles = builtinAppRoles;
 const objectAccessScopes: RbacAssignmentScope[] = [
   {
     id: "view",
@@ -68,11 +62,12 @@ function mergeRbacIds(...lists: Array<Array<string | number>>) {
 export function AccessPage() {
   const session = useAuthStore((state) => state.session);
   const permissions = session?.user.permissions ?? [];
+  const shellAccess = session?.user.shellAccess;
   const sessionUser = session?.user;
   const registeredWidgetTypes = useRegisteredWidgetTypesCatalog();
 
-  const accessibleApps = getAccessibleApps(permissions);
-  const accessibleSurfaces = getAccessibleSurfaceEntries(permissions);
+  const accessibleApps = getAccessibleApps(shellAccess);
+  const accessibleSurfaces = getAccessibleSurfaceEntries(shellAccess);
 
   const accessibleWidgets = appRegistry.widgets.filter((widget) =>
     hasAllPermissions(permissions, widget.requiredPermissions ?? []) &&
@@ -165,7 +160,7 @@ export function AccessPage() {
       <PageHeader
         eyebrow="Security"
         title="Access & RBAC"
-        description="Frontend gates mirror backend roles so users only see apps, surfaces, widgets, and utility actions they are entitled to use."
+        description="Shell app and surface visibility comes from backend shell access. Widget and utility actions still use their own explicit permission checks."
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
@@ -218,59 +213,6 @@ export function AccessPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Access class matrix</CardTitle>
-            <CardDescription>
-              The current shell keeps three built-in access classes: User, Organization Admin, and
-              Platform Admin. The live session can still arrive through configured JWT claims or
-              explicit backend permissions.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-separate border-spacing-y-2 text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  <th className="py-[var(--table-standard-header-padding-y)]">Permission</th>
-                  {roles.map((role) => (
-                    <th key={role} className="py-[var(--table-standard-header-padding-y)]">
-                      {ROLE_LABELS[role]}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {ALL_PERMISSIONS.map((permission) => (
-                  <tr key={permission}>
-                    <td className="rounded-l-[calc(var(--radius)-6px)] border border-r-0 border-border/70 bg-background/45 px-4 py-[var(--table-standard-cell-padding-y)] font-mono text-xs text-foreground">
-                      {permission}
-                    </td>
-                    {roles.map((role, index) => {
-                      const allowed = ROLE_PERMISSIONS[role].includes(permission);
-
-                      return (
-                        <td
-                          key={role}
-                          className={`border border-border/70 bg-background/45 px-4 py-[var(--table-standard-cell-padding-y)] ${
-                            index === roles.length - 1
-                              ? "rounded-r-[calc(var(--radius)-6px)]"
-                              : "border-l-0"
-                          }`}
-                        >
-                          {allowed ? (
-                            <Check className="h-4 w-4 text-success" />
-                          ) : (
-                            <X className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
       </div>
 
       <Card>
@@ -315,8 +257,8 @@ export function AccessPage() {
           description="Apps are the primary left-rail navigation units. Users land on each app's default home surface."
           items={appRegistry.apps.map((app) => ({
             label: app.title,
-            allowed: canAccessApp(app, permissions),
-            metadata: `${app.source} · ${(app.requiredPermissions ?? ["none"]).join(", ")}`,
+            allowed: canAccessApp(app, shellAccess),
+            metadata: `${app.source} · ${app.id}`,
           }))}
         />
         <ResourceAccessCard
@@ -327,8 +269,8 @@ export function AccessPage() {
 
             return {
               label: `${surface.appTitle} / ${surface.title}`,
-              allowed: app ? canAccessSurface(app, surface, permissions) : false,
-              metadata: `${surface.kind} · ${(surface.requiredPermissions ?? ["none"]).join(", ")}`,
+              allowed: app ? canAccessSurface(app, surface, shellAccess) : false,
+              metadata: `${surface.kind} · ${surface.appId}.${surface.id}`,
             };
           })}
         />

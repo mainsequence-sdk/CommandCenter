@@ -589,15 +589,6 @@ export function confirmPasswordReset(input: PasswordResetConfirmInput) {
   });
 }
 
-export function requestPasswordChangeEmail() {
-  return requestAuthJson<AuthDetailResponse>("/user/api/user/request-password-change/", {
-    method: "POST",
-    body: JSON.stringify({}),
-  }, {
-    requiresAuth: true,
-  });
-}
-
 export function deleteCurrentUserAccount() {
   return requestAuthJson<DeleteCurrentUserAccountResponse>("/user/api/user/delete-account/", {
     method: "DELETE",

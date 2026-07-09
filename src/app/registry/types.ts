@@ -34,5 +34,4 @@ export type AppShellMenuEntry = AppShellMenuContribution & {
   appDescription: string;
   appSource: string;
   appIcon: AppDefinition["icon"];
-  appRequiredPermissions?: string[];
 };

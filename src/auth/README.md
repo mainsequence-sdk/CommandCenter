@@ -41,3 +41,6 @@ Shared authentication client code for Command Center.
   `user_uid`, and `session.user.id` is only a compatibility alias that resolves from `uid` when
   available. Persisted auth sessions intentionally omit `user.id` so stale numeric ids from older
   sessions are not reused.
+- User details may include a `plan` object with `name`, `price`, `description`, and `plan_type`.
+  `jwt-auth.ts` normalizes that into `session.user.plan`; old string plan values are treated as the
+  plan name for persisted-session compatibility.

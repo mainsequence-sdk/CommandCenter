@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { Database, HardDrive, Layers3, Loader2, Plus, Settings2 } from "lucide-react";
+import { Database, Loader2, Plus, Settings2 } from "lucide-react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -27,101 +27,17 @@ import {
 } from "./api";
 import { AdminSurfaceLayout } from "./shared";
 
-type HostedResourceTabId = "databases" | "caches" | "storage";
-
 const hostedResourceQueryKeys = {
   databases: ["admin", "billing", "hosted-resources", "timescaledb", "databases"] as const,
   plans: ["admin", "billing", "hosted-resources", "timescaledb", "plans"] as const,
 };
 
-const hostedResourceTabs: Array<{
-  id: HostedResourceTabId;
-  label: string;
-  description: string;
-}> = [
-  {
-    id: "databases",
-    label: "Databases",
-    description: "Managed database inventory, ownership, and billing visibility.",
-  },
-  {
-    id: "caches",
-    label: "Caches",
-    description: "Reserved for hosted cache services and their runtime allocations.",
-  },
-  {
-    id: "storage",
-    label: "Storage",
-    description: "Reserved for hosted object and file storage resources.",
-  },
-];
-
-const hostedResourceTabMeta: Record<
-  HostedResourceTabId,
-  {
-    title: string;
-    description: string;
-    icon: typeof Database;
-    summary: string;
-    emptyTitle: string;
-    emptyDescription: string;
-  }
-> = {
-  databases: {
-    title: "Databases",
-    description:
-      "Create hosted Timescale databases from the billing plans catalog and adjust their resources from the same registry.",
-    icon: Database,
-    summary: "Plan-driven Timescale database provisioning.",
-    emptyTitle: "No hosted databases found",
-    emptyDescription:
-      "Create the first hosted database from one of the available Timescale plans.",
-  },
-  caches: {
-    title: "Caches",
-    description:
-      "This tab is reserved for hosted cache services such as Redis-style runtime resources.",
-    icon: Layers3,
-    summary: "Cache resources will live here next.",
-    emptyTitle: "No cache resources yet",
-    emptyDescription:
-      "Cache resource inventory and utilization details will appear here in a later billing iteration.",
-  },
-  storage: {
-    title: "Storage",
-    description:
-      "This tab is reserved for hosted storage resources owned by the current organization.",
-    icon: HardDrive,
-    summary: "Storage inventory will follow the same billing surface pattern.",
-    emptyTitle: "No storage resources yet",
-    emptyDescription:
-      "Hosted object and file storage inventory will appear here in a later billing iteration.",
-  },
+const hostedDatabaseResourceMeta = {
+  title: "Databases",
+  description:
+    "Create hosted Timescale databases from the billing plans catalog and adjust their resources from the same registry.",
+  summary: "Plan-driven Timescale database provisioning.",
 };
-
-function HostedResourceTabButton({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <Button
-      variant={active ? "secondary" : "ghost"}
-      size="sm"
-      className={cn(
-        "rounded-[calc(var(--radius)-7px)] px-3",
-        active ? "bg-secondary text-secondary-foreground" : "text-muted-foreground",
-      )}
-      onClick={onClick}
-    >
-      {label}
-    </Button>
-  );
-}
 
 const timescaleIcon = resolvePhysicalDataSourceIcon({
   classType: "timescale_db",
@@ -395,55 +311,7 @@ function ProviderPlanSections({
   );
 }
 
-function HostedResourcesPlaceholderPanel({
-  activeMeta,
-  activeTab,
-}: {
-  activeMeta: (typeof hostedResourceTabMeta)[HostedResourceTabId];
-  activeTab: (typeof hostedResourceTabs)[number];
-}) {
-  return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
-      <Card className="border-border/70 bg-background/20">
-        <CardHeader>
-          <CardTitle>{activeTab.label}</CardTitle>
-          <CardDescription>{activeTab.description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-[calc(var(--radius)-6px)] border border-dashed border-border/70 bg-background/35 px-4 py-8 text-center">
-            <div className="text-sm font-medium text-foreground">{activeMeta.emptyTitle}</div>
-            <div className="mt-2 text-sm text-muted-foreground">
-              {activeMeta.emptyDescription}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/70 bg-background/20">
-        <CardHeader>
-          <CardTitle>Scope</CardTitle>
-          <CardDescription>
-            Keep hosted infrastructure grouped by billing-relevant resource type.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2">
-            The first tab is <span className="font-medium text-foreground">Databases</span>.
-          </div>
-          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2">
-            Add new hosted resource types here instead of mixing them into Billing Details.
-          </div>
-          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2">
-            Keep resource inventory, ownership, and cost visibility in this section.
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 export function AdminHostedResourcesPage() {
-  const [activeTabId, setActiveTabId] = useState<HostedResourceTabId>("databases");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedCreatePlanCode, setSelectedCreatePlanCode] = useState("");
   const [createDisplayName, setCreateDisplayName] = useState("");
@@ -452,26 +320,16 @@ export function AdminHostedResourcesPage() {
   const [selectedEditPlanCode, setSelectedEditPlanCode] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  const activeTab = useMemo(
-    () => hostedResourceTabs.find((tab) => tab.id === activeTabId) ?? hostedResourceTabs[0],
-    [activeTabId],
-  );
-
-  const activeMeta = hostedResourceTabMeta[activeTab.id];
-  const Icon = activeMeta.icon;
   const plansQuery = useQuery({
     queryKey: hostedResourceQueryKeys.plans,
     queryFn: () => listHostedTimescaleDatabasePlans(),
     retry: false,
     staleTime: 5 * 60_000,
-    enabled: activeTab.id === "databases",
   });
   const databasesQuery = useQuery({
     queryKey: hostedResourceQueryKeys.databases,
     queryFn: () => listHostedTimescaleDatabases(),
     retry: false,
-    enabled: activeTab.id === "databases",
   });
 
   const planProviders = useMemo(
@@ -615,7 +473,7 @@ export function AdminHostedResourcesPage() {
   }
 
   function renderDatabasesTab() {
-    const headerTitle = plansQuery.data?.title?.trim() || activeMeta.title;
+    const headerTitle = plansQuery.data?.title?.trim() || hostedDatabaseResourceMeta.title;
 
     return (
       <div className="space-y-4">
@@ -983,22 +841,11 @@ export function AdminHostedResourcesPage() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <CardTitle>Hosted resource catalog</CardTitle>
-                <Badge variant="neutral">{activeMeta.summary}</Badge>
+                <Badge variant="neutral">{hostedDatabaseResourceMeta.summary}</Badge>
               </div>
               <CardDescription>
-                Start with database resources here, then expand the same surface to other hosted
-                infrastructure types.
+                Review hosted database resources from the published billing plans catalog.
               </CardDescription>
-            </div>
-            <div className="inline-flex flex-wrap items-center gap-1 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 p-1">
-              {hostedResourceTabs.map((tab) => (
-                <HostedResourceTabButton
-                  key={tab.id}
-                  active={tab.id === activeTab.id}
-                  label={tab.label}
-                  onClick={() => setActiveTabId(tab.id)}
-                />
-              ))}
             </div>
           </div>
         </CardHeader>
@@ -1006,24 +853,24 @@ export function AdminHostedResourcesPage() {
           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 p-4">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 rounded-[calc(var(--radius)-8px)] border border-border/70 bg-background/50 p-2 text-muted-foreground">
-                {activeTab.id === "databases" && timescaleIcon ? (
+                {timescaleIcon ? (
                   <img src={timescaleIcon} alt="" className="h-4 w-4 object-contain" />
                 ) : (
-                  <Icon className="h-4 w-4" />
+                  <Database className="h-4 w-4" />
                 )}
               </div>
               <div className="space-y-1">
-                <div className="text-sm font-medium text-foreground">{activeMeta.title}</div>
-                <div className="text-sm text-muted-foreground">{activeMeta.description}</div>
+                <div className="text-sm font-medium text-foreground">
+                  {hostedDatabaseResourceMeta.title}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {hostedDatabaseResourceMeta.description}
+                </div>
               </div>
             </div>
           </div>
 
-          {activeTab.id === "databases" ? (
-            renderDatabasesTab()
-          ) : (
-            <HostedResourcesPlaceholderPanel activeMeta={activeMeta} activeTab={activeTab} />
-          )}
+          {renderDatabasesTab()}
         </CardContent>
       </Card>
     </AdminSurfaceLayout>

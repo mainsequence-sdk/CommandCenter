@@ -53,6 +53,9 @@ function resolveRedirectTarget(
 type AuthView = "signin" | "signup";
 type EmailSignupPhase = "signup" | "verify";
 
+const authFieldLabelClass =
+  "text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/92";
+
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -422,7 +425,7 @@ export function LoginPage() {
                 {authView === "signin" ? (
                   <form className="space-y-4" autoComplete="off" onSubmit={handleSubmit}>
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-foreground">
+                      <label className={authFieldLabelClass}>
                         {auth.identifierLabel}
                       </label>
                       <Input
@@ -444,7 +447,7 @@ export function LoginPage() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-foreground">Password</label>
+                      <label className={authFieldLabelClass}>Password</label>
                       <PasswordInput
                         name="auth-password"
                         value={password}
@@ -498,7 +501,7 @@ export function LoginPage() {
 
                     {isMfaRequired ? (
                       <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-foreground">Authenticator code</label>
+                        <label className={authFieldLabelClass}>Authenticator code</label>
                         <Input
                           name="auth-mfa-code"
                           value={mfaCode}
@@ -513,7 +516,7 @@ export function LoginPage() {
 
                     {isMfaSetupRequired ? (
                       <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-foreground">
+                        <label className={authFieldLabelClass}>
                           First authenticator code
                         </label>
                         <Input
@@ -541,7 +544,7 @@ export function LoginPage() {
 
                     {isBypassAuth ? (
                       <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-foreground">Access class</label>
+                        <label className={authFieldLabelClass}>Access class</label>
                         <select
                           value={role}
                           onChange={(event) => {
@@ -648,6 +651,7 @@ export function LoginPage() {
                         </div>
 
                         <div className="space-y-2">
+                          <label className={authFieldLabelClass}>Waitlist email</label>
                           <Input
                             type="email"
                             value={waitlistEmail}
@@ -750,7 +754,7 @@ export function LoginPage() {
                       <>
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-foreground">First name</label>
+                            <label className={authFieldLabelClass}>First name</label>
                             <Input
                               name="signup-first-name"
                               value={signupFirstName}
@@ -763,7 +767,7 @@ export function LoginPage() {
                             />
                           </div>
                           <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-foreground">Last name</label>
+                            <label className={authFieldLabelClass}>Last name</label>
                             <Input
                               name="signup-last-name"
                               value={signupLastName}
@@ -778,7 +782,7 @@ export function LoginPage() {
                         </div>
 
                         <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-foreground">Email</label>
+                          <label className={authFieldLabelClass}>Email</label>
                           <Input
                             name="signup-email"
                             value={signupEmail}
@@ -795,7 +799,7 @@ export function LoginPage() {
                         </div>
 
                         <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-foreground">Password</label>
+                          <label className={authFieldLabelClass}>Password</label>
                           <PasswordInput
                             name="signup-password"
                             value={signupPassword}
@@ -809,7 +813,7 @@ export function LoginPage() {
                         </div>
 
                         <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-foreground">
+                          <label className={authFieldLabelClass}>
                             Confirm password
                           </label>
                           <PasswordInput
@@ -850,7 +854,7 @@ export function LoginPage() {
                         </div>
 
                         <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-foreground">Verification token</label>
+                          <label className={authFieldLabelClass}>Verification token</label>
                           <Input
                             name="signup-verification-token"
                             value={signupVerificationToken}

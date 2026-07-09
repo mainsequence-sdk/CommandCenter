@@ -8,7 +8,7 @@ export function AccessRbacInspectorPage() {
       title="User access inspector"
       description="Search the user directory and inspect resolved Command Center shell access for one user."
     >
-      <div className="max-w-6xl">
+      <div className="w-full">
         <UserAccessInspectorPanel sessionUser={sessionUser} />
       </div>
     </AccessRbacSurfaceLayout>

@@ -1,7 +1,8 @@
 # Connections Extension
 
-This extension registers the standalone `Connections` application in the left sidebar. It is gated
-by the normal `platform_admin:access` permission, so only platform administrators can see or open it.
+This extension registers the standalone `Connections` application in the left sidebar. Runtime
+visibility is controlled by the backend shell-access response; users only see it when the backend
+returns the `connections` app and its surfaces.
 
 ## Entry Points
 
@@ -20,8 +21,8 @@ by the normal `platform_admin:access` permission, so only platform administrator
 
 ## Maintenance Constraints
 
-- Keep this app visible through standard app/surface `requiredPermissions`; do not add custom shell
-  visibility checks.
+- Keep this app visible only through backend shell access; do not add custom frontend shell
+  visibility checks or local permission fallbacks.
 - Keep this app focused on user-facing connection workflows: add a data source, list data sources,
   and explore a configured data source. Registry publishing belongs to Admin Settings.
 - Do not render or persist secret values. Data sources may display only backend-returned

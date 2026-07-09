@@ -6,14 +6,14 @@ import { useAuthStore } from "@/auth/auth-store";
 import { env } from "@/config/env";
 
 export function AppRedirect() {
-  const permissions = useAuthStore((state) => state.session?.user.permissions ?? []);
-  const accessibleApps = getAccessibleApps(permissions);
+  const shellAccess = useAuthStore((state) => state.session?.user.shellAccess);
+  const accessibleApps = getAccessibleApps(shellAccess);
   const mockDemoApp = env.useMockData ? getAppById("demo") : undefined;
   const preferredApp =
     mockDemoApp && accessibleApps.some((app) => app.id === mockDemoApp.id)
       ? mockDemoApp
       : accessibleApps[0];
-  const defaultSurface = preferredApp ? getDefaultSurface(preferredApp, permissions) : undefined;
+  const defaultSurface = preferredApp ? getDefaultSurface(preferredApp, shellAccess) : undefined;
 
   if (!preferredApp || !defaultSurface) {
     return (

@@ -4,7 +4,7 @@ This extension owns the built-in registry entries that ship with Command Center 
 
 ## Entry Points
 
-- `index.ts`: registers the core apps, dashboard surfaces, theme presets, and current widget catalog state.
+- `index.ts`: registers the Workspaces app, the routed Settings catalog, theme presets, and current widget catalog state.
 - `apps/`: page surfaces that are owned by the core extension, including Access RBAC and the
   organization-admin surfaces embedded by the routed Settings module.
 - `UserCreditsSettingsSection.tsx`: routed Settings section for personal credits and billing state.
@@ -12,7 +12,7 @@ This extension owns the built-in registry entries that ship with Command Center 
 ## Current Responsibilities
 
 - the `Workspaces` app and its local-development workspace builder flows
-- the routed `Settings` app that unifies account, billing, organization, organization-owned
+- the routed `Settings` catalog that unifies account, billing, organization, organization-owned
   application settings, extension-contributed settings, and platform diagnostics without changing
   the existing access gates
 - the admin-facing built-in pages now reached through Settings
@@ -22,7 +22,7 @@ This extension owns the built-in registry entries that ship with Command Center 
 
 ## Bundled themes
 
-- Core owns the built-in shell presets such as `Main Sequence`, `Main Sequence Space`, `Cyberpunk`,
+- Core owns the built-in shell presets such as `Sapphire`, `Main Sequence`, `Cyberpunk`,
   and `Neon Mint`.
 - Theme registration belongs in `index.ts`; preset definitions belong under `src/themes/presets/`.
 
@@ -44,9 +44,9 @@ This extension owns the built-in registry entries that ship with Command Center 
 - Core-owned app surfaces now also own assistant-facing summaries and action lists through
   `assistantContext` in `index.ts`; keep that metadata aligned with the real UX when surface
   behavior changes.
-- Core also contributes the shared Settings `Credits & Billing` section through an internal
-  shell-settings host app; keep that section user-scoped and separate from organization-admin
-  billing and credit-management screens.
+- Core renders the shared Settings `Credits & Billing` section directly in the routed Settings
+  catalog; keep that section user-scoped and separate from organization-admin billing and
+  credit-management screens.
 - Workspaces feature implementation lives in `src/features/dashboards/`; keep that folder's
   `README.md` and `docs/workspaces.md` updated when the workspace model or UX changes.
 - The `Workspaces` app is feature-flagged at runtime through `VITE_INCLUDE_WORKSPACES`; keep registry behavior and docs aligned if that flag changes scope.

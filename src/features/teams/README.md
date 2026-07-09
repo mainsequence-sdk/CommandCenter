@@ -1,6 +1,6 @@
 # Teams Feature
 
-This folder contains the shared team-management feature used by the Access & RBAC app.
+This folder contains the shared team-management feature used by the Access & RBAC Settings section.
 
 Main entry points:
 
@@ -12,6 +12,6 @@ Main entry points:
 Notable behavior:
 
 - The registry route stays list-only so users are not forced to manage memberships and sharing on the same screen.
-- Team detail is routed separately under `/app/access-rbac/teams/:teamId`.
+- Team detail is routed separately under `/app/settings/access-rbac/teams/:teamId`.
 - Team policies reuse the shared Main Sequence permissions matrix, including searchable transfer lists for view and edit assignments.
 - Team members and candidate users are managed from the detail view and invalidate both detail and registry queries after updates.

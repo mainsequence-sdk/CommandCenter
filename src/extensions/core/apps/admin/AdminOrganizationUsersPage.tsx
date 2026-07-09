@@ -43,14 +43,6 @@ function getUserUid(user: AppUser) {
   return typeof user.uid === "string" && user.uid.trim() ? user.uid.trim() : "";
 }
 
-function formatGroups(value?: string[]) {
-  if (!value?.length) {
-    return "No groups";
-  }
-
-  return value.join(", ");
-}
-
 function formatAdminError(error: unknown) {
   return error instanceof Error ? error.message : "The user request failed.";
 }
@@ -63,10 +55,56 @@ function readTrimmedString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function readStringList(value: unknown) {
-  return Array.isArray(value)
-    ? value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
-    : [];
+function normalizePlan(value: unknown): AppUser["plan"] {
+  if (typeof value === "string" && value.trim()) {
+    const name = value.trim();
+
+    return {
+      name,
+      plan_type: name,
+    };
+  }
+
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const planType = readTrimmedString(value.plan_type ?? value.planType ?? value.type);
+  const name =
+    readTrimmedString(value.name) ||
+    readTrimmedString(value.plan_name ?? value.planName) ||
+    planType;
+  const price =
+    typeof value.price === "number" && Number.isFinite(value.price)
+      ? value.price
+      : undefined;
+  const description = readTrimmedString(value.description);
+
+  if (!name && price === undefined && !description && !planType) {
+    return undefined;
+  }
+
+  const plan: NonNullable<AppUser["plan"]> = {
+    name: name || "Plan",
+  };
+
+  if (price !== undefined) {
+    plan.price = price;
+  }
+
+  if (description) {
+    plan.description = description;
+  }
+
+  if (planType) {
+    plan.plan_type = planType;
+  }
+
+  return plan;
+}
+
+function formatPlanName(plan?: AppUser["plan"]) {
+  return plan?.name?.trim() || "Not available";
 }
 
 function readPayloadMessage(value: unknown) {
@@ -131,11 +169,10 @@ function normalizeCreatedOrganizationUser(payload: OrganizationUserCreateRespons
     first_name: firstName || undefined,
     last_name: lastName || undefined,
     avatarUrl: readTrimmedString(payload.profile_picture) || undefined,
-    plan: readTrimmedString(payload.plan) || undefined,
+    plan: normalizePlan(payload.plan),
     team: organizationTeams[0]?.name ?? "Unknown",
     role: "user",
     permissions: [],
-    groups: readStringList(payload.groups),
     organizationTeams,
   };
 }
@@ -150,7 +187,7 @@ function createdUserMatchesSearch(user: AppUser, normalizedSearchValue: string) 
     user.name,
     user.first_name,
     user.last_name,
-    user.plan,
+    formatPlanName(user.plan),
     ...(user.organizationTeams ?? []).map((team) => team.name),
   ]
     .filter(Boolean)
@@ -265,7 +302,6 @@ type OrganizationUserSortKey =
   | "email"
   | "first_name"
   | "last_name"
-  | "groups"
   | "plan"
   | "teams";
 type OrganizationUserSortDirection = "asc" | "desc";
@@ -287,10 +323,8 @@ function getOrganizationUserSortValue(user: AppUser, key: OrganizationUserSortKe
       return normalizeSortValue(user.first_name);
     case "last_name":
       return normalizeSortValue(user.last_name);
-    case "groups":
-      return normalizeSortValue(user.groups?.join(", "));
     case "plan":
-      return normalizeSortValue(user.plan);
+      return normalizeSortValue(formatPlanName(user.plan));
     case "teams":
       return normalizeSortValue(user.organizationTeams?.map((team) => team.name).join(", "));
   }
@@ -707,7 +741,7 @@ export function AdminOrganizationUsersPage() {
           {!usersQuery.isLoading && !usersQuery.isError && totalItems > 0 ? (
             <div className="overflow-x-auto px-4 py-4">
               <table
-                className="w-full min-w-[1120px] border-separate text-sm"
+                className="w-full min-w-[920px] border-separate text-sm"
                 style={{ borderSpacing: "0 var(--table-row-gap-y)" }}
               >
                 <thead>
@@ -758,18 +792,6 @@ export function AdminOrganizationUsersPage() {
                       }
                     >
                       {renderSortableHeader("Last name", "last_name")}
-                    </th>
-                    <th
-                      className="px-4 py-[var(--table-standard-header-padding-y)]"
-                      aria-sort={
-                        sortState.key === "groups"
-                          ? sortState.direction === "asc"
-                            ? "ascending"
-                            : "descending"
-                          : "none"
-                      }
-                    >
-                      {renderSortableHeader("Groups", "groups")}
                     </th>
                     <th
                       className="px-4 py-[var(--table-standard-header-padding-y)]"
@@ -830,10 +852,7 @@ export function AdminOrganizationUsersPage() {
                           </span>
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
-                          <span className="text-muted-foreground">{formatGroups(user.groups)}</span>
-                        </td>
-                        <td className={getRegistryTableCellClassName(selected)}>
-                          <Badge variant="neutral">{user.plan || "Not available"}</Badge>
+                          <Badge variant="neutral">{formatPlanName(user.plan)}</Badge>
                         </td>
                         <td className={getRegistryTableCellClassName(selected, "right")}>
                           <span className="text-muted-foreground">

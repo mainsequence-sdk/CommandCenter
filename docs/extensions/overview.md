@@ -148,7 +148,7 @@ Apps are the primary navigation unit in the left rail.
 Use an app when:
 
 - users should think of the feature set as one domain or workflow area
-- multiple surfaces belong together under one icon and permission boundary
+- multiple surfaces belong together under one icon and backend shell-access boundary
 - the shell should land users on a default home surface
 
 Example:
@@ -160,7 +160,6 @@ const tradeOpsApp: AppDefinition = {
   description: "Desk-facing monitoring and workflow surfaces.",
   source: "acme-trading",
   icon: PanelsTopLeft,
-  requiredPermissions: ["orders:read"],
   defaultSurfaceId: "desk",
   surfaces: [],
 };
@@ -245,7 +244,7 @@ Use them when:
 
 - the workflow needs custom layout or richer interaction than a tile grid
 - the view mixes forms, runbooks, lists, and task flows
-- the surface should still participate in app navigation and RBAC
+- the surface should still participate in app navigation through backend shell access
 
 Example:
 
@@ -263,7 +262,6 @@ const tradeOpsApp: AppDefinition = {
       title: "Trade Console",
       description: "Operator-first application surface.",
       kind: "tool",
-      requiredPermissions: ["orders:read"],
       component: TradeConsoleApp,
     },
   ],

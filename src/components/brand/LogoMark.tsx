@@ -1,9 +1,7 @@
 import { cn } from "@/lib/utils";
-import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
+import { StarMark } from "@/components/brand/StarMark";
 
-export function LogoMark({ className }: { className?: string }) {
-  const { branding } = useCommandCenterConfig();
-
+export function LogoMark({ className, size = 28 }: { className?: string; size?: number }) {
   return (
     <div
       className={cn(
@@ -12,17 +10,7 @@ export function LogoMark({ className }: { className?: string }) {
       )}
       aria-hidden="true"
     >
-      {branding.logoMarkSrc ? (
-        <img
-          src={branding.logoMarkSrc}
-          alt=""
-          className="h-[72%] w-[72%] object-contain"
-        />
-      ) : (
-        <span className="text-[10px] font-semibold tracking-[0.22em] text-foreground">
-          {branding.monogram}
-        </span>
-      )}
+      <StarMark size={size} dataUrl="/data/hr-main-sequence.json" />
     </div>
   );
 }

@@ -188,8 +188,8 @@ export const graphiteTheme: ThemePreset = {
 };
 ```
 
-Current core presets include `Main Sequence Space`, `Main Sequence Light`, `Cyberpunk`,
-`Dracula`, `Grandpa`, `Graphite`, `Sakura`, `Sapphire`, and `Quartz Light`.
+Current core presets include `Main Sequence`, `Sapphire`, `Main Sequence Light`, `Cyberpunk`,
+`Dracula`, `Grandpa`, `Graphite`, `Sakura`, and `Quartz Light`.
 
 ## Implementation notes
 

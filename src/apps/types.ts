@@ -65,7 +65,6 @@ interface AppSurfaceBase {
   navLabel?: string;
   icon?: AppIcon;
   navigationSection?: AppSurfaceNavigationSection;
-  requiredPermissions?: string[];
   hidden?: boolean;
   fullBleed?: boolean;
   assistantContext?: AppSurfaceAssistantContext;
@@ -117,7 +116,6 @@ export interface AppShellMenuContribution {
   description?: string;
   icon?: AppIcon;
   order?: number;
-  requiredPermissions?: string[];
   group?: AppShellMenuContributionGroup;
   component: ComponentType<AppShellMenuRenderProps>;
 }
@@ -131,7 +129,6 @@ export interface AppDefinition {
   navigationPlacement?: AppNavigationPlacement;
   navigationOrder?: number;
   topNavigationStyle?: AppTopNavigationStyle;
-  requiredPermissions?: string[];
   permissionDefinitions?: AppPermissionDefinition[];
   defaultSurfaceId: string;
   surfaces: AppSurfaceDefinition[];
@@ -145,7 +142,6 @@ export type AppSurfaceEntry = AppSurfaceDefinition & {
   appDescription: string;
   appSource: string;
   appIcon: AppIcon;
-  appRequiredPermissions?: string[];
 };
 
 export function defineSurfaceAssistantContext(

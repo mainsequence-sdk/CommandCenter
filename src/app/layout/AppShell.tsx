@@ -29,7 +29,6 @@ import {
 import { useProjectAgentRailStore } from "../../../extensions/main_sequence_ai/assistant-ui/project-agent-rail-store";
 
 const WORKSPACE_CANVAS_SURFACE_IDS = new Set(["workspaces", "slide-studio"]);
-const EMPTY_PERMISSIONS: string[] = [];
 
 function isWorkspaceCanvasRoute(pathname: string, search: string) {
   const routeSegments = pathname.split("/").filter(Boolean);
@@ -91,7 +90,7 @@ function isWorkspacePrintRoute(pathname: string, search: string) {
 
 export function AppShell() {
   const location = useLocation();
-  const permissions = useAuthStore((state) => state.session?.user.permissions) ?? EMPTY_PERMISSIONS;
+  const shellAccess = useAuthStore((state) => state.session?.user.shellAccess);
   const sidebarCollapsed = useShellStore((state) => state.sidebarCollapsed);
   const appPanelAppId = useShellStore((state) => state.appPanelAppId);
   const closeAppPanel = useShellStore((state) => state.closeAppPanel);
@@ -103,12 +102,12 @@ export function AppShell() {
   const chatRailMode = useChatUiStore((state) => state.railMode);
   const projectAgentRailOpen = useProjectAgentRailStore((state) => state.railOpen);
   const projectAgentRailMode = useProjectAgentRailStore((state) => state.railMode);
-  const accessibleApps = getAccessibleApps(permissions);
+  const accessibleApps = getAccessibleApps(shellAccess);
   const panelApp =
     appPanelAppId && accessibleApps.some((candidate) => candidate.id === appPanelAppId)
       ? getAppById(appPanelAppId)
       : undefined;
-  const panelAppSurfaces = panelApp ? getAccessibleSurfaces(panelApp, permissions) : [];
+  const panelAppSurfaces = panelApp ? getAccessibleSurfaces(panelApp, shellAccess) : [];
   const panelAppSurfaceGroups = getSurfaceNavigationGroups(panelAppSurfaces);
   const routeSegments = location.pathname.split("/").filter(Boolean);
   const routeApp = routeSegments[1] ? getAppById(routeSegments[1]) : undefined;
