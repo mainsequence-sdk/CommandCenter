@@ -263,6 +263,9 @@ export const settingsApp: AppDefinition = {
   navigationPlacement: "admin-menu",
   navigationOrder: 980,
   topNavigationStyle: "hidden",
+  shellAccess: {
+    scopeMode: "navigation-section",
+  },
   defaultSurfaceId: "account/profile",
   surfaces: [
     {
@@ -306,13 +309,17 @@ export const settingsApp: AppDefinition = {
       component: HiddenSettingsCatalogPage,
     },
     {
-      id: "billing/credits",
-      title: "Credits & Billing",
-      navLabel: "Credits",
-      description: "Review personal credit balance and spending policy.",
+      id: "account/usage-detail",
+      title: "Usage Detail",
+      navLabel: "Usage Detail",
+      description: "Review personal credit usage, balance, and spending policy.",
       kind: "page",
       fullBleed: true,
-      navigationSection: settingsBillingSection,
+      navigationSection: settingsAccountSection,
+      shellAccess: {
+        sectionId: "billing",
+        surfaceId: "billing/credits",
+      },
       component: HiddenSettingsCatalogPage,
     },
     {
@@ -420,6 +427,16 @@ export const settingsApp: AppDefinition = {
       title: "Hosted Resources",
       navLabel: "Hosted Resources",
       description: "Review organization-hosted infrastructure inventory.",
+      kind: "page",
+      fullBleed: true,
+      navigationSection: settingsBillingSection,
+      component: HiddenSettingsCatalogPage,
+    },
+    {
+      id: "billing/hosted-resources/databases",
+      title: "Managed Databases",
+      navLabel: "Databases",
+      description: "Create and review organization-hosted managed databases.",
       kind: "page",
       fullBleed: true,
       navigationSection: settingsBillingSection,

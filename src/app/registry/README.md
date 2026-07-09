@@ -54,6 +54,11 @@ types.
   may appear in local pickers but must be excluded from backend connection-type sync payloads.
 - Backend-owned shell inventory must use the app and surface identifiers exposed by the
   registry. The frontend no longer publishes a shell-access manifest from Settings.
+- Shell access resolves through the registry as a dot-delimited scope tree. A backend grant for
+  `app` allows every registered surface under `app.*`; a grant for `app.section` allows every
+  registered surface under `app.section.*`. Do not add per-app access branches for Settings,
+  Foundry, Markets, or AI; keep sectioned shell access aligned with
+  [ADR 081](/Users/jose/code/MainSequenceClientSide/CommandCenter/docs/adr/command_center/adr-081-general-shell-access-scope-resolution.md).
 - Connection-type sync projects optional `physicalDataSource` metadata so backend adapters such as
   `timescaledb.database` can declare physical-source eligibility, required capabilities, default
   registration mode, and lifecycle ownership.
@@ -72,6 +77,9 @@ types.
 - If a widget starts supporting organization-scoped configuration, keep the synced widget-type
   metadata aligned with the widget definition's declared schema, defaults, and version.
 - When adding a new app surface, provide `assistantContext.summary` plus a concise action list so assistant features can describe what the user is seeing without route-specific hardcoding.
+- When adding sectioned app navigation that needs shell access, expose generic section metadata and
+  keep the backend catalog in the same dot-delimited scope namespace. Product sections should not
+  become separate frontend apps just to support access checks.
 - When an extension needs user/admin settings pages inside the shared shell dialog, declare them on
   the app definition through `shellMenuContributions` instead of patching shell layout files
   directly.

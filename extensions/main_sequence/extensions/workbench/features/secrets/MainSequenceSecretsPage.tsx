@@ -31,6 +31,8 @@ const secretDetailTabs = [
   { id: "overview", label: "Overview" },
   { id: "permissions", label: "Permissions" },
 ] as const;
+const secretValueClassName =
+  "overflow-x-auto whitespace-pre-wrap break-words rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-4 font-mono text-sm text-foreground";
 
 export function MainSequenceSecretsPage() {
   const queryClient = useQueryClient();
@@ -213,11 +215,32 @@ export function MainSequenceSecretsPage() {
             </CardHeader>
             <CardContent className="p-5">
               {selectedDetailTabId === "overview" ? (
-                <div className="space-y-1">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                    Name
+                <div className="space-y-5">
+                  <div className="space-y-1">
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      Name
+                    </div>
+                    <div className="text-base font-medium text-foreground">{selectedSecret.name}</div>
                   </div>
-                  <div className="text-base font-medium text-foreground">{selectedSecret.name}</div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      <KeyRound className="h-3.5 w-3.5" />
+                      Value
+                    </div>
+                    {secretDetailQuery.isLoading && !secretDetailQuery.data ? (
+                      <div className="flex items-center gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-4 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading secret value
+                      </div>
+                    ) : typeof selectedSecret.value === "string" ? (
+                      <pre className={secretValueClassName}>{selectedSecret.value}</pre>
+                    ) : (
+                      <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+                        Secret value was not returned by the detail endpoint.
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <MainSequencePermissionsTab
@@ -314,8 +337,8 @@ export function MainSequenceSecretsPage() {
                   </tr>
                 </thead>
                 <tbody>
-	                  {filteredSecrets.map((secret) => (
-	                    <tr key={secret.uid}>
+                  {filteredSecrets.map((secret) => (
+                    <tr key={secret.uid}>
                       <td className="rounded-l-[calc(var(--radius)-2px)] border border-border/70 bg-background/24 px-4 py-4">
                         <div className="font-medium text-foreground">{secret.name}</div>
                       </td>
@@ -324,7 +347,7 @@ export function MainSequenceSecretsPage() {
                           type="button"
                           size="sm"
                           variant="outline"
-	                          onClick={() => openSecretDetail(secret.uid)}
+                          onClick={() => openSecretDetail(secret.uid)}
                         >
                           View Secret
                         </Button>

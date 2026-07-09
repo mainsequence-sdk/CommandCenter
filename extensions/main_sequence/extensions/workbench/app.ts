@@ -59,12 +59,15 @@ const deploymentServicesSection: AppSurfaceNavigationSection = {
 };
 
 export const mainSequenceWorkbenchApp: AppDefinition = {
-  id: "main_sequence_workbench",
+  id: "main-sequence-foundry",
   title: "Main Sequence Foundry",
   description: "CRUD console for Main Sequence backend resources.",
-  source: "main_sequence_workbench",
+  source: "main-sequence-foundry",
   icon: Command,
   navigationOrder: 200,
+  shellAccess: {
+    scopeMode: "navigation-section",
+  },
   permissionDefinitions: [
     {
       id: "main_sequence_foundry:view",

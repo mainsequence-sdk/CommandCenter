@@ -223,7 +223,7 @@ export function ProjectAgentDeploymentLogsPage() {
     }
 
     navigate({
-      pathname: getAppPath("main_sequence_workbench", "projects"),
+      pathname: getAppPath("main-sequence-foundry", "projects"),
       search: nextSearchParams.toString() ? `?${nextSearchParams.toString()}` : "",
     });
   }

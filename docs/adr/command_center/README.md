@@ -113,6 +113,7 @@ one file or one feature folder.
 
 ## Shell And Extension ADRs
 
+- [ADR 081: General Shell Access Scope Resolution](./adr-081-general-shell-access-scope-resolution.md)
 - [ADR 080: Resolved Shell Access As Visualization Gates](./adr-080-resolved-shell-access-as-visualization-gates.md)
 - [ADR 079: Unified Routed Settings Module](./adr-079-unified-routed-settings-module.md)
 - [ADR 078: Client-Side SQL Server Connection Type](./adr-078-client-side-sql-server-connection.md)

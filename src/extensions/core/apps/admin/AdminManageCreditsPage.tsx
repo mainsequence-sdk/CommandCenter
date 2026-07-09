@@ -1054,7 +1054,11 @@ export function AdminManageCreditsPage() {
                               : current,
                           )
                         }
-                        placeholder={autoReloadSource?.has_payment_method ? "Stored payment method can be replaced" : "pm_..."}
+                        placeholder={
+                          autoReloadSource?.has_payment_method
+                            ? "Replace the current payment method"
+                            : "Add a payment method"
+                        }
                         disabled={autoReloadMutation.isPending}
                       />
                     </div>
@@ -1062,7 +1066,7 @@ export function AdminManageCreditsPage() {
 
                   <div className="flex flex-col gap-4 rounded-[calc(var(--radius)-2px)] border border-border/70 bg-background/35 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
-                      The payment method id is write-only. After save, the UI only shows whether a payment method exists.
+                      Add or replace the payment method used for auto-reload billing.
                     </p>
                     <div className="flex items-center gap-2">
                       <Button

@@ -1,7 +1,10 @@
 import type { AppDefinition, AppSurfaceDefinition } from "@/apps/types";
-import { workspaceStudioApp } from "@/extensions/core";
 import { mainSequenceWorkbenchApp } from "../../main_sequence/extensions/workbench/app";
 import { mainSequenceAiApp } from "../../main_sequence_ai/app";
+import {
+  createGeneratedSurfaceGroupId,
+  createGeneratedSurfacePageId,
+} from "./generatedSurfaceIds";
 
 import mainSequenceFoundryContent from "./foundry/foundry.md?raw";
 import gettingStartedContent from "./getting-started/getting-started.md?raw";
@@ -120,10 +123,6 @@ function createSurfaceDocumentationContent(app: AppDefinition, surface: AppSurfa
   return lines.join("\n");
 }
 
-function createGeneratedSurfacePageId(sectionId: string, surfaceId: string) {
-  return `${sectionId}--${surfaceId}`;
-}
-
 function createGeneratedSurfacePages(
   sectionId: string,
   app: AppDefinition,
@@ -142,7 +141,7 @@ function createGeneratedSurfacePages(
     const pageOverride = options?.pageOverrides?.[surface.id];
 
     return {
-      id: createGeneratedSurfacePageId(sectionId, surface.id),
+      id: createGeneratedSurfacePageId(sectionId, surface),
       title: pageOverride?.title ?? surface.title,
       navLabel: pageOverride?.navLabel ?? surface.navLabel ?? surface.title,
       description: pageOverride?.description ?? surface.description,
@@ -178,7 +177,7 @@ function buildGeneratedSurfaceItems(
   visibleSurfaces.forEach((surface, index) => {
     const pageItem = {
       type: "page" as const,
-      pageId: createGeneratedSurfacePageId(sectionId, surface.id),
+      pageId: createGeneratedSurfacePageId(sectionId, surface),
     };
 
     if (!surface.navigationSection) {
@@ -196,7 +195,7 @@ function buildGeneratedSurfaceItems(
     }
 
     groups.set(surface.navigationSection.id, {
-      id: `${sectionId}--${surface.navigationSection.id}`,
+      id: createGeneratedSurfaceGroupId(sectionId, surface.navigationSection.id),
       title: surface.navigationSection.label,
       description: surface.navigationSection.description,
       order: surface.navigationSection.order ?? index,
@@ -465,7 +464,7 @@ export function getDocumentationPageLocation(pageId: string): DocumentationPageL
 }
 
 export const documentationSourceApps = {
-  workspaces: workspaceStudioApp.id,
+  workspaces: "workspace-studio",
   foundry: mainSequenceWorkbenchApp.id,
   "main-sequence-ai": mainSequenceAiApp.id,
   "organization-admin": "settings.organization",

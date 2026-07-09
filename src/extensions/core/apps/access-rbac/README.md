@@ -28,11 +28,11 @@ Notable behavior:
   navigation.
 - The policy editor is no longer part of normal Access & RBAC navigation. Shell-access definition
   and assignment are backend-owned; the frontend reads resolved shell access only.
-- Backend shell-access resolution owns app and surface coverage. The frontend renders only the
-  `accessible_apps` and `accessible_surfaces` returned by the backend.
+- Backend shell-access resolution owns app and surface coverage. The frontend uses
+  `accessible_apps` as app/section prefix scopes.
 - The `User access inspector` surface reads
   `/api/v1/command_center/users/<user_uid>/shell-access/` and renders the returned
-  `accessible_apps` / `accessible_surfaces` as a read-only application and submenu tree.
+  app/section scopes as a read-only application and submenu tree.
 - The Teams surface is now registry-first and links into a dedicated detail route for each team.
 - Team detail routes stay under `/app/settings/access-rbac/teams/:teamId` and use the same
   `settings.access-rbac.teams` shell surface as the teams registry.

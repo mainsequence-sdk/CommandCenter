@@ -1,5 +1,6 @@
 import { Navigate, useParams } from "react-router-dom";
 
+import { canAccessShellSurfaceKey, getShellSurfaceKey } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
 import { TeamDetailPage } from "@/features/teams/TeamDetailPage";
 import { teamsRegistryPath } from "@/features/teams/shared";
@@ -11,8 +12,7 @@ export function AccessRbacTeamDetailPage() {
   const shellAccess = useAuthStore((state) => state.session?.user.shellAccess);
   const numericTeamId = Number(teamId);
   const canOpenTeams = Boolean(
-    shellAccess?.accessibleApps.includes("settings.access-rbac") &&
-      shellAccess?.accessibleSurfaces.includes("settings.access-rbac.teams"),
+    canAccessShellSurfaceKey(getShellSurfaceKey("settings", "access-rbac/teams"), shellAccess),
   );
 
   if (!canOpenTeams) {

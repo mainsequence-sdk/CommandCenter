@@ -811,7 +811,7 @@ export function MainSequenceProjectsPage() {
     const nextParams = new URLSearchParams();
     nextParams.set("msDataNodeUid", String(dataNodeId));
     nextParams.set("msDataNodeTab", "details");
-    navigate(`/app/main_sequence_workbench/data-nodes?${nextParams.toString()}`);
+    navigate(`/app/main-sequence-foundry/data-nodes?${nextParams.toString()}`);
   }
 
   return (

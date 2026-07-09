@@ -15,7 +15,7 @@ That image is the release artifact the agent runtime is built from. In practice,
 is not deployed directly from your local working tree. It is deployed from a project image that
 represents a concrete released state of the project.
 
-To create or review that release artifact, open [Foundry Projects](/app/main_sequence_workbench/projects),
+To create or review that release artifact, open [Foundry Projects](/app/main-sequence-foundry/projects),
 select the project, and use the `Images` tab. Once the project has a ready image, return to
 `Project Agents` to build or deploy the project-specific agent runtime.
 

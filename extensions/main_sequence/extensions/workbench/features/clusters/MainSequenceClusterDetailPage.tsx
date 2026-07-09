@@ -719,7 +719,7 @@ export function MainSequenceClusterDetailPage() {
   if (!isClusterUidValid) {
     return (
       <div className="space-y-4">
-        <Button variant="outline" size="sm" onClick={() => navigate(getAppPath("main_sequence_workbench", "clusters"))}>
+        <Button variant="outline" size="sm" onClick={() => navigate(getAppPath("main-sequence-foundry", "clusters"))}>
           <ArrowLeft className="h-4 w-4" />
           Back to clusters
         </Button>
@@ -737,7 +737,7 @@ export function MainSequenceClusterDetailPage() {
   if (summaryQuery.isLoading) {
     return (
       <div className="space-y-4">
-        <Button variant="outline" size="sm" onClick={() => navigate(getAppPath("main_sequence_workbench", "clusters"))}>
+        <Button variant="outline" size="sm" onClick={() => navigate(getAppPath("main-sequence-foundry", "clusters"))}>
           <ArrowLeft className="h-4 w-4" />
           Back to clusters
         </Button>
@@ -756,7 +756,7 @@ export function MainSequenceClusterDetailPage() {
   if (summaryQuery.isError || !summary) {
     return (
       <div className="space-y-4">
-        <Button variant="outline" size="sm" onClick={() => navigate(getAppPath("main_sequence_workbench", "clusters"))}>
+        <Button variant="outline" size="sm" onClick={() => navigate(getAppPath("main-sequence-foundry", "clusters"))}>
           <ArrowLeft className="h-4 w-4" />
           Back to clusters
         </Button>
@@ -780,7 +780,7 @@ export function MainSequenceClusterDetailPage() {
           <button
             type="button"
             className="transition-colors hover:text-foreground"
-            onClick={() => navigate(getAppPath("main_sequence_workbench", "clusters"))}
+            onClick={() => navigate(getAppPath("main-sequence-foundry", "clusters"))}
           >
             Clusters
           </button>
@@ -794,7 +794,7 @@ export function MainSequenceClusterDetailPage() {
         title={clusterName}
         description="Detail view for the selected cluster."
         actions={
-          <Button variant="outline" size="sm" onClick={() => navigate(getAppPath("main_sequence_workbench", "clusters"))}>
+          <Button variant="outline" size="sm" onClick={() => navigate(getAppPath("main-sequence-foundry", "clusters"))}>
             <ArrowLeft className="h-4 w-4" />
             Back to clusters
           </Button>

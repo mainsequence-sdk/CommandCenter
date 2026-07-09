@@ -56,6 +56,9 @@ export const mainSequenceMarketsApp: AppDefinition = {
   source: "main_sequence_markets",
   icon: LineChart,
   navigationOrder: 300,
+  shellAccess: {
+    scopeMode: "navigation-section",
+  },
   permissionDefinitions: [
     {
       id: "main_sequence_markets:view",

@@ -251,7 +251,7 @@ export function MainSequenceJobsPage() {
     const nextParams = new URLSearchParams();
     nextParams.set(mainSequenceProjectUidParam, projectUid);
     nextParams.set(mainSequenceTabParam, "jobs");
-    navigate(`/app/main_sequence_workbench/projects?${nextParams.toString()}`);
+    navigate(`/app/main-sequence-foundry/projects?${nextParams.toString()}`);
   }
 
   function handleSummaryFieldLink(field: SummaryField) {
@@ -267,7 +267,7 @@ export function MainSequenceJobsPage() {
     ? buildJobSummary(selectedJob, {
         projectTitle: `Project ${selectedJob.project}`,
         projectHref: selectedJob.project_uid
-          ? `/app/main_sequence_workbench/projects?${mainSequenceProjectUidParam}=${selectedJob.project_uid}&${mainSequenceTabParam}=jobs`
+          ? `/app/main-sequence-foundry/projects?${mainSequenceProjectUidParam}=${selectedJob.project_uid}&${mainSequenceTabParam}=jobs`
           : undefined,
       })
     : null;

@@ -22,8 +22,9 @@ effective permissions used throughout the platform.
 ### Organization access class
 
 After identity is resolved, Command Center determines shell visibility from the dedicated
-shell-access flow. The response fields are `accessible_apps` and `accessible_surfaces`; raw
-permission strings are not part of the normal shell-access read response.
+shell-access flow. `accessible_apps` carries app and section scopes such as `settings` or
+`settings.access-rbac`. Raw permission strings are not part of the normal shell-access read
+response.
 
 ### Resolution flow
 
@@ -36,7 +37,7 @@ backend user details / JWT claims
         |
         +-- /command_center/users/<user_uid>/shell-access/ -> resolved app/surface access
         |
-        +-- accessible_apps / accessible_surfaces ----> shell gates decide what is visible,
+        +-- accessible_apps prefix scopes ------------> shell gates decide what is visible,
                                                        searchable, and reachable
 ```
 

@@ -3872,7 +3872,7 @@ export interface ResourceReleaseRecord {
   release_kind: string;
 }
 
-export interface ResourceReleaseGalleryRecord {
+export interface ResourceReleaseResourceRecord {
   id: number;
   uid: string;
   subdomain: string;
@@ -9279,21 +9279,30 @@ export async function listResourceReleases({
   };
 }
 
-export async function listResourceReleaseGallery({
+export async function listResourceReleaseResources({
   limit = 500,
   offset = 0,
   exclude,
+  releaseKind,
+  projectUid,
+  search,
 }: {
   limit?: number;
   offset?: number;
   exclude?: string;
+  releaseKind?: string;
+  projectUid?: string;
+  search?: string;
 } = {}) {
   const payload = await requestJson<
-    PaginatedResponse<ResourceReleaseGalleryRecord> | ResourceReleaseGalleryRecord[]
+    PaginatedResponse<ResourceReleaseResourceRecord> | ResourceReleaseResourceRecord[]
   >(commandCenterConfig.mainSequence.endpoint, "resource-release/gallery/", undefined, {
     limit,
     offset,
     exclude,
+    release_kind: releaseKind,
+    project_uid: projectUid,
+    search,
   });
 
   const page = normalizeOffsetPaginatedResponse(payload, limit, offset);

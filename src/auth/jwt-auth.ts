@@ -767,19 +767,13 @@ function normalizeShellAccessPayload(payload: Record<string, unknown>): ShellAcc
   const hasApps =
     Object.prototype.hasOwnProperty.call(payload, "accessible_apps") ||
     Object.prototype.hasOwnProperty.call(payload, "accessibleApps");
-  const hasSurfaces =
-    Object.prototype.hasOwnProperty.call(payload, "accessible_surfaces") ||
-    Object.prototype.hasOwnProperty.call(payload, "accessibleSurfaces");
 
-  if (!hasApps || !hasSurfaces) {
-    throw new Error("Shell access response must include accessible_apps and accessible_surfaces.");
+  if (!hasApps) {
+    throw new Error("Shell access response must include accessible_apps.");
   }
 
   return {
     accessibleApps: normalizeStringList(payload.accessible_apps ?? payload.accessibleApps),
-    accessibleSurfaces: normalizeStringList(
-      payload.accessible_surfaces ?? payload.accessibleSurfaces,
-    ),
   };
 }
 
@@ -1116,7 +1110,6 @@ function parseStoredSession(value: unknown): Session | null {
       shellAccess: isRecord(value.user.shellAccess)
         ? {
             accessibleApps: normalizeStringList(value.user.shellAccess.accessibleApps),
-            accessibleSurfaces: normalizeStringList(value.user.shellAccess.accessibleSurfaces),
           }
         : undefined,
       dateJoined: readString(value.user.dateJoined) || undefined,

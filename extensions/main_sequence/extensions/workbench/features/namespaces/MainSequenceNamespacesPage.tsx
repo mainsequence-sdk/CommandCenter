@@ -245,11 +245,11 @@ export function MainSequenceNamespacesPage() {
   }
 
   function openMetaTableDetail(metaTableUid: string) {
-    navigate(`/app/main_sequence_workbench/meta-tables?msMetaTableUid=${encodeURIComponent(metaTableUid)}`);
+    navigate(`/app/main-sequence-foundry/meta-tables?msMetaTableUid=${encodeURIComponent(metaTableUid)}`);
   }
 
   function openDataNodeDetail(dataNodeUid: string) {
-    navigate(`/app/main_sequence_workbench/data-nodes?msDataNodeUid=${encodeURIComponent(dataNodeUid)}`);
+    navigate(`/app/main-sequence-foundry/data-nodes?msDataNodeUid=${encodeURIComponent(dataNodeUid)}`);
   }
 
   function openNamespaceTableDetail(table: MainSequenceNamespaceTableRecord) {

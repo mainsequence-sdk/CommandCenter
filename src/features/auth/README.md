@@ -65,8 +65,7 @@ This feature owns unauthenticated sign-in and password-reset entry points for th
   comes from `/api/v1/command_center/users/<user_uid>/shell-access/`.
 - A `403` from shell-access fails the Command Center login with a clear access-denied message
   instead of showing the backend permission-class response directly.
-- Organization admin shell visibility is resolved from backend-owned `accessible_apps` and
-  `accessible_surfaces`.
+- Organization admin shell visibility is resolved from backend-owned `accessible_apps` scopes.
 - Command Center shell visibility is a separate concern from Teams, sharing, and object-level
   authorization: the frontend reads `/api/v1/command_center/users/<user_uid>/shell-access/` and
   treats it as a read-only visualization gate.

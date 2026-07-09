@@ -310,7 +310,7 @@ function buildLocalUpdateWorkbenchPath(localUpdateId: string) {
   searchParams.set("msDataNodeTab", "local-updates");
   searchParams.set("msLocalUpdateUid", localUpdateId);
   searchParams.set("msLocalUpdateTab", "details");
-  return `${getAppPath("main_sequence_workbench", "data-nodes")}?${searchParams.toString()}`;
+  return `${getAppPath("main-sequence-foundry", "data-nodes")}?${searchParams.toString()}`;
 }
 
 function normalizePortfolioSummaryField(field: SummaryField): SummaryField {

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import { useLocation } from "react-router-dom";
 
+import { canAccessShellSurfaceKey, getShellSurfaceKey } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
 
 import { ChatOverlay } from "./ChatOverlay";
@@ -15,7 +16,7 @@ export function ChatMount() {
   const shellAccess = useAuthStore((state) => state.session?.user.shellAccess);
   const { isRailOpen, railMode, toggleChat } = useChatFeature();
   const mainSequenceAiAllowed = Boolean(
-    shellAccess?.accessibleApps.includes(mainSequenceAiAppId),
+    canAccessShellSurfaceKey(getShellSurfaceKey(mainSequenceAiAppId, "chat"), shellAccess),
   );
   const showOverlay =
     mainSequenceAiAllowed &&

@@ -13,35 +13,15 @@ import { useToast } from "@/components/ui/toaster";
 import {
   fetchResourceReleaseExchangeLaunch,
   formatMainSequenceError,
-  listResourceReleaseGallery,
+  listResourceReleaseResources,
   mainSequenceRegistryPageSize,
   type ResourceReleaseExchangeLaunchResponse,
-  type ResourceReleaseGalleryRecord,
+  type ResourceReleaseResourceRecord,
 } from "../../../../common/api";
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 
 const streamlitDashboardReleaseKind = "streamlit_dashboard";
-
-function matchesDashboardSearch(dashboard: ResourceReleaseGalleryRecord, needle: string) {
-  if (!needle) {
-    return true;
-  }
-
-  return [
-    dashboard.title,
-    dashboard.resource_name,
-    dashboard.project_name,
-    dashboard.subdomain,
-    dashboard.public_url ?? "",
-    dashboard.uid,
-    dashboard.project_uid,
-    dashboard.resource_uid,
-  ]
-    .join(" ")
-    .toLowerCase()
-    .includes(needle);
-}
 
 function formatRepoHash(value: string | null) {
   if (!value) {
@@ -84,33 +64,32 @@ export function MainSequenceStreamlitPage() {
   const [selectedDashboardUid, setSelectedDashboardUid] = useState<string | null>(null);
   const [launchingDashboardUid, setLaunchingDashboardUid] = useState<string | null>(null);
   const deferredSearchValue = useDeferredValue(searchValue);
-  const normalizedSearchValue = deferredSearchValue.trim().toLowerCase();
+  const normalizedSearchValue = deferredSearchValue.trim();
 
   const dashboardsQuery = useQuery({
-    queryKey: ["main_sequence", "resource-release-gallery", "streamlit"],
-    queryFn: () => listResourceReleaseGallery({ exclude: "agents" }),
+    queryKey: [
+      "main_sequence",
+      "resource-release-resources",
+      "streamlit",
+      normalizedSearchValue,
+    ],
+    queryFn: () =>
+      listResourceReleaseResources({
+        releaseKind: streamlitDashboardReleaseKind,
+        search: normalizedSearchValue,
+      }),
   });
 
-  const dashboards = useMemo(
-    () =>
-      (dashboardsQuery.data?.results ?? []).filter(
-        (release) => release.release_kind === streamlitDashboardReleaseKind,
-      ),
-    [dashboardsQuery.data?.results],
-  );
-  const filteredDashboards = useMemo(
-    () => dashboards.filter((dashboard) => matchesDashboardSearch(dashboard, normalizedSearchValue)),
-    [dashboards, normalizedSearchValue],
-  );
-  const totalItems = filteredDashboards.length;
+  const dashboards = dashboardsQuery.data?.results ?? [];
+  const totalItems = dashboardsQuery.data?.count ?? 0;
   const selectedDashboard = useMemo(
     () => dashboards.find((dashboard) => dashboard.uid === selectedDashboardUid) ?? null,
     [dashboards, selectedDashboardUid],
   );
   const pageRows = useMemo(() => {
     const start = pageIndex * mainSequenceRegistryPageSize;
-    return filteredDashboards.slice(start, start + mainSequenceRegistryPageSize);
-  }, [filteredDashboards, pageIndex]);
+    return dashboards.slice(start, start + mainSequenceRegistryPageSize);
+  }, [dashboards, pageIndex]);
 
   useEffect(() => {
     setPageIndex(0);
@@ -124,7 +103,7 @@ export function MainSequenceStreamlitPage() {
     }
   }, [pageIndex, totalItems]);
 
-  async function openStreamlitRelease(dashboard: ResourceReleaseGalleryRecord) {
+  async function openStreamlitRelease(dashboard: ResourceReleaseResourceRecord) {
     const fallbackUrl = dashboard.public_url;
 
     if (!dashboard.exchange_launch_url && !fallbackUrl) {
@@ -189,9 +168,9 @@ export function MainSequenceStreamlitPage() {
         <CardHeader className="border-b border-border/70">
           <div className="space-y-4">
             <div>
-              <CardTitle>Streamlit gallery</CardTitle>
+              <CardTitle>Streamlit resources</CardTitle>
               <CardDescription>
-                Streamlit resource releases from the gallery endpoint, excluding agent-backed entries.
+                Published Streamlit resource releases available to this account.
               </CardDescription>
             </div>
             <MainSequenceRegistrySearch
@@ -229,7 +208,7 @@ export function MainSequenceStreamlitPage() {
               </div>
               <div className="mt-4 text-sm font-medium text-foreground">No Streamlit releases found</div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Adjust the current search or publish a Streamlit resource release to populate this gallery.
+                Adjust the current search or publish a Streamlit resource release to populate this list.
               </p>
             </div>
           ) : null}

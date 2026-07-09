@@ -5,7 +5,7 @@ This nested extension owns the administrative and operational Main Sequence Foun
 ## Entry Points
 
 - `index.ts`: registers the Foundry extension with the shell registry.
-- `app.ts`: declares the `AppDefinition` for `main_sequence_workbench`.
+- `app.ts`: declares the `AppDefinition` for `main-sequence-foundry`.
 - `features/`: page surfaces and feature-owned workflows.
 - `connections/`: extension-owned connection type definitions and compatibility helpers for
   backend Data Node and MetaTable access.
@@ -33,7 +33,3 @@ This nested extension owns the administrative and operational Main Sequence Foun
   types in the connection catalog. The former Data Node source, table, graph, and statistic widgets
   are no longer registered from Workbench; source querying, reshaping, and generic tabular
   consumption now live in core widgets.
-
-## Naming note
-
-- The folder and internal ids still use `workbench` for compatibility, but the user-facing application name is now `Main Sequence Foundry`.

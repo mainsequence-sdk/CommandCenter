@@ -332,8 +332,8 @@ function BudgetUsageIndicator({ onOpenBilling }: BudgetUsageIndicatorProps) {
           <button
             type="button"
             className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-primary transition-colors hover:bg-primary/10 hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
-            title="Open billing page"
-            aria-label="Open billing page"
+            title="Open usage detail"
+            aria-label="Open usage detail"
             onClick={() => {
               onOpenBilling();
             }}
@@ -388,9 +388,9 @@ export function Topbar() {
     Boolean(requestedWorkspaceId);
 
   const accessibleApps = getAccessibleApps(shellAccess);
-  const accessibleSurfaces = getAccessibleSurfaceEntries(shellAccess);
+  const derivedSurfaceEntries = getAccessibleSurfaceEntries(shellAccess);
   const searchableApps = accessibleApps;
-  const searchableSurfaces = accessibleSurfaces;
+  const searchableSurfaces = derivedSurfaceEntries;
   const favoriteSurfaces = getFavoriteSurfaceEntries(shellAccess, favoriteSurfaceIds);
   const favoriteWorkspaces = env.includeWorkspaces
     ? getFavoriteWorkspaceEntries(workspaceListItems, favoriteWorkspaceIds)
@@ -711,7 +711,7 @@ export function Topbar() {
 
         <BudgetUsageIndicator
           onOpenBilling={() => {
-            navigate("/app/settings/billing/credits");
+            navigate("/app/settings/account/usage-detail");
           }}
         />
 

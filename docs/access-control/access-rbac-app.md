@@ -61,12 +61,13 @@ Register Access & RBAC as Settings surfaces on the core Settings catalog:
 Access & RBAC no longer exposes a frontend policy editor. Shell-access definition and assignment
 are backend-owned. The frontend calls
 `/api/v1/command_center/users/<user_uid>/shell-access/` and renders the returned
-`accessible_apps` and `accessible_surfaces` fields as a read-only tree.
+`accessible_apps` scopes as a read-only tree.
 
 The shell app access model stays top-down by backend-returned ids:
 
-- `accessible_apps` lists the shell apps the user can see.
-- `accessible_surfaces` lists the app surface ids the user can open.
+- `accessible_apps` lists app or section scopes such as `settings` or `settings.access-rbac`.
+- A scope grants its full subtree: `app` allows `app.*`, and `app.section` allows
+  `app.section.*`.
 - The frontend does not translate roles, groups, or permission strings into shell access.
 
 The normal shell-access read response does not include policy ids, `effective_permissions`,

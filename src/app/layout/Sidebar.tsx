@@ -14,7 +14,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 
 import type { AppDefinition } from "@/apps/types";
-import { getAccessiblePrimaryApps } from "@/apps/utils";
+import {
+  canAccessShellSurfaceKey,
+  getAccessiblePrimaryApps,
+  getShellSurfaceKey,
+} from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
 import { getAccessProfileLabel, hasAnyPermission } from "@/auth/permissions";
 import { BrandWordmark } from "@/components/brand/BrandWordmark";
@@ -34,6 +38,8 @@ const baseItemClass =
 
 const tileClass =
   "flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-transparent transition-colors";
+const sidebarLogoMarkClass = "h-[50px] w-[50px] shrink-0";
+const sidebarLogoMarkSize = 50;
 const documentationAppId = "command-center-docs";
 const mainSequenceAiAppId = "main_sequence_ai";
 
@@ -283,11 +289,10 @@ export function Sidebar() {
       : "⌃J";
   const themeStudioAllowed = hasAnyPermission(permissions, ["theme:manage"]);
   const mainSequenceAiAllowed = Boolean(
-    shellAccess?.accessibleApps.includes(mainSequenceAiAppId),
+    canAccessShellSurfaceKey(getShellSurfaceKey(mainSequenceAiAppId, "chat"), shellAccess),
   );
   const teamsAllowed = Boolean(
-    shellAccess?.accessibleApps.includes("settings.access-rbac") &&
-      shellAccess?.accessibleSurfaces.includes("settings.access-rbac.teams"),
+    canAccessShellSurfaceKey(getShellSurfaceKey("settings", "access-rbac/teams"), shellAccess),
   );
 
   const accessibleApps = getAccessiblePrimaryApps(shellAccess);
@@ -354,12 +359,12 @@ export function Sidebar() {
             title={t("navigation.expandSidebar", { app: app.shortName })}
             onClick={expandSidebar}
           >
-            <LogoMark className="h-[50px] w-[50px]" size={50} />
+            <LogoMark className={sidebarLogoMarkClass} size={sidebarLogoMarkSize} />
           </button>
         ) : (
-          <div className="relative flex h-12 items-center px-3 pr-10">
+          <div className="relative flex h-[50px] items-center px-3 pr-10">
             <div className="flex items-center gap-2.5">
-              <LogoMark className="h-8 w-8" />
+              <LogoMark className={sidebarLogoMarkClass} size={sidebarLogoMarkSize} />
               <BrandWordmark
                 className="max-w-[164px] overflow-hidden"
                 imageClassName="h-7 w-auto max-w-none"

@@ -52,7 +52,7 @@ Canonical route shape:
 /app/settings/account/preferences
 /app/settings/account/security
 /app/settings/account/sessions
-/app/settings/billing/credits
+/app/settings/account/usage-detail
 /app/settings/billing/invoices
 /app/settings/billing/details
 /app/settings/billing/hosted-resources
@@ -97,8 +97,8 @@ Recommended initial mapping:
 
 | Settings group | Pages |
 | --- | --- |
-| `Account` | profile, preferences, security, sessions |
-| `Billing` | credits, invoices, billing details, hosted resources, manage credits |
+| `Account` | profile, preferences, usage detail, security, sessions |
+| `Billing` | invoices, billing details, hosted resources, manage credits |
 | `Organization` | users, active plans, security sessions, GitHub organizations, widget configurations |
 | `Applications` | Main Sequence Markets, Main Sequence AI provider/agent settings, and other application settings |
 | `Platform` | configuration, widget registry, connection registry |

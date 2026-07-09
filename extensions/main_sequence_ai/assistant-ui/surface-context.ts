@@ -234,7 +234,7 @@ function resolveSpecialRouteContext(
   if (clusterDetailMatch) {
     return resolveLinkedSurfaceContext(
       input,
-      "main_sequence_workbench",
+      "main-sequence-foundry",
       "clusters",
       {
         summary:

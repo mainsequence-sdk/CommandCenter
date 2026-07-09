@@ -209,7 +209,7 @@ The application:
 - revalidates persisted JWT sessions against the configured user-details endpoint before granting access
 - maps configured token claims and user-details fields into the frontend session user
 - derives organization-admin access from backend-owned claims or user-details fields
-- resolves shell visibility from the authenticated user's shell-access `accessible_apps` and `accessible_surfaces`
+- resolves shell visibility from the authenticated user's shell-access `accessible_apps` prefix scopes
 - queries the configured Access & RBAC users endpoint when an admin searches the user directory
 - loads backend-owned shell policy metadata through `command_center_access.access_policies.*` when needed
 - reads user shell visibility through `command_center_access.users.shell_access_url`

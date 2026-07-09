@@ -8,6 +8,7 @@ import {
   canAccessSurface,
   getAccessibleApps,
   getAccessibleSurfaceEntries,
+  resolveShellAccessTarget,
 } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
 import {
@@ -67,7 +68,7 @@ export function AccessPage() {
   const registeredWidgetTypes = useRegisteredWidgetTypesCatalog();
 
   const accessibleApps = getAccessibleApps(shellAccess);
-  const accessibleSurfaces = getAccessibleSurfaceEntries(shellAccess);
+  const derivedSurfaceEntries = getAccessibleSurfaceEntries(shellAccess);
 
   const accessibleWidgets = appRegistry.widgets.filter((widget) =>
     hasAllPermissions(permissions, widget.requiredPermissions ?? []) &&
@@ -199,7 +200,7 @@ export function AccessPage() {
               />
               <MiniList
                 title="Accessible surfaces"
-                items={accessibleSurfaces.map((surface) => `${surface.appTitle} / ${surface.title}`)}
+                items={derivedSurfaceEntries.map((surface) => `${surface.appTitle} / ${surface.title}`)}
               />
               <MiniList
                 title="Accessible widgets"
@@ -270,7 +271,9 @@ export function AccessPage() {
             return {
               label: `${surface.appTitle} / ${surface.title}`,
               allowed: app ? canAccessSurface(app, surface, shellAccess) : false,
-              metadata: `${surface.kind} · ${surface.appId}.${surface.id}`,
+              metadata: app
+                ? `${surface.kind} · ${resolveShellAccessTarget(app, surface).surfaceKey}`
+                : `${surface.kind} · ${surface.appId}.${surface.id}`,
             };
           })}
         />

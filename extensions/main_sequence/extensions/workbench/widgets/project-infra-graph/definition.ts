@@ -16,7 +16,7 @@ export const mainSequenceProjectInfraGraphWidget = defineWidget<MainSequenceProj
   description: resolveWidgetDescription(usageGuidanceMarkdown),
   category: "Main Sequence Infrastructure",
   kind: "chart",
-  source: "main_sequence_workbench",
+  source: "main-sequence-foundry",
   defaultSize: { w: 14, h: 10 },
   responsive: {
     minWidthPx: 560,

@@ -58,6 +58,18 @@ export interface AppSurfaceNavigationSection {
   order?: number;
 }
 
+export type AppShellAccessScopeMode = "app" | "navigation-section";
+
+export interface AppShellAccessDefinition {
+  scopeMode?: AppShellAccessScopeMode;
+  appScopeId?: string;
+}
+
+export interface AppSurfaceShellAccessDefinition {
+  sectionId?: string;
+  surfaceId?: string;
+}
+
 interface AppSurfaceBase {
   id: string;
   title: string;
@@ -65,6 +77,7 @@ interface AppSurfaceBase {
   navLabel?: string;
   icon?: AppIcon;
   navigationSection?: AppSurfaceNavigationSection;
+  shellAccess?: AppSurfaceShellAccessDefinition;
   hidden?: boolean;
   fullBleed?: boolean;
   assistantContext?: AppSurfaceAssistantContext;
@@ -129,6 +142,7 @@ export interface AppDefinition {
   navigationPlacement?: AppNavigationPlacement;
   navigationOrder?: number;
   topNavigationStyle?: AppTopNavigationStyle;
+  shellAccess?: AppShellAccessDefinition;
   permissionDefinitions?: AppPermissionDefinition[];
   defaultSurfaceId: string;
   surfaces: AppSurfaceDefinition[];

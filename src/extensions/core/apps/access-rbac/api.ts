@@ -28,7 +28,6 @@ export interface AccessRbacUsersPage {
 export interface UserShellAccess {
   userUid: string;
   accessibleApps: string[];
-  accessibleSurfaces: string[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -486,7 +485,6 @@ function normalizeShellAccessRecord(record: Record<string, unknown>): UserShellA
   return {
     userUid: readStringish(record.user_uid ?? record.userUid ?? record.uid, ""),
     accessibleApps: normalizeStringList(record.accessible_apps ?? record.accessibleApps),
-    accessibleSurfaces: normalizeStringList(record.accessible_surfaces ?? record.accessibleSurfaces),
   };
 }
 

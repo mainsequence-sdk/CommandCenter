@@ -6,20 +6,20 @@ import { Button } from "@/components/ui/button";
 
 import {
   formatMainSequenceError,
-  listResourceReleaseGallery,
-  type ResourceReleaseGalleryRecord,
+  listResourceReleaseResources,
+  type ResourceReleaseResourceRecord,
 } from "../../../../extensions/main_sequence/common/api";
 import { PickerField, type PickerOption } from "../../../../extensions/main_sequence/common/components/PickerField";
 import type { AppComponentMainSequenceResourceReleaseRef } from "./appComponentModel";
 
-function matchesFastApiRelease(release: Pick<ResourceReleaseGalleryRecord, "release_kind">) {
+function matchesFastApiRelease(release: Pick<ResourceReleaseResourceRecord, "release_kind">) {
   return release.release_kind.trim().toLowerCase() === "fastapi";
 }
 
 function buildReleaseOption(
   release:
     | Pick<
-        ResourceReleaseGalleryRecord,
+        ResourceReleaseResourceRecord,
         "uid" | "title" | "resource_name" | "project_name" | "subdomain" | "public_url"
       >
     | AppComponentMainSequenceResourceReleaseRef,
@@ -71,11 +71,11 @@ export function AppComponentMainSequenceResourceReleasePicker({
   enabled?: boolean;
   selectedRelease?: AppComponentMainSequenceResourceReleaseRef | null;
   value?: string;
-  onSelect: (release: ResourceReleaseGalleryRecord) => void;
+  onSelect: (release: ResourceReleaseResourceRecord) => void;
 }) {
   const releasesQuery = useQuery({
-    queryKey: ["main_sequence", "resource-release-gallery", "app-component-fastapi"],
-    queryFn: () => listResourceReleaseGallery({ exclude: "agents" }),
+    queryKey: ["main_sequence", "resource-release-resources", "app-component-fastapi"],
+    queryFn: () => listResourceReleaseResources({ releaseKind: "fastapi" }),
     enabled,
     staleTime: 300_000,
   });

@@ -292,7 +292,7 @@ function buildDataNodeUrl(node: DependencyGraphLayoutNode | null) {
     return null;
   }
 
-  return `/app/main_sequence_workbench/data-nodes?msDataNodeUid=${remoteTableId}&msDataNodeTab=details`;
+  return `/app/main-sequence-foundry/data-nodes?msDataNodeUid=${remoteTableId}&msDataNodeTab=details`;
 }
 
 function buildMetaTableUrl(node: DependencyGraphLayoutNode | null) {
@@ -319,7 +319,7 @@ function buildMetaTableUrl(node: DependencyGraphLayoutNode | null) {
     return null;
   }
 
-  return `/app/main_sequence_workbench/meta-tables?msMetaTableUid=${remoteTableId}&msMetaTableTab=details`;
+  return `/app/main-sequence-foundry/meta-tables?msMetaTableUid=${remoteTableId}&msMetaTableTab=details`;
 }
 
 function buildDataNodeUpdateUrl(node: DependencyGraphLayoutNode | null) {
@@ -347,7 +347,7 @@ function buildDataNodeUpdateUrl(node: DependencyGraphLayoutNode | null) {
   search.set("msLocalUpdateUid", localUpdateId);
   search.set("msLocalUpdateTab", "graphs");
 
-  return `/app/main_sequence_workbench/data-nodes?${search.toString()}`;
+  return `/app/main-sequence-foundry/data-nodes?${search.toString()}`;
 }
 
 function getNodeIcon(node: DependencyGraphLayoutNode) {

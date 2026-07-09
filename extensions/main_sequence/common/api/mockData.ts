@@ -3964,7 +3964,7 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
           method: "POST",
           path: "/orm/api/ts_manager/dynamic_table_data_source/",
         },
-        cancel_path: "/app/main_sequence_workbench/project-data-sources",
+        cancel_path: "/app/main-sequence-foundry/project-data-sources",
       },
     };
   }
@@ -3999,7 +3999,7 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
       id: readNumber(record.id),
       uid: readString(record.uid),
       display_name: readString(record.display_name),
-      redirect_path: `/app/main_sequence_workbench/project-data-sources?msProjectDataSourceUid=${record.uid}&msProjectDataSourceView=edit`,
+      redirect_path: `/app/main-sequence-foundry/project-data-sources?msProjectDataSourceUid=${record.uid}&msProjectDataSourceView=edit`,
     };
   }
 
@@ -4055,11 +4055,11 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
           method: "PATCH",
           path: `/orm/api/ts_manager/dynamic_table_data_source/${editMatch[1]}/`,
         },
-        cancel_path: "/app/main_sequence_workbench/project-data-sources",
+        cancel_path: "/app/main-sequence-foundry/project-data-sources",
         delete: {
           method: "POST",
           path: `/orm/api/ts_manager/dynamic_table_data_source/${editMatch[1]}/delete/`,
-          redirect_path: "/app/main_sequence_workbench/project-data-sources",
+          redirect_path: "/app/main-sequence-foundry/project-data-sources",
         },
       },
     };
@@ -4081,7 +4081,7 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
       id: readNumber(record?.id),
       uid: readString(record?.uid),
       display_name: readString(record?.display_name),
-      redirect_path: `/app/main_sequence_workbench/project-data-sources?msProjectDataSourceUid=${editMatch[1]}&msProjectDataSourceView=edit`,
+      redirect_path: `/app/main-sequence-foundry/project-data-sources?msProjectDataSourceUid=${editMatch[1]}&msProjectDataSourceView=edit`,
     };
   }
 
@@ -4092,7 +4092,7 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
     return {
       detail: "Project data source deleted.",
       uid,
-      redirect_path: "/app/main_sequence_workbench/project-data-sources",
+      redirect_path: "/app/main-sequence-foundry/project-data-sources",
     };
   }
 
@@ -4158,7 +4158,7 @@ function handlePhysicalDataSources(route: string, method: string, searchParams: 
           method: "POST",
           path: "/data_source/",
         },
-        cancel_path: "/app/main_sequence_workbench/physical-data-sources",
+        cancel_path: "/app/main-sequence-foundry/physical-data-sources",
       },
     };
   }
@@ -4186,7 +4186,7 @@ function handlePhysicalDataSources(route: string, method: string, searchParams: 
       id: readNumber(record.id),
       uid: readString(record.uid),
       display_name: readString(record.display_name),
-      redirect_path: `/app/main_sequence_workbench/physical-data-sources?msPhysicalDataSourceUid=${record.uid}&msPhysicalDataSourceView=edit`,
+      redirect_path: `/app/main-sequence-foundry/physical-data-sources?msPhysicalDataSourceUid=${record.uid}&msPhysicalDataSourceView=edit`,
     };
   }
 
@@ -4261,11 +4261,11 @@ function handlePhysicalDataSources(route: string, method: string, searchParams: 
           method: "PATCH",
           path: `/data_source/${editMatch[1]}/`,
         },
-        cancel_path: "/app/main_sequence_workbench/physical-data-sources",
+        cancel_path: "/app/main-sequence-foundry/physical-data-sources",
         delete: {
           method: "POST",
           path: `/data_source/${editMatch[1]}/delete/`,
-          redirect_path: "/app/main_sequence_workbench/physical-data-sources",
+          redirect_path: "/app/main-sequence-foundry/physical-data-sources",
         },
       },
     };
@@ -4279,7 +4279,7 @@ function handlePhysicalDataSources(route: string, method: string, searchParams: 
       id: readNumber(record?.id),
       uid: readString(record?.uid),
       display_name: readString(record?.display_name),
-      redirect_path: `/app/main_sequence_workbench/physical-data-sources?msPhysicalDataSourceUid=${editMatch[1]}&msPhysicalDataSourceView=edit`,
+      redirect_path: `/app/main-sequence-foundry/physical-data-sources?msPhysicalDataSourceUid=${editMatch[1]}&msPhysicalDataSourceView=edit`,
     };
   }
 
@@ -4290,7 +4290,7 @@ function handlePhysicalDataSources(route: string, method: string, searchParams: 
     return {
       detail: "Physical data source deleted.",
       uid,
-      redirect_path: "/app/main_sequence_workbench/physical-data-sources",
+      redirect_path: "/app/main-sequence-foundry/physical-data-sources",
     };
   }
 
@@ -5634,14 +5634,36 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
 
   if (route === "/resource-release/gallery/" && method === "GET") {
     const exclude = lowerNeedle(searchParams.get("exclude"));
+    const releaseKindFilter = lowerNeedle(searchParams.get("release_kind"));
+    const search = lowerNeedle(searchParams.get("search"));
     const filtered = sortDescendingById(
       state.resourceReleaseGallery.filter((release) => {
-        if (!exclude) {
+        const releaseKind = lowerNeedle(readString(release.release_kind));
+
+        if (releaseKindFilter && releaseKind !== releaseKindFilter) {
+          return false;
+        }
+
+        if (exclude && (releaseKind === exclude || `${releaseKind}s` === exclude)) {
+          return false;
+        }
+
+        if (!search) {
           return true;
         }
 
-        const releaseKind = lowerNeedle(readString(release.release_kind));
-        return releaseKind !== exclude && `${releaseKind}s` !== exclude;
+        const searchable = [
+          release.title,
+          release.resource_name,
+          release.project_name,
+          release.subdomain,
+          release.public_url,
+          release.uid,
+          release.project_uid,
+          release.resource_uid,
+        ].map((value) => lowerNeedle(readString(value))).join(" ");
+
+        return searchable.includes(search);
       }),
     );
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
@@ -5765,8 +5787,8 @@ function handleJobs(route: string, method: string, searchParams: URLSearchParams
         cluster_name: readString(run.cluster_name) || "gke-analytics-prod",
         cluster_uuid: readString(run.cluster_uuid) || "cluster-prod-1",
         response_status: readOptionalString(run.response_status),
-        job_detail_url: `/app/main_sequence_workbench/jobs?msJobUid=${run.job_uid}`,
-        job_run_detail_url: `/app/main_sequence_workbench/jobs?msJobUid=${run.job_uid}&msJobRunUid=${run.uid}`,
+        job_detail_url: `/app/main-sequence-foundry/jobs?msJobUid=${run.job_uid}`,
+        job_run_detail_url: `/app/main-sequence-foundry/jobs?msJobUid=${run.job_uid}&msJobRunUid=${run.uid}`,
       }));
   }
 
@@ -5785,7 +5807,7 @@ function handleJobs(route: string, method: string, searchParams: URLSearchParams
       cluster_name: "gke-analytics-prod",
       cluster_uuid: "cluster-prod-1",
       response_status: null,
-      job_detail_url: `/app/main_sequence_workbench/jobs?msJobUid=${job.uid}`,
+      job_detail_url: `/app/main-sequence-foundry/jobs?msJobUid=${job.uid}`,
       job_run_detail_url: null,
     }));
   }

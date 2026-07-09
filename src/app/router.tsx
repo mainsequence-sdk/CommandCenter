@@ -7,7 +7,6 @@ import { env } from "@/config/env";
 import { AppPage } from "@/features/apps/AppPage";
 import { AppRedirect } from "@/features/apps/AppRedirect";
 import { LegacyDashboardRedirect } from "@/features/apps/LegacyDashboardRedirect";
-import { LegacyMainSequenceWorkbenchRedirect } from "@/features/apps/LegacyMainSequenceWorkbenchRedirect";
 import { LegacyWorkspaceRedirect } from "@/features/apps/LegacyWorkspaceRedirect";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { LoginPageV2 } from "@/features/auth/LoginPageV2";
@@ -126,14 +125,6 @@ export const router = createBrowserRouter([
       {
         path: "workspace/:workspaceId",
         element: <LegacyWorkspaceRedirect />,
-      },
-      {
-        path: "main_sequence",
-        element: <LegacyMainSequenceWorkbenchRedirect />,
-      },
-      {
-        path: "main_sequence/:surfaceId",
-        element: <LegacyMainSequenceWorkbenchRedirect />,
       },
       {
         path: "markets",

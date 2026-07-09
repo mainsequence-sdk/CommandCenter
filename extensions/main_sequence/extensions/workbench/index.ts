@@ -7,7 +7,7 @@ import { mainSequenceDependencyGraphWidget } from "./widgets/dependency-graph/de
 import { mainSequenceProjectInfraGraphWidget } from "./widgets/project-infra-graph/definition";
 
 const mainSequenceWorkbenchExtension: AppExtension = {
-  id: "main_sequence_workbench",
+  id: "main-sequence-foundry",
   title: "Main Sequence Foundry",
   description: "Foundry surfaces and widgets for Main Sequence backend administration.",
   widgets: [

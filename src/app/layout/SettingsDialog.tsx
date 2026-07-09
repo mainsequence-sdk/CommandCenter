@@ -2260,7 +2260,7 @@ export function SettingsDialog({
                 description={t("settingsDialog.authShellAccessSourceHelp")}
                 value={
                   <span className="block max-w-[420px] break-all font-mono text-xs text-foreground">
-                    {"/api/v1/command_center/users/{user_uid}/shell-access/ -> accessible_apps, accessible_surfaces"}
+                    {"/api/v1/command_center/users/{user_uid}/shell-access/ -> accessible_apps"}
                   </span>
                 }
               />

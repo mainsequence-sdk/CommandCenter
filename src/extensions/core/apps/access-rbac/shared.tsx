@@ -3,7 +3,11 @@ import { type ReactNode, useDeferredValue, useEffect, useMemo, useRef, useState 
 import { useQuery } from "@tanstack/react-query";
 import { Check, Loader2, Search } from "lucide-react";
 
-import { appRegistry } from "@/app/registry";
+import { appRegistry, getAppById } from "@/app/registry";
+import {
+  canAccessSurface,
+  resolveShellAccessTarget,
+} from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
 import { getRoleLabel } from "@/auth/permissions";
 import type { AppUser } from "@/auth/types";
@@ -271,27 +275,25 @@ interface ShellAccessTreeSurface {
 }
 
 function buildShellAccessTree(access: UserShellAccess | null): ShellAccessTreeApp[] {
-  const accessibleAppIds = new Set(access?.accessibleApps ?? []);
-  const accessibleSurfaceIds = new Set(access?.accessibleSurfaces ?? []);
-
   return appRegistry.apps.flatMap((app) => {
-    const appAllowed = accessibleAppIds.has(app.id);
     const surfaces = appRegistry.surfaces
       .filter((surface) => surface.appId === app.id && !surface.hidden)
       .flatMap((surface) => {
-        const surfaceKey = `${surface.appId}.${surface.id}`;
+        const sourceApp = getAppById(surface.appId);
 
-        if (!accessibleSurfaceIds.has(surfaceKey)) {
+        if (!sourceApp || !canAccessSurface(sourceApp, surface, access)) {
           return [];
         }
 
+        const target = resolveShellAccessTarget(sourceApp, surface);
+
         return [{
-          key: surfaceKey,
+          key: target.surfaceKey,
           title: surface.title,
         }];
       });
 
-    if (!appAllowed && surfaces.length === 0) {
+    if (surfaces.length === 0) {
       return [];
     }
 

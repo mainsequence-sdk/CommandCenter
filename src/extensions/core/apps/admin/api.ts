@@ -279,95 +279,306 @@ export interface BillingUsageResponse {
   columnDefs: BillingUsageColumnDef[];
 }
 
-export interface HostedTimescaleDatabaseCloudRegion {
+export interface HostedManagedDatabaseExtensionOption {
   code: string;
   label: string;
-}
-
-export interface HostedTimescaleDatabasePrice {
-  amount: string;
-  currency: string;
-  display: string;
-}
-
-export interface HostedTimescaleDatabasePlan {
-  code: string;
-  name: string;
-  cloud_region: HostedTimescaleDatabaseCloudRegion;
-  vms: number;
-  cpu_per_vm: number;
-  memory_per_vm_gb: number;
-  storage_gb: number;
-  monthly_price: HostedTimescaleDatabasePrice;
-  recommended: boolean;
   available: boolean;
+  unavailable_reason?: string;
+  unavailable_detail?: string;
 }
 
-export interface HostedTimescaleDatabasePlanProvider {
-  code: string;
-  name: string;
-  default_plan_code: string;
-  plans: HostedTimescaleDatabasePlan[];
-}
-
-export interface HostedTimescaleDatabasePlansResponse {
-  resource_kind: string;
-  title: string;
-  providers: Record<string, HostedTimescaleDatabasePlanProvider>;
-}
-
-export interface HostedTimescaleDatabaseRecord extends Record<string, unknown> {
-  id?: number | string;
-  uid?: string;
-  name?: string;
-  title?: string;
+export interface HostedManagedDatabaseComputeShape {
+  id?: string;
+  code?: string;
   label?: string;
-  display_name?: string;
-  database_name?: string;
-  status?: string;
-  status_label?: string;
-  state?: string;
-  plan_code?: string;
-  current_plan_code?: string;
-  plan_name?: string;
-  current_plan_name?: string;
-  region?: string;
-  created_at?: string;
-  updated_at?: string;
-  monthly_price?: Partial<HostedTimescaleDatabasePrice> | null;
-  cloud_region?: Partial<HostedTimescaleDatabaseCloudRegion> | string | null;
-  plan?: Partial<HostedTimescaleDatabasePlan> | null;
+  vcpus: number;
+  memory_gib: number;
+  available?: boolean;
 }
 
-export interface HostedTimescaleDatabasesResponse {
-  resource_kind?: string;
-  provider?: string;
-  title?: string;
-  count: number;
-  results: HostedTimescaleDatabaseRecord[];
+export interface HostedManagedDatabaseComputeTier {
+  id: string;
+  label: string;
+  description: string;
+  compute_shapes: HostedManagedDatabaseComputeShape[];
 }
 
-export interface HostedTimescaleDatabaseCreateResponse {
-  detail: string;
-  id: number;
-  display_name: string;
-  resource_plan_code: string;
-  dynamic_table_data_source_id: number;
-  hosted_resource: {
-    kind: string;
-    provider: string;
-    managed_service_visible: boolean;
+export interface HostedManagedDatabaseConfigurationOptions {
+  postgres_versions: string[];
+  compute_tiers: HostedManagedDatabaseComputeTier[];
+  storage: {
+    min_gib: number;
+    max_gib: number;
+    step_gib: number;
+  };
+  backup_retention_days: {
+    min: number;
+    max: number;
+    included_days?: number;
+  };
+  high_availability?: {
+    description?: string;
+    optional?: boolean;
+    default?: {
+      mode?: string;
+    };
+    modes?: Array<{
+      id: string;
+      label: string;
+      description?: string;
+    }>;
+  };
+  maintenance_window: {
+    description?: string;
+    optional?: boolean;
+    default?: {
+      day_of_week?: number;
+      start_hour?: number;
+      start_minute?: number;
+    };
+    day_of_week: {
+      min: number;
+      max: number;
+    };
+    start_hour: {
+      min: number;
+      max: number;
+    };
+    start_minute: {
+      min?: number;
+      max?: number;
+      values?: number[];
+    };
   };
 }
 
-export interface HostedTimescaleDatabaseCreateInput {
-  display_name: string;
-  description?: string | null;
-  resource_plan_code: string;
+export interface HostedManagedDatabaseCatalogResponse {
+  extensions: HostedManagedDatabaseExtensionOption[];
+  configuration_options: HostedManagedDatabaseConfigurationOptions;
+  pricing: {
+    available: boolean;
+    currency?: string;
+    billing_interval?: "month";
+    refresh_interval_seconds?: number;
+    compute?: Record<
+      string,
+      {
+        monthly_amount_cents: number;
+        currency: string;
+      }
+    >;
+    storage?: {
+      monthly_amount_cents_per_gib: number;
+      currency: string;
+    };
+    backup?: {
+      monthly_amount_cents_per_gib?: number;
+      monthly_amount_cents_per_gib_day?: number;
+      currency: string;
+    };
+    high_availability?: {
+      compute_multipliers: Record<string, string>;
+    };
+  };
+  billing: {
+    mode: string;
+    billing_interval: string;
+    billing_anchor?: string;
+    charge_timing: string;
+    first_period_prorated?: boolean;
+    configuration_change_proration?: boolean;
+    price_validation_required?: boolean;
+    current_period_start?: string;
+    current_period_end?: string;
+    period_seconds?: number;
+    remaining_period_seconds?: number;
+    proration_factor?: string;
+  };
+  endpoints: {
+    create?: {
+      method: string;
+      path: string;
+    };
+    update?: {
+      method: string;
+      path: string;
+    };
+  };
 }
 
-export interface HostedTimescaleDatabaseUpdateInput {
-  plan_code: string;
+export interface HostedManagedDatabaseActionSpec {
+  method: string;
+  path: string;
+}
+
+export interface HostedManagedDatabaseActions {
+  update?: HostedManagedDatabaseActionSpec;
+  reveal_credentials?: HostedManagedDatabaseActionSpec;
+  rotate_credentials?: HostedManagedDatabaseActionSpec;
+  cancel_at_period_end?: HostedManagedDatabaseActionSpec;
+  cancel_now?: HostedManagedDatabaseActionSpec;
+}
+
+export interface HostedManagedDatabaseFailure {
+  code?: string;
+  detail?: string;
+  retryable?: boolean;
+  remediable?: boolean;
+}
+
+export interface HostedManagedDatabaseAllocation extends Record<string, unknown> {
+  allocation_uid?: string;
+  data_source_uid?: string | null;
+  dynamic_table_data_source_uid?: string | null;
+  connection_uid?: string | null;
+  secret_uid?: string | null;
+  display_name?: string;
+  status?: string;
+  resource_plan_code?: string;
+  extensions?: string[];
+  billing_status?: string;
+  price_amount?: string;
+  price_amount_cents?: number;
+  currency?: string;
+  billing_interval?: string;
+  current_period_start?: string;
+  current_period_end?: string;
+  cancel_at_period_end?: boolean;
+  cancelled_at?: string | null;
+  resource?: {
+    uid?: string | null;
+    display_name?: string;
+    status?: string;
+    storage_access_mode?: string;
+    description?: string;
+  };
+  physical_resource?: {
+    shape?: {
+      compute_shape_id?: string | null;
+      compute_shape_label?: string | null;
+      compute_tier?: string | null;
+      compute_tier_label?: string | null;
+      vcpus?: number | null;
+      memory_gib?: number | null;
+      storage_gib?: number | null;
+      backup_retention_days?: number | null;
+      postgres_version?: string | null;
+      high_availability?: {
+        mode?: string | null;
+      } | null;
+      vms?: number | null;
+      cpu_per_vm?: number | null;
+      memory_per_vm_gb?: number | null;
+      storage_gb?: number | null;
+    };
+    maintenance_window?: {
+      day_of_week?: number;
+      start_hour?: number;
+      start_minute?: number;
+    };
+    power_state?: string;
+  };
+  connection?: {
+    uid?: string | null;
+    host?: string;
+    port?: number;
+    database?: string;
+    username?: string;
+    ssl_mode?: string;
+    default_schema?: string;
+    connection_url?: string;
+  };
+  network_access?: {
+    public_access?: boolean | null;
+    allowed_ip_ranges?: string[];
+    access_mode?: string;
+  };
+  failure?: HostedManagedDatabaseFailure;
+  actions?: HostedManagedDatabaseActions;
+}
+
+export interface HostedManagedDatabasesResponse {
+  resource_kind?: string;
+  count: number;
+  results: HostedManagedDatabaseAllocation[];
+}
+
+export interface HostedManagedDatabaseCreateInput {
+  display_name: string;
+  description?: string | null;
+  extensions: string[];
+  configuration: {
+    postgres_version: string;
+    compute_shape_id: string;
+    storage_gib: number;
+    backup_retention_days?: number;
+    geo_redundant_backup?: boolean;
+    high_availability?: {
+      mode: string;
+    };
+    maintenance_window?: {
+      day_of_week?: number;
+      start_hour?: number;
+      start_minute?: number;
+    };
+  };
+  expected_total_amount_cents: number;
+}
+
+export interface HostedManagedDatabaseCreateResponse {
+  detail: string;
+  allocation_uid: string;
+  data_source_uid: string;
+  connection_uid?: string | null;
+  secret_uid?: string | null;
+  display_name: string;
+  extensions: string[];
+  status: string;
+  billing_status: string;
+  resource_plan_code: string;
+  dynamic_table_data_source_uid: string;
+}
+
+export interface HostedManagedDatabasePatchInput {
+  display_name?: string;
+  description?: string | null;
+  configuration?: {
+    compute_shape_id?: string;
+    storage_gib?: number;
+    backup_retention_days?: number;
+    geo_redundant_backup?: boolean;
+    high_availability?: {
+      mode: string;
+    };
+    maintenance_window?: {
+      day_of_week?: number;
+      start_hour?: number;
+      start_minute?: number;
+    };
+  };
+}
+
+export interface HostedManagedDatabaseProvisioningFailedErrorPayload {
+  code: "managed_database_provisioning_failed";
+  detail: string;
+  retryable?: boolean;
+  remediable?: boolean;
+  allocation_uid?: string;
+  actions?: HostedManagedDatabaseActions;
+}
+
+export interface HostedManagedDatabaseCredentialsRevealResponse {
+  allocation_uid: string;
+  connection_uid?: string | null;
+  secret_uid?: string | null;
+  host: string;
+  port: number;
+  database: string;
+  username: string;
+  ssl_mode: string;
+  default_schema: string;
+  password: string;
+  connection_url: string;
 }
 
 export interface OrganizationActivePlanItem {
@@ -741,23 +952,21 @@ export function listBillingUsage({
   );
 }
 
-const hostedTimescaleDatabasesBasePath =
-  "/orm/api/pods/mainsequence-hosted/billing/hosted-resources/timescaledb-databases/";
+const hostedManagedDatabasesBasePath =
+  "/orm/api/connections/mainsequence-hosted/billing/hosted-resources/databases/";
 
-type HostedTimescaleDatabasesPayload =
-  | HostedTimescaleDatabaseRecord[]
-  | (PaginatedResponse<HostedTimescaleDatabaseRecord> & {
+type HostedManagedDatabasesPayload =
+  | HostedManagedDatabaseAllocation[]
+  | (PaginatedResponse<HostedManagedDatabaseAllocation> & {
       resource_kind?: string;
-      provider?: string;
-      title?: string;
-      items?: HostedTimescaleDatabaseRecord[];
-      databases?: HostedTimescaleDatabaseRecord[];
-      rows?: HostedTimescaleDatabaseRecord[];
+      items?: HostedManagedDatabaseAllocation[];
+      databases?: HostedManagedDatabaseAllocation[];
+      rows?: HostedManagedDatabaseAllocation[];
     });
 
-function normalizeHostedTimescaleDatabasesPayload(
-  payload: HostedTimescaleDatabasesPayload,
-): HostedTimescaleDatabasesResponse {
+function normalizeHostedManagedDatabasesPayload(
+  payload: HostedManagedDatabasesPayload,
+): HostedManagedDatabasesResponse {
   if (Array.isArray(payload)) {
     return {
       count: payload.length,
@@ -774,61 +983,81 @@ function normalizeHostedTimescaleDatabasesPayload(
 
   return {
     resource_kind: payload.resource_kind,
-    provider: payload.provider,
-    title: payload.title,
     count: typeof payload.count === "number" ? payload.count : results.length,
     results,
   };
 }
 
-export function listHostedTimescaleDatabasePlans() {
-  return requestAdminJson<HostedTimescaleDatabasePlansResponse>(
-    `${hostedTimescaleDatabasesBasePath}plans/`,
+export function listHostedManagedDatabasePlans() {
+  return requestAdminJson<HostedManagedDatabaseCatalogResponse>(
+    `${hostedManagedDatabasesBasePath}plans/`,
     {
       method: "GET",
     },
   );
 }
 
-export async function listHostedTimescaleDatabases() {
-  const payload = await requestAdminJson<HostedTimescaleDatabasesPayload>(
-    hostedTimescaleDatabasesBasePath,
-    {
-      method: "GET",
-    },
-  );
-
-  return normalizeHostedTimescaleDatabasesPayload(payload);
-}
-
-export function createHostedTimescaleDatabase(payload: HostedTimescaleDatabaseCreateInput) {
-  return requestAdminJson<HostedTimescaleDatabaseCreateResponse>(hostedTimescaleDatabasesBasePath, {
+export function createHostedManagedDatabase(payload: HostedManagedDatabaseCreateInput) {
+  return requestAdminJson<HostedManagedDatabaseCreateResponse>(hostedManagedDatabasesBasePath, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export async function updateHostedTimescaleDatabase(
-  databaseId: number | string,
-  payload: HostedTimescaleDatabaseUpdateInput,
+export async function listHostedManagedDatabases() {
+  const payload = await requestAdminJson<HostedManagedDatabasesPayload>(
+    hostedManagedDatabasesBasePath,
+    {
+      method: "GET",
+    },
+  );
+
+  return normalizeHostedManagedDatabasesPayload(payload);
+}
+
+export function getHostedManagedDatabase(allocationUid: string) {
+  return requestAdminJson<HostedManagedDatabaseAllocation>(
+    `${hostedManagedDatabasesBasePath}${encodeURIComponent(allocationUid)}/`,
+    {
+      method: "GET",
+    },
+  );
+}
+
+export function updateHostedManagedDatabase(
+  allocationUid: string,
+  payload: HostedManagedDatabasePatchInput,
 ) {
-  const detailPath = `${hostedTimescaleDatabasesBasePath}${encodeURIComponent(String(databaseId))}/`;
-  const body = JSON.stringify(payload);
-
-  try {
-    return await requestAdminJson<HostedTimescaleDatabaseRecord>(detailPath, {
+  return requestAdminJson<HostedManagedDatabaseAllocation>(
+    `${hostedManagedDatabasesBasePath}${encodeURIComponent(allocationUid)}/`,
+    {
       method: "PATCH",
-      body,
-    });
-  } catch (error) {
-    if (!(error instanceof AdminRequestError) || (error.status !== 404 && error.status !== 405)) {
-      throw error;
-    }
-  }
+      body: JSON.stringify(payload),
+    },
+  );
+}
 
-  return requestAdminJson<HostedTimescaleDatabaseRecord>(detailPath, {
-    method: "PUT",
-    body,
+export function revealHostedManagedDatabaseCredentials(path: string) {
+  return requestAdminJson<HostedManagedDatabaseCredentialsRevealResponse>(path, {
+    method: "POST",
+  });
+}
+
+export function rotateHostedManagedDatabaseCredentials(path: string) {
+  return requestAdminJson<HostedManagedDatabaseCredentialsRevealResponse>(path, {
+    method: "POST",
+  });
+}
+
+export function cancelHostedManagedDatabaseAtPeriodEnd(path: string) {
+  return requestAdminJson<unknown>(path, {
+    method: "POST",
+  });
+}
+
+export function cancelHostedManagedDatabaseNow(path: string) {
+  return requestAdminJson<unknown>(path, {
+    method: "POST",
   });
 }
 

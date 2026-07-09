@@ -144,7 +144,7 @@ export function MainSequenceProjectDataSourcesPage() {
   }
 
   function openPhysicalDataSourceDetail(physicalDataSourceUid: string) {
-    navigate(`/app/main_sequence_workbench/physical-data-sources?msPhysicalDataSourceUid=${encodeURIComponent(physicalDataSourceUid)}`);
+    navigate(`/app/main-sequence-foundry/physical-data-sources?msPhysicalDataSourceUid=${encodeURIComponent(physicalDataSourceUid)}`);
   }
 
   function closeEditor() {

@@ -1259,7 +1259,7 @@ export function AgentDetailView({
       const searchParams = new URLSearchParams();
       searchParams.set("msScalableServiceUid", runtimeId);
       searchParams.set("msScalableServiceTab", "pods");
-      navigate(`${getAppPath("main_sequence_workbench", "scalable-services")}?${searchParams.toString()}`);
+      navigate(`${getAppPath("main-sequence-foundry", "scalable-services")}?${searchParams.toString()}`);
     },
     onError: (error) => {
       toast({

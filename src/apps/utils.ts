@@ -17,55 +17,164 @@ export function getAppPath(appId: string, surfaceId?: string) {
 
 function normalizeShellAccess(shellAccess?: ShellAccess | null) {
   return {
-    appIds: new Set(shellAccess?.accessibleApps ?? []),
-    surfaceIds: new Set(shellAccess?.accessibleSurfaces ?? []),
+    appScopes: new Set((shellAccess?.accessibleApps ?? []).map(normalizeShellAccessId)),
   };
 }
 
-function getSettingsSurfaceParts(surfaceId: string) {
-  const [sectionId, ...surfacePathParts] = surfaceId.split("/").filter(Boolean);
+export interface ShellAccessTarget {
+  appScopeId: string;
+  sectionScopeId?: string;
+  surfaceId: string;
+  surfaceKey: string;
+}
 
-  if (!sectionId || surfacePathParts.length === 0) {
-    return null;
-  }
+export function normalizeShellAccessId(value: string) {
+  return value
+    .trim()
+    .replace(/[\\/]+/g, ".")
+    .replace(/\.+/g, ".")
+    .replace(/^\.+|\.+$/g, "");
+}
+
+function getFallbackShellAccessTarget(appId: string, surfaceId: string): ShellAccessTarget {
+  const appScopeId = normalizeShellAccessId(appId);
+  const normalizedSurfaceId = normalizeShellAccessId(surfaceId);
 
   return {
-    appId: `settings.${sectionId}`,
-    surfaceId: surfacePathParts.join("/"),
+    appScopeId,
+    surfaceId: normalizedSurfaceId,
+    surfaceKey: `${appScopeId}.${normalizedSurfaceId}`,
   };
+}
+
+function getFirstShellAccessSegment(value: string) {
+  return normalizeShellAccessId(value).split(".").filter(Boolean)[0];
+}
+
+function getSectionRelativeSurfaceId(surfaceId: string, sectionId: string) {
+  const normalizedSurfaceId = normalizeShellAccessId(surfaceId);
+  const normalizedSectionId = normalizeShellAccessId(sectionId);
+
+  if (!normalizedSurfaceId || !normalizedSectionId) {
+    return normalizedSurfaceId;
+  }
+
+  if (normalizedSurfaceId === normalizedSectionId) {
+    return "";
+  }
+
+  const sectionPrefix = `${normalizedSectionId}.`;
+
+  if (normalizedSurfaceId.startsWith(sectionPrefix)) {
+    return normalizedSurfaceId.slice(sectionPrefix.length);
+  }
+
+  return normalizedSurfaceId;
+}
+
+export function resolveShellAccessTarget(
+  app: AppDefinition,
+  surface: AppSurfaceDefinition | string,
+): ShellAccessTarget {
+  const surfaceDefinition = typeof surface === "string"
+    ? app.surfaces.find((candidate) => candidate.id === surface)
+    : surface;
+  const rawSurfaceId = typeof surface === "string" ? surface : surface.id;
+  const appScopeId = normalizeShellAccessId(app.shellAccess?.appScopeId ?? app.id);
+  const scopeMode = app.shellAccess?.scopeMode ?? "app";
+  const explicitSectionId = surfaceDefinition?.shellAccess?.sectionId;
+  const inferredSectionId = getFirstShellAccessSegment(rawSurfaceId);
+  const sectionId =
+    explicitSectionId ??
+    surfaceDefinition?.navigationSection?.id ??
+    (scopeMode === "navigation-section" ? inferredSectionId : undefined);
+  const shouldUseSectionScope = Boolean(
+    sectionId && (scopeMode === "navigation-section" || explicitSectionId),
+  );
+
+  if (!shouldUseSectionScope || !sectionId) {
+    return getFallbackShellAccessTarget(
+      appScopeId,
+      surfaceDefinition?.shellAccess?.surfaceId ?? rawSurfaceId,
+    );
+  }
+
+  const normalizedSectionId = normalizeShellAccessId(sectionId);
+  const sectionScopeId = `${appScopeId}.${normalizedSectionId}`;
+  const sectionRelativeSurfaceId = getSectionRelativeSurfaceId(
+    surfaceDefinition?.shellAccess?.surfaceId ?? rawSurfaceId,
+    normalizedSectionId,
+  );
+  const surfaceId = sectionRelativeSurfaceId
+    ? `${normalizedSectionId}.${sectionRelativeSurfaceId}`
+    : normalizedSectionId;
+
+  return {
+    appScopeId,
+    sectionScopeId,
+    surfaceId,
+    surfaceKey: `${appScopeId}.${surfaceId}`,
+  };
+}
+
+function resolveShellAccessTargetFromIds(appId: string, surfaceId: string) {
+  const app = getAppById(appId);
+
+  if (!app) {
+    return getFallbackShellAccessTarget(appId, surfaceId);
+  }
+
+  return resolveShellAccessTarget(app, surfaceId);
 }
 
 export function getShellAppIdForSurface(appId: string, surfaceId: string) {
-  if (appId === "settings") {
-    return getSettingsSurfaceParts(surfaceId)?.appId ?? appId;
-  }
+  const target = resolveShellAccessTargetFromIds(appId, surfaceId);
 
-  return appId;
+  return target.sectionScopeId ?? target.appScopeId;
 }
 
 export function getShellSurfaceIdForSurface(appId: string, surfaceId: string) {
-  if (appId === "settings") {
-    return getSettingsSurfaceParts(surfaceId)?.surfaceId ?? surfaceId;
-  }
-
-  return surfaceId;
+  return resolveShellAccessTargetFromIds(appId, surfaceId).surfaceId;
 }
 
 export function getShellSurfaceKey(appId: string, surfaceId: string) {
-  const shellAppId = getShellAppIdForSurface(appId, surfaceId);
-  const shellSurfaceId = getShellSurfaceIdForSurface(appId, surfaceId);
+  return resolveShellAccessTargetFromIds(appId, surfaceId).surfaceKey;
+}
 
-  return `${shellAppId}.${shellSurfaceId}`;
+export function canAccessShellSurfaceKey(
+  surfaceKey: string,
+  shellAccess?: ShellAccess | null,
+) {
+  const normalizedSurfaceKey = normalizeShellAccessId(surfaceKey);
+  const { appScopes } = normalizeShellAccess(shellAccess);
+
+  return Array.from(appScopes).some((grantedScope) => {
+    if (!grantedScope) {
+      return false;
+    }
+
+    return (
+      normalizedSurfaceKey === grantedScope ||
+      normalizedSurfaceKey.startsWith(`${grantedScope}.`)
+    );
+  });
 }
 
 export function canAccessApp(app: AppDefinition, shellAccess?: ShellAccess | null) {
-  const { appIds } = normalizeShellAccess(shellAccess);
+  const { appScopes } = normalizeShellAccess(shellAccess);
+  const appScopeId = normalizeShellAccessId(app.shellAccess?.appScopeId ?? app.id);
 
-  if (app.id === "settings") {
-    return Array.from(appIds).some((appId) => appId.startsWith("settings."));
-  }
+  return Array.from(appScopes).some(
+    (grantedScope) =>
+      grantedScope === appScopeId || grantedScope.startsWith(`${appScopeId}.`),
+  );
+}
 
-  return appIds.has(app.id);
+function canAccessShellTarget(
+  target: ShellAccessTarget,
+  shellAccess?: ShellAccess | null,
+) {
+  return canAccessShellSurfaceKey(target.surfaceKey, shellAccess);
 }
 
 export function getAppNavigationPlacement(app: Pick<AppDefinition, "navigationPlacement">) {
@@ -78,13 +187,9 @@ export function canAccessSurface(
   shellAccess?: ShellAccess | null,
   options: { includeHidden?: boolean } = {},
 ) {
-  const normalizedShellAccess = normalizeShellAccess(shellAccess);
-  const shellAppId = getShellAppIdForSurface(app.id, surface.id);
-
   return (
-    normalizedShellAccess.appIds.has(shellAppId) &&
     (options.includeHidden || !surface.hidden) &&
-    normalizedShellAccess.surfaceIds.has(getShellSurfaceKey(app.id, surface.id))
+    canAccessShellTarget(resolveShellAccessTarget(app, surface), shellAccess)
   );
 }
 
@@ -221,9 +326,12 @@ export function getFavoriteSurfaceEntries(
   shellAccess: ShellAccess | null | undefined,
   favoriteSurfaceIds: string[],
 ) {
-  const accessibleSurfaces = getAccessibleSurfaceEntries(shellAccess);
+  const derivedSurfaceEntries = getAccessibleSurfaceEntries(shellAccess);
   const accessibleSurfaceMap = new Map(
-    accessibleSurfaces.map((surface) => [getSurfaceFavoriteId(surface.appId, surface.id), surface]),
+    derivedSurfaceEntries.map((surface) => [
+      getSurfaceFavoriteId(surface.appId, surface.id),
+      surface,
+    ]),
   );
 
   return favoriteSurfaceIds

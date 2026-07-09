@@ -7,6 +7,7 @@ import {
   ChevronDown,
   CircleUserRound,
   CreditCard,
+  Database,
   Github,
   KeyRound,
   LineChart,
@@ -22,8 +23,8 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 
 import type { AppShellMenuEntry } from "@/app/registry/types";
 import {
+  canAccessShellSurfaceKey,
   getAccessibleShellMenuEntries,
-  getShellAppIdForSurface,
   getShellSurfaceKey,
 } from "@/apps/utils";
 import { useAuthStore } from "@/auth/auth-store";
@@ -68,9 +69,16 @@ interface SettingsRouteDefinition {
   description: string;
   groupId: SettingsGroupId;
   icon: ComponentType<{ className?: string }>;
+  accessPath?: string;
+  hideFromNav?: boolean;
   applicationId?: string;
   applicationLabel?: string;
   applicationIcon?: ComponentType<{ className?: string }>;
+  navigationParent?: {
+    key: string;
+    label: string;
+    icon: ComponentType<{ className?: string }>;
+  };
   layout?: SettingsLayoutMode;
   render: (context: SettingsRouteContext) => ReactNode;
 }
@@ -91,18 +99,26 @@ interface ApplicationRouteGroup {
   firstIndex: number;
 }
 
+interface NestedSettingsRouteGroup {
+  key: string;
+  label?: string;
+  icon?: ComponentType<{ className?: string }>;
+  routes: SettingsRouteDefinition[];
+  firstIndex: number;
+}
+
 const settingsGroups: SettingsGroupDefinition[] = [
   {
     id: "account",
     label: "Account",
-    description: "Profile, preferences, security, and sessions.",
+    description: "Profile, preferences, usage, security, and sessions.",
     icon: CircleUserRound,
     order: 10,
   },
   {
     id: "billing",
     label: "Billing",
-    description: "Personal credits and organization billing.",
+    description: "Organization billing, invoices, credits, and hosted resources.",
     icon: CreditCard,
     order: 20,
   },
@@ -261,14 +277,26 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
         settingsDialogPage({ mode: "user", sectionId: "security", user, navigate }),
     },
     {
-      path: "billing/credits",
-      label: "Credits",
-      title: "Credits & Billing",
-      description: "Review personal credit balance and spending policy.",
-      groupId: "billing",
+      path: "account/usage-detail",
+      label: "Usage Detail",
+      title: "Usage Detail",
+      description: "Review personal credit usage, balance, and spending policy.",
+      groupId: "account",
       icon: Wallet,
+      accessPath: "billing/credits",
       layout: "standard",
       render: () => <UserCreditsSettingsSection />,
+    },
+    {
+      path: "billing/credits",
+      label: "Usage Detail",
+      title: "Usage Detail",
+      description: "Review personal credit usage, balance, and spending policy.",
+      groupId: "account",
+      icon: Wallet,
+      accessPath: "billing/credits",
+      hideFromNav: true,
+      render: () => <Navigate to={getSettingsPath("account/usage-detail")} replace />,
     },
     {
       path: "organization/users",
@@ -381,6 +409,23 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
       groupId: "billing",
       icon: Building2,
       layout: "wide",
+      hideFromNav: true,
+      render: () => <Navigate to={getSettingsPath("billing/hosted-resources/databases")} replace />,
+    },
+    {
+      path: "billing/hosted-resources/databases",
+      label: "Databases",
+      title: "Managed Databases",
+      description: "Create and review organization-hosted managed databases.",
+      groupId: "billing",
+      icon: Database,
+      accessPath: "billing/hosted-resources",
+      navigationParent: {
+        key: "billing/hosted-resources",
+        label: "Hosted Resources",
+        icon: Building2,
+      },
+      layout: "wide",
       render: () => <AdminHostedResourcesPage />,
     },
     {
@@ -450,12 +495,9 @@ function makeSettingsRoutes(shellEntries: AppShellMenuEntry[]) {
 
 function canAccessSettingsRoute(route: SettingsRouteDefinition, user?: AppUser) {
   const shellAccess = user?.shellAccess;
-  const accessibleApps = shellAccess?.accessibleApps ?? [];
-  const accessibleSurfaces = shellAccess?.accessibleSurfaces ?? [];
-  const ownerAppId = getShellAppIdForSurface("settings", route.path);
-  const routeSurfaceKey = getShellSurfaceKey("settings", route.path);
+  const routeSurfaceKey = getShellSurfaceKey("settings", route.accessPath ?? route.path);
 
-  return accessibleApps.includes(ownerAppId) && accessibleSurfaces.includes(routeSurfaceKey);
+  return canAccessShellSurfaceKey(routeSurfaceKey, shellAccess);
 }
 
 function routeSectionId(sectionId: string) {
@@ -466,6 +508,11 @@ function routeSectionId(sectionId: string) {
       return "account/profile";
     case "security":
       return "account/security";
+    case "billing":
+    case "credits":
+    case "usage":
+    case "usage-detail":
+      return "account/usage-detail";
     case "auth":
       return "platform/auth";
     case "configuration":
@@ -531,6 +578,36 @@ function groupApplicationRoutes(routes: SettingsRouteDefinition[]) {
   );
 }
 
+function groupNestedSettingsRoutes(routes: SettingsRouteDefinition[]) {
+  const groupedRoutes = new Map<string, NestedSettingsRouteGroup>();
+
+  routes
+    .filter((route) => !route.hideFromNav)
+    .forEach((route, index) => {
+      const parent = route.navigationParent;
+      const key = parent ? `parent:${parent.key}` : `route:${route.path}`;
+      const current = groupedRoutes.get(key);
+
+      if (current) {
+        current.routes.push(route);
+        current.firstIndex = Math.min(current.firstIndex, index);
+        return;
+      }
+
+      groupedRoutes.set(key, {
+        key,
+        label: parent?.label,
+        icon: parent?.icon,
+        routes: [route],
+        firstIndex: index,
+      });
+    });
+
+  return Array.from(groupedRoutes.values()).sort(
+    (left, right) => left.firstIndex - right.firstIndex,
+  );
+}
+
 function SettingsAccessDenied({ route }: { route: SettingsRouteDefinition }) {
   return (
     <Card>
@@ -573,6 +650,7 @@ export function SettingsPage() {
   const firstAccessibleRoute = accessibleRoutes[0];
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [collapsedApplicationGroups, setCollapsedApplicationGroups] = useState<Record<string, boolean>>({});
+  const [collapsedNestedRouteGroups, setCollapsedNestedRouteGroups] = useState<Record<string, boolean>>({});
   const groups = groupRoutes(accessibleRoutes);
   const renderRouteButton = (
     route: SettingsRouteDefinition,
@@ -594,7 +672,7 @@ export function SettingsPage() {
           navigate(getSettingsPath(route.path));
         }}
       >
-        {options.nested ? null : <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />}
+        {options.nested ? null : <Icon className="h-4 w-4 shrink-0 text-current" />}
         <span className="min-w-0 flex-1 truncate">{route.label}</span>
       </button>
     );
@@ -718,7 +796,50 @@ export function SettingsPage() {
                                 </div>
                               );
                             })
-                          : group.routes.map((route) => renderRouteButton(route))}
+                          : groupNestedSettingsRoutes(group.routes).map((routeGroup) => {
+                              if (!routeGroup.label) {
+                                return routeGroup.routes.map((route) => renderRouteButton(route));
+                              }
+
+                              const ParentIcon = routeGroup.icon ?? AppWindow;
+                              const routeGroupActive = routeGroup.routes.some(
+                                (route) => route.path === selectedPath,
+                              );
+                              const routeGroupCollapsed =
+                                collapsedNestedRouteGroups[routeGroup.key] ?? !routeGroupActive;
+
+                              return (
+                                <div key={routeGroup.key} className="space-y-0.5">
+                                  <button
+                                    type="button"
+                                    className={cn(
+                                      "flex w-full items-center gap-2 rounded-[calc(var(--radius)-7px)] px-2 py-1.5 text-left text-xs font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-foreground/[0.04] hover:text-foreground",
+                                      routeGroupActive && "text-foreground",
+                                    )}
+                                    onClick={() => {
+                                      setCollapsedNestedRouteGroups((current) => ({
+                                        ...current,
+                                        [routeGroup.key]: !routeGroupCollapsed,
+                                      }));
+                                    }}
+                                  >
+                                    <ParentIcon className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="min-w-0 truncate">{routeGroup.label}</span>
+                                    <ChevronDown
+                                      className={cn(
+                                        "ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+                                        routeGroupCollapsed && "-rotate-90",
+                                      )}
+                                    />
+                                  </button>
+                                  {!routeGroupCollapsed
+                                    ? routeGroup.routes.map((route) =>
+                                        renderRouteButton(route, { nested: true }),
+                                      )
+                                    : null}
+                                </div>
+                              );
+                            })}
                       </div>
                     ) : null}
                   </div>

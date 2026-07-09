@@ -270,7 +270,7 @@ export function MainSequenceProjectDataSourceEditor({
     }
 
     navigate({
-      pathname: getAppPath("main_sequence_workbench", "meta-tables"),
+      pathname: getAppPath("main-sequence-foundry", "meta-tables"),
       search: searchParams.toString() ? `?${searchParams.toString()}` : "",
     });
   }

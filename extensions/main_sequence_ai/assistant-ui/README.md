@@ -279,6 +279,8 @@ This boundary owns a feature-local session layer that:
   and then gets/selects the canonical `astro-orchestrator-command-center` handle session through
   `/orm/api/agents/v1/agents/{agent_uid}/sessions/get_or_create_session/`; it does not deploy Astro
   and it does not resolve runtime access until the first chat/runtime interaction
+- while the normal Command Center rail is resolving that canonical handle session, the generic
+  latest-session bootstrap must not auto-select the newest arbitrary AgentSession as a fallback
 - a fresh backend `start_new_session` with no persisted transcript is treated as a valid empty
   history state; a `404` history response is normalized to an empty thread instead of surfacing a
   session error banner

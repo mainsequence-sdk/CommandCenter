@@ -3,6 +3,7 @@ import { Bot, FilePenLine, FileText, LayoutTemplate, MessageSquare, Sparkles } f
 import {
   defineSurfaceAssistantContext,
   type AppDefinition,
+  type AppSurfaceNavigationSection,
 } from "@/apps/types";
 
 import { AgentsPage } from "./surfaces/agents/AgentsPage";
@@ -16,6 +17,24 @@ import { CapabilitiesPage } from "./surfaces/capabilities/CapabilitiesPage";
 
 export const MAIN_SEQUENCE_AI_VIEW_PERMISSION = "main_sequence_ai:view";
 
+const conversationSection: AppSurfaceNavigationSection = {
+  id: "conversation",
+  label: "Conversation",
+  order: 10,
+};
+
+const agentsSection: AppSurfaceNavigationSection = {
+  id: "agents",
+  label: "Agents",
+  order: 20,
+};
+
+const capabilitiesSection: AppSurfaceNavigationSection = {
+  id: "capabilities",
+  label: "Capabilities",
+  order: 30,
+};
+
 export const mainSequenceAiApp: AppDefinition = {
   id: "main_sequence_ai",
   title: "Main Sequence AI",
@@ -23,6 +42,9 @@ export const mainSequenceAiApp: AppDefinition = {
   source: "main_sequence_ai",
   icon: Sparkles,
   navigationOrder: 400,
+  shellAccess: {
+    scopeMode: "navigation-section",
+  },
   permissionDefinitions: [
     {
       id: MAIN_SEQUENCE_AI_VIEW_PERMISSION,
@@ -79,6 +101,7 @@ export const mainSequenceAiApp: AppDefinition = {
         ],
       }),
       kind: "page",
+      navigationSection: conversationSection,
       component: ChatPage,
     },
     {
@@ -99,6 +122,7 @@ export const mainSequenceAiApp: AppDefinition = {
         ],
       }),
       kind: "page",
+      navigationSection: agentsSection,
       component: AgentsPage,
     },
     {
@@ -118,6 +142,7 @@ export const mainSequenceAiApp: AppDefinition = {
         ],
       }),
       kind: "page",
+      navigationSection: capabilitiesSection,
       component: CapabilitiesPage,
     },
     {
@@ -136,6 +161,7 @@ export const mainSequenceAiApp: AppDefinition = {
         ],
       }),
       kind: "page",
+      navigationSection: agentsSection,
       component: ProjectAgentDeploymentLogsPage,
     },
     {
@@ -155,6 +181,7 @@ export const mainSequenceAiApp: AppDefinition = {
         ],
       }),
       kind: "page",
+      navigationSection: agentsSection,
       fullBleed: true,
       component: AgentsMonitorPage,
     },
@@ -174,6 +201,7 @@ export const mainSequenceAiApp: AppDefinition = {
         ],
       }),
       kind: "page",
+      navigationSection: conversationSection,
       component: AgentSessionDetailPage,
     },
   ],

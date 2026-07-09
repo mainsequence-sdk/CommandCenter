@@ -126,7 +126,7 @@ Important behavior:
 - the frontend no longer requires `user_details` to return a backend numeric `id`; session identity
   prefers `claim_mapping.user_id` and falls back to `uid`
 - `/api/v1/command_center/users/<user_uid>/shell-access/` is then fetched and its
-  `accessible_apps` / `accessible_surfaces` become the shell source of truth
+  `accessible_apps` scopes become the shell source of truth
 - stored JWT sessions are rehydrated against shell-access on app boot
 - request field names are configurable so you can send `username` instead of `email` if needed
 - response field paths support dotted lookups such as `data.access`
@@ -211,11 +211,6 @@ Shell-access response shape:
     "workspace-studio",
     "main_sequence_markets",
     "settings.platform"
-  ],
-  "accessible_surfaces": [
-    "workspace-studio.workspaces",
-    "main_sequence_markets.assets",
-    "settings.platform.auth"
   ]
 }
 ```
@@ -225,7 +220,7 @@ Important behavior:
 - login and refresh now resolve shell access from the dedicated shell-access endpoint
 - User Inspector reads shell access and does not write shell-access assignments, direct grants, or
   direct denies
-- apps and surfaces should be read from `accessible_apps` and `accessible_surfaces`
+- app and section visibility is granted by `accessible_apps` prefix scopes
 - the normal shell-access read response does not include policy ids,
   `effective_permissions`, `grant_permissions`, `deny_permissions`, or `surface_profiles`
 - shell route gates consume backend app/surface ids directly; the frontend does not map shell ids
@@ -403,7 +398,7 @@ When wiring the shell to your backend:
 - optionally point the `workspaces.*` endpoints at your workspace list/detail APIs if you want server-side persistence for workspace documents
 - map the credential field names your backend expects
 - return Command Center shell visibility from `/api/v1/command_center/users/<user_uid>/shell-access/`
-  as `accessible_apps` and `accessible_surfaces`
+  as `accessible_apps`
 - hydrate permissions from the backend token claims, token response payload, or user-details payload
 - treat frontend permissions as UX hints plus navigation rules
 - keep server authorization authoritative

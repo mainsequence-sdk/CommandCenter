@@ -46,12 +46,25 @@ Current surfaces in this folder:
 - `AdminBillingDetailsPage.tsx`: billing usage table backed by `/orm/api/pods/billing/usage/`
   with a top budget summary built from `/user/api/user/credits/summary/`, `datetime-local`
   range filters, and quick date presets
-- `AdminHostedResourcesPage.tsx`: billing-owned hosted infrastructure surface with local tab
-  navigation. The first `Databases` tab is wired to the hosted Timescale billing catalog and
-  expects plan-driven CRUD around
-  `/orm/api/pods/mainsequence-hosted/billing/hosted-resources/timescaledb-databases/` plus the
-  matching `/plans/` endpoint, whose catalog is grouped by provider and flattened locally for the
-  picker UI.
+- `AdminHostedResourcesPage.tsx`: billing-owned managed database surface reached at
+  `/app/settings/billing/hosted-resources/databases`. It uses the generic hosted resource database
+  workflow under
+  `/orm/api/connections/mainsequence-hosted/billing/hosted-resources/databases/`: hydrate the buy
+  flow only from `/plans/`, never call a quote endpoint, render extension/version/compute
+  tier/compute shape/storage/backup/HA/maintenance-window controls, compute the
+  displayed create/edit pricing from the public pricing catalog, and submit create with the
+  prorated `expected_total_amount_cents` due-now value as a stale-price guard. Allocation rows must
+  open hosted-resource detail through
+  `/orm/api/connections/mainsequence-hosted/billing/hosted-resources/databases/{allocation_uid}/`;
+  direct physical data-source navigation belongs inside that detail view, not in the registry row.
+  The same modal shell must support create, allocation summary, edit/resize through PATCH,
+  failed-provisioning remediation by PATCH on the same allocation, explicit credential reveal and
+  rotate actions, cancellation at period end, and immediate delete through the detail payload action
+  paths. Detail may show passwordless connection and network-access information returned by the
+  normal detail payload, but password-bearing credentials must only be revealed after the explicit
+  `/credentials/reveal/` or `/credentials/rotate/` POST. The flow must not render or submit region
+  selectors, backend provider fields, Azure SKU, meter IDs, server IDs, or other provider
+  internals.
 - `AdminManageCreditsPage.tsx`: organization credit overview backed by
   `/user/api/organization/<uid>/credits/` with action-driven prepaid-credit checkout,
   editable auto-reload settings, and org-admin per-user credit-budget management backed by the

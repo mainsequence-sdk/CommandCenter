@@ -273,7 +273,7 @@ function getStatusBadgeVariant(statusTone: string) {
 function buildCreateTimescaleDbPath() {
   const searchParams = new URLSearchParams();
   searchParams.set("msPhysicalDataSourceView", "create-timescale-db");
-  return `${getAppPath("main_sequence_workbench", "physical-data-sources")}?${searchParams.toString()}`;
+  return `${getAppPath("main-sequence-foundry", "physical-data-sources")}?${searchParams.toString()}`;
 }
 
 export type TimeScaleDbServiceDetailTabId = "details" | "databases";
@@ -373,7 +373,7 @@ export function MainSequenceTimeScaleDbServiceDetail({
   function openPhysicalDataSourceDetail(physicalDataSourceUid: string) {
     const searchParams = new URLSearchParams();
     searchParams.set("msPhysicalDataSourceUid", physicalDataSourceUid);
-    navigate(`${getAppPath("main_sequence_workbench", "physical-data-sources")}?${searchParams.toString()}`);
+    navigate(`${getAppPath("main-sequence-foundry", "physical-data-sources")}?${searchParams.toString()}`);
   }
 
   function openCreateTimescaleDb() {

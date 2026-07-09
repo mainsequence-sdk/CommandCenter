@@ -21,7 +21,6 @@ type MockAuthUserRecord = {
   permissions: Permission[];
   shell_access?: {
     accessible_apps?: string[];
-    accessible_surfaces?: string[];
   };
   date_joined?: string;
   is_active?: boolean;
@@ -590,7 +589,6 @@ export function handleMockJwtAuthorizedGet(
     return {
       user_uid: user.uid,
       accessible_apps: shellAccess.accessibleApps,
-      accessible_surfaces: shellAccess.accessibleSurfaces,
     };
   }
 

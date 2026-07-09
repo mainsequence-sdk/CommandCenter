@@ -12,7 +12,7 @@
 `Project Agent` authoring currently lives inside the `Main Sequence` workbench project detail
 surface:
 
-- route: `/app/main_sequence_workbench/projects?msProjectUid=<uid>&msTab=project-agent`
+- route: `/app/main-sequence-foundry/projects?msProjectUid=<uid>&msTab=project-agent`
 - implementation:
   [MainSequenceProjectAgentTab.tsx](/Users/jose/code/MainSequenceClientSide/CommandCenter/extensions/main_sequence/extensions/workbench/features/projects/MainSequenceProjectAgentTab.tsx)
 

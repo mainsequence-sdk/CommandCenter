@@ -123,19 +123,15 @@ directly:
 ```json
 {
   "user_uid": "11111111-1111-4111-8111-111111111111",
-  "accessible_apps": ["workspace-studio", "main_sequence_markets", "settings.platform"],
-  "accessible_surfaces": [
-    "workspace-studio.workspaces",
-    "workspace-studio.widgets",
-    "main_sequence_markets.assets",
-    "settings.platform.auth"
-  ]
+  "accessible_apps": ["workspace-studio", "main_sequence_markets", "settings.platform"]
 }
 ```
 
 Shell-access response rules:
 
-- `accessible_apps` and `accessible_surfaces` are the canonical frontend rendering contract.
+- `accessible_apps` is the canonical frontend shell-access payload. [ADR 081](./adr-081-general-shell-access-scope-resolution.md)
+  defines it as app/section prefix scopes, where `app` allows `app.*` and `app.section` allows
+  `app.section.*`.
 - Normal shell-access reads do not return policy ids, raw permission strings,
   `grant_permissions`, `deny_permissions`, `surface_profiles`, or derived group metadata.
 - Backend output must be deterministic: arrays are deduplicated and sorted by backend catalog order
@@ -186,8 +182,8 @@ It should describe:
 
 Backend-owned shell-access resolution should use that catalog.
 
-Runtime shell code must consume `accessible_apps` and `accessible_surfaces` directly. It must not
-map those ids back into local permission strings.
+Runtime shell code must consume `accessible_apps` directly. It must not map those ids back into
+local permission strings.
 
 ## Migration Plan
 
@@ -199,9 +195,9 @@ map those ids back into local permission strings.
   `deny_permissions`.
 - Remove direct grant/deny editing from normal organization-admin UX.
 
-### Phase 2: Expose Resolved App/Surface Access
+### Phase 2: Expose Resolved App/Section Access
 
-- Return `accessible_apps` and `accessible_surfaces` from shell-access endpoints.
+- Return `accessible_apps` from shell-access endpoints.
 - Remove raw permission, policy-id, direct grant, and direct deny fields from the normal
   shell-access read response.
 
@@ -235,7 +231,7 @@ Required documentation updates:
 - `docs/access-control/README.md`: explain resolved shell access as app/surface visualization
   access, not generic backend RBAC.
 - `docs/auth/backend-and-auth.md`: update the shell-access contract examples to show
-  `accessible_apps` and `accessible_surfaces`.
+  `accessible_apps`.
 - `src/extensions/core/apps/access-rbac/README.md`: document that the Access & RBAC UI is read-only
   for shell-access assignment and only inspects resolved access.
 - `extensions/command_center_docs/content/organization-admin/rbac.md`: update organization-admin
@@ -285,14 +281,14 @@ visibility and to keep app/surface access consistent across sessions and devices
 ## Implementation Tasks
 
 - [x] Resolve shell-access app/surface visibility from the active backend shell catalog.
-- [x] Return `accessible_apps` and `accessible_surfaces` from shell-access endpoints.
+- [x] Return `accessible_apps` from shell-access endpoints.
 - [x] Remove legacy policy, grant, deny, and `effective_permissions` fields from the normal
   shell-access read response.
 - [x] Remove the policy editor from Access & RBAC navigation.
 - [x] Remove direct grant/deny editing from normal organization-admin UX.
 - [x] Redesign the inspector around read-only apps and surfaces.
 - [x] Gate shell apps, surfaces, Settings routes, search, favorites, and shell menu contributions
-  from backend `accessible_apps` / `accessible_surfaces`.
+  from backend `accessible_apps`.
 - [x] Remove frontend role/group/policy derivation for shell visibility.
 - [x] Remove app/surface `requiredPermissions` metadata from the app registry.
 - [x] Verify no Teams, team membership, workspace sharing, object sharing, or resource sharing

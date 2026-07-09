@@ -91,7 +91,7 @@ export function MainSequenceScalableServicesPage() {
   }
 
   if (!isDetailOpen) {
-    return <Navigate to={getAppPath("main_sequence_workbench", "projects")} replace />;
+    return <Navigate to={getAppPath("main-sequence-foundry", "projects")} replace />;
   }
 
   return (

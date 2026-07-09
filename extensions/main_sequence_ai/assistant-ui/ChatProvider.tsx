@@ -841,6 +841,7 @@ export function ChatProvider({
   const hasAppliedAvailableModelsRef = useRef(false);
   const commandCenterBootstrapRequestRef = useRef<AbortController | null>(null);
   const commandCenterBootstrapAttemptKeyRef = useRef<string | null>(null);
+  const commandCenterRailBootstrapKeyRef = useRef<string | null>(null);
   const sessionModelPatchRequestRef = useRef<AbortController | null>(null);
   const directLaunchSessionIdRef = useRef<string | null>(null);
   const commandCenterSessionIdRef = useRef<string | null>(null);
@@ -1030,6 +1031,14 @@ export function ChatProvider({
     () => findCommandCenterBaseSessionId(agentSessions),
     [agentSessions],
   );
+  const shouldResolveCommandCenterRailSession =
+    !isEmbeddedProjectAgent &&
+    location.pathname !== CHAT_PAGE_PATH &&
+    isRailOpen &&
+    !isProjectAgentRail &&
+    !commandCenterBaseSessionId;
+  const shouldAvoidLatestSessionAutoSelection =
+    shouldAvoidImplicitSessionSelection || shouldResolveCommandCenterRailSession;
   const selectedSession = useMemo(
     () => agentSessions.find((session) => session.id === currentSessionId) ?? null,
     [agentSessions, currentSessionId],
@@ -1789,7 +1798,7 @@ export function ChatProvider({
           } else if (
             !currentSession &&
             sessionSelectionModeRef.current !== "explicit" &&
-            !shouldAvoidImplicitSessionSelection
+            !shouldAvoidLatestSessionAutoSelection
           ) {
             setCurrentSessionId(nextSessions[0]?.id ?? null);
           } else if (
@@ -1833,7 +1842,7 @@ export function ChatProvider({
     sessionUserUid,
     shouldHydrateChatRuntime,
     shouldSuppressDirectLaunchRuntimePrefetch,
-    shouldAvoidImplicitSessionSelection,
+    shouldAvoidLatestSessionAutoSelection,
     requestedChatSessionId,
   ]);
 
@@ -1935,9 +1944,9 @@ export function ChatProvider({
       isEmbeddedProjectAgent ||
       location.pathname === CHAT_PAGE_PATH ||
       !isRailOpen ||
-      isProjectAgentRail ||
-      agentSessions.length === 0
+      isProjectAgentRail
     ) {
+      commandCenterRailBootstrapKeyRef.current = null;
       return;
     }
 
@@ -1949,20 +1958,22 @@ export function ChatProvider({
         setSessionNotice(null);
         setCurrentSessionId(commandCenterBaseSessionId);
       }
-      return;
     }
+
+    const bootstrapKey = `${sessionUserUid ?? "anonymous"}:command-center-rail-open`;
 
     if (
       env.useMockData ||
       !sessionToken ||
       !sessionUserUid ||
       isCreatingAgentSession ||
-      latestSessionsError ||
-      commandCenterBootstrapRequestRef.current
+      commandCenterBootstrapRequestRef.current ||
+      commandCenterRailBootstrapKeyRef.current === bootstrapKey
     ) {
       return;
     }
 
+    commandCenterRailBootstrapKeyRef.current = bootstrapKey;
     const controller = new AbortController();
     commandCenterBootstrapRequestRef.current = controller;
     setIsCreatingAgentSession(true);
@@ -2014,7 +2025,6 @@ export function ChatProvider({
     isEmbeddedProjectAgent,
     isProjectAgentRail,
     isRailOpen,
-    latestSessionsError,
     location.pathname,
     sessionToken,
     sessionTokenType,

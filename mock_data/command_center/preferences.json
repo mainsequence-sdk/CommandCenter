@@ -2,8 +2,8 @@
   "language": "en",
   "themeId": "main-sequence-space",
   "favoriteSurfaceIds": [
-    "main_sequence_workbench:projects",
-    "main_sequence_workbench:streamlit",
+    "main-sequence-foundry:projects",
+    "main-sequence-foundry:streamlit",
     "workspace-studio:workspaces"
   ],
   "favoriteWorkspaceIds": [

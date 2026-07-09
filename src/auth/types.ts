@@ -8,7 +8,6 @@ export type AuthMode = "jwt" | "runtime_credential";
 
 export interface ShellAccess {
   accessibleApps: string[];
-  accessibleSurfaces: string[];
 }
 
 export interface OrganizationTeam {
