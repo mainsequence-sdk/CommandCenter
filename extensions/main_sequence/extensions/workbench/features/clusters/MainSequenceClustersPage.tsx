@@ -1,9 +1,10 @@
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Cloud, Loader2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
+import { getAppPath } from "@/apps/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -16,12 +17,20 @@ import {
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
+import {
+  MainSequenceClusterDetailPage,
+  mainSequenceClusterTabParam,
+  mainSequenceClusterUidParam,
+} from "./MainSequenceClusterDetailPage";
 
 export function MainSequenceClustersPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchValue, setSearchValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const deferredSearchValue = useDeferredValue(searchValue);
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const activeClusterUid = searchParams.get(mainSequenceClusterUidParam)?.trim() ?? "";
 
   const clustersQuery = useQuery({
     queryKey: ["main_sequence", "clusters", "list", pageIndex, deferredSearchValue.trim()],
@@ -49,7 +58,17 @@ export function MainSequenceClustersPage() {
   }, [clustersQuery.data?.pagination.total_pages, pageIndex]);
 
   function openClusterDetail(clusterUid: string) {
-    navigate(`/clusters/${encodeURIComponent(clusterUid)}`);
+    const nextParams = new URLSearchParams(location.search);
+    nextParams.set(mainSequenceClusterUidParam, clusterUid);
+    nextParams.set(mainSequenceClusterTabParam, "node_pools");
+    navigate({
+      pathname: getAppPath("main-sequence-foundry", "clusters"),
+      search: `?${nextParams.toString()}`,
+    });
+  }
+
+  if (activeClusterUid) {
+    return <MainSequenceClusterDetailPage clusterUid={activeClusterUid} />;
   }
 
   return (

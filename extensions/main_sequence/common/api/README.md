@@ -70,6 +70,10 @@
   and `listProjectLocalTimeSeries(...)` also forward page search strings to backend list
   endpoints so registry search is not limited to the currently loaded page. `listDataNodes(...)`
   maps UUID-shaped searches to the exact `uid` query param and leaves other text on `q`.
+- Cluster detail helpers use the pods API root. `fetchClusterPodLogs(...)` calls
+  `/orm/api/pods/cluster/{cluster_uid}/pod-logs/` with required `namespace` and `pod` query params
+  and returns the snapshot `logs` string for the cluster detail page to render through the shared
+  `LogTable`.
 - Markets positions helpers also live here. `fetchManagedAccountHoldingsPositionDetails(...)`
   adapts the canonical managed-account holdings collection endpoint
   `/api/v1/account/{uid}/holdings/` into the shared position-detail payload shape used by

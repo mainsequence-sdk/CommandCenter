@@ -20,6 +20,7 @@ vi.mock("@/dashboards/dashboard-request-trace", () => ({
 }));
 
 import {
+  bulkDeleteProjectDataSources,
   bulkDeleteJobs,
   deployAstroCommandCenterAgentService,
   deployProjectExecutorAgentService,
@@ -319,6 +320,23 @@ describe("project executor automatic deployment runs api", () => {
 
     expect(String(requestUrl)).toContain("/orm/api/pods/job/bulk-delete/");
     expect(body.selected_uids).toEqual(["job-uid-1", "job-uid-2"]);
+    expect(body.select_all).toBe(false);
+    expect(body.uids).toBeUndefined();
+  });
+
+  it("bulk deletes project data sources with selected_uids instead of the legacy uids body", async () => {
+    await bulkDeleteProjectDataSources({
+      uids: ["project-data-source-uid-1", "project-data-source-uid-2"],
+    });
+
+    const [requestUrl, requestInit] = fetchMock.mock.calls[0] ?? [];
+    const body = JSON.parse(String(requestInit?.body ?? "{}")) as Record<string, unknown>;
+
+    expect(String(requestUrl)).toContain("/orm/api/ts_manager/dynamic_table_data_source/bulk-delete/");
+    expect(body.selected_uids).toEqual([
+      "project-data-source-uid-1",
+      "project-data-source-uid-2",
+    ]);
     expect(body.select_all).toBe(false);
     expect(body.uids).toBeUndefined();
   });

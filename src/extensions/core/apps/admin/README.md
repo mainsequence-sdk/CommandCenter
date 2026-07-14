@@ -57,10 +57,21 @@ Current surfaces in this folder:
   open hosted-resource detail through
   `/orm/api/connections/mainsequence-hosted/billing/hosted-resources/databases/{allocation_uid}/`;
   direct physical data-source navigation belongs inside that detail view, not in the registry row.
-  The same modal shell must support create, allocation summary, edit/resize through PATCH,
-  failed-provisioning remediation by PATCH on the same allocation, explicit credential reveal and
-  rotate actions, cancellation at period end, and immediate delete through the detail payload action
-  paths. Detail may show passwordless connection and network-access information returned by the
+  Immediate delete is a per hosted resource action and must stay available from the registry row by
+  using the fixed `/{allocation_uid}/cancel-now/` route whenever the row has a hosted resource UID,
+  even if the list payload does not include an `actions.cancel_now` block.
+  Hosted-resource detail linked resources should be rendered as concept links where a detail surface
+  exists. `allocation_uid` is the Hosted resource UID. `data_source_uid` is the Connection data
+  source link. `dynamic_table_data_source_uid` is the Project data source link, not a wrapper label.
+  Do not invent a generic Resource detail link from the nested `resource` object.
+  Hosted database credentials are represented by `credential`; `credential.uid` is a hosted
+  credential reference and must not be linked to or displayed as a generic Secret. Reveal and
+  rotate buttons must come from `credential.actions.reveal` and `credential.actions.rotate`;
+  `secret_uid`, `actions.reveal_credentials`, and `actions.rotate_credentials` are not part of the
+  current hosted database response contract.
+  The same modal shell must support create, hosted resource summary, edit/resize through PATCH,
+  failed-provisioning remediation by PATCH on the same hosted resource, explicit credential reveal and
+  rotate actions, and immediate delete through the `cancel-now` endpoint. Detail may show passwordless connection and network-access information returned by the
   normal detail payload, but password-bearing credentials must only be revealed after the explicit
   `/credentials/reveal/` or `/credentials/rotate/` POST. The flow must not render or submit region
   selectors, backend provider fields, Azure SKU, meter IDs, server IDs, or other provider

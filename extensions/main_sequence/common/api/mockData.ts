@@ -4005,7 +4005,7 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
 
   if (route === "/orm/api/ts_manager/dynamic_table_data_source/bulk-delete/" && method === "POST") {
     const body = parseBody(init);
-    const uids = new Set(readArray<string>(body?.uids));
+    const uids = new Set(readArray<string>(body?.selected_uids));
     const before = state.projectDataSources.length;
     state.projectDataSources = state.projectDataSources.filter((item) => !uids.has(readString(item.uid)));
     return {
@@ -4333,6 +4333,31 @@ function handleClusters(route: string, method: string, searchParams: URLSearchPa
     };
   }
 
+  const podLogsMatch = route.match(/^\/cluster\/([^/]+)\/pod-logs\/$/);
+  if (podLogsMatch && method === "GET") {
+    const clusterUid = podLogsMatch[1] ?? "";
+    const namespace = searchParams.get("namespace") ?? "";
+    const pod = searchParams.get("pod") ?? "";
+    const tailLines = Number(searchParams.get("tail_lines") ?? 500);
+
+    return {
+      cluster_uid: clusterUid,
+      namespace,
+      pod,
+      container: searchParams.get("container"),
+      tail_lines: Number.isFinite(tailLines) ? tailLines : 500,
+      since_seconds: searchParams.get("since_seconds")
+        ? Number(searchParams.get("since_seconds"))
+        : null,
+      previous: searchParams.get("previous") === "true",
+      timestamps: searchParams.get("timestamps") !== "false",
+      logs: [
+        `${new Date().toISOString()} Mock pod log stream for ${namespace}/${pod}.`,
+        `${new Date().toISOString()} Request reached the cluster pod logs endpoint.`,
+      ].join("\n"),
+    };
+  }
+
   const clusterTabMatch = route.match(/^\/cluster\/([^/]+)\/(node-pools|nodes|namespaces|pods|deployments|services|storage|knative)\/$/);
   if (clusterTabMatch && method === "GET") {
     const cluster =
@@ -4438,6 +4463,12 @@ function handleSecrets(route: string, method: string, searchParams: URLSearchPar
   const detailMatch = route.match(/^\/secret\/([^/]+)\/$/);
   if (detailMatch && method === "GET") {
     return findByUid(state.secrets, detailMatch[1] ?? "");
+  }
+
+  if (detailMatch && method === "DELETE") {
+    const uid = detailMatch[1] ?? "";
+    state.secrets = state.secrets.filter((item) => readString(item.uid) !== uid);
+    return null;
   }
 
   return undefined;

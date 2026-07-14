@@ -413,10 +413,16 @@ export interface HostedManagedDatabaseActionSpec {
 
 export interface HostedManagedDatabaseActions {
   update?: HostedManagedDatabaseActionSpec;
-  reveal_credentials?: HostedManagedDatabaseActionSpec;
-  rotate_credentials?: HostedManagedDatabaseActionSpec;
-  cancel_at_period_end?: HostedManagedDatabaseActionSpec;
   cancel_now?: HostedManagedDatabaseActionSpec;
+}
+
+export interface HostedManagedDatabaseCredential {
+  uid?: string | null;
+  kind?: string | null;
+  actions?: {
+    reveal?: HostedManagedDatabaseActionSpec;
+    rotate?: HostedManagedDatabaseActionSpec;
+  };
 }
 
 export interface HostedManagedDatabaseFailure {
@@ -431,7 +437,7 @@ export interface HostedManagedDatabaseAllocation extends Record<string, unknown>
   data_source_uid?: string | null;
   dynamic_table_data_source_uid?: string | null;
   connection_uid?: string | null;
-  secret_uid?: string | null;
+  credential?: HostedManagedDatabaseCredential | null;
   display_name?: string;
   status?: string;
   resource_plan_code?: string;
@@ -443,7 +449,6 @@ export interface HostedManagedDatabaseAllocation extends Record<string, unknown>
   billing_interval?: string;
   current_period_start?: string;
   current_period_end?: string;
-  cancel_at_period_end?: boolean;
   cancelled_at?: string | null;
   resource?: {
     uid?: string | null;
@@ -530,7 +535,7 @@ export interface HostedManagedDatabaseCreateResponse {
   allocation_uid: string;
   data_source_uid: string;
   connection_uid?: string | null;
-  secret_uid?: string | null;
+  credential?: HostedManagedDatabaseCredential | null;
   display_name: string;
   extensions: string[];
   status: string;
@@ -570,7 +575,7 @@ export interface HostedManagedDatabaseProvisioningFailedErrorPayload {
 export interface HostedManagedDatabaseCredentialsRevealResponse {
   allocation_uid: string;
   connection_uid?: string | null;
-  secret_uid?: string | null;
+  credential?: HostedManagedDatabaseCredential | null;
   host: string;
   port: number;
   database: string;
@@ -1037,6 +1042,10 @@ export function updateHostedManagedDatabase(
   );
 }
 
+export function buildHostedManagedDatabaseCancelNowPath(allocationUid: string) {
+  return `${hostedManagedDatabasesBasePath}${encodeURIComponent(allocationUid)}/cancel-now/`;
+}
+
 export function revealHostedManagedDatabaseCredentials(path: string) {
   return requestAdminJson<HostedManagedDatabaseCredentialsRevealResponse>(path, {
     method: "POST",
@@ -1045,12 +1054,6 @@ export function revealHostedManagedDatabaseCredentials(path: string) {
 
 export function rotateHostedManagedDatabaseCredentials(path: string) {
   return requestAdminJson<HostedManagedDatabaseCredentialsRevealResponse>(path, {
-    method: "POST",
-  });
-}
-
-export function cancelHostedManagedDatabaseAtPeriodEnd(path: string) {
-  return requestAdminJson<unknown>(path, {
     method: "POST",
   });
 }

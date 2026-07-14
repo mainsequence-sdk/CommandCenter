@@ -1,4 +1,4 @@
-import { Navigate, createBrowserRouter, useParams } from "react-router-dom";
+import { Navigate, createBrowserRouter, useLocation, useParams } from "react-router-dom";
 
 import { PermissionRoute } from "@/app/guards/PermissionRoute";
 import { ProtectedRoute } from "@/app/guards/ProtectedRoute";
@@ -23,7 +23,6 @@ import { LegacyDemoRedirect } from "../../extensions/demo/LegacyDemoRedirect";
 import { MainSequenceAssetCategoryDetailPage } from "../../extensions/main_sequence/extensions/markets/features/asset-categories/MainSequenceAssetCategoryDetailPage";
 import { MainSequenceManagedAccountDetailPage } from "../../extensions/main_sequence/extensions/markets/features/managed-accounts/MainSequenceManagedAccountDetailPage";
 import { MainSequencePortfolioGroupDetailPage } from "../../extensions/main_sequence/extensions/markets/features/portfolio-groups/MainSequencePortfolioGroupDetailPage";
-import { MainSequenceClusterDetailPage } from "../../extensions/main_sequence/extensions/workbench/features/clusters/MainSequenceClusterDetailPage";
 import { CHAT_PAGE_PATH } from "../../extensions/main_sequence_ai/assistant-ui/chat-ui-store";
 
 function LegacyWidgetDetailsRedirect() {
@@ -32,6 +31,57 @@ function LegacyWidgetDetailsRedirect() {
   return (
     <Navigate
       to={`/app/workspace-studio/widget-catalog/${encodeURIComponent(widgetId)}`}
+      replace
+    />
+  );
+}
+
+function LegacyClusterDetailRedirect() {
+  const { clusterUid = "" } = useParams();
+  const searchParams = new URLSearchParams();
+
+  if (clusterUid) {
+    searchParams.set("msClusterUid", clusterUid);
+  }
+
+  return (
+    <Navigate
+      to={`/app/main-sequence-foundry/clusters${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`}
+      replace
+    />
+  );
+}
+
+function LegacyClusterPodLogsRedirect() {
+  const { clusterUid = "", podName = "" } = useParams();
+  const location = useLocation();
+  const currentSearchParams = new URLSearchParams(location.search);
+  const searchParams = new URLSearchParams();
+  const namespace = currentSearchParams.get("namespace");
+  const container = currentSearchParams.get("container");
+
+  if (clusterUid) {
+    searchParams.set("msClusterUid", clusterUid);
+  }
+
+  searchParams.set("msClusterTab", "pods");
+
+  if (podName) {
+    searchParams.set("msClusterPodName", podName);
+  }
+
+  if (namespace) {
+    searchParams.set("namespace", namespace);
+    searchParams.set("msClusterPodNamespace", namespace);
+  }
+
+  if (container) {
+    searchParams.set("msClusterPodContainer", container);
+  }
+
+  return (
+    <Navigate
+      to={`/app/main-sequence-foundry/clusters?${searchParams.toString()}`}
       replace
     />
   );
@@ -173,22 +223,16 @@ export const router = createBrowserRouter([
     ],
   },
   {
+    path: "/clusters/:clusterUid/pods/:podName/logs",
+    element: <LegacyClusterPodLogsRedirect />,
+  },
+  {
+    path: "/clusters/:clusterUid/pods/:podName/logs/",
+    element: <LegacyClusterPodLogsRedirect />,
+  },
+  {
     path: "/clusters/:clusterUid",
-    element: (
-      <ProtectedRoute>
-        <AppShell />
-      </ProtectedRoute>
-    ),
-    children: [
-      {
-        index: true,
-        element: (
-          <PermissionRoute anyOf={["main_sequence_foundry:view"]}>
-            <MainSequenceClusterDetailPage />
-          </PermissionRoute>
-        ),
-      },
-    ],
+    element: <LegacyClusterDetailRedirect />,
   },
   {
     path: "*",

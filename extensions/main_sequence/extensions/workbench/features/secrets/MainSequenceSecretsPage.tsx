@@ -1,9 +1,10 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, KeyRound, Loader2, Plus } from "lucide-react";
+import { ArrowLeft, KeyRound, Loader2, Plus, Trash2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
+import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,7 @@ import { useToast } from "@/components/ui/toaster";
 
 import {
   createSecret,
+  deleteSecret,
   fetchSecret,
   formatMainSequenceError,
   listSecrets,
@@ -42,6 +44,7 @@ export function MainSequenceSecretsPage() {
   const [filterValue, setFilterValue] = useState("");
   const [secretsPageIndex, setSecretsPageIndex] = useState(0);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [secretName, setSecretName] = useState("");
   const [secretValue, setSecretValue] = useState("");
   const [selectedDetailTabId, setSelectedDetailTabId] = useState<SecretDetailTabId>("overview");
@@ -121,6 +124,14 @@ export function MainSequenceSecretsPage() {
     },
   });
 
+  const deleteSecretMutation = useMutation({
+    mutationFn: deleteSecret,
+  });
+
+  useEffect(() => {
+    setDeleteDialogOpen(false);
+  }, [selectedSecretUid]);
+
   function updateSearchParams(update: (nextParams: URLSearchParams) => void) {
     const nextParams = new URLSearchParams(location.search);
     update(nextParams);
@@ -162,10 +173,24 @@ export function MainSequenceSecretsPage() {
             <span>/</span>
             <span className="text-foreground">{secretTitle}</span>
           </div>
-          <Button variant="outline" size="sm" onClick={closeSecretDetail}>
-            <ArrowLeft className="h-4 w-4" />
-            Back to secrets
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => {
+                deleteSecretMutation.reset();
+                setDeleteDialogOpen(true);
+              }}
+              disabled={!selectedSecret || deleteSecretMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete secret
+            </Button>
+            <Button variant="outline" size="sm" onClick={closeSecretDetail}>
+              <ArrowLeft className="h-4 w-4" />
+              Back to secrets
+            </Button>
+          </div>
         </div>
 
         {secretDetailQuery.isLoading && !selectedSecret ? (
@@ -252,6 +277,54 @@ export function MainSequenceSecretsPage() {
               )}
             </CardContent>
           </Card>
+        ) : null}
+
+        {selectedSecret ? (
+          <ActionConfirmationDialog
+            open={deleteDialogOpen}
+            title="Delete secret"
+            actionLabel="delete"
+            objectLabel="secret"
+            objectSummary={
+              <div className="space-y-1">
+                <div className="font-medium text-foreground">{selectedSecret.name}</div>
+                <div className="font-mono text-xs text-muted-foreground">{selectedSecret.uid}</div>
+              </div>
+            }
+            specialText="This deletes the secret record. Any project, job, or runtime that depends on this secret may stop working."
+            confirmWord="DELETE"
+            confirmButtonLabel="Delete secret"
+            isPending={deleteSecretMutation.isPending}
+            error={
+              deleteSecretMutation.isError
+                ? formatMainSequenceError(deleteSecretMutation.error)
+                : undefined
+            }
+            errorToast={{
+              title: "Secret deletion failed",
+              description: (error) => formatMainSequenceError(error),
+              variant: "error",
+            }}
+            successToast={{
+              title: "Secret deleted",
+              description: `${selectedSecret.name} was deleted.`,
+              variant: "success",
+            }}
+            onClose={() => {
+              if (!deleteSecretMutation.isPending) {
+                setDeleteDialogOpen(false);
+              }
+            }}
+            onConfirm={() => deleteSecretMutation.mutateAsync(selectedSecret.uid)}
+            onSuccess={async () => {
+              await queryClient.invalidateQueries({
+                queryKey: ["main_sequence", "secrets"],
+              });
+              setDeleteDialogOpen(false);
+              closeSecretDetail();
+            }}
+            tone="danger"
+          />
         ) : null}
       </div>
     );

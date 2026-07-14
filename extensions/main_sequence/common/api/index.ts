@@ -1669,6 +1669,30 @@ export interface ClusterPodRow {
   age?: string | null;
 }
 
+export interface ClusterPodLogsQuery {
+  namespace: string;
+  pod: string;
+  container?: string | null;
+  tail_lines?: number;
+  since_seconds?: number | null;
+  previous?: boolean;
+  follow?: boolean;
+  timestamps?: boolean;
+  stream_timeout_seconds?: number;
+}
+
+export interface ClusterPodLogsResponse {
+  cluster_uid: string;
+  namespace: string;
+  pod: string;
+  container: string | null;
+  tail_lines: number;
+  since_seconds: number | null;
+  previous: boolean;
+  timestamps: boolean;
+  logs: string;
+}
+
 export interface ScalableServicePodRow {
   id: number;
   uid: string;
@@ -6985,7 +7009,7 @@ export function bulkDeleteProjectDataSources(input: ProjectDataSourceBulkDeleteI
     {
       method: "POST",
       body: JSON.stringify({
-        uids: input.uids,
+        selected_uids: input.uids,
         select_all: input.selectAll ?? false,
         search: input.search?.trim() || undefined,
       }),
@@ -7452,6 +7476,38 @@ export async function listClusterPods(
   return normalizeListResponse(payload);
 }
 
+export function fetchClusterPodLogs(
+  clusterUid: string,
+  {
+    namespace,
+    pod,
+    container,
+    tail_lines,
+    since_seconds,
+    previous,
+    follow = false,
+    timestamps = true,
+    stream_timeout_seconds,
+  }: ClusterPodLogsQuery,
+) {
+  return requestJson<ClusterPodLogsResponse>(
+    commandCenterConfig.mainSequence.endpoint,
+    `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/pod-logs/`,
+    undefined,
+    {
+      namespace: namespace.trim(),
+      pod: pod.trim(),
+      container: container?.trim() || undefined,
+      tail_lines,
+      since_seconds,
+      previous,
+      follow,
+      timestamps,
+      stream_timeout_seconds,
+    },
+  );
+}
+
 export async function listClusterDeployments(
   clusterUid: string,
   {
@@ -7670,6 +7726,16 @@ export function createSecret(input: CreateSecretInput) {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function deleteSecret(secretUid: string) {
+  return requestJson<null>(
+    commandCenterConfig.mainSequence.endpoint,
+    `secret/${resolveMainSequenceUidPath(secretUid, "secret")}/`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export async function listBuckets({

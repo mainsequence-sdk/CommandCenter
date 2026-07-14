@@ -28,7 +28,7 @@ import { resolvePhysicalDataSourceIcon } from "../../../../../extensions/main_se
 
 import {
   AdminRequestError,
-  cancelHostedManagedDatabaseAtPeriodEnd,
+  buildHostedManagedDatabaseCancelNowPath,
   cancelHostedManagedDatabaseNow,
   createHostedManagedDatabase,
   getHostedManagedDatabase,
@@ -100,15 +100,11 @@ interface ManagedDatabasePatchPreview {
 }
 
 type ManagedDatabaseDialogMode = "create" | "summary" | "edit";
-type ManagedDatabaseConfirmationAction =
-  | {
-      kind: "cancel_at_period_end";
-      path: string;
-    }
-  | {
-      kind: "cancel_now";
-      path: string;
-    };
+type ManagedDatabaseConfirmationAction = {
+  kind: "cancel_now";
+  path: string;
+  databaseName: string;
+};
 
 const emptyFormState: ManagedDatabaseFormState = {
   displayName: "",
@@ -207,14 +203,6 @@ function readStatus(record: HostedManagedDatabaseAllocation) {
     };
   }
 
-  if (status === "cancel_pending" || record.cancel_at_period_end) {
-    return {
-      label: "Cancels at period end",
-      variant: "warning" as const,
-      detail: `Paid through ${formatDateTime(record.current_period_end)}.`,
-    };
-  }
-
   if (status === "cancelled") {
     return { label: "Cancelled", variant: "neutral" as const, detail: "Cancelled." };
   }
@@ -266,7 +254,7 @@ function readDataSourceUid(record: HostedManagedDatabaseAllocation | null | unde
     return "";
   }
 
-  return record.dynamic_table_data_source_uid ?? record.data_source_uid ?? "";
+  return record.data_source_uid ?? "";
 }
 
 function readPostgresVersion(record: HostedManagedDatabaseAllocation | null | undefined) {
@@ -330,18 +318,57 @@ function readNetworkingMode(record: HostedManagedDatabaseAllocation | null | und
 }
 
 function DetailField({
+  className,
+  href,
   label,
+  valueClassName,
   value,
 }: {
+  className?: string;
+  href?: string;
   label: string;
+  valueClassName?: string;
   value: string;
 }) {
   return (
-    <div className="space-y-1 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2.5">
+    <div
+      className={[
+        "min-w-0 space-y-1 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-2.5",
+        className ?? "",
+      ].join(" ")}
+    >
       <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
-      <div className="text-sm text-foreground">{value}</div>
+      {href && value !== "—" ? (
+        <a
+          className="inline-flex max-w-full items-center gap-1.5 font-mono text-sm text-primary underline-offset-4 hover:underline"
+          href={href}
+        >
+          <span className="truncate">{value}</span>
+          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+        </a>
+      ) : (
+        <div className={valueClassName ?? "break-words text-sm text-foreground"}>{value}</div>
+      )}
     </div>
   );
+}
+
+function buildConnectionDetailHref(connectionUid?: string | null) {
+  return connectionUid
+    ? `/app/connections/data-sources?connectionUid=${encodeURIComponent(connectionUid)}`
+    : "";
+}
+
+function buildPhysicalDataSourceDetailHref(dataSourceUid?: string | null) {
+  return dataSourceUid
+    ? `/app/main-sequence-foundry/physical-data-sources?msPhysicalDataSourceUid=${encodeURIComponent(dataSourceUid)}`
+    : "";
+}
+
+function buildProjectDataSourceDetailHref(projectDataSourceUid?: string | null) {
+  return projectDataSourceUid
+    ? `/app/main-sequence-foundry/project-data-sources?msProjectDataSourceUid=${encodeURIComponent(projectDataSourceUid)}`
+    : "";
 }
 
 function readDescription(record: HostedManagedDatabaseAllocation | null | undefined) {
@@ -380,6 +407,34 @@ function resolveExtensionIcon(extension: HostedManagedDatabaseExtensionOption) {
   }
 
   return null;
+}
+
+function readExtensionProductTitle(extension: HostedManagedDatabaseExtensionOption) {
+  const code = extension.code.trim().toLowerCase();
+
+  if (code === "timescaledb" || code === "timescale_db") {
+    return "TimescaleDB";
+  }
+
+  return extension.label;
+}
+
+function readExtensionProductDescription(extension: HostedManagedDatabaseExtensionOption) {
+  const code = extension.code.trim().toLowerCase();
+
+  if (code === "timescaledb" || code === "timescale_db") {
+    return "Time-series PostgreSQL with hypertables, retention policies, compression, and SQL-first analytics for metrics and event workloads.";
+  }
+
+  if (extension.unavailable_detail?.trim()) {
+    return extension.unavailable_detail.trim();
+  }
+
+  if (extension.unavailable_reason?.trim()) {
+    return extension.unavailable_reason.trim();
+  }
+
+  return "Managed PostgreSQL extension.";
 }
 
 function computeTierOptions(catalog: HostedManagedDatabaseCatalogResponse | undefined) {
@@ -854,22 +909,6 @@ function readEditSubmitLabel(record: HostedManagedDatabaseAllocation | null | un
   return "Save changes";
 }
 
-function formatCancellationState(record: HostedManagedDatabaseAllocation | null | undefined) {
-  if (!record) {
-    return "—";
-  }
-
-  if (record.cancel_at_period_end) {
-    return `Scheduled for ${formatDateTime(record.current_period_end)}`;
-  }
-
-  if (String(record.status ?? "").trim().toLowerCase() === "cancelled") {
-    return "Cancelled";
-  }
-
-  return "Active";
-}
-
 function isTransitionalHostedStatus(status: string | undefined | null) {
   const normalized = String(status ?? "").trim().toLowerCase();
   return [
@@ -1069,9 +1108,11 @@ export function AdminHostedResourcesPage() {
   const detailRecord = detailQuery.data ?? selectedListRecord;
   const detailStatus = detailRecord ? readStatus(detailRecord) : null;
   const detailDataSourceUid = readDataSourceUid(detailRecord);
-  const detailDataSourceHref = detailDataSourceUid
-    ? `/app/main-sequence-foundry/physical-data-sources?msPhysicalDataSourceUid=${encodeURIComponent(detailDataSourceUid)}`
-    : "";
+  const detailConnectionUid = detailRecord?.connection_uid ?? detailRecord?.connection?.uid ?? null;
+  const detailProjectDataSourceUid = detailRecord?.dynamic_table_data_source_uid ?? null;
+  const detailConnectionHref = buildConnectionDetailHref(detailConnectionUid);
+  const detailDataSourceHref = buildPhysicalDataSourceDetailHref(detailDataSourceUid);
+  const detailProjectDataSourceHref = buildProjectDataSourceDetailHref(detailProjectDataSourceUid);
   const patchPreview = calculatePatchPreview(catalog, detailRecord, priceEstimate);
   const pricingAvailable = catalog?.pricing?.available === true;
   const formSubmitDisabledReason = getFormSubmitDisabledReason(
@@ -1161,7 +1202,7 @@ export function AdminHostedResourcesPage() {
   const updateMutation = useMutation({
     mutationFn: (payload: HostedManagedDatabasePatchInput) => {
       if (!selectedAllocationUid) {
-        throw new Error("Managed database allocation uid is required.");
+        throw new Error("Managed database UID is required.");
       }
 
       return updateHostedManagedDatabase(selectedAllocationUid, payload);
@@ -1236,34 +1277,6 @@ export function AdminHostedResourcesPage() {
       });
     },
   });
-  const cancelAtPeriodEndMutation = useMutation({
-    mutationFn: (path: string) => cancelHostedManagedDatabaseAtPeriodEnd(path),
-    onSuccess: async () => {
-      if (selectedAllocationUid) {
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: hostedDatabaseQueryKeys.databases }),
-          queryClient.invalidateQueries({
-            queryKey: hostedDatabaseQueryKeys.detail(selectedAllocationUid),
-          }),
-        ]);
-      } else {
-        await queryClient.invalidateQueries({ queryKey: hostedDatabaseQueryKeys.databases });
-      }
-      setConfirmationAction(null);
-      toast({
-        variant: "success",
-        title: "Cancellation scheduled",
-        description: "The managed database will cancel at the current period end.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: "error",
-        title: "Cancellation failed",
-        description: formatAdminError(error),
-      });
-    },
-  });
   const cancelNowMutation = useMutation({
     mutationFn: (path: string) => cancelHostedManagedDatabaseNow(path),
     onSuccess: async () => {
@@ -1294,7 +1307,6 @@ export function AdminHostedResourcesPage() {
     updateMutation.isPending ||
     revealCredentialsMutation.isPending ||
     rotateCredentialsMutation.isPending ||
-    cancelAtPeriodEndMutation.isPending ||
     cancelNowMutation.isPending;
 
   function updateForm(patch: Partial<ManagedDatabaseFormState>) {
@@ -1381,10 +1393,13 @@ export function AdminHostedResourcesPage() {
     }
 
     const updateActionLabel = readConfigurationActionLabel(detailRecord);
-    const revealCredentialsPath = detailRecord.actions?.reveal_credentials?.path ?? "";
-    const rotateCredentialsPath = detailRecord.actions?.rotate_credentials?.path ?? "";
-    const cancelAtPeriodEndPath = detailRecord.actions?.cancel_at_period_end?.path ?? "";
-    const cancelNowPath = detailRecord.actions?.cancel_now?.path ?? "";
+    const revealCredentialsPath = detailRecord.credential?.actions?.reveal?.path ?? "";
+    const rotateCredentialsPath = detailRecord.credential?.actions?.rotate?.path ?? "";
+    const cancelNowPath =
+      detailRecord.actions?.cancel_now?.path ??
+      (readAllocationUid(detailRecord)
+        ? buildHostedManagedDatabaseCancelNowPath(readAllocationUid(detailRecord))
+        : "");
 
     return (
       <div className="space-y-5">
@@ -1397,7 +1412,7 @@ export function AdminHostedResourcesPage() {
                 <div className="mt-1">{detailRecord.failure.detail}</div>
                 {canRemediateFailure(detailRecord) ? (
                   <div className="mt-2 text-xs text-danger/90">
-                    Update the configuration and submit it again to redeploy this allocation.
+                    Update the configuration and submit it again to redeploy this hosted resource.
                   </div>
                 ) : null}
               </div>
@@ -1423,16 +1438,23 @@ export function AdminHostedResourcesPage() {
         </div>
 
         <div className="space-y-3">
-          <div className="text-sm font-medium text-foreground">Identifiers</div>
+          <div className="text-sm font-medium text-foreground">Linked resources</div>
           <div className="grid gap-3 md:grid-cols-2">
-            <DetailField label="Allocation UID" value={readAllocationUid(detailRecord) || "—"} />
-            <DetailField label="Resource UID" value={detailRecord.resource?.uid ?? "—"} />
-            <DetailField label="Connection UID" value={detailRecord.connection_uid ?? "—"} />
-            <DetailField label="Secret UID" value={detailRecord.secret_uid ?? "—"} />
-            <DetailField label="Data source UID" value={detailRecord.data_source_uid ?? "—"} />
+            <DetailField label="Hosted resource UID" value={readAllocationUid(detailRecord) || "—"} />
             <DetailField
-              label="Wrapper data source UID"
-              value={detailRecord.dynamic_table_data_source_uid ?? "—"}
+              href={detailConnectionHref}
+              label="Connection"
+              value={detailConnectionUid ?? "—"}
+            />
+            <DetailField
+              href={detailDataSourceHref}
+              label="Connection data source"
+              value={detailDataSourceUid ?? "—"}
+            />
+            <DetailField
+              href={detailProjectDataSourceHref}
+              label="Project data source"
+              value={detailProjectDataSourceUid ?? "—"}
             />
           </div>
         </div>
@@ -1468,7 +1490,12 @@ export function AdminHostedResourcesPage() {
           <div className="space-y-3">
             <div className="text-sm font-medium text-foreground">Connection</div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              <DetailField label="Host" value={detailRecord.connection.host ?? "—"} />
+              <DetailField
+                className="md:col-span-2"
+                label="Host"
+                value={detailRecord.connection.host ?? "—"}
+                valueClassName="break-all font-mono text-xs leading-5 text-foreground"
+              />
               <DetailField
                 label="Port"
                 value={
@@ -1482,8 +1509,10 @@ export function AdminHostedResourcesPage() {
               <DetailField label="SSL mode" value={detailRecord.connection.ssl_mode ?? "—"} />
               <DetailField label="Default schema" value={detailRecord.connection.default_schema ?? "—"} />
               <DetailField
+                className="md:col-span-2 xl:col-span-3"
                 label="Connection URL"
                 value={detailRecord.connection.connection_url ?? "—"}
+                valueClassName="break-all font-mono text-xs leading-5 text-foreground"
               />
             </div>
           </div>
@@ -1497,26 +1526,40 @@ export function AdminHostedResourcesPage() {
               dialog when you are done.
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              <DetailField label="Host" value={revealedCredentials.host} />
+              <DetailField
+                className="md:col-span-2"
+                label="Host"
+                value={revealedCredentials.host}
+                valueClassName="break-all font-mono text-xs leading-5 text-foreground"
+              />
               <DetailField label="Port" value={String(revealedCredentials.port)} />
               <DetailField label="Database" value={revealedCredentials.database} />
               <DetailField label="Username" value={revealedCredentials.username} />
               <DetailField label="SSL mode" value={revealedCredentials.ssl_mode} />
               <DetailField label="Default schema" value={revealedCredentials.default_schema} />
-              <DetailField label="Password" value={revealedCredentials.password} />
-              <DetailField label="Connection URL" value={revealedCredentials.connection_url} />
+              <DetailField
+                className="md:col-span-2 xl:col-span-3"
+                label="Password"
+                value={revealedCredentials.password}
+                valueClassName="break-all font-mono text-xs leading-5 text-foreground"
+              />
+              <DetailField
+                className="md:col-span-2 xl:col-span-3"
+                label="Connection URL"
+                value={revealedCredentials.connection_url}
+                valueClassName="break-all font-mono text-xs leading-5 text-foreground"
+              />
             </div>
           </div>
         ) : null}
 
         <div className="space-y-3">
-          <div className="text-sm font-medium text-foreground">Allocation</div>
+          <div className="text-sm font-medium text-foreground">Billing and status</div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <DetailField label="Operational status" value={detailRecord.status ?? "—"} />
             <DetailField label="Billing status" value={detailRecord.billing_status ?? "—"} />
             <DetailField label="Monthly price" value={readMonthlyPrice(detailRecord)} />
             <DetailField label="Paid through" value={formatDateTime(detailRecord.current_period_end)} />
-            <DetailField label="Cancellation" value={formatCancellationState(detailRecord)} />
             <DetailField label="Current period start" value={formatDateTime(detailRecord.current_period_start)} />
             <DetailField label="Current period end" value={formatDateTime(detailRecord.current_period_end)} />
             <DetailField
@@ -1569,30 +1612,6 @@ export function AdminHostedResourcesPage() {
               Rotate password
             </Button>
           ) : null}
-          {detailDataSourceUid ? (
-            <a
-              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[calc(var(--radius)-5px)] border border-border bg-card/80 px-3 py-1.5 text-sm font-medium text-card-foreground transition-all hover:bg-muted/60"
-              href={detailDataSourceHref}
-            >
-              Open data source
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          ) : null}
-          {cancelAtPeriodEndPath && !detailRecord.cancel_at_period_end ? (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setConfirmationAction({
-                  kind: "cancel_at_period_end",
-                  path: cancelAtPeriodEndPath,
-                });
-              }}
-              disabled={anyMutationPending}
-            >
-              <XCircle className="h-4 w-4" />
-              Cancel at period end
-            </Button>
-          ) : null}
           {cancelNowPath ? (
             <Button
               variant="danger"
@@ -1600,6 +1619,7 @@ export function AdminHostedResourcesPage() {
                 setConfirmationAction({
                   kind: "cancel_now",
                   path: cancelNowPath,
+                  databaseName: readDatabaseTitle(detailRecord),
                 });
               }}
               disabled={anyMutationPending}
@@ -1630,7 +1650,7 @@ export function AdminHostedResourcesPage() {
         }
         description={
           dialogMode === "summary"
-            ? "Review the hosted managed database allocation, billing state, and linked data-source details."
+            ? "Review the hosted managed database resource, billing state, and linked data-source details."
             : dialogMode === "edit"
               ? "Update the hosted managed database configuration and review the prorated change before submitting."
               : "Choose the database type, select available extensions, configure resources, and review the monthly price before creation."
@@ -1640,60 +1660,87 @@ export function AdminHostedResourcesPage() {
         {dialogMode !== "summary" ? (
         <div className="space-y-5">
           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 p-4">
-            <div className="mb-4 text-sm font-medium text-foreground">Database type</div>
-            <div className="grid gap-4 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-              <div className="space-y-2">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                  Database
-                </div>
-                <div className="flex h-8 items-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-3 text-sm text-foreground">
-                  PostgreSQL
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-foreground">Managed database product</div>
+                <div className="text-sm text-muted-foreground">
+                  Choose the extension first. That is the primary product the database will be provisioned with.
                 </div>
               </div>
-              <div className="space-y-2">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Extensions</div>
-                <div className="flex min-h-8 flex-wrap items-center gap-2">
-                  {availableExtensions.map((extension) => {
-                    const checked = form.extensions.includes(extension.code);
-                    const available = extension.available !== false;
-                    const extensionIcon = resolveExtensionIcon(extension);
+              <div className="grid gap-3 md:grid-cols-2">
+                {availableExtensions.map((extension) => {
+                  const checked = form.extensions.includes(extension.code);
+                  const available = extension.available !== false;
+                  const extensionIcon = resolveExtensionIcon(extension);
 
-                    return (
-                      <div key={extension.code} className="space-y-1">
-                        <button
-                          type="button"
-                          className={[
-                            "rounded-[calc(var(--radius)-6px)] border px-3 py-1.5 text-sm transition-colors",
-                            checked
-                              ? "border-primary/50 bg-primary/10 text-foreground"
-                              : "border-border/70 bg-background/35 text-muted-foreground hover:text-foreground",
-                            !available ? "cursor-not-allowed opacity-55" : "",
-                          ].join(" ")}
-                          disabled={!available || anyMutationPending || isEditMode}
-                          onClick={() => {
-                            updateForm({
-                              extensions: checked
-                                ? form.extensions.filter((code) => code !== extension.code)
-                                : [...form.extensions, extension.code],
-                            });
-                          }}
-                        >
-                          {extensionIcon ? (
-                            <img src={extensionIcon} alt="" className="mr-1.5 inline h-4 w-4 object-contain" />
-                          ) : null}
-                          {extension.label}
-                        </button>
-                        {!available && (extension.unavailable_reason || extension.unavailable_detail) ? (
-                          <div className="max-w-xs text-xs text-muted-foreground">
-                            {extension.unavailable_detail ?? extension.unavailable_reason}
+                  return (
+                    <button
+                      key={extension.code}
+                      type="button"
+                      className={[
+                        "flex min-h-[132px] flex-col items-start gap-3 rounded-[calc(var(--radius)-4px)] border px-4 py-4 text-left transition-colors",
+                        checked
+                          ? "border-primary/50 bg-primary/10 shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_38%,transparent)]"
+                          : "border-border/70 bg-background/30 hover:border-primary/25 hover:bg-background/45",
+                        !available ? "cursor-not-allowed opacity-55" : "",
+                      ].join(" ")}
+                      disabled={!available || anyMutationPending || isEditMode}
+                      onClick={() => {
+                        updateForm({
+                          extensions: checked
+                            ? form.extensions.filter((code) => code !== extension.code)
+                            : [extension.code],
+                        });
+                      }}
+                    >
+                      <div className="flex w-full items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/45">
+                            {extensionIcon ? (
+                              <img src={extensionIcon} alt="" className="h-6 w-6 object-contain" />
+                            ) : (
+                              <Database className="h-5 w-5 text-primary" />
+                            )}
                           </div>
-                        ) : null}
+                          <div className="space-y-1">
+                            <div className="text-base font-semibold text-foreground">
+                              {readExtensionProductTitle(extension)}
+                            </div>
+                            <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                              PostgreSQL extension
+                            </div>
+                          </div>
+                        </div>
+                        {checked ? <Badge variant="secondary">Selected</Badge> : null}
                       </div>
-                    );
-                  })}
-                  {availableExtensions.length === 0 ? (
-                    <span className="text-sm text-muted-foreground">No extensions available.</span>
-                  ) : null}
+                      <div className="text-sm leading-6 text-muted-foreground">
+                        {readExtensionProductDescription(extension)}
+                      </div>
+                      {!available && (extension.unavailable_reason || extension.unavailable_detail) ? (
+                        <div className="text-xs text-muted-foreground">
+                          {extension.unavailable_detail ?? extension.unavailable_reason}
+                        </div>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+              {availableExtensions.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No extensions available.</div>
+              ) : null}
+              <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/40 px-4 py-3">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-1">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                      Selected product
+                    </div>
+                    <div className="text-sm font-medium text-foreground">
+                      {databaseTypeLabel}
+                    </div>
+                  </div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    Base engine: PostgreSQL
+                  </div>
                 </div>
               </div>
             </div>
@@ -1936,7 +1983,7 @@ export function AdminHostedResourcesPage() {
           </label>
 
           <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 p-3 text-sm text-muted-foreground">
-            Database: <span className="font-medium text-foreground">{databaseTypeLabel}</span>
+            Product: <span className="font-medium text-foreground">{databaseTypeLabel}</span>
             {selectedShape ? (
               <span>{` · ${selectedShape.vcpus} vCPU · ${selectedShape.memory_gib} GiB RAM`}</span>
             ) : null}
@@ -2001,27 +2048,7 @@ export function AdminHostedResourcesPage() {
       return null;
     }
 
-    const currentRecord = detailRecord ?? selectedListRecord;
-    const databaseName = readDatabaseTitle(currentRecord ?? {});
-
-    if (confirmationAction.kind === "cancel_at_period_end") {
-      return (
-        <ActionConfirmationDialog
-          open
-          tone="warning"
-          title="Cancel at period end"
-          actionLabel="cancel this database at period end"
-          confirmButtonLabel="Schedule cancellation"
-          confirmWord="CANCEL"
-          objectLabel="managed database"
-          objectSummary={databaseName}
-          description="The database stays active until the current billing period ends."
-          specialText={`Billing remains active through ${formatDateTime(currentRecord?.current_period_end)} unless the backend changes the allocation state earlier.`}
-          onClose={() => setConfirmationAction(null)}
-          onConfirm={() => cancelAtPeriodEndMutation.mutateAsync(confirmationAction.path)}
-        />
-      );
-    }
+    const databaseName = confirmationAction.databaseName;
 
     return (
       <ActionConfirmationDialog
@@ -2033,8 +2060,27 @@ export function AdminHostedResourcesPage() {
         confirmWord="DELETE"
         objectLabel="managed database"
         objectSummary={databaseName}
-        description="This submits the backend immediate cancellation path for the hosted database allocation."
-        specialText="Use this when you want the managed database deprovisioned now instead of waiting until the current billing period ends."
+        description="This deletes the managed database immediately. This action cannot be undone from the app."
+        specialText={
+          <div className="space-y-3">
+            <div>You will lose:</div>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                All data inside this database, including schemas, tables, hypertables, indexes,
+                roles, and extensions.
+              </li>
+              <li>The active database connection endpoint and credentials.</li>
+              <li>
+                Access for any apps, jobs, dashboards, or data sources using this database.
+              </li>
+              <li>The remaining time in the current prepaid month.</li>
+            </ul>
+            <div>
+              This will not delete your organization, other databases, other data sources,
+              billing history, or audit records.
+            </div>
+          </div>
+        }
         onClose={() => setConfirmationAction(null)}
         onConfirm={() => cancelNowMutation.mutateAsync(confirmationAction.path)}
       />
@@ -2044,7 +2090,7 @@ export function AdminHostedResourcesPage() {
   return (
     <AdminSurfaceLayout
       title="Managed Databases"
-      description="Create and review organization-hosted managed database allocations."
+      description="Create and review organization-hosted managed database resources."
     >
       <div className="space-y-4">
         <Card>
@@ -2123,7 +2169,7 @@ export function AdminHostedResourcesPage() {
               <div>
                 <CardTitle>Databases</CardTitle>
                 <CardDescription>
-                  Hosted managed database allocations billed through organization credits.
+                  Hosted managed database resources billed through organization credits.
                 </CardDescription>
               </div>
               <Badge variant="neutral">{`${databases.length} records`}</Badge>
@@ -2177,12 +2223,16 @@ export function AdminHostedResourcesPage() {
                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">Paid through</th>
                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">Monthly cost</th>
                       <th className="px-4 py-[var(--table-standard-header-padding-y)]">CPU / RAM / Storage</th>
+                      <th className="px-4 py-[var(--table-standard-header-padding-y)]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {databases.map((record, index) => {
                       const allocationUid = readAllocationUid(record);
                       const status = readStatus(record);
+                      const cancelNowPath = allocationUid
+                        ? buildHostedManagedDatabaseCancelNowPath(allocationUid)
+                        : "";
 
                       return (
                         <tr key={`${allocationUid || index}-${index}`}>
@@ -2222,6 +2272,29 @@ export function AdminHostedResourcesPage() {
                           </td>
                           <td className={getRegistryTableCellClassName(false)}>
                             <span className="text-foreground">{readResourceSummary(record)}</span>
+                          </td>
+                          <td className={getRegistryTableCellClassName(false, "right")}>
+                            <div className="flex justify-end">
+                              {cancelNowPath ? (
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={() => {
+                                    setConfirmationAction({
+                                      kind: "cancel_now",
+                                      path: cancelNowPath,
+                                      databaseName: readDatabaseTitle(record),
+                                    });
+                                  }}
+                                  disabled={anyMutationPending}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Delete
+                                </Button>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
