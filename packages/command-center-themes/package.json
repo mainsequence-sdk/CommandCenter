@@ -5,6 +5,11 @@
   "description": "Shared Command Center theme presets, token contracts, and theme application helpers.",
   "type": "module",
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mainsequence-sdk/CommandCenter.git",
+    "directory": "packages/command-center-themes"
+  },
   "sideEffects": [
     "*.css"
   ],
