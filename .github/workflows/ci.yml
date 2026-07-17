@@ -8,6 +8,7 @@ on:
     paths:
       - "src/**"
       - "extensions/**"
+      - "packages/command-center-themes/**"
       - "config/**"
       - "mock_data/**"
       - "index.html"

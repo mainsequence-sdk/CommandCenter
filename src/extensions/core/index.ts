@@ -6,16 +6,18 @@ import { SavedWidgetsPage } from "@/features/dashboards/SavedWidgetsPage";
 import { SlideStudioPage } from "@/features/dashboards/SlideStudioPage";
 import { WorkspacesPage } from "@/features/dashboards/WorkspacesPage";
 import { WidgetCatalogPage } from "@/features/widgets/WidgetCatalogPage";
-import { cyberpunkTheme } from "@/themes/presets/cyberpunk";
-import { draculaTheme } from "@/themes/presets/dracula";
-import { grandpaTheme } from "@/themes/presets/grandpa";
-import { graphiteTheme } from "@/themes/presets/graphite";
-import { mainSequenceTheme } from "@/themes/presets/main-sequence";
-import { mainSequenceSpaceTheme } from "@/themes/presets/main-sequence-space";
-import { neonMintTheme } from "@/themes/presets/neon-mint";
-import { pandaTruenoTheme } from "@/themes/presets/panda-trueno";
-import { quartzLightTheme } from "@/themes/presets/quartz-light";
-import { sakuraTheme } from "@/themes/presets/sakura";
+import {
+  cyberpunkTheme,
+  draculaTheme,
+  grandpaTheme,
+  graphiteTheme,
+  mainSequenceTheme,
+  mainSequenceSpaceTheme,
+  neonMintTheme,
+  pandaTruenoTheme,
+  quartzLightTheme,
+  sakuraTheme,
+} from "@mainsequence/command-center-themes";
 import { markdownNoteWidget } from "@/widgets/core/markdown-note/definition";
 import { richTextNoteWidget } from "@/widgets/core/rich-text-note/definition";
 import { appComponentWidget } from "@/widgets/core/app-component/definition";

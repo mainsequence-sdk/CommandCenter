@@ -161,6 +161,7 @@ The mock adapters live in `src/data/` and are intentionally replaceable.
 
 ```text
 extensions/    repo-root product extensions
+packages/      reusable workspace packages published or consumed by other projects
 src/
   app/           app shell, routing, providers, registry
   auth/          roles, permissions, auth state
@@ -170,7 +171,7 @@ src/
   features/      page-level features
   preferences/   optional backend persistence for shell-level user preferences
   features/dashboards/ optional backend persistence for workspace documents
-  themes/        theme types, presets, provider, snippet generation
+  themes/        theme provider, runtime persistence integration, snippet generation
   widgets/       widget implementations
 ```
 

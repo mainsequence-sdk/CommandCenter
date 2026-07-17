@@ -7,7 +7,7 @@ import type {
   ThemeTightness,
   ThemeTokenKey,
   ThemeTokens,
-} from "@/themes/types";
+} from "@mainsequence/command-center-themes";
 
 export interface ThemeContextValue {
   availableThemes: ThemePreset[];

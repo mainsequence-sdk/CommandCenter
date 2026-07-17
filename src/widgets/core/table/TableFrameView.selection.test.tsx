@@ -178,7 +178,7 @@ const [
 type TableWidgetProps = import("./tableModel").TableWidgetProps;
 type TableWidgetSelectionMode = import("./tableModel").TableWidgetSelectionMode;
 type TableWidgetSelectionState = import("./tableModel").TableWidgetSelectionState;
-type ThemeTokens = import("@/themes/types").ThemeTokens;
+type ThemeTokens = import("@mainsequence/command-center-themes").ThemeTokens;
 
 const testTokens = {
   primary: "#ffffff",

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { withAlpha } from "@/lib/color";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/themes/ThemeProvider";
-import type { ThemeTokens } from "@/themes/types";
+import type { ThemeTokens } from "@mainsequence/command-center-themes";
 
 import type { StatisticCard, StatisticTone } from "./statisticModel";
 

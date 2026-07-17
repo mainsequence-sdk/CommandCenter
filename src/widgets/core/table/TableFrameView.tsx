@@ -17,9 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { withAlpha } from "@/lib/color";
 import { cn } from "@/lib/utils";
-import { mainSequenceSpaceTheme } from "@/themes/presets/main-sequence-space";
-import { getThemeTightnessMetrics } from "@/themes/tightness";
-import type { ThemeTightness, ThemeTokens } from "@/themes/types";
+import { mainSequenceSpaceTheme } from "@mainsequence/command-center-themes";
+import { getThemeTightnessMetrics } from "@mainsequence/command-center-themes";
+import type { ThemeTightness, ThemeTokens } from "@mainsequence/command-center-themes";
 import { communityAgGridModules } from "@/widgets/extensions/ag-grid/community-modules";
 import { createAgGridTerminalTheme } from "@/widgets/extensions/ag-grid/grid-theme";
 

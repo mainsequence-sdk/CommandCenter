@@ -1,0 +1,40 @@
+{
+  "name": "@mainsequence/command-center-themes",
+  "version": "0.1.1",
+  "description": "Shared Command Center theme presets, token contracts, and theme application helpers.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./data-viz": {
+      "types": "./dist/chart-palettes.d.ts",
+      "import": "./dist/chart-palettes.js"
+    },
+    "./presets": {
+      "types": "./dist/presets/index.d.ts",
+      "import": "./dist/presets/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0"
+  }
+}

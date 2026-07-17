@@ -1,4 +1,4 @@
-import { withAlpha } from "@/lib/color";
+import { withAlpha } from "./color.js";
 import type {
   ResolvedThemeDataVizDivergingScale,
   ResolvedThemeDataVizPalette,
@@ -9,7 +9,7 @@ import type {
   ThemeDataVizSequentialScaleKey,
   ThemePreset,
   ThemeTokens,
-} from "@/themes/types";
+} from "./types.js";
 
 type RgbColor = {
   b: number;

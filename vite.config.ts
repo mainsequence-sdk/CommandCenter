@@ -268,6 +268,18 @@ export default defineConfig(async ({ mode }) => {
     ],
     resolve: {
       alias: {
+        "@mainsequence/command-center-themes/data-viz": new URL(
+          "./packages/command-center-themes/src/chart-palettes.ts",
+          import.meta.url,
+        ).pathname,
+        "@mainsequence/command-center-themes/presets": new URL(
+          "./packages/command-center-themes/src/presets/index.ts",
+          import.meta.url,
+        ).pathname,
+        "@mainsequence/command-center-themes": new URL(
+          "./packages/command-center-themes/src/index.ts",
+          import.meta.url,
+        ).pathname,
         "@": new URL("./src", import.meta.url).pathname,
       },
     },

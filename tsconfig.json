@@ -18,8 +18,16 @@
     "types": ["vite/client"],
     "baseUrl": ".",
     "paths": {
+      "@mainsequence/command-center-themes": ["packages/command-center-themes/src/index.ts"],
+      "@mainsequence/command-center-themes/data-viz": [
+        "packages/command-center-themes/src/chart-palettes.ts"
+      ],
+      "@mainsequence/command-center-themes/presets": [
+        "packages/command-center-themes/src/presets/index.ts"
+      ],
+      "@mainsequence/command-center-themes/*": ["packages/command-center-themes/src/*"],
       "@/*": ["src/*"]
     }
   },
-  "include": ["src", "extensions", "connections", "vite.config.ts"]
+  "include": ["src", "extensions", "connections", "packages/command-center-themes/src", "vite.config.ts"]
 }

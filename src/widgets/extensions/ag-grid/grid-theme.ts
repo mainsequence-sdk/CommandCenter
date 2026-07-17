@@ -1,8 +1,8 @@
 import { themeQuartz, type Theme } from "ag-grid-community";
 
 import { withAlpha } from "@/lib/color";
-import type { ThemeTightnessMetrics } from "@/themes/tightness";
-import type { ThemeTokens } from "@/themes/types";
+import type { ThemeTightnessMetrics } from "@mainsequence/command-center-themes";
+import type { ThemeTokens } from "@mainsequence/command-center-themes";
 
 export function createAgGridTerminalTheme(
   tokens: ThemeTokens,

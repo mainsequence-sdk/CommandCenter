@@ -1,4 +1,4 @@
-import type { ThemePreset } from "@/themes/types";
+import type { ThemePreset } from "../types.js";
 
 export const mainSequenceTheme: ThemePreset = {
   id: "main-sequence",

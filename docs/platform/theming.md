@@ -3,8 +3,8 @@
 ## Model
 
 Theming in Command Center is token-driven, but it is not color-only. Themes are defined as
-`ThemePreset` objects and registered through the same extension mechanism used for widgets and
-dashboards.
+`ThemePreset` objects from `@mainsequence/command-center-themes` and registered through the same
+extension mechanism used for widgets and dashboards.
 
 Each theme preset contains:
 
@@ -95,7 +95,8 @@ The current token system includes:
 - status tokens: `danger`, `success`, `warning`, `positive`, `negative`
 - layout tokens: `radius`
 
-The full token key list is defined in `src/themes/types.ts`.
+The full token key list is defined in `packages/command-center-themes/src/types.ts` and exported
+from `@mainsequence/command-center-themes`.
 
 ## Data-viz palettes
 
@@ -114,12 +115,19 @@ Each resolved theme palette contains:
 `categorical` is intended for discrete series identity.
 
 `sequential` and `diverging` are not stored as precomputed fixed-size arrays in the theme preset.
-They are resolved through helper functions in `src/themes/chart-palettes.ts`, so widgets can ask
-for the exact number of steps they need.
+They are resolved through helper functions exported by `@mainsequence/command-center-themes`, so
+widgets can ask for the exact number of steps they need.
 
 Example usage from widget code:
 
 ```ts
+import {
+  getThemeCategoricalPalette,
+  getThemeDivergingScale,
+  getThemeSequentialScale,
+  resolveThemeDataVizPalette,
+} from "@mainsequence/command-center-themes";
+
 const palette = resolveThemeDataVizPalette(activeTheme, resolvedTokens);
 const seriesColors = getThemeCategoricalPalette(palette, 6);
 const heatmapScale = getThemeSequentialScale(palette, "primary", 9);
@@ -160,13 +168,15 @@ Overrides are intentionally not persisted yet.
 
 ## Adding a theme
 
-1. Create a `ThemePreset`.
+1. Create a `ThemePreset` in `packages/command-center-themes/src/presets/`.
 2. Export it from an extension.
 3. Confirm the preset appears in the theme studio.
 
 Example:
 
 ```ts
+import type { ThemePreset } from "@mainsequence/command-center-themes";
+
 export const graphiteTheme: ThemePreset = {
   id: "graphite",
   label: "Graphite",
@@ -198,10 +208,10 @@ of inventing new local size switches.
 
 Current references:
 
-- theme types: `src/themes/types.ts`
-- data-viz palette helpers: `src/themes/chart-palettes.ts`
-- density metrics: `src/themes/tightness.ts`
-- surface metrics: `src/themes/surface-hierarchy.ts`
+- theme types: `packages/command-center-themes/src/types.ts`
+- data-viz palette helpers: `packages/command-center-themes/src/chart-palettes.ts`
+- density metrics: `packages/command-center-themes/src/tightness.ts`
+- surface metrics: `packages/command-center-themes/src/surface-hierarchy.ts`
 - runtime application: `src/themes/ThemeProvider.tsx`
 
 For table-like UIs, use the shared CSS variables already written by the provider:
@@ -230,7 +240,7 @@ Tailwind font sizes when the element is meant to tighten with the theme:
 
 Use the standard pair for normal data tables and the compact pair for dense operator views like
 logs. TanStack table renderers should consume those CSS variables in their header and cell class
-names. AG Grid surfaces should read the numeric metrics from `src/themes/tightness.ts`.
+names. AG Grid surfaces should read the numeric metrics from `@mainsequence/command-center-themes`.
 
 For nested panels, use `Card variant="nested"` instead of hand-writing per-page border overrides.
 That keeps the page architecture semantic while letting the theme decide whether inner cards should

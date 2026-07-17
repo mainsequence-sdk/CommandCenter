@@ -1,4 +1,4 @@
-import type { ThemePreset } from "@/themes/types";
+import type { ThemePreset } from "../types.js";
 
 export const cyberpunkTheme: ThemePreset = {
   id: "cyberpunk",

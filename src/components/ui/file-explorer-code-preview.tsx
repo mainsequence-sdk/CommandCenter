@@ -13,7 +13,7 @@ import CodeMirror from "@uiw/react-codemirror";
 
 import type { FileExplorerFileItem } from "@/components/ui/file-explorer";
 import { useOptionalTheme } from "@/themes/ThemeProvider";
-import { type ThemeTokens, themeTokenKeys } from "@/themes/types";
+import { type ThemeTokens, themeTokenKeys } from "@mainsequence/command-center-themes";
 
 function findLanguageDescription(item: FileExplorerFileItem) {
   return (

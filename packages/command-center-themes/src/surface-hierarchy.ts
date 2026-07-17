@@ -1,4 +1,4 @@
-import type { ThemeSurfaceHierarchy } from "@/themes/types";
+import type { ThemeSurfaceHierarchy } from "./types.js";
 
 export interface ThemeSurfaceHierarchyMetrics {
   nestedCardBorderColor: string;

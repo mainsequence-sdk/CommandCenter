@@ -1,4 +1,4 @@
-import type { ThemeTightness } from "@/themes/types";
+import type { ThemeTightness } from "./types.js";
 
 export interface ThemeTightnessMetrics {
   table: {

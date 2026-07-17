@@ -1,4 +1,4 @@
-import type { ThemePreset } from "@/themes/types";
+import type { ThemePreset } from "@mainsequence/command-center-themes";
 import type { WidgetDefinition } from "@/widgets/types";
 import type { AppDefinition, AppShellMenuContribution, AppSurfaceEntry } from "@/apps/types";
 import type { DashboardDefinition } from "@/dashboards/types";
