@@ -26,7 +26,7 @@ This extension owns the built-in registry entries that ship with Command Center 
 - Core registers the built-in shell presets such as `Sapphire`, `Main Sequence`, `Cyberpunk`,
   and `Neon Mint`.
 - Theme registration belongs in `index.ts`; reusable preset definitions belong to
-  `@mainsequence/command-center-themes` under `packages/command-center-themes/src/presets/`.
+  `@dev-mainsequence/command-center-themes` under `packages/command-center-themes/src/presets/`.
 
 ## Dependencies
 

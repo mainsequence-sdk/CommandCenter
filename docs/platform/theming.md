@@ -3,7 +3,7 @@
 ## Model
 
 Theming in Command Center is token-driven, but it is not color-only. Themes are defined as
-`ThemePreset` objects from `@mainsequence/command-center-themes` and registered through the same
+`ThemePreset` objects from `@dev-mainsequence/command-center-themes` and registered through the same
 extension mechanism used for widgets and dashboards.
 
 Each theme preset contains:
@@ -96,7 +96,7 @@ The current token system includes:
 - layout tokens: `radius`
 
 The full token key list is defined in `packages/command-center-themes/src/types.ts` and exported
-from `@mainsequence/command-center-themes`.
+from `@dev-mainsequence/command-center-themes`.
 
 ## Data-viz palettes
 
@@ -115,7 +115,7 @@ Each resolved theme palette contains:
 `categorical` is intended for discrete series identity.
 
 `sequential` and `diverging` are not stored as precomputed fixed-size arrays in the theme preset.
-They are resolved through helper functions exported by `@mainsequence/command-center-themes`, so
+They are resolved through helper functions exported by `@dev-mainsequence/command-center-themes`, so
 widgets can ask for the exact number of steps they need.
 
 Example usage from widget code:
@@ -126,7 +126,7 @@ import {
   getThemeDivergingScale,
   getThemeSequentialScale,
   resolveThemeDataVizPalette,
-} from "@mainsequence/command-center-themes";
+} from "@dev-mainsequence/command-center-themes";
 
 const palette = resolveThemeDataVizPalette(activeTheme, resolvedTokens);
 const seriesColors = getThemeCategoricalPalette(palette, 6);
@@ -175,7 +175,7 @@ Overrides are intentionally not persisted yet.
 Example:
 
 ```ts
-import type { ThemePreset } from "@mainsequence/command-center-themes";
+import type { ThemePreset } from "@dev-mainsequence/command-center-themes";
 
 export const graphiteTheme: ThemePreset = {
   id: "graphite",
@@ -240,7 +240,7 @@ Tailwind font sizes when the element is meant to tighten with the theme:
 
 Use the standard pair for normal data tables and the compact pair for dense operator views like
 logs. TanStack table renderers should consume those CSS variables in their header and cell class
-names. AG Grid surfaces should read the numeric metrics from `@mainsequence/command-center-themes`.
+names. AG Grid surfaces should read the numeric metrics from `@dev-mainsequence/command-center-themes`.
 
 For nested panels, use `Card variant="nested"` instead of hand-writing per-page border overrides.
 That keeps the page architecture semantic while letting the theme decide whether inner cards should

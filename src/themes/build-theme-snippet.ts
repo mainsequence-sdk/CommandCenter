@@ -2,7 +2,7 @@ import type {
   ThemeDataVizPaletteSpec,
   ThemePreset,
   ThemeTokens,
-} from "@mainsequence/command-center-themes";
+} from "@dev-mainsequence/command-center-themes";
 
 function toIdentifier(value: string) {
   const clean = value.replace(/[^a-zA-Z0-9]+/g, " ");
@@ -43,7 +43,7 @@ export function buildThemeSnippet({
       .join("\n")}`
     : "";
 
-  return `import type { ThemePreset } from "@mainsequence/command-center-themes";\n\nexport const ${toIdentifier(
+  return `import type { ThemePreset } from "@dev-mainsequence/command-center-themes";\n\nexport const ${toIdentifier(
     id,
   )}: ThemePreset = {\n  id: ${JSON.stringify(id)},\n  label: ${JSON.stringify(
     label,

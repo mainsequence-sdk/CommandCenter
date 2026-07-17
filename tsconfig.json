@@ -18,14 +18,14 @@
     "types": ["vite/client"],
     "baseUrl": ".",
     "paths": {
-      "@mainsequence/command-center-themes": ["packages/command-center-themes/src/index.ts"],
-      "@mainsequence/command-center-themes/data-viz": [
+      "@dev-mainsequence/command-center-themes": ["packages/command-center-themes/src/index.ts"],
+      "@dev-mainsequence/command-center-themes/data-viz": [
         "packages/command-center-themes/src/chart-palettes.ts"
       ],
-      "@mainsequence/command-center-themes/presets": [
+      "@dev-mainsequence/command-center-themes/presets": [
         "packages/command-center-themes/src/presets/index.ts"
       ],
-      "@mainsequence/command-center-themes/*": ["packages/command-center-themes/src/*"],
+      "@dev-mainsequence/command-center-themes/*": ["packages/command-center-themes/src/*"],
       "@/*": ["src/*"]
     }
   },

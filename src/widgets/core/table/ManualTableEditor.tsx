@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getThemeTightnessMetrics } from "@mainsequence/command-center-themes";
+import { getThemeTightnessMetrics } from "@dev-mainsequence/command-center-themes";
 import { useTheme } from "@/themes/ThemeContext";
 import { communityAgGridModules } from "@/widgets/extensions/ag-grid/community-modules";
 import { createAgGridTerminalTheme } from "@/widgets/extensions/ag-grid/grid-theme";

@@ -10,13 +10,13 @@ import {
   getThemeCategoricalColor,
   getThemeDivergingScale,
   getThemeSequentialScale,
-} from "@mainsequence/command-center-themes";
+} from "@dev-mainsequence/command-center-themes";
 import {
   themeTokenKeys,
   type ResolvedThemeDataVizPalette,
   type ThemeTokenKey,
   type ThemeTokens,
-} from "@mainsequence/command-center-themes";
+} from "@dev-mainsequence/command-center-themes";
 import { useResolvedWidgetOrganizationConfiguration } from "@/widgets/WidgetOrganizationConfigurationProvider";
 import type {
   ResolvedWidgetInput,

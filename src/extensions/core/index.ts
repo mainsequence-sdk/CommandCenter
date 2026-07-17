@@ -17,7 +17,7 @@ import {
   pandaTruenoTheme,
   quartzLightTheme,
   sakuraTheme,
-} from "@mainsequence/command-center-themes";
+} from "@dev-mainsequence/command-center-themes";
 import { markdownNoteWidget } from "@/widgets/core/markdown-note/definition";
 import { richTextNoteWidget } from "@/widgets/core/rich-text-note/definition";
 import { appComponentWidget } from "@/widgets/core/app-component/definition";

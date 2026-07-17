@@ -17,7 +17,7 @@ import {
   themeTokenMetadata,
   themeTightnessMetadata,
   themeTightnessOptions,
-} from "@mainsequence/command-center-themes";
+} from "@dev-mainsequence/command-center-themes";
 
 const themeStudioPreviewRows = [
   {

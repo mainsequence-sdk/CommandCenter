@@ -19,7 +19,7 @@ import {
   getThemeCategoricalColor,
   getThemeDivergingScale,
   getThemeSequentialScale,
-} from "@mainsequence/command-center-themes";
+} from "@dev-mainsequence/command-center-themes";
 import type {
   WidgetComponentProps,
   WidgetOrganizationConfigurationContract,
@@ -31,7 +31,7 @@ import {
   type ResolvedThemeDataVizPalette,
   type ThemeTokenKey,
   type ThemeTokens,
-} from "@mainsequence/command-center-themes";
+} from "@dev-mainsequence/command-center-themes";
 import { useResolvedWidgetOrganizationConfiguration } from "@/widgets/WidgetOrganizationConfigurationProvider";
 
 const LIGHTWEIGHT_CHARTS_BOUND_PROPS_INPUT_ID = "props-json";

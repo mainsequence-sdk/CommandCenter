@@ -27,7 +27,7 @@ import {
   applyThemePresetToRoot,
   commandCenterThemes,
   resolveCommandCenterThemeById,
-} from "@mainsequence/command-center-themes";
+} from "@dev-mainsequence/command-center-themes";
 
 const theme = resolveCommandCenterThemeById("main-sequence-space") ?? commandCenterThemes[0];
 

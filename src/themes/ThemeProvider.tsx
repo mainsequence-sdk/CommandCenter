@@ -18,7 +18,7 @@ import {
   type ThemeTightness,
   type ThemeTokenKey,
   type ThemeTokens,
-} from "@mainsequence/command-center-themes";
+} from "@dev-mainsequence/command-center-themes";
 import {
   ThemeContext,
   type ThemeContextValue,

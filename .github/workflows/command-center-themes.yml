@@ -53,13 +53,13 @@ jobs:
         run: npm run themes:build
 
       - name: Pack theme package
-        run: npm pack --workspace @mainsequence/command-center-themes
+        run: npm pack --workspace @dev-mainsequence/command-center-themes
 
       - name: Upload package tarball
         uses: actions/upload-artifact@v4.6.2
         with:
           name: command-center-themes-package
-          path: mainsequence-command-center-themes-*.tgz
+          path: dev-mainsequence-command-center-themes-*.tgz
 
   publish:
     name: Publish Package
@@ -104,13 +104,12 @@ jobs:
       - name: Publish theme package
         id: publish
         if: env.NODE_AUTH_TOKEN != '' && steps.published.outputs.already_published == 'false'
-        continue-on-error: true
-        run: npm publish --workspace @mainsequence/command-center-themes --access public --provenance
+        run: npm publish --workspace @dev-mainsequence/command-center-themes --access public --provenance
 
       - name: Report publish failure
-        if: steps.publish.outcome == 'failure'
+        if: failure() && steps.publish.outcome == 'failure'
         run: |
-          echo "::warning::npm publish failed. The package built and packed successfully, but npm rejected publication. Verify that the @mainsequence npm scope exists and that NPM_TOKEN belongs to an account with publish rights for that scope."
+          echo "::error::npm publish failed. The package built and packed successfully, but npm rejected publication. Verify that the @dev-mainsequence npm scope exists and that NPM_TOKEN belongs to an account with publish rights for that scope."
 
       - name: Report skipped publish
         if: env.NODE_AUTH_TOKEN == '' || steps.published.outputs.already_published == 'true'

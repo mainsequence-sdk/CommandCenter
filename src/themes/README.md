@@ -2,7 +2,7 @@
 
 This module owns the active shell theme runtime. Reusable theme contracts, presets, palette helpers,
 density metrics, surface hierarchy metrics, and DOM application helpers live in the local workspace
-package `@mainsequence/command-center-themes`.
+package `@dev-mainsequence/command-center-themes`.
 
 ## Main entry points
 

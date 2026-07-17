@@ -1,6 +1,7 @@
 {
-  "name": "@mainsequence/command-center-themes",
+  "name": "@dev-mainsequence/command-center-themes",
   "version": "0.1.1",
+  "private": false,
   "description": "Shared Command Center theme presets, token contracts, and theme application helpers.",
   "type": "module",
   "license": "UNLICENSED",
@@ -27,7 +28,8 @@
     "./package.json": "./package.json"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
