@@ -276,6 +276,18 @@ export default defineConfig(async ({ mode }) => {
           "./packages/command-center-themes/src/presets/index.ts",
           import.meta.url,
         ).pathname,
+        "@dev-mainsequence/command-center-themes/fonts.css": new URL(
+          "./packages/command-center-themes/fonts.css",
+          import.meta.url,
+        ).pathname,
+        "@dev-mainsequence/command-center-themes/styles.css": new URL(
+          "./packages/command-center-themes/styles.css",
+          import.meta.url,
+        ).pathname,
+        "@dev-mainsequence/command-center-themes/tailwind.css": new URL(
+          "./packages/command-center-themes/tailwind.css",
+          import.meta.url,
+        ).pathname,
         "@dev-mainsequence/command-center-themes": new URL(
           "./packages/command-center-themes/src/index.ts",
           import.meta.url,

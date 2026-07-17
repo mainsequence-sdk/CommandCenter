@@ -1,15 +1,21 @@
 {
   "name": "@dev-mainsequence/command-center-themes",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "Shared Command Center theme presets, token contracts, and theme application helpers.",
   "type": "module",
   "license": "UNLICENSED",
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "files": [
     "dist",
+    "fonts.css",
+    "styles.css",
+    "tailwind.css",
     "README.md"
   ],
+  "style": "./styles.css",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -25,6 +31,9 @@
       "types": "./dist/presets/index.d.ts",
       "import": "./dist/presets/index.js"
     },
+    "./fonts.css": "./fonts.css",
+    "./styles.css": "./styles.css",
+    "./tailwind.css": "./tailwind.css",
     "./package.json": "./package.json"
   },
   "publishConfig": {

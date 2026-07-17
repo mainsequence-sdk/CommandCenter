@@ -87,6 +87,16 @@ export type ThemeTightness = (typeof themeTightnessOptions)[number];
 export const themeSurfaceHierarchyOptions = ["framed", "soft", "flat"] as const;
 export type ThemeSurfaceHierarchy = (typeof themeSurfaceHierarchyOptions)[number];
 
+export interface ThemeFontStacks {
+  mono?: string;
+  sans?: string;
+}
+
+export const defaultThemeFontStacks: Required<ThemeFontStacks> = {
+  mono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+  sans: "InterVariable, Inter, ui-sans-serif, system-ui, sans-serif",
+};
+
 export interface ThemePreset {
   id: string;
   label: string;
@@ -95,6 +105,7 @@ export interface ThemePreset {
   mode: "light" | "dark";
   tightness: ThemeTightness;
   surfaceHierarchy: ThemeSurfaceHierarchy;
+  fonts?: ThemeFontStacks;
   tokens: ThemeTokens;
   dataViz?: ThemeDataVizPaletteSpec;
 }

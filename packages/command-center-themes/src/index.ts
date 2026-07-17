@@ -7,6 +7,13 @@ export {
   resolveThemeDataVizPalette,
 } from "./chart-palettes.js";
 export {
+  buildThemeCssVariableMap,
+  buildThemeStyleText,
+  type BuildThemeCssVariablesInput,
+  type BuildThemeStyleTextInput,
+  type ThemeCssVariableMap,
+} from "./css-vars.js";
+export {
   getThemeSurfaceHierarchyMetrics,
   type ThemeSurfaceHierarchyMetrics,
 } from "./surface-hierarchy.js";

@@ -31,6 +31,7 @@ export function buildThemeSnippet({
   mode,
   tightness,
   surfaceHierarchy,
+  fonts,
   tokens,
 }: ThemePreset & { exportDataViz?: ThemeDataVizPaletteSpec }) {
   const tokenLines = Object.entries(tokens)
@@ -42,6 +43,12 @@ export function buildThemeSnippet({
       .map((line, index) => (index === 0 ? line : `  ${line}`))
       .join("\n")}`
     : "";
+  const fontsBlock = fonts
+    ? `,\n  fonts: ${JSON.stringify(fonts, null, 2)
+        .split("\n")
+        .map((line, index) => (index === 0 ? line : `  ${line}`))
+        .join("\n")}`
+    : "";
 
   return `import type { ThemePreset } from "@dev-mainsequence/command-center-themes";\n\nexport const ${toIdentifier(
     id,
@@ -51,7 +58,7 @@ export function buildThemeSnippet({
     description,
   )},\n  source: ${JSON.stringify(source)},\n  mode: ${JSON.stringify(
     mode,
-  )},\n  tightness: ${JSON.stringify(tightness)},\n  surfaceHierarchy: ${JSON.stringify(surfaceHierarchy)},\n  tokens: {\n${tokenLines}\n  }${dataVizBlock},\n};`;
+  )},\n  tightness: ${JSON.stringify(tightness)},\n  surfaceHierarchy: ${JSON.stringify(surfaceHierarchy)}${fontsBlock},\n  tokens: {\n${tokenLines}\n  }${dataVizBlock},\n};`;
 }
 
 export function buildCustomPreset(

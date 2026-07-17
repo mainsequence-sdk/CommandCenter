@@ -30,7 +30,7 @@ import {
 } from "@/widgets/core/table/tableModel";
 import { proTableSharedOptions, withProTableDefaultProps } from "@/widgets/core/table/proTableOptions";
 import { useOptionalTheme } from "@/themes/ThemeProvider";
-import { mainSequenceSpaceTheme } from "@mainsequence/command-center-themes";
+import { mainSequenceSpaceTheme } from "@dev-mainsequence/command-center-themes";
 import { useIncrementalTabularConsumerBindingState } from "@/widgets/shared/incremental-tabular-consumer";
 import { useRuntimeDataStore } from "@/widgets/shared/runtime-data-store";
 import type { TabularFrameFieldSchema, TabularFrameSourceV1 } from "@/widgets/shared/tabular-frame-source";

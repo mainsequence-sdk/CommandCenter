@@ -15,12 +15,14 @@ Each theme preset contains:
 - `mode`
 - `tightness`
 - `surfaceHierarchy`
+- `fonts` (optional)
 - `tokens`
 - `dataViz` (optional overrides over the default chart palette model)
 
-`tokens` handle color and radius. `tightness` handles density decisions that should stay consistent
-across the product without turning every component into a local spacing snowflake. `surfaceHierarchy`
-handles how strongly nested panels separate from their parent surface.
+`tokens` handle color and radius. `fonts` handles portable font-stack overrides. `tightness` handles
+density decisions that should stay consistent across the product without turning every component into
+a local spacing snowflake. `surfaceHierarchy` handles how strongly nested panels separate from their
+parent surface.
 
 `dataViz` is the chart-specific palette layer. It is separate from shell chrome tokens and is used
 by widgets that need:
@@ -153,6 +155,43 @@ surfaces without overloading shell tokens like `primary` or `warning`.
 
 This keeps theming runtime-driven without moving theme definitions out of code.
 
+## Package bundle
+
+The published package is a full portable theme bundle:
+
+- `@dev-mainsequence/command-center-themes`: TypeScript presets, helpers, and contracts.
+- `@dev-mainsequence/command-center-themes/styles.css`: browser-ready CSS variables, base body and
+  typography styles, theme chrome variables, and reusable theme utility classes.
+- `@dev-mainsequence/command-center-themes/tailwind.css`: Tailwind v4 mapping from utility tokens to
+  Command Center CSS variables.
+- `@dev-mainsequence/command-center-themes/fonts.css`: shared font-stack variables.
+
+An iframe application that uses the package directly should import the CSS once and apply the active
+theme to its document root:
+
+```ts
+import "@dev-mainsequence/command-center-themes/styles.css";
+import {
+  applyThemePresetToRoot,
+  resolveCommandCenterThemeById,
+} from "@dev-mainsequence/command-center-themes";
+
+const theme = resolveCommandCenterThemeById(themeIdFromHost);
+
+if (theme) {
+  applyThemePresetToRoot(document.documentElement, { theme });
+}
+```
+
+If the host wants to send a complete CSS payload over `postMessage`, use `buildThemeStyleText`:
+
+```ts
+import { buildThemeStyleText, resolveCommandCenterThemeById } from "@dev-mainsequence/command-center-themes";
+
+const theme = resolveCommandCenterThemeById(themeIdFromHost);
+const cssText = theme ? buildThemeStyleText({ theme }) : "";
+```
+
 ## Theme studio
 
 The theme studio is a developer-facing editing surface that lets users:
@@ -213,6 +252,8 @@ Current references:
 - density metrics: `packages/command-center-themes/src/tightness.ts`
 - surface metrics: `packages/command-center-themes/src/surface-hierarchy.ts`
 - runtime application: `src/themes/ThemeProvider.tsx`
+- packaged stylesheet: `packages/command-center-themes/styles.css`
+- Tailwind mapping: `packages/command-center-themes/tailwind.css`
 
 For table-like UIs, use the shared CSS variables already written by the provider:
 

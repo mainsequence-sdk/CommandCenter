@@ -8,6 +8,9 @@ export const grandpaTheme: ThemePreset = {
   mode: "dark",
   tightness: "tight",
   surfaceHierarchy: "framed",
+  fonts: {
+    sans: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+  },
   tokens: {
     background: "#050505",
     foreground: "#D7D3C8",

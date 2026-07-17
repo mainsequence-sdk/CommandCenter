@@ -5,8 +5,8 @@ Shared theme package for Main Sequence Command Center and embedded applications.
 ## Purpose
 
 This package is the source of truth for reusable Command Center theme contracts, presets,
-data-visualization palettes, density metrics, surface hierarchy metrics, and DOM CSS-variable
-application helpers.
+data-visualization palettes, density metrics, surface hierarchy metrics, bundled CSS, font stacks,
+and DOM CSS-variable application helpers.
 
 Command Center imports this package locally from the monorepo. External iframe applications can
 install the published package and resolve the active `themeId` sent by the host application.
@@ -18,9 +18,30 @@ install the published package and resolve the active `themeId` sent by the host 
 - `src/chart-palettes.ts`: data-viz palette resolution and palette helper functions.
 - `src/tightness.ts`: density metrics used by tables and compact UI surfaces.
 - `src/surface-hierarchy.ts`: nested-surface chrome metrics.
+- `src/css-vars.ts`: helpers for building CSS-variable maps or style blocks.
 - `src/apply-theme.ts`: DOM helper for applying a resolved theme to an element.
+- `styles.css`: browser-ready base stylesheet, theme chrome variables, typography, and reusable
+  theme utility classes.
+- `tailwind.css`: Tailwind v4 theme-variable mapping for apps that use Tailwind utilities.
+- `fonts.css`: shared Command Center font-stack custom properties.
 
 ## Usage
+
+Import the CSS bundle once in the embedded application:
+
+```ts
+import "@dev-mainsequence/command-center-themes/styles.css";
+```
+
+Tailwind v4 applications should also import the theme mapping after `tailwindcss`:
+
+```css
+@import "tailwindcss";
+@import "@dev-mainsequence/command-center-themes/tailwind.css";
+@import "@dev-mainsequence/command-center-themes/styles.css";
+```
+
+Then apply the active preset to the iframe document root:
 
 ```ts
 import {
@@ -36,6 +57,15 @@ if (theme) {
 }
 ```
 
+For host-to-iframe messaging, the host can send either the `themeId` or a serialized style block:
+
+```ts
+import { buildThemeStyleText, resolveCommandCenterThemeById } from "@dev-mainsequence/command-center-themes";
+
+const theme = resolveCommandCenterThemeById("main-sequence-space");
+const cssText = theme ? buildThemeStyleText({ theme }) : "";
+```
+
 ## Maintenance Notes
 
 - Keep theme ids stable once published. Command Center persists selected theme ids in user
@@ -43,4 +73,6 @@ if (theme) {
 - Add new presets to `src/presets/` and export them from both `src/presets/index.ts` and
   `src/index.ts`.
 - Treat token key removals or renames as breaking changes.
+- Keep browser-ready portable theme CSS in `styles.css`; keep Tailwind-specific mapping in
+  `tailwind.css`.
 - This package intentionally has no React, Vite, app-registry, auth, or storage dependencies.

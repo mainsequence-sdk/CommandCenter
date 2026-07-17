@@ -11,6 +11,8 @@ package `@dev-mainsequence/command-center-themes`.
 - `ThemeContext.ts`: React context and hooks for app-local theme runtime access.
 - `build-theme-snippet.ts`: Theme Studio snippet generation for copied or edited presets.
 - `packages/command-center-themes/`: shared package source for portable theme presets and helpers.
+- `@dev-mainsequence/command-center-themes/styles.css`: portable browser-ready theme CSS imported
+  by `src/styles/globals.css`.
 
 ## Responsibilities
 
@@ -33,8 +35,9 @@ package `@dev-mainsequence/command-center-themes`.
 
 - Keep theme preset ids stable once shipped; persisted user preferences depend on those ids.
 - Define built-in preset objects in `packages/command-center-themes/src/presets/`.
-- When a theme needs more than token swaps, keep package presets app-neutral and place any
-  Command Center shell chrome rules in `src/styles/globals.css` behind `html[data-theme="..."]`.
+- Keep portable theme CSS, font stacks, and theme-specific chrome rules in
+  `packages/command-center-themes/styles.css`; keep app-only layout and third-party library
+  overrides in `src/styles/globals.css`.
 - Prefer defining chart palette behavior at the theme layer instead of hardcoding widget-local
   color ramps. Categorical palettes should be explicit or theme-derived defaults, while sequential
   and diverging ramps should be generated through package palette helpers.
