@@ -102,8 +102,15 @@ jobs:
           fi
 
       - name: Publish theme package
+        id: publish
         if: env.NODE_AUTH_TOKEN != '' && steps.published.outputs.already_published == 'false'
+        continue-on-error: true
         run: npm publish --workspace @mainsequence/command-center-themes --access public --provenance
+
+      - name: Report publish failure
+        if: steps.publish.outcome == 'failure'
+        run: |
+          echo "::warning::npm publish failed. The package built and packed successfully, but npm rejected publication. Verify that the @mainsequence npm scope exists and that NPM_TOKEN belongs to an account with publish rights for that scope."
 
       - name: Report skipped publish
         if: env.NODE_AUTH_TOKEN == '' || steps.published.outputs.already_published == 'true'

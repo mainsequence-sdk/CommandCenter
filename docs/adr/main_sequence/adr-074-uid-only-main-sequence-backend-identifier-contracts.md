@@ -4,10 +4,10 @@
 - Date: 2026-05-22
 - Owners: Main Sequence frontend
 - Related:
-  - [Main Sequence Namespace](../../../extensions/main_sequence/README.md)
-  - [Main Sequence Shared API](../../../extensions/main_sequence/common/api/README.md)
-  - [Main Sequence Workbench](../../../extensions/main_sequence/extensions/workbench/README.md)
-  - [Main Sequence Markets](../../../extensions/main_sequence/extensions/markets/README.md)
+  - [Main Sequence Namespace](https://github.com/mainsequence-sdk/CommandCenter/blob/main/extensions/main_sequence/README.md)
+  - [Main Sequence Shared API](https://github.com/mainsequence-sdk/CommandCenter/blob/main/extensions/main_sequence/common/api/README.md)
+  - [Main Sequence Workbench](https://github.com/mainsequence-sdk/CommandCenter/blob/main/extensions/main_sequence/extensions/workbench/README.md)
+  - [Main Sequence Markets](https://github.com/mainsequence-sdk/CommandCenter/blob/main/extensions/main_sequence/extensions/markets/README.md)
 
 ## Context
 

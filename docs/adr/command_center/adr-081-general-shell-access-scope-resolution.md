@@ -5,7 +5,7 @@
 - Related:
   - [ADR 080: Resolved Shell Access As Visualization Gates](./adr-080-resolved-shell-access-as-visualization-gates.md)
   - [ADR 079: Unified Routed Settings Module](./adr-079-unified-routed-settings-module.md)
-  - [Settings implementation README](../../../src/features/settings/README.md)
+  - [Settings implementation README](https://github.com/mainsequence-sdk/CommandCenter/blob/main/src/features/settings/README.md)
 
 ## Context
 

@@ -204,7 +204,7 @@ before treating the control state as authoritative.
   - reopen behavior
   - user switch isolation
   - edit-mode dual write semantics
-- [ ] Update [README.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/src/features/dashboards/README.md) and any nearby workspace persistence docs to describe the hardened ownership and load workflow.
+- [ ] Update [src/features/dashboards/README.md](https://github.com/mainsequence-sdk/CommandCenter/blob/main/src/features/dashboards/README.md) and any nearby workspace persistence docs to describe the hardened ownership and load workflow.
 
 ## Backend Contract Impact
 

@@ -5,7 +5,7 @@
 - Related:
   - [ADR 079: Unified Routed Settings Module](./adr-079-unified-routed-settings-module.md)
   - [Access Control docs](../../access-control/README.md)
-  - [Access & RBAC implementation README](../../../src/extensions/core/apps/access-rbac/README.md)
+  - [Access & RBAC implementation README](https://github.com/mainsequence-sdk/CommandCenter/blob/main/src/extensions/core/apps/access-rbac/README.md)
 
 ## Context
 

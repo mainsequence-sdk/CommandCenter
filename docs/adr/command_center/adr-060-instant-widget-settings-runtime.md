@@ -436,10 +436,10 @@ Legend:
   Status: not implemented.
 - [ ] Add timing assertions or debug traces that make accidental whole-workspace settings work
   visible in development. Status: not implemented.
-- [ ] Update [src/features/dashboards/README.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/src/features/dashboards/README.md) with the finalized implementation rules.
+- [ ] Update [src/features/dashboards/README.md](https://github.com/mainsequence-sdk/CommandCenter/blob/main/src/features/dashboards/README.md) with the finalized implementation rules.
   Status: partial; overlay generation and runtime ownership rules are documented, but remaining
   runtime-state flush work is not finalized.
-- [ ] Update [src/widgets/shared/README.md](/Users/jose/code/MainSequenceClientSide/CommandCenter/src/widgets/shared/README.md) if shared settings panel ownership or preview behavior changes.
+- [ ] Update [src/widgets/shared/README.md](https://github.com/mainsequence-sdk/CommandCenter/blob/main/src/widgets/shared/README.md) if shared settings panel ownership or preview behavior changes.
   Status: implemented for `settingsPreviewMode`; pending further updates if shared panel ownership
   changes again.
 

@@ -133,8 +133,10 @@ const sidebars = {
           label: "Main Sequence AI",
           collapsed: true,
           items: [
-            "adr/mainsequence_ai/adr-main-sequence-ai-command-center-base-session",
-            "adr/mainsequence_ai/adr-main-sequence-ai-runtime-endpoint-resolution",
+            "adr/mainsequence_ai/adr-main-sequence-ai-index",
+            "adr/mainsequence_ai/adr-078-capability-registry-surface-and-editor-widget",
+            "adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap",
+            "adr/mainsequence_ai/adr-060-session-backed-chat-request-contract",
           ],
         },
       ],
