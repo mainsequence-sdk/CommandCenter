@@ -20,10 +20,16 @@ install the published package and resolve the active `themeId` sent by the host 
 - `src/surface-hierarchy.ts`: nested-surface chrome metrics.
 - `src/css-vars.ts`: helpers for building CSS-variable maps or style blocks.
 - `src/apply-theme.ts`: DOM helper for applying a resolved theme to an element.
-- `styles.css`: browser-ready base stylesheet, theme chrome variables, typography, and reusable
-  theme utility classes.
+- `styles.css`: browser-ready base stylesheet, theme chrome variables, body typography, and reusable
+  Command Center chrome selectors.
+- `utilities.css`: optional text-size, line-clamp, token-swatch, and positive/negative utility
+  classes.
 - `tailwind.css`: Tailwind v4 theme-variable mapping for apps that use Tailwind utilities.
 - `fonts.css`: shared Command Center font-stack custom properties.
+- `markdown.css`: optional scoped markdown skin for `.command-center-markdown`.
+- `ag-grid.css`: optional AG Grid skin keyed off Command Center CSS variables.
+- `react-flow.css`: optional React Flow workspace graph controls and handle skin.
+- `react-grid-layout.css`: optional React Grid Layout resize and placeholder skin.
 
 ## Usage
 
@@ -39,6 +45,7 @@ Tailwind v4 applications should also import the theme mapping after `tailwindcss
 @import "tailwindcss";
 @import "@dev-mainsequence/command-center-themes/tailwind.css";
 @import "@dev-mainsequence/command-center-themes/styles.css";
+@import "@dev-mainsequence/command-center-themes/utilities.css";
 ```
 
 Then apply the active preset to the iframe document root:
@@ -66,6 +73,15 @@ const theme = resolveCommandCenterThemeById("main-sequence-space");
 const cssText = theme ? buildThemeStyleText({ theme }) : "";
 ```
 
+Import optional skins only when the consuming application uses those surfaces:
+
+```css
+@import "@dev-mainsequence/command-center-themes/markdown.css";
+@import "@dev-mainsequence/command-center-themes/ag-grid.css";
+@import "@dev-mainsequence/command-center-themes/react-flow.css";
+@import "@dev-mainsequence/command-center-themes/react-grid-layout.css";
+```
+
 ## Maintenance Notes
 
 - Keep theme ids stable once published. Command Center persists selected theme ids in user
@@ -73,6 +89,7 @@ const cssText = theme ? buildThemeStyleText({ theme }) : "";
 - Add new presets to `src/presets/` and export them from both `src/presets/index.ts` and
   `src/index.ts`.
 - Treat token key removals or renames as breaking changes.
-- Keep browser-ready portable theme CSS in `styles.css`; keep Tailwind-specific mapping in
-  `tailwind.css`.
+- Keep browser-ready portable base theme CSS in `styles.css`; keep framework or library-specific
+  skins in separate optional CSS entrypoints.
+- Keep Tailwind-specific mapping in `tailwind.css`.
 - This package intentionally has no React, Vite, app-registry, auth, or storage dependencies.

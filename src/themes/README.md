@@ -13,6 +13,8 @@ package `@dev-mainsequence/command-center-themes`.
 - `packages/command-center-themes/`: shared package source for portable theme presets and helpers.
 - `@dev-mainsequence/command-center-themes/styles.css`: portable browser-ready theme CSS imported
   by `src/styles/globals.css`.
+- `@dev-mainsequence/command-center-themes/*.css`: optional package-owned utility, markdown, and
+  third-party skin entrypoints imported by `src/styles/globals.css` when the app uses those surfaces.
 
 ## Responsibilities
 
@@ -35,9 +37,9 @@ package `@dev-mainsequence/command-center-themes`.
 
 - Keep theme preset ids stable once shipped; persisted user preferences depend on those ids.
 - Define built-in preset objects in `packages/command-center-themes/src/presets/`.
-- Keep portable theme CSS, font stacks, and theme-specific chrome rules in
-  `packages/command-center-themes/styles.css`; keep app-only layout and third-party library
-  overrides in `src/styles/globals.css`.
+- Keep portable theme CSS, font stacks, theme-specific chrome rules, shared utilities, and
+  supported third-party skins in `packages/command-center-themes/*.css`; keep `src/styles/globals.css`
+  limited to package imports and app-only shell layout requirements.
 - Prefer defining chart palette behavior at the theme layer instead of hardcoding widget-local
   color ramps. Categorical palettes should be explicit or theme-derived defaults, while sequential
   and diverging ramps should be generated through package palette helpers.

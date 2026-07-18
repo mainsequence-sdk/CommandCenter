@@ -276,8 +276,24 @@ export default defineConfig(async ({ mode }) => {
           "./packages/command-center-themes/src/presets/index.ts",
           import.meta.url,
         ).pathname,
+        "@dev-mainsequence/command-center-themes/ag-grid.css": new URL(
+          "./packages/command-center-themes/ag-grid.css",
+          import.meta.url,
+        ).pathname,
         "@dev-mainsequence/command-center-themes/fonts.css": new URL(
           "./packages/command-center-themes/fonts.css",
+          import.meta.url,
+        ).pathname,
+        "@dev-mainsequence/command-center-themes/markdown.css": new URL(
+          "./packages/command-center-themes/markdown.css",
+          import.meta.url,
+        ).pathname,
+        "@dev-mainsequence/command-center-themes/react-flow.css": new URL(
+          "./packages/command-center-themes/react-flow.css",
+          import.meta.url,
+        ).pathname,
+        "@dev-mainsequence/command-center-themes/react-grid-layout.css": new URL(
+          "./packages/command-center-themes/react-grid-layout.css",
           import.meta.url,
         ).pathname,
         "@dev-mainsequence/command-center-themes/styles.css": new URL(
@@ -286,6 +302,10 @@ export default defineConfig(async ({ mode }) => {
         ).pathname,
         "@dev-mainsequence/command-center-themes/tailwind.css": new URL(
           "./packages/command-center-themes/tailwind.css",
+          import.meta.url,
+        ).pathname,
+        "@dev-mainsequence/command-center-themes/utilities.css": new URL(
+          "./packages/command-center-themes/utilities.css",
           import.meta.url,
         ).pathname,
         "@dev-mainsequence/command-center-themes": new URL(

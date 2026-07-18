@@ -1,0 +1,65 @@
+@layer utilities {
+  .text-xs {
+    font-size: var(--font-size-body-sm);
+    line-height: 1.3;
+  }
+
+  .text-sm {
+    font-size: var(--font-size-body);
+    line-height: var(--line-height-body);
+  }
+
+  .text-base {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+
+  .text-lg {
+    font-size: 0.875rem;
+    line-height: 1.35;
+  }
+
+  .text-xl {
+    font-size: 1rem;
+    line-height: 1.3;
+  }
+
+  .text-2xl {
+    font-size: 1.125rem;
+    line-height: 1.25;
+  }
+
+  .text-3xl {
+    font-size: 1.25rem;
+    line-height: 1.2;
+  }
+
+  .text-4xl {
+    font-size: 1.375rem;
+    line-height: 1.15;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+@layer components {
+  .cell-positive {
+    color: var(--positive);
+    font-weight: 600;
+  }
+
+  .cell-negative {
+    color: var(--negative);
+    font-weight: 600;
+  }
+
+  .token-swatch {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+}

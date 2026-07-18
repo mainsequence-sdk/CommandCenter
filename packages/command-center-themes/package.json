@@ -1,6 +1,6 @@
 {
   "name": "@dev-mainsequence/command-center-themes",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": false,
   "description": "Shared Command Center theme presets, token contracts, and theme application helpers.",
   "type": "module",
@@ -15,9 +15,14 @@
   ],
   "files": [
     "dist",
+    "ag-grid.css",
     "fonts.css",
+    "markdown.css",
+    "react-flow.css",
+    "react-grid-layout.css",
     "styles.css",
     "tailwind.css",
+    "utilities.css",
     "README.md"
   ],
   "style": "./styles.css",
@@ -36,9 +41,14 @@
       "types": "./dist/presets/index.d.ts",
       "import": "./dist/presets/index.js"
     },
+    "./ag-grid.css": "./ag-grid.css",
     "./fonts.css": "./fonts.css",
+    "./markdown.css": "./markdown.css",
+    "./react-flow.css": "./react-flow.css",
+    "./react-grid-layout.css": "./react-grid-layout.css",
     "./styles.css": "./styles.css",
     "./tailwind.css": "./tailwind.css",
+    "./utilities.css": "./utilities.css",
     "./package.json": "./package.json"
   },
   "publishConfig": {

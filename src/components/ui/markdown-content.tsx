@@ -60,7 +60,7 @@ export function MarkdownContent({
 }: MarkdownContentProps) {
   return (
     <div
-      className={cn("min-w-0 text-foreground", className)}
+      className={cn("command-center-markdown min-w-0 text-foreground", className)}
       style={{ fontSize: "var(--font-size-body-sm)" }}
     >
       <ReactMarkdown

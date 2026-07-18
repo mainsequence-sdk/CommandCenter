@@ -161,10 +161,17 @@ The published package is a full portable theme bundle:
 
 - `@dev-mainsequence/command-center-themes`: TypeScript presets, helpers, and contracts.
 - `@dev-mainsequence/command-center-themes/styles.css`: browser-ready CSS variables, base body and
-  typography styles, theme chrome variables, and reusable theme utility classes.
+  typography styles, theme chrome variables, and reusable Command Center chrome selectors.
 - `@dev-mainsequence/command-center-themes/tailwind.css`: Tailwind v4 mapping from utility tokens to
   Command Center CSS variables.
 - `@dev-mainsequence/command-center-themes/fonts.css`: shared font-stack variables.
+- `@dev-mainsequence/command-center-themes/utilities.css`: optional shared utility classes and
+  Command Center text sizing.
+- `@dev-mainsequence/command-center-themes/markdown.css`: optional `.command-center-markdown`
+  content skin.
+- `@dev-mainsequence/command-center-themes/ag-grid.css`: optional AG Grid skin.
+- `@dev-mainsequence/command-center-themes/react-flow.css`: optional React Flow workspace graph skin.
+- `@dev-mainsequence/command-center-themes/react-grid-layout.css`: optional React Grid Layout skin.
 
 An iframe application that uses the package directly should import the CSS once and apply the active
 theme to its document root:
@@ -182,6 +189,22 @@ if (theme) {
   applyThemePresetToRoot(document.documentElement, { theme });
 }
 ```
+
+Tailwind iframe applications can mirror Command Center's default import order:
+
+```css
+@import "tailwindcss";
+@import "@dev-mainsequence/command-center-themes/tailwind.css";
+@import "@dev-mainsequence/command-center-themes/styles.css";
+@import "@dev-mainsequence/command-center-themes/utilities.css";
+```
+
+Applications should import `markdown.css`, `ag-grid.css`, `react-flow.css`, or
+`react-grid-layout.css` only when they render those surfaces.
+
+Command Center itself keeps `src/styles/globals.css` limited to package imports and app shell
+height requirements. Portable theme variables, base typography, theme-specific chrome, utilities,
+and supported third-party skins belong in the package.
 
 If the host wants to send a complete CSS payload over `postMessage`, use `buildThemeStyleText`:
 
@@ -254,6 +277,7 @@ Current references:
 - runtime application: `src/themes/ThemeProvider.tsx`
 - packaged stylesheet: `packages/command-center-themes/styles.css`
 - Tailwind mapping: `packages/command-center-themes/tailwind.css`
+- optional package stylesheets: `packages/command-center-themes/*.css`
 
 For table-like UIs, use the shared CSS variables already written by the provider:
 
