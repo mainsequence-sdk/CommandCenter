@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type CSSProperties } from "react";
 
 import { Outlet, useLocation } from "react-router-dom";
 
@@ -225,10 +225,17 @@ export function AppShell() {
 
   const shell = (
     <div
+      data-app-shell
       className={cn(
         "relative bg-background text-foreground",
         workspacePrintRoute ? "min-h-screen overflow-visible" : "h-screen overflow-hidden",
       )}
+      style={
+        {
+          "--shell-sidebar-width": `${sidebarWidth}px`,
+          "--shell-topbar-height": shelllessRoute ? "0px" : "56px",
+        } as CSSProperties
+      }
     >
       <div
         className={cn(

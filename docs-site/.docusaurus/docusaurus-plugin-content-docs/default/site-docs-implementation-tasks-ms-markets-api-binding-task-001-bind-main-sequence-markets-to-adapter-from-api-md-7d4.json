@@ -1,0 +1,15 @@
+{
+  "id": "implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api",
+  "title": "Task 001: Bind Main Sequence Markets To Adapter From API Connection",
+  "description": "Objective",
+  "source": "@site/../docs/implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api.md",
+  "sourceDirName": "implementation_tasks/ms-markets-api-binding",
+  "slug": "/implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api",
+  "permalink": "/docs/implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

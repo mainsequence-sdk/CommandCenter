@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-053-public-view-for-workspace-and-slide-studio",
+  "title": "ADR 053: Public View For Workspace And Slide Studio",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-053-public-view-for-workspace-and-slide-studio.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-053-public-view-for-workspace-and-slide-studio",
+  "permalink": "/docs/adr/command_center/adr-053-public-view-for-workspace-and-slide-studio",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-053-public-view-for-workspace-and-slide-studio.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

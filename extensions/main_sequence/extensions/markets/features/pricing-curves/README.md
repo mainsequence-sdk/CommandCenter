@@ -5,7 +5,7 @@ This feature owns the `Pricing Curves` registry surface under the `Pricing` navi
 ## Entry Points
 
 - `MainSequencePricingCurvesPage.tsx`: renders the paginated pricing curves list with backend-backed global search and registry pagination.
-- `MainSequencePricingCurveDetailView.tsx`: renders the summary-driven detail view for a selected pricing curve, including the `Curve` tab for valuation-date and pricing market-data set context controls plus the `Curve Selections` tab for market-data bindings that select the curve.
+- `MainSequencePricingCurveDetailView.tsx`: renders the summary-driven detail view for a selected pricing curve, including the `Curve` tab for valuation-date and pricing market-data set context controls, the `Curve Selections` tab for market-data bindings that select the curve, and the delete preflight dialog.
 
 ## Dependencies
 
@@ -19,6 +19,8 @@ This feature owns the `Pricing Curves` registry surface under the `Pricing` navi
 - Detail summary route: `GET /api/v1/pricing/curves/{uid}/summary/`.
 - Curve selections route: `GET /api/v1/pricing/curves/{uid}/curve-selections/`.
 - Discount curve route: `GET /api/v1/pricing/curves/{uid}/discount-curve/?market_data_set=<uid-or-key>&valuation_date=<iso>`.
+- Delete impact route: `GET /api/v1/pricing/curves/{uid}/delete-impact/?delete_values=<bool>&delete_curve_selections=<bool>`.
+- Delete route: `DELETE /api/v1/pricing/curves/{uid}/?delete_values=<bool>&delete_curve_selections=<bool>`.
 - Market-data set picker route: `GET /api/v1/pricing/market_data/sets/`.
 - Query params: `limit`, `offset`, `search`, `curve_type`, and `source`. Do not send `index_uid`; curve identity does not own index selection.
 - `search` is server-backed and searches `Curve.unique_identifier`.
@@ -28,6 +30,7 @@ This feature owns the `Pricing Curves` registry surface under the `Pricing` navi
 - Curve detail context is stored in URL state as `msPricingCurveDate` and `msPricingMarketDataSetUid`; these controls drive the discount-curve request but do not mutate backend state.
 - `valuation_date` is optional. When the frontend omits it, the backend returns the latest available discount-curve observation.
 - The detail view defaults the pricing market-data set to the first returned picker entry, boots the first discount-curve request without a date, and then normalizes the stored date to the response `valuation_date`.
+- Curve deletion always calls the delete-impact route before enabling the final destructive action. The dialog exposes only the backend-supported destructive toggles: `delete_values` for `DiscountCurvesStorage` observations and `delete_curve_selections` for market-data-set curve-selection rows. Changing either toggle re-fetches impact, and the final delete remains disabled until `can_delete === true`.
 - Build details are intentionally not wired because the backend has not exposed `GET /api/v1/pricing/curves/{uid}/building-details/` yet.
 
 ## Notes

@@ -3,7 +3,12 @@ import {
   type MainSequenceAiResolvedAssistantAccess,
   type MainSequenceAiAssistantRuntimeTarget,
 } from "./assistant-endpoint";
+import { env } from "@/config/env";
 import { MainSequenceAiError } from "./error-source";
+import {
+  buildRuntimeHttpErrorMessage,
+  readRuntimeBackendErrorMessage,
+} from "./http-error";
 import {
   appendCreatedByUserUidSearchParam,
   requireCreatedByUserUid,
@@ -46,6 +51,7 @@ export interface AvailableChatRunConfigOptions {
 }
 
 const AVAILABLE_RUN_CONFIG_CACHE_TTL_MS = 900_000;
+const EMPTY_AVAILABLE_RUN_CONFIG_CACHE_TTL_MS = 60_000;
 
 interface AvailableRunConfigCacheEntry {
   expiresAt: number;
@@ -162,13 +168,23 @@ function extractModelOptionFromCandidate(
   }
 
   const candidate = value as Record<string, unknown>;
+  const rawProvider = candidate.provider;
+  const normalizedProvider =
+    typeof rawProvider === "string" && rawProvider.trim()
+      ? rawProvider.trim()
+      : providerFallback;
   const rawSource =
     candidate.source ??
     candidate.model_source ??
-    candidate.modelSource;
+    candidate.modelSource ??
+    normalizedProvider;
   const rawValue =
     candidate.value ??
     candidate.model ??
+    candidate.model_name ??
+    candidate.modelName ??
+    candidate.model_id ??
+    candidate.modelId ??
     candidate.id ??
     candidate.slug ??
     candidate.name ??
@@ -191,7 +207,6 @@ function extractModelOptionFromCandidate(
     candidate.displayName ??
     candidate.name ??
     candidate.model;
-  const rawProvider = candidate.provider;
   const rawAuth = candidate.auth;
   const defaultsCandidate =
     candidate.defaults && typeof candidate.defaults === "object" && !Array.isArray(candidate.defaults)
@@ -253,10 +268,6 @@ function extractModelOptionFromCandidate(
           })(),
         }
       : null;
-  const normalizedProvider =
-    typeof rawProvider === "string" && rawProvider.trim()
-      ? rawProvider.trim()
-      : providerFallback;
   const modelIdentity = [normalizedProvider ?? "", normalizedSource, normalizedValue].join("::");
 
   return {
@@ -315,7 +326,12 @@ function extractGroupedProviderEntries(payload: unknown) {
 
   const candidate = payload as Record<string, unknown>;
 
-  if (!Array.isArray(candidate.providers)) {
+  const providersPayload = candidate.providers;
+
+  if (
+    !Array.isArray(providersPayload) &&
+    (!providersPayload || typeof providersPayload !== "object")
+  ) {
     return null;
   }
 
@@ -324,8 +340,17 @@ function extractGroupedProviderEntries(payload: unknown) {
     models: unknown[];
   }> = [];
 
-  for (const entry of candidate.providers as unknown[]) {
+  const providerEntries = Array.isArray(providersPayload)
+    ? providersPayload.map((entry) => ({ providerKey: null, value: entry }))
+    : Object.entries(providersPayload as Record<string, unknown>).map(
+        ([providerKey, value]) => ({ providerKey, value }),
+      );
+
+  for (const { providerKey, value: entry } of providerEntries) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      if (Array.isArray(entry) && providerKey?.trim()) {
+        groupedProviders.push({ provider: providerKey.trim(), models: entry });
+      }
       continue;
     }
 
@@ -333,8 +358,8 @@ function extractGroupedProviderEntries(payload: unknown) {
     const provider =
       typeof providerCandidate.provider === "string" && providerCandidate.provider.trim()
         ? providerCandidate.provider.trim()
-        : null;
-    const models = Array.isArray(providerCandidate.models) ? providerCandidate.models : null;
+        : providerKey?.trim() || null;
+    const models = extractModelArray(providerCandidate);
 
     if (!provider || !models) {
       continue;
@@ -553,18 +578,19 @@ export async function fetchAvailableRunConfigOptions({
 
   const resolvedCreatedByUserUid = requireCreatedByUserUid(
     createdByUserUid,
-    "Available model catalog",
+    "Chat runtime available-models",
   );
-  const { resolvedAccess, response } = await fetchMainSequenceAiAssistantResponse({
+  const requestPath = appendCreatedByUserUidSearchParam(
+    "/api/chat/get_available_models",
+    resolvedCreatedByUserUid,
+  );
+  const { resolvedAccess, response, url } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     ...(sessionId
       ? { currentSessionId: sessionId }
-      : { runtimeTarget: runtimeTarget ?? ("configured" as const) }),
-    requestPath: appendCreatedByUserUidSearchParam(
-      "/api/chat/get_available_models",
-      resolvedCreatedByUserUid,
-    ),
+      : { runtimeTarget: runtimeTarget ?? ("command-center-base" as const) }),
+    requestPath,
     method: "GET",
     signal,
     sessionToken: token,
@@ -574,14 +600,22 @@ export async function fetchAvailableRunConfigOptions({
   onResolvedAccess?.(resolvedAccess);
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as
-      | { error?: string; message?: string }
-      | null;
+    const fallbackMessage = `Chat runtime available-models request failed with status ${response.status}.`;
+    const backendMessage = await readRuntimeBackendErrorMessage(
+      response,
+      fallbackMessage,
+    );
     throw new MainSequenceAiError(
-      payload?.message ||
-        payload?.error ||
-        `Available models failed with status ${response.status}.`,
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage,
+        method: "GET",
+        operation:
+          "Chat runtime available-models request failed while loading sendable chat models",
+        response,
+        url,
+      }),
       {
+        detail: backendMessage,
         source: "assistant_available_models",
         status: response.status,
       },
@@ -591,9 +625,38 @@ export async function fetchAvailableRunConfigOptions({
   const payload = (await response.json()) as unknown;
   const options = normalizeAvailableRunConfigOptions(payload);
 
+  if (import.meta.env.DEV || env.debugChat) {
+    console.info("[main_sequence_ai] /api/chat/get_available_models response", {
+      requestPath,
+      status: response.status,
+      url,
+      runtime: sessionId
+        ? {
+            kind: "agent-session",
+            sessionId,
+          }
+        : {
+            kind: runtimeTarget ?? "command-center-base",
+          },
+      rawPayload: payload,
+      normalized: {
+        providerCount: options.providers.length,
+        modelCount: options.models.length,
+        reasoningEffortCount: options.reasoningEfforts.length,
+        providers: options.providers,
+        models: options.models,
+        reasoningEfforts: options.reasoningEfforts,
+      },
+    });
+  }
+
   if (normalizedCacheKey) {
     availableRunConfigOptionsCache.set(normalizedCacheKey, {
-      expiresAt: Date.now() + cacheTtlMs,
+      expiresAt:
+        Date.now() +
+        (options.models.length > 0
+          ? cacheTtlMs
+          : EMPTY_AVAILABLE_RUN_CONFIG_CACHE_TTL_MS),
       value: options,
     });
   }

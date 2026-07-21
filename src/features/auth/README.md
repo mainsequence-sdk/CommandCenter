@@ -74,3 +74,10 @@ This feature owns unauthenticated sign-in and password-reset entry points for th
   "runtime_credential"` and `MAINSEQUENCE_ACCESS_TOKEN` or `tokens.accessToken`; requests still
   send `Authorization: Bearer <runtime access JWT>`, but the auth store treats the session as a
   scoped machine/runtime identity with no refresh token and no interactive logout call.
+- Local dev credentials can be supplied with
+  `VITE_COMMAND_CENTER_DEV_LOGIN_IDENTIFIER` and
+  `VITE_COMMAND_CENTER_DEV_LOGIN_PASSWORD`. In Vite dev mode with live auth enabled
+  (`VITE_USE_MOCK_DATA=false` and `VITE_BYPASS_AUTH=false`), `/login?dev_autologin=1` and
+  `/login-v2?dev_autologin=1` preload those values and auto-submit once through the normal JWT
+  login path. Plain `/login` remains manual so another browser can test a different user. This is
+  a developer convenience only; do not set these variables in production build environments.

@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-081-general-shell-access-scope-resolution",
+  "title": "ADR 081: General Shell Access Scope Resolution",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-081-general-shell-access-scope-resolution.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-081-general-shell-access-scope-resolution",
+  "permalink": "/docs/adr/command_center/adr-081-general-shell-access-scope-resolution",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-081-general-shell-access-scope-resolution.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

@@ -1,4 +1,5 @@
 import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
+import { buildRuntimeHttpErrorMessage } from "./http-error";
 
 export interface SessionConfigPatchRequest {
   sessionId: string;
@@ -38,7 +39,7 @@ export async function patchSessionConfig({
   token?: string | null;
   tokenType?: string;
 }) {
-  const { response } = await fetchMainSequenceAiAssistantResponse({
+  const { response, url } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     currentSessionId: body.sessionId,
@@ -53,14 +54,17 @@ export async function patchSessionConfig({
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as
+    const payload = (await response.clone().json().catch(() => null)) as
       | { code?: string; detail?: string; error?: string; message?: string }
       | null;
     throw new SessionConfigApiError(
-      payload?.message ||
-        payload?.detail ||
-        payload?.error ||
-        `Session config update failed with status ${response.status}.`,
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage: `Session config update failed with status ${response.status}.`,
+        method: "PATCH",
+        operation: "Agent session config update request failed",
+        response,
+        url,
+      }),
       payload?.code ?? null,
     );
   }

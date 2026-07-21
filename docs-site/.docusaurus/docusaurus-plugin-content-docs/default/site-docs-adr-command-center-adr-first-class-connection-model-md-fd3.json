@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-first-class-connection-model",
+  "title": "ADR: First-Class Connection Model",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-first-class-connection-model.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-first-class-connection-model",
+  "permalink": "/docs/adr/command_center/adr-first-class-connection-model",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-first-class-connection-model.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

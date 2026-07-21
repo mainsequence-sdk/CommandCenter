@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
 import { env } from "@/config/env";
+import { isDevAutologinRoute } from "@/features/auth/devLogin";
 import { withAlpha } from "@/lib/color";
 import { useTheme } from "@/themes/ThemeProvider";
 
@@ -569,15 +570,26 @@ export function LoginPageV2() {
   const { app, auth } = useCommandCenterConfig();
   const { resolvedTokens } = useTheme();
   const isBypassAuth = env.bypassAuth;
+  const isMockAuth = env.useMockData && !isBypassAuth;
+  const devLogin = env.devLogin;
+  const canUseDevLogin = devLogin.enabled && !isBypassAuth && !isMockAuth;
+  const shouldDevAutologin = canUseDevLogin && isDevAutologinRoute(location.search);
   const [phase, setPhase] = useState(0);
 
   const [identifier, setIdentifier] = useState(
-    isBypassAuth ? "org_admin@mainsequence.local" : "",
+    shouldDevAutologin
+      ? devLogin.identifier
+      : isBypassAuth
+        ? "org_admin@mainsequence.local"
+        : "",
   );
-  const [password, setPassword] = useState(isBypassAuth ? "demo" : "");
+  const [password, setPassword] = useState(
+    shouldDevAutologin ? devLogin.password : isBypassAuth ? "demo" : "",
+  );
   const [role, setRole] = useState<BuiltinAppRole>("org_admin");
   const [mfaCode, setMfaCode] = useState("");
   const [setupCode, setSetupCode] = useState("");
+  const [didAttemptDevLogin, setDidAttemptDevLogin] = useState(false);
 
   const redirectTarget =
     (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? "/app";
@@ -614,6 +626,38 @@ export function LoginPageV2() {
       navigate(redirectTarget, { replace: true });
     }
   }, [navigate, redirectTarget, status]);
+
+  useEffect(() => {
+    if (
+      !shouldDevAutologin ||
+      didAttemptDevLogin ||
+      loginUiState !== "password_login" ||
+      status !== "anonymous"
+    ) {
+      return;
+    }
+
+    setDidAttemptDevLogin(true);
+
+    void login({
+      identifier: devLogin.identifier,
+      password: devLogin.password,
+    }).then((didLogin) => {
+      if (didLogin) {
+        navigate(redirectTarget, { replace: true });
+      }
+    });
+  }, [
+    devLogin.identifier,
+    devLogin.password,
+    didAttemptDevLogin,
+    login,
+    loginUiState,
+    navigate,
+    redirectTarget,
+    shouldDevAutologin,
+    status,
+  ]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {

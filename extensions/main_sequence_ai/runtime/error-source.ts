@@ -5,7 +5,7 @@ const SOURCE_LABELS: Record<string, string> = {
   agent_session_history: "Agent runtime session history",
   agent_session_insights: "Main Sequence AgentSession insights API",
   agent_session_tools: "Agent runtime session tools",
-  assistant_available_models: "Agent runtime model catalog",
+  assistant_available_models: "Chat runtime available models",
   assistant_backend_http: "Agent runtime HTTP",
   assistant_runtime_access: "Main Sequence AgentSession runtime access",
   assistant_runtime_stream: "Agent runtime stream",

@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-connection-authoring-contract",
+  "title": "ADR: Shared Connection Authoring Contract",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-connection-authoring-contract.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-connection-authoring-contract",
+  "permalink": "/docs/adr/command_center/adr-connection-authoring-contract",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-connection-authoring-contract.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

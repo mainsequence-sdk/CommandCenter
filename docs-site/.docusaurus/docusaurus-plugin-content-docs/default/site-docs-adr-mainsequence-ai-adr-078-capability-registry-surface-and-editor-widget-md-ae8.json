@@ -1,0 +1,24 @@
+{
+  "id": "adr/mainsequence_ai/adr-078-capability-registry-surface-and-editor-widget",
+  "title": "ADR 078: Capability Registry Surface and Agent Capability Editor Widget",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/mainsequence_ai/adr-078-capability-registry-surface-and-editor-widget.md",
+  "sourceDirName": "adr/mainsequence_ai",
+  "slug": "/adr/mainsequence_ai/adr-078-capability-registry-surface-and-editor-widget",
+  "permalink": "/docs/adr/mainsequence_ai/adr-078-capability-registry-surface-and-editor-widget",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/mainsequence_ai/adr-078-capability-registry-surface-and-editor-widget.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "Main Sequence AI Architecture Decision Records",
+    "permalink": "/docs/adr/mainsequence_ai"
+  },
+  "next": {
+    "title": "ADR 077: Unified Astro Coding-Agent Bootstrap",
+    "permalink": "/docs/adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap"
+  }
+}

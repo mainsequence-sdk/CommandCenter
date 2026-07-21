@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-043-websocket-stream-preview-graphing-semantics",
+  "title": "ADR 043: WebSocket Stream Preview And Graphing Semantics",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics",
+  "permalink": "/docs/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

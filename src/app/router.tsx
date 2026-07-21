@@ -66,12 +66,11 @@ function LegacyClusterPodLogsRedirect() {
 
   searchParams.set("msClusterTab", "pods");
 
-  if (podName) {
+  if (podName && namespace) {
     searchParams.set("msClusterPodName", podName);
   }
 
   if (namespace) {
-    searchParams.set("namespace", namespace);
     searchParams.set("msClusterPodNamespace", namespace);
   }
 

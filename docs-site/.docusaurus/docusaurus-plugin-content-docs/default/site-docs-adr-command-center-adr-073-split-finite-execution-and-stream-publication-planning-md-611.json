@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning",
+  "title": "ADR 073: Split Finite Execution And Stream Publication Planning",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning",
+  "permalink": "/docs/adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

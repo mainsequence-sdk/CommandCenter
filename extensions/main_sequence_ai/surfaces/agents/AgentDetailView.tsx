@@ -26,9 +26,9 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toaster";
 import { cn } from "@/lib/utils";
 import {
-  fetchProjectExecutorAutomaticDeploymentRuns,
   fetchScalableServiceSummary,
   formatMainSequenceError,
+  listDeploymentRuns,
   type EntitySummaryHeader,
 } from "../../../main_sequence/common/api";
 import { MainSequenceEntitySummaryCard } from "../../../main_sequence/common/components/MainSequenceEntitySummaryCard";
@@ -1029,7 +1029,7 @@ export function AgentDetailView({
         assistantEndpoint: configuredAssistantEndpoint ?? undefined,
         cacheKey: runConfigCacheKey,
         createdByUserUid: sessionUserUid,
-        runtimeTarget: configuredAssistantEndpoint ? "configured" : "command-center-base",
+        runtimeTarget: "command-center-base",
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
@@ -1124,11 +1124,13 @@ export function AgentDetailView({
         }
       }
 
-      const runs = await fetchProjectExecutorAutomaticDeploymentRuns({
-        agentUid: normalizedAgentId,
+      const runsResponse = await listDeploymentRuns({
+        targetType: "project_executor",
         limit: 20,
-        ordering: "-created_at",
       });
+      const runs = runsResponse.results.filter(
+        (run) => run.target.uid === normalizedAgentId,
+      );
 
       for (const run of runs) {
         const candidate = readProjectUidFromUnknown(run);
@@ -1249,8 +1251,8 @@ export function AgentDetailView({
         toast({
           title: "Runtime unavailable",
           description: payload.exists
-            ? "The runtime exists but did not return a KnativeServiceRuntime UID."
-            : "The backend could not resolve a KnativeServiceRuntime for this agent.",
+            ? "The runtime exists but did not return a Service Runtime UID."
+            : "The backend could not resolve a Service Runtime for this agent.",
           variant: "info",
         });
         return;

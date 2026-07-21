@@ -1,15 +1,15 @@
 {
-  "/docs/-b15": {
+  "/docs/-71f": {
     "__comp": "5e95c892",
     "__context": {
       "plugin": "aba21aa0"
     }
   },
-  "/docs/-959": {
+  "/docs/-ec9": {
     "__comp": "a7bd4aaa",
     "__props": "11b43341"
   },
-  "/docs/-e6e": {
+  "/docs/-01e": {
     "__comp": "a94703ab"
   },
   "/docs/access-control-073": {
@@ -28,169 +28,381 @@
     "__comp": "17896441",
     "content": "b03f83d9"
   },
-  "/docs/adr/adr-038-progressive-workspace-widget-hydration-586": {
+  "/docs/adr/command_center-2f8": {
     "__comp": "17896441",
-    "content": "32530055"
+    "content": "db0b4deb"
   },
-  "/docs/adr/adr-039-unified-upstream-consumer-state-contract-a6f": {
+  "/docs/adr/command_center/adr-038-progressive-workspace-widget-hydration-06a": {
     "__comp": "17896441",
-    "content": "0100432a"
+    "content": "d9034b2b"
   },
-  "/docs/adr/adr-040-dashboard-surface-return-hydration-8a5": {
+  "/docs/adr/command_center/adr-039-unified-upstream-consumer-state-contract-5c4": {
     "__comp": "17896441",
-    "content": "3c37eb16"
+    "content": "4a314f2a"
   },
-  "/docs/adr/adr-041-connection-query-websocket-streaming-8e1": {
+  "/docs/adr/command_center/adr-040-dashboard-surface-return-hydration-ce4": {
     "__comp": "17896441",
-    "content": "8902d398"
+    "content": "0b729986"
   },
-  "/docs/adr/adr-042-tabular-transform-row-filtering-358": {
+  "/docs/adr/command_center/adr-041-connection-query-websocket-streaming-cb2": {
     "__comp": "17896441",
-    "content": "f086e316"
+    "content": "a2837aca"
   },
-  "/docs/adr/adr-adapter-from-api-connection-055": {
+  "/docs/adr/command_center/adr-042-tabular-transform-row-filtering-a97": {
     "__comp": "17896441",
-    "content": "38a63f9e"
+    "content": "26c8b2b7"
   },
-  "/docs/adr/adr-agent-monitor-workspace-reference-widget-29b": {
+  "/docs/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics-ee0": {
     "__comp": "17896441",
-    "content": "4e10f2f5"
+    "content": "36827be3"
   },
-  "/docs/adr/adr-agent-ready-widget-type-registry-contract-005": {
+  "/docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles-7f1": {
     "__comp": "17896441",
-    "content": "de2ea857"
+    "content": "70a9310f"
   },
-  "/docs/adr/adr-agent-session-interaction-readiness-gate-d43": {
+  "/docs/adr/command_center/adr-045-agent-facing-workspace-snapshot-contract-e9f": {
     "__comp": "17896441",
-    "content": "a7d0c16f"
+    "content": "b7d961f6"
   },
-  "/docs/adr/adr-agent-terminal-managed-session-creation-bfa": {
+  "/docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision-149": {
     "__comp": "17896441",
-    "content": "7d0fd7d7"
+    "content": "845dbd21"
   },
-  "/docs/adr/adr-app-component-binding-native-api-widget-7f0": {
+  "/docs/adr/command_center/adr-047-workspace-runtime-data-reference-store-1fa": {
     "__comp": "17896441",
-    "content": "c468483c"
+    "content": "8ad81370"
   },
-  "/docs/adr/adr-app-component-caching-222": {
+  "/docs/adr/command_center/adr-048-alpaca-websocket-command-center-extension-938": {
     "__comp": "17896441",
-    "content": "c123b4bf"
+    "content": "c8290cd6"
   },
-  "/docs/adr/adr-app-component-mock-json-target-da1": {
+  "/docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction-620": {
     "__comp": "17896441",
-    "content": "e9510f24"
+    "content": "a0041bfe"
   },
-  "/docs/adr/adr-app-component-response-notification-ui-ce1": {
+  "/docs/adr/command_center/adr-050-workspace-slide-as-structural-container-863": {
     "__comp": "17896441",
-    "content": "720c448b"
+    "content": "cde793d8"
   },
-  "/docs/adr/adr-binding-output-transforms-cbb": {
+  "/docs/adr/command_center/adr-051-consistent-widget-chrome-between-edit-and-view-modes-a39": {
     "__comp": "17896441",
-    "content": "afdf42b8"
+    "content": "57c057e6"
   },
-  "/docs/adr/adr-connection-authoring-contract-e5a": {
+  "/docs/adr/command_center/adr-052-slide-studio-slideshow-projection-mode-8eb": {
     "__comp": "17896441",
-    "content": "29a8c091"
+    "content": "4104013c"
   },
-  "/docs/adr/adr-connection-first-workspace-dataflow-864": {
+  "/docs/adr/command_center/adr-053-public-view-for-workspace-and-slide-studio-c9e": {
     "__comp": "17896441",
-    "content": "c86eddfc"
+    "content": "0d96629c"
   },
-  "/docs/adr/adr-executable-widget-graph-runner-4e5": {
+  "/docs/adr/command_center/adr-054-synthetic-public-workspace-render-permissions-df2": {
     "__comp": "17896441",
-    "content": "f4636ece"
+    "content": "38aeb1da"
   },
-  "/docs/adr/adr-extension-contributed-shell-settings-menus-05f": {
+  "/docs/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting-c43": {
     "__comp": "17896441",
-    "content": "9f6e852a"
+    "content": "4a016e09"
   },
-  "/docs/adr/adr-first-class-connection-model-e3f": {
+  "/docs/adr/command_center/adr-056-slide-structural-containment-in-workspace-graph-c6b": {
     "__comp": "17896441",
-    "content": "1325e15d"
+    "content": "a5fc8269"
   },
-  "/docs/adr/adr-headless-workspace-settings-runtime-609": {
+  "/docs/adr/command_center/adr-057-slide-studio-printable-pdf-projection-331": {
     "__comp": "17896441",
-    "content": "68b9c37e"
+    "content": "5a57035c"
   },
-  "/docs/adr/adr-incremental-connection-response-refresh-971": {
+  "/docs/adr/command_center/adr-058-cross-widget-references-and-variables-060": {
     "__comp": "17896441",
-    "content": "428f5ab7"
+    "content": "9b58d02f"
   },
-  "/docs/adr/adr-incremental-workspace-normalization-c0c": {
+  "/docs/adr/command_center/adr-059-user-instance-canonical-workspace-controls-373": {
     "__comp": "17896441",
-    "content": "d010e29c"
+    "content": "e0cb5f6f"
   },
-  "/docs/adr/adr-inline-canvas-rich-text-widget-905": {
+  "/docs/adr/command_center/adr-060-instant-widget-settings-runtime-0d8": {
     "__comp": "17896441",
-    "content": "3f4e8372"
+    "content": "b14eaa88"
   },
-  "/docs/adr/adr-live-workspace-agent-snapshot-archive-478": {
+  "/docs/adr/command_center/adr-061-usage-documentation-app-41f": {
     "__comp": "17896441",
-    "content": "86b0b52d"
+    "content": "336d4e4b"
   },
-  "/docs/adr/adr-main-sequence-ai-command-center-base-session-e22": {
+  "/docs/adr/command_center/adr-062-typed-widget-module-pattern-64b": {
     "__comp": "17896441",
-    "content": "dffc3662"
+    "content": "91bb3ec9"
   },
-  "/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution-278": {
+  "/docs/adr/command_center/adr-063-position-detail-widget-rename-69f": {
     "__comp": "17896441",
-    "content": "4fd55335"
+    "content": "86d7548b"
   },
-  "/docs/adr/adr-main-sequence-simple-table-connection-6a5": {
+  "/docs/adr/command_center/adr-064-variable-reference-graph-integration-e77": {
     "__comp": "17896441",
-    "content": "f89edaab"
+    "content": "0f829cba"
   },
-  "/docs/adr/adr-managed-connection-query-widget-sources-8be": {
+  "/docs/adr/command_center/adr-065-shared-table-core-with-community-and-pro-table-widgets-f1e": {
     "__comp": "17896441",
-    "content": "a632cb5a"
+    "content": "f300b097"
   },
-  "/docs/adr/adr-organization-widget-type-configurations-286": {
+  "/docs/adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization-cf9": {
     "__comp": "17896441",
-    "content": "75b4b6df"
+    "content": "581d49b7"
   },
-  "/docs/adr/adr-postgresql-connection-279": {
+  "/docs/adr/command_center/adr-067-tabular-transform-owns-shared-computed-column-authoring-bab": {
     "__comp": "17896441",
-    "content": "7bcf1c3c"
+    "content": "44d3bf64"
   },
-  "/docs/adr/adr-rgl-v2-workspace-studio-563": {
+  "/docs/adr/command_center/adr-067b-websocket-stream-run-boundary-reset-dbb": {
     "__comp": "17896441",
-    "content": "0b358b27"
+    "content": "38c7741e"
   },
-  "/docs/adr/adr-runtime-credential-browser-auth-4ee": {
+  "/docs/adr/command_center/adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers-be1": {
     "__comp": "17896441",
-    "content": "1125c676"
+    "content": "ddd12f03"
   },
-  "/docs/adr/adr-shared-workspace-state-a15": {
+  "/docs/adr/command_center/adr-069-websocket-stream-variable-resubscription-d33": {
     "__comp": "17896441",
-    "content": "0cfbbc03"
+    "content": "6815a105"
   },
-  "/docs/adr/adr-single-runtime-owner-workspace-widgets-9e4": {
+  "/docs/adr/command_center/adr-070-workspace-variable-explorer-7b9": {
     "__comp": "17896441",
-    "content": "68c250d5"
+    "content": "7a6ae48b"
   },
-  "/docs/adr/adr-source-driven-downstream-execution-84c": {
+  "/docs/adr/command_center/adr-071-atomic-widget-settings-workspace-save-785": {
     "__comp": "17896441",
-    "content": "d3f94d7a"
+    "content": "68410a93"
   },
-  "/docs/adr/adr-standardized-connection-result-contracts-bee": {
+  "/docs/adr/command_center/adr-072-backend-variables-and-reference-defaults-79a": {
     "__comp": "17896441",
-    "content": "a8f5aa5b"
+    "content": "0b857344"
   },
-  "/docs/adr/adr-widget-agent-context-bindings-bbe": {
+  "/docs/adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning-8aa": {
     "__comp": "17896441",
-    "content": "7462a85b"
+    "content": "6114a24a"
   },
-  "/docs/adr/adr-widget-bindings-and-dependency-graph-acd": {
+  "/docs/adr/command_center/adr-074-adapter-from-api-debug-direct-mode-299": {
     "__comp": "17896441",
-    "content": "f8b77628"
+    "content": "c95a3746"
   },
-  "/docs/adr/adr-widget-settings-demo-preview-draft-a0f": {
+  "/docs/adr/command_center/adr-077-client-side-mysql-connection-417": {
     "__comp": "17896441",
-    "content": "b51b93c5"
+    "content": "e7ece693"
   },
-  "/docs/adr/adr-workspace-widget-referenced-graph-expansion-e3c": {
+  "/docs/adr/command_center/adr-078-client-side-sql-server-connection-762": {
     "__comp": "17896441",
-    "content": "4193de41"
+    "content": "2f10b338"
+  },
+  "/docs/adr/command_center/adr-079-unified-routed-settings-module-ecf": {
+    "__comp": "17896441",
+    "content": "cab47606"
+  },
+  "/docs/adr/command_center/adr-080-resolved-shell-access-as-visualization-gates-a1c": {
+    "__comp": "17896441",
+    "content": "3d199aca"
+  },
+  "/docs/adr/command_center/adr-081-general-shell-access-scope-resolution-985": {
+    "__comp": "17896441",
+    "content": "ce29bb43"
+  },
+  "/docs/adr/command_center/adr-adapter-from-api-connection-eae": {
+    "__comp": "17896441",
+    "content": "f8af3486"
+  },
+  "/docs/adr/command_center/adr-agent-ready-widget-type-registry-contract-06f": {
+    "__comp": "17896441",
+    "content": "275e0974"
+  },
+  "/docs/adr/command_center/adr-app-component-binding-native-api-widget-268": {
+    "__comp": "17896441",
+    "content": "da03fe93"
+  },
+  "/docs/adr/command_center/adr-app-component-caching-682": {
+    "__comp": "17896441",
+    "content": "d23f8e86"
+  },
+  "/docs/adr/command_center/adr-app-component-mock-json-target-099": {
+    "__comp": "17896441",
+    "content": "b8e00ee2"
+  },
+  "/docs/adr/command_center/adr-app-component-response-notification-ui-48f": {
+    "__comp": "17896441",
+    "content": "56f83630"
+  },
+  "/docs/adr/command_center/adr-binding-output-transforms-865": {
+    "__comp": "17896441",
+    "content": "06ed6ce1"
+  },
+  "/docs/adr/command_center/adr-connection-authoring-contract-cc0": {
+    "__comp": "17896441",
+    "content": "e1f4a9e2"
+  },
+  "/docs/adr/command_center/adr-connection-first-workspace-dataflow-97a": {
+    "__comp": "17896441",
+    "content": "e709cf6e"
+  },
+  "/docs/adr/command_center/adr-executable-widget-graph-runner-a69": {
+    "__comp": "17896441",
+    "content": "167c359b"
+  },
+  "/docs/adr/command_center/adr-extension-contributed-shell-settings-menus-ea5": {
+    "__comp": "17896441",
+    "content": "09b5b0a9"
+  },
+  "/docs/adr/command_center/adr-first-class-connection-model-9f1": {
+    "__comp": "17896441",
+    "content": "fd378cb8"
+  },
+  "/docs/adr/command_center/adr-headless-workspace-settings-runtime-eb1": {
+    "__comp": "17896441",
+    "content": "321550a6"
+  },
+  "/docs/adr/command_center/adr-incremental-connection-response-refresh-ac9": {
+    "__comp": "17896441",
+    "content": "61de433d"
+  },
+  "/docs/adr/command_center/adr-incremental-workspace-normalization-364": {
+    "__comp": "17896441",
+    "content": "709b31e3"
+  },
+  "/docs/adr/command_center/adr-inline-canvas-rich-text-widget-aa6": {
+    "__comp": "17896441",
+    "content": "838a5490"
+  },
+  "/docs/adr/command_center/adr-live-workspace-agent-snapshot-archive-f60": {
+    "__comp": "17896441",
+    "content": "749ba429"
+  },
+  "/docs/adr/command_center/adr-main-sequence-simple-table-connection-fd3": {
+    "__comp": "17896441",
+    "content": "04e5b9ca"
+  },
+  "/docs/adr/command_center/adr-managed-connection-query-widget-sources-bae": {
+    "__comp": "17896441",
+    "content": "819310f9"
+  },
+  "/docs/adr/command_center/adr-organization-widget-type-configurations-716": {
+    "__comp": "17896441",
+    "content": "b64ee0fd"
+  },
+  "/docs/adr/command_center/adr-postgresql-connection-cf0": {
+    "__comp": "17896441",
+    "content": "0d6fb5d1"
+  },
+  "/docs/adr/command_center/adr-rgl-v2-workspace-studio-9a4": {
+    "__comp": "17896441",
+    "content": "14b195e0"
+  },
+  "/docs/adr/command_center/adr-runtime-credential-browser-auth-34e": {
+    "__comp": "17896441",
+    "content": "07b453c3"
+  },
+  "/docs/adr/command_center/adr-shared-workspace-state-51d": {
+    "__comp": "17896441",
+    "content": "df75a456"
+  },
+  "/docs/adr/command_center/adr-single-runtime-owner-workspace-widgets-a26": {
+    "__comp": "17896441",
+    "content": "730ff03a"
+  },
+  "/docs/adr/command_center/adr-source-driven-downstream-execution-d4a": {
+    "__comp": "17896441",
+    "content": "9a616b07"
+  },
+  "/docs/adr/command_center/adr-standardized-connection-result-contracts-79b": {
+    "__comp": "17896441",
+    "content": "3d3274cf"
+  },
+  "/docs/adr/command_center/adr-widget-agent-context-bindings-fe2": {
+    "__comp": "17896441",
+    "content": "dcef7581"
+  },
+  "/docs/adr/command_center/adr-widget-bindings-and-dependency-graph-e81": {
+    "__comp": "17896441",
+    "content": "e52191f1"
+  },
+  "/docs/adr/command_center/adr-widget-settings-demo-preview-draft-7e7": {
+    "__comp": "17896441",
+    "content": "3514bd3a"
+  },
+  "/docs/adr/command_center/adr-workspace-widget-referenced-graph-expansion-f21": {
+    "__comp": "17896441",
+    "content": "d568133f"
+  },
+  "/docs/adr/main_sequence-c79": {
+    "__comp": "17896441",
+    "content": "9471a95f"
+  },
+  "/docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts-5de": {
+    "__comp": "17896441",
+    "content": "7d9504af"
+  },
+  "/docs/adr/main_sequence/adr-075-ms-markets-api-binding-cbd": {
+    "__comp": "17896441",
+    "content": "19b5196a"
+  },
+  "/docs/adr/mainsequence_ai-87c": {
+    "__comp": "17896441",
+    "content": "5a8f04e6"
+  },
+  "/docs/adr/mainsequence_ai/adr-058-refactor-project-agent-creation-893": {
+    "__comp": "17896441",
+    "content": "6ede0cc1"
+  },
+  "/docs/adr/mainsequence_ai/adr-059-global-settings-runtime-resolution-497": {
+    "__comp": "17896441",
+    "content": "d214642e"
+  },
+  "/docs/adr/mainsequence_ai/adr-060-session-backed-chat-request-contract-dcd": {
+    "__comp": "17896441",
+    "content": "29ec428e"
+  },
+  "/docs/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models-8fd": {
+    "__comp": "17896441",
+    "content": "740d2701"
+  },
+  "/docs/adr/mainsequence_ai/adr-063-project-agent-configuration-source-of-truth-8dd": {
+    "__comp": "17896441",
+    "content": "d4332ce7"
+  },
+  "/docs/adr/mainsequence_ai/adr-076-agent-detail-capabilities-tab-30c": {
+    "__comp": "17896441",
+    "content": "5e7e64bc"
+  },
+  "/docs/adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap-c94": {
+    "__comp": "17896441",
+    "content": "ec8e4a0d"
+  },
+  "/docs/adr/mainsequence_ai/adr-078-capability-registry-surface-and-editor-widget-d5d": {
+    "__comp": "17896441",
+    "content": "ae8456d2"
+  },
+  "/docs/adr/mainsequence_ai/adr-agent-monitor-workspace-reference-widget-95a": {
+    "__comp": "17896441",
+    "content": "90f29188"
+  },
+  "/docs/adr/mainsequence_ai/adr-agent-session-interaction-readiness-gate-af8": {
+    "__comp": "17896441",
+    "content": "a5557dcd"
+  },
+  "/docs/adr/mainsequence_ai/adr-agent-terminal-managed-session-creation-03a": {
+    "__comp": "17896441",
+    "content": "f41075b6"
+  },
+  "/docs/adrs/mainsequence-ai/adr-063-user-ai-initialization-505": {
+    "__comp": "17896441",
+    "content": "7d67afac"
+  },
+  "/docs/adrs/mainsequence-ai/adr-064-agent-type-identity-d04": {
+    "__comp": "17896441",
+    "content": "55f2f7e6"
+  },
+  "/docs/adrs/mainsequence-markets/adrs/adr-001-market-asset-screener-data-contract-3ca": {
+    "__comp": "17896441",
+    "content": "228f9f88"
+  },
+  "/docs/adrs/widgets/adr-001-table-selection-outputs-914": {
+    "__comp": "17896441",
+    "content": "3abc2eb7"
   },
   "/docs/apps-6d0": {
     "__comp": "17896441",
@@ -232,6 +444,42 @@
     "__comp": "17896441",
     "content": "fdba0099"
   },
+  "/docs/implementation_tasks/adapter-from-api-debug-direct/-c35": {
+    "__comp": "17896441",
+    "content": "d1922a47"
+  },
+  "/docs/implementation_tasks/adapter-from-api-debug-direct/task-001-backend-direct-mode-persistence-716": {
+    "__comp": "17896441",
+    "content": "a285c0b9"
+  },
+  "/docs/implementation_tasks/adapter-from-api-debug-direct/task-002-frontend-config-and-direct-discovery-733": {
+    "__comp": "17896441",
+    "content": "a2ef65dc"
+  },
+  "/docs/implementation_tasks/adapter-from-api-debug-direct/task-003-direct-execution-runtime-and-workspace-routing-449": {
+    "__comp": "17896441",
+    "content": "73433f58"
+  },
+  "/docs/implementation_tasks/agent-capability-registry-surface/task-001-capability-registry-surface-and-shared-editor-deb": {
+    "__comp": "17896441",
+    "content": "96e6356d"
+  },
+  "/docs/implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow-0e8": {
+    "__comp": "17896441",
+    "content": "88e91ec4"
+  },
+  "/docs/implementation_tasks/main-sequence-registry-pagination-problem/-fe3": {
+    "__comp": "17896441",
+    "content": "aae9f0d4"
+  },
+  "/docs/implementation_tasks/ms-markets-api-binding/-f4c": {
+    "__comp": "17896441",
+    "content": "34861456"
+  },
+  "/docs/implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api-11a": {
+    "__comp": "17896441",
+    "content": "7d451a58"
+  },
   "/docs/operations-cba": {
     "__comp": "17896441",
     "content": "166b483b"
@@ -264,10 +512,6 @@
     "__comp": "17896441",
     "content": "5a8ed451"
   },
-  "/docs/todos/assistant_ui-630": {
-    "__comp": "17896441",
-    "content": "e5f9e8e1"
-  },
   "/docs/widgets-66d": {
     "__comp": "17896441",
     "content": "192e5939"
@@ -295,6 +539,10 @@
   "/docs/workspaces/overview-41f": {
     "__comp": "17896441",
     "content": "9dc65b6f"
+  },
+  "/docs/workspaces/reference-variables-159": {
+    "__comp": "17896441",
+    "content": "1b534e84"
   },
   "/docs/workspaces/runtime-performance-remediation-627": {
     "__comp": "17896441",

@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-main-sequence-simple-table-connection",
+  "title": "ADR: Main Sequence Simple Table Connection",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-main-sequence-simple-table-connection.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-main-sequence-simple-table-connection",
+  "permalink": "/docs/adr/command_center/adr-main-sequence-simple-table-connection",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-main-sequence-simple-table-connection.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

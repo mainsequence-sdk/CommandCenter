@@ -7,6 +7,10 @@ import {
   appendCreatedByUserUidSearchParam,
   requireCreatedByUserUid,
 } from "./user-scope";
+import {
+  buildRuntimeHttpErrorMessage,
+  formatRuntimeHttpStatus,
+} from "./http-error";
 
 export type ProviderAuthKind = "api_key" | "oauth";
 
@@ -81,6 +85,7 @@ export class ModelProviderApiError extends Error {
 }
 
 const devAuthProxyPrefix = "/__command_center_auth__";
+const modelProviderCredentialStatusPath = "/orm/api/agents/v1/model_provider_credentials/status/";
 
 function isLoopbackHostname(hostname: string) {
   return ["127.0.0.1", "localhost", "::1"].includes(hostname);
@@ -88,7 +93,7 @@ function isLoopbackHostname(hostname: string) {
 
 function buildModelProviderCredentialStatusUrl(createdByUserUid: string) {
   const url = new URL(
-    "/orm/api/agents/v1/model_provider_credentials/status/",
+    modelProviderCredentialStatusPath,
     env.apiBaseUrl,
   );
   url.searchParams.set("created_by_user_uid", createdByUserUid);
@@ -291,7 +296,7 @@ function normalizeProviderAuthPayload(payload: unknown) {
 }
 
 async function parseJsonSafe(response: Response) {
-  return (await response.json().catch(() => null)) as
+  return (await response.clone().json().catch(() => null)) as
     | Record<string, unknown>
     | null;
 }
@@ -309,10 +314,27 @@ function extractErrorCode(payload: Record<string, unknown> | null) {
   return normalizeString(payload?.code) ?? normalizeString(payload?.error);
 }
 
-async function throwProviderApiError(response: Response, fallback: string): Promise<never> {
+async function throwProviderApiError(
+  response: Response,
+  fallback: string,
+  context?: {
+    method: string;
+    operation: string;
+    url: string;
+  },
+): Promise<never> {
   const payload = await parseJsonSafe(response);
   const attempt = normalizeSignInAttempt(payload?.attempt);
-  throw new ModelProviderApiError(extractErrorMessage(payload, fallback), {
+  const message = context
+    ? await buildRuntimeHttpErrorMessage({
+        fallbackMessage: fallback,
+        method: context.method,
+        operation: context.operation,
+        response,
+        url: context.url,
+      })
+    : extractErrorMessage(payload, fallback);
+  throw new ModelProviderApiError(message, {
     attempt,
     code: extractErrorCode(payload),
     status: response.status,
@@ -346,17 +368,27 @@ export async function fetchModelProviderAuthStates({
 
   headers.set("X-User-UID", resolvedCreatedByUserUid);
 
-  const response = await fetch(
-    buildModelProviderCredentialStatusUrl(resolvedCreatedByUserUid),
-    {
-      method: "GET",
-      headers,
-      signal,
-    },
-  );
+  const requestUrl = buildModelProviderCredentialStatusUrl(resolvedCreatedByUserUid);
+  const response = await fetch(requestUrl, {
+    method: "GET",
+    headers,
+    signal,
+  });
 
   if (!response.ok) {
-    await throwProviderApiError(response, `Failed to load model providers (${response.status}).`);
+    const payload = await parseJsonSafe(response);
+    const backendMessage = extractErrorMessage(
+      payload,
+      `Failed to load model providers (${response.status}).`,
+    );
+    throw new ModelProviderApiError(
+      `Model provider credential status request failed while loading provider auth state. Status: ${formatRuntimeHttpStatus(response)}. Call: GET ${requestUrl}. Backend response: ${backendMessage}`,
+      {
+        attempt: normalizeSignInAttempt(payload?.attempt),
+        code: extractErrorCode(payload),
+        status: response.status,
+      },
+    );
   }
 
   return normalizeProviderAuthPayload((await response.json()) as unknown);
@@ -381,7 +413,7 @@ export async function startModelProviderSignIn({
     createdByUserUid,
     "Model provider sign-in",
   );
-  const { response } = await fetchMainSequenceAiAssistantResponse({
+  const { response, url } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     requestPath: appendCreatedByUserUidSearchParam(
@@ -399,6 +431,11 @@ export async function startModelProviderSignIn({
     await throwProviderApiError(
       response,
       `Failed to start sign-in for provider ${provider} (${response.status}).`,
+      {
+        method: "POST",
+        operation: `Model provider sign-in request failed for provider ${provider}`,
+        url,
+      },
     );
   }
 
@@ -447,7 +484,7 @@ export async function fetchModelProviderSignInAttempt({
     createdByUserUid,
     "Model provider sign-in attempt",
   );
-  const { response } = await fetchMainSequenceAiAssistantResponse({
+  const { response, url } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     requestPath: appendCreatedByUserUidSearchParam(
@@ -466,6 +503,11 @@ export async function fetchModelProviderSignInAttempt({
     await throwProviderApiError(
       response,
       `Failed to load sign-in attempt ${attemptId} for provider ${provider} (${response.status}).`,
+      {
+        method: "GET",
+        operation: `Model provider sign-in attempt request failed for provider ${provider}`,
+        url,
+      },
     );
   }
 
@@ -507,7 +549,7 @@ export async function submitModelProviderManualSignIn({
     createdByUserUid,
     "Model provider manual sign-in",
   );
-  const { response } = await fetchMainSequenceAiAssistantResponse({
+  const { response, url } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     requestPath: appendCreatedByUserUidSearchParam(
@@ -529,6 +571,11 @@ export async function submitModelProviderManualSignIn({
     await throwProviderApiError(
       response,
       `Failed to submit manual sign-in input for provider ${provider} (${response.status}).`,
+      {
+        method: "POST",
+        operation: `Model provider manual sign-in request failed for provider ${provider}`,
+        url,
+      },
     );
   }
 
@@ -557,7 +604,7 @@ export async function cancelModelProviderSignIn({
     createdByUserUid,
     "Model provider sign-in cancellation",
   );
-  const { response } = await fetchMainSequenceAiAssistantResponse({
+  const { response, url } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     requestPath: appendCreatedByUserUidSearchParam(
@@ -575,6 +622,11 @@ export async function cancelModelProviderSignIn({
     await throwProviderApiError(
       response,
       `Failed to cancel sign-in attempt ${attemptId} for provider ${provider} (${response.status}).`,
+      {
+        method: "POST",
+        operation: `Model provider sign-in cancellation request failed for provider ${provider}`,
+        url,
+      },
     );
   }
 }
@@ -598,7 +650,7 @@ export async function signOffModelProvider({
     createdByUserUid,
     "Model provider sign-off",
   );
-  const { response } = await fetchMainSequenceAiAssistantResponse({
+  const { response, url } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     requestPath: appendCreatedByUserUidSearchParam(
@@ -616,6 +668,11 @@ export async function signOffModelProvider({
     await throwProviderApiError(
       response,
       `Failed to sign off provider ${provider} (${response.status}).`,
+      {
+        method: "POST",
+        operation: `Model provider sign-off request failed for provider ${provider}`,
+        url,
+      },
     );
   }
 }

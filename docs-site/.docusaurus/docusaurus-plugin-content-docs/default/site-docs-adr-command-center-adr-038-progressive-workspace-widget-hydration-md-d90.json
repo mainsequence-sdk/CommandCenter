@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-038-progressive-workspace-widget-hydration",
+  "title": "ADR 038: Progressive Workspace Initial Rendering and Per-Widget Hydration",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-038-progressive-workspace-widget-hydration.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-038-progressive-workspace-widget-hydration",
+  "permalink": "/docs/adr/command_center/adr-038-progressive-workspace-widget-hydration",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-038-progressive-workspace-widget-hydration.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

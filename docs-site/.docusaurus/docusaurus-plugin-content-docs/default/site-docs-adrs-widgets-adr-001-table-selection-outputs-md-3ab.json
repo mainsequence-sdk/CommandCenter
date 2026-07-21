@@ -1,0 +1,15 @@
+{
+  "id": "adrs/widgets/adr-001-table-selection-outputs",
+  "title": "ADR 001: Table Selection Outputs for Widget Composition",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adrs/widgets/adr-001-table-selection-outputs.md",
+  "sourceDirName": "adrs/widgets",
+  "slug": "/adrs/widgets/adr-001-table-selection-outputs",
+  "permalink": "/docs/adrs/widgets/adr-001-table-selection-outputs",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adrs/widgets/adr-001-table-selection-outputs.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

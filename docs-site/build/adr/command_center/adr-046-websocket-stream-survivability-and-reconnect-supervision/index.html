@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 046: WebSocket Stream Survivability And Reconnect Supervision | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 046: WebSocket Stream Survivability And Reconnect Supervision | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Partially Implemented"><meta data-rh="true" property="og:description" content="- Status: Partially Implemented"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 046: WebSocket Stream Survivability And Reconnect Supervision</h1></header>
+<ul>
+<li class="">Status: Partially Implemented</li>
+<li class="">Date: 2026-04-30</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles">ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-041-connection-query-websocket-streaming">ADR 041: Query-Shaped WebSocket Streaming for Connections</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-039-unified-upstream-consumer-state-contract">ADR 039: Unified Upstream Consumer State Contract</a></li>
+<li class="">Backend ADR 015: Workspace WebSocket Connections</li>
+<li class="">Backend ADR 016: Binance WebSocket Market Streams</li>
+<li class="">Backend ADR 017: WebSocket Ticket Auth For SPA</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The current <code>connection-stream-query</code> runtime exposes lifecycle state such as <code>connecting</code>, <code>live</code>,
+<code>reconnecting</code>, <code>error</code>, and <code>closed</code>, but it does not implement a full reconnect supervisor for
+the browser-to-backend WebSocket.</p>
+<p>Today the stream source can:</p>
+<ul>
+<li class="">mint a short-lived WebSocket ticket</li>
+<li class="">open one backend WebSocket</li>
+<li class="">send the query-shaped subscribe payload</li>
+<li class="">normalize <code>ack</code>, <code>snapshot</code>, <code>delta</code>, <code>heartbeat</code>, <code>error</code>, and <code>complete</code> messages</li>
+<li class="">surface lifecycle state in widget runtime and the Explore test panel</li>
+</ul>
+<p>What it does not reliably do today:</p>
+<ul>
+<li class="">retry after browser-side socket close or transport error</li>
+<li class="">detect stale streams from missing heartbeats or prolonged silence</li>
+<li class="">reacquire a fresh ticket before reconnect</li>
+<li class="">apply bounded retry backoff with jitter</li>
+<li class="">escalate a prolonged disconnect clearly to the user</li>
+<li class="">distinguish intentional close from unintentional disconnect in a durable supervisor</li>
+</ul>
+<p>That leaves a critical gap: a widget can show <code>reconnecting</code>, <code>closed</code>, or <code>error</code> without any
+real reconnect loop successfully creating a new subscription. Some streams therefore remain dead
+until the widget remounts or the user intervenes.</p>
+<p>This gap also exposes the correct ownership boundary:</p>
+<ul>
+<li class="">the backend owns provider-side survivability, such as Binance reconnects, upstream resume, and
+adapter continuity</li>
+<li class="">the frontend owns browser-side survivability for the widget socket to our backend</li>
+</ul>
+<p>The backend cannot reopen a browser WebSocket after the browser loses that connection. The frontend
+must supervise that lifecycle.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Add a source-owned reconnect supervisor to <code>connection-stream-query</code>.</p>
+<p>The reconnect supervisor lives in the stream source runtime, not in downstream graph, table,
+statistic, or OHLC widgets. Downstream consumers remain socket-agnostic and continue consuming the
+same normalized <code>dataset</code> / <code>updates</code> publication contracts.</p>
+<p>The source runtime must:</p>
+<ul>
+<li class="">detect browser-side disconnects</li>
+<li class="">preserve the last good retained visible state while degraded</li>
+<li class="">transition into an explicit reconnecting lifecycle</li>
+<li class="">schedule reconnect attempts with bounded backoff and jitter</li>
+<li class="">reacquire a fresh WebSocket ticket on every reconnect attempt</li>
+<li class="">reopen the backend WebSocket and resend the subscribe payload</li>
+<li class="">optionally resume from <code>resumeToken</code> or <code>sequence</code> when backend support exists</li>
+<li class="">escalate a prolonged reconnect failure clearly in the source widget UI and shared status surfaces</li>
+</ul>
+<p><code>streamStatus: &quot;reconnecting&quot;</code> therefore becomes an operational state backed by a real reconnect
+loop, not just a semantic label.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope">Scope<a href="#scope" class="hash-link" aria-label="Direct link to Scope" title="Direct link to Scope" translate="no">​</a></h2>
+<p>In scope:</p>
+<ul>
+<li class="">browser-to-backend WebSocket survivability for <code>connection-stream-query</code></li>
+<li class="">reconnect triggers, backoff policy, and stale-stream detection</li>
+<li class="">ticket refresh on reconnect</li>
+<li class="">user-facing degraded-state visibility</li>
+<li class="">shared runtime-state semantics for disconnected vs reconnecting vs terminal error</li>
+<li class="">Explore stream test panel and source widget status parity</li>
+</ul>
+<p>Out of scope:</p>
+<ul>
+<li class="">provider-side reconnect inside backend adapters</li>
+<li class="">changing downstream widget IO contracts</li>
+<li class="">making downstream widgets open their own WebSockets</li>
+<li class="">durable reconnect across full page reloads</li>
+<li class="">generic alert infrastructure for unrelated widgets</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="lifecycle-ownership">Lifecycle Ownership<a href="#lifecycle-ownership" class="hash-link" aria-label="Direct link to Lifecycle Ownership" title="Direct link to Lifecycle Ownership" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-owns-provider-survivability">Backend owns provider survivability<a href="#backend-owns-provider-survivability" class="hash-link" aria-label="Direct link to Backend owns provider survivability" title="Direct link to Backend owns provider survivability" translate="no">​</a></h3>
+<p>The backend adapter remains responsible for:</p>
+<ul>
+<li class="">reconnecting to provider sockets</li>
+<li class="">replay/resume against provider-specific protocols</li>
+<li class="">upstream subscription dedupe</li>
+<li class="">permission enforcement</li>
+<li class="">adapter-level backpressure and resource limits</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="frontend-owns-browser-survivability">Frontend owns browser survivability<a href="#frontend-owns-browser-survivability" class="hash-link" aria-label="Direct link to Frontend owns browser survivability" title="Direct link to Frontend owns browser survivability" translate="no">​</a></h3>
+<p>The frontend source runtime is responsible for:</p>
+<ul>
+<li class="">detecting that the browser socket to our backend died</li>
+<li class="">determining whether that failure is retryable</li>
+<li class="">reacquiring auth material for the next attempt</li>
+<li class="">reopening and resubscribing</li>
+<li class="">exposing clear lifecycle state to the user</li>
+</ul>
+<p>We must not assume the backend alone can recover a dead browser WebSocket.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="reconnect-triggers">Reconnect Triggers<a href="#reconnect-triggers" class="hash-link" aria-label="Direct link to Reconnect Triggers" title="Direct link to Reconnect Triggers" translate="no">​</a></h2>
+<p>The reconnect supervisor must treat these events as retry candidates unless explicitly marked
+terminal:</p>
+<ol>
+<li class="">socket <code>close</code> without an intentional local shutdown</li>
+<li class="">socket <code>error</code></li>
+<li class="">retryable backend <code>error</code> message</li>
+<li class="">heartbeat timeout</li>
+<li class="">prolonged silence timeout when the stream contract expects activity</li>
+</ol>
+<p>Intentional local shutdowns must never reconnect:</p>
+<ul>
+<li class="">widget unmount</li>
+<li class="">query/path/connection change that replaces the session</li>
+<li class="">explicit user stop/close action</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="supervisor-policy">Supervisor Policy<a href="#supervisor-policy" class="hash-link" aria-label="Direct link to Supervisor Policy" title="Direct link to Supervisor Policy" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="attempt-policy">Attempt policy<a href="#attempt-policy" class="hash-link" aria-label="Direct link to Attempt policy" title="Direct link to Attempt policy" translate="no">​</a></h3>
+<ul>
+<li class="">exponential backoff</li>
+<li class="">bounded max interval</li>
+<li class="">jitter to avoid reconnect stampedes</li>
+<li class="">reset the backoff after a stable live window</li>
+</ul>
+<p>Representative policy:</p>
+<ul>
+<li class="">initial delay: short, for example 1 second</li>
+<li class="">capped maximum: moderate, for example 30 seconds</li>
+<li class="">optional failure escalation threshold by attempt count and/or elapsed disconnected time</li>
+</ul>
+<p>This ADR does not hardcode exact numbers, but the implementation must choose explicit constants and
+document them locally in the stream source README.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ticket-refresh">Ticket refresh<a href="#ticket-refresh" class="hash-link" aria-label="Direct link to Ticket refresh" title="Direct link to Ticket refresh" translate="no">​</a></h3>
+<p>Every reconnect attempt must acquire a fresh WebSocket ticket through the existing SPA ticket-auth
+path before opening the new socket.</p>
+<p>Do not reuse a possibly expired ticket from a prior attempt.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="resume-support">Resume support<a href="#resume-support" class="hash-link" aria-label="Direct link to Resume support" title="Direct link to Resume support" translate="no">​</a></h3>
+<p>If the backend contract supports <code>resumeToken</code>, <code>sequence</code>, or equivalent resume semantics, the
+frontend should send them on reconnect.</p>
+<p>If resume is unavailable, the frontend still reconnects by opening a fresh subscription and
+accepting a seed/snapshot reset.</p>
+<p>Resume support is therefore an optimization, not a prerequisite for survivability.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="user-facing-state">User-Facing State<a href="#user-facing-state" class="hash-link" aria-label="Direct link to User-Facing State" title="Direct link to User-Facing State" translate="no">​</a></h2>
+<p>The source widget and shared stream diagnostics must communicate degraded state clearly.</p>
+<p>Required visible states:</p>
+<ul>
+<li class=""><code>connecting</code></li>
+<li class=""><code>live</code></li>
+<li class=""><code>reconnecting</code></li>
+<li class=""><code>error</code></li>
+<li class=""><code>closed</code></li>
+</ul>
+<p>Additional user-facing requirements:</p>
+<ul>
+<li class="">while reconnecting, keep the last good retained visible data on screen</li>
+<li class="">show the disconnect reason when known</li>
+<li class="">show last message / heartbeat timestamps</li>
+<li class="">show reconnect attempts and next retry timing in the stream test panel</li>
+<li class="">after repeated failures or prolonged disconnected time, surface a stronger warning than passive
+status text</li>
+</ul>
+<p>This ADR does not require a global toast system. Inline source-widget and Explore-level alerting is
+sufficient for the first implementation.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="publication-semantics-during-reconnect">Publication Semantics During Reconnect<a href="#publication-semantics-during-reconnect" class="hash-link" aria-label="Direct link to Publication Semantics During Reconnect" title="Direct link to Publication Semantics During Reconnect" translate="no">​</a></h2>
+<p>Reconnect supervision must not invent a second consumer model.</p>
+<p>Rules:</p>
+<ul>
+<li class="">source outputs remain <code>dataset</code> and <code>updates</code></li>
+<li class="">downstream consumers continue reading the same contracts</li>
+<li class="">reconnecting does not clear retained visible state immediately</li>
+<li class="">a successful reconnect may publish:<!-- -->
+<ul>
+<li class="">a new <code>seed</code> reset</li>
+<li class="">resumed <code>update</code> publications
+depending on backend resume support</li>
+</ul>
+</li>
+</ul>
+<p>The reconnect supervisor therefore changes source lifecycle and retry behavior, not downstream
+widget contracts.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-state-expectations">Runtime-State Expectations<a href="#runtime-state-expectations" class="hash-link" aria-label="Direct link to Runtime-State Expectations" title="Direct link to Runtime-State Expectations" translate="no">​</a></h2>
+<p>The source runtime must distinguish:</p>
+<ul>
+<li class=""><code>live</code>: socket open and stream healthy</li>
+<li class=""><code>reconnecting</code>: supervisor is actively retrying after a recoverable failure</li>
+<li class=""><code>error</code>: terminal failure or retry budget exhausted</li>
+<li class=""><code>closed</code>: intentional local stop or terminal remote completion</li>
+</ul>
+<p><code>reconnecting</code> must no longer be used as a purely cosmetic label after a retryable message if no
+real reconnect attempt is being scheduled.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-contract-impact">Backend Contract Impact<a href="#backend-contract-impact" class="hash-link" aria-label="Direct link to Backend Contract Impact" title="Direct link to Backend Contract Impact" translate="no">​</a></h2>
+<p>Frontend reconnect supervision itself does not require a new backend route.</p>
+<p>However, the following backend capabilities materially improve the implementation:</p>
+<ul>
+<li class="">resume token acceptance on subscribe</li>
+<li class="">sequence-aware replay or gap handling</li>
+<li class="">clear distinction between retryable and terminal errors</li>
+<li class="">heartbeat cadence guarantees</li>
+</ul>
+<p>If the frontend implementation begins sending new subscribe fields, changes retry semantics, or
+relies on resume behavior not already implemented server-side, that is a backend contract change and
+must be coordinated with the backend ADRs above.</p>
+<p>The first implementation can still proceed without mandatory backend changes by treating reconnect as
+fresh subscribe with snapshot reset semantics.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-plan">Implementation Plan<a href="#implementation-plan" class="hash-link" aria-label="Direct link to Implementation Plan" title="Direct link to Implementation Plan" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a reconnect supervisor to <code>createConnectionStreamQueryWidgetRuntimeSession(...)</code> instead
+of relying on one-shot socket open behavior.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Track intentional local shutdown separately from transport failure so cleanup does not
+reconnect.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add heartbeat timeout detection based on stream metadata and actual message timestamps.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add separate prolonged-silence detection for stream contracts that do not advertise heartbeat
+cadence.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Reacquire a fresh WebSocket ticket on every reconnect attempt.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add bounded exponential backoff with jitter and documented constants.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep last good retained visible data while reconnecting.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Expose reconnect attempt count, last disconnect reason, and next retry timing in runtime
+state or <code>source.context.stream</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Show degraded-state alerting in:<!-- -->
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <code>ConnectionStreamQueryWidget.tsx</code></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <code>ConnectionStreamQueryRailSummary.tsx</code></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <code>ConnectionStreamQueryTestPanel.tsx</code></li>
+</ul>
+</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure reconnect does not create duplicate active subscriptions for one widget instance.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure query/path/connection changes cancel old retries cleanly before starting the next
+session.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure manual stop/close suppresses reconnect.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add tests for:<!-- -->
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->retry after socket close</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->retry after socket error</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->heartbeat timeout reconnect</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->ticket refresh on reconnect</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->retry budget exhaustion to terminal error</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->no reconnect after intentional close</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->no duplicate subscription after reconnect success</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->retained visible state surviving reconnect</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="completion-notes">Completion Notes<a href="#completion-notes" class="hash-link" aria-label="Direct link to Completion Notes" title="Direct link to Completion Notes" translate="no">​</a></h2>
+<p>The reconnect runtime implementation is substantially in place:</p>
+<ul>
+<li class="">socket close, socket error, retryable backend error, heartbeat timeout, and subscription-start
+failure all enter the reconnect supervisor</li>
+<li class="">reconnect attempts reacquire SPA WebSocket ticket auth before opening a new backend socket</li>
+<li class="">retry uses bounded exponential backoff with jitter</li>
+<li class="">reconnect metadata is exposed through runtime state and shown in the widget, rail summary, and
+stream test panel</li>
+<li class="">cleanup and request changes clear reconnect/heartbeat timers and suppress reconnect</li>
+</ul>
+<p>ADR 046 is not marked fully complete yet because several regression tests remain open. Those tests
+must be added before the ADR is considered done.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="acceptance-criteria">Acceptance Criteria<a href="#acceptance-criteria" class="hash-link" aria-label="Direct link to Acceptance Criteria" title="Direct link to Acceptance Criteria" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->A recoverable browser-side socket close transitions a live source into real reconnect
+attempts without requiring widget remount.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->A recoverable browser-side socket error does the same.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Missed heartbeat triggers reconnect.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Stale-stream timeout without heartbeat metadata triggers reconnect.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Reconnect attempts reacquire fresh ticket auth before socket open.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->The source widget keeps prior visible data while degraded and shows that the stream is not
+currently healthy.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->After reconnect success, the widget returns to <code>live</code> and resumes normal publication.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->After repeated failure or explicit terminal failure, the widget surfaces <code>error</code> with clear
+reason.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Downstream widgets require no transport-specific reconnect code.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#scope" class="table-of-contents__link toc-highlight">Scope</a></li><li><a href="#lifecycle-ownership" class="table-of-contents__link toc-highlight">Lifecycle Ownership</a><ul><li><a href="#backend-owns-provider-survivability" class="table-of-contents__link toc-highlight">Backend owns provider survivability</a></li><li><a href="#frontend-owns-browser-survivability" class="table-of-contents__link toc-highlight">Frontend owns browser survivability</a></li></ul></li><li><a href="#reconnect-triggers" class="table-of-contents__link toc-highlight">Reconnect Triggers</a></li><li><a href="#supervisor-policy" class="table-of-contents__link toc-highlight">Supervisor Policy</a><ul><li><a href="#attempt-policy" class="table-of-contents__link toc-highlight">Attempt policy</a></li><li><a href="#ticket-refresh" class="table-of-contents__link toc-highlight">Ticket refresh</a></li><li><a href="#resume-support" class="table-of-contents__link toc-highlight">Resume support</a></li></ul></li><li><a href="#user-facing-state" class="table-of-contents__link toc-highlight">User-Facing State</a></li><li><a href="#publication-semantics-during-reconnect" class="table-of-contents__link toc-highlight">Publication Semantics During Reconnect</a></li><li><a href="#runtime-state-expectations" class="table-of-contents__link toc-highlight">Runtime-State Expectations</a></li><li><a href="#backend-contract-impact" class="table-of-contents__link toc-highlight">Backend Contract Impact</a></li><li><a href="#implementation-plan" class="table-of-contents__link toc-highlight">Implementation Plan</a></li><li><a href="#completion-notes" class="table-of-contents__link toc-highlight">Completion Notes</a></li><li><a href="#acceptance-criteria" class="table-of-contents__link toc-highlight">Acceptance Criteria</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

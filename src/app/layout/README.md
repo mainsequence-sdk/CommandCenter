@@ -42,6 +42,10 @@ Shared shell navigation and chrome for the Command Center application.
 ## Maintenance Notes
 
 - Keep the topbar, sidebar, and per-app navigation semantics aligned. A control that looks like navigation should navigate.
+- `AppShell` exposes `--shell-sidebar-width` and `--shell-topbar-height` to routed content so
+  full-content viewers can fill the application area without covering the global navigation. Such
+  viewers should portal into `[data-app-shell]` so card backdrop filters cannot become their fixed
+  positioning container.
 - If app details or metadata are needed later, expose them behind an explicit secondary affordance rather than the primary app-title control.
 - Keep Settings chrome centralized in `src/features/settings/`. Extensions can contribute sections,
   but they should render inside the routed Settings module instead of introducing new shell modals.

@@ -70,7 +70,7 @@ describe("agent search api", () => {
       new Response(
         JSON.stringify({
           runtime_uid: "runtime-uid-123",
-          runtime_kind: "knative_service_runtime",
+          runtime_kind: "service_runtime",
           service_name: "agent-service",
           namespace: "agents",
           cluster_uid: "cluster-uid-123",
@@ -89,6 +89,7 @@ describe("agent search api", () => {
     const result = await fetchAgentRuntimeRef({ agentUid: "agent-uid-123" });
 
     expect(result.runtime_uid).toBe("runtime-uid-123");
+    expect(result.runtime_kind).toBe("service_runtime");
     expect(result.exists).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url] = fetchMock.mock.calls[0];

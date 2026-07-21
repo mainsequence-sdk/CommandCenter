@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-059-user-instance-canonical-workspace-controls",
+  "title": "ADR 059: User-Instance Canonical Workspace Controls",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-059-user-instance-canonical-workspace-controls.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-059-user-instance-canonical-workspace-controls",
+  "permalink": "/docs/adr/command_center/adr-059-user-instance-canonical-workspace-controls",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-059-user-instance-canonical-workspace-controls.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

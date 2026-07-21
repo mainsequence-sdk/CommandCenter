@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-065-shared-table-core-with-community-and-pro-table-widgets",
+  "title": "ADR 065: Shared Table Core With Community And Pro Table Widgets",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-065-shared-table-core-with-community-and-pro-table-widgets.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-065-shared-table-core-with-community-and-pro-table-widgets",
+  "permalink": "/docs/adr/command_center/adr-065-shared-table-core-with-community-and-pro-table-widgets",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-065-shared-table-core-with-community-and-pro-table-widgets.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

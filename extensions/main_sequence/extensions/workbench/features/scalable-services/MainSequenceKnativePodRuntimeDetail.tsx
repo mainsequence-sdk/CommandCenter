@@ -87,8 +87,8 @@ function buildPodRuntimeSummary(row: ScalableServicePodRow): EntitySummaryHeader
 
   if (knativeService) {
     highlightFields.unshift({
-      key: "knative_service",
-      label: "Knative Service",
+      key: "owning_service",
+      label: "Owning Service",
       value: knativeService,
       kind: "text",
       icon: "cloud",
@@ -98,7 +98,7 @@ function buildPodRuntimeSummary(row: ScalableServicePodRow): EntitySummaryHeader
   return {
     entity: {
       id: row.uid,
-      type: "knative_pod_runtime",
+      type: "pod",
       title: row.gke_pod_name,
     },
     badges: [

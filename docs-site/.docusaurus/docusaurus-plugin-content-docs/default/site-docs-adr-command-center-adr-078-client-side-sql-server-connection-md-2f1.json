@@ -1,0 +1,24 @@
+{
+  "id": "adr/command_center/adr-078-client-side-sql-server-connection",
+  "title": "ADR 078: Client-Side SQL Server Connection Type",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-078-client-side-sql-server-connection.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-078-client-side-sql-server-connection",
+  "permalink": "/docs/adr/command_center/adr-078-client-side-sql-server-connection",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-078-client-side-sql-server-connection.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Inline Canvas Editing Capability and Rich Text Widget",
+    "permalink": "/docs/adr/command_center/adr-inline-canvas-rich-text-widget"
+  },
+  "next": {
+    "title": "ADR 077: Client-Side MySQL Connection Type",
+    "permalink": "/docs/adr/command_center/adr-077-client-side-mysql-connection"
+  }
+}

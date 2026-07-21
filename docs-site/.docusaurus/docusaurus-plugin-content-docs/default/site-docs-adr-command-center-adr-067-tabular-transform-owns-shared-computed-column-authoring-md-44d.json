@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-067-tabular-transform-owns-shared-computed-column-authoring",
+  "title": "ADR 067: Tabular Transform Owns Shared Computed Column Authoring",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-067-tabular-transform-owns-shared-computed-column-authoring.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-067-tabular-transform-owns-shared-computed-column-authoring",
+  "permalink": "/docs/adr/command_center/adr-067-tabular-transform-owns-shared-computed-column-authoring",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-067-tabular-transform-owns-shared-computed-column-authoring.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

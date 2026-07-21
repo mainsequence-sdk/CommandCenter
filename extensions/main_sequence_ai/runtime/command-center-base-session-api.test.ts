@@ -24,7 +24,7 @@ describe("command center runtime access contract", () => {
           rpc_url: "https://executor.coding-agent.main-sequence.app/",
           token: "signed-token",
           is_ready: true,
-          knative_service_runtime: 123,
+          service_runtime_uid: "runtime-uid-123",
           image_drift: {
             agent_kind: "project_executor",
             available: true,
@@ -57,7 +57,7 @@ describe("command center runtime access contract", () => {
 
     expect(runtimeAccess.sessionId).toBe("session-uid-91");
     expect(runtimeAccess.isReady).toBe(true);
-    expect(runtimeAccess.knativeServiceRuntimeId).toBe("123");
+    expect(runtimeAccess.serviceRuntimeId).toBe("runtime-uid-123");
     expect(runtimeAccess.imageDrift).toEqual({
       agent_kind: "project_executor",
       autoheal_available: null,

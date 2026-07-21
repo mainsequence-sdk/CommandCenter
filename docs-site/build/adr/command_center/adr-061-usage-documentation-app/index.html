@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-061-usage-documentation-app" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 061: Usage Documentation App | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-061-usage-documentation-app"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 061: Usage Documentation App | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-061-usage-documentation-app"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-061-usage-documentation-app" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-061-usage-documentation-app" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 061: Usage Documentation App</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-05-12</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-extension-contributed-shell-settings-menus">ADR: Extension-Contributed Shell Settings Menus</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Command Center now has two different documentation jobs:</p>
+<ul>
+<li class="">developer documentation for maintainers</li>
+<li class="">usage documentation for product users</li>
+</ul>
+<p>Those jobs should not live in the same runtime surface or the same ownership model.</p>
+<p>The repository-level <code>docs/</code> tree is already the correct place for:</p>
+<ul>
+<li class="">architecture notes</li>
+<li class="">ADRs</li>
+<li class="">backend/frontend contracts</li>
+<li class="">implementation guidance</li>
+<li class="">maintainer-facing module documentation</li>
+</ul>
+<p>The new <code>command_center_docs</code> extension is the correct place for user-facing usage documentation.</p>
+<p>But the first pass of that app exposed two architectural problems:</p>
+<ol>
+<li class="">its access model was not stated clearly enough</li>
+<li class="">its content model could drift into documentation-specific taxonomy instead of mirroring the real
+product applications</li>
+</ol>
+<p>The first problem matters because usage documentation describes signed-in product workflows and
+internal application behavior. It should not be treated as a public anonymous documentation site.</p>
+<p>The wrong direction would be:</p>
+<ul>
+<li class="">introducing a public documentation route</li>
+<li class="">making docs available to non-signed-in users</li>
+<li class="">building a shellless anonymous documentation surface that duplicates routing and navigation logic</li>
+</ul>
+<p>The second problem matters because usage documentation will grow with the product. It must scale by
+owning application or extension, not by one-off categories invented only for the docs app.</p>
+<p>Usage documentation is also the wrong place for a technical cross-application index such as an
+&quot;application map&quot; page. That kind of explainer is useful for maintainers, but it does not belong in
+user-facing product guidance.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Usage documentation becomes a first-class <strong>authenticated Documentation app</strong> backed by one shared
+content registry.</p>
+<p>The core rules are:</p>
+<ol>
+<li class="">user-facing usage documentation lives in the <code>command_center_docs</code> extension, not in the
+repository-level developer docs tree</li>
+<li class="">documentation is visible to signed-in users only</li>
+<li class="">documentation navigation must be organized by owning application or extension, not by generic
+documentation taxonomy</li>
+<li class="">the docs app should use one reusable page registry so content can grow by application without
+reworking the renderer</li>
+</ol>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep the Documentation app authenticated and visible to signed-in users only.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove public or anonymous documentation routes from the documentation-app design.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Organize the docs tree by owning application or extension instead of documentation-only
+taxonomy.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Order pages explicitly inside each owning application section.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep <code>Workspaces</code> documentation grouped under the <code>Workspaces</code> section with ordered child
+pages such as <code>Workspaces</code>, <code>Slide Studio</code>, and <code>Widgets</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep <code>Agents Monitor</code> nested under the <code>Main Sequence AI</code> section instead of treating it as a
+top-level cross-application page.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove the technical <code>Application Map</code> page from user-facing usage documentation.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add proper submenu support for deep documentation navigation instead of relying on a single
+flat left navigation tree.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Introduce shared navigation item types that can open a right-side submenu sidebar.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Make the right-side submenu pattern reusable across applications and extensions, not specific
+to the documentation app.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Support ordered nested documentation content inside each owning application or extension using
+the shared submenu model.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep application and extension ordering explicit so submenu contents render in product-defined
+order.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Restrict the left documentation navigation to these top-level expandable items only:
+<code>Getting Started</code>, <code>Workspaces</code>, <code>Foundry</code>, <code>Markets</code>, <code>Main Sequence AI</code>, and
+<code>Organization Admin</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Render each top-level documentation section in the left bar as an expandable menu item rather
+than a flat section label.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define the <code>Workspaces</code> submenu order as <code>Workspaces</code>, <code>Widgets</code>, then <code>Slide Studio</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Rename the Foundry-facing documentation section to <code>Foundry</code> in user-facing navigation.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Populate the <code>Foundry</code> section with all required Foundry pages and subsections from the
+owning application.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Rename the Markets-facing documentation section to <code>Markets</code> in user-facing navigation.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Populate the <code>Markets</code> section with all required Markets pages from the owning application.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep <code>Main Sequence AI</code> as a top-level expandable section and populate it with all required
+Main Sequence AI pages and subsections from the owning application.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add <code>Organization Admin</code> as a top-level expandable section and keep its nested content marked
+as <code>TBD</code> until the application documentation structure is defined.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="route-model">Route Model<a href="#route-model" class="hash-link" aria-label="Direct link to Route Model" title="Direct link to Route Model" translate="no">​</a></h2>
+<p>The product supports one documentation route space:</p>
+<ul>
+<li class="">authenticated: <code>/app/command-center-docs/:pageId</code></li>
+</ul>
+<p>Documentation remains part of the normal signed-in Command Center experience.</p>
+<p>There is no anonymous public documentation route.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="content-ownership-model">Content Ownership Model<a href="#content-ownership-model" class="hash-link" aria-label="Direct link to Content Ownership Model" title="Direct link to Content Ownership Model" translate="no">​</a></h2>
+<p>Usage documentation must be application-first.</p>
+<p>The docs app should mirror the real product ownership model:</p>
+<ul>
+<li class=""><code>Getting Started</code></li>
+<li class=""><code>Workspaces</code></li>
+<li class=""><code>Foundry</code></li>
+<li class=""><code>Markets</code></li>
+<li class=""><code>Main Sequence AI</code></li>
+<li class=""><code>Organization Admin</code></li>
+</ul>
+<p>Nested documentation pages belong under the owning application section, for example:</p>
+<ul>
+<li class=""><code>Workspaces</code> -&gt; <code>Workspaces</code>, <code>Widgets</code>, <code>Slide Studio</code></li>
+<li class=""><code>Foundry</code> -&gt; overview plus ordered Foundry application surfaces</li>
+<li class=""><code>Markets</code> -&gt; overview plus ordered Markets application surfaces</li>
+<li class=""><code>Main Sequence AI</code> -&gt; overview plus ordered AI application surfaces</li>
+<li class=""><code>Organization Admin</code> -&gt; overview plus <code>TBD</code></li>
+</ul>
+<p>This is the long-term rule:</p>
+<ul>
+<li class="">documentation structure follows application ownership</li>
+<li class="">application pages may have ordered nested child pages</li>
+<li class="">user-facing docs should not introduce a technical cross-application index page</li>
+<li class="">generic documentation-only taxonomy should be avoided unless it is truly global</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="registry-model">Registry Model<a href="#registry-model" class="hash-link" aria-label="Direct link to Registry Model" title="Direct link to Registry Model" translate="no">​</a></h2>
+<p>The docs app should use one reusable content registry that stores:</p>
+<ul>
+<li class="">stable page id</li>
+<li class="">title and nav label</li>
+<li class="">description</li>
+<li class="">owning application section</li>
+<li class="">explicit order inside that section</li>
+<li class="">content source</li>
+</ul>
+<p>The same registry drives:</p>
+<ul>
+<li class="">the authenticated documentation app</li>
+<li class="">internal previous/next ordering</li>
+<li class="">application-local documentation trees</li>
+</ul>
+<p>The registry should stay composable so future application docs can be contributed without rewriting
+the renderer.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="separation-from-developer-docs">Separation From Developer Docs<a href="#separation-from-developer-docs" class="hash-link" aria-label="Direct link to Separation From Developer Docs" title="Direct link to Separation From Developer Docs" translate="no">​</a></h2>
+<p>This ADR does <strong>not</strong> move developer docs into the usage documentation app.</p>
+<p>Developer docs remain in:</p>
+<ul>
+<li class=""><code>docs/</code></li>
+<li class=""><code>docs/adr/</code></li>
+<li class="">nearest module <code>README.md</code></li>
+</ul>
+<p>The <code>command_center_docs</code> extension is only for product usage documentation.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">usage docs stay aligned with signed-in product workflows</li>
+<li class="">the documentation tree scales with the real application model</li>
+<li class="">application-specific documentation can grow in ordered nested sections</li>
+<li class="">one content registry can serve the authenticated documentation app cleanly</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="tradeoffs">Tradeoffs<a href="#tradeoffs" class="hash-link" aria-label="Direct link to Tradeoffs" title="Direct link to Tradeoffs" translate="no">​</a></h3>
+<ul>
+<li class="">documentation is not available to anonymous readers</li>
+<li class="">application documentation ownership must stay disciplined as more extensions contribute content</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implemented-changes">Implemented Changes<a href="#implemented-changes" class="hash-link" aria-label="Direct link to Implemented Changes" title="Direct link to Implemented Changes" translate="no">​</a></h2>
+<p>The current implementation changes covered by this ADR are:</p>
+<ul>
+<li class="">the <code>command_center_docs</code> extension owns the signed-in usage-documentation app</li>
+<li class="">the docs app uses one shared page registry for navigation, ordering, and previous/next links</li>
+<li class="">the docs app now renders a three-column layout with a top-level section rail and a right-side
+section submenu</li>
+<li class="">the documentation tree is application-first, with ordered child pages inside each application</li>
+<li class="">the user docs no longer include a technical <code>Application Map</code> page</li>
+<li class="">the documentation left rail is restricted to <code>Getting Started</code>, <code>Workspaces</code>, <code>Foundry</code>,
+<code>Markets</code>, <code>Main Sequence AI</code>, and <code>Organization Admin</code></li>
+<li class="">Foundry, Markets, and Main Sequence AI child pages are aligned to the owning application surface
+inventory</li>
+<li class="">the docs app does not define any anonymous public route</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-061-usage-documentation-app.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li><li><a href="#route-model" class="table-of-contents__link toc-highlight">Route Model</a></li><li><a href="#content-ownership-model" class="table-of-contents__link toc-highlight">Content Ownership Model</a></li><li><a href="#registry-model" class="table-of-contents__link toc-highlight">Registry Model</a></li><li><a href="#separation-from-developer-docs" class="table-of-contents__link toc-highlight">Separation From Developer Docs</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#tradeoffs" class="table-of-contents__link toc-highlight">Tradeoffs</a></li></ul></li><li><a href="#implemented-changes" class="table-of-contents__link toc-highlight">Implemented Changes</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

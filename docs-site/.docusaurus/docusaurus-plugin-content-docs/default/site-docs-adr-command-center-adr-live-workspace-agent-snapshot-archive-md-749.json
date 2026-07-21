@@ -1,0 +1,24 @@
+{
+  "id": "adr/command_center/adr-live-workspace-agent-snapshot-archive",
+  "title": "ADR: Live Workspace Agent Snapshot Archive",
+  "description": "- Status: Superseded by adr-045-agent-facing-workspace-snapshot-contract.md",
+  "source": "@site/../docs/adr/command_center/adr-live-workspace-agent-snapshot-archive.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-live-workspace-agent-snapshot-archive",
+  "permalink": "/docs/adr/command_center/adr-live-workspace-agent-snapshot-archive",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-live-workspace-agent-snapshot-archive.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Incremental Workspace Normalization and Resource-Scoped Save",
+    "permalink": "/docs/adr/command_center/adr-incremental-workspace-normalization"
+  },
+  "next": {
+    "title": "ADR: Widget Agent Context Bindings for Agent Terminal Consumers",
+    "permalink": "/docs/adr/command_center/adr-widget-agent-context-bindings"
+  }
+}

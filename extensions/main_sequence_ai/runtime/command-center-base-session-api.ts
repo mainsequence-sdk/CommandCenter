@@ -2,6 +2,7 @@ import { env } from "@/config/env";
 import type { AgentImageDriftRecord } from "../agent-search";
 import { normalizeAgentImageDriftRecord } from "../image-drift";
 import { normalizeAgentSessionLookupId, requireAgentSessionLookupId } from "./agent-sessions-api";
+import { buildRuntimeHttpErrorMessage } from "./http-error";
 
 export const ASTRO_COMMAND_CENTER_HANDLE_UNIQUE_ID = "astro-orchestrator-command-center";
 export const ASTRO_COMMAND_CENTER_SESSION_NAME = "Astro Command Center Session";
@@ -14,7 +15,7 @@ export interface AgentSessionRuntimeAccess {
   rpcUrl: string | null;
   token: string | null;
   isReady: boolean | null;
-  knativeServiceRuntimeId: string | null;
+  serviceRuntimeId: string | null;
   imageDrift: AgentImageDriftRecord | null;
   reconciliation: Record<string, unknown> | null;
 }
@@ -79,11 +80,11 @@ function normalizeRuntimeAccess(
     rpcUrl: normalizeString(candidate.rpc_url) ?? normalizeString(candidate.rpcUrl),
     token: normalizeString(candidate.token),
     isReady: normalizeBoolean(candidate.is_ready) ?? normalizeBoolean(candidate.isReady),
-    knativeServiceRuntimeId: normalizeIdentifier(
-      candidate.knative_service_runtime_uid ??
-        candidate.knativeServiceRuntimeUid ??
-        candidate.knative_service_runtime ??
-        candidate.knativeServiceRuntime,
+    serviceRuntimeId: normalizeIdentifier(
+      candidate.service_runtime_uid ??
+        candidate.serviceRuntimeUid ??
+        candidate.service_runtime ??
+        candidate.serviceRuntime,
     ),
     imageDrift: normalizeAgentImageDriftRecord(candidate.image_drift ?? candidate.imageDrift),
     reconciliation: Object.keys(reconciliation).length > 0 ? reconciliation : null,
@@ -110,7 +111,8 @@ export async function fetchAgentSessionRuntimeAccess({
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  const response = await fetch(buildAgentSessionRuntimeAccessUrl(sessionId), {
+  const requestUrl = buildAgentSessionRuntimeAccessUrl(sessionId);
+  const response = await fetch(requestUrl, {
     method: "POST",
     headers,
     body: JSON.stringify({}),
@@ -118,14 +120,14 @@ export async function fetchAgentSessionRuntimeAccess({
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as
-      | { error?: string; message?: string; detail?: string }
-      | null;
     throw new Error(
-      payload?.message ||
-        payload?.detail ||
-        payload?.error ||
-        `AgentSession runtime access failed with status ${response.status}.`,
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage: `AgentSession runtime access failed with status ${response.status}.`,
+        method: "POST",
+        operation: `AgentSession runtime access request failed for session ${sessionId}`,
+        response,
+        url: requestUrl,
+      }),
     );
   }
 

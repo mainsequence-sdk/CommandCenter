@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-072-backend-variables-and-reference-defaults",
+  "title": "ADR 072: Backend Variables And Reference Defaults",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-072-backend-variables-and-reference-defaults.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-072-backend-variables-and-reference-defaults",
+  "permalink": "/docs/adr/command_center/adr-072-backend-variables-and-reference-defaults",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-072-backend-variables-and-reference-defaults.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

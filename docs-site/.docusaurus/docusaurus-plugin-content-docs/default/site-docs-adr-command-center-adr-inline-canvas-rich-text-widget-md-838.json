@@ -1,0 +1,24 @@
+{
+  "id": "adr/command_center/adr-inline-canvas-rich-text-widget",
+  "title": "ADR: Inline Canvas Editing Capability and Rich Text Widget",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-inline-canvas-rich-text-widget.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-inline-canvas-rich-text-widget",
+  "permalink": "/docs/adr/command_center/adr-inline-canvas-rich-text-widget",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-inline-canvas-rich-text-widget.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Organization-Scoped Widget Type Configurations",
+    "permalink": "/docs/adr/command_center/adr-organization-widget-type-configurations"
+  },
+  "next": {
+    "title": "ADR 078: Client-Side SQL Server Connection Type",
+    "permalink": "/docs/adr/command_center/adr-078-client-side-sql-server-connection"
+  }
+}

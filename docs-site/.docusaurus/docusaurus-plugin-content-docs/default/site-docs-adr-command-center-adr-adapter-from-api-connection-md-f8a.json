@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-adapter-from-api-connection",
+  "title": "ADR: AdapterFromApi Dynamic OpenAPI Connection",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-adapter-from-api-connection.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-adapter-from-api-connection",
+  "permalink": "/docs/adr/command_center/adr-adapter-from-api-connection",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-adapter-from-api-connection.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

@@ -1,5 +1,6 @@
 import { env } from "@/config/env";
 import { MainSequenceAiError, withMainSequenceAiErrorSource } from "./error-source";
+import { buildRuntimeHttpErrorMessage } from "./http-error";
 
 export interface AgentSessionApiRecord {
   id?: number | string | null;
@@ -422,15 +423,23 @@ export async function fetchLatestAgentSessions({
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  const response = await fetch(buildLatestAgentSessionsUrl({ createdByUserUid, agentId }), {
+  const requestUrl = buildLatestAgentSessionsUrl({ createdByUserUid, agentId });
+  const response = await fetch(requestUrl, {
     method: "GET",
     headers,
     signal,
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(payload?.error || `Session list failed with status ${response.status}.`);
+    throw new Error(
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage: `Session list failed with status ${response.status}.`,
+        method: "GET",
+        operation: "Agent session list request failed",
+        response,
+        url: requestUrl,
+      }),
+    );
   }
 
   const payload = (await response.json()) as unknown;
@@ -468,18 +477,22 @@ export async function deleteAgentSessionRequest({
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  const response = await fetch(buildDeleteAgentSessionUrl(sessionId), {
+  const requestUrl = buildDeleteAgentSessionUrl(sessionId);
+  const response = await fetch(requestUrl, {
     method: "DELETE",
     headers,
     signal,
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as
-      | { error?: string; message?: string }
-      | null;
     throw new Error(
-      payload?.message || payload?.error || `Session delete failed with status ${response.status}.`,
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage: `Session delete failed with status ${response.status}.`,
+        method: "DELETE",
+        operation: `Agent session delete request failed for session ${sessionId}`,
+        response,
+        url: requestUrl,
+      }),
     );
   }
 }
@@ -503,21 +516,21 @@ export async function fetchAgentSessionDetail({
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  const response = await fetch(buildAgentSessionDetailUrl(sessionId), {
+  const requestUrl = buildAgentSessionDetailUrl(sessionId);
+  const response = await fetch(requestUrl, {
     method: "GET",
     headers,
     signal,
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as
-      | { detail?: string; error?: string; message?: string }
-      | null;
-    const message =
-      payload?.message ||
-      payload?.detail ||
-      payload?.error ||
-      `Session detail failed with status ${response.status}.`;
+    const message = await buildRuntimeHttpErrorMessage({
+      fallbackMessage: `Session detail failed with status ${response.status}.`,
+      method: "GET",
+      operation: `Agent session detail request failed for session ${sessionId}`,
+      response,
+      url: requestUrl,
+    });
 
     if (response.status === 404) {
       throw new AgentSessionNotFoundError(
@@ -562,7 +575,8 @@ export async function startNewAgentSessionRequest({
 
   const normalizedThreadId = normalizeIdentifier(threadId) ?? createClientThreadId();
 
-  const response = await fetch(buildStartNewAgentSessionUrl(agentId), {
+  const requestUrl = buildStartNewAgentSessionUrl(agentId);
+  const response = await fetch(requestUrl, {
     method: "POST",
     body: JSON.stringify({
       thread_id: normalizedThreadId,
@@ -571,7 +585,7 @@ export async function startNewAgentSessionRequest({
     signal,
   });
 
-  const rawBody = await response.text().catch(() => "");
+  const rawBody = await response.clone().text().catch(() => "");
   let payload: unknown = null;
 
   if (rawBody.trim()) {
@@ -583,7 +597,15 @@ export async function startNewAgentSessionRequest({
   }
 
   if (!response.ok) {
-    throw new Error(buildAgentSessionCreationErrorMessage(payload));
+    throw new Error(
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage: buildAgentSessionCreationErrorMessage(payload),
+        method: "POST",
+        operation: `Agent session creation request failed for agent ${agentId}`,
+        response,
+        url: requestUrl,
+      }),
+    );
   }
 
   const record = extractStartedAgentSessionRecord(payload);
@@ -679,14 +701,15 @@ export async function getOrCreateAgentSessionRequest({
     }
   }
 
-  const response = await fetch(buildGetOrCreateAgentSessionUrl(agentUid), {
+  const requestUrl = buildGetOrCreateAgentSessionUrl(agentUid);
+  const response = await fetch(requestUrl, {
     method: "POST",
     body: JSON.stringify(body),
     headers,
     signal,
   });
 
-  const rawBody = await response.text().catch(() => "");
+  const rawBody = await response.clone().text().catch(() => "");
   let payload: unknown = null;
 
   if (rawBody.trim()) {
@@ -698,7 +721,15 @@ export async function getOrCreateAgentSessionRequest({
   }
 
   if (!response.ok) {
-    throw new Error(buildAgentSessionCreationErrorMessage(payload));
+    throw new Error(
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage: buildAgentSessionCreationErrorMessage(payload),
+        method: "POST",
+        operation: `Agent session get-or-create request failed for agent ${agentUid}`,
+        response,
+        url: requestUrl,
+      }),
+    );
   }
 
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -744,7 +775,8 @@ export async function patchAgentSessionModelConfig({
     headers.set("Authorization", `${tokenType} ${token}`);
   }
 
-  const response = await fetch(buildAgentSessionModelConfigUrl(sessionId), {
+  const requestUrl = buildAgentSessionModelConfigUrl(sessionId);
+  const response = await fetch(requestUrl, {
     method: "PATCH",
     headers,
     body: JSON.stringify({
@@ -756,14 +788,14 @@ export async function patchAgentSessionModelConfig({
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as
-      | { detail?: string; error?: string; message?: string }
-      | null;
     throw new Error(
-      payload?.message ||
-        payload?.detail ||
-        payload?.error ||
-        `Session model update failed with status ${response.status}.`,
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage: `Session model update failed with status ${response.status}.`,
+        method: "PATCH",
+        operation: `Agent session model update request failed for session ${sessionId}`,
+        response,
+        url: requestUrl,
+      }),
     );
   }
 }

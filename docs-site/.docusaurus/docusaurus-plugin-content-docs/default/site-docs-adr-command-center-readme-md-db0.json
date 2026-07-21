@@ -1,0 +1,19 @@
+{
+  "id": "adr/command_center/adr-command-center-index",
+  "title": "Command Center Architecture Decision Records",
+  "description": "This section is the decision log for Command Center architectural choices that affect more than",
+  "source": "@site/../docs/adr/command_center/README.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center",
+  "permalink": "/docs/adr/command_center",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "adr-command-center-index",
+    "title": "Command Center Architecture Decision Records",
+    "slug": "/adr/command_center"
+  }
+}

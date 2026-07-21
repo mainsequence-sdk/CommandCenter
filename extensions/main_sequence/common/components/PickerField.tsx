@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { Check, ChevronDown, Loader2, Search } from "lucide-react";
+import { Check, ChevronDown, Database, Loader2, Search } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -10,9 +10,12 @@ export interface PickerOption {
   label: string;
   description?: string;
   keywords?: string[];
+  image?: string | null;
+  imageAlt?: string;
+  fallbackIcon?: "database";
 }
 
-interface PickerFieldProps {
+export interface PickerFieldProps {
   value: string;
   displayValue?: string;
   onChange: (value: string) => void;
@@ -25,6 +28,32 @@ interface PickerFieldProps {
   onSearchValueChange?: (value: string) => void;
   disabled?: boolean;
   loading?: boolean;
+}
+
+function hasPickerOptionVisual(option: PickerOption | undefined) {
+  return Boolean(option?.image || option?.fallbackIcon);
+}
+
+function PickerOptionVisual({ option }: { option: PickerOption }) {
+  if (option.image) {
+    return (
+      <img
+        src={option.image}
+        alt={option.imageAlt ?? ""}
+        className="h-7 w-7 shrink-0 rounded-md border border-border/60 bg-background/70 object-contain p-1"
+      />
+    );
+  }
+
+  if (option.fallbackIcon === "database") {
+    return (
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/60 bg-background/70 text-muted-foreground">
+        <Database className="h-4 w-4" aria-hidden="true" />
+      </span>
+    );
+  }
+
+  return null;
 }
 
 function matchesSearch(option: PickerOption, query: string) {
@@ -130,20 +159,25 @@ export function PickerField({
           setOpen((current) => !current);
         }}
       >
-        <span className="min-w-0">
-          <span
-            className={cn(
-              "block truncate",
-              selectedLabel ? "text-foreground" : "text-muted-foreground",
-            )}
-          >
-            {selectedLabel || placeholder}
-          </span>
-          {selectedOption?.description ? (
-            <span className="block truncate text-xs text-muted-foreground">
-              {selectedOption.description}
-            </span>
+        <span className="flex min-w-0 flex-1 items-center gap-3">
+          {hasPickerOptionVisual(selectedOption) ? (
+            <PickerOptionVisual option={selectedOption!} />
           ) : null}
+          <span className="min-w-0">
+            <span
+              className={cn(
+                "block truncate",
+                selectedLabel ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
+              {selectedLabel || placeholder}
+            </span>
+            {selectedOption?.description ? (
+              <span className="block truncate text-xs text-muted-foreground">
+                {selectedOption.description}
+              </span>
+            ) : null}
+          </span>
         </span>
         {loading ? (
           <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
@@ -207,9 +241,13 @@ export function PickerField({
                         setOpen(false);
                       }}
                     >
-                      <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-primary">
-                        {selected ? <Check className="h-4 w-4" /> : null}
-                      </span>
+                      {hasPickerOptionVisual(option) ? (
+                        <PickerOptionVisual option={option} />
+                      ) : (
+                        <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-primary">
+                          {selected ? <Check className="h-4 w-4" /> : null}
+                        </span>
+                      )}
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm text-foreground">{option.label}</span>
                         {option.description ? (
@@ -218,6 +256,9 @@ export function PickerField({
                           </span>
                         ) : null}
                       </span>
+                      {hasPickerOptionVisual(option) && selected ? (
+                        <Check className="mt-1 h-4 w-4 shrink-0 text-primary" />
+                      ) : null}
                     </button>
                   );
                 })

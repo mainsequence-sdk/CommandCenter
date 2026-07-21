@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-044-incremental-connection-publications-seed-live-roles" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-04-29</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-041-connection-query-websocket-streaming">ADR 041: Query-Shaped WebSocket Streaming for Connections</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-039-unified-upstream-consumer-state-contract">ADR 039: Unified Upstream Consumer State Contract</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-standardized-connection-result-contracts">ADR: Standardized Connection Result Contracts</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-connection-first-workspace-dataflow">ADR: Connection-First Workspace Dataflow</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-managed-connection-query-widget-sources">ADR: Managed Connection Query Sources for Consumer Widgets</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-executable-widget-graph-runner">ADR: Executable Widget Graph Runner and Refresh Coordination</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The current WebSocket source architecture is too stateful at the source layer.</p>
+<p>Today <code>connection-stream-query</code> normalizes incoming frames, retains rows in its own runtime state,
+and republishes a canonical dataset from that retained state. Downstream widgets then try to apply
+their own rolling windows on top of an already-growing retained dataset.</p>
+<p>That is the wrong ownership split for live data:</p>
+<ul>
+<li class="">stream sources should own transport, subscription lifecycle, and frame normalization</li>
+<li class="">stream sources should not own chart history, rolling queues, or consumer-specific retention</li>
+<li class="">widgets should not branch on WebSocket vs HTTP transport</li>
+<li class="">widgets should consume one shared publication model based on the same tabular frame contracts</li>
+</ul>
+<p>There is also a composition requirement the current model does not satisfy cleanly:</p>
+<ul>
+<li class="">one widget may need one historical seed source</li>
+<li class="">and one live incremental source</li>
+<li class="">both should feed the same reducer without transport-specific widget code</li>
+</ul>
+<p>HTTP also needs to remain valid in this model. A <code>connection-query</code> execution is not a streaming
+transport, but it may still publish incremental batches that initialize or update the same
+consumer reducer used by live sources. That existing HTTP incremental capability must not regress.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Unify connection-source consumption around incremental publications and explicit consumer roles.</p>
+<p>Live-capable widgets will expose two explicit logical inputs:</p>
+<ul>
+<li class=""><code>seedData</code></li>
+<li class=""><code>liveUpdates</code></li>
+</ul>
+<p>Users must bind those roles intentionally. We are not introducing an implicit &quot;many sources on one
+input&quot; model in this ADR.</p>
+<p>Connection sources will publish one of two output shapes:</p>
+<ul>
+<li class=""><code>dataset</code>: retained canonical dataset for legacy retained-data consumers</li>
+<li class=""><code>updates</code>: incremental publication stream for live-capable consumers</li>
+</ul>
+<p>The important rule is that transport no longer defines consumer behavior.</p>
+<ul>
+<li class="">HTTP query sources may publish seed and update batches</li>
+<li class="">WebSocket query sources publish incremental live batches continuously</li>
+<li class="">consumer widgets use the same shared reducer path for both</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope">Scope<a href="#scope" class="hash-link" aria-label="Direct link to Scope" title="Direct link to Scope" translate="no">​</a></h2>
+<p>This ADR defines the frontend publication and consumer contract for connection-backed widgets.</p>
+<p>In scope:</p>
+<ul>
+<li class="">connection source outputs</li>
+<li class="">live-capable widget input roles</li>
+<li class="">shared incremental reducer semantics</li>
+<li class="">backward compatibility for existing retained-dataset workflows</li>
+<li class="">migration away from source-owned WebSocket history</li>
+</ul>
+<p>Out of scope:</p>
+<ul>
+<li class="">backend route changes</li>
+<li class="">provider-specific frame formats</li>
+<li class="">generic many-source ordering metadata on one input</li>
+<li class="">transport-specific widget implementations</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="source-publication-model">Source Publication Model<a href="#source-publication-model" class="hash-link" aria-label="Direct link to Source Publication Model" title="Direct link to Source Publication Model" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-retained-dataset-output-stays-for-legacy-consumers">1. Retained dataset output stays for legacy consumers<a href="#1-retained-dataset-output-stays-for-legacy-consumers" class="hash-link" aria-label="Direct link to 1. Retained dataset output stays for legacy consumers" title="Direct link to 1. Retained dataset output stays for legacy consumers" translate="no">​</a></h3>
+<p><code>connection-query</code> keeps its existing retained <code>dataset</code> output.</p>
+<p>That output continues to support current widgets and workspaces that consume one canonical retained
+<code>core.tabular_frame@v1</code> dataset through one source binding.</p>
+<p>This retained path remains valid for:</p>
+<ul>
+<li class="">existing widgets that only know <code>sourceData</code></li>
+<li class="">one-shot query workflows</li>
+<li class="">non-live consumers that do not need incremental composition</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-add-an-explicit-incremental-updates-output">2. Add an explicit incremental <code>updates</code> output<a href="#2-add-an-explicit-incremental-updates-output" class="hash-link" aria-label="Direct link to 2-add-an-explicit-incremental-updates-output" title="Direct link to 2-add-an-explicit-incremental-updates-output" translate="no">​</a></h3>
+<p>Connection sources that can participate in live composition publish an <code>updates</code> output.</p>
+<p><code>updates</code> is the canonical incremental publication path for:</p>
+<ul>
+<li class=""><code>connection-query</code></li>
+<li class=""><code>connection-stream-query</code></li>
+<li class="">future source widgets that can emit incremental tabular updates</li>
+</ul>
+<p>The <code>updates</code> carrier still uses the same tabular frame contracts. What changes is the publication
+envelope attached through <code>widget-runtime-update@v1</code>.</p>
+<p>Representative additive contract:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">IncrementalPublicationRole</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;seed&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;update&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">WidgetRuntimeUpdateEnvelope</span><span class="token class-name operator" style="color:rgb(137, 221, 255)">&lt;</span><span class="token class-name" style="color:rgb(255, 203, 107)">TRetainedOutput </span><span class="token class-name operator" style="color:rgb(137, 221, 255)">=</span><span class="token class-name" style="color:rgb(255, 203, 107)"> </span><span class="token class-name builtin" style="color:rgb(130, 170, 255)">unknown</span><span class="token class-name punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token class-name" style="color:rgb(255, 203, 107)"> TDeltaOutput </span><span class="token class-name operator" style="color:rgb(137, 221, 255)">=</span><span class="token class-name" style="color:rgb(255, 203, 107)"> </span><span class="token class-name builtin" style="color:rgb(130, 170, 255)">unknown</span><span class="token class-name operator" style="color:rgb(137, 221, 255)">&gt;</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  contractVersion</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;widget-runtime-update@v1&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  mode</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;delta&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  publicationSemantics</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;incremental&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  publicationRole</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> IncrementalPublicationRole</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  sourceRunId</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  sequence</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  sourceWidgetId</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  sourceOutputId</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  outputContractId</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  deltaOutput</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> TDeltaOutput</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  diagnostics</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> Record</span><span class="token operator" style="color:rgb(137, 221, 255)">&lt;</span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">unknown</span><span class="token operator" style="color:rgb(137, 221, 255)">&gt;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Rules:</p>
+<ul>
+<li class="">the <code>updates</code> output always publishes <code>mode: &quot;delta&quot;</code></li>
+<li class="">the difference between initialization and live mutation is <code>publicationRole</code>, not transport</li>
+<li class=""><code>sourceRunId</code> changes when the source execution resets semantically, for example a new HTTP
+query execution or a new WebSocket subscription with different query parameters</li>
+<li class=""><code>sourceRunId</code> stays stable while one logical execution lineage is still advancing, for example
+successive HTTP incremental update batches for the same retained run or successive WebSocket
+messages for one active subscription</li>
+<li class="">HTTP sources may emit:<!-- -->
+<ul>
+<li class="">one seed publication only</li>
+<li class="">repeated seed publications on re-execution</li>
+<li class="">true update publications when the existing HTTP execution path already computes or receives
+incremental changes</li>
+</ul>
+</li>
+<li class="">bounded transport buffers are allowed for reconnect, ordering, or heartbeat handling, but they
+are not the published widget history model</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-websocket-stream-sources-stop-owning-retained-consumer-history">3. WebSocket stream sources stop owning retained consumer history<a href="#3-websocket-stream-sources-stop-owning-retained-consumer-history" class="hash-link" aria-label="Direct link to 3. WebSocket stream sources stop owning retained consumer history" title="Direct link to 3. WebSocket stream sources stop owning retained consumer history" translate="no">​</a></h3>
+<p><code>connection-stream-query</code> should not be the owner of downstream history windows.</p>
+<p>Its steady-state architecture becomes:</p>
+<ul>
+<li class="">open and close the WebSocket</li>
+<li class="">validate lifecycle</li>
+<li class="">normalize incoming <code>ConnectionQueryResponse</code> frames</li>
+<li class="">publish each normalized batch to <code>updates</code></li>
+</ul>
+<p>It may keep a small non-published transport buffer when required for reconnect or sequence
+handling, but it must not be the authoritative owner of:</p>
+<ul>
+<li class="">plotted point history</li>
+<li class="">table rolling row windows</li>
+<li class="">statistics accumulation windows</li>
+<li class="">large retained canonical datasets for downstream consumers</li>
+</ul>
+<p>If a temporary compatibility bridge is needed for old workspaces that still bind to
+<code>connection-stream-query.dataset</code>, that bridge is transitional and must not define the long-term
+architecture.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="widget-input-roles">Widget Input Roles<a href="#widget-input-roles" class="hash-link" aria-label="Direct link to Widget Input Roles" title="Direct link to Widget Input Roles" translate="no">​</a></h2>
+<p>Live-capable widgets add two explicit logical inputs:</p>
+<ul>
+<li class=""><code>seedData</code></li>
+<li class=""><code>liveUpdates</code></li>
+</ul>
+<p>These roles are semantic, not transport-specific.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="seeddata"><code>seedData</code><a href="#seeddata" class="hash-link" aria-label="Direct link to seeddata" title="Direct link to seeddata" translate="no">​</a></h3>
+<p>Purpose:</p>
+<ul>
+<li class="">initialize local consumer state</li>
+<li class="">reset local state when the bound seed source changes materially</li>
+</ul>
+<p>Accepted source shapes:</p>
+<ul>
+<li class="">retained <code>dataset</code> output from a legacy or one-shot source</li>
+<li class="">incremental <code>updates</code> output with <code>publicationRole: &quot;seed&quot;</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="liveupdates"><code>liveUpdates</code><a href="#liveupdates" class="hash-link" aria-label="Direct link to liveupdates" title="Direct link to liveupdates" translate="no">​</a></h3>
+<p>Purpose:</p>
+<ul>
+<li class="">apply ongoing incremental changes after initialization</li>
+</ul>
+<p>Accepted source shape:</p>
+<ul>
+<li class="">explicit <code>updates</code> output only</li>
+</ul>
+<p>The binding UI should not silently reinterpret arbitrary retained outputs as live updates.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="shared-reducer-model">Shared Reducer Model<a href="#shared-reducer-model" class="hash-link" aria-label="Direct link to Shared Reducer Model" title="Direct link to Shared Reducer Model" translate="no">​</a></h2>
+<p>Widgets must not implement one consumer path for HTTP and another for WebSockets.</p>
+<p>They should use one shared incremental reducer with this behavior:</p>
+<ol>
+<li class="">retained <code>seedData</code> is adapted into one synthetic <code>seed</code> publication</li>
+<li class="">incremental <code>seedData</code> publications initialize or replace local state</li>
+<li class="">incremental <code>liveUpdates</code> publications mutate local state</li>
+<li class="">widget-local policies then decide bounded retention, queue trimming, or replacement</li>
+</ol>
+<p>That yields one shared model for graph, table, statistic, and similar live-capable widgets:</p>
+<ul>
+<li class="">source owns publication</li>
+<li class="">shared reducer owns seed/update semantics</li>
+<li class="">widget owns local bounded view policy</li>
+</ul>
+<p>Examples:</p>
+<ul>
+<li class="">graph owns max visible points per series</li>
+<li class="">table owns max visible rows or pinned row policy</li>
+<li class="">statistic owns latest-value or bounded aggregation policy</li>
+</ul>
+<p>None of those policies should live in the WebSocket connection source.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="http-integration">HTTP Integration<a href="#http-integration" class="hash-link" aria-label="Direct link to HTTP Integration" title="Direct link to HTTP Integration" translate="no">​</a></h2>
+<p>HTTP remains valid as an incremental publisher.</p>
+<p><code>connection-query</code> should therefore support both:</p>
+<ul>
+<li class=""><code>dataset</code>: existing retained canonical result</li>
+<li class=""><code>updates</code>: incremental publications with <code>publicationRole: &quot;seed&quot;</code> and/or
+<code>publicationRole: &quot;update&quot;</code> depending on the execution strategy</li>
+</ul>
+<p>This allows the same widget to consume:</p>
+<ul>
+<li class="">a historical HTTP seed through <code>seedData</code></li>
+<li class="">live updates from another source through <code>liveUpdates</code></li>
+</ul>
+<p>without inventing transport-specific widget logic.</p>
+<p>Important compatibility rule:</p>
+<ul>
+<li class="">existing retained-data consumers may keep using <code>dataset</code></li>
+<li class="">new incremental consumers may use <code>seedData &lt;- dataset</code> or <code>seedData &lt;- updates</code></li>
+<li class=""><code>liveUpdates</code> must bind to explicit <code>updates</code></li>
+</ul>
+<p>Supported HTTP incremental shapes include:</p>
+<ul>
+<li class="">snapshot-only execution that emits a seed batch</li>
+<li class="">repeated execution that emits new seed batches</li>
+<li class="">existing HTTP incremental execution that already emits update batches</li>
+<li class="">future snapshot-diff or cursor-based HTTP execution that emits update batches</li>
+</ul>
+<p>This ADR preserves the current ability for HTTP-backed sources to participate in incremental widget
+updates. It does not redefine HTTP as seed-only.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="websocket-integration">WebSocket Integration<a href="#websocket-integration" class="hash-link" aria-label="Direct link to WebSocket Integration" title="Direct link to WebSocket Integration" translate="no">​</a></h2>
+<p><code>connection-stream-query</code> becomes a delta passthrough source.</p>
+<p>Its public consumer contract is:</p>
+<ul>
+<li class="">normalize every backend WebSocket message into standard tabular frame contracts</li>
+<li class="">publish those normalized batches through <code>updates</code></li>
+<li class="">mark the first initializing batch as <code>publicationRole: &quot;seed&quot;</code> when appropriate</li>
+<li class="">mark later live batches as <code>publicationRole: &quot;update&quot;</code></li>
+</ul>
+<p>This means downstream consumers only care about:</p>
+<ul>
+<li class="">seed publication</li>
+<li class="">update publication</li>
+</ul>
+<p>They do not care whether the source transport is:</p>
+<ul>
+<li class="">WebSocket</li>
+<li class="">HTTP</li>
+<li class="">future polling or resume-driven execution</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="binding-and-authoring-rules">Binding And Authoring Rules<a href="#binding-and-authoring-rules" class="hash-link" aria-label="Direct link to Binding And Authoring Rules" title="Direct link to Binding And Authoring Rules" translate="no">​</a></h2>
+<p>For the first slice, live-capable widgets use two explicit roles instead of one polymorphic input.</p>
+<p>Rules:</p>
+<ul>
+<li class="">users bind <code>seedData</code> intentionally</li>
+<li class="">users bind <code>liveUpdates</code> intentionally</li>
+<li class="">UI must make those roles explicit</li>
+<li class="">UI must not hide role selection behind transport-specific widget copy</li>
+<li class=""><code>liveUpdates</code> without <code>seedData</code> is allowed when the live source itself publishes an initial
+<code>seed</code> publication</li>
+</ul>
+<p>Existing single-input retained workflows remain valid and do not require immediate rebinding.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backward-compatibility">Backward Compatibility<a href="#backward-compatibility" class="hash-link" aria-label="Direct link to Backward Compatibility" title="Direct link to Backward Compatibility" translate="no">​</a></h2>
+<p>This ADR is additive for retained HTTP workflows and intentional for new live workflows.</p>
+<p>Backward-compatible parts:</p>
+<ul>
+<li class="">existing <code>connection-query.dataset</code> behavior stays valid</li>
+<li class="">existing widgets that only consume retained <code>sourceData</code> can keep doing so</li>
+<li class="">existing HTTP incremental behavior stays valid on <code>updates</code></li>
+<li class="">HTTP can join the new live model without losing either its retained-data role or its current
+incremental-publication capability</li>
+</ul>
+<p>Intentional migration areas:</p>
+<ul>
+<li class="">live-capable widgets need new <code>seedData</code> and <code>liveUpdates</code> ports</li>
+<li class=""><code>connection-stream-query.dataset</code> should be treated as deprecated once <code>updates</code> is available</li>
+<li class="">existing workspaces that bind a live stream source as if it were a retained dataset will need a
+migration path or compatibility bridge</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="storage-and-backend-contract-impact">Storage And Backend Contract Impact<a href="#storage-and-backend-contract-impact" class="hash-link" aria-label="Direct link to Storage And Backend Contract Impact" title="Direct link to Storage And Backend Contract Impact" translate="no">​</a></h2>
+<p>This ADR implies frontend storage and widget-registry changes.</p>
+<p>Frontend and backend-synced widget contract impact:</p>
+<ul>
+<li class="">live-capable widget IO definitions will change by adding <code>seedData</code> and <code>liveUpdates</code></li>
+<li class="">source-widget output ids will change or expand by adding <code>updates</code></li>
+<li class="">persisted workspace bindings may now store explicit seed/live role bindings</li>
+<li class="">shared binding UI and dependency-resolution helpers will need to understand the new ports and
+output ids</li>
+<li class="">backend widget-type validation and persisted-workspace validation must accept the new widget IO
+contract after registry republish; frontend load normalization migrates legacy <code>sourceData</code>
+bindings for migrated widgets, but backend-saved workspace payloads must not reject
+<code>seedData</code>, <code>liveUpdates</code>, or <code>updates</code> references once the new registry is published</li>
+</ul>
+<p>Connection runtime / backend API impact:</p>
+<ul>
+<li class="">no backend route change is required by this ADR</li>
+<li class="">no provider-specific payload change is required if the frontend can continue normalizing the
+backend <code>ConnectionQueryResponse</code> frames it already receives</li>
+<li class="">if the frontend needs explicit backend reset semantics later, that should be a separate backend
+contract task instead of being assumed here</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="completion-checklist">Completion Checklist<a href="#completion-checklist" class="hash-link" aria-label="Direct link to Completion Checklist" title="Direct link to Completion Checklist" translate="no">​</a></h2>
+<p>ADR 044 should not be considered complete until all of the following are done.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="shared-publication-contract">Shared publication contract<a href="#shared-publication-contract" class="hash-link" aria-label="Direct link to Shared publication contract" title="Direct link to Shared publication contract" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Extend <code>widget-runtime-update@v1</code> with additive incremental-publication fields, at minimum:
+<code>publicationSemantics</code>, <code>publicationRole</code>, and <code>sourceRunId</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep the existing runtime-update envelope backward compatible for current retained and
+incremental consumers during migration.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define and document the reset semantics for <code>sourceRunId</code>, including HTTP re-execution,
+WebSocket resubscription, and query-parameter changes.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests for runtime-update parsing and mapping so <code>seed</code> and <code>update</code> publications survive
+normalization and rebinding.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="connection-query-http">Connection Query (HTTP)<a href="#connection-query-http" class="hash-link" aria-label="Direct link to Connection Query (HTTP)" title="Direct link to Connection Query (HTTP)" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Preserve the current <code>connection-query.dataset</code> retained output exactly for legacy widgets.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep <code>connection-query.updates</code> compatible with current HTTP incremental behavior.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Make the HTTP incremental envelope explicit so HTTP executions can publish
+<code>publicationRole: &quot;seed&quot;</code> and <code>publicationRole: &quot;update&quot;</code> without changing consumer contracts.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Verify that current HTTP incremental query paths still work without rebinding existing
+workspaces.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests for:<!-- -->
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->snapshot-only HTTP seed publication</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->repeated HTTP execution publishing new seed batches</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->existing HTTP incremental update publication remaining valid</li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="connection-stream-query-websocket">Connection Stream Query (WebSocket)<a href="#connection-stream-query-websocket" class="hash-link" aria-label="Direct link to Connection Stream Query (WebSocket)" title="Direct link to Connection Stream Query (WebSocket)" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Refactor <code>connection-stream-query</code> so its canonical live output is <code>updates</code>, not
+source-owned retained history.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep transport lifecycle handling in the source widget, including connect, reconnect,
+heartbeat, close, and error state.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Stop using the source widget as the long-term owner of chart history, table row queues, or
+statistics windows.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define any temporary compatibility bridge for <code>connection-stream-query.dataset</code> explicitly as
+transitional.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add tests for:<!-- -->
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->first WebSocket batch published as <code>seed</code> when appropriate</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->subsequent WebSocket batches published as <code>update</code></li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->reconnect/resubscribe resets <code>sourceRunId</code> correctly</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->source-side retained history is not required for ongoing downstream updates</li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="widget-io-and-consumer-roles">Widget IO and consumer roles<a href="#widget-io-and-consumer-roles" class="hash-link" aria-label="Direct link to Widget IO and consumer roles" title="Direct link to Widget IO and consumer roles" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit <code>seedData</code> and <code>liveUpdates</code> inputs to live-capable widgets, starting with
+graph, table, and statistic.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep existing single-input retained widget flows working for widgets that have not migrated to
+the dual-role model.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure <code>seedData</code> accepts retained <code>dataset</code> and incremental <code>updates</code> seed publications.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure <code>liveUpdates</code> accepts only explicit <code>updates</code> outputs and does not silently reinterpret
+retained datasets.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add widget IO tests covering:<!-- -->
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <code>seedData &lt;- dataset</code></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <code>seedData &lt;- updates</code></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <code>liveUpdates &lt;- updates</code></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->rejection of invalid <code>liveUpdates &lt;- dataset</code> bindings</li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="shared-reducer">Shared reducer<a href="#shared-reducer" class="hash-link" aria-label="Direct link to Shared reducer" title="Direct link to Shared reducer" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Build one shared reducer for live-capable widgets that adapts retained seed inputs and
+incremental update inputs onto one internal state model.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Make that reducer transport-agnostic so widgets do not branch on HTTP vs WebSocket.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define reducer behavior for:<!-- -->
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->initial seed with no prior state</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->replacement seed with prior state</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->update batches after seed</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->update batches arriving before any seed</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->reset on <code>sourceRunId</code> change</li>
+</ul>
+</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add reducer tests covering seed replacement, update application, out-of-order reset, and
+empty-batch behavior.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="binding-ui-and-authoring">Binding UI and authoring<a href="#binding-ui-and-authoring" class="hash-link" aria-label="Direct link to Binding UI and authoring" title="Direct link to Binding UI and authoring" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update the binding UI so live-capable widgets expose <code>seedData</code> and <code>liveUpdates</code>
+explicitly.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Force the user to select the logical role intentionally instead of hiding the distinction in
+transport-specific copy.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep the existing retained-source binding UX working for non-live widgets and legacy inputs.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add binding-panel tests verifying that:<!-- -->
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <code>seedData</code> can bind to retained HTTP outputs</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <code>liveUpdates</code> can bind to HTTP or WS <code>updates</code> outputs</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->invalid bindings are rejected cleanly</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->rebinding does not clear stable draft selections</li>
+</ul>
+</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="migration-and-compatibility">Migration and compatibility<a href="#migration-and-compatibility" class="hash-link" aria-label="Direct link to Migration and compatibility" title="Direct link to Migration and compatibility" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define migration handling for existing workspaces that currently bind
+<code>connection-stream-query.dataset</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Decide whether that migration is:<!-- -->
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->automatic workspace normalization</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->compatibility shim at runtime</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->explicit rebind guidance for old workspaces</li>
+</ul>
+</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Confirm that adding <code>seedData</code> and <code>liveUpdates</code> does not break backend-synced widget IO
+contracts without the required registry/version updates.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Document any required backend coordination if widget registry payloads or persisted binding
+semantics change.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation-and-maintenance">Documentation and maintenance<a href="#documentation-and-maintenance" class="hash-link" aria-label="Direct link to Documentation and maintenance" title="Direct link to Documentation and maintenance" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update widget <code>README.md</code> and <code>USAGE_GUIDANCE.md</code> files for every migrated live-capable
+widget.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update connection documentation so <code>dataset</code> vs <code>updates</code> and <code>seed</code> vs <code>update</code> semantics
+are clear for both HTTP and WS sources.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update shared workspace/binding documentation to describe the two-role model.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Reconcile ADR 041 and related docs so they no longer describe <code>connection-stream-query</code> as
+the owner of long-term retained consumer history.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="final-acceptance">Final acceptance<a href="#final-acceptance" class="hash-link" aria-label="Direct link to Final acceptance" title="Direct link to Final acceptance" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->One widget can bind:<!-- -->
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>seedData</code> from a historical HTTP query</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <code>liveUpdates</code> from a WebSocket query</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->and continue updating indefinitely without source-owned history growth</li>
+</ul>
+</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->One widget can bind <code>liveUpdates</code> from an HTTP incremental source without any WebSocket path.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Graph/table/statistic consumers continue updating through one shared reducer path rather than
+transport-specific code.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Existing retained HTTP workspaces still render without forced rebinding.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="non-goals">Non-Goals<a href="#non-goals" class="hash-link" aria-label="Direct link to Non-Goals" title="Direct link to Non-Goals" translate="no">​</a></h2>
+<ul>
+<li class="">Do not make widgets branch on Binance vs non-Binance streams.</li>
+<li class="">Do not require separate widget implementations for HTTP and WebSocket sources.</li>
+<li class="">Do not keep large retained live history in connection sources just to make downstream graphs
+easier to render.</li>
+<li class="">Do not collapse <code>seedData</code> and <code>liveUpdates</code> into one many-source input in this first slice.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#scope" class="table-of-contents__link toc-highlight">Scope</a></li><li><a href="#source-publication-model" class="table-of-contents__link toc-highlight">Source Publication Model</a><ul><li><a href="#1-retained-dataset-output-stays-for-legacy-consumers" class="table-of-contents__link toc-highlight">1. Retained dataset output stays for legacy consumers</a></li><li><a href="#2-add-an-explicit-incremental-updates-output" class="table-of-contents__link toc-highlight">2. Add an explicit incremental <code>updates</code> output</a></li><li><a href="#3-websocket-stream-sources-stop-owning-retained-consumer-history" class="table-of-contents__link toc-highlight">3. WebSocket stream sources stop owning retained consumer history</a></li></ul></li><li><a href="#widget-input-roles" class="table-of-contents__link toc-highlight">Widget Input Roles</a><ul><li><a href="#seeddata" class="table-of-contents__link toc-highlight"><code>seedData</code></a></li><li><a href="#liveupdates" class="table-of-contents__link toc-highlight"><code>liveUpdates</code></a></li></ul></li><li><a href="#shared-reducer-model" class="table-of-contents__link toc-highlight">Shared Reducer Model</a></li><li><a href="#http-integration" class="table-of-contents__link toc-highlight">HTTP Integration</a></li><li><a href="#websocket-integration" class="table-of-contents__link toc-highlight">WebSocket Integration</a></li><li><a href="#binding-and-authoring-rules" class="table-of-contents__link toc-highlight">Binding And Authoring Rules</a></li><li><a href="#backward-compatibility" class="table-of-contents__link toc-highlight">Backward Compatibility</a></li><li><a href="#storage-and-backend-contract-impact" class="table-of-contents__link toc-highlight">Storage And Backend Contract Impact</a></li><li><a href="#completion-checklist" class="table-of-contents__link toc-highlight">Completion Checklist</a><ul><li><a href="#shared-publication-contract" class="table-of-contents__link toc-highlight">Shared publication contract</a></li><li><a href="#connection-query-http" class="table-of-contents__link toc-highlight">Connection Query (HTTP)</a></li><li><a href="#connection-stream-query-websocket" class="table-of-contents__link toc-highlight">Connection Stream Query (WebSocket)</a></li><li><a href="#widget-io-and-consumer-roles" class="table-of-contents__link toc-highlight">Widget IO and consumer roles</a></li><li><a href="#shared-reducer" class="table-of-contents__link toc-highlight">Shared reducer</a></li><li><a href="#binding-ui-and-authoring" class="table-of-contents__link toc-highlight">Binding UI and authoring</a></li><li><a href="#migration-and-compatibility" class="table-of-contents__link toc-highlight">Migration and compatibility</a></li><li><a href="#documentation-and-maintenance" class="table-of-contents__link toc-highlight">Documentation and maintenance</a></li><li><a href="#final-acceptance" class="table-of-contents__link toc-highlight">Final acceptance</a></li></ul></li><li><a href="#non-goals" class="table-of-contents__link toc-highlight">Non-Goals</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

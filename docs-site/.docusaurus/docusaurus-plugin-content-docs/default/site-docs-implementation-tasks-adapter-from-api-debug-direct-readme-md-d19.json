@@ -1,0 +1,15 @@
+{
+  "id": "implementation_tasks/adapter-from-api-debug-direct/README",
+  "title": "Adapter From API Debug Direct Mode Tasks",
+  "description": "Implementation tasks for ADR 074: Adapter From API Debug Direct Mode.",
+  "source": "@site/../docs/implementation_tasks/adapter-from-api-debug-direct/README.md",
+  "sourceDirName": "implementation_tasks/adapter-from-api-debug-direct",
+  "slug": "/implementation_tasks/adapter-from-api-debug-direct/",
+  "permalink": "/docs/implementation_tasks/adapter-from-api-debug-direct/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/implementation_tasks/adapter-from-api-debug-direct/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

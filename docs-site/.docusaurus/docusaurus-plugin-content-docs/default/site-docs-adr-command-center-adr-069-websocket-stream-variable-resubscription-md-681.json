@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-069-websocket-stream-variable-resubscription",
+  "title": "ADR 069: Variable-Driven WebSocket Stream Resubscription",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-069-websocket-stream-variable-resubscription.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-069-websocket-stream-variable-resubscription",
+  "permalink": "/docs/adr/command_center/adr-069-websocket-stream-variable-resubscription",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-069-websocket-stream-variable-resubscription.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

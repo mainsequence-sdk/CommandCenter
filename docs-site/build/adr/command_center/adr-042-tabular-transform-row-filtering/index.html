@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-042-tabular-transform-row-filtering" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 042: Lightweight Row Filtering in Tabular Transform | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-042-tabular-transform-row-filtering"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 042: Lightweight Row Filtering in Tabular Transform | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-042-tabular-transform-row-filtering"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-042-tabular-transform-row-filtering" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-042-tabular-transform-row-filtering" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 042: Lightweight Row Filtering in Tabular Transform</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-04-28</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-binding-output-transforms">ADR: Binding-Level Output Transforms for Structured Widget Outputs</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-standardized-connection-result-contracts">ADR: Standardized Connection Result Contracts</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-connection-first-workspace-dataflow">ADR: Connection-First Workspace Dataflow</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-managed-connection-query-widget-sources">ADR: Managed Connection Query Sources for Consumer Widgets</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Command Center already has the right high-level dataflow model:</p>
+<ul>
+<li class=""><code>connection-query</code> fetches a canonical dataset</li>
+<li class=""><code>tabular-transform</code> reshapes a canonical dataset</li>
+<li class="">Graph, Table, Statistic, and similar widgets passively consume the resulting dataset</li>
+</ul>
+<p>That architecture is general and should stay general. The current gap is not that the platform
+lacks transforms. It is that the existing <code>tabular-transform</code> widget only supports:</p>
+<ul>
+<li class=""><code>none</code></li>
+<li class=""><code>aggregate</code></li>
+<li class=""><code>pivot</code></li>
+<li class=""><code>unpivot</code></li>
+<li class="">final projection</li>
+</ul>
+<p>The binding layer is even narrower and only supports structured-value transforms such as
+<code>select-array-item</code> and <code>extract-path</code>.</p>
+<p>That leaves no generic way to take one wider tabular dataset and publish a filtered subset for
+downstream widgets. The problem shows up clearly with Prometheus-backed workspaces, but it is not a
+Prometheus-specific problem. Any connection that publishes a canonical <code>core.tabular_frame@v1</code>
+dataset may need:</p>
+<ul>
+<li class="">one broad upstream query</li>
+<li class="">several downstream filtered slices</li>
+<li class="">passive graph/statistic/table widgets bound to those slices</li>
+</ul>
+<p>Without a generic row filter, authors are forced to keep one source query per consumer even when
+the source data could be shared safely.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Add a generic <code>filter</code> mode to the core <code>tabular-transform</code> widget.</p>
+<p>The filter must operate on canonical tabular rows, not on source-specific query syntax or
+source-specific metadata. It becomes another first-class transform mode beside <code>aggregate</code>,
+<code>pivot</code>, and <code>unpivot</code>.</p>
+<p>The widget remains a single-input, single-output tabular transform:</p>
+<ul>
+<li class="">input: one <code>core.tabular_frame@v1</code></li>
+<li class="">output: one filtered <code>core.tabular_frame@v1</code></li>
+</ul>
+<p>Branching happens by binding multiple transform widgets to the same upstream source, not by turning
+one transform widget into a multi-output fanout node.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope">Scope<a href="#scope" class="hash-link" aria-label="Direct link to Scope" title="Direct link to Scope" translate="no">​</a></h2>
+<p>This ADR intentionally limits filter semantics to inexpensive, predictable client-side row
+predicates.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="supported-v1-operators">Supported v1 operators<a href="#supported-v1-operators" class="hash-link" aria-label="Direct link to Supported v1 operators" title="Direct link to Supported v1 operators" translate="no">​</a></h3>
+<ul>
+<li class=""><code>equals</code></li>
+<li class=""><code>not-equals</code></li>
+<li class=""><code>in</code></li>
+<li class=""><code>not-in</code></li>
+<li class=""><code>gt</code></li>
+<li class=""><code>gte</code></li>
+<li class=""><code>lt</code></li>
+<li class=""><code>lte</code></li>
+<li class=""><code>is-empty</code></li>
+<li class=""><code>is-not-empty</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="explicitly-out-of-scope-for-v1">Explicitly out of scope for v1<a href="#explicitly-out-of-scope-for-v1" class="hash-link" aria-label="Direct link to Explicitly out of scope for v1" title="Direct link to Explicitly out of scope for v1" translate="no">​</a></h3>
+<ul>
+<li class="">regex or pattern-matching operators</li>
+<li class="">free-text substring search such as <code>contains</code></li>
+<li class="">source-specific operators</li>
+<li class="">computed expressions</li>
+<li class="">cross-field comparisons</li>
+<li class="">joins, lookups, or external fetches</li>
+<li class="">multi-output split/fanout behavior</li>
+</ul>
+<p>This keeps the transform cheap, deterministic, and easy to reason about on large but still
+frontend-resident tabular frames.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="proposed-contract">Proposed Contract<a href="#proposed-contract" class="hash-link" aria-label="Direct link to Proposed Contract" title="Direct link to Proposed Contract" translate="no">​</a></h2>
+<p>The persisted widget props should grow additively in a way equivalent to:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">TabularTransformMode</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;none&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;filter&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;aggregate&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;pivot&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;unpivot&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">TabularFilterOperator</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;equals&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;not-equals&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;in&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;not-in&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;gt&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;gte&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;lt&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;lte&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;is-empty&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;is-not-empty&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">TabularFilterRule</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  field</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  operator</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> TabularFilterOperator</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  value</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">boolean</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">null</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">Array</span><span class="token operator" style="color:rgb(137, 221, 255)">&lt;</span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">boolean</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">null</span><span class="token operator" style="color:rgb(137, 221, 255)">&gt;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">TabularTransformWidgetProps</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  transformMode</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> TabularTransformMode</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  filterCombineMode</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;all&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;any&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  filterRules</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> TabularFilterRule</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Implementation details may refine names, but the stored contract should preserve those semantics.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-rules">Runtime Rules<a href="#runtime-rules" class="hash-link" aria-label="Direct link to Runtime Rules" title="Direct link to Runtime Rules" translate="no">​</a></h2>
+<ul>
+<li class="">Filtering runs against the resolved tabular rows of the upstream dataset.</li>
+<li class="">Filtering must preserve column order and field metadata for surviving columns.</li>
+<li class="">Filtering must not mutate upstream rows in place.</li>
+<li class="">An invalid rule configuration should surface as a normal transform configuration error, not as a
+silent pass-through.</li>
+<li class="">Filter mode is eligible to publish filtered incremental deltas when upstream delta metadata is
+available and the filter can be applied row-by-row without needing global recomputation.</li>
+<li class="">Empty result sets are valid outputs, not errors.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="ui-rules">UI Rules<a href="#ui-rules" class="hash-link" aria-label="Direct link to UI Rules" title="Direct link to UI Rules" translate="no">​</a></h2>
+<p>The transform settings UI should expose:</p>
+<ul>
+<li class=""><code>Transform mode = Filter</code></li>
+<li class="">combine mode:<!-- -->
+<ul>
+<li class=""><code>All rules</code></li>
+<li class=""><code>Any rule</code></li>
+</ul>
+</li>
+<li class="">ordered rule rows with:<!-- -->
+<ul>
+<li class="">field picker</li>
+<li class="">operator picker</li>
+<li class="">value editor only when the operator requires one</li>
+</ul>
+</li>
+</ul>
+<p>The field picker must be driven by the resolved upstream tabular schema, not by free-form source
+knowledge. The UI should not expose source-specific labels such as Prometheus terminology unless
+those are already present in the tabular field names.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<p>Positive:</p>
+<ul>
+<li class="">one upstream source query can feed several filtered downstream datasets</li>
+<li class="">Graph, Table, and Statistic stay passive consumers</li>
+<li class="">the workspace graph stays explicit: source -&gt; transform -&gt; consumer</li>
+<li class="">the feature works for any canonical tabular dataset, not only Prometheus</li>
+<li class="">broad-source reuse becomes possible without abusing widget-specific query logic</li>
+</ul>
+<p>Negative:</p>
+<ul>
+<li class="">workspaces may gain more visible transform nodes when authors split one broad dataset into many
+slices</li>
+<li class="">large row sets still require client-side row scans, so the supported operator set must stay
+conservative</li>
+<li class="">persisted <code>tabular-transform</code> props grow additively and backend validation may need to allow the
+new fields</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="guardrails">Guardrails<a href="#guardrails" class="hash-link" aria-label="Direct link to Guardrails" title="Direct link to Guardrails" translate="no">​</a></h2>
+<ul>
+<li class="">Do not add source-specific filter semantics to <code>tabular-transform</code>.</li>
+<li class="">Do not turn filter mode into a full query language.</li>
+<li class="">Do not add regex, free-text search, or computed expressions in the first rollout.</li>
+<li class="">Do not hide data shaping inside binding-level transforms when the operation is analytical and
+reusable.</li>
+<li class="">Do not make Graph, Table, or Statistic own row filtering themselves.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-and-storage-impact">Backend And Storage Impact<a href="#backend-and-storage-impact" class="hash-link" aria-label="Direct link to Backend And Storage Impact" title="Direct link to Backend And Storage Impact" translate="no">​</a></h2>
+<p>This ADR does not change connection query request or response contracts.</p>
+<p>When implemented, it will add optional persisted widget props to <code>tabular-transform</code>, such as:</p>
+<ul>
+<li class=""><code>transformMode: &quot;filter&quot;</code></li>
+<li class=""><code>filterCombineMode</code></li>
+<li class=""><code>filterRules</code></li>
+</ul>
+<p>If backend workspace validation treats widget props as strict schemas, it must allow these additive
+<code>tabular-transform</code> fields and the new transform mode value.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rollout-tasks">Rollout Tasks<a href="#rollout-tasks" class="hash-link" aria-label="Direct link to Rollout Tasks" title="Direct link to Rollout Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add <code>filter</code> to <code>TabularTransformMode</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add additive filter props normalization and validation.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Implement lightweight row predicate evaluation in the transform runtime/model layer.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Preserve field metadata and column order through filtered outputs.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Publish filtered incremental deltas when safe; fall back to snapshot output when not.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add settings UI for combine mode, rules, and operator-specific value editors.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add focused tests for empty outputs, scalar equality, set membership, numeric comparison, and
+invalid rule handling.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>src/widgets/core/tabular-transform/README.md</code> and <code>USAGE_GUIDANCE.md</code> after the
+implementation lands.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Revisit workspace-level source consolidation opportunities that currently require one query
+per consumer.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-042-tabular-transform-row-filtering.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#scope" class="table-of-contents__link toc-highlight">Scope</a><ul><li><a href="#supported-v1-operators" class="table-of-contents__link toc-highlight">Supported v1 operators</a></li><li><a href="#explicitly-out-of-scope-for-v1" class="table-of-contents__link toc-highlight">Explicitly out of scope for v1</a></li></ul></li><li><a href="#proposed-contract" class="table-of-contents__link toc-highlight">Proposed Contract</a></li><li><a href="#runtime-rules" class="table-of-contents__link toc-highlight">Runtime Rules</a></li><li><a href="#ui-rules" class="table-of-contents__link toc-highlight">UI Rules</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a></li><li><a href="#guardrails" class="table-of-contents__link toc-highlight">Guardrails</a></li><li><a href="#backend-and-storage-impact" class="table-of-contents__link toc-highlight">Backend And Storage Impact</a></li><li><a href="#rollout-tasks" class="table-of-contents__link toc-highlight">Rollout Tasks</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

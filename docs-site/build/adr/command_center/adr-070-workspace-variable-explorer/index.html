@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-070-workspace-variable-explorer" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 070: Workspace Variable Explorer | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-070-workspace-variable-explorer"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 070: Workspace Variable Explorer | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-070-workspace-variable-explorer"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-070-workspace-variable-explorer" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-070-workspace-variable-explorer" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 070: Workspace Variable Explorer</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-05-21</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-058-cross-widget-references-and-variables">ADR 058: Cross-Widget References And Variables</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-064-variable-reference-graph-integration">ADR 064: Variable References as Widget Graph Edges</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-069-websocket-stream-variable-resubscription">ADR 069: Variable-Driven WebSocket Stream Resubscription</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-widget-bindings-and-dependency-graph">ADR: First-Class Widget Bindings and Dependency Graph</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Workspace authors need a way to inspect variable behavior while composing widgets.</p>
+<p>Today the platform has two different inspection needs that should not be mixed:</p>
+<ul>
+<li class="">authoring a new reference, where the UI may need to show possible source widgets, outputs, and
+paths</li>
+<li class="">debugging an existing workspace, where the user needs to see only variables that actually exist
+or are actively referenced</li>
+</ul>
+<p>The second case is not served well by a broad picker. Showing every possible variable candidate
+creates noise and hides the actual runtime state. When a table selection changes, a connection query
+waits for a referenced value, or a WebSocket stream resubscribes from a variable-backed query, the
+useful question is:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">Which variables exist in this workspace right now, what are their current values, and who consumes</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">them?</span><br></span></code></pre></div></div>
+<p>The existing request/debug rail is a good interaction reference: it is a workspace-level inspection
+surface, not a widget settings panel. The Variable Explorer should follow that model.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Add a workspace-level Variable Explorer rail.</p>
+<p>The Variable Explorer shows only:</p>
+<ul>
+<li class="">variables currently present in the workspace variable store</li>
+<li class="">variable references that are actively used by saved widget bindings or reference expressions</li>
+</ul>
+<p>It must not show:</p>
+<ul>
+<li class="">every possible widget output</li>
+<li class="">every possible nested runtime-state path</li>
+<li class="">all discoverable values from the binding picker</li>
+<li class="">unused source-output candidates</li>
+</ul>
+<p>This surface is for runtime/debug visibility, not reference authoring.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="data-model">Data Model<a href="#data-model" class="hash-link" aria-label="Direct link to Data Model" title="Direct link to Data Model" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="variable-store-entries">Variable Store Entries<a href="#variable-store-entries" class="hash-link" aria-label="Direct link to Variable Store Entries" title="Direct link to Variable Store Entries" translate="no">​</a></h3>
+<p>For variables that exist in the runtime variable store, the explorer should show:</p>
+<ul>
+<li class="">source widget title and instance id</li>
+<li class="">source output id</li>
+<li class="">transform signature, if any</li>
+<li class="">normalized variable id</li>
+<li class="">current value preview</li>
+<li class="">source contract</li>
+<li class="">consumers that currently depend on the variable</li>
+<li class="">update freshness, when available</li>
+</ul>
+<p>The value preview should be readable and safe:</p>
+<ul>
+<li class="">scalars show directly</li>
+<li class="">arrays and objects show a compact JSON preview with expandable details</li>
+<li class="">large values are truncated by default</li>
+<li class="">unavailable values show an explicit empty/waiting state</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="referenced-variables">Referenced Variables<a href="#referenced-variables" class="hash-link" aria-label="Direct link to Referenced Variables" title="Direct link to Referenced Variables" translate="no">​</a></h3>
+<p>For variables that are referenced by widget bindings but not currently present in the variable
+store, the explorer should show a separate referenced/waiting state.</p>
+<p>Examples:</p>
+<ul>
+<li class="">a downstream connection query references <code>$(Table).activeCellValue</code>, but no table cell is active</li>
+<li class="">a title references <code>$(AssetScreener).activeRow.Symbol</code>, but the screener has no active row</li>
+<li class="">a WebSocket source depends on a variable that has not resolved yet</li>
+</ul>
+<p>These entries are important because they explain why a downstream widget is waiting, but they must
+not be confused with successfully materialized variable values.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="ui-placement">UI Placement<a href="#ui-placement" class="hash-link" aria-label="Direct link to UI Placement" title="Direct link to UI Placement" translate="no">​</a></h2>
+<p>The Variable Explorer should be a workspace right-side rail, similar to the request/debug rail.</p>
+<p>It should be opened from a dedicated icon in the workspace navigation bar. That icon must be
+visible in both edit mode and view mode because variables are part of runtime understanding, not
+only authoring. In view mode the explorer is read-only, just like the variable store it inspects.</p>
+<p>It should be available in both canvas and graph contexts. It should not be embedded inside
+individual widget settings because it describes workspace-level runtime state and cross-widget
+dependencies.</p>
+<p>The rail should support:</p>
+<ul>
+<li class="">grouped sections for <code>Current variables</code> and <code>Referenced variables</code></li>
+<li class="">search/filter by widget title, output id, target widget, or token text</li>
+<li class="">expandable value details</li>
+<li class="">consumer list per variable</li>
+<li class="">copyable reference token or normalized id</li>
+<li class="">clear user-facing states for <code>ready</code>, <code>waiting</code>, <code>stale</code>, and <code>error</code> where those states can be
+inferred</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="behavior">Behavior<a href="#behavior" class="hash-link" aria-label="Direct link to Behavior" title="Direct link to Behavior" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="current-variables">Current Variables<a href="#current-variables" class="hash-link" aria-label="Direct link to Current Variables" title="Direct link to Current Variables" translate="no">​</a></h3>
+<p>The explorer reads from the same variable store used by runtime variable commits and reference
+resolution.</p>
+<p>If a user clicks a table row and the variable store updates from <code>BTCUSDT</code> to <code>ETHUSDT</code>, the
+explorer should update immediately and show the current value.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="referenced-variables-1">Referenced Variables<a href="#referenced-variables-1" class="hash-link" aria-label="Direct link to Referenced Variables" title="Direct link to Referenced Variables" translate="no">​</a></h3>
+<p>The explorer also reads saved widget bindings/reference expressions to identify variables that are
+actively referenced.</p>
+<p>This is a filtered view of real dependencies. It is not a discovery catalog.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="no-new-runtime-ownership">No New Runtime Ownership<a href="#no-new-runtime-ownership" class="hash-link" aria-label="Direct link to No New Runtime Ownership" title="Direct link to No New Runtime Ownership" translate="no">​</a></h3>
+<p>The explorer must be passive.</p>
+<p>It must not:</p>
+<ul>
+<li class="">create variables</li>
+<li class="">mutate widget runtime state</li>
+<li class="">execute widgets</li>
+<li class="">refresh widgets</li>
+<li class="">open WebSocket streams</li>
+<li class="">write workspace storage</li>
+</ul>
+<p>It should only explain the current state of the variable store and reference graph.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="storage-and-backend-contract">Storage And Backend Contract<a href="#storage-and-backend-contract" class="hash-link" aria-label="Direct link to Storage And Backend Contract" title="Direct link to Storage And Backend Contract" translate="no">​</a></h2>
+<p>No backend contract change is required.</p>
+<p>The Variable Explorer is a frontend inspection surface over existing runtime state and saved widget
+bindings. It should not introduce a new persisted workspace field or backend API payload.</p>
+<p>If a future iteration adds user-saved filters or pinned explorer layout, that should be stored as
+per-user workspace UI state, not as shared workspace content.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="data-source">Data Source<a href="#data-source" class="hash-link" aria-label="Direct link to Data Source" title="Direct link to Data Source" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Reuse the existing workspace variable store as the source for current variable entries.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Reuse the existing dependency/reference graph to derive actively referenced variables.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Build one normalized explorer model that separates materialized variables from referenced but
+unresolved variables.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Include consumers per variable, including target widget id, target kind, target input id, and
+prop path when available.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add compact value serialization for scalar, array, object, null, and unavailable values.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ui-surface">UI Surface<a href="#ui-surface" class="hash-link" aria-label="Direct link to UI Surface" title="Direct link to UI Surface" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a workspace-level Variable Explorer rail beside the existing debug/request tooling.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a dedicated Variable Explorer icon to the workspace navigation bar.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure the navigation-bar icon is visible in both workspace edit mode and workspace view mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure the explorer opens from canvas mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure the explorer opens from graph mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep the explorer read-only in both edit and view mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Group entries into <code>Current variables</code> and <code>Referenced variables</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add search/filter over source widget, output id, target widget, and token text.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Render current values with safe truncation and expandable JSON details.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Render unresolved references with a clear waiting state and consumer list.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="guardrails">Guardrails<a href="#guardrails" class="hash-link" aria-label="Direct link to Guardrails" title="Direct link to Guardrails" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Do not show all possible source widget outputs.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Do not reuse the reference authoring picker as the explorer body.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Do not mutate widget props, bindings, runtime state, or workspace storage from the explorer.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Do not trigger graph execution, refresh, or stream resubscription from the explorer.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep user-facing copy focused on variables and values, not internal implementation names.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="verification">Verification<a href="#verification" class="hash-link" aria-label="Direct link to Verification" title="Direct link to Verification" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests for explorer model construction from variable store entries.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests for referenced-but-unresolved variables.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests proving unused possible outputs do not appear.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests for consumer grouping and value preview truncation.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Manually verify a table selection variable updates live in the explorer.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Manually verify a waiting connection/WebSocket reference appears as unresolved.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="benefits">Benefits<a href="#benefits" class="hash-link" aria-label="Direct link to Benefits" title="Direct link to Benefits" translate="no">​</a></h3>
+<ul>
+<li class="">Users can see the actual values driving workspace variables.</li>
+<li class="">Debugging variable-backed queries, titles, and stream subscriptions becomes direct.</li>
+<li class="">The explorer avoids the noise of showing every possible output/path.</li>
+<li class="">The UI reinforces the difference between reference authoring and runtime inspection.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="tradeoffs">Tradeoffs<a href="#tradeoffs" class="hash-link" aria-label="Direct link to Tradeoffs" title="Direct link to Tradeoffs" translate="no">​</a></h3>
+<ul>
+<li class="">The explorer depends on the variable store and dependency graph staying aligned.</li>
+<li class="">Unresolved referenced variables need careful copy so users understand that the reference exists
+but has no current value.</li>
+<li class="">Large object values require truncation and expansion behavior to avoid making the rail unusable.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="non-goals">Non-Goals<a href="#non-goals" class="hash-link" aria-label="Direct link to Non-Goals" title="Direct link to Non-Goals" translate="no">​</a></h3>
+<ul>
+<li class="">This ADR does not add a new variable authoring language.</li>
+<li class="">This ADR does not add a global variable registry.</li>
+<li class="">This ADR does not persist variable explorer state into shared workspace content.</li>
+<li class="">This ADR does not replace the binding/reference picker.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-070-workspace-variable-explorer.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#data-model" class="table-of-contents__link toc-highlight">Data Model</a><ul><li><a href="#variable-store-entries" class="table-of-contents__link toc-highlight">Variable Store Entries</a></li><li><a href="#referenced-variables" class="table-of-contents__link toc-highlight">Referenced Variables</a></li></ul></li><li><a href="#ui-placement" class="table-of-contents__link toc-highlight">UI Placement</a></li><li><a href="#behavior" class="table-of-contents__link toc-highlight">Behavior</a><ul><li><a href="#current-variables" class="table-of-contents__link toc-highlight">Current Variables</a></li><li><a href="#referenced-variables-1" class="table-of-contents__link toc-highlight">Referenced Variables</a></li><li><a href="#no-new-runtime-ownership" class="table-of-contents__link toc-highlight">No New Runtime Ownership</a></li></ul></li><li><a href="#storage-and-backend-contract" class="table-of-contents__link toc-highlight">Storage And Backend Contract</a></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a><ul><li><a href="#data-source" class="table-of-contents__link toc-highlight">Data Source</a></li><li><a href="#ui-surface" class="table-of-contents__link toc-highlight">UI Surface</a></li><li><a href="#guardrails" class="table-of-contents__link toc-highlight">Guardrails</a></li><li><a href="#verification" class="table-of-contents__link toc-highlight">Verification</a></li></ul></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#benefits" class="table-of-contents__link toc-highlight">Benefits</a></li><li><a href="#tradeoffs" class="table-of-contents__link toc-highlight">Tradeoffs</a></li><li><a href="#non-goals" class="table-of-contents__link toc-highlight">Non-Goals</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

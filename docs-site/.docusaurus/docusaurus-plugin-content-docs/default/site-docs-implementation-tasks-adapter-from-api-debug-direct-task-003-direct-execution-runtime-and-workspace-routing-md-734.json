@@ -1,0 +1,15 @@
+{
+  "id": "implementation_tasks/adapter-from-api-debug-direct/task-003-direct-execution-runtime-and-workspace-routing",
+  "title": "Task 003: Direct Execution Runtime And Workspace Routing",
+  "description": "Objective",
+  "source": "@site/../docs/implementation_tasks/adapter-from-api-debug-direct/task-003-direct-execution-runtime-and-workspace-routing.md",
+  "sourceDirName": "implementation_tasks/adapter-from-api-debug-direct",
+  "slug": "/implementation_tasks/adapter-from-api-debug-direct/task-003-direct-execution-runtime-and-workspace-routing",
+  "permalink": "/docs/implementation_tasks/adapter-from-api-debug-direct/task-003-direct-execution-runtime-and-workspace-routing",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/implementation_tasks/adapter-from-api-debug-direct/task-003-direct-execution-runtime-and-workspace-routing.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

@@ -157,6 +157,8 @@ cp .env.example .env
 
 `VITE_BYPASS_AUTH=true` bypasses backend authentication for local development and re-enables the built-in role picker.
 
+For local debugging agents against the real auth backend, set `VITE_USE_MOCK_DATA=false`, `VITE_COMMAND_CENTER_DEV_LOGIN_IDENTIFIER`, and `VITE_COMMAND_CENTER_DEV_LOGIN_PASSWORD` in `.env.local`, then open `/login?dev_autologin=1`. In Vite dev mode that URL preloads those credentials and auto-submits once through the normal JWT login path. Plain `/login` stays manual so other browsers can test other users.
+
 `VITE_INCLUDE_AUI=true` keeps the detachable `assistant-ui` shell enabled. Set `VITE_INCLUDE_AUI=false` to remove the chat provider, sidebar trigger, overlay rail, and `/app/chat` route at runtime.
 
 `VITE_INCLUDE_WORKSPACES=true` keeps the `Workspaces` application registered. Set `VITE_INCLUDE_WORKSPACES=false` to remove the `workspace-studio` app from navigation, search, topbar favorites, and routed app resolution.

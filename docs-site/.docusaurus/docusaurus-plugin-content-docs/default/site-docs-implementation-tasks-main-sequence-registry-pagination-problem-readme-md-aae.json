@@ -1,0 +1,15 @@
+{
+  "id": "implementation_tasks/main-sequence-registry-pagination-problem/README",
+  "title": "Main Sequence Registry Pagination Problem Tasks",
+  "description": "Implementation tasks for fixing the shared Main Sequence list pagination failure where page",
+  "source": "@site/../docs/implementation_tasks/main-sequence-registry-pagination-problem/README.md",
+  "sourceDirName": "implementation_tasks/main-sequence-registry-pagination-problem",
+  "slug": "/implementation_tasks/main-sequence-registry-pagination-problem/",
+  "permalink": "/docs/implementation_tasks/main-sequence-registry-pagination-problem/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/implementation_tasks/main-sequence-registry-pagination-problem/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

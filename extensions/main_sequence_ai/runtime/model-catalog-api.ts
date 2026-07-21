@@ -6,6 +6,7 @@ import {
   appendCreatedByUserUidSearchParam,
   requireCreatedByUserUid,
 } from "./user-scope";
+import { buildRuntimeHttpErrorMessage } from "./http-error";
 
 export type ModelCatalogAuthKind = "api_key" | "oauth";
 export type ModelCatalogReasoningEffort =
@@ -245,13 +246,14 @@ export async function fetchModelCatalog({
     createdByUserUid,
     "Model catalog",
   );
-  const { response } = await fetchMainSequenceAiAssistantResponse({
+  const requestPath = appendCreatedByUserUidSearchParam(
+    "/api/models/catalog",
+    resolvedCreatedByUserUid,
+  );
+  const { response, url } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
-    requestPath: appendCreatedByUserUidSearchParam(
-      "/api/models/catalog",
-      resolvedCreatedByUserUid,
-    ),
+    requestPath,
     method: "GET",
     runtimeTarget,
     signal,
@@ -261,14 +263,15 @@ export async function fetchModelCatalog({
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as
-      | { error?: string; message?: string; detail?: string }
-      | null;
     throw new Error(
-      payload?.message ||
-        payload?.detail ||
-        payload?.error ||
-        `Model catalog failed with status ${response.status}.`,
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage: `Model catalog failed with status ${response.status}.`,
+        method: "GET",
+        operation:
+          "Model provider catalog request failed while loading settings model catalog",
+        response,
+        url,
+      }),
     );
   }
 

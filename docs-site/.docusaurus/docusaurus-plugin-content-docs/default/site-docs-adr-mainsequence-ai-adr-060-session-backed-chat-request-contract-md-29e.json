@@ -1,0 +1,20 @@
+{
+  "id": "adr/mainsequence_ai/adr-060-session-backed-chat-request-contract",
+  "title": "ADR 060: Main Sequence AI Session-Backed Chat Request Contract",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/mainsequence_ai/adr-060-session-backed-chat-request-contract.md",
+  "sourceDirName": "adr/mainsequence_ai",
+  "slug": "/adr/mainsequence_ai/adr-060-session-backed-chat-request-contract",
+  "permalink": "/docs/adr/mainsequence_ai/adr-060-session-backed-chat-request-contract",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/mainsequence_ai/adr-060-session-backed-chat-request-contract.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR 077: Unified Astro Coding-Agent Bootstrap",
+    "permalink": "/docs/adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-048-alpaca-websocket-command-center-extension",
+  "title": "ADR 048: Alpaca WebSocket Market Data Frontend Extension",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-048-alpaca-websocket-command-center-extension.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-048-alpaca-websocket-command-center-extension",
+  "permalink": "/docs/adr/command_center/adr-048-alpaca-websocket-command-center-extension",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-048-alpaca-websocket-command-center-extension.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

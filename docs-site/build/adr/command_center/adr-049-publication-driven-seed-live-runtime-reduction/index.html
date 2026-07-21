@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 049: Publication-Driven Seed/Live Runtime Reduction | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 049: Publication-Driven Seed/Live Runtime Reduction | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 049: Publication-Driven Seed/Live Runtime Reduction</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-05-01</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-047-workspace-runtime-data-reference-store">ADR 047: Workspace Runtime Data Reference Store</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles">ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-039-unified-upstream-consumer-state-contract">ADR 039: Unified Upstream Consumer State Contract</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-041-connection-query-websocket-streaming">ADR 041: Query-Shaped WebSocket Streaming for Connections</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-binding-output-transforms">ADR: Binding-Level Output Transforms for Structured Widget Outputs</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>ADR 044 introduced explicit <code>seedData</code> and <code>liveUpdates</code> roles. ADR 047 introduced a
+workspace-scoped runtime data store so large tabular datasets can live behind stable refs instead of
+moving by value through widget runtime state.</p>
+<p>The current shared incremental consumer still violates the intended ownership split.</p>
+<p>Today the dual-role path in <code>useIncrementalTabularConsumerBindingState(...)</code>:</p>
+<ul>
+<li class="">reads the current consumer runtime state</li>
+<li class="">reconstructs seed/live frames from that runtime state and current resolved inputs</li>
+<li class="">recomputes the seed/live union in an effect</li>
+<li class="">writes a new runtime state back into the workspace store</li>
+</ul>
+<p>That means seed/live reduction is still render-driven.</p>
+<p>This is the wrong model.</p>
+<p>The reducer should not recompute because React rerendered. It should recompute only when upstream
+publication identity changed.</p>
+<p>The current shape has several concrete problems:</p>
+<ul>
+<li class="">widgets with both roles bound, especially OHLC with historical seed plus WebSocket live updates,
+exercise the combine path on nearly every pass</li>
+<li class="">effect-driven recomputation can write runtime state repeatedly and trigger <code>Maximum update depth exceeded</code></li>
+<li class="">dedupe still depends too much on runtime-state metadata instead of publication identity</li>
+<li class="">volatile fields such as <code>updatedAtMs</code> can still leak into equality decisions</li>
+<li class="">the dependency resolver can treat an incremental carrier <code>valueRef</code> as the base ref, even when
+the authoritative retained ref is <code>outputRef</code> or <code>retainedOutputRef</code></li>
+</ul>
+<p>This is not an OHLC-only bug. OHLC simply exposes it first because it usually binds both roles at
+the same time.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Seed/live reduction becomes publication-driven, store-owned, and ref-keyed.</p>
+<p>The shared incremental consumer hook must stop behaving like a reducer that reconstructs consumer
+state from runtime-state metadata on every effect pass.</p>
+<p>Instead:</p>
+<ul>
+<li class="">upstream sources publish stable incremental identities</li>
+<li class="">dependency resolution preserves those identities</li>
+<li class="">the runtime data store owns the reduced seed/live output for a consumer</li>
+<li class="">the consumer hook reads the reduced output and publishes runtime state only when the reduced
+output identity changes</li>
+</ul>
+<p>The invariant is:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">combine once per upstream publication transition</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">never combine again only because React rerendered</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="publication-identity-rules">Publication Identity Rules<a href="#publication-identity-rules" class="hash-link" aria-label="Direct link to Publication Identity Rules" title="Direct link to Publication Identity Rules" translate="no">​</a></h2>
+<p>Reduction must be keyed from upstream publication identity, not from a materialized frame snapshot.</p>
+<p>Representative identity inputs:</p>
+<ul>
+<li class="">seed retained ref id + version</li>
+<li class="">seed source run id when present</li>
+<li class="">live retained ref id + version when present</li>
+<li class="">live delta ref id + version when present</li>
+<li class="">live source run id when present</li>
+<li class="">live publication sequence when present</li>
+<li class="">merge key fields</li>
+<li class="">retention policy</li>
+<li class="">row selector only when the reducer itself owns the bounded output</li>
+</ul>
+<p><code>updatedAtMs</code> is not part of reduction identity.</p>
+<p>Lifecycle-only changes such as reconnect timestamps, heartbeat timestamps, or transport bookkeeping
+must not cause a new reduced data output unless the underlying retained or delta refs changed.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="base-and-delta-ref-resolution">Base And Delta Ref Resolution<a href="#base-and-delta-ref-resolution" class="hash-link" aria-label="Direct link to Base And Delta Ref Resolution" title="Direct link to Base And Delta Ref Resolution" translate="no">​</a></h2>
+<p>For an explicit <code>updates</code> output, the dependency resolver must treat the runtime update envelope as
+the authoritative source of base and delta identity.</p>
+<p>Rules:</p>
+<ul>
+<li class=""><code>upstreamBaseRef</code> must prefer <code>outputRef ?? retainedOutputRef</code></li>
+<li class=""><code>upstreamDeltaRef</code> must prefer <code>deltaOutputRef</code></li>
+<li class="">raw carrier <code>valueRef</code> is only a fallback when there is no runtime update envelope</li>
+</ul>
+<p>This matters because an incremental carrier may physically carry the delta frame while the
+authoritative retained dataset lives behind <code>outputRef</code>. A consumer that mistakes the carrier ref
+for the retained base ref can re-seed or re-reduce incorrectly.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-data-store-responsibilities">Runtime Data Store Responsibilities<a href="#runtime-data-store-responsibilities" class="hash-link" aria-label="Direct link to Runtime Data Store Responsibilities" title="Direct link to Runtime Data Store Responsibilities" translate="no">​</a></h2>
+<p>ADR 047 already moved large row ownership into the runtime data store. This ADR refines that
+decision:</p>
+<ul>
+<li class="">seed/live union must also be cached by the runtime data store</li>
+<li class="">the store must return the same combined ref identity when the publication identity did not change</li>
+<li class="">the store must only increment the combined ref version when the reduced output actually changed</li>
+</ul>
+<p>Representative API refinement:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">RuntimeDataStore</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token function" style="color:rgb(130, 170, 255)">reduceIncremental</span><span class="token punctuation" style="color:rgb(199, 146, 234)">(</span><span class="token plain">input</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    ownerId</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    outputId</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    seed</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      baseRef</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> RuntimeTabularFrameRef </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">null</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      signature</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      sourceRunId</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    live</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      baseRef</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> RuntimeTabularFrameRef </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">null</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      deltaRef</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> RuntimeTabularFrameRef </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">null</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      signature</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      sourceRunId</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      sequence</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    mergeKeyFields</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    retention</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> RuntimeRetentionPolicy</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    refKey</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">)</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> RuntimeTabularFrameRef </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">null</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>This can be implemented as a new API or by strengthening the current <code>combine(...)</code> path with a
+stable publication cache. The important point is behavioral, not the exact method name:</p>
+<ul>
+<li class="">reduction is driven by publication identity</li>
+<li class="">reduction is cached outside React render/effect churn</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consumer-hook-responsibilities">Consumer Hook Responsibilities<a href="#consumer-hook-responsibilities" class="hash-link" aria-label="Direct link to Consumer Hook Responsibilities" title="Direct link to Consumer Hook Responsibilities" translate="no">​</a></h2>
+<p><code>useIncrementalTabularConsumerBindingState(...)</code> becomes a reader and coordinator, not the primary
+reducer.</p>
+<p>It may still:</p>
+<ul>
+<li class="">resolve <code>seedData</code> and <code>liveUpdates</code></li>
+<li class="">read current reduced refs from the store</li>
+<li class="">materialize a bounded runtime frame for the widget</li>
+<li class="">publish small runtime metadata back to the workspace store</li>
+</ul>
+<p>It must not:</p>
+<ul>
+<li class="">recompute a seed/live union on every effect pass from materialized frames</li>
+<li class="">treat current widget runtime state as the primary source of truth for prior reductions</li>
+<li class="">rely on volatile timestamps to decide whether a new runtime write is needed</li>
+</ul>
+<p>Consumer runtime state should carry:</p>
+<ul>
+<li class="">reduced output ref</li>
+<li class="">optional seed/live refs</li>
+<li class="">semantic reducer metadata such as merge keys or source run ids</li>
+</ul>
+<p>It should not carry by-value seed/live retained frames except as a narrow compatibility fallback
+when no runtime data store exists.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="equality-and-dedupe-rules">Equality And Dedupe Rules<a href="#equality-and-dedupe-rules" class="hash-link" aria-label="Direct link to Equality And Dedupe Rules" title="Direct link to Equality And Dedupe Rules" translate="no">​</a></h2>
+<p>The system must use semantic equality at every shared layer:</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-incremental-reducer-dedupe">1. Incremental reducer dedupe<a href="#1-incremental-reducer-dedupe" class="hash-link" aria-label="Direct link to 1. Incremental reducer dedupe" title="Direct link to 1. Incremental reducer dedupe" translate="no">​</a></h3>
+<ul>
+<li class="">compare refs, versions, row counts, schema signatures, source run ids, and sequence</li>
+<li class="">ignore <code>updatedAtMs</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-workspace-runtime-state-persistence-dedupe">2. Workspace runtime-state persistence dedupe<a href="#2-workspace-runtime-state-persistence-dedupe" class="hash-link" aria-label="Direct link to 2. Workspace runtime-state persistence dedupe" title="Direct link to 2. Workspace runtime-state persistence dedupe" translate="no">​</a></h3>
+<ul>
+<li class="">compare semantic runtime state, not raw timestamp churn</li>
+<li class="">ignore volatile transport timestamps where they do not represent a data change</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-dependency-resolution">3. Dependency resolution<a href="#3-dependency-resolution" class="hash-link" aria-label="Direct link to 3. Dependency resolution" title="Direct link to 3. Dependency resolution" translate="no">​</a></h3>
+<ul>
+<li class="">preserve upstream ref identity instead of materializing and re-deriving identity from rows</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">dual-role consumers stop re-reducing on unrelated rerenders</li>
+<li class="">OHLC, graph, statistic, and table all use the same stable runtime model</li>
+<li class="">runtime-state write loops become much harder to trigger</li>
+<li class="">WebSocket lifecycle churn no longer looks like data churn</li>
+<li class="">HTTP incremental publications and WebSocket incremental publications share one reducer path</li>
+<li class="">downstream widgets continue to consume normal resolved inputs without transport-specific logic</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="negative">Negative<a href="#negative" class="hash-link" aria-label="Direct link to Negative" title="Direct link to Negative" translate="no">​</a></h3>
+<ul>
+<li class="">the runtime data store must own one more cache layer</li>
+<li class="">debugging moves from local widget state into publication identity and reducer cache state</li>
+<li class="">the dependency resolver contract becomes stricter about base-ref vs carrier-ref semantics</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="non-goals">Non-Goals<a href="#non-goals" class="hash-link" aria-label="Direct link to Non-Goals" title="Direct link to Non-Goals" translate="no">​</a></h2>
+<ul>
+<li class="">Do not create a widget-specific OHLC fix that bypasses the shared incremental path.</li>
+<li class="">Do not reintroduce transport-specific consumer code for HTTP versus WebSocket.</li>
+<li class="">Do not treat render-time materialized rows as the primary identity for incremental publications.</li>
+<li class="">Do not persist runtime data store contents to backend workspace storage.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-contract-impact">Backend Contract Impact<a href="#backend-contract-impact" class="hash-link" aria-label="Direct link to Backend Contract Impact" title="Direct link to Backend Contract Impact" translate="no">​</a></h2>
+<p>None.</p>
+<p>This ADR changes frontend runtime ownership and reduction behavior. It does not change the
+persisted workspace schema or backend API contract.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Replace render-driven seed/live reduction in
+<code>useIncrementalTabularConsumerBindingState(...)</code> with publication-driven reduction keyed from
+upstream ref identity.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a runtime data store reduction cache for dual-role consumer outputs, or strengthen the
+existing combine path so unchanged publication identity returns the same reduced ref.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Make dependency resolution prefer <code>outputRef</code> / <code>retainedOutputRef</code> over carrier <code>valueRef</code>
+for <code>updates</code> outputs.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove volatile <code>updatedAtMs</code> usage from shared incremental reducer equality and signature
+gates.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Reduce consumer runtime state to refs plus semantic metadata instead of by-value seed/live
+frames wherever the runtime data store is available.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add shared regression coverage for:<!-- -->
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->dual-role <code>seedData</code> + <code>liveUpdates</code> consumers do not recompute reduction on plain rerender</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->lifecycle-only stream-state changes do not republish reduced data</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->a new live delta publication advances the reduced output exactly once</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <code>updates</code> bindings preserve retained base ref identity correctly</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->OHLC, graph, statistic, and table all stay on the same shared incremental path</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="acceptance-criteria">Acceptance Criteria<a href="#acceptance-criteria" class="hash-link" aria-label="Direct link to Acceptance Criteria" title="Direct link to Acceptance Criteria" translate="no">​</a></h2>
+<ul>
+<li class="">A widget with both <code>seedData</code> and <code>liveUpdates</code> bound does not recompute the seed/live union on
+every effect pass.</li>
+<li class="">A widget rerender without new upstream publication identity does not write a new runtime state.</li>
+<li class="">WebSocket reconnect metadata changes alone do not trigger a new reduced data output.</li>
+<li class="">Dual-role consumers remain transport-neutral and continue to work for both HTTP incremental and
+WebSocket incremental publications.</li>
+<li class="">The shared fix removes the class of update-depth loops caused by render-driven incremental
+reduction.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#publication-identity-rules" class="table-of-contents__link toc-highlight">Publication Identity Rules</a></li><li><a href="#base-and-delta-ref-resolution" class="table-of-contents__link toc-highlight">Base And Delta Ref Resolution</a></li><li><a href="#runtime-data-store-responsibilities" class="table-of-contents__link toc-highlight">Runtime Data Store Responsibilities</a></li><li><a href="#consumer-hook-responsibilities" class="table-of-contents__link toc-highlight">Consumer Hook Responsibilities</a></li><li><a href="#equality-and-dedupe-rules" class="table-of-contents__link toc-highlight">Equality And Dedupe Rules</a><ul><li><a href="#1-incremental-reducer-dedupe" class="table-of-contents__link toc-highlight">1. Incremental reducer dedupe</a></li><li><a href="#2-workspace-runtime-state-persistence-dedupe" class="table-of-contents__link toc-highlight">2. Workspace runtime-state persistence dedupe</a></li><li><a href="#3-dependency-resolution" class="table-of-contents__link toc-highlight">3. Dependency resolution</a></li></ul></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#negative" class="table-of-contents__link toc-highlight">Negative</a></li></ul></li><li><a href="#non-goals" class="table-of-contents__link toc-highlight">Non-Goals</a></li><li><a href="#backend-contract-impact" class="table-of-contents__link toc-highlight">Backend Contract Impact</a></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li><li><a href="#acceptance-criteria" class="table-of-contents__link toc-highlight">Acceptance Criteria</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

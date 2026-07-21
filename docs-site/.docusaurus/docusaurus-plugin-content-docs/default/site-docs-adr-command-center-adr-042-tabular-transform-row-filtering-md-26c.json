@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-042-tabular-transform-row-filtering",
+  "title": "ADR 042: Lightweight Row Filtering in Tabular Transform",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-042-tabular-transform-row-filtering.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-042-tabular-transform-row-filtering",
+  "permalink": "/docs/adr/command_center/adr-042-tabular-transform-row-filtering",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-042-tabular-transform-row-filtering.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

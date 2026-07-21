@@ -1,0 +1,15 @@
+{
+  "id": "adr/main_sequence/adr-075-ms-markets-api-binding",
+  "title": "ADR 075: MS Markets API Binding",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/main_sequence/adr-075-ms-markets-api-binding.md",
+  "sourceDirName": "adr/main_sequence",
+  "slug": "/adr/main_sequence/adr-075-ms-markets-api-binding",
+  "permalink": "/docs/adr/main_sequence/adr-075-ms-markets-api-binding",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/main_sequence/adr-075-ms-markets-api-binding.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

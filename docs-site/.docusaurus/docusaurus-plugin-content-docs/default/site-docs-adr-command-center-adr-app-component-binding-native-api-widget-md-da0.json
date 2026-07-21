@@ -1,0 +1,24 @@
+{
+  "id": "adr/command_center/adr-app-component-binding-native-api-widget",
+  "title": "ADR: AppComponent as a Binding-Native API Widget",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-app-component-binding-native-api-widget.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-app-component-binding-native-api-widget",
+  "permalink": "/docs/adr/command_center/adr-app-component-binding-native-api-widget",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-app-component-binding-native-api-widget.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR 077: Client-Side MySQL Connection Type",
+    "permalink": "/docs/adr/command_center/adr-077-client-side-mysql-connection"
+  },
+  "next": {
+    "title": "ADR: Shared AppComponent Discovery and Safe-Response Caching",
+    "permalink": "/docs/adr/command_center/adr-app-component-caching"
+  }
+}

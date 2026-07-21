@@ -31,6 +31,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Separator } from "@/components/ui/separator";
 import { useCommandCenterConfig } from "@/config/CommandCenterConfigProvider";
 import { env } from "@/config/env";
+import { isDevAutologinRoute } from "@/features/auth/devLogin";
 import {
   SocialProviderIcon,
   formatSocialProviderName,
@@ -69,21 +70,33 @@ export function LoginPage() {
   const { app, auth } = useCommandCenterConfig();
   const isBypassAuth = env.bypassAuth;
   const isMockAuth = env.useMockData && !isBypassAuth;
+  const devLogin = env.devLogin;
+  const canUseDevLogin = devLogin.enabled && !isBypassAuth && !isMockAuth;
+  const shouldDevAutologin = canUseDevLogin && isDevAutologinRoute(location.search);
   const mockAuthHint = getMockAuthHint();
 
   const [identifier, setIdentifier] = useState(
-    isBypassAuth
-      ? "org_admin@mainsequence.local"
-      : isMockAuth
-        ? mockAuthHint?.identifier ?? ""
-        : "",
+    shouldDevAutologin
+      ? devLogin.identifier
+      : isBypassAuth
+        ? "org_admin@mainsequence.local"
+        : isMockAuth
+          ? mockAuthHint?.identifier ?? ""
+          : "",
   );
   const [password, setPassword] = useState(
-    isBypassAuth ? "demo" : isMockAuth ? mockAuthHint?.password ?? "" : "",
+    shouldDevAutologin
+      ? devLogin.password
+      : isBypassAuth
+        ? "demo"
+        : isMockAuth
+          ? mockAuthHint?.password ?? ""
+          : "",
   );
   const [role, setRole] = useState<BuiltinAppRole>("org_admin");
   const [mfaCode, setMfaCode] = useState("");
   const [setupCode, setSetupCode] = useState("");
+  const [didAttemptDevLogin, setDidAttemptDevLogin] = useState(false);
   const [authView, setAuthView] = useState<AuthView>("signin");
   const [emailSignupPhase, setEmailSignupPhase] = useState<EmailSignupPhase>("signup");
   const [signupEmail, setSignupEmail] = useState("");
@@ -269,6 +282,41 @@ export function LoginPage() {
       navigate(redirectTarget, { replace: true });
     }
   }, [navigate, redirectTarget, status]);
+
+  useEffect(() => {
+    if (
+      !shouldDevAutologin ||
+      didAttemptDevLogin ||
+      authView !== "signin" ||
+      loginUiState !== "password_login" ||
+      status !== "anonymous"
+    ) {
+      return;
+    }
+
+    setDidAttemptDevLogin(true);
+    setSocialAuthError(null);
+
+    void login({
+      identifier: devLogin.identifier,
+      password: devLogin.password,
+    }).then((didLogin) => {
+      if (didLogin) {
+        navigate(redirectTarget, { replace: true });
+      }
+    });
+  }, [
+    authView,
+    devLogin.identifier,
+    devLogin.password,
+    didAttemptDevLogin,
+    login,
+    loginUiState,
+    navigate,
+    redirectTarget,
+    shouldDevAutologin,
+    status,
+  ]);
 
   useEffect(() => {
     if (!isMfaRequired) {

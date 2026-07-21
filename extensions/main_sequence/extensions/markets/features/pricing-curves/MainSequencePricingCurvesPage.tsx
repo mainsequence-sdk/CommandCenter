@@ -239,6 +239,11 @@ export function MainSequencePricingCurvesPage() {
     });
   }
 
+  function handleCurveDeleted() {
+    closeCurveDetail();
+    void curvesQuery.refetch();
+  }
+
   function selectCurveDetailTab(tabId: PricingCurveDetailTabId) {
     updateSearchParams((nextParams) => {
       nextParams.set(mainSequencePricingCurveTabParam, tabId);
@@ -271,6 +276,7 @@ export function MainSequencePricingCurvesPage() {
         curveUid={selectedCurveUid}
         initialCurve={selectedCurveFromList}
         onBack={closeCurveDetail}
+        onDeleted={handleCurveDeleted}
         onResetContext={resetCurveDetailContext}
         onSelectTab={selectCurveDetailTab}
         onSelectCurveDate={(value) =>

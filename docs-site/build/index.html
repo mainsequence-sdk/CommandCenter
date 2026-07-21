@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Command Center Docs | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Command Center Docs | Main Sequence Command Center"><meta data-rh="true" name="description" content="Command Center is a frontend platform for teams building internal products, operational consoles,"><meta data-rh="true" property="og:description" content="Command Center is a frontend platform for teams building internal products, operational consoles,"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/" hreflang="x-default"><script data-rh="true">function insertBanner(){var n=document.createElement("div");n.id="__docusaurus-base-url-issue-banner-container";n.innerHTML='\n<div id="__docusaurus-base-url-issue-banner" style="border: thick solid red; background-color: rgb(255, 230, 179); margin: 20px; padding: 20px; font-size: 20px;">\n   <p style="font-weight: bold; font-size: 30px;">Your Docusaurus site did not load properly.</p>\n   <p>A very common reason is a wrong site <a href="https://docusaurus.io/docs/docusaurus.config.js/#baseUrl" style="font-weight: bold;">baseUrl configuration</a>.</p>\n   <p>Current configured baseUrl = <span style="font-weight: bold; color: red;">/docs/</span> </p>\n   <p>We suggest trying baseUrl = <span id="__docusaurus-base-url-issue-banner-suggestion-container" style="font-weight: bold; color: green;"></span></p>\n</div>\n',document.body.prepend(n);var e=document.getElementById("__docusaurus-base-url-issue-banner-suggestion-container"),s=window.location.pathname,o="/"===s.substr(-1)?s:s+"/";e.innerHTML=o}document.addEventListener("DOMContentLoaded",function(){void 0===window.docusaurus&&insertBanner()})</script><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Overview","item":"https://mainsequence-sdk.github.io/docs/"}]}</script><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
-<script src="/docs/assets/js/runtime~main.da07f2d7.js" defer="defer"></script>
-<script src="/docs/assets/js/main.1b45566c.js" defer="defer"></script>
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg style="display: none;"><defs>
@@ -17,20 +17,25 @@ and extension-driven workflows without re-implementing the shell every time.</p>
 <p>These docs are written for developers. Start here if you need to understand the platform quickly,
 find the extension seam for a new feature, or change a subsystem without guessing how the rest of
 the app fits together.</p>
+<p>User-facing Command Center usage documentation lives in the in-app Documentation extension at
+<code>extensions/command_center_docs/</code>. Keep product usage guides there unless they are specific to one
+product extension. Keep architecture, implementation contracts, ADRs, backend notes, and module
+ownership documentation in this developer docs tree or the nearest module <code>README.md</code>.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="pick-your-starting-point">Pick Your Starting Point<a href="#pick-your-starting-point" class="hash-link" aria-label="Direct link to Pick Your Starting Point" title="Direct link to Pick Your Starting Point" translate="no">​</a></h2>
 <ul>
 <li class=""><a class="" href="/docs/platform">Platform</a>: shell architecture, configuration, theming, internationalization,
 and notifications.</li>
 <li class=""><a class="" href="/docs/apps">Apps</a>: app and surface model, routing, and navigation.</li>
 <li class=""><a class="" href="/docs/auth">Auth</a>: backend integration and authentication boundaries.</li>
-<li class=""><a class="" href="/docs/workspaces">Workspaces</a>: workspace model, layout, persistence, and runtime notes.</li>
+<li class=""><a class="" href="/docs/workspaces">Workspaces</a>: workspace model, reference variables, layout,
+persistence, and runtime notes.</li>
 <li class=""><a class="" href="/docs/widgets">Widgets</a>: widget concepts plus links to widget-local implementation docs.</li>
 <li class=""><a class="" href="/docs/connections/">Connections</a>: connection model, extension workflow, and backend
 adapter contracts.</li>
 <li class=""><a class="" href="/docs/extensions">Extensions</a>: how to add product surface area without polluting the shell.</li>
 <li class=""><a class="" href="/docs/access-control">Access Control</a>: RBAC primitives and the dedicated access app.</li>
 <li class=""><a class="" href="/docs/operations">Operations</a>: deployment and operational constraints.</li>
-<li class=""><a class="" href="/docs/adr">ADRs</a>: accepted and proposed design decisions.</li>
+<li class=""><a class="" href="/docs/adr">ADRs</a>: accepted and proposed design decisions, split by application.</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="if-you-are-new-here">If You Are New Here<a href="#if-you-are-new-here" class="hash-link" aria-label="Direct link to If You Are New Here" title="Direct link to If You Are New Here" translate="no">​</a></h2>
 <ul>
@@ -50,7 +55,8 @@ in <code>docs/auth/</code>, extension docs go in <code>docs/extensions/</code>, 
 and the guardrails that keep it maintainable.</li>
 <li class="">Widget-facing docs must point to the nearest widget implementation <code>README.md</code>.</li>
 <li class="">Extension-facing docs must point to the owning extension <code>README.md</code>.</li>
-<li class="">ADRs stay in <code>docs/adr/</code>. Do not scatter architectural decisions through feature folders.</li>
+<li class="">ADRs stay in <code>docs/adr/&lt;application&gt;/</code>. Do not scatter architectural decisions through feature
+folders.</li>
 <li class="">New ADRs should use the next available sequential number in both the filename and title, for
 example <code>adr-038-short-name.md</code> and <code># ADR 038: Title</code> when <code>038</code> is the next slot.</li>
 </ul>
@@ -81,6 +87,7 @@ specific module.</li>
 <li class=""><code>ag-grid</code>: optional data-grid widget integration</li>
 <li class=""><code>echarts</code>: optional spec-driven chart integration with organization-scoped widget configuration support</li>
 <li class=""><code>lightweight-charts</code>: optional market chart integration</li>
+<li class=""><code>command_center_docs</code>: in-app user-facing Command Center documentation</li>
 <li class=""><code>main_sequence</code>: repo-root product namespace with separate Workbench and Markets extensions</li>
 </ul>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="local-development">Local Development<a href="#local-development" class="hash-link" aria-label="Direct link to Local Development" title="Direct link to Local Development" translate="no">​</a></h2>

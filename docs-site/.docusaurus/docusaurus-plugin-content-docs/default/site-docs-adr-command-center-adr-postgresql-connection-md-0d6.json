@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-postgresql-connection",
+  "title": "ADR: PostgreSQL Custom Connection",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-postgresql-connection.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-postgresql-connection",
+  "permalink": "/docs/adr/command_center/adr-postgresql-connection",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-postgresql-connection.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

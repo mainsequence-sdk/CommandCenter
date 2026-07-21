@@ -1,0 +1,15 @@
+{
+  "id": "implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow",
+  "title": "Task 001: Unify Coding Agent Deployment Workflow",
+  "description": "Goal",
+  "source": "@site/../docs/implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow.md",
+  "sourceDirName": "implementation_tasks/coding-agent-deployment-unification",
+  "slug": "/implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow",
+  "permalink": "/docs/implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

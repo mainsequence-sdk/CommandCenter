@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { useMutation } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -260,11 +260,19 @@ export function MainSequenceResourceField({
 }) {
   return (
     <div className={cn("space-y-2", className)}>
-      <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-        {label}
+      <label className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+        <span>{label}</span>
+        {helperText ? (
+          <span
+            aria-label={helperText}
+            className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border/70 text-muted-foreground"
+            title={helperText}
+          >
+            <Info className="h-3 w-3" aria-hidden="true" />
+          </span>
+        ) : null}
       </label>
       {children}
-      {helperText ? <div className="text-xs text-muted-foreground">{helperText}</div> : null}
     </div>
   );
 }

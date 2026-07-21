@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 062: Remove Unused Agent Capability and Session Resource Models | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 062: Remove Unused Agent Capability and Session Resource Models | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 062: Remove Unused Agent Capability and Session Resource Models</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-05-07</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/mainsequence_ai/adr-060-session-backed-chat-request-contract">ADR 060: Main Sequence AI Session-Backed Chat Request Contract</a></li>
+<li class=""><a class="" href="/docs/adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap">ADR 077: Unified Astro Coding-Agent Bootstrap</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The current <code>Main Sequence AI</code> frontend runtime does not use the following ORM resource families:</p>
+<ul>
+<li class=""><code>AgentCapability</code></li>
+<li class=""><code>AgentCapabilityBinding</code></li>
+<li class=""><code>AgentSubagentBinding</code></li>
+<li class=""><code>AgentSessionCapabilitySnapshot</code></li>
+<li class=""><code>AgentSessionStep</code></li>
+<li class=""><code>AgentSessionArtifact</code></li>
+</ul>
+<p>Concretely, the active assistant/chat architecture in Command Center uses:</p>
+<ul>
+<li class=""><code>POST /orm/api/agents/v1/sessions/{agent_session_id}/resolve_runtime_access/</code></li>
+<li class=""><code>POST /orm/api/agents/v1/agents/{agent_uid}/sessions/get_or_create_session/</code> for handle-bound
+AgentSession creation/reuse when an Astro <code>agent_uid</code> already exists</li>
+<li class="">assistant-runtime endpoints rooted at the resolved <code>runtime_access.rpc_url</code>, especially:<!-- -->
+<ul>
+<li class=""><code>/api/chat</code></li>
+<li class=""><code>/api/chat/history</code></li>
+<li class=""><code>/api/chat/session-tools</code></li>
+<li class=""><code>/api/chat/session-insights</code></li>
+<li class=""><code>/api/chat/get_available_models</code></li>
+<li class=""><code>/api/chat/session/cancel</code></li>
+</ul>
+</li>
+</ul>
+<p>Repository inspection in Command Center shows no frontend runtime references to:</p>
+<ul>
+<li class=""><code>/orm/api/agents/v1/capabilities/</code></li>
+<li class=""><code>/orm/api/agents/v1/bindings/</code></li>
+<li class=""><code>/orm/api/agents/v1/subagent-bindings/</code></li>
+<li class=""><code>/orm/api/agents/v1/session-capability-snapshots/</code></li>
+<li class=""><code>/orm/api/agents/v1/session-steps/</code></li>
+<li class=""><code>/orm/api/agents/v1/session-artifacts/</code></li>
+</ul>
+<p>That means these backend-owned resources currently add maintenance and API surface without serving
+the actual session-backed assistant workflow.</p>
+<p>Keeping unused agent resources has real cost:</p>
+<ul>
+<li class="">larger DRF/router/OpenAPI surface area</li>
+<li class="">more backend model and migration burden</li>
+<li class="">more ambiguous architecture for future agent work</li>
+<li class="">increased chance that new frontend/backend work accidentally depends on obsolete contracts</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>The unused agent capability and session resource families will be removed from the platform.</p>
+<p>This removal includes:</p>
+<ul>
+<li class="">backend persistence models</li>
+<li class="">DRF serializers</li>
+<li class="">DRF viewsets/endpoints</li>
+<li class="">router registration</li>
+<li class="">permission wiring</li>
+<li class="">admin registrations</li>
+<li class="">OpenAPI/schema exposure</li>
+<li class="">stale documentation and ADR references</li>
+</ul>
+<p>The removal target is:</p>
+<ul>
+<li class=""><code>AgentCapability</code></li>
+<li class=""><code>AgentCapabilityBinding</code></li>
+<li class=""><code>AgentSubagentBinding</code></li>
+<li class=""><code>AgentSessionCapabilitySnapshot</code></li>
+<li class=""><code>AgentSessionStep</code></li>
+<li class=""><code>AgentSessionArtifact</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope">Scope<a href="#scope" class="hash-link" aria-label="Direct link to Scope" title="Direct link to Scope" translate="no">​</a></h2>
+<p>This ADR covers:</p>
+<ul>
+<li class="">removal of the six unused backend model families above</li>
+<li class="">removal of their REST endpoints under <code>/orm/api/agents/v1/</code></li>
+<li class="">removal of schema/docs/references that advertise those endpoints as supported</li>
+<li class="">confirmation that current Command Center assistant flows do not depend on them</li>
+</ul>
+<p>This ADR does not cover:</p>
+<ul>
+<li class=""><code>AgentSession</code></li>
+<li class="">session runtime-access resolution</li>
+<li class="">command-center handle bootstrap</li>
+<li class="">assistant-runtime <code>/api/chat/*</code> endpoints</li>
+<li class="">future replacement designs for capability graphs, subagent topology, artifact persistence, or
+session execution traces</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="design">Design<a href="#design" class="hash-link" aria-label="Direct link to Design" title="Direct link to Design" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-the-session-backed-assistant-path-stays-unchanged">1. The session-backed assistant path stays unchanged<a href="#1-the-session-backed-assistant-path-stays-unchanged" class="hash-link" aria-label="Direct link to 1. The session-backed assistant path stays unchanged" title="Direct link to 1. The session-backed assistant path stays unchanged" translate="no">​</a></h3>
+<p>Current assistant communication remains centered on:</p>
+<ol>
+<li class="">a concrete backend <code>AgentSession</code></li>
+<li class="">runtime-access resolution through <code>resolve_runtime_access</code></li>
+<li class="">runtime RPC communication through the resolved <code>rpc_url</code></li>
+</ol>
+<p>Removing the unused ORM resources must not change that path.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-remove-dead-orm-resources-completely-not-partially">2. Remove dead ORM resources completely, not partially<a href="#2-remove-dead-orm-resources-completely-not-partially" class="hash-link" aria-label="Direct link to 2. Remove dead ORM resources completely, not partially" title="Direct link to 2. Remove dead ORM resources completely, not partially" translate="no">​</a></h3>
+<p>The platform should not keep placeholder DRF endpoints or empty models for these resources.</p>
+<p>If a resource family is unused and has no adopted runtime contract, the correct outcome is full
+deletion rather than soft deprecation-by-neglect.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-remove-drf-exposure-together-with-model-removal">3. Remove DRF exposure together with model removal<a href="#3-remove-drf-exposure-together-with-model-removal" class="hash-link" aria-label="Direct link to 3. Remove DRF exposure together with model removal" title="Direct link to 3. Remove DRF exposure together with model removal" translate="no">​</a></h3>
+<p>Deleting only the model layer while keeping serializers, routers, or schema registration would
+leave a broken public contract. The deletion must be end-to-end:</p>
+<ol>
+<li class="">model removal</li>
+<li class="">serializer removal</li>
+<li class="">view/viewset removal</li>
+<li class="">router removal</li>
+<li class="">schema removal</li>
+<li class="">test cleanup</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-treat-documentation-as-part-of-the-public-contract">4. Treat documentation as part of the public contract<a href="#4-treat-documentation-as-part-of-the-public-contract" class="hash-link" aria-label="Direct link to 4. Treat documentation as part of the public contract" title="Direct link to 4. Treat documentation as part of the public contract" translate="no">​</a></h3>
+<p>Any backend API docs, generated schema output, integration notes, or ADRs that still imply those
+resources are active must be updated in the same removal slice.</p>
+<p>The goal is not only to stop serving the endpoints, but to stop teaching engineers that those
+resources are part of the supported architecture.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove the backend models for <code>AgentCapability</code>, <code>AgentCapabilityBinding</code>,
+<code>AgentSubagentBinding</code>, <code>AgentSessionCapabilitySnapshot</code>, <code>AgentSessionStep</code>, and
+<code>AgentSessionArtifact</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove the corresponding DRF serializers, filters, viewsets, and router registrations.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove admin registrations and permission wiring for those resources.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove schema/OpenAPI references so the endpoints disappear from generated API docs.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove backend tests that only validate those deleted resources.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update any surviving tests or fixtures that still import those model classes.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update architecture docs and backend docs to reflect that the supported assistant path is
+session-backed runtime access plus assistant-runtime <code>/api/chat/*</code>, not capability/binding
+REST resources.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Verify that Command Center frontend assistant flows still depend only on the active session
+and runtime-access endpoints listed in this ADR.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">The agent backend contract becomes smaller and easier to reason about.</li>
+<li class="">The supported assistant architecture becomes clearer: session-backed runtime access is the real
+path, and the deleted resources are no longer misleading alternatives.</li>
+<li class="">Backend maintenance burden drops because unused model, DRF, and schema surface disappears.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="negative">Negative<a href="#negative" class="hash-link" aria-label="Direct link to Negative" title="Direct link to Negative" translate="no">​</a></h3>
+<ul>
+<li class="">Any private tooling or manual scripts that still depend on those endpoints will break and must be
+migrated or deleted.</li>
+<li class="">Backend removal may require migration work if the tables already exist in deployed environments.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="storage-contract-assessment">Storage Contract Assessment<a href="#storage-contract-assessment" class="hash-link" aria-label="Direct link to Storage Contract Assessment" title="Direct link to Storage Contract Assessment" translate="no">​</a></h2>
+<p>This ADR changes backend contracts by removing unused API resources and their persistence models.</p>
+<p>It does not change the frontend persisted workspace/widget/chat storage contracts in Command
+Center.</p>
+<p>The affected contract area is the backend ORM/DRF API surface only.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#scope" class="table-of-contents__link toc-highlight">Scope</a></li><li><a href="#design" class="table-of-contents__link toc-highlight">Design</a><ul><li><a href="#1-the-session-backed-assistant-path-stays-unchanged" class="table-of-contents__link toc-highlight">1. The session-backed assistant path stays unchanged</a></li><li><a href="#2-remove-dead-orm-resources-completely-not-partially" class="table-of-contents__link toc-highlight">2. Remove dead ORM resources completely, not partially</a></li><li><a href="#3-remove-drf-exposure-together-with-model-removal" class="table-of-contents__link toc-highlight">3. Remove DRF exposure together with model removal</a></li><li><a href="#4-treat-documentation-as-part-of-the-public-contract" class="table-of-contents__link toc-highlight">4. Treat documentation as part of the public contract</a></li></ul></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#negative" class="table-of-contents__link toc-highlight">Negative</a></li></ul></li><li><a href="#storage-contract-assessment" class="table-of-contents__link toc-highlight">Storage Contract Assessment</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

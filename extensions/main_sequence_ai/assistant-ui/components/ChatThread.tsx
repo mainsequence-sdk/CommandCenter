@@ -52,7 +52,7 @@ const MODEL_PROVIDER_SETTINGS_SECTION_ID = "main_sequence_ai::model-providers";
 function formatModelsUnavailableMessage(error: string | null) {
   const normalized = error?.trim();
   const fallback =
-    "Models couldn't be fetched. The assistant cannot accept a message until the model catalog loads.";
+    "Chat runtime available-models request failed. The assistant cannot accept a message until sendable models are loaded.";
 
   if (!normalized) {
     return fallback;
@@ -66,11 +66,20 @@ function formatModelsUnavailableMessage(error: string | null) {
     return `${fallback} The browser could not reach the assistant server.`;
   }
 
-  return `Models couldn't be fetched. ${normalized}`;
+  if (
+    normalized.startsWith("Source: ") ||
+    normalized.includes("Available model catalog request failed") ||
+    normalized.includes("Chat runtime available-models request failed") ||
+    normalized.includes("Model provider catalog request failed")
+  ) {
+    return normalized;
+  }
+
+  return `Chat runtime available-models request failed. ${normalized}`;
 }
 
 function formatEmptyModelCatalogMessage() {
-  return "No chat models are available yet. Register or sign in to a model provider before sending a message.";
+  return "The chat runtime did not return any sendable models. Open model providers to inspect catalog and credential state.";
 }
 
 function isAstroDeploymentMessage(message: string | null | undefined) {
@@ -944,7 +953,7 @@ function Composer({
                 openUserSettings(MODEL_PROVIDER_SETTINGS_SECTION_ID);
               }}
             >
-              Sign in to provider
+              Open model providers
             </button>
           ) : null}
         </div>

@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-052-slide-studio-slideshow-projection-mode",
+  "title": "ADR 052: Slide Studio Slideshow Projection Mode",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-052-slide-studio-slideshow-projection-mode.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-052-slide-studio-slideshow-projection-mode",
+  "permalink": "/docs/adr/command_center/adr-052-slide-studio-slideshow-projection-mode",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-052-slide-studio-slideshow-projection-mode.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

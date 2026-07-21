@@ -1,0 +1,15 @@
+{
+  "id": "adr/mainsequence_ai/adr-058-refactor-project-agent-creation",
+  "title": "ADR 058: Refactor Project Agent Creation",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/mainsequence_ai/adr-058-refactor-project-agent-creation.md",
+  "sourceDirName": "adr/mainsequence_ai",
+  "slug": "/adr/mainsequence_ai/adr-058-refactor-project-agent-creation",
+  "permalink": "/docs/adr/mainsequence_ai/adr-058-refactor-project-agent-creation",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/mainsequence_ai/adr-058-refactor-project-agent-creation.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

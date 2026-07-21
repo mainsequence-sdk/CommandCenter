@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-060-instant-widget-settings-runtime" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 060: Instant Widget Settings Runtime | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-060-instant-widget-settings-runtime"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 060: Instant Widget Settings Runtime | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-060-instant-widget-settings-runtime"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-060-instant-widget-settings-runtime" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-060-instant-widget-settings-runtime" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 060: Instant Widget Settings Runtime</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-05-12</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-headless-workspace-settings-runtime">ADR: Headless Workspace Widget Settings Runtime</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-widget-settings-demo-preview-draft">ADR: Preview-Only Demo Drafts for Widget Settings</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-038-progressive-workspace-widget-hydration">ADR 038: Progressive Workspace Initial Rendering and Per-Widget Hydration</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-040-dashboard-surface-return-hydration">ADR 040: Dashboard Surface Return Hydration</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision">ADR 046: WebSocket Stream Survivability And Reconnect Supervision</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-single-runtime-owner-workspace-widgets">ADR: Single Runtime Owner for Workspace Widgets</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Opening widget settings currently feels slow, especially in workspaces with live WebSocket-backed
+source widgets.</p>
+<p>The prior headless-settings ADR fixed one major issue: settings no longer hidden-mount the entire
+workspace widget tree just to keep upstream runtime state available. The current problem is a
+different version of the same UX failure:</p>
+<ul>
+<li class="">the settings overlay can still perform whole-workspace dependency work before the settings body is
+usable</li>
+<li class="">the settings panel renders preview, controller context, schema controls, and widget-specific
+settings synchronously on the open path</li>
+<li class="">WebSocket source widgets amplify that cost because their current runtime state and output
+resolution can be large and continuously changing</li>
+<li class="">opening settings appears to freeze, unmount, or remount the workspace even when the canvas subtree
+remains mounted behind the overlay</li>
+<li class="">stream connection authoring currently treats &quot;test this stream&quot; as a separate settings concern
+even when the same workspace already has an active healthy stream for that exact connection/query</li>
+<li class="">the current stream-runtime duplicate guard is not a real workspace connection store; it prevents
+some duplicate sessions, but it does not give settings, widgets, charts, and rails one shared
+source of truth for active connection status</li>
+</ul>
+<p>The product requirement is stricter than &quot;do not hidden-mount widgets&quot;:</p>
+<ol>
+<li class="">opening widget settings must show the shell immediately</li>
+<li class="">opening widget settings must not recreate workspace runtime providers</li>
+<li class="">opening widget settings must not close and reopen existing WebSocket sessions</li>
+<li class="">heavy dependency, preview, controller, and widget-specific settings work must hydrate after the
+shell is visible</li>
+<li class="">if a connection/query stream is already active in the workspace, settings must reuse that active
+connection state instead of opening a &quot;test&quot; stream to prove that it works</li>
+</ol>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Widget settings will become an instant overlay over the already-mounted workspace runtime.</p>
+<p>The initial settings-open path must do only cheap work:</p>
+<ul>
+<li class="">route/query state update</li>
+<li class="">identify the selected widget instance and widget definition</li>
+<li class="">render the overlay shell, header, tabs, and basic actions</li>
+<li class="">keep the existing canvas/runtime subtree mounted and non-interactive underneath the overlay</li>
+</ul>
+<p>All expensive settings work must be deferred or scoped:</p>
+<ul>
+<li class="">dependency resolution for the whole workspace must not run on initial settings open</li>
+<li class="">draft dependency models are created only for the bindings tab or when draft bindings differ from
+the persisted workspace graph</li>
+<li class="">panel preview mounts after the shell first paints</li>
+<li class="">widget controller context and widget-specific settings mount behind localized placeholders</li>
+<li class="">explicit test panels and request/stream probes mount only when the user opens or runs them</li>
+</ul>
+<p>The workspace runtime remains owned by the existing <code>WorkspaceStudioCanvasHost</code> provider stack. The
+settings overlay reads from that runtime; it does not create an independent runtime owner for the
+same workspace.</p>
+<p>The implementation will introduce a workspace-scoped connection runtime store. The store is the
+single browser-side source of truth for active connection/query sessions, including WebSocket
+streams. Widgets, charts, rails, settings, managed-connection editors, and stream summaries read
+from the same store entry for the same effective connection request.</p>
+<p>When a matching store entry is active and healthy, settings must not show &quot;run a test&quot; as the next
+step. It should show the active session status, last message time, row count, and any current error
+from the shared store. Manual test actions are only for draft requests that do not match any active
+store entry, or for explicit user-driven diagnostics.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-ownership">Runtime Ownership<a href="#runtime-ownership" class="hash-link" aria-label="Direct link to Runtime Ownership" title="Direct link to Runtime Ownership" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="existing-workspace-runtime-owns">Existing Workspace Runtime Owns<a href="#existing-workspace-runtime-owns" class="hash-link" aria-label="Direct link to Existing Workspace Runtime Owns" title="Direct link to Existing Workspace Runtime Owns" translate="no">​</a></h3>
+<p>The mounted workspace runtime owns:</p>
+<ul>
+<li class=""><code>DashboardControlsProvider</code></li>
+<li class=""><code>DashboardWidgetRegistryProvider</code></li>
+<li class=""><code>DashboardWidgetExecutionProvider</code></li>
+<li class="">the canonical <code>RuntimeDataStore</code></li>
+<li class="">the canonical workspace <code>ConnectionRuntimeStore</code></li>
+<li class="">mounted source widgets that own browser-side runtime sessions</li>
+<li class="">WebSocket lifecycle and reconnect supervision</li>
+<li class="">active connection/query session status</li>
+<li class="">committed widget runtime state</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="settings-overlay-owns">Settings Overlay Owns<a href="#settings-overlay-owns" class="hash-link" aria-label="Direct link to Settings Overlay Owns" title="Direct link to Settings Overlay Owns" translate="no">​</a></h3>
+<p>The settings overlay owns:</p>
+<ul>
+<li class="">local widget draft title, props, bindings, and presentation</li>
+<li class="">local demo draft state</li>
+<li class="">local preview state for explicitly previewed settings flows</li>
+<li class="">deferred settings body hydration</li>
+<li class="">binding-tab draft dependency models when needed</li>
+<li class="">draft-only connection/query request previews that are not yet active in the workspace</li>
+</ul>
+<p>The settings overlay must not own:</p>
+<ul>
+<li class="">canonical WebSocket sessions</li>
+<li class="">canonical connection/query session state</li>
+<li class="">workspace-wide runtime execution providers</li>
+<li class="">full-workspace hidden component mounts</li>
+<li class="">initial dashboard hydration or surface-return hydration</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="architecture">Architecture<a href="#architecture" class="hash-link" aria-label="Direct link to Architecture" title="Direct link to Architecture" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-keep-dashboard-and-widget-settings-in-one-mounted-host">1. Keep <code>dashboard</code> and <code>widget-settings</code> in one mounted host<a href="#1-keep-dashboard-and-widget-settings-in-one-mounted-host" class="hash-link" aria-label="Direct link to 1-keep-dashboard-and-widget-settings-in-one-mounted-host" title="Direct link to 1-keep-dashboard-and-widget-settings-in-one-mounted-host" translate="no">​</a></h3>
+<p><code>dashboard</code> and <code>widget-settings</code> remain the same workspace runtime surface.</p>
+<p>Opening settings renders an overlay above the existing studio. It must not cause a provider-stack
+remount, and it must not change the runtime surface in a way that triggers surface-return hydration.</p>
+<p>The error-boundary reset key, provider keys, and surface identifiers must treat settings as an
+overlay state, not a separate workspace runtime.</p>
+<p>The studio host owns an optimistic local widget-settings target. Clicking widget settings sets this
+local target synchronously so the overlay shell can paint from the already-known widget id, title,
+and type. Normal in-workspace settings opens do not write URL params. <code>view=widget-settings</code> URLs
+remain accepted for direct entry and reload, but they are not the authority for first paint or for
+returning to the dashboard.</p>
+<p>The open signal must not require the full dashboard host to rerender. A small overlay store owns the
+active widget-settings target, and only the overlay layer subscribes to that target. Dashboard
+selection updates, settings body hydration, controller context resolution, and connection settings
+mounts happen after the frosted overlay shell has painted.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-split-settings-shell-from-settings-body">2. Split settings shell from settings body<a href="#2-split-settings-shell-from-settings-body" class="hash-link" aria-label="Direct link to 2. Split settings shell from settings body" title="Direct link to 2. Split settings shell from settings body" translate="no">​</a></h3>
+<p><code>CustomWidgetSettingsPage</code> should have two layers:</p>
+<ul>
+<li class="">a cheap shell that renders immediately</li>
+<li class="">a deferred body that hydrates expensive sections</li>
+</ul>
+<p>The shell includes:</p>
+<ul>
+<li class="">back/return action</li>
+<li class="">workspace save status</li>
+<li class="">widget title, id, kind, source</li>
+<li class="">tab controls</li>
+<li class="">widget details link</li>
+<li class="">save workspace action</li>
+</ul>
+<p>The body includes:</p>
+<ul>
+<li class="">shared <code>WidgetSettingsPanel</code></li>
+<li class="">binding editor</li>
+<li class="">managed connection editor</li>
+<li class="">preview</li>
+<li class="">widget-specific settings</li>
+<li class="">raw props editor</li>
+</ul>
+<p>The body may show localized skeletons while deferred work loads. The full overlay must not be
+blocked by body hydration.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-stop-rebuilding-the-full-dependency-graph-on-settings-open">3. Stop rebuilding the full dependency graph on settings open<a href="#3-stop-rebuilding-the-full-dependency-graph-on-settings-open" class="hash-link" aria-label="Direct link to 3. Stop rebuilding the full dependency graph on settings open" title="Direct link to 3. Stop rebuilding the full dependency graph on settings open" translate="no">​</a></h3>
+<p>The embedded settings page must not wrap the whole page in a fresh
+<code>DashboardWidgetDependenciesProvider</code> just to support draft bindings.</p>
+<p>Instead:</p>
+<ul>
+<li class="">use the parent provider for persisted/live inputs on the default settings tab</li>
+<li class="">create a scoped draft dependency model only for the bindings tab</li>
+<li class="">create a scoped draft dependency model only when the draft graph actually differs from the live
+graph</li>
+<li class="">avoid eager graph construction when the caller only needs one widget&#x27;s IO or inputs</li>
+</ul>
+<p><code>createDashboardWidgetDependencyModel(...)</code> may need a lazy mode or a separate scoped resolver so
+callers can resolve one instance without building every node and edge immediately.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-defer-preview-and-custom-settings">4. Defer preview and custom settings<a href="#4-defer-preview-and-custom-settings" class="hash-link" aria-label="Direct link to 4. Defer preview and custom settings" title="Direct link to 4. Defer preview and custom settings" translate="no">​</a></h3>
+<p>The shared settings panel must not synchronously mount all expensive sections during the first
+settings render.</p>
+<p>Preview and advanced settings become independently deferred regions:</p>
+<ul>
+<li class="">panel preview mounts after first paint or after an explicit preview enablement policy</li>
+<li class="">controller context resolves inside the advanced-settings region, not before the panel appears</li>
+<li class="">widget-specific settings render behind a localized loading state</li>
+<li class="">demo preview continues to use widget-defined mock props, mock inputs, and mock runtime state</li>
+</ul>
+<p>Preview remains scoped to the edited widget only. Settings preview must not mount sibling widgets.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-add-a-workspace-scoped-connection-runtime-store">5. Add a workspace-scoped connection runtime store<a href="#5-add-a-workspace-scoped-connection-runtime-store" class="hash-link" aria-label="Direct link to 5. Add a workspace-scoped connection runtime store" title="Direct link to 5. Add a workspace-scoped connection runtime store" translate="no">​</a></h3>
+<p>The runtime must provide a <code>ConnectionRuntimeStore</code> beside the existing <code>RuntimeDataStore</code>.</p>
+<p>The store owns active connection/query sessions for one workspace runtime. It must be scoped by the
+workspace runtime id, not by the settings page and not by a widget settings component.</p>
+<p>The store key must represent the effective request, not the surface that asked for it. For WebSocket
+streams, the key should include:</p>
+<ul>
+<li class="">execution surface, such as private workspace vs public workspace</li>
+<li class="">connection ref type id</li>
+<li class="">connection ref id when private execution uses a backend-owned connection instance</li>
+<li class="">public stream URL or public execution capability id when public execution is used</li>
+<li class="">query model id</li>
+<li class="">normalized query payload</li>
+<li class="">normalized dashboard time range when the query is dashboard-time-range aware</li>
+<li class="">normalized variables</li>
+<li class="">stream mode and merge-key/retention policy only when those values change the actual subscription
+or retained publication semantics</li>
+</ul>
+<p>The key must not include:</p>
+<ul>
+<li class="">settings route state</li>
+<li class="">panel preview instance id</li>
+<li class="">arbitrary render timestamps</li>
+<li class="">widget title</li>
+<li class="">draft-only local UI state</li>
+</ul>
+<p>If two widgets intentionally point at the same effective connection/query request, they must share
+the same store session instead of opening two browser WebSockets.</p>
+<p>The store entry should expose:</p>
+<ul>
+<li class=""><code>status</code>: idle, connecting, live, reconnecting, closed, or error</li>
+<li class="">active subscriber count</li>
+<li class="">last message timestamp</li>
+<li class="">last heartbeat timestamp</li>
+<li class="">reconnect attempt metadata</li>
+<li class="">current error and error code</li>
+<li class="">latest normalized runtime frame ref or summary</li>
+<li class="">owner widget ids that currently reference the entry</li>
+<li class="">whether the entry is backed by a live session, a retained completed state, or a draft preview</li>
+</ul>
+<p>The store must support subscribe/unsubscribe semantics:</p>
+<ul>
+<li class="">source widgets acquire the session when they mount as runtime owners</li>
+<li class="">charts and passive widgets subscribe to published data or status but do not acquire sockets</li>
+<li class="">settings subscribes read-only to existing entries by default</li>
+<li class="">the store closes a WebSocket only when the final runtime-owner subscription releases it</li>
+<li class="">closing settings never releases the runtime-owner subscription</li>
+</ul>
+<p>This replaces module-local &quot;active session&quot; guards as the canonical lifecycle mechanism. A
+module-local guard can remain as a defensive fallback, but it must not be the only source of truth.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="6-active-connection-status-replaces-unnecessary-settings-tests">6. Active connection status replaces unnecessary settings tests<a href="#6-active-connection-status-replaces-unnecessary-settings-tests" class="hash-link" aria-label="Direct link to 6. Active connection status replaces unnecessary settings tests" title="Direct link to 6. Active connection status replaces unnecessary settings tests" translate="no">​</a></h3>
+<p>If the <code>ConnectionRuntimeStore</code> has a matching active or recently retained entry for the current
+draft connection request, settings must show that entry instead of prompting the user to run a test.</p>
+<p>For an active healthy stream, the settings UI should show:</p>
+<ul>
+<li class="">live/reconnecting/error status</li>
+<li class="">selected connection and query path</li>
+<li class="">last message and heartbeat timestamps</li>
+<li class="">latest row count and schema summary</li>
+<li class="">reconnect/error details when degraded</li>
+</ul>
+<p>For a matching active entry, the primary action is not &quot;Test request&quot;. The connection is already
+proven active by the shared runtime. A manual test action can be available only as an advanced
+diagnostic action, and it must be clearly separate from the canonical runtime session.</p>
+<p>For a draft request that does not match any active entry, settings may offer an explicit test, but
+that test must:</p>
+<ul>
+<li class="">use a preview/session key that cannot steal ownership from the live runtime entry</li>
+<li class="">close itself when the diagnostic panel closes</li>
+<li class="">never write canonical runtime state unless the user applies the draft to the workspace</li>
+<li class="">never cause charts or widgets to swap away from the live store entry</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="7-websocket-source-widgets-are-runtime-owned-not-preview-owned">7. WebSocket source widgets are runtime-owned, not preview-owned<a href="#7-websocket-source-widgets-are-runtime-owned-not-preview-owned" class="hash-link" aria-label="Direct link to 7. WebSocket source widgets are runtime-owned, not preview-owned" title="Direct link to 7. WebSocket source widgets are runtime-owned, not preview-owned" translate="no">​</a></h3>
+<p>WebSocket source widgets such as <code>connection-stream-query</code> are browser runtime owners. Opening their
+settings must not start a second stream session or close the existing session.</p>
+<p>Rules:</p>
+<ul>
+<li class="">the live canvas/sidebar-mounted source acquires the WebSocket session through
+<code>ConnectionRuntimeStore</code></li>
+<li class="">settings reads the active store entry and the last published runtime state from the workspace
+runtime</li>
+<li class="">charts and passive widgets consume the same published runtime output or store status; they do not
+open their own stream sessions</li>
+<li class="">settings preview for stream source widgets should default to a lightweight read-only summary or
+mock demo state</li>
+<li class="">explicit stream test panels mount only when requested by the user and only when the draft request
+is not already represented by an active store entry</li>
+<li class="">unmounting settings must not affect the live stream</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="8-bindings-and-managed-connections-stay-accurate">8. Bindings and managed connections stay accurate<a href="#8-bindings-and-managed-connections-stay-accurate" class="hash-link" aria-label="Direct link to 8. Bindings and managed connections stay accurate" title="Direct link to 8. Bindings and managed connections stay accurate" translate="no">​</a></h3>
+<p>Bindings still need draft-aware validation, but that work should be paid only when the bindings or
+managed-connection tab is active.</p>
+<p>The default settings tab should not build a draft dependency graph unless a field displayed on that
+tab explicitly needs draft binding resolution.</p>
+<p>Managed connection preview runtime state remains local to the settings page until the user applies
+connection changes.</p>
+<p>When a managed connection draft matches an existing hidden source widget and active store entry, the
+Connection tab should show the active store status for that hidden source. It should not require a
+separate test to prove that the hidden source works.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-compliance-snapshot">Implementation Compliance Snapshot<a href="#implementation-compliance-snapshot" class="hash-link" aria-label="Direct link to Implementation Compliance Snapshot" title="Direct link to Implementation Compliance Snapshot" translate="no">​</a></h2>
+<p>As of 2026-05-13, the implementation is only partially compliant with this ADR.</p>
+<p>Legend:</p>
+<ul>
+<li class=""><code>Compliant</code>: implemented in current code and aligned with this ADR</li>
+<li class=""><code>Partial</code>: implemented in shape, but missing behavior, hardening, or tests</li>
+<li class=""><code>Non-compliant</code>: current behavior contradicts this ADR</li>
+<li class=""><code>Unverified</code>: not proven by code inspection or regression tests yet</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="current-compliant-areas">Current Compliant Areas<a href="#current-compliant-areas" class="hash-link" aria-label="Direct link to Current Compliant Areas" title="Direct link to Current Compliant Areas" translate="no">​</a></h3>
+<ul>
+<li class=""><code>dashboard</code> and <code>widget-settings</code> are treated as the same runtime surface in
+<code>WorkspaceStudioCanvasHost</code>; route-backed <code>widget-settings</code> maps to dashboard runtime ownership
+instead of creating a separate workspace runtime.</li>
+<li class="">Embedded widget settings no longer creates its own <code>DashboardWidgetExecutionProvider</code>,
+<code>DashboardControlsProvider</code>, or full-page <code>DashboardWidgetDependenciesProvider</code>.</li>
+<li class="">A workspace-scoped <code>ConnectionRuntimeStore</code> exists beside <code>RuntimeDataStore</code>, and
+<code>connection-stream-query</code> can acquire live WebSocket sessions through that store.</li>
+<li class=""><code>WidgetSettingsPanel</code> has a deferred region mechanism for preview and advanced settings work
+after the initial panel render.</li>
+<li class="">Same-widget settings reopens now use a fresh overlay generation id, so stale body hydration state
+cannot skip the instant shell for the next open.</li>
+<li class=""><code>connection-stream-query</code> settings now keeps stream diagnostics/test controls opt-in and uses a
+lightweight runtime summary on the default settings path.</li>
+<li class=""><code>connection-stream-query</code> uses demo-only shared panel preview so settings preview cannot acquire a
+live WebSocket runtime owner for the real draft request.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="current-partial-areas">Current Partial Areas<a href="#current-partial-areas" class="hash-link" aria-label="Direct link to Current Partial Areas" title="Direct link to Current Partial Areas" translate="no">​</a></h3>
+<ul>
+<li class="">The connection runtime store exposes active status and owner metadata, but stream runtime state is
+still written back through workspace widget runtime-state updates, so active streams can keep the
+dashboard tree busy while the user clicks settings.</li>
+<li class=""><code>ConnectionStreamQueryTestPanel</code> shows active store status when a matching active entry exists,
+and it is now opt-in from settings, but no regression test proves it cannot affect canonical
+runtime ownership.</li>
+<li class="">Binding-tab draft dependency work is scoped better than before, but no lazy/scoped dependency
+resolver exists for one-widget reads.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="current-non-compliant-areas">Current Non-Compliant Areas<a href="#current-non-compliant-areas" class="hash-link" aria-label="Direct link to Current Non-Compliant Areas" title="Direct link to Current Non-Compliant Areas" translate="no">​</a></h3>
+<ul>
+<li class="">Opening settings can still occur while live stream runtime-state writes are flushing into
+workspace state, which violates the requirement that settings open must not scale with every live
+runtime payload.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="current-unverified-areas">Current Unverified Areas<a href="#current-unverified-areas" class="hash-link" aria-label="Direct link to Current Unverified Areas" title="Direct link to Current Unverified Areas" translate="no">​</a></h3>
+<ul>
+<li class="">No regression test proves canvas widgets stay mounted when <code>view=widget-settings</code> opens.</li>
+<li class="">No regression test proves opening settings for a stream-backed workspace does not close the
+existing stream session and does not create a second session.</li>
+<li class="">No regression test proves two widgets with the same effective stream request share one WebSocket.</li>
+<li class="">No regression test proves charts/passive widgets do not open WebSockets when bound to an active
+stream source.</li>
+<li class="">No regression test proves settings subscribes read-only to an active stream store entry.</li>
+<li class="">No regression test proves closing settings does not decrement or release the runtime-owner
+subscription.</li>
+<li class="">No timing instrumentation currently proves overlay shell paint is independent from dependency
+model creation, preview mount, controller context resolution, and widget-specific settings mount.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add instrumentation around widget settings open. Status: not implemented.<!-- -->
+<ul>
+<li class="">route state update to overlay shell paint</li>
+<li class="">dependency model creation</li>
+<li class="">preview mount</li>
+<li class="">controller context resolution</li>
+<li class="">widget-specific settings mount</li>
+</ul>
+</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add a regression test proving canvas widgets stay mounted when <code>view=widget-settings</code> opens.
+Status: not implemented.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add a WebSocket regression test proving opening settings for a stream-backed workspace does
+not close the existing stream session and does not create a second session. Status: not
+implemented.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a shared <code>ConnectionRuntimeStore</code> provider under the workspace runtime provider stack.
+Status: implemented.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Move <code>connection-stream-query</code> session acquisition into the shared connection runtime store.
+Status: partially implemented; the widget acquires through the store when a provider exists, but
+fallback direct session creation remains.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Replace module-local active-session ownership with store-backed acquire/release semantics,
+leaving any module-level guard as defensive-only. Status: partial; ownership is store-backed in
+normal workspace runtime, but the fallback path and tests still need hardening.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define a stable connection runtime key builder for private and public stream requests. Status:
+partially implemented; the key builder exists, but its sharing guarantees are not covered by
+regression tests.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add tests proving two widgets with the same effective stream request share one WebSocket.
+Status: not implemented.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add tests proving charts/passive widgets do not open WebSockets when bound to an active stream
+source. Status: not implemented.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add tests proving settings subscribes read-only to an active stream store entry. Status: not
+implemented.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add tests proving closing settings does not decrement or release the runtime-owner
+subscription. Status: not implemented.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add tests proving a draft diagnostic stream uses a separate preview key and cannot replace the
+canonical active entry. Status: not implemented.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Split <code>CustomWidgetSettingsPage</code> into immediate shell and deferred body components. Status:
+partial; an external instant shell exists and same-widget reopen no longer bypasses it, but the
+page body remains monolithic.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove the embedded settings page&#x27;s fresh full-page <code>DashboardWidgetDependenciesProvider</code>.
+Status: implemented for the embedded overlay path.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Use the parent dependency provider for persisted settings-tab reads. Status: implemented for
+the embedded overlay path.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Create draft dependency providers only inside the bindings/managed-connection paths that need
+draft graph validation. Status: partially implemented; the bindings path is scoped to the active
+bindings tab, but the lazy one-widget resolver is still missing.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add a lazy or scoped dependency-resolution API so one-widget settings reads do not eagerly
+build the full workspace graph. Status: not implemented.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Defer <code>WidgetSettingsPanel</code> preview mount until after first paint. Status: implemented in the
+shared panel; stream widgets can now opt into demo-only preview policy.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Defer <code>WidgetSettingsAdvancedSections</code> controller and custom settings work behind localized
+placeholders. Status: implemented in the shared panel; same-widget overlay reopen no longer
+bypasses the outer shell.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Make widget-specific test panels opt-in where they perform network, stream, discovery, or
+large schema work. Status: implemented for <code>connection-stream-query</code>; other widgets are
+unverified.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>connection-stream-query</code> settings so opening the settings page reads live runtime
+state without owning the WebSocket lifecycle. Status: implemented for the default settings path;
+diagnostics remain explicit and opt-in.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>ConnectionStreamQueryTestPanel</code> so it is hidden or secondary when a matching active
+store entry already exists. Status: implemented for settings open; the panel now mounts only after
+the user opens diagnostics and observes active runtime through a throttled store read.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update managed connection settings so an active hidden source shows live store status instead
+of requiring a test. Status: unverified.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure <code>dashboard</code> and <code>widget-settings</code> do not change provider keys or error-boundary reset
+keys in a way that remounts the workspace runtime. Status: implemented by runtime surface mapping,
+but missing regression tests.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add tests for returning from widget settings to dashboard without surface-return hydration.
+Status: not implemented.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add timing assertions or debug traces that make accidental whole-workspace settings work
+visible in development. Status: not implemented.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <a href="https://github.com/mainsequence-sdk/CommandCenter/blob/main/src/features/dashboards/README.md" target="_blank" rel="noopener noreferrer" class="">src/features/dashboards/README.md</a> with the finalized implementation rules.
+Status: partial; overlay generation and runtime ownership rules are documented, but remaining
+runtime-state flush work is not finalized.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <a href="https://github.com/mainsequence-sdk/CommandCenter/blob/main/src/widgets/shared/README.md" target="_blank" rel="noopener noreferrer" class="">src/widgets/shared/README.md</a> if shared settings panel ownership or preview behavior changes.
+Status: implemented for <code>settingsPreviewMode</code>; pending further updates if shared panel ownership
+changes again.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="guardrails">Guardrails<a href="#guardrails" class="hash-link" aria-label="Direct link to Guardrails" title="Direct link to Guardrails" translate="no">​</a></h2>
+<ul>
+<li class="">Do not reintroduce hidden full-workspace component mounts in widget settings.</li>
+<li class="">Do not create a second dashboard execution provider for embedded widget settings.</li>
+<li class="">Do not let settings preview own canonical source-widget runtime.</li>
+<li class="">Do not let charts or passive widgets open WebSockets for a stream already owned by a source
+widget.</li>
+<li class="">Do not present &quot;Test request&quot; as the normal next step when a matching connection runtime entry is
+already active.</li>
+<li class="">Do not run full dependency graph construction on the initial settings-open path.</li>
+<li class="">Do not let WebSocket widgets treat settings preview as a live stream mount.</li>
+<li class="">Do not block overlay shell paint on schema discovery, connection instance reads, OpenAPI reads,
+stream tests, or controller context hydration.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-contract-impact">Backend Contract Impact<a href="#backend-contract-impact" class="hash-link" aria-label="Direct link to Backend Contract Impact" title="Direct link to Backend Contract Impact" translate="no">​</a></h2>
+<p>This ADR is frontend-only if implemented as described.</p>
+<p>It does not change:</p>
+<ul>
+<li class="">persisted workspace shape</li>
+<li class="">widget props shape</li>
+<li class="">widget binding shape</li>
+<li class="">widget runtime-state shape</li>
+<li class="">backend widget registry payload shape</li>
+<li class="">backend connection or stream endpoint contracts</li>
+</ul>
+<p>The new <code>ConnectionRuntimeStore</code> is an in-browser runtime ownership and status store. It does not
+persist to workspace storage and does not require a backend schema change.</p>
+<p>Backend work is required only if implementation discovers that the frontend cannot cheaply read
+existing user/workspace/widget runtime state without additional backend support. That would be a
+separate contract change and must be documented before implementation.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="success-criteria">Success Criteria<a href="#success-criteria" class="hash-link" aria-label="Direct link to Success Criteria" title="Direct link to Success Criteria" translate="no">​</a></h2>
+<ul>
+<li class="">settings shell appears immediately for a selected widget</li>
+<li class="">opening settings does not unmount the canvas subtree</li>
+<li class="">opening settings does not close or recreate live WebSocket sessions</li>
+<li class="">widgets and charts that observe the same effective stream request reuse one active store entry
+and one WebSocket session</li>
+<li class="">settings for an already-active connection shows live status instead of requiring a test run</li>
+<li class="">opening settings in a WebSocket-heavy workspace does not scale with every widget&#x27;s live runtime
+payload</li>
+<li class="">returning from settings to dashboard is immediate</li>
+<li class="">dependency and preview work is visible as localized loading inside the settings body, not as a
+full-page freeze</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-060-instant-widget-settings-runtime.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#runtime-ownership" class="table-of-contents__link toc-highlight">Runtime Ownership</a><ul><li><a href="#existing-workspace-runtime-owns" class="table-of-contents__link toc-highlight">Existing Workspace Runtime Owns</a></li><li><a href="#settings-overlay-owns" class="table-of-contents__link toc-highlight">Settings Overlay Owns</a></li></ul></li><li><a href="#architecture" class="table-of-contents__link toc-highlight">Architecture</a><ul><li><a href="#1-keep-dashboard-and-widget-settings-in-one-mounted-host" class="table-of-contents__link toc-highlight">1. Keep <code>dashboard</code> and <code>widget-settings</code> in one mounted host</a></li><li><a href="#2-split-settings-shell-from-settings-body" class="table-of-contents__link toc-highlight">2. Split settings shell from settings body</a></li><li><a href="#3-stop-rebuilding-the-full-dependency-graph-on-settings-open" class="table-of-contents__link toc-highlight">3. Stop rebuilding the full dependency graph on settings open</a></li><li><a href="#4-defer-preview-and-custom-settings" class="table-of-contents__link toc-highlight">4. Defer preview and custom settings</a></li><li><a href="#5-add-a-workspace-scoped-connection-runtime-store" class="table-of-contents__link toc-highlight">5. Add a workspace-scoped connection runtime store</a></li><li><a href="#6-active-connection-status-replaces-unnecessary-settings-tests" class="table-of-contents__link toc-highlight">6. Active connection status replaces unnecessary settings tests</a></li><li><a href="#7-websocket-source-widgets-are-runtime-owned-not-preview-owned" class="table-of-contents__link toc-highlight">7. WebSocket source widgets are runtime-owned, not preview-owned</a></li><li><a href="#8-bindings-and-managed-connections-stay-accurate" class="table-of-contents__link toc-highlight">8. Bindings and managed connections stay accurate</a></li></ul></li><li><a href="#implementation-compliance-snapshot" class="table-of-contents__link toc-highlight">Implementation Compliance Snapshot</a><ul><li><a href="#current-compliant-areas" class="table-of-contents__link toc-highlight">Current Compliant Areas</a></li><li><a href="#current-partial-areas" class="table-of-contents__link toc-highlight">Current Partial Areas</a></li><li><a href="#current-non-compliant-areas" class="table-of-contents__link toc-highlight">Current Non-Compliant Areas</a></li><li><a href="#current-unverified-areas" class="table-of-contents__link toc-highlight">Current Unverified Areas</a></li></ul></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li><li><a href="#guardrails" class="table-of-contents__link toc-highlight">Guardrails</a></li><li><a href="#backend-contract-impact" class="table-of-contents__link toc-highlight">Backend Contract Impact</a></li><li><a href="#success-criteria" class="table-of-contents__link toc-highlight">Success Criteria</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

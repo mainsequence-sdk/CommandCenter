@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-043-websocket-stream-preview-graphing-semantics" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 043: WebSocket Stream Preview And Graphing Semantics | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 043: WebSocket Stream Preview And Graphing Semantics | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 043: WebSocket Stream Preview And Graphing Semantics</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-04-29</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-041-connection-query-websocket-streaming">ADR 041: Query-Shaped WebSocket Streaming for Connections</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-039-unified-upstream-consumer-state-contract">ADR 039: Unified Upstream Consumer State Contract</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-standardized-connection-result-contracts">ADR: Standardized Connection Result Contracts</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-incremental-connection-response-refresh">ADR: Incremental In-Memory Connection Response Refresh</a></li>
+<li class="">Backend ADR 016: Binance WebSocket Market Streams</li>
+<li class="">Backend ADR 017: WebSocket Ticket Auth For Bearer-Token SPA Clients</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The generic <code>connection-stream-query</code> runtime is now able to open a query-shaped WebSocket
+subscription and receive normalized <code>ConnectionQueryResponse</code> frames. The stream startup path is
+working, but the current preview and graphing behavior is not sufficient for live market-data
+inspection.</p>
+<p>The current frontend behavior has two architectural problems:</p>
+<ol>
+<li class="">
+<p>Canonical stream runtime and preview graphing are coupled too tightly.</p>
+<ul>
+<li class=""><code>snapshot</code> messages replace the retained stream frame.</li>
+<li class=""><code>delta</code> messages merge into the retained stream frame.</li>
+<li class="">This is correct for the source-widget runtime contract, but it is not sufficient for an
+Explore/test chart when the backend emits one-row snapshots for the latest observation.</li>
+</ul>
+</li>
+<li class="">
+<p>Chart field selection for streamed tabular rows is under-specified.</p>
+<ul>
+<li class="">Streamed connection frames do not publish explicit chart semantics today.</li>
+<li class=""><code>ConnectionQueryResponsePreview</code> therefore falls back to generic numeric heuristics.</li>
+<li class="">Those heuristics are too weak for streamed OHLC and trade rows. They do not know that OHLC
+should plot <code>openTime -&gt; close</code>, or that trade streams should plot <code>time/eventTime -&gt; price</code>.</li>
+</ul>
+</li>
+</ol>
+<p>As a result, a valid WebSocket subscription may appear to &quot;not stream&quot; because the preview chart
+shows only one point or uses the wrong axes, even while rows are arriving correctly.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Separate canonical stream runtime semantics from preview graphing semantics.</p>
+<p>Canonical source-widget runtime behavior remains exactly as defined by ADR 041:</p>
+<ul>
+<li class=""><code>snapshot</code> replaces the canonical retained source frame.</li>
+<li class=""><code>delta</code> merges into the canonical retained source frame.</li>
+<li class="">downstream widgets continue consuming the canonical resolved source output through normal
+workspace bindings and <code>consumerState</code></li>
+</ul>
+<p>Explore and widget test-preview surfaces are allowed to maintain a separate preview-only
+accumulation buffer for graphing. That preview buffer is diagnostic UI state, not canonical source
+runtime state.</p>
+<p>The frontend will also add explicit query-model preview graph hints so streamed connection models
+can declare how their normalized tabular rows should be charted.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="preview-and-runtime-separation">Preview And Runtime Separation<a href="#preview-and-runtime-separation" class="hash-link" aria-label="Direct link to Preview And Runtime Separation" title="Direct link to Preview And Runtime Separation" translate="no">​</a></h2>
+<p>Two different states are now explicit:</p>
+<ol>
+<li class="">
+<p>Canonical stream runtime state</p>
+<ul>
+<li class="">owned by <code>connection-stream-query</code></li>
+<li class="">follows ADR 041 exactly</li>
+<li class="">published to downstream widgets</li>
+</ul>
+</li>
+<li class="">
+<p>Preview graph state</p>
+<ul>
+<li class="">owned only by Explore / test-preview surfaces</li>
+<li class="">may accumulate history across multiple stream messages</li>
+<li class="">must never be written back as the source widget&#x27;s canonical runtime output</li>
+</ul>
+</li>
+</ol>
+<p>This separation prevents preview conveniences from silently changing widget binding semantics.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="preview-graph-hint-contract">Preview Graph Hint Contract<a href="#preview-graph-hint-contract" class="hash-link" aria-label="Direct link to Preview Graph Hint Contract" title="Direct link to Preview Graph Hint Contract" translate="no">​</a></h2>
+<p>Add frontend-owned preview metadata to query models.</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">export</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">ConnectionQueryModel</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  id</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  label</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  description</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  outputContracts</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> WidgetContractId</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  defaultOutputContract</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> ConnectionResponseContractId</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  defaultQuery</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> Record</span><span class="token operator" style="color:rgb(137, 221, 255)">&lt;</span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">unknown</span><span class="token operator" style="color:rgb(137, 221, 255)">&gt;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  controls</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  timeRangeAware</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">boolean</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  supportsVariables</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">boolean</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  supportsMaxRows</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">boolean</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  stream</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> ConnectionQueryStreamModel</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  preview</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> ConnectionQueryPreviewModel</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token keyword" style="font-style:italic">export</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">ConnectionQueryPreviewModel</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  graph</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> ConnectionQueryGraphPreviewModel</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token keyword" style="font-style:italic">export</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">ConnectionQueryGraphPreviewModel</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  xField</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  yField</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  groupField</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  rowIdentityFields</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  preferredChartType</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;line&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;area&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;bar&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  maxRetainedRows</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Rules:</p>
+<ul>
+<li class="">this metadata is frontend-owned authoring/rendering guidance</li>
+<li class="">it does not change backend query or stream request payloads</li>
+<li class="">it does not change the canonical <code>ConnectionQueryResponse</code> contract</li>
+<li class="">it is used as the authoritative preview graph mapping unless the normalized frame already carries
+<code>source.context.graphDefaults</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="preview-rendering-precedence">Preview Rendering Precedence<a href="#preview-rendering-precedence" class="hash-link" aria-label="Direct link to Preview Rendering Precedence" title="Direct link to Preview Rendering Precedence" translate="no">​</a></h2>
+<p>When rendering a streamed preview, the frontend must choose chart semantics in this order:</p>
+<ol>
+<li class="">frame-provided <code>source.context.graphDefaults</code></li>
+<li class="">query-model <code>preview.graph</code></li>
+<li class="">existing generic numeric fallback heuristics</li>
+</ol>
+<p>This keeps normalized frame graph defaults authoritative when they exist, while still allowing
+connection-owned frontend hints for adapters such as Binance.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="preview-accumulation-semantics">Preview Accumulation Semantics<a href="#preview-accumulation-semantics" class="hash-link" aria-label="Direct link to Preview Accumulation Semantics" title="Direct link to Preview Accumulation Semantics" translate="no">​</a></h2>
+<p>Preview accumulation is only for Explore/test-preview graphing.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="snapshot-messages">Snapshot Messages<a href="#snapshot-messages" class="hash-link" aria-label="Direct link to Snapshot Messages" title="Direct link to Snapshot Messages" translate="no">​</a></h3>
+<p>When a stream message is <code>snapshot</code>:</p>
+<ul>
+<li class="">canonical source runtime replaces the retained frame</li>
+<li class="">preview graph buffer may append or upsert rows into accumulated history</li>
+<li class="">if no <code>preview.graph.rowIdentityFields</code> are defined, the preview may fall back to replacing the
+graph buffer with the latest snapshot rows</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="delta-messages">Delta Messages<a href="#delta-messages" class="hash-link" aria-label="Direct link to Delta Messages" title="Direct link to Delta Messages" translate="no">​</a></h3>
+<p>When a stream message is <code>delta</code>:</p>
+<ul>
+<li class="">canonical source runtime merges the delta into retained rows</li>
+<li class="">preview graph buffer upserts incoming rows using <code>preview.graph.rowIdentityFields</code> when present</li>
+<li class="">if no identity fields are declared, preview falls back to appending delta rows</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="reset-behavior">Reset Behavior<a href="#reset-behavior" class="hash-link" aria-label="Direct link to Reset Behavior" title="Direct link to Reset Behavior" translate="no">​</a></h3>
+<p>The preview accumulation buffer must reset on:</p>
+<ul>
+<li class="">connection instance change</li>
+<li class="">query model change</li>
+<li class="">query payload change</li>
+<li class="">fixed-range change</li>
+<li class="">variables change</li>
+<li class="">explicit stop/restart of the preview session</li>
+</ul>
+<p>The preview accumulation buffer may survive temporary reconnect attempts for the same subscription
+key so the chart does not blank during reconnecting state.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="retention">Retention<a href="#retention" class="hash-link" aria-label="Direct link to Retention" title="Direct link to Retention" translate="no">​</a></h3>
+<p>Preview accumulation must be bounded.</p>
+<p>Rules:</p>
+<ul>
+<li class="">default to a row-count cap, not an unbounded array</li>
+<li class="">allow <code>preview.graph.maxRetainedRows</code> to override the shared default</li>
+<li class="">trimming preview history must not mutate canonical source runtime rows</li>
+</ul>
+<p>The first implementation only requires row-count retention. Time-window retention can be added
+later if needed.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="binance-initial-mapping">Binance Initial Mapping<a href="#binance-initial-mapping" class="hash-link" aria-label="Direct link to Binance Initial Mapping" title="Direct link to Binance Initial Mapping" translate="no">​</a></h2>
+<p>The first implementation will ship explicit preview graph hints for the streamed Binance query
+models.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ohlc">OHLC<a href="#ohlc" class="hash-link" aria-label="Direct link to OHLC" title="Direct link to OHLC" translate="no">​</a></h3>
+<p>For:</p>
+<ul>
+<li class=""><code>binance-spot-ohlc</code></li>
+<li class=""><code>binance-usdm-futures-ohlc</code></li>
+</ul>
+<p>Use:</p>
+<ul>
+<li class=""><code>xField = openTime</code></li>
+<li class=""><code>yField = close</code></li>
+<li class=""><code>groupField = symbol</code></li>
+<li class=""><code>rowIdentityFields = [&quot;openTime&quot;, &quot;symbol&quot;, &quot;interval&quot;, &quot;marketType&quot;]</code></li>
+<li class="">preferred chart type: <code>line</code></li>
+</ul>
+<p>This is a preview decision only. It does not introduce a candlestick-specific contract in the first
+slice.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="trades">Trades<a href="#trades" class="hash-link" aria-label="Direct link to Trades" title="Direct link to Trades" translate="no">​</a></h3>
+<p>For:</p>
+<ul>
+<li class=""><code>binance-spot-recent-trades</code></li>
+<li class=""><code>binance-spot-aggregate-trades</code></li>
+<li class=""><code>binance-usdm-futures-aggregate-trades</code></li>
+</ul>
+<p>Use:</p>
+<ul>
+<li class=""><code>xField = time</code></li>
+<li class=""><code>yField = price</code></li>
+<li class=""><code>groupField = symbol</code></li>
+<li class=""><code>rowIdentityFields</code> based on the normalized trade id fields for that stream family</li>
+</ul>
+<p>These fields align with the backend Binance normalization contract, which already emits streamed
+trade rows with <code>time</code>, <code>price</code>, symbol metadata, and normalized id fields.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="non-goals">Non-Goals<a href="#non-goals" class="hash-link" aria-label="Direct link to Non-Goals" title="Direct link to Non-Goals" translate="no">​</a></h2>
+<ul>
+<li class="">Do not change the canonical source-widget WebSocket semantics defined in ADR 041.</li>
+<li class="">Do not require downstream widgets to consume preview-only history buffers.</li>
+<li class="">Do not add a provider-specific chart widget or provider-specific preview renderer.</li>
+<li class="">Do not persist preview accumulation buffers into workspace storage.</li>
+<li class="">Do not make preview graph history part of saved widget props or backend workspace payloads.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-contract-impact">Backend Contract Impact<a href="#backend-contract-impact" class="hash-link" aria-label="Direct link to Backend Contract Impact" title="Direct link to Backend Contract Impact" translate="no">​</a></h2>
+<p>No backend change is required for the first frontend implementation.</p>
+<p>The backend may continue sending standard <code>ConnectionQueryResponse</code> frames with plain
+<code>core.tabular_frame@v1</code> rows. The preview-layer accumulation buffer and query-model preview hints
+are frontend-only concerns.</p>
+<p>Optional future backend improvement:</p>
+<ul>
+<li class="">adapters may publish <code>source.context.graphDefaults</code> on streamed tabular frames when the backend
+has stronger domain knowledge</li>
+<li class="">when that happens, frontend preview rendering must prefer the backend frame metadata over local
+query-model preview hints</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="storage-contract-impact">Storage Contract Impact<a href="#storage-contract-impact" class="hash-link" aria-label="Direct link to Storage Contract Impact" title="Direct link to Storage Contract Impact" translate="no">​</a></h2>
+<p>No backend storage contract change is required for the first slice.</p>
+<p>Preview accumulation state is ephemeral UI state only. It is not serialized into workspace,
+widget, or binding storage.</p>
+<p>The first implementation keeps query-model preview metadata local to the frontend runtime
+definitions. It is not projected into the synced connection-type manifest, so no backend
+connection-registry change is required for this slice.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add frontend preview graph metadata types under <code>src/connections/types.ts</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extend connection-type sync validation if preview metadata is included in the synced
+connection manifest.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add preview graph hints for streamed Binance query models in
+<code>connections/binance/index.ts</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a preview-only stream accumulation helper for Explore/test-preview surfaces.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>ConnectionStreamQueryTestPanel.tsx</code> to maintain bounded accumulated preview history.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Project preview graph hints into <code>source.context.graphDefaults</code> or an equivalent normalized
+preview path before calling <code>ConnectionQueryResponsePreview</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>ConnectionQueryResponsePreview.tsx</code> to prefer frame metadata, then graph defaults,
+then query-model preview hints, then generic numeric fallback.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests for snapshot accumulation, delta accumulation, retention trimming, and Binance OHLC
+field mapping.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests confirming downstream source runtime semantics remain unchanged while preview
+accumulation changes only the diagnostic chart path.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<p>Positive:</p>
+<ul>
+<li class="">WebSocket previews can visibly show a live updating chart even when the backend emits one-row
+snapshots.</li>
+<li class="">Stream graphing becomes explicit and repeatable instead of relying on weak numeric heuristics.</li>
+<li class="">Canonical widget runtime and downstream binding semantics stay stable.</li>
+</ul>
+<p>Negative:</p>
+<ul>
+<li class="">Explore/test-preview logic becomes more stateful than request/response preview.</li>
+<li class="">Preview graph history may differ from the exact current canonical retained source frame.</li>
+<li class="">Connection definitions may need additional preview metadata maintenance for high-value streaming
+adapters such as Binance.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#preview-and-runtime-separation" class="table-of-contents__link toc-highlight">Preview And Runtime Separation</a></li><li><a href="#preview-graph-hint-contract" class="table-of-contents__link toc-highlight">Preview Graph Hint Contract</a></li><li><a href="#preview-rendering-precedence" class="table-of-contents__link toc-highlight">Preview Rendering Precedence</a></li><li><a href="#preview-accumulation-semantics" class="table-of-contents__link toc-highlight">Preview Accumulation Semantics</a><ul><li><a href="#snapshot-messages" class="table-of-contents__link toc-highlight">Snapshot Messages</a></li><li><a href="#delta-messages" class="table-of-contents__link toc-highlight">Delta Messages</a></li><li><a href="#reset-behavior" class="table-of-contents__link toc-highlight">Reset Behavior</a></li><li><a href="#retention" class="table-of-contents__link toc-highlight">Retention</a></li></ul></li><li><a href="#binance-initial-mapping" class="table-of-contents__link toc-highlight">Binance Initial Mapping</a><ul><li><a href="#ohlc" class="table-of-contents__link toc-highlight">OHLC</a></li><li><a href="#trades" class="table-of-contents__link toc-highlight">Trades</a></li></ul></li><li><a href="#non-goals" class="table-of-contents__link toc-highlight">Non-Goals</a></li><li><a href="#backend-contract-impact" class="table-of-contents__link toc-highlight">Backend Contract Impact</a></li><li><a href="#storage-contract-impact" class="table-of-contents__link toc-highlight">Storage Contract Impact</a></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

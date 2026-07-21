@@ -1,6 +1,7 @@
 import type { AssistantUiProtocol } from "@/config/command-center";
 
 import { fetchMainSequenceAiAssistantResponse } from "./assistant-endpoint";
+import { buildRuntimeHttpErrorMessage } from "./http-error";
 
 export type AgentSessionStreamChunk = Record<string, unknown> & { type: string };
 
@@ -163,7 +164,7 @@ export async function streamAgentSessionResponse({
       ? body.runtime_session_uid
       : null;
 
-  const { response } = await fetchMainSequenceAiAssistantResponse({
+  const { response, url } = await fetchMainSequenceAiAssistantResponse({
     accept: "text/event-stream",
     assistantEndpoint,
     currentSessionId,
@@ -179,7 +180,15 @@ export async function streamAgentSessionResponse({
   });
 
   if (!response.ok) {
-    throw new Error(`Status ${response.status}: ${await response.text()}`);
+    throw new Error(
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage: `Agent session stream failed with status ${response.status}.`,
+        method: "POST",
+        operation: "Agent terminal stream request failed",
+        response,
+        url,
+      }),
+    );
   }
 
   if (!response.body) {

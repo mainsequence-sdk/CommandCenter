@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-071-atomic-widget-settings-workspace-save",
+  "title": "ADR 071: Atomic Widget Settings Workspace Save",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-071-atomic-widget-settings-workspace-save.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-071-atomic-widget-settings-workspace-save",
+  "permalink": "/docs/adr/command_center/adr-071-atomic-widget-settings-workspace-save",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-071-atomic-widget-settings-workspace-save.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

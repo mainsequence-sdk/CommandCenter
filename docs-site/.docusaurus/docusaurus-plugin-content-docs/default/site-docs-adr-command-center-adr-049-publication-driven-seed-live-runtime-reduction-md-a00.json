@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction",
+  "title": "ADR 049: Publication-Driven Seed/Live Runtime Reduction",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction",
+  "permalink": "/docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

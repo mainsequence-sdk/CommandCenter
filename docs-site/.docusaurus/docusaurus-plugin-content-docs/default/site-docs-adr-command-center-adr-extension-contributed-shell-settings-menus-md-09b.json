@@ -1,0 +1,24 @@
+{
+  "id": "adr/command_center/adr-extension-contributed-shell-settings-menus",
+  "title": "ADR: Extension-Contributed Shell Settings Menus",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-extension-contributed-shell-settings-menus.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-extension-contributed-shell-settings-menus",
+  "permalink": "/docs/adr/command_center/adr-extension-contributed-shell-settings-menus",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-extension-contributed-shell-settings-menus.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: AppComponent Mock JSON Target for Pipeline Prototyping",
+    "permalink": "/docs/adr/command_center/adr-app-component-mock-json-target"
+  },
+  "next": {
+    "title": "ADR: Runtime Credential Browser Auth",
+    "permalink": "/docs/adr/command_center/adr-runtime-credential-browser-auth"
+  }
+}

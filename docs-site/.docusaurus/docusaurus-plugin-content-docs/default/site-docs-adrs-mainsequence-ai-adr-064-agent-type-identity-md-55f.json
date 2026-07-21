@@ -1,0 +1,15 @@
+{
+  "id": "adrs/mainsequence-ai/adr-064-agent-type-identity",
+  "title": "ADR 064: Agent Type Identity",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adrs/mainsequence-ai/adr-064-agent-type-identity.md",
+  "sourceDirName": "adrs/mainsequence-ai",
+  "slug": "/adrs/mainsequence-ai/adr-064-agent-type-identity",
+  "permalink": "/docs/adrs/mainsequence-ai/adr-064-agent-type-identity",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adrs/mainsequence-ai/adr-064-agent-type-identity.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

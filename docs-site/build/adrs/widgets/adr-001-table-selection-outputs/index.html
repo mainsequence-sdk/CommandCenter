@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adrs/widgets/adr-001-table-selection-outputs" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 001: Table Selection Outputs for Widget Composition | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adrs/widgets/adr-001-table-selection-outputs"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 001: Table Selection Outputs for Widget Composition | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adrs/widgets/adr-001-table-selection-outputs"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adrs/widgets/adr-001-table-selection-outputs" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adrs/widgets/adr-001-table-selection-outputs" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 001: Table Selection Outputs for Widget Composition</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-05-17</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The core Table widget is already a useful composition primitive: it can consume a bound tabular
+frame, consume a hidden managed connection source, render a formatted AG Grid table, and republish
+one canonical <code>core.tabular_frame@v1</code> dataset for downstream widgets.</p>
+<p>The missing composition surface is user interaction. A workspace author cannot currently bind a
+detail panel, chart, AppComponent, prompt, or another table to the row or cell that a user selected
+inside a Table widget. The selected row, selected rows, active cell, and active cell value are
+runtime facts that downstream widgets should be able to consume like any other widget output.</p>
+<p>Current constraints:</p>
+<ul>
+<li class=""><code>src/widgets/core/table/definition.ts</code> publishes only the full <code>dataset</code> output.</li>
+<li class=""><code>src/widgets/core/table/TableWidget.tsx</code> receives <code>runtimeState</code> and <code>onRuntimeStateChange</code>, so
+it can persist local interaction state without becoming an execution-owner widget.</li>
+<li class=""><code>src/widgets/core/table/TableFrameView.tsx</code> renders the interactive table surface but does not
+currently configure row selection, cell-click handling, or selection publication.</li>
+<li class="">Selection must not mutate the source dataset or table formatting props.</li>
+<li class="">Selection state is user interaction state, not backend data and not durable table authoring state.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Extend the core Table widget with first-class interaction outputs backed by per-user runtime state.</p>
+<p>The Table widget will continue to publish its existing full <code>dataset</code> output unchanged. In addition,
+it will optionally publish derived interaction outputs for selected rows and the active cell.</p>
+<p>Selection configuration belongs in table props because it is authoring behavior. The selected rows
+and selected cell belong in widget runtime state because they are user interaction state.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-state-contract">Runtime State Contract<a href="#runtime-state-contract" class="hash-link" aria-label="Direct link to Runtime State Contract" title="Direct link to Runtime State Contract" translate="no">​</a></h2>
+<p>Store compact interaction state under a table-owned runtime namespace:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">TableWidgetInteractionRuntimeState</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  interaction</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    selection</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      mode</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;none&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;single-row&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;multi-row&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;cell&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      selectedRowKeys</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      selectedRowIndices</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      activeRowKey</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      activeRowIndex</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      activeCell</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        rowKey</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        rowIndex</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        columnKey</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">        value</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">unknown</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      updatedAtMs</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Do not store full selected row payloads in runtime state. Output resolvers should derive row payloads
+from the current resolved table dataset plus the compact selection keys or indices. This keeps the
+runtime state small and avoids stale row snapshots after upstream refresh.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="selection-identity">Selection Identity<a href="#selection-identity" class="hash-link" aria-label="Direct link to Selection Identity" title="Direct link to Selection Identity" translate="no">​</a></h2>
+<p>Row identity should be stable when possible:</p>
+<ul>
+<li class="">Prefer explicit <code>selectionKeyFields</code> configured on the Table widget.</li>
+<li class="">If no explicit key fields are configured, use upstream unique identifier metadata when available.</li>
+<li class="">If neither exists, fall back to row index.</li>
+</ul>
+<p>Row-index fallback is allowed, but it must be documented as unstable when filtering, sorting,
+pagination, or upstream refresh changes row order.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="output-ports">Output Ports<a href="#output-ports" class="hash-link" aria-label="Direct link to Output Ports" title="Direct link to Output Ports" translate="no">​</a></h2>
+<p>Add Table output ports without changing the existing <code>dataset</code> output:</p>
+<ul>
+<li class="">
+<p><code>selectedRows</code></p>
+<ul>
+<li class="">Contract: <code>core.tabular_frame@v1</code></li>
+<li class="">Value: the current table frame filtered to selected rows.</li>
+<li class="">Empty value: ready tabular frame with the same columns and zero rows.</li>
+</ul>
+</li>
+<li class="">
+<p><code>activeRow</code></p>
+<ul>
+<li class="">Contract: <code>core.value.json@v1</code></li>
+<li class="">Value: the active row object, or <code>null</code> when there is no active row.</li>
+</ul>
+</li>
+<li class="">
+<p><code>activeCell</code></p>
+<ul>
+<li class="">Contract: <code>core.value.json@v1</code></li>
+<li class="">Value: <code>{ rowKey?, rowIndex, columnKey, value, row }</code>, or <code>null</code>.</li>
+</ul>
+</li>
+<li class="">
+<p><code>activeCellValue</code></p>
+<ul>
+<li class="">Contract: <code>core.value.json@v1</code></li>
+<li class="">Value: the selected cell value, or <code>null</code>.</li>
+<li class="">Use JSON first. Do not add dynamic scalar output contracts in this implementation slice.</li>
+</ul>
+</li>
+</ul>
+<p>These outputs are passive. They are resolved from <code>props</code>, <code>resolvedInputs</code>, <code>runtimeState</code>, and the
+runtime data store like the existing <code>dataset</code> output.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="table-props">Table Props<a href="#table-props" class="hash-link" aria-label="Direct link to Table Props" title="Direct link to Table Props" translate="no">​</a></h2>
+<p>Add durable authoring props for selection behavior:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">TableWidgetSelectionProps</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  selectionMode</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;none&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;single-row&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;multi-row&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;cell&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  selectionKeyFields</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  publishSelectionOutputs</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">boolean</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Default behavior should preserve today:</p>
+<ul>
+<li class=""><code>selectionMode</code>: <code>&quot;none&quot;</code></li>
+<li class=""><code>selectionKeyFields</code>: <code>[]</code></li>
+<li class=""><code>publishSelectionOutputs</code>: <code>true</code> once selection mode is not <code>&quot;none&quot;</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item">
+<p><input type="checkbox" disabled="" checked=""> <!-- -->Add table selection model helpers.</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define normalized selection props in <code>src/widgets/core/table/tableModel.ts</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define runtime-state normalization helpers for <code>interaction.selection</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add helpers that resolve the current canonical table frame once and derive selected rows,
+active row, active cell, and active cell value from it.</li>
+</ul>
+</li>
+<li class="task-list-item">
+<p><input type="checkbox" disabled="" checked=""> <!-- -->Extend Table widget IO.</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep the existing <code>dataset</code> output unchanged.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add <code>selectedRows</code>, <code>activeRow</code>, <code>activeCell</code>, and <code>activeCellValue</code> outputs in
+<code>src/widgets/core/table/definition.ts</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Use <code>core.tabular_frame@v1</code> for selected rows and <code>core.value.json@v1</code> for object/scalar
+interaction outputs.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>registryContract.io.outputContracts</code>, <code>ioNotes</code>, and capabilities so backend-synced
+widget metadata advertises these outputs.</li>
+</ul>
+</li>
+<li class="task-list-item">
+<p><input type="checkbox" disabled="" checked=""> <!-- -->Wire table-renderer interaction capture.</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Extend <code>TableFrameView</code> props with selection configuration and an interaction callback.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Configure the current table renderer for single-row and multi-row selection modes.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Configure cell click/focus handling for cell mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a stable <code>getRowId</code> when selection keys are available.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Publish compact selection updates through <code>onRuntimeStateChange</code>.</li>
+</ul>
+</li>
+<li class="task-list-item">
+<p><input type="checkbox" disabled="" checked=""> <!-- -->Preserve source and formatting semantics.</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure selection does not change <code>manualRows</code>, upstream rows, table columns, filters,
+formatting, or conditional styles.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure quick filter, column filters, sorting, and pagination affect what the user can
+select, while output resolution still derives against the canonical current table frame.</li>
+</ul>
+</li>
+<li class="task-list-item">
+<p><input type="checkbox" disabled="" checked=""> <!-- -->Add settings controls.</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a Selection section in <code>TableWidgetSettings</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Include controls for selection mode and row key fields.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Source row key field options from the resolved table schema.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add concise <code>(i)</code> help text for unstable row-index fallback.</li>
+</ul>
+</li>
+<li class="task-list-item">
+<p><input type="checkbox" disabled="" checked=""> <!-- -->Add tests.</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add model tests for selection normalization and output derivation.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add definition tests for new output ids and contracts.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add component tests for single row, multi row, and active cell runtime-state publication.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a regression test that the existing <code>dataset</code> output remains unchanged.</li>
+</ul>
+</li>
+<li class="task-list-item">
+<p><input type="checkbox" disabled="" checked=""> <!-- -->Update documentation.</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>src/widgets/core/table/README.md</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>src/widgets/core/table/USAGE_GUIDANCE.md</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Mention that selection outputs are per-user runtime interaction outputs and not
+backend-owned data.</li>
+</ul>
+</li>
+<li class="task-list-item">
+<p><input type="checkbox" disabled="" checked=""> <!-- -->Verify.</p>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Run <code>npm run check</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Run the focused table tests.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Confirm no registry contract snapshot files exist to update.</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-contract-impact">Backend Contract Impact<a href="#backend-contract-impact" class="hash-link" aria-label="Direct link to Backend Contract Impact" title="Direct link to Backend Contract Impact" translate="no">​</a></h2>
+<p>This changes the frontend widget registry contract because the Table widget will advertise new IO
+outputs and updated usage guidance.</p>
+<p>It does not require a backend execution endpoint. Selection is derived locally from already
+materialized table data and per-user widget runtime state.</p>
+<p>Backend-facing follow-up may be needed only if the backend validates or stores synced widget
+registry contracts with fixed output metadata.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<p>Positive:</p>
+<ul>
+<li class="">Enables detail views, charts, AppComponents, and prompts that react to table selection.</li>
+<li class="">Keeps the existing full dataset output stable.</li>
+<li class="">Uses existing runtime-state and widget-output resolution infrastructure.</li>
+<li class="">Avoids treating UI selection as persisted authoring data.</li>
+</ul>
+<p>Tradeoffs:</p>
+<ul>
+<li class="">Row-index fallback can become unstable after refresh, sort, or filter changes.</li>
+<li class="">Multi-row selected output can be large if users select many rows.</li>
+<li class="">Passive downstream widgets can consume the selection immediately, but executable downstream
+widgets will not automatically re-run unless a separate graph-execution trigger is added later.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="deferred-work">Deferred Work<a href="#deferred-work" class="hash-link" aria-label="Direct link to Deferred Work" title="Direct link to Deferred Work" translate="no">​</a></h2>
+<ul>
+<li class="">Dynamic scalar output contracts for <code>activeCellValue</code>.</li>
+<li class="">A generic interaction-output contract shared by other widgets.</li>
+<li class="">Cross-widget execution triggers caused by interaction-state changes.</li>
+<li class="">Keyboard range selection and pinned selection summaries.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adrs/widgets/adr-001-table-selection-outputs.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#runtime-state-contract" class="table-of-contents__link toc-highlight">Runtime State Contract</a></li><li><a href="#selection-identity" class="table-of-contents__link toc-highlight">Selection Identity</a></li><li><a href="#output-ports" class="table-of-contents__link toc-highlight">Output Ports</a></li><li><a href="#table-props" class="table-of-contents__link toc-highlight">Table Props</a></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li><li><a href="#backend-contract-impact" class="table-of-contents__link toc-highlight">Backend Contract Impact</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a></li><li><a href="#deferred-work" class="table-of-contents__link toc-highlight">Deferred Work</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

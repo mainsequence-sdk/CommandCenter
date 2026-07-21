@@ -1,0 +1,15 @@
+{
+  "id": "implementation_tasks/adapter-from-api-debug-direct/task-001-backend-direct-mode-persistence",
+  "title": "Task 001: Backend Direct Mode Persistence Contract",
+  "description": "Objective",
+  "source": "@site/../docs/implementation_tasks/adapter-from-api-debug-direct/task-001-backend-direct-mode-persistence.md",
+  "sourceDirName": "implementation_tasks/adapter-from-api-debug-direct",
+  "slug": "/implementation_tasks/adapter-from-api-debug-direct/task-001-backend-direct-mode-persistence",
+  "permalink": "/docs/implementation_tasks/adapter-from-api-debug-direct/task-001-backend-direct-mode-persistence",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/implementation_tasks/adapter-from-api-debug-direct/task-001-backend-direct-mode-persistence.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

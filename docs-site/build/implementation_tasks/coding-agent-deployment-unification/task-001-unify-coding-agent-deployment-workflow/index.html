@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Task 001: Unify Coding Agent Deployment Workflow | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Task 001: Unify Coding Agent Deployment Workflow | Main Sequence Command Center"><meta data-rh="true" name="description" content="Goal"><meta data-rh="true" property="og:description" content="Goal"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Task 001: Unify Coding Agent Deployment Workflow</h1></header>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="goal">Goal<a href="#goal" class="hash-link" aria-label="Direct link to Goal" title="Direct link to Goal" translate="no">​</a></h2>
+<p>Unify the Astro and project-coder deployment configurators into one shared coding-agent deployment
+workflow.</p>
+<p>After this refactor, the only differences between the two flows should be configuration:</p>
+<ul>
+<li class="">agent type</li>
+<li class="">deployment scope</li>
+<li class="">resource fields</li>
+<li class="">optional extra panels</li>
+<li class="">post-submit polling strategy</li>
+<li class="">copy and labels</li>
+</ul>
+<p>The load, hydrate, validate, confirm, and submit workflow should be shared.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="problem-statement">Problem Statement<a href="#problem-statement" class="hash-link" aria-label="Direct link to Problem Statement" title="Direct link to Problem Statement" translate="no">​</a></h2>
+<p>Both deployment flows submit to the same backend deploy endpoint:</p>
+<ul>
+<li class=""><code>POST /orm/api/agents/v1/coding-agent-services/deploy/</code></li>
+</ul>
+<p>But the frontend still owns two different orchestration paths:</p>
+<ul>
+<li class=""><code>ProjectAgentConfigurator.tsx</code></li>
+<li class=""><code>AstroAgentDeploymentConfigurator.tsx</code></li>
+</ul>
+<p>That causes divergence in:</p>
+<ul>
+<li class="">current configuration source of truth</li>
+<li class="">model-catalog loading</li>
+<li class="">picker rendering</li>
+<li class="">validation rules</li>
+<li class="">confirmation behavior</li>
+<li class="">payload construction</li>
+<li class="">post-submit lifecycle</li>
+</ul>
+<p>The current structure is not DRY. Shared transport exists, but shared workflow does not.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="current-entry-points">Current Entry Points<a href="#current-entry-points" class="hash-link" aria-label="Direct link to Current Entry Points" title="Direct link to Current Entry Points" translate="no">​</a></h2>
+<ul>
+<li class=""><code>extensions/main_sequence_ai/features/project-agents/ProjectAgentConfigurator.tsx</code></li>
+<li class=""><code>extensions/main_sequence_ai/features/project-agents/AstroAgentDeploymentConfigurator.tsx</code></li>
+<li class=""><code>extensions/main_sequence_ai/features/project-agents/AgentDeploymentConfigurationForm.tsx</code></li>
+<li class=""><code>extensions/main_sequence_ai/components/RunConfigFields.tsx</code></li>
+<li class=""><code>extensions/main_sequence_ai/runtime/run-config-selection.ts</code></li>
+<li class=""><code>extensions/main_sequence_ai/runtime/available-models-api.ts</code></li>
+<li class=""><code>extensions/main_sequence/common/api/index.ts</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="shared-backend-contract">Shared Backend Contract<a href="#shared-backend-contract" class="hash-link" aria-label="Direct link to Shared Backend Contract" title="Direct link to Shared Backend Contract" translate="no">​</a></h2>
+<p>Both flows ultimately call:</p>
+<ul>
+<li class=""><code>deployCodingAgentService(...)</code></li>
+<li class=""><code>POST /orm/api/agents/v1/coding-agent-services/deploy/</code></li>
+</ul>
+<p>Current specializations are:</p>
+<ul>
+<li class="">project coder uses <code>agent_type: &quot;project-executor&quot;</code> and <code>scope.kind: &quot;project&quot;</code></li>
+<li class="">Astro uses <code>agent_type: &quot;astro-orchestrator&quot;</code> and <code>scope.kind: &quot;user&quot;</code></li>
+</ul>
+<p>This confirms that the frontend should share one workflow and vary only by configuration.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="side-by-side-workflow">Side-By-Side Workflow<a href="#side-by-side-workflow" class="hash-link" aria-label="Direct link to Side-By-Side Workflow" title="Direct link to Side-By-Side Workflow" translate="no">​</a></h2>
+<table><thead><tr><th>Step</th><th>Project Coder Today</th><th>Astro Today</th><th>Unified Target</th></tr></thead><tbody><tr><td>Open configurator</td><td>Frontend-only modal open. No backend endpoint.</td><td>Frontend-only modal open. No backend endpoint.</td><td>Frontend-only modal open. No backend endpoint.</td></tr><tr><td>Load current service</td><td><code>GET /orm/api/agents/v1/project-executor-agent-services/by-project/{project_uid}/</code></td><td><code>GET /orm/api/agents/v1/coding-agent-services/?agent_type=astro-orchestrator&amp;scope_kind=user&amp;user_uid=&lt;user_uid&gt;</code></td><td><code>GET /orm/api/agents/v1/coding-agent-services/</code> for both, with config-driven filters. Project coder should use <code>?agent_type=project-executor&amp;scope_kind=project&amp;project_uid=&lt;project_uid&gt;</code>. Astro should use <code>?agent_type=astro-orchestrator&amp;scope_kind=user&amp;user_uid=&lt;user_uid&gt;</code>.</td></tr><tr><td>Load defaults fallback</td><td>No backend endpoint. Project flow does not read global defaults today.</td><td><code>GET /orm/api/agents/v1/coding-agent-deployment-defaults/</code> is read eagerly today.</td><td>Read <code>GET /orm/api/agents/v1/coding-agent-deployment-defaults/</code> only if the current-service read returns no service to hydrate from. Defaults are fallback-only, not a first read.</td></tr><tr><td>Load authoritative current LLM config</td><td>Today project coder does an extra <code>GET /orm/api/agents/v1/agents/{agent_uid}/</code> read when a linked agent exists.</td><td>Astro already uses <code>llm_provider</code>, <code>llm_model</code>, and <code>llm_thinking</code> from the service serializer. No extra endpoint.</td><td>No extra backend endpoint. Treat the current-service serializer from <code>GET /orm/api/agents/v1/coding-agent-services/?...</code> as the authoritative source for <code>llm_provider</code>, <code>llm_model</code>, <code>llm_thinking</code>, and deployed resource values. If no service exists, hydrate from <code>GET /orm/api/agents/v1/coding-agent-deployment-defaults/</code> when defaults are enabled.</td></tr><tr><td>Load model catalog</td><td><code>GET /api/chat/get_available_models?created_by_user_uid=&lt;user_uid&gt;</code> via shared available-run-config API</td><td>Must use the same <code>GET /api/chat/get_available_models?created_by_user_uid=&lt;user_uid&gt;</code> via shared available-run-config API</td><td>Always use <code>GET /api/chat/get_available_models?created_by_user_uid=&lt;user_uid&gt;</code> via the shared available-run-config API, regardless of whether a current service exists. If the model-catalog request errors, stay in the same unified workflow and show one shared error/gated state instead of branching into a separate implementation path.</td></tr><tr><td>Resolve provider/model/thinking</td><td>Frontend-only selection resolution after service and model-catalog reads. No backend endpoint.</td><td>Frontend-only state hydration after service/defaults and model-catalog reads. No backend endpoint.</td><td>Frontend-only shared <code>resolveRunConfigSelection(...)</code> using the current-service serializer values first and defaults only when no service exists. No backend endpoint.</td></tr><tr><td>Render LLM controls</td><td>Frontend-only <code>RunConfigFields</code> render. No backend endpoint.</td><td>Frontend-owned separate LLM render path. No backend endpoint.</td><td>Frontend-only shared <code>RunConfigFields</code> render. No backend endpoint.</td></tr><tr><td>Render resource controls</td><td>Frontend-only resource form render after service reads. No backend endpoint.</td><td>Frontend-only resource form render after service/defaults reads. No backend endpoint.</td><td>Frontend-only shared resource section. No backend endpoint.</td></tr><tr><td>Validation</td><td>Frontend-only validation before deploy confirmation. No backend endpoint.</td><td>Frontend-only validation before direct submit. No backend endpoint.</td><td>Frontend-only shared validation pipeline. No backend endpoint.</td></tr><tr><td>Confirmation</td><td>Frontend-only <code>ActionConfirmationDialog</code> before submit. No backend endpoint.</td><td>No confirmation step today. No backend endpoint.</td><td>Frontend-only shared confirmation step. No backend endpoint.</td></tr><tr><td>Build payload</td><td>Frontend-only payload assembly for <code>POST /orm/api/agents/v1/coding-agent-services/deploy/</code></td><td>Frontend-only payload assembly for <code>POST /orm/api/agents/v1/coding-agent-services/deploy/</code></td><td>Frontend-only shared payload builder targeting <code>POST /orm/api/agents/v1/coding-agent-services/deploy/</code>.</td></tr><tr><td>Submit</td><td><code>POST /orm/api/agents/v1/coding-agent-services/deploy/</code> with <code>agent_type=project-executor</code>, project scope, resolved LLM values, resources, and <code>automatic_deployment</code></td><td><code>POST /orm/api/agents/v1/coding-agent-services/deploy/</code> with <code>agent_type=astro-orchestrator</code>, user scope, resolved LLM values, and resources</td><td>Same shared submit hook to <code>POST /orm/api/agents/v1/coding-agent-services/deploy/</code>, with differences only in config-driven scope and supported fields.</td></tr><tr><td>Post-submit lifecycle</td><td>Frontend stores result and polls <code>GET /orm/api/agents/v1/project-executor-automatic-deployment-runs/?ordering=-created_at&amp;limit=20</code> for progress</td><td>Frontend stores result and refreshes current service, currently without the same deployment-run polling endpoint</td><td>Shared lifecycle. Config decides whether to poll <code>GET /orm/api/agents/v1/project-executor-automatic-deployment-runs/?ordering=-created_at&amp;limit=20</code>, refetch <code>GET /orm/api/agents/v1/coding-agent-services/...</code>, or use another strategy.</td></tr></tbody></table>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="design-principle">Design Principle<a href="#design-principle" class="hash-link" aria-label="Direct link to Design Principle" title="Direct link to Design Principle" translate="no">​</a></h2>
+<p>The correct abstraction is not:</p>
+<ul>
+<li class="">one Astro deployment flow</li>
+<li class="">one project-coder deployment flow</li>
+</ul>
+<p>The correct abstraction is:</p>
+<ul>
+<li class="">one coding-agent deployment workflow</li>
+<li class="">multiple deployment configurations</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="target-architecture">Target Architecture<a href="#target-architecture" class="hash-link" aria-label="Direct link to Target Architecture" title="Direct link to Target Architecture" translate="no">​</a></h2>
+<p>Introduce a shared deployment feature made of three layers.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-shared-controller">1. Shared Controller<a href="#1-shared-controller" class="hash-link" aria-label="Direct link to 1. Shared Controller" title="Direct link to 1. Shared Controller" translate="no">​</a></h3>
+<p>Create a shared controller hook, for example:</p>
+<ul>
+<li class=""><code>useCodingAgentDeploymentController(config)</code></li>
+</ul>
+<p>It should own:</p>
+<ul>
+<li class="">current service loading</li>
+<li class="">conditional defaults loading only when current service is missing</li>
+<li class="">model-catalog loading through <code>GET /api/chat/get_available_models?created_by_user_uid=&lt;user_uid&gt;</code> in all cases</li>
+<li class="">run-config resolution</li>
+<li class="">form hydration</li>
+<li class="">validation</li>
+<li class="">confirmation state</li>
+<li class="">deploy mutation</li>
+<li class="">post-submit refresh or polling</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-shared-presentation">2. Shared Presentation<a href="#2-shared-presentation" class="hash-link" aria-label="Direct link to 2. Shared Presentation" title="Direct link to 2. Shared Presentation" translate="no">​</a></h3>
+<p>Keep one presentational shell, with shared sections:</p>
+<ul>
+<li class="">deployment status</li>
+<li class="">LLM section</li>
+<li class="">resource section</li>
+<li class="">optional automation section</li>
+<li class="">optional warning panels</li>
+<li class="">confirmation dialog</li>
+<li class="">result panel</li>
+</ul>
+<p>The LLM section must always use <code>RunConfigFields</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-configuration-layer">3. Configuration Layer<a href="#3-configuration-layer" class="hash-link" aria-label="Direct link to 3. Configuration Layer" title="Direct link to 3. Configuration Layer" translate="no">​</a></h3>
+<p>Each deployment type supplies a configuration object only.</p>
+<p>Expected config shape:</p>
+<ul>
+<li class=""><code>agentType</code></li>
+<li class=""><code>scopeKind</code></li>
+<li class=""><code>loadCurrentService</code></li>
+<li class=""><code>loadDefaultsFallback</code></li>
+<li class=""><code>resourceFieldSchema</code></li>
+<li class=""><code>showGpuFields</code></li>
+<li class=""><code>showAutomationSection</code></li>
+<li class=""><code>showImageDriftPanel</code></li>
+<li class=""><code>confirmationCopy</code></li>
+<li class=""><code>postSubmitStrategy</code></li>
+<li class=""><code>labels</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="recommended-refactor-steps">Recommended Refactor Steps<a href="#recommended-refactor-steps" class="hash-link" aria-label="Direct link to Recommended Refactor Steps" title="Direct link to Recommended Refactor Steps" translate="no">​</a></h2>
+<ol>
+<li class="">
+<p>Extract shared read models.
+Normalize current-service, defaults, and deploy-result inputs into one internal shape.</p>
+</li>
+<li class="">
+<p>Standardize current-service reads on the generic coding-agent-services endpoint.
+Project coder should stop using a project-specific read helper and move to the same filtered
+<code>coding-agent-services/</code> query shape already used by Astro.</p>
+</li>
+<li class="">
+<p>Make defaults a fallback-only branch.
+After the shared current-service read:</p>
+<ul>
+<li class="">if service exists, do not query <code>GET /orm/api/agents/v1/coding-agent-deployment-defaults/</code></li>
+<li class="">if service does not exist, query <code>GET /orm/api/agents/v1/coding-agent-deployment-defaults/</code>
+only when that deployment type allows defaults-based hydration</li>
+</ul>
+</li>
+<li class="">
+<p>Extract shared LLM selection logic.
+Move all provider/model/thinking hydration and fallback rules behind one controller path.</p>
+</li>
+<li class="">
+<p>Standardize model-catalog loading.
+Always call <code>GET /api/chat/get_available_models?created_by_user_uid=&lt;user_uid&gt;</code> via the
+shared available-run-config API, even when a current service already exists.
+If the catalog request fails, keep the user inside the same shared configurator with one shared
+error state and one shared deploy gating rule.</p>
+</li>
+<li class="">
+<p>Standardize current-config source of truth.
+When a current service exists, use the fields already returned by
+<code>GET /orm/api/agents/v1/coding-agent-services/?...</code> as the source of truth for
+<code>llm_provider</code>, <code>llm_model</code>, <code>llm_thinking</code>, and deployed resource values.
+Use defaults only when no current service exists and configuration allows defaults-based hydration.</p>
+</li>
+<li class="">
+<p>Standardize validation.
+Both flows should use the same validation contract for:</p>
+<ul>
+<li class="">model availability</li>
+<li class="">model usability</li>
+<li class="">required resource fields</li>
+<li class="">optional sections</li>
+</ul>
+</li>
+<li class="">
+<p>Standardize submit.
+Both flows should pass through one confirmation step and one payload builder.</p>
+</li>
+<li class="">
+<p>Move specialized behavior into config.
+Project-only and Astro-only concerns should be opt-in panels or field groups, not separate workflow codepaths.</p>
+</li>
+<li class="">
+<p>Collapse the two top-level configurators.
+Keep thin wrappers only if needed for routing or modal integration.
+They should provide config and nothing more.</p>
+</li>
+</ol>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="what-should-remain-different">What Should Remain Different<a href="#what-should-remain-different" class="hash-link" aria-label="Direct link to What Should Remain Different" title="Direct link to What Should Remain Different" translate="no">​</a></h2>
+<p>These are valid configuration-level differences:</p>
+<ul>
+<li class=""><code>project-executor</code> vs <code>astro-orchestrator</code></li>
+<li class="">project scope vs user scope</li>
+<li class="">project automation toggle vs none</li>
+<li class="">image-drift warnings vs none</li>
+<li class="">GPU fields enabled vs disabled</li>
+<li class="">deployment-state messaging</li>
+<li class="">post-submit polling strategy</li>
+</ul>
+<p>These are not valid differences:</p>
+<ul>
+<li class="">separate picker logic</li>
+<li class="">separate hydration rules</li>
+<li class="">separate validation logic</li>
+<li class="">separate confirmation behavior</li>
+<li class="">separate payload assembly rules for shared fields</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="acceptance-criteria">Acceptance Criteria<a href="#acceptance-criteria" class="hash-link" aria-label="Direct link to Acceptance Criteria" title="Direct link to Acceptance Criteria" translate="no">​</a></h2>
+<ul>
+<li class="">Both Astro and project coder use the same shared LLM picker component.</li>
+<li class="">Both Astro and project coder use the same selection resolution logic.</li>
+<li class="">Both Astro and project coder use the same confirmation workflow.</li>
+<li class="">Both Astro and project coder use the same deploy mutation path.</li>
+<li class="">The only remaining differences are config-driven.</li>
+<li class="">Removing one deployment type should not require editing the shared workflow internals.</li>
+<li class="">Adding a third coding-agent deployment type should require only a new config object and optional specialized panels.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="migration-notes">Migration Notes<a href="#migration-notes" class="hash-link" aria-label="Direct link to Migration Notes" title="Direct link to Migration Notes" translate="no">​</a></h2>
+<ul>
+<li class="">Preserve existing API helpers during the refactor, then simplify thin wrappers after the shared controller is in place.</li>
+<li class="">Avoid changing backend contracts during this pass.</li>
+<li class="">Prefer introducing the shared controller first, then migrating one surface at a time.</li>
+<li class="">Use the project-coder flow as the baseline because it already contains the richer validation and confirmation path.</li>
+<li class="">Do not eagerly query <code>GET /orm/api/agents/v1/coding-agent-deployment-defaults/</code> in the shared flow.
+Defaults should only be fetched when the current-service query returns no deployable service.</li>
+<li class="">Always query <code>GET /api/chat/get_available_models?created_by_user_uid=&lt;user_uid&gt;</code> through the
+shared available-run-config API.</li>
+<li class="">Model-catalog failure should not create a separate Astro or project-only fallback workflow.
+It should produce one shared error state in the unified configurator.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="recommended-implementation-order">Recommended Implementation Order<a href="#recommended-implementation-order" class="hash-link" aria-label="Direct link to Recommended Implementation Order" title="Direct link to Recommended Implementation Order" translate="no">​</a></h2>
+<ol>
+<li class="">Build the shared controller and shared confirmation flow.</li>
+<li class="">Move project-coder current-service loading onto filtered <code>coding-agent-services/</code>.</li>
+<li class="">Implement conditional defaults loading only after the unified current-service read returns no service.</li>
+<li class="">Standardize model-catalog loading on <code>GET /api/chat/get_available_models?created_by_user_uid=&lt;user_uid&gt;</code> via the shared available-run-config API for both flows.</li>
+<li class="">Migrate project coder to the controller without changing behavior beyond the unified service read.</li>
+<li class="">Migrate Astro to the same controller and shared <code>RunConfigFields</code>.</li>
+<li class="">Delete duplicated Astro workflow logic.</li>
+<li class="">Reduce any leftover specialized wrappers to configuration-only adapters.</li>
+</ol></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#goal" class="table-of-contents__link toc-highlight">Goal</a></li><li><a href="#problem-statement" class="table-of-contents__link toc-highlight">Problem Statement</a></li><li><a href="#current-entry-points" class="table-of-contents__link toc-highlight">Current Entry Points</a></li><li><a href="#shared-backend-contract" class="table-of-contents__link toc-highlight">Shared Backend Contract</a></li><li><a href="#side-by-side-workflow" class="table-of-contents__link toc-highlight">Side-By-Side Workflow</a></li><li><a href="#design-principle" class="table-of-contents__link toc-highlight">Design Principle</a></li><li><a href="#target-architecture" class="table-of-contents__link toc-highlight">Target Architecture</a><ul><li><a href="#1-shared-controller" class="table-of-contents__link toc-highlight">1. Shared Controller</a></li><li><a href="#2-shared-presentation" class="table-of-contents__link toc-highlight">2. Shared Presentation</a></li><li><a href="#3-configuration-layer" class="table-of-contents__link toc-highlight">3. Configuration Layer</a></li></ul></li><li><a href="#recommended-refactor-steps" class="table-of-contents__link toc-highlight">Recommended Refactor Steps</a></li><li><a href="#what-should-remain-different" class="table-of-contents__link toc-highlight">What Should Remain Different</a></li><li><a href="#acceptance-criteria" class="table-of-contents__link toc-highlight">Acceptance Criteria</a></li><li><a href="#migration-notes" class="table-of-contents__link toc-highlight">Migration Notes</a></li><li><a href="#recommended-implementation-order" class="table-of-contents__link toc-highlight">Recommended Implementation Order</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

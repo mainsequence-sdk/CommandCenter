@@ -1,7 +1,7 @@
 {
   "id": "adr/adr-index",
   "title": "Architecture Decision Records",
-  "description": "This section is the decision log for architectural choices that affect more than one file or one",
+  "description": "This section is the architectural decision log for the repository, split by application ownership.",
   "source": "@site/../docs/adr/README.md",
   "sourceDirName": "adr",
   "slug": "/adr",
@@ -23,6 +23,6 @@
   },
   "next": {
     "title": "ADR: Shared Workspace Content vs Per-User View State",
-    "permalink": "/docs/adr/adr-shared-workspace-state"
+    "permalink": "/docs/adr/command_center/adr-shared-workspace-state"
   }
 }

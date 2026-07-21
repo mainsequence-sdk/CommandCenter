@@ -1,8 +1,29 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowUpRight, Boxes, FileText, Loader2, Plus, Rocket, Trash2 } from "lucide-react";
+import { createPortal } from "react-dom";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Bot,
+  CheckCircle2,
+  ChevronDown,
+  FileText,
+  Globe,
+  History,
+  Info,
+  LayoutDashboard,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Rocket,
+  Save,
+  Server,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 
+import { AdminMenu } from "@/app/layout/AdminMenu";
 import { useAuthStore } from "@/auth/auth-store";
 import { ActionConfirmationDialog } from "@/components/ui/action-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   RbacAssignmentMatrix,
   type RbacAssignableTeam,
@@ -19,25 +41,34 @@ import {
 } from "@/components/ui/rbac-assignment-matrix";
 import { useToast } from "@/components/ui/toaster";
 import { listTeams } from "@/features/teams/api";
+import { useTheme } from "@/themes/ThemeProvider";
 
 import {
   bulkDeleteResourceReleases,
-  getOrCreateProjectExecutorAgentService,
   createResourceRelease,
+  deployResourceReleaseCurrentVersion,
+  deleteResourceRelease,
+  fetchResourceRelease,
+  getOrCreateProjectExecutorAgentService,
   type CreateProjectExecutorAgentServiceInput,
   type CreateResourceReleaseInput,
   fetchAvailableGpuTypes,
   fetchObjectCanEdit,
   fetchObjectCanView,
   fetchProjectImages,
+  fetchResourceReleaseExchangeLaunch,
   fetchResourceReleaseSummary,
+  fetchStaticSiteCapabilities,
   formatMainSequenceError,
+  listDeploymentRuns,
   listPermissionCandidateUsers,
-  listProjectJobs,
   listProjectResources,
   listResourceReleases,
+  MainSequenceApiError,
   mainSequenceRegistryPageSize,
+  requireStaticSiteExchangeLaunchUrl,
   updateShareableObjectPermission,
+  type DeploymentRunListRecord,
   type EntitySummaryHeader,
   type PermissionCandidateUserRecord,
   type ProjectImageOption,
@@ -49,10 +80,19 @@ import {
   type ShareableAccessLevel,
   type ShareablePrincipalsResponse,
   type ShareablePrincipalType,
+  type StaticSiteCapabilities,
+  type StaticSiteCreateField,
+  type StaticSiteCreateFieldChoice,
   type SummaryField,
+  updateResourceRelease,
 } from "../../../../common/api";
 import { MainSequenceEntitySummaryCard } from "../../../../common/components/MainSequenceEntitySummaryCard";
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
+import {
+  mergePermissionEntityIds,
+  normalizePermissionEntityId,
+  resolvePermissionEntityId,
+} from "../../../../common/components/permissionEntityId";
 import { toProjectImagePickerOption } from "../../../../common/components/projectImagePickerOptions";
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
@@ -66,6 +106,12 @@ import { MainSequenceSelectionCheckbox } from "../../../../common/components/Mai
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
 import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelection";
 import { MainSequenceResourceReleaseApiTestTab } from "./MainSequenceResourceReleaseApiTestTab";
+import {
+  buildStaticSiteEmbedInitializeMessage,
+  readStaticSiteEmbedHandshake,
+  resolveStaticSiteEmbedOrigin,
+  type StaticSiteEmbedThemeMode,
+} from "./staticSiteEmbedBridge";
 
 const projectResourceReleaseFetchLimit = 500;
 const releaseKindToProjectResourceType = {
@@ -73,6 +119,7 @@ const releaseKindToProjectResourceType = {
   agent: "agent",
   fastapi: "fastapi",
 } as const;
+const staticSiteReleaseKind = "static_site";
 const emptyPermissionAssignments: RbacAssignmentValue = {
   view: { userIds: [], teamIds: [] },
   edit: { userIds: [], teamIds: [] },
@@ -80,13 +127,37 @@ const emptyPermissionAssignments: RbacAssignmentValue = {
 const resourceReleasePermissionsObjectUrl = "resource-release";
 const projectAgentCardResourceType = "project_agent_card";
 
-type ReleaseKind = keyof typeof releaseKindToProjectResourceType;
-type ResourceReleaseDetailTabId = "readme" | "permissions" | "test-api";
+type RuntimeReleaseKind = keyof typeof releaseKindToProjectResourceType;
+type ReleaseKind = RuntimeReleaseKind | typeof staticSiteReleaseKind;
+type ResourceReleaseDetailTabId = "readme" | "deployment" | "permissions" | "test-api";
 type CreateReleaseIntent = "project-agent";
-type CreateReleaseMode = "default" | "project-agent";
+type CreateReleaseMode = "default" | "project-agent" | "static-site";
+type StaticSiteCreateFormState = {
+  automaticDeployment: boolean;
+  rootDirectory: string;
+  framework: string;
+  nodeVersion: string;
+  outputDirectory: string;
+  routingMode: string;
+  spaEntryFile: string;
+  buildEnvironmentText: string;
+};
+type EffectiveStaticSiteCreateField = StaticSiteCreateField & {
+  enabled: boolean;
+  effectiveDefault: unknown;
+  effectiveChoices?: StaticSiteCreateFieldChoice[];
+};
+type StaticSiteViewerState =
+  | { status: "loading" }
+  | { status: "ready"; launchUrl: string }
+  | { status: "error"; title: string; detail: string };
 
 const baseResourceReleaseDetailTabs = [
   { id: "readme", label: "README" },
+  { id: "deployment", label: "Deployment" },
+  { id: "permissions", label: "Permissions" },
+] as const;
+const staticSiteResourceReleaseDetailTabs = [
   { id: "permissions", label: "Permissions" },
 ] as const;
 const gpuCountOptions: PickerOption[] = [
@@ -125,6 +196,287 @@ function createDefaultReleaseComputeState() {
   };
 }
 
+function createDefaultStaticSiteFormState(): StaticSiteCreateFormState {
+  return {
+    automaticDeployment: false,
+    rootDirectory: "",
+    framework: "",
+    nodeVersion: "",
+    outputDirectory: "",
+    routingMode: "",
+    spaEntryFile: "",
+    buildEnvironmentText: "",
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readFormString(value: unknown) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value);
+}
+
+function readFormBoolean(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function formatStaticSiteBuildEnvironment(value: unknown) {
+  if (!isRecord(value)) {
+    return "";
+  }
+
+  return Object.entries(value)
+    .map(([key, entryValue]) => `${key}=${readFormString(entryValue)}`)
+    .join("\n");
+}
+
+function parseStaticSiteBuildEnvironmentText(value: string) {
+  const environment: Record<string, string> = {};
+
+  for (const line of value.split("\n")) {
+    const trimmedLine = line.trim();
+
+    if (!trimmedLine) {
+      continue;
+    }
+
+    const separatorIndex = trimmedLine.indexOf("=");
+
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = trimmedLine.slice(0, separatorIndex).trim();
+
+    if (!key) {
+      continue;
+    }
+
+    environment[key] = trimmedLine.slice(separatorIndex + 1);
+  }
+
+  return environment;
+}
+
+function getStaticSiteCreateFields(
+  capabilities: StaticSiteCapabilities | null | undefined,
+): StaticSiteCreateField[] {
+  return Array.isArray(capabilities?.creation?.fields) ? capabilities.creation.fields : [];
+}
+
+function getStaticSiteCreateField(
+  fields: StaticSiteCreateField[],
+  name: string,
+) {
+  return fields.find((field) => field.name === name);
+}
+
+function getStaticSiteCurrentFieldValues(
+  formState: StaticSiteCreateFormState,
+  projectUid: string,
+  siteName: string,
+) {
+  return {
+    release_kind: "static_site",
+    project_uid: projectUid,
+    name: siteName,
+    automatic_deployment: formState.automaticDeployment,
+    root_directory: formState.rootDirectory,
+    framework: formState.framework,
+    node_version: formState.nodeVersion || null,
+    output_directory: formState.outputDirectory || null,
+    routing_mode: formState.routingMode || null,
+    spa_entry_file: formState.spaEntryFile || null,
+    build_environment: parseStaticSiteBuildEnvironmentText(formState.buildEnvironmentText),
+  };
+}
+
+function staticSiteConditionMatches(
+  conditionWhen: Record<string, string>,
+  values: Record<string, unknown>,
+) {
+  return Object.entries(conditionWhen).every(
+    ([fieldName, expectedValue]) => readFormString(values[fieldName]) === expectedValue,
+  );
+}
+
+function getEffectiveStaticSiteCreateField(
+  field: StaticSiteCreateField | undefined,
+  values: Record<string, unknown>,
+): EffectiveStaticSiteCreateField | null {
+  if (!field) {
+    return null;
+  }
+
+  const matchingCondition = field.conditions?.find((condition) =>
+    staticSiteConditionMatches(condition.when, values),
+  );
+
+  return {
+    ...field,
+    enabled: matchingCondition ? matchingCondition.enabled : true,
+    required: matchingCondition ? matchingCondition.required : field.required,
+    effectiveDefault: matchingCondition ? matchingCondition.default : field.default,
+    effectiveChoices: matchingCondition?.choices ?? field.choices,
+  };
+}
+
+function assignStaticSiteFormStateField(
+  state: StaticSiteCreateFormState,
+  fieldName: string,
+  value: unknown,
+) {
+  if (fieldName === "automatic_deployment") {
+    state.automaticDeployment = readFormBoolean(value, false);
+  } else if (fieldName === "root_directory") {
+    state.rootDirectory = readFormString(value);
+  } else if (fieldName === "framework") {
+    state.framework = readFormString(value);
+  } else if (fieldName === "node_version") {
+    state.nodeVersion = readFormString(value);
+  } else if (fieldName === "output_directory") {
+    state.outputDirectory = readFormString(value);
+  } else if (fieldName === "routing_mode") {
+    state.routingMode = readFormString(value);
+  } else if (fieldName === "spa_entry_file") {
+    state.spaEntryFile = readFormString(value);
+  } else if (fieldName === "build_environment") {
+    state.buildEnvironmentText = formatStaticSiteBuildEnvironment(value);
+  }
+}
+
+function createStaticSiteFormStateFromCapabilities(
+  capabilities: StaticSiteCapabilities | null | undefined,
+  projectUid: string,
+): StaticSiteCreateFormState {
+  const state = createDefaultStaticSiteFormState();
+  const fields = getStaticSiteCreateFields(capabilities);
+
+  for (const field of fields) {
+    assignStaticSiteFormStateField(state, field.name, field.default);
+  }
+
+  return applyStaticSiteDependentDefaults(state, fields, projectUid, readFormString(
+    getStaticSiteCreateField(fields, "name")?.default,
+  ), "framework");
+}
+
+function applyStaticSiteDependentDefaults(
+  current: StaticSiteCreateFormState,
+  fields: StaticSiteCreateField[],
+  projectUid: string,
+  siteName: string,
+  changedField: "framework" | "routing_mode",
+): StaticSiteCreateFormState {
+  const next = { ...current };
+
+  if (changedField === "framework") {
+    for (const fieldName of [
+      "node_version",
+      "output_directory",
+      "routing_mode",
+    ]) {
+      const field = getEffectiveStaticSiteCreateField(
+        getStaticSiteCreateField(fields, fieldName),
+        getStaticSiteCurrentFieldValues(next, projectUid, siteName),
+      );
+
+      if (field) {
+        assignStaticSiteFormStateField(next, fieldName, field.effectiveDefault);
+      }
+    }
+  }
+
+  const spaEntryFileField = getEffectiveStaticSiteCreateField(
+    getStaticSiteCreateField(fields, "spa_entry_file"),
+    getStaticSiteCurrentFieldValues(next, projectUid, siteName),
+  );
+
+  if (spaEntryFileField) {
+    assignStaticSiteFormStateField(next, "spa_entry_file", spaEntryFileField.effectiveDefault);
+  }
+
+  return next;
+}
+
+function staticSiteChoiceOptions(field: EffectiveStaticSiteCreateField | null): PickerOption[] {
+  return (field?.effectiveChoices ?? []).map((choice) => ({
+    value: choice.value,
+    label: choice.label,
+    keywords: [choice.value, choice.label],
+  }));
+}
+
+function getStaticSiteFormRequestValue(
+  field: EffectiveStaticSiteCreateField,
+  values: Record<string, unknown>,
+) {
+  const value = values[field.name];
+
+  if (field.type === "string_map") {
+    return isRecord(value) ? value : {};
+  }
+
+  if (field.type === "boolean") {
+    return readFormBoolean(value, false);
+  }
+
+  if (value === "" && field.nullable) {
+    return null;
+  }
+
+  return value;
+}
+
+function staticSiteRequiredFieldIsMissing(
+  field: EffectiveStaticSiteCreateField | null,
+  values: Record<string, unknown>,
+) {
+  if (!field?.enabled || !field.required) {
+    return false;
+  }
+
+  const value = getStaticSiteFormRequestValue(field, values);
+
+  return value === null || value === undefined;
+}
+
+function buildStaticSiteCreateRequest(
+  fields: StaticSiteCreateField[],
+  values: Record<string, unknown>,
+): CreateResourceReleaseInput | null {
+  const requestBody: Record<string, unknown> = {};
+
+  for (const field of fields) {
+    const effectiveField = getEffectiveStaticSiteCreateField(field, values);
+
+    if (!effectiveField?.enabled) {
+      continue;
+    }
+
+    requestBody[field.name] = getStaticSiteFormRequestValue(effectiveField, values);
+  }
+
+  if (requestBody.release_kind !== staticSiteReleaseKind) {
+    return null;
+  }
+
+  if (typeof requestBody.project_uid !== "string" || typeof requestBody.name !== "string") {
+    return null;
+  }
+
+  return requestBody as unknown as CreateResourceReleaseInput;
+}
+
 function openCreateReleaseDialog(input: {
   reset: () => void;
   setCreateReleaseKind: (kind: ReleaseKind) => void;
@@ -132,6 +484,9 @@ function openCreateReleaseDialog(input: {
   setCreateDialogOpen: (open: boolean) => void;
   setCreateReleaseMode: (mode: CreateReleaseMode) => void;
   setCreateReleaseResourceTypeOverride: (value: string | null) => void;
+  setCreateAutomaticDeployment: (value: boolean) => void;
+  setStaticSiteFormState: Dispatch<SetStateAction<StaticSiteCreateFormState>>;
+  setStaticSiteName: (value: string) => void;
   releaseKind: ReleaseKind;
   mode?: CreateReleaseMode;
   resourceTypeOverride?: string | null;
@@ -141,7 +496,21 @@ function openCreateReleaseDialog(input: {
   input.setComputeState(createDefaultReleaseComputeState());
   input.setCreateReleaseMode(input.mode ?? "default");
   input.setCreateReleaseResourceTypeOverride(input.resourceTypeOverride ?? null);
+  input.setCreateAutomaticDeployment(false);
+  input.setStaticSiteFormState(createDefaultStaticSiteFormState());
+  input.setStaticSiteName("");
   input.setCreateDialogOpen(true);
+}
+
+function isStaticSiteReleaseKind(releaseKind: string | null | undefined) {
+  return releaseKind === staticSiteReleaseKind;
+}
+
+function isRuntimeReleaseKind(releaseKind: ReleaseKind | null): releaseKind is RuntimeReleaseKind {
+  return Boolean(
+    releaseKind &&
+      Object.prototype.hasOwnProperty.call(releaseKindToProjectResourceType, releaseKind),
+  );
 }
 
 function formatReleaseKind(releaseKind: string) {
@@ -157,7 +526,23 @@ function formatReleaseKind(releaseKind: string) {
     return "Fast API";
   }
 
+  if (isStaticSiteReleaseKind(releaseKind)) {
+    return "Static Site";
+  }
+
   return releaseKind.replaceAll("_", " ");
+}
+
+function formatStaticSiteRoutingMode(routingMode: string) {
+  if (routingMode === "spa") {
+    return "SPA";
+  }
+
+  if (routingMode === "static") {
+    return "Static";
+  }
+
+  return routingMode.replaceAll("_", " ");
 }
 
 function getReleaseKindBadgeVariant(releaseKind: string) {
@@ -171,6 +556,10 @@ function getReleaseKindBadgeVariant(releaseKind: string) {
 
   if (releaseKind === "fastapi") {
     return "primary" as const;
+  }
+
+  if (isStaticSiteReleaseKind(releaseKind)) {
+    return "secondary" as const;
   }
 
   return "neutral" as const;
@@ -239,12 +628,200 @@ function getJobUidFromSummaryHref(href?: string) {
   return getEntityUidFromSummaryHref(href, ["job_uid", "msJobUid"]);
 }
 
+function readReleaseScalar(value: string | number | null | undefined) {
+  if (typeof value === "string") {
+    return value.trim() || null;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return null;
+}
+
+function getResourceReleaseResourceUid(release: ResourceReleaseRecord | null | undefined) {
+  return readReleaseScalar(release?.resource_uid);
+}
+
+function getResourceReleaseReadmeResourceUid(release: ResourceReleaseRecord | null | undefined) {
+  return readReleaseScalar(release?.readme_resource_uid);
+}
+
+function getResourceReleaseRelatedJobUid(release: ResourceReleaseRecord | null | undefined) {
+  return readReleaseScalar(release?.related_job_uid);
+}
+
+function getResourceReleaseProjectUid(release: ResourceReleaseRecord | null | undefined) {
+  return readReleaseScalar(release?.project_uid);
+}
+
+function getResourceReleaseDisplayName(release: ResourceReleaseRecord) {
+  return release.name?.trim() || release.subdomain;
+}
+
+function formatReleaseResourceReference(release: ResourceReleaseRecord) {
+  if (isStaticSiteReleaseKind(release.release_kind)) {
+    return getResourceReleaseDisplayName(release);
+  }
+
+  const resourceUid = getResourceReleaseResourceUid(release);
+
+  if (resourceUid) {
+    return resourceUid;
+  }
+
+  const projectUid = getResourceReleaseProjectUid(release);
+  if (projectUid) {
+    return `Project ${projectUid}`;
+  }
+
+  const legacyResource = readReleaseScalar(release.resource);
+  return legacyResource ? `Resource ${legacyResource}` : "No resource";
+}
+
+function formatReleaseReadmeReference(release: ResourceReleaseRecord) {
+  if (isStaticSiteReleaseKind(release.release_kind)) {
+    return release.public_url?.trim() || getResourceReleaseDisplayName(release);
+  }
+
+  const readmeResourceUid = getResourceReleaseReadmeResourceUid(release);
+
+  if (readmeResourceUid) {
+    return readmeResourceUid;
+  }
+
+  const legacyReadmeResource = readReleaseScalar(release.readme_resource);
+  return legacyReadmeResource ? `Resource ${legacyReadmeResource}` : "No readme";
+}
+
+function formatReleaseJobReference(release: ResourceReleaseRecord) {
+  if (isStaticSiteReleaseKind(release.release_kind)) {
+    const activeDeployment = release.active_deployment;
+
+    return activeDeployment
+      ? `Active deployment #${activeDeployment.sequence}`
+      : `automatic_deployment ${formatAutomaticDeploymentValue(release.automatic_deployment ?? false)}`;
+  }
+
+  const relatedJobUid = getResourceReleaseRelatedJobUid(release);
+
+  if (relatedJobUid) {
+    return relatedJobUid;
+  }
+
+  const legacyJob = readReleaseScalar(release.related_job);
+  return legacyJob ? `Job ${legacyJob}` : "No job";
+}
+
+function formatAutomaticDeploymentValue(automaticDeployment: boolean) {
+  return automaticDeployment ? "true" : "false";
+}
+
+function AutomaticDeploymentBoolean({
+  automaticDeployment,
+}: {
+  automaticDeployment: boolean;
+}) {
+  const Icon = automaticDeployment ? CheckCircle2 : XCircle;
+
+  return (
+    <span
+      className={
+        automaticDeployment
+          ? "inline-flex items-center gap-1.5 text-sm font-medium text-success"
+          : "inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground"
+      }
+    >
+      <Icon className="h-4 w-4" aria-hidden="true" />
+      <span>{formatAutomaticDeploymentValue(automaticDeployment)}</span>
+    </span>
+  );
+}
+
+function normalizeDeploymentRunStatus(status: string | null | undefined) {
+  return status?.trim().toLowerCase() ?? "";
+}
+
+function isResourceReleaseDeploymentRunActive(status: string | null | undefined) {
+  return [
+    "pending",
+    "running",
+    "waiting_project_image",
+    "waiting_runtime_ready",
+  ].includes(normalizeDeploymentRunStatus(status));
+}
+
+function getResourceReleaseDeploymentRunStatusVariant(status: string) {
+  const normalized = normalizeDeploymentRunStatus(status);
+
+  if (["deployed", "no_action"].includes(normalized)) {
+    return "success" as const;
+  }
+
+  if (["skipped", "blocked", "failed"].includes(normalized)) {
+    return "danger" as const;
+  }
+
+  if (isResourceReleaseDeploymentRunActive(status)) {
+    return normalized === "running" ? "primary" as const : "warning" as const;
+  }
+
+  return "neutral" as const;
+}
+
+function formatStatusLabel(value: string | null | undefined) {
+  const normalized = value?.trim();
+  return normalized ? normalized.replaceAll("_", " ") : "Not available";
+}
+
+function formatReleaseTimestamp(value: string | null | undefined) {
+  if (!value?.trim()) {
+    return "Not started";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString();
+}
+
+function readDeploymentRunErrorField(
+  error: DeploymentRunListRecord["error"],
+  keys: string[],
+) {
+  if (!error) {
+    return null;
+  }
+
+  if (typeof error === "string") {
+    return error.trim() || null;
+  }
+
+  for (const key of keys) {
+    const value = error[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
 function buildFallbackResourceReleaseSummary(release: ResourceReleaseRecord): EntitySummaryHeader {
+  const isStaticSite = isStaticSiteReleaseKind(release.release_kind);
+  const readmeLinked =
+    getResourceReleaseReadmeResourceUid(release) || readReleaseScalar(release.readme_resource);
+
   return {
     entity: {
       id: release.uid,
       type: "resource_release",
-      title: release.subdomain,
+      title: getResourceReleaseDisplayName(release),
     },
     badges: [
       {
@@ -252,32 +829,66 @@ function buildFallbackResourceReleaseSummary(release: ResourceReleaseRecord): En
         label: formatReleaseKind(release.release_kind),
         tone: getReleaseKindBadgeVariant(release.release_kind),
       },
+      ...(isStaticSite
+        ? []
+        : [
+            {
+              key: "readme",
+              label: readmeLinked ? "README linked" : "No README",
+              tone: readmeLinked ? ("success" as const) : ("warning" as const),
+            },
+          ]),
       {
-        key: "readme",
-        label: release.readme_resource ? "README linked" : "No README",
-        tone: release.readme_resource ? "success" : "warning",
+        key: "automatic_deployment",
+        label: `automatic_deployment ${formatAutomaticDeploymentValue(
+          release.automatic_deployment ?? false,
+        )}`,
+        tone: release.automatic_deployment ? "success" : "neutral",
       },
     ],
-    inline_fields: [
-      {
-        key: "resource",
-        label: "Resource",
-        value: `Resource ${release.resource}`,
-        kind: "text",
-      },
-      {
-        key: "job",
-        label: "Job",
-        value: `Job ${release.related_job}`,
-        kind: "text",
-      },
-      {
-        key: "readme_resource",
-        label: "README",
-        value: release.readme_resource ? `Resource ${release.readme_resource}` : "Not linked",
-        kind: "text",
-      },
-    ],
+    inline_fields: isStaticSite
+      ? [
+          {
+            key: "project_uid",
+            label: "Project UID",
+            value: getResourceReleaseProjectUid(release) ?? "Not returned",
+            kind: "text",
+          },
+          {
+            key: "automatic_deployment",
+            label: "automatic_deployment",
+            value: formatAutomaticDeploymentValue(release.automatic_deployment ?? false),
+            kind: "text",
+          },
+          {
+            key: "public_url",
+            label: "Public URL",
+            value: release.public_url,
+            kind: "link",
+            href: `/orm/api/pods/resource-release/${release.uid}/exchange-launch/`,
+            iframe: true,
+          },
+        ]
+      : [
+          {
+            key: "resource_uid",
+            label: "Resource",
+            value: formatReleaseResourceReference(release),
+            kind: "text",
+          },
+          {
+            key: "related_job_uid",
+            label: "Job",
+            value: formatReleaseJobReference(release),
+            kind: "text",
+          },
+          {
+            key: "readme_resource_uid",
+            label: "README",
+            value: formatReleaseReadmeReference(release),
+            kind: "text",
+          },
+        ],
     highlight_fields: [
       {
         key: "subdomain",
@@ -321,36 +932,7 @@ function isProjectAgentCreateInput(
 }
 
 function mergeRbacIds(...lists: Array<Array<string | number>>) {
-  const seen = new Set<string>();
-
-  return lists.flat().map(normalizePermissionEntityId).filter((id) => {
-    const key = String(id);
-
-    if (seen.has(key)) {
-      return false;
-    }
-
-    seen.add(key);
-    return true;
-  });
-}
-
-function normalizePermissionEntityId(id: string | number) {
-  if (typeof id === "number") {
-    return id;
-  }
-
-  const trimmed = id.trim();
-
-  if (/^-?\d+$/.test(trimmed)) {
-    const parsed = Number(trimmed);
-
-    if (Number.isSafeInteger(parsed)) {
-      return parsed;
-    }
-  }
-
-  return trimmed;
+  return mergePermissionEntityIds(...lists);
 }
 
 function formatPermissionUserName(
@@ -387,12 +969,12 @@ function buildPermissionValue(
 ) {
   return normalizePermissionValue({
     view: {
-      userIds: canView?.users.map((user) => user.id) ?? [],
-      teamIds: canView?.teams.map((team) => team.id) ?? [],
+      userIds: mergePermissionEntityIds(canView?.users ?? []),
+      teamIds: mergePermissionEntityIds(canView?.teams ?? []),
     },
     edit: {
-      userIds: canEdit?.users.map((user) => user.id) ?? [],
-      teamIds: canEdit?.teams.map((team) => team.id) ?? [],
+      userIds: mergePermissionEntityIds(canEdit?.users ?? []),
+      teamIds: mergePermissionEntityIds(canEdit?.teams ?? []),
     },
   });
 }
@@ -402,17 +984,23 @@ function resolvePermissionLevel(
   principalType: ShareablePrincipalType,
   principalId: string | number,
 ): ShareableAccessLevel | "none" {
-  const normalizedId = String(normalizePermissionEntityId(principalId));
+  const normalizedId = normalizePermissionEntityId(principalId);
+
+  if (normalizedId === null) {
+    return "none";
+  }
+
+  const normalizedKey = String(normalizedId);
   const editIds =
     principalType === "user" ? value.edit?.userIds ?? [] : value.edit?.teamIds ?? [];
   const viewIds =
     principalType === "user" ? value.view?.userIds ?? [] : value.view?.teamIds ?? [];
 
-  if (editIds.some((id) => String(normalizePermissionEntityId(id)) === normalizedId)) {
+  if (editIds.some((id) => String(normalizePermissionEntityId(id)) === normalizedKey)) {
     return "edit";
   }
 
-  if (viewIds.some((id) => String(normalizePermissionEntityId(id)) === normalizedId)) {
+  if (viewIds.some((id) => String(normalizePermissionEntityId(id)) === normalizedKey)) {
     return "view";
   }
 
@@ -496,6 +1084,356 @@ function buildPermissionOperations(
   return operations;
 }
 
+function ResourceReleaseDeploymentPolicyToggle({
+  automaticDeployment,
+  disabled = false,
+  helpText,
+  onChange,
+}: {
+  automaticDeployment: boolean;
+  disabled?: boolean;
+  helpText?: string | null;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label
+      className={
+        disabled
+          ? "flex cursor-not-allowed items-start gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-3 opacity-70"
+          : "flex cursor-pointer items-start gap-3 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-3 transition-colors hover:bg-background/36"
+      }
+    >
+      <input
+        type="checkbox"
+        className="mt-1 h-4 w-4 shrink-0 accent-primary"
+        checked={automaticDeployment}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span className="min-w-0 flex-1 space-y-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+            automatic_deployment
+            {helpText ? (
+              <span
+                aria-label={helpText}
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border/70 text-muted-foreground"
+                title={helpText}
+              >
+                <Info className="h-3 w-3" aria-hidden="true" />
+              </span>
+            ) : null}
+          </span>
+          <AutomaticDeploymentBoolean automaticDeployment={automaticDeployment} />
+        </span>
+      </span>
+    </label>
+  );
+}
+
+function ResourceReleaseReadOnlyField({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null | undefined;
+}) {
+  return (
+    <div className="min-w-0 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-3">
+      <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 break-all text-sm font-medium text-foreground">
+        {value?.trim() || "Not available"}
+      </div>
+    </div>
+  );
+}
+
+function ResourceReleaseDeploymentRunsTable({
+  error,
+  isFetching,
+  isLoading,
+  onRefresh,
+  runs,
+}: {
+  error: Error | null;
+  isFetching: boolean;
+  isLoading: boolean;
+  onRefresh: () => void;
+  runs: DeploymentRunListRecord[];
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <History className="h-4 w-4 text-muted-foreground" />
+            Deployment run history
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Manual and automatic deployment runs for this resource release.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {isFetching && !isLoading ? <Badge variant="neutral">Refreshing</Badge> : null}
+          <Button type="button" variant="outline" size="sm" onClick={onRefresh}>
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex min-h-36 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading deployment runs
+          </div>
+        </div>
+      ) : null}
+
+      {!isLoading && error ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+          {formatMainSequenceError(error)}
+        </div>
+      ) : null}
+
+      {!isLoading && !error && runs.length === 0 ? (
+        <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-8 text-center">
+          <div className="text-sm font-medium text-foreground">No deployment runs yet</div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manual deploys and repository-triggered rotations will appear here.
+          </p>
+        </div>
+      ) : null}
+
+      {!isLoading && !error && runs.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[860px] border-separate border-spacing-y-2 text-sm">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                <th className="px-4 pb-2">Run</th>
+                <th className="px-4 pb-2">Status</th>
+                <th className="px-4 pb-2">Source</th>
+                <th className="px-4 pb-2">Revision</th>
+                <th className="px-4 pb-2">Timing</th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.map((run) => {
+                const errorCode = readDeploymentRunErrorField(run.error, [
+                  "error_code",
+                  "code",
+                ]);
+                const errorDetail = readDeploymentRunErrorField(run.error, [
+                  "error_detail",
+                  "detail",
+                ]);
+                const hasFailureDetails =
+                  Boolean(errorCode?.trim()) || Boolean(errorDetail?.trim());
+
+                return (
+                  <tr key={run.uid}>
+                    <td className={getRegistryTableCellClassName(false, "left")}>
+                      <div className="font-medium text-foreground">{run.uid}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Release {run.target.name || run.target.uid}
+                      </div>
+                    </td>
+                    <td className={getRegistryTableCellClassName(false)}>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant={getResourceReleaseDeploymentRunStatusVariant(run.state)}>
+                          {formatStatusLabel(run.state)}
+                        </Badge>
+                        {run.phase ? (
+                          <Badge variant="neutral">{formatStatusLabel(run.phase)}</Badge>
+                        ) : null}
+                      </div>
+                      {hasFailureDetails ? (
+                        <div className="mt-2 rounded-[calc(var(--radius)-8px)] border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
+                          {errorCode ? (
+                            <div className="font-medium">{errorCode}</div>
+                          ) : null}
+                          {errorDetail ? <div>{errorDetail}</div> : null}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className={getRegistryTableCellClassName(false)}>
+                      <div className="text-foreground">
+                        {formatStatusLabel(run.source)}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {formatReleaseKind(run.target.kind ?? run.target_type)}
+                      </div>
+                    </td>
+                    <td className={getRegistryTableCellClassName(false)}>
+                      <div className="break-all text-foreground">
+                        {run.operation?.trim() || "Operation unavailable"}
+                      </div>
+                      <div className="mt-1 break-all text-xs text-muted-foreground">
+                        {run.commit_sha ? `Commit ${run.commit_sha}` : "Commit unavailable"}
+                      </div>
+                    </td>
+                    <td className={getRegistryTableCellClassName(false, "right")}>
+                      <div className="text-foreground">
+                        Started {formatReleaseTimestamp(run.started_at ?? run.created_at)}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {run.finished_at
+                          ? `Finished ${formatReleaseTimestamp(run.finished_at)}`
+                          : isResourceReleaseDeploymentRunActive(run.state)
+                            ? "Still in progress"
+                            : "No finish timestamp"}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function StaticSiteReleaseViewer({
+  onClose,
+  state,
+  themeId,
+  themeMode,
+  userUid,
+}: {
+  onClose: () => void;
+  state: StaticSiteViewerState;
+  themeId: string;
+  themeMode: StaticSiteEmbedThemeMode;
+  userUid: string | null;
+}) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      event.preventDefault();
+      onClose();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const shellRoot =
+    typeof document === "undefined"
+      ? null
+      : document.querySelector<HTMLElement>("[data-app-shell]");
+
+  if (!shellRoot) {
+    return null;
+  }
+
+  return createPortal(
+    <div
+      className="fixed bottom-0 right-0 z-[80] bg-background"
+      style={{
+        left: "var(--shell-sidebar-width, 52px)",
+        top: "var(--shell-topbar-height, 56px)",
+      }}
+      role="dialog"
+      aria-label="Static site viewer"
+      aria-modal="true"
+    >
+      {state.status === "ready" ? (
+        <div className="flex h-full min-h-0 flex-col">
+          <StaticSiteEmbedFrame
+            launchUrl={state.launchUrl}
+            themeId={themeId}
+            themeMode={themeMode}
+            userUid={userUid}
+          />
+        </div>
+      ) : (
+        <div className="flex h-full items-center justify-center px-6 py-10">
+          {state.status === "loading" ? (
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Opening site
+            </div>
+          ) : (
+            <div className="max-w-xl text-center">
+              <h2 className="text-base font-semibold text-foreground">{state.title}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">{state.detail}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>,
+    shellRoot,
+  );
+}
+
+function StaticSiteEmbedFrame({
+  launchUrl,
+  themeId,
+  themeMode,
+  userUid,
+}: {
+  launchUrl: string;
+  themeId: string;
+  themeMode: StaticSiteEmbedThemeMode;
+  userUid: string | null;
+}) {
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [handshake, setHandshake] = useState<ReturnType<typeof readStaticSiteEmbedHandshake>>(null);
+  const targetOrigin = useMemo(() => resolveStaticSiteEmbedOrigin(launchUrl), [launchUrl]);
+
+  useEffect(() => {
+    setHandshake(null);
+
+    function handleMessage(event: MessageEvent<unknown>) {
+      if (event.source !== iframeRef.current?.contentWindow || event.origin !== targetOrigin) {
+        return;
+      }
+
+      const nextHandshake = readStaticSiteEmbedHandshake(event.data);
+
+      if (nextHandshake) {
+        setHandshake(nextHandshake);
+      }
+    }
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [launchUrl, targetOrigin]);
+
+  useEffect(() => {
+    if (!handshake) {
+      return;
+    }
+
+    iframeRef.current?.contentWindow?.postMessage(
+      buildStaticSiteEmbedInitializeMessage({
+        handshake,
+        themeId,
+        themeMode,
+        userUid,
+      }),
+      targetOrigin,
+    );
+  }, [handshake, targetOrigin, themeId, themeMode, userUid]);
+
+  return (
+    <iframe
+      ref={iframeRef}
+      className="min-h-0 w-full flex-1 border-0 bg-background"
+      src={launchUrl}
+      title="Static site"
+    />
+  );
+}
+
 export function MainSequenceProjectResourceReleasesTab({
   onConsumeCreateReleaseIntent,
   onCloseResourceReleaseDetail,
@@ -517,6 +1455,7 @@ export function MainSequenceProjectResourceReleasesTab({
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { activeTheme, themeId } = useTheme();
   const sessionUser = useAuthStore((state) => state.session?.user ?? null);
   const [filterValue, setFilterValue] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
@@ -525,33 +1464,34 @@ export function MainSequenceProjectResourceReleasesTab({
   const [createReleaseMode, setCreateReleaseMode] = useState<CreateReleaseMode>("default");
   const [createReleaseResourceTypeOverride, setCreateReleaseResourceTypeOverride] =
     useState<string | null>(null);
+  const [createAutomaticDeployment, setCreateAutomaticDeployment] = useState(false);
+  const [staticSiteName, setStaticSiteName] = useState("");
+  const [staticSiteFormState, setStaticSiteFormState] = useState(() =>
+    createDefaultStaticSiteFormState(),
+  );
   const [selectedResourceUid, setSelectedResourceUid] = useState("");
   const [selectedImageUid, setSelectedImageUid] = useState("");
   const [selectedDetailTabId, setSelectedDetailTabId] = useState<ResourceReleaseDetailTabId>("readme");
   const [computeState, setComputeState] = useState(() => createDefaultReleaseComputeState());
   const [releasesPendingDelete, setReleasesPendingDelete] = useState<ResourceReleaseRecord[]>([]);
+  const [deploymentDraftAutomaticDeployment, setDeploymentDraftAutomaticDeployment] =
+    useState(false);
+  const [hasUserEditedDeployment, setHasUserEditedDeployment] = useState(false);
   const [permissionsValue, setPermissionsValue] =
     useState<RbacAssignmentValue>(emptyPermissionAssignments);
+  const [staticSiteViewerState, setStaticSiteViewerState] =
+    useState<StaticSiteViewerState | null>(null);
   const deferredFilterValue = useDeferredValue(filterValue);
   const handledCreateReleaseIntentRef = useRef<CreateReleaseIntent | null>(null);
-
-  const projectJobsQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "resource-releases", "jobs", projectUid],
-    queryFn: () =>
-      listProjectJobs(projectUid, {
-        limit: projectResourceReleaseFetchLimit,
-        offset: 0,
-      }),
-    enabled: Boolean(projectUid),
-    staleTime: 300_000,
-  });
+  const staticSiteViewerRequestIdRef = useRef(0);
 
   const resourceReleasesQuery = useQuery({
-    queryKey: ["main_sequence", "projects", "resource-releases", "list"],
+    queryKey: ["main_sequence", "projects", "resource-releases", "list", projectUid],
     queryFn: () =>
       listResourceReleases({
         limit: projectResourceReleaseFetchLimit,
         offset: 0,
+        projectUid,
       }),
     enabled: Boolean(projectUid),
     staleTime: 300_000,
@@ -561,6 +1501,13 @@ export function MainSequenceProjectResourceReleasesTab({
     queryKey: ["main_sequence", "projects", "resource-releases", "summary", selectedResourceReleaseUid],
     queryFn: () => fetchResourceReleaseSummary(selectedResourceReleaseUid ?? ""),
     enabled: Boolean(selectedResourceReleaseUid),
+  });
+
+  const resourceReleaseDetailQuery = useQuery({
+    queryKey: ["main_sequence", "projects", "resource-releases", "detail", selectedResourceReleaseUid],
+    queryFn: () => fetchResourceRelease(selectedResourceReleaseUid ?? ""),
+    enabled: Boolean(selectedResourceReleaseUid),
+    staleTime: 60_000,
   });
 
   const resourceReleaseCanViewQuery = useQuery({
@@ -620,17 +1567,68 @@ export function MainSequenceProjectResourceReleasesTab({
     staleTime: 300_000,
   });
 
+  const resourceReleaseDeploymentRunsQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "projects",
+      "resource-releases",
+      "deployment-runs",
+      projectUid,
+      selectedResourceReleaseUid,
+    ],
+    queryFn: async () => {
+      const response = await listDeploymentRuns({
+        projectUid,
+        targetType: "resource_release",
+        limit: 500,
+        offset: 0,
+      });
+
+      return response.results.filter(
+        (run) => run.target.uid === selectedResourceReleaseUid,
+      );
+    },
+    enabled: Boolean(selectedResourceReleaseUid) && selectedDetailTabId === "deployment",
+    refetchInterval: (query) => {
+      const runs = query.state.data;
+
+      return Array.isArray(runs) &&
+        runs.some((run) => isResourceReleaseDeploymentRunActive(run.state))
+        ? 5_000
+        : false;
+    },
+  });
+
+  const staticSiteCapabilitiesQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "projects",
+      "resource-releases",
+      "static-site-capabilities",
+      projectUid,
+    ],
+    queryFn: () => fetchStaticSiteCapabilities(projectUid),
+    enabled:
+      createDialogOpen &&
+      createReleaseMode === "static-site" &&
+      Boolean(projectUid),
+    staleTime: 60_000,
+  });
+
   const projectImagesQuery = useQuery({
     queryKey: ["main_sequence", "projects", "job-images", projectUid],
     queryFn: () => fetchProjectImages(projectUid),
-    enabled: createDialogOpen && Boolean(projectUid),
+    enabled:
+      createDialogOpen &&
+      createReleaseMode !== "static-site" &&
+      Boolean(projectUid),
     staleTime: 300_000,
   });
 
   const availableGpuTypesQuery = useQuery({
     queryKey: ["main_sequence", "billing", "available-gpu-types"],
     queryFn: fetchAvailableGpuTypes,
-    enabled: createDialogOpen,
+    enabled: createDialogOpen && createReleaseMode !== "static-site",
     staleTime: 300_000,
   });
 
@@ -660,32 +1658,37 @@ export function MainSequenceProjectResourceReleasesTab({
         repoCommitSha: selectedProjectImage?.project_repo_hash ?? undefined,
         resourceType:
           createReleaseResourceTypeOverride ??
-          (createReleaseKind ? releaseKindToProjectResourceType[createReleaseKind] : undefined),
+          (isRuntimeReleaseKind(createReleaseKind)
+            ? releaseKindToProjectResourceType[createReleaseKind]
+            : undefined),
       }),
     enabled:
       createDialogOpen &&
       Boolean(projectUid) &&
-      createReleaseMode !== "project-agent" &&
-      Boolean(createReleaseKind) &&
+      createReleaseMode === "default" &&
+      isRuntimeReleaseKind(createReleaseKind) &&
       Boolean(selectedProjectImage?.project_repo_hash),
     staleTime: 300_000,
   });
 
-  const projectJobsById = useMemo(
-    () => new Map((projectJobsQuery.data?.results ?? []).map((job) => [job.id, job])),
-    [projectJobsQuery.data?.results],
-  );
   const projectReleases = useMemo(
     () =>
-      (resourceReleasesQuery.data?.results ?? []).filter((release) =>
-        projectJobsById.has(release.related_job),
-      ),
-    [projectJobsById, resourceReleasesQuery.data?.results],
+      (resourceReleasesQuery.data?.results ?? []).filter((release) => {
+        const releaseProjectUid = getResourceReleaseProjectUid(release);
+
+        if (!releaseProjectUid) {
+          return true;
+        }
+
+        return releaseProjectUid === projectUid;
+      }),
+    [projectUid, resourceReleasesQuery.data?.results],
   );
   const selectedReleaseFromList = useMemo(
     () => projectReleases.find((release) => release.uid === selectedResourceReleaseUid) ?? null,
     [projectReleases, selectedResourceReleaseUid],
   );
+  const selectedReleaseRecord = resourceReleaseDetailQuery.data ?? selectedReleaseFromList;
   const filteredReleases = useMemo(() => {
     const needle = deferredFilterValue.trim().toLowerCase();
 
@@ -694,23 +1697,30 @@ export function MainSequenceProjectResourceReleasesTab({
         return true;
       }
 
-      const relatedJob = projectJobsById.get(release.related_job);
+      const automaticDeployment = release.automatic_deployment ?? false;
 
       return [
         release.uid,
         release.subdomain,
+        release.name ?? "",
         release.release_kind,
-        String(release.resource),
-        String(release.readme_resource ?? ""),
-        String(release.related_job),
-        relatedJob?.name ?? "",
-        relatedJob?.execution_path ?? "",
+        release.public_url ?? "",
+        release.lifecycle_status ?? "",
+        release.framework ?? "",
+        release.active_deployment?.commit_sha ?? "",
+        release.desired_deployment?.commit_sha ?? "",
+        release.project_uid ?? "",
+        formatReleaseResourceReference(release),
+        formatReleaseReadmeReference(release),
+        formatReleaseJobReference(release),
+        "automatic_deployment",
+        formatAutomaticDeploymentValue(automaticDeployment),
       ]
         .join(" ")
         .toLowerCase()
         .includes(needle);
     });
-  }, [deferredFilterValue, projectJobsById, projectReleases]);
+  }, [deferredFilterValue, projectReleases]);
   const pagedReleases = useMemo(() => {
     const start = pageIndex * mainSequenceRegistryPageSize;
     return filteredReleases.slice(start, start + mainSequenceRegistryPageSize);
@@ -735,24 +1745,29 @@ export function MainSequenceProjectResourceReleasesTab({
   );
   const resourceReleaseSummary =
     resourceReleaseSummaryQuery.data ??
-    (selectedReleaseFromList ? buildFallbackResourceReleaseSummary(selectedReleaseFromList) : null);
+    (selectedReleaseRecord ? buildFallbackResourceReleaseSummary(selectedReleaseRecord) : null);
   const selectedResourceReleaseKind =
     getResourceReleaseSummaryResourceType(resourceReleaseSummary) ??
-    selectedReleaseFromList?.release_kind ??
+    selectedReleaseRecord?.release_kind ??
     null;
   const resourceReleaseDetailTabs = useMemo(
-    (): ReadonlyArray<{ id: ResourceReleaseDetailTabId; label: string }> =>
-      selectedResourceReleaseKind === "fastapi"
+    (): ReadonlyArray<{ id: ResourceReleaseDetailTabId; label: string }> => {
+      if (isStaticSiteReleaseKind(selectedResourceReleaseKind)) {
+        return staticSiteResourceReleaseDetailTabs;
+      }
+
+      return selectedResourceReleaseKind === "fastapi"
         ? [
             ...baseResourceReleaseDetailTabs,
             { id: "test-api", label: "Test API" },
           ]
-        : baseResourceReleaseDetailTabs,
+        : baseResourceReleaseDetailTabs;
+    },
     [selectedResourceReleaseKind],
   );
   const resourceReleaseTitle =
     resourceReleaseSummary?.entity.title ??
-    selectedReleaseFromList?.subdomain ??
+    selectedReleaseRecord?.subdomain ??
     (selectedResourceReleaseUid ? `Release ${selectedResourceReleaseUid}` : "Release");
   const persistedPermissionsValue = useMemo(
     () =>
@@ -766,7 +1781,11 @@ export function MainSequenceProjectResourceReleasesTab({
     const usersById = new Map<string, RbacAssignableUser>();
 
     for (const user of permissionCandidateUsersQuery.data ?? []) {
-      const normalizedId = normalizePermissionEntityId(user.id);
+      const normalizedId = resolvePermissionEntityId(user);
+
+      if (normalizedId === null) {
+        continue;
+      }
 
       usersById.set(String(normalizedId), {
         id: normalizedId,
@@ -779,7 +1798,11 @@ export function MainSequenceProjectResourceReleasesTab({
       ...(resourceReleaseCanViewQuery.data?.users ?? []),
       ...(resourceReleaseCanEditQuery.data?.users ?? []),
     ]) {
-      const normalizedId = normalizePermissionEntityId(user.id);
+      const normalizedId = resolvePermissionEntityId(user);
+
+      if (normalizedId === null) {
+        continue;
+      }
 
       usersById.set(String(normalizedId), {
         id: normalizedId,
@@ -789,14 +1812,17 @@ export function MainSequenceProjectResourceReleasesTab({
     }
 
     if (sessionUser) {
-      const normalizedId = normalizePermissionEntityId(sessionUser.id);
-      const existingUser = usersById.get(String(normalizedId));
+      const normalizedId = resolvePermissionEntityId(sessionUser);
 
-      usersById.set(String(normalizedId), {
-        id: normalizedId,
-        email: sessionUser.email,
-        name: sessionUser.name || existingUser?.name || sessionUser.email,
-      });
+      if (normalizedId !== null) {
+        const existingUser = usersById.get(String(normalizedId));
+
+        usersById.set(String(normalizedId), {
+          id: normalizedId,
+          email: sessionUser.email,
+          name: sessionUser.name || existingUser?.name || sessionUser.email,
+        });
+      }
     }
 
     return [...usersById.values()].sort((left, right) => left.email.localeCompare(right.email));
@@ -810,8 +1836,14 @@ export function MainSequenceProjectResourceReleasesTab({
     const teamsById = new Map<string, RbacAssignableTeam>();
 
     for (const team of permissionTeamsQuery.data ?? []) {
-      teamsById.set(String(team.id), {
-        id: team.id,
+      const normalizedId = resolvePermissionEntityId(team);
+
+      if (normalizedId === null) {
+        continue;
+      }
+
+      teamsById.set(String(normalizedId), {
+        id: normalizedId,
         name: team.name,
         description: team.description,
         memberCount: team.member_count,
@@ -822,7 +1854,11 @@ export function MainSequenceProjectResourceReleasesTab({
       ...(resourceReleaseCanViewQuery.data?.teams ?? []),
       ...(resourceReleaseCanEditQuery.data?.teams ?? []),
     ]) {
-      const normalizedId = normalizePermissionEntityId(team.id);
+      const normalizedId = resolvePermissionEntityId(team);
+
+      if (normalizedId === null) {
+        continue;
+      }
 
       teamsById.set(String(normalizedId), {
         id: normalizedId,
@@ -901,6 +1937,9 @@ export function MainSequenceProjectResourceReleasesTab({
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "projects", "summary", projectUid],
       });
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "projects", "deploy-history", projectUid],
+      });
 
       const isProjectAgentMode = isProjectAgentCreateInput(input);
       let successTitle: string;
@@ -940,6 +1979,9 @@ export function MainSequenceProjectResourceReleasesTab({
       setSelectedResourceUid("");
       setSelectedImageUid("");
       setComputeState(createDefaultReleaseComputeState());
+      setCreateAutomaticDeployment(false);
+      setStaticSiteFormState(createDefaultStaticSiteFormState());
+      setStaticSiteName("");
     },
     onError: (error) => {
       toast({
@@ -951,10 +1993,32 @@ export function MainSequenceProjectResourceReleasesTab({
   });
 
   const deleteResourceReleaseMutation = useMutation({
-    mutationFn: async (releases: ResourceReleaseRecord[]) =>
-      bulkDeleteResourceReleases(releases.map((release) => release.uid)),
+    mutationFn: async (releases: ResourceReleaseRecord[]) => {
+      const staticSiteReleases = releases.filter((release) =>
+        isStaticSiteReleaseKind(release.release_kind),
+      );
+      const runtimeReleaseUids = releases
+        .filter((release) => !isStaticSiteReleaseKind(release.release_kind))
+        .map((release) => release.uid);
+      const runtimeResult =
+        runtimeReleaseUids.length > 0
+          ? await bulkDeleteResourceReleases(runtimeReleaseUids)
+          : { deleted_count: 0 };
+
+      await Promise.all(
+        staticSiteReleases.map((release) => deleteResourceRelease(release.uid)),
+      );
+
+      return {
+        deleted_count:
+          (runtimeResult.deleted_count ?? runtimeReleaseUids.length) +
+          staticSiteReleases.length,
+        static_site_count: staticSiteReleases.length,
+      };
+    },
     onSuccess: async (result, releases) => {
       const deletedCount = result.deleted_count ?? releases.length;
+      const staticSiteCount = result.static_site_count ?? 0;
       setReleasesPendingDelete([]);
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "projects", "resource-releases"],
@@ -962,13 +2026,23 @@ export function MainSequenceProjectResourceReleasesTab({
       await queryClient.invalidateQueries({
         queryKey: ["main_sequence", "projects", "summary", projectUid],
       });
+      await queryClient.invalidateQueries({
+        queryKey: ["main_sequence", "projects", "deploy-history", projectUid],
+      });
 
       if (deletedCount > 0) {
         toast({
           variant: "success",
-          title: deletedCount === 1 ? "Resource release deleted" : "Resource releases deleted",
+          title:
+            staticSiteCount > 0
+              ? "Resource release deletion requested"
+              : deletedCount === 1
+                ? "Resource release deleted"
+                : "Resource releases deleted",
           description:
-            deletedCount === 1
+            staticSiteCount > 0
+              ? `${staticSiteCount} static-site release deletion ${staticSiteCount === 1 ? "was" : "were"} queued.`
+              : deletedCount === 1
               ? `${releases[0]?.subdomain ?? "Release"} was deleted.`
               : `${deletedCount} resource releases were deleted.`,
         });
@@ -980,6 +2054,107 @@ export function MainSequenceProjectResourceReleasesTab({
       toast({
         variant: "error",
         title: "Resource release deletion failed",
+        description: formatMainSequenceError(error),
+      });
+    },
+  });
+
+  const updateResourceReleaseDeploymentMutation = useMutation({
+    mutationFn: async (automaticDeployment: boolean) => {
+      if (!selectedResourceReleaseUid) {
+        throw new Error("Select a resource release before updating automatic_deployment.");
+      }
+
+      return updateResourceRelease(selectedResourceReleaseUid, {
+        automatic_deployment: automaticDeployment,
+      });
+    },
+    onSuccess: async (release) => {
+      setDeploymentDraftAutomaticDeployment(release.automatic_deployment ?? false);
+      setHasUserEditedDeployment(false);
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["main_sequence", "projects", "resource-releases"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "main_sequence",
+            "projects",
+            "resource-releases",
+            "detail",
+            selectedResourceReleaseUid,
+          ],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "main_sequence",
+            "projects",
+            "resource-releases",
+            "summary",
+            selectedResourceReleaseUid,
+          ],
+        }),
+      ]);
+
+      toast({
+        variant: "success",
+        title: "automatic_deployment updated",
+        description: `${release.subdomain} automatic_deployment is ${formatAutomaticDeploymentValue(release.automatic_deployment ?? false)}.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "automatic_deployment update failed",
+        description: formatMainSequenceError(error),
+      });
+    },
+  });
+
+  const deployCurrentResourceReleaseVersionMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedResourceReleaseUid) {
+        throw new Error("Select a resource release before deploying the current version.");
+      }
+
+      return deployResourceReleaseCurrentVersion(selectedResourceReleaseUid);
+    },
+    onSuccess: async (run) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [
+            "main_sequence",
+            "projects",
+            "resource-releases",
+            "deployment-runs",
+            selectedResourceReleaseUid,
+          ],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "main_sequence",
+            "projects",
+            "resource-releases",
+            "detail",
+            selectedResourceReleaseUid,
+          ],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["main_sequence", "projects", "resource-releases"],
+        }),
+      ]);
+
+      toast({
+        variant: "success",
+        title: "Manual deployment requested",
+        description: `${formatReleaseKind(run.target.kind ?? run.target_type)} deployment run is ${formatStatusLabel(run.state)}.`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "error",
+        title: "Manual deployment failed",
         description: formatMainSequenceError(error),
       });
     },
@@ -1069,6 +2244,9 @@ export function MainSequenceProjectResourceReleasesTab({
       setCreateReleaseKind(null);
       setCreateReleaseMode("default");
       setCreateReleaseResourceTypeOverride(null);
+      setCreateAutomaticDeployment(false);
+      setStaticSiteFormState(createDefaultStaticSiteFormState());
+      setStaticSiteName("");
       setSelectedResourceUid("");
       setSelectedImageUid("");
       setComputeState(createDefaultReleaseComputeState());
@@ -1083,6 +2261,8 @@ export function MainSequenceProjectResourceReleasesTab({
     setCreateDialogOpen(false);
     setCreateReleaseMode("default");
     setCreateReleaseResourceTypeOverride(null);
+    setStaticSiteFormState(createDefaultStaticSiteFormState());
+    setStaticSiteName("");
     onConsumeCreateReleaseIntent?.();
   }, [
     createDialogOpen,
@@ -1113,6 +2293,9 @@ export function MainSequenceProjectResourceReleasesTab({
       setCreateDialogOpen,
       setCreateReleaseMode,
       setCreateReleaseResourceTypeOverride,
+      setCreateAutomaticDeployment,
+      setStaticSiteFormState,
+      setStaticSiteName,
       releaseKind: "agent",
       mode: "project-agent",
       resourceTypeOverride: projectAgentCardResourceType,
@@ -1125,34 +2308,34 @@ export function MainSequenceProjectResourceReleasesTab({
   ]);
 
   useEffect(() => {
-    if (!createDialogOpen) {
+    if (!createDialogOpen || createReleaseMode === "static-site") {
       return;
     }
 
     if (!readyProjectImages.some((image) => image.uid === selectedImageUid)) {
       setSelectedImageUid(readyProjectImages[0]?.uid ?? "");
     }
-  }, [createDialogOpen, readyProjectImages, selectedImageUid]);
+  }, [createDialogOpen, createReleaseMode, readyProjectImages, selectedImageUid]);
 
   useEffect(() => {
-    if (!createDialogOpen) {
+    if (!createDialogOpen || createReleaseMode !== "default") {
       return;
     }
 
     if (!projectResourceOptions.some((option) => option.value === selectedResourceUid)) {
       setSelectedResourceUid(projectResourceOptions[0]?.value ?? "");
     }
-  }, [createDialogOpen, projectResourceOptions, selectedResourceUid]);
+  }, [createDialogOpen, createReleaseMode, projectResourceOptions, selectedResourceUid]);
 
   useEffect(() => {
-    if (!createDialogOpen) {
+    if (!createDialogOpen || createReleaseMode === "static-site") {
       return;
     }
 
     if (!projectImageOptions.some((option) => option.value === selectedImageUid)) {
       setSelectedImageUid(projectImageOptions[0]?.value ?? "");
     }
-  }, [createDialogOpen, projectImageOptions, selectedImageUid]);
+  }, [createDialogOpen, createReleaseMode, projectImageOptions, selectedImageUid]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(filteredReleases.length / mainSequenceRegistryPageSize));
@@ -1162,7 +2345,60 @@ export function MainSequenceProjectResourceReleasesTab({
     }
   }, [filteredReleases.length, pageIndex]);
 
+  function closeStaticSiteViewer() {
+    staticSiteViewerRequestIdRef.current += 1;
+    setStaticSiteViewerState(null);
+  }
+
+  async function openStaticSiteViewer(field: SummaryField) {
+    const exchangeUrl = field.href?.trim();
+
+    if (!exchangeUrl) {
+      return;
+    }
+
+    const requestId = staticSiteViewerRequestIdRef.current + 1;
+    staticSiteViewerRequestIdRef.current = requestId;
+    setStaticSiteViewerState({ status: "loading" });
+
+    try {
+      const launchUrl = requireStaticSiteExchangeLaunchUrl(
+        await fetchResourceReleaseExchangeLaunch(exchangeUrl),
+      );
+      resolveStaticSiteEmbedOrigin(launchUrl);
+
+      if (staticSiteViewerRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setStaticSiteViewerState({ status: "ready", launchUrl });
+    } catch (error) {
+      if (staticSiteViewerRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setStaticSiteViewerState(
+        error instanceof MainSequenceApiError && error.status === 403
+          ? {
+              status: "error",
+              title: "Access denied",
+              detail: formatMainSequenceError(error),
+            }
+          : {
+              status: "error",
+              title: "Unable to open static site",
+              detail: formatMainSequenceError(error),
+            },
+      );
+    }
+  }
+
   function handleSummaryFieldLink(field: SummaryField) {
+    if (field.key === "public_url" && field.kind === "link" && field.iframe === true) {
+      void openStaticSiteViewer(field);
+      return;
+    }
+
     const projectLinkUid = getProjectUidFromSummaryHref(field.href);
     if (projectLinkUid) {
       onOpenProjectDetail(projectLinkUid);
@@ -1182,10 +2418,84 @@ export function MainSequenceProjectResourceReleasesTab({
 
   const createDialogTitle = createReleaseMode === "project-agent"
     ? "Create Project Agent"
+    : createReleaseMode === "static-site"
+      ? "Create static site release"
     : createReleaseKind
       ? `Create ${formatReleaseKind(createReleaseKind).toLowerCase()} release`
       : "Create resource release";
   const createDialogVisible = createDialogOpen && Boolean(createReleaseKind);
+  const staticSiteCapabilityCatalog = staticSiteCapabilitiesQuery.data;
+  const staticSiteCreateFields = useMemo(
+    () => getStaticSiteCreateFields(staticSiteCapabilityCatalog),
+    [staticSiteCapabilityCatalog],
+  );
+  const staticSiteCurrentFieldValues = useMemo(
+    () => getStaticSiteCurrentFieldValues(staticSiteFormState, projectUid, staticSiteName),
+    [projectUid, staticSiteFormState, staticSiteName],
+  );
+  const staticSiteNameField = getEffectiveStaticSiteCreateField(
+    getStaticSiteCreateField(staticSiteCreateFields, "name"),
+    staticSiteCurrentFieldValues,
+  );
+  const staticSiteAutomaticDeploymentField = getEffectiveStaticSiteCreateField(
+    getStaticSiteCreateField(staticSiteCreateFields, "automatic_deployment"),
+    staticSiteCurrentFieldValues,
+  );
+  const staticSiteRootDirectoryField = getEffectiveStaticSiteCreateField(
+    getStaticSiteCreateField(staticSiteCreateFields, "root_directory"),
+    staticSiteCurrentFieldValues,
+  );
+  const staticSiteFrameworkField = getEffectiveStaticSiteCreateField(
+    getStaticSiteCreateField(staticSiteCreateFields, "framework"),
+    staticSiteCurrentFieldValues,
+  );
+  const staticSiteNodeVersionField = getEffectiveStaticSiteCreateField(
+    getStaticSiteCreateField(staticSiteCreateFields, "node_version"),
+    staticSiteCurrentFieldValues,
+  );
+  const staticSiteOutputDirectoryField = getEffectiveStaticSiteCreateField(
+    getStaticSiteCreateField(staticSiteCreateFields, "output_directory"),
+    staticSiteCurrentFieldValues,
+  );
+  const staticSiteRoutingModeField = getEffectiveStaticSiteCreateField(
+    getStaticSiteCreateField(staticSiteCreateFields, "routing_mode"),
+    staticSiteCurrentFieldValues,
+  );
+  const staticSiteSpaEntryFileField = getEffectiveStaticSiteCreateField(
+    getStaticSiteCreateField(staticSiteCreateFields, "spa_entry_file"),
+    staticSiteCurrentFieldValues,
+  );
+  const staticSiteBuildEnvironmentField = getEffectiveStaticSiteCreateField(
+    getStaticSiteCreateField(staticSiteCreateFields, "build_environment"),
+    staticSiteCurrentFieldValues,
+  );
+  const staticSiteFrameworkOptions = useMemo<PickerOption[]>(
+    () => staticSiteChoiceOptions(staticSiteFrameworkField),
+    [staticSiteFrameworkField],
+  );
+  const staticSiteNodeVersionOptions = useMemo<PickerOption[]>(
+    () => staticSiteChoiceOptions(staticSiteNodeVersionField),
+    [staticSiteNodeVersionField],
+  );
+  const staticSiteRoutingModeOptions = useMemo<PickerOption[]>(
+    () => staticSiteChoiceOptions(staticSiteRoutingModeField),
+    [staticSiteRoutingModeField],
+  );
+  const staticSiteRequiredConfigurationMissing = [
+    staticSiteNameField,
+    staticSiteAutomaticDeploymentField,
+    staticSiteRootDirectoryField,
+    staticSiteFrameworkField,
+    staticSiteNodeVersionField,
+    staticSiteOutputDirectoryField,
+    staticSiteRoutingModeField,
+    staticSiteSpaEntryFileField,
+    staticSiteBuildEnvironmentField,
+  ].some((field) => staticSiteRequiredFieldIsMissing(field, staticSiteCurrentFieldValues));
+  const staticSiteCreateInput = useMemo(
+    () => buildStaticSiteCreateRequest(staticSiteCreateFields, staticSiteCurrentFieldValues),
+    [staticSiteCreateFields, staticSiteCurrentFieldValues],
+  );
   const parsedGpuRequest = computeState.gpuRequest ? Number(computeState.gpuRequest) : undefined;
   const costEstimateResources = useMemo(
     () =>
@@ -1204,6 +2514,27 @@ export function MainSequenceProjectResourceReleasesTab({
       computeState.spot,
     ],
   );
+  useEffect(() => {
+    if (
+      !createDialogOpen ||
+      createReleaseMode !== "static-site" ||
+      !staticSiteCapabilityCatalog
+    ) {
+      return;
+    }
+
+    setStaticSiteFormState(
+      createStaticSiteFormStateFromCapabilities(staticSiteCapabilityCatalog, projectUid),
+    );
+    setStaticSiteName(
+      readFormString(
+        getStaticSiteCreateField(
+          getStaticSiteCreateFields(staticSiteCapabilityCatalog),
+          "name",
+        )?.default,
+      ),
+    );
+  }, [createDialogOpen, createReleaseMode, projectUid, staticSiteCapabilityCatalog]);
   const gpuSelectionIsValid =
     (!computeState.gpuRequest && !computeState.gpuType.trim()) ||
     (Boolean(computeState.gpuRequest) &&
@@ -1213,17 +2544,47 @@ export function MainSequenceProjectResourceReleasesTab({
       computeState.gpuType.trim().length > 0);
   const releaseReadme = getResourceReleaseReadme(resourceReleaseSummaryQuery.data?.extensions);
   const readmeFilesize = formatReadmeFilesize(releaseReadme?.filesize);
+  const selectedReleaseAutomaticDeployment =
+    selectedReleaseRecord?.automatic_deployment ?? false;
+  const deploymentPolicyIsDirty =
+    deploymentDraftAutomaticDeployment !== selectedReleaseAutomaticDeployment;
+  const releaseDetailLoading = resourceReleaseDetailQuery.isLoading && !selectedReleaseRecord;
+  const releaseReadOnlyFields = [
+    ["UID", selectedReleaseRecord?.uid ?? selectedResourceReleaseUid],
+    ["Subdomain", selectedReleaseRecord?.subdomain ?? resourceReleaseTitle],
+    ["Resource UID", getResourceReleaseResourceUid(selectedReleaseRecord)],
+    ["README Resource UID", getResourceReleaseReadmeResourceUid(selectedReleaseRecord) ?? "Not linked"],
+    ["Related Job UID", getResourceReleaseRelatedJobUid(selectedReleaseRecord)],
+    ["Release kind", selectedReleaseRecord?.release_kind ?? selectedResourceReleaseKind],
+  ] as const;
 
   useEffect(() => {
+    staticSiteViewerRequestIdRef.current += 1;
+    setStaticSiteViewerState(null);
     setSelectedDetailTabId("readme");
+    setHasUserEditedDeployment(false);
+    setDeploymentDraftAutomaticDeployment(false);
   }, [selectedResourceReleaseUid]);
+
+  useEffect(() => {
+    if (!selectedReleaseRecord || hasUserEditedDeployment) {
+      return;
+    }
+
+    setDeploymentDraftAutomaticDeployment(selectedReleaseRecord.automatic_deployment ?? false);
+  }, [
+    hasUserEditedDeployment,
+    selectedReleaseRecord,
+    selectedReleaseRecord?.automatic_deployment,
+    selectedReleaseRecord?.uid,
+  ]);
 
   useEffect(() => {
     if (resourceReleaseDetailTabs.some((tab) => tab.id === selectedDetailTabId)) {
       return;
     }
 
-    setSelectedDetailTabId("readme");
+    setSelectedDetailTabId(resourceReleaseDetailTabs[0]?.id ?? "readme");
   }, [resourceReleaseDetailTabs, selectedDetailTabId]);
 
   useEffect(() => {
@@ -1358,6 +2719,153 @@ export function MainSequenceProjectResourceReleasesTab({
                         </div>
                       )}
                     </div>
+                  ) : selectedDetailTabId === "deployment" ? (
+                    <div className="space-y-5">
+                      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,420px)]">
+                        <section className="space-y-4 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/18 px-4 py-4">
+                          <div className="space-y-1">
+                            <CardTitle className="text-base">automatic_deployment</CardTitle>
+                            <CardDescription>
+                              Only the ResourceRelease automatic_deployment field is editable here.
+                            </CardDescription>
+                          </div>
+
+                          {releaseDetailLoading ? (
+                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading release policy
+                            </div>
+                          ) : null}
+
+                          {resourceReleaseDetailQuery.isError && !selectedReleaseRecord ? (
+                            <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                              {formatMainSequenceError(resourceReleaseDetailQuery.error)}
+                            </div>
+                          ) : null}
+
+                          <ResourceReleaseDeploymentPolicyToggle
+                            automaticDeployment={deploymentDraftAutomaticDeployment}
+                            disabled={updateResourceReleaseDeploymentMutation.isPending}
+                            onChange={(value) => {
+                              updateResourceReleaseDeploymentMutation.reset();
+                              setHasUserEditedDeployment(true);
+                              setDeploymentDraftAutomaticDeployment(value);
+                            }}
+                          />
+
+                          {updateResourceReleaseDeploymentMutation.isError ? (
+                            <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                              {formatMainSequenceError(updateResourceReleaseDeploymentMutation.error)}
+                            </div>
+                          ) : null}
+
+                          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/70 pt-4">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                updateResourceReleaseDeploymentMutation.reset();
+                                setHasUserEditedDeployment(false);
+                                setDeploymentDraftAutomaticDeployment(
+                                  selectedReleaseAutomaticDeployment,
+                                );
+                              }}
+                              disabled={
+                                updateResourceReleaseDeploymentMutation.isPending ||
+                                !deploymentPolicyIsDirty
+                              }
+                            >
+                              Reset
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={() =>
+                                updateResourceReleaseDeploymentMutation.mutate(
+                                  deploymentDraftAutomaticDeployment,
+                                )
+                              }
+                              disabled={
+                                updateResourceReleaseDeploymentMutation.isPending ||
+                                !deploymentPolicyIsDirty ||
+                                !selectedResourceReleaseUid
+                              }
+                            >
+                              {updateResourceReleaseDeploymentMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Save className="h-4 w-4" />
+                              )}
+                              Save automatic_deployment
+                            </Button>
+                          </div>
+                        </section>
+
+                        <section className="space-y-4 rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/18 px-4 py-4">
+                          <div className="space-y-1">
+                            <CardTitle className="text-base">Manual deploy</CardTitle>
+                            <CardDescription>
+                              Rotate this release to the current synced project version now.
+                            </CardDescription>
+                          </div>
+                          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-3 text-sm text-muted-foreground">
+                            Manual deploy is separate from automatic_deployment. It can rotate the
+                            release even when automatic_deployment is false.
+                          </div>
+                          {deployCurrentResourceReleaseVersionMutation.isError ? (
+                            <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                              {formatMainSequenceError(
+                                deployCurrentResourceReleaseVersionMutation.error,
+                              )}
+                            </div>
+                          ) : null}
+                          <Button
+                            type="button"
+                            onClick={() => deployCurrentResourceReleaseVersionMutation.mutate()}
+                            disabled={
+                              deployCurrentResourceReleaseVersionMutation.isPending ||
+                              !selectedResourceReleaseUid
+                            }
+                          >
+                            {deployCurrentResourceReleaseVersionMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4" />
+                            )}
+                            Deploy current version
+                          </Button>
+                        </section>
+                      </div>
+
+                      <section className="space-y-3">
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium text-foreground">
+                            Release contract
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            These fields are read-only in this edit surface.
+                          </p>
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                          {releaseReadOnlyFields.map(([label, value]) => (
+                            <ResourceReleaseReadOnlyField
+                              key={label}
+                              label={label}
+                              value={value}
+                            />
+                          ))}
+                        </div>
+                      </section>
+
+                      <ResourceReleaseDeploymentRunsTable
+                        error={resourceReleaseDeploymentRunsQuery.error}
+                        isFetching={resourceReleaseDeploymentRunsQuery.isFetching}
+                        isLoading={resourceReleaseDeploymentRunsQuery.isLoading}
+                        onRefresh={() => {
+                          void resourceReleaseDeploymentRunsQuery.refetch();
+                        }}
+                        runs={resourceReleaseDeploymentRunsQuery.data ?? []}
+                      />
+                    </div>
                   ) : selectedDetailTabId === "test-api" ? (
                     resourceReleaseSummary && selectedResourceReleaseUid ? (
                       <MainSequenceResourceReleaseApiTestTab
@@ -1426,7 +2934,7 @@ export function MainSequenceProjectResourceReleasesTab({
             <div>
               <div className="text-sm font-medium text-foreground">Resource releases</div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Dashboard and agent releases linked to jobs in this project.
+                Runtime and static-site releases scoped to this project.
               </p>
             </div>
             <MainSequenceRegistrySearch
@@ -1434,57 +2942,94 @@ export function MainSequenceProjectResourceReleasesTab({
               accessory={
                 <>
                   <Badge variant="neutral">{`${filteredReleases.length} releases`}</Badge>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      openCreateReleaseDialog({
-                        reset: () => createResourceReleaseMutation.reset(),
-                        setCreateReleaseKind,
-                        setComputeState,
-                        setCreateDialogOpen,
-                        setCreateReleaseMode,
-                        setCreateReleaseResourceTypeOverride,
-                        releaseKind: "streamlit_dashboard",
-                      });
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Create Dashboard Release
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      openCreateReleaseDialog({
-                        reset: () => createResourceReleaseMutation.reset(),
-                        setCreateReleaseKind,
-                        setComputeState,
-                        setCreateDialogOpen,
-                        setCreateReleaseMode,
-                        setCreateReleaseResourceTypeOverride,
-                        releaseKind: "agent",
-                      });
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Create Agent Release
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      openCreateReleaseDialog({
-                        reset: () => createResourceReleaseMutation.reset(),
-                        setCreateReleaseKind,
-                        setComputeState,
-                        setCreateDialogOpen,
-                        setCreateReleaseMode,
-                        setCreateReleaseResourceTypeOverride,
-                        releaseKind: "fastapi",
-                      });
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Create Fast Api Release
-                  </Button>
+                  <AdminMenu
+                    actions={[
+                      {
+                        icon: LayoutDashboard,
+                        label: "Dashboard release",
+                        onSelect: () => {
+                          openCreateReleaseDialog({
+                            reset: () => createResourceReleaseMutation.reset(),
+                            setCreateReleaseKind,
+                            setComputeState,
+                            setCreateDialogOpen,
+                            setCreateReleaseMode,
+                            setCreateReleaseResourceTypeOverride,
+                            setCreateAutomaticDeployment,
+                            setStaticSiteFormState,
+                            setStaticSiteName,
+                            releaseKind: "streamlit_dashboard",
+                          });
+                        },
+                      },
+                      {
+                        icon: Bot,
+                        label: "Agent release",
+                        onSelect: () => {
+                          openCreateReleaseDialog({
+                            reset: () => createResourceReleaseMutation.reset(),
+                            setCreateReleaseKind,
+                            setComputeState,
+                            setCreateDialogOpen,
+                            setCreateReleaseMode,
+                            setCreateReleaseResourceTypeOverride,
+                            setCreateAutomaticDeployment,
+                            setStaticSiteFormState,
+                            setStaticSiteName,
+                            releaseKind: "agent",
+                          });
+                        },
+                      },
+                      {
+                        icon: Server,
+                        label: "FastAPI release",
+                        onSelect: () => {
+                          openCreateReleaseDialog({
+                            reset: () => createResourceReleaseMutation.reset(),
+                            setCreateReleaseKind,
+                            setComputeState,
+                            setCreateDialogOpen,
+                            setCreateReleaseMode,
+                            setCreateReleaseResourceTypeOverride,
+                            setCreateAutomaticDeployment,
+                            setStaticSiteFormState,
+                            setStaticSiteName,
+                            releaseKind: "fastapi",
+                          });
+                        },
+                      },
+                      {
+                        icon: Globe,
+                        label: "Static site release",
+                        onSelect: () => {
+                          openCreateReleaseDialog({
+                            reset: () => createResourceReleaseMutation.reset(),
+                            setCreateReleaseKind,
+                            setComputeState,
+                            setCreateDialogOpen,
+                            setCreateReleaseMode,
+                            setCreateReleaseResourceTypeOverride,
+                            setCreateAutomaticDeployment,
+                            setStaticSiteFormState,
+                            setStaticSiteName,
+                            releaseKind: "static_site",
+                            mode: "static-site",
+                          });
+                        },
+                      },
+                    ]}
+                    align="end"
+                    menuClassName="w-60"
+                    triggerLabel="Create resource release"
+                    triggerClassName="inline-flex h-8 items-center justify-center gap-2 rounded-[calc(var(--radius)-6px)] bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+                    triggerContent={
+                      <>
+                        <Plus className="h-4 w-4" />
+                        <span>Create release</span>
+                        <ChevronDown className="h-4 w-4" />
+                      </>
+                    }
+                  />
                 </>
               }
               bulkActions={releaseBulkActions}
@@ -1493,13 +3038,13 @@ export function MainSequenceProjectResourceReleasesTab({
               renderSelectionSummary={(selectionCount) => `${selectionCount} releases selected`}
               value={filterValue}
               onChange={(event) => setFilterValue(event.target.value)}
-              placeholder="Filter by subdomain, kind, release UID, job UID, or resource UID"
+              placeholder="Filter by name, subdomain, kind, automatic_deployment, release UID, or project UID"
               searchClassName="max-w-lg"
               selectionCount={releaseSelection.selectedCount}
             />
           </div>
 
-          {projectJobsQuery.isLoading || resourceReleasesQuery.isLoading ? (
+          {resourceReleasesQuery.isLoading ? (
             <div className="flex min-h-64 items-center justify-center">
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1508,21 +3053,13 @@ export function MainSequenceProjectResourceReleasesTab({
             </div>
           ) : null}
 
-          {projectJobsQuery.isError ? (
-            <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
-              {formatMainSequenceError(projectJobsQuery.error)}
-            </div>
-          ) : null}
-
-          {!projectJobsQuery.isError && resourceReleasesQuery.isError ? (
+          {resourceReleasesQuery.isError ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
               {formatMainSequenceError(resourceReleasesQuery.error)}
             </div>
           ) : null}
 
-          {!projectJobsQuery.isLoading &&
-          !resourceReleasesQuery.isLoading &&
-          !projectJobsQuery.isError &&
+          {!resourceReleasesQuery.isLoading &&
           !resourceReleasesQuery.isError &&
           filteredReleases.length === 0 ? (
             <div className="px-5 py-14 text-center">
@@ -1531,18 +3068,16 @@ export function MainSequenceProjectResourceReleasesTab({
               </div>
               <div className="mt-4 text-sm font-medium text-foreground">No resource releases found</div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Create a dashboard or agent release to start populating this registry.
+                Create a dashboard, agent, FastAPI, or static-site release to start populating this registry.
               </p>
             </div>
           ) : null}
 
-          {!projectJobsQuery.isLoading &&
-          !resourceReleasesQuery.isLoading &&
-          !projectJobsQuery.isError &&
+          {!resourceReleasesQuery.isLoading &&
           !resourceReleasesQuery.isError &&
           filteredReleases.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] border-separate border-spacing-y-2 text-sm">
+              <table className="w-full min-w-[820px] border-separate border-spacing-y-2 text-sm">
                 <thead>
                   <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                     <th className="w-12 px-3 pb-2">
@@ -1555,15 +3090,14 @@ export function MainSequenceProjectResourceReleasesTab({
                     </th>
                     <th className="px-4 pb-2">Release</th>
                     <th className="px-4 pb-2">Kind</th>
-                    <th className="px-4 pb-2">Resource</th>
-                    <th className="px-4 pb-2">Readme</th>
-                    <th className="px-4 pb-2">Job</th>
+                    <th className="px-4 pb-2">automatic_deployment</th>
+                    <th className="px-4 pb-2">Project UID</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pagedReleases.map((release) => {
-                    const relatedJob = projectJobsById.get(release.related_job);
                     const selected = releaseSelection.isSelected(release.uid);
+                    const automaticDeployment = release.automatic_deployment ?? false;
 
                     return (
                       <tr key={release.uid}>
@@ -1584,10 +3118,15 @@ export function MainSequenceProjectResourceReleasesTab({
                                 onClick={() => onOpenResourceReleaseDetail(release.uid)}
                                 title={`Open ${release.subdomain}`}
                               >
-                                <span>{release.subdomain}</span>
+                                <span>{getResourceReleaseDisplayName(release)}</span>
                                 <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-primary" />
                               </button>
-                              <div className="mt-1 text-xs text-muted-foreground">{`Release UID ${release.uid}`}</div>
+                              <div className="mt-1 break-all text-xs text-muted-foreground">
+                                {release.subdomain}
+                              </div>
+                              <div className="mt-1 break-all text-xs text-muted-foreground">
+                                {`Release UID ${release.uid}`}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -1597,26 +3136,11 @@ export function MainSequenceProjectResourceReleasesTab({
                           </Badge>
                         </td>
                         <td className={getRegistryTableCellClassName(selected)}>
-                          <div className="flex items-start gap-2">
-                            <Boxes className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <div className="text-foreground">{`Resource ${release.resource}`}</div>
-                              <div className="mt-1 text-xs text-muted-foreground">Primary release resource</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className={getRegistryTableCellClassName(selected)}>
-                          <div className="text-foreground">
-                            {release.readme_resource ? `Resource ${release.readme_resource}` : "No readme"}
-                          </div>
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            {release.readme_resource ? "Readme resource linked" : "No readme resource linked"}
-                          </div>
+                          <AutomaticDeploymentBoolean automaticDeployment={automaticDeployment} />
                         </td>
                         <td className={getRegistryTableCellClassName(selected, "right")}>
-                          <div className="text-foreground">{relatedJob?.name ?? `Job ${release.related_job}`}</div>
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            {relatedJob?.execution_path ?? `Job ${release.related_job}`}
+                          <div className="break-all text-foreground">
+                            {getResourceReleaseProjectUid(release) ?? projectUid}
                           </div>
                         </td>
                       </tr>
@@ -1627,9 +3151,7 @@ export function MainSequenceProjectResourceReleasesTab({
             </div>
           ) : null}
 
-          {!projectJobsQuery.isLoading &&
-          !resourceReleasesQuery.isLoading &&
-          !projectJobsQuery.isError &&
+          {!resourceReleasesQuery.isLoading &&
           !resourceReleasesQuery.isError &&
           filteredReleases.length > 0 ? (
             <MainSequenceRegistryPagination
@@ -1662,22 +3184,284 @@ export function MainSequenceProjectResourceReleasesTab({
             </div>
           ) : null}
 
-          <div className="space-y-2">
-            <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              Image
-            </div>
-            <PickerField
-              value={selectedImageUid}
-              onChange={setSelectedImageUid}
-              options={projectImageOptions}
-              placeholder="Select an image"
-              searchPlaceholder="Search images"
-              emptyMessage="No ready commit-based images available."
-              loading={projectImagesQuery.isLoading}
-            />
-          </div>
+          {createReleaseMode === "static-site" ? (
+            <div className="space-y-4">
+              <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/24 px-4 py-3 text-sm text-muted-foreground">
+                Static-site releases are created from the current project branch. The initial
+                deployment is queued by the create request.
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                  <span>{staticSiteNameField?.required ? "Site name *" : "Site name"}</span>
+                  {staticSiteNameField?.help_text ? (
+                    <span
+                      aria-label={staticSiteNameField.help_text}
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border/70 text-muted-foreground"
+                      title={staticSiteNameField.help_text}
+                    >
+                      <Info className="h-3 w-3" aria-hidden="true" />
+                    </span>
+                  ) : null}
+                </div>
+                <Input
+                  value={staticSiteName}
+                  onChange={(event) => {
+                    createResourceReleaseMutation.reset();
+                    setStaticSiteName(event.target.value);
+                  }}
+                  placeholder="Documentation"
+                  disabled={
+                    createResourceReleaseMutation.isPending ||
+                    staticSiteNameField?.enabled === false
+                  }
+                />
+              </div>
+              {staticSiteCapabilitiesQuery.isLoading ? (
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading static-site capabilities
+                </div>
+              ) : null}
+              {staticSiteCapabilitiesQuery.isError ? (
+                <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+                  {formatMainSequenceError(staticSiteCapabilitiesQuery.error)}
+                </div>
+              ) : null}
+              {staticSiteCreateFields.length > 0 ? (
+                <>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <MainSequenceResourceField
+                      label={staticSiteFrameworkField?.required ? "Framework *" : "Framework"}
+                      helperText={staticSiteFrameworkField?.help_text}
+                    >
+                      <PickerField
+                        value={staticSiteFormState.framework}
+                        onChange={(value) => {
+                          createResourceReleaseMutation.reset();
+                          setStaticSiteFormState((current) =>
+                            applyStaticSiteDependentDefaults(
+                              {
+                                ...current,
+                                framework: value,
+                              },
+                              staticSiteCreateFields,
+                              projectUid,
+                              staticSiteName,
+                              "framework",
+                            ),
+                          );
+                        }}
+                        options={staticSiteFrameworkOptions}
+                        placeholder="Select framework"
+                        searchPlaceholder="Search frameworks"
+                        disabled={
+                          createResourceReleaseMutation.isPending ||
+                          staticSiteFrameworkField?.enabled === false ||
+                          staticSiteFrameworkOptions.length === 0
+                        }
+                      />
+                    </MainSequenceResourceField>
 
-          {createReleaseMode !== "project-agent" ? (
+                    <MainSequenceResourceField
+                      label={
+                        staticSiteRootDirectoryField?.required
+                          ? "Root directory *"
+                          : "Root directory"
+                      }
+                      helperText={staticSiteRootDirectoryField?.help_text}
+                    >
+                      <Input
+                        value={staticSiteFormState.rootDirectory}
+                        onChange={(event) => {
+                          createResourceReleaseMutation.reset();
+                          setStaticSiteFormState((current) => ({
+                            ...current,
+                            rootDirectory: event.target.value,
+                          }));
+                        }}
+                        placeholder="Repository root"
+                        disabled={
+                          createResourceReleaseMutation.isPending ||
+                          staticSiteRootDirectoryField?.enabled === false
+                        }
+                      />
+                    </MainSequenceResourceField>
+
+                    <MainSequenceResourceField
+                      label={
+                        staticSiteOutputDirectoryField?.required
+                          ? "Output directory *"
+                          : "Output directory"
+                      }
+                      helperText={staticSiteOutputDirectoryField?.help_text}
+                    >
+                      <Input
+                        value={staticSiteFormState.outputDirectory}
+                        onChange={(event) => {
+                          createResourceReleaseMutation.reset();
+                          setStaticSiteFormState((current) => ({
+                            ...current,
+                            outputDirectory: event.target.value,
+                          }));
+                        }}
+                        placeholder="dist"
+                        disabled={
+                          createResourceReleaseMutation.isPending ||
+                          staticSiteOutputDirectoryField?.enabled === false
+                        }
+                      />
+                    </MainSequenceResourceField>
+
+                    <MainSequenceResourceField
+                      label={
+                        staticSiteRoutingModeField?.required
+                          ? "Routing mode *"
+                          : "Routing mode"
+                      }
+                      helperText={staticSiteRoutingModeField?.help_text}
+                    >
+                      <PickerField
+                        value={staticSiteFormState.routingMode}
+                        onChange={(value) => {
+                          createResourceReleaseMutation.reset();
+                          setStaticSiteFormState((current) =>
+                            applyStaticSiteDependentDefaults(
+                              {
+                                ...current,
+                                routingMode: value,
+                              },
+                              staticSiteCreateFields,
+                              projectUid,
+                              staticSiteName,
+                              "routing_mode",
+                            ),
+                          );
+                        }}
+                        options={staticSiteRoutingModeOptions}
+                        placeholder="Select routing mode"
+                        disabled={
+                          createResourceReleaseMutation.isPending ||
+                          staticSiteRoutingModeField?.enabled === false
+                        }
+                      />
+                    </MainSequenceResourceField>
+
+                    <MainSequenceResourceField
+                      label={
+                        staticSiteSpaEntryFileField?.required
+                          ? "SPA entry file *"
+                          : "SPA entry file"
+                      }
+                      helperText={staticSiteSpaEntryFileField?.help_text}
+                    >
+                      <Input
+                        value={staticSiteFormState.spaEntryFile}
+                        onChange={(event) => {
+                          createResourceReleaseMutation.reset();
+                          setStaticSiteFormState((current) => ({
+                            ...current,
+                            spaEntryFile: event.target.value,
+                          }));
+                        }}
+                        placeholder="/index.html"
+                        disabled={
+                          createResourceReleaseMutation.isPending ||
+                          staticSiteSpaEntryFileField?.enabled === false
+                        }
+                      />
+                    </MainSequenceResourceField>
+
+                    <MainSequenceResourceField
+                      label={
+                        staticSiteNodeVersionField?.required ? "Node version *" : "Node version"
+                      }
+                      helperText={staticSiteNodeVersionField?.help_text}
+                    >
+                      <PickerField
+                        value={staticSiteFormState.nodeVersion}
+                        onChange={(value) => {
+                          createResourceReleaseMutation.reset();
+                          setStaticSiteFormState((current) => ({
+                            ...current,
+                            nodeVersion: value,
+                          }));
+                        }}
+                        options={staticSiteNodeVersionOptions}
+                        placeholder="Select Node version"
+                        disabled={
+                          createResourceReleaseMutation.isPending ||
+                          staticSiteNodeVersionField?.enabled === false ||
+                          staticSiteNodeVersionOptions.length === 0
+                        }
+                      />
+                    </MainSequenceResourceField>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                      automatic_deployment
+                    </div>
+                    <ResourceReleaseDeploymentPolicyToggle
+                      automaticDeployment={staticSiteFormState.automaticDeployment}
+                      disabled={
+                        createResourceReleaseMutation.isPending ||
+                        staticSiteAutomaticDeploymentField?.enabled === false
+                      }
+                      helpText={staticSiteAutomaticDeploymentField?.help_text}
+                      onChange={(value) => {
+                        createResourceReleaseMutation.reset();
+                        setStaticSiteFormState((current) => ({
+                          ...current,
+                          automaticDeployment: value,
+                        }));
+                      }}
+                    />
+                  </div>
+
+                  <MainSequenceResourceField
+                    label="Build environment"
+                    helperText={staticSiteBuildEnvironmentField?.help_text}
+                  >
+                    <Textarea
+                      value={staticSiteFormState.buildEnvironmentText}
+                      onChange={(event) => {
+                        createResourceReleaseMutation.reset();
+                        setStaticSiteFormState((current) => ({
+                          ...current,
+                          buildEnvironmentText: event.target.value,
+                        }));
+                      }}
+                      placeholder="PUBLIC_API_BASE_URL=https://api.example.com"
+                      className="min-h-24"
+                      disabled={
+                        createResourceReleaseMutation.isPending ||
+                        staticSiteBuildEnvironmentField?.enabled === false
+                      }
+                    />
+                  </MainSequenceResourceField>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+          {createReleaseMode !== "static-site" ? (
+            <div className="space-y-2">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                Image
+              </div>
+              <PickerField
+                value={selectedImageUid}
+                onChange={setSelectedImageUid}
+                options={projectImageOptions}
+                placeholder="Select an image"
+                searchPlaceholder="Search images"
+                emptyMessage="No ready commit-based images available."
+                loading={projectImagesQuery.isLoading}
+              />
+            </div>
+          ) : null}
+
+          {createReleaseMode === "default" ? (
             <div className="space-y-2">
               <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                 Resource
@@ -1699,107 +3483,127 @@ export function MainSequenceProjectResourceReleasesTab({
             </div>
           ) : null}
 
-          <MainSequenceResourceRequirementsSection
-            costEstimate={{ resources: costEstimateResources }}
-            gridClassName="md:grid-cols-2 xl:grid-cols-3"
-          >
-            <MainSequenceResourceField label="CPU">
-              <Input
-                value={computeState.cpuRequest}
-                onChange={(event) => {
-                  createResourceReleaseMutation.reset();
-                  setComputeState((current) => ({
-                    ...current,
-                    cpuRequest: event.target.value,
-                  }));
-                }}
-                placeholder="100m"
-              />
-            </MainSequenceResourceField>
-
-            <MainSequenceResourceField label="Memory">
-              <Input
-                value={computeState.memoryRequest}
-                onChange={(event) => {
-                  createResourceReleaseMutation.reset();
-                  setComputeState((current) => ({
-                    ...current,
-                    memoryRequest: event.target.value,
-                  }));
-                }}
-                placeholder="512Mi"
-              />
-            </MainSequenceResourceField>
-
-            <MainSequenceResourceField label="GPUs">
-              <PickerField
-                value={computeState.gpuRequest}
+          {createReleaseMode === "default" ? (
+            <div className="space-y-2">
+              <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                automatic_deployment
+              </div>
+              <ResourceReleaseDeploymentPolicyToggle
+                automaticDeployment={createAutomaticDeployment}
+                disabled={createResourceReleaseMutation.isPending}
                 onChange={(value) => {
                   createResourceReleaseMutation.reset();
-                  setComputeState((current) => ({
-                    ...current,
-                    gpuRequest: value,
-                    gpuType: value ? current.gpuType : "",
-                  }));
-                }}
-                options={gpuCountOptions}
-                placeholder="No GPU"
-              />
-            </MainSequenceResourceField>
-
-            <MainSequenceResourceField label="GPU type">
-              <PickerField
-                value={computeState.gpuType}
-                onChange={(value) => {
-                  createResourceReleaseMutation.reset();
-                  setComputeState((current) => ({
-                    ...current,
-                    gpuType: value,
-                  }));
-                }}
-                options={gpuTypeOptions}
-                placeholder="Select GPU type"
-                searchPlaceholder="Search GPU types"
-                emptyMessage="No GPU types available."
-                searchable={false}
-                loading={availableGpuTypesQuery.isLoading}
-                disabled={!computeState.gpuRequest}
-              />
-            </MainSequenceResourceField>
-
-            <MainSequenceResourceField label="Capacity">
-              <MainSequenceCapacityToggle
-                spot={computeState.spot}
-                onChange={(spot) => {
-                  createResourceReleaseMutation.reset();
-                  setComputeState((current) => ({
-                    ...current,
-                    spot,
-                  }));
+                  setCreateAutomaticDeployment(value);
                 }}
               />
-            </MainSequenceResourceField>
-          </MainSequenceResourceRequirementsSection>
+            </div>
+          ) : null}
 
-          {!gpuSelectionIsValid ? (
+          {createReleaseMode !== "static-site" ? (
+            <MainSequenceResourceRequirementsSection
+              costEstimate={{ resources: costEstimateResources }}
+              gridClassName="md:grid-cols-2 xl:grid-cols-3"
+            >
+              <MainSequenceResourceField label="CPU">
+                <Input
+                  value={computeState.cpuRequest}
+                  onChange={(event) => {
+                    createResourceReleaseMutation.reset();
+                    setComputeState((current) => ({
+                      ...current,
+                      cpuRequest: event.target.value,
+                    }));
+                  }}
+                  placeholder="100m"
+                />
+              </MainSequenceResourceField>
+
+              <MainSequenceResourceField label="Memory">
+                <Input
+                  value={computeState.memoryRequest}
+                  onChange={(event) => {
+                    createResourceReleaseMutation.reset();
+                    setComputeState((current) => ({
+                      ...current,
+                      memoryRequest: event.target.value,
+                    }));
+                  }}
+                  placeholder="512Mi"
+                />
+              </MainSequenceResourceField>
+
+              <MainSequenceResourceField label="GPUs">
+                <PickerField
+                  value={computeState.gpuRequest}
+                  onChange={(value) => {
+                    createResourceReleaseMutation.reset();
+                    setComputeState((current) => ({
+                      ...current,
+                      gpuRequest: value,
+                      gpuType: value ? current.gpuType : "",
+                    }));
+                  }}
+                  options={gpuCountOptions}
+                  placeholder="No GPU"
+                />
+              </MainSequenceResourceField>
+
+              <MainSequenceResourceField label="GPU type">
+                <PickerField
+                  value={computeState.gpuType}
+                  onChange={(value) => {
+                    createResourceReleaseMutation.reset();
+                    setComputeState((current) => ({
+                      ...current,
+                      gpuType: value,
+                    }));
+                  }}
+                  options={gpuTypeOptions}
+                  placeholder="Select GPU type"
+                  searchPlaceholder="Search GPU types"
+                  emptyMessage="No GPU types available."
+                  searchable={false}
+                  loading={availableGpuTypesQuery.isLoading}
+                  disabled={!computeState.gpuRequest}
+                />
+              </MainSequenceResourceField>
+
+              <MainSequenceResourceField label="Capacity">
+                <MainSequenceCapacityToggle
+                  spot={computeState.spot}
+                  onChange={(spot) => {
+                    createResourceReleaseMutation.reset();
+                    setComputeState((current) => ({
+                      ...current,
+                      spot,
+                    }));
+                  }}
+                />
+              </MainSequenceResourceField>
+            </MainSequenceResourceRequirementsSection>
+          ) : null}
+
+          {createReleaseMode !== "static-site" && !gpuSelectionIsValid ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
               Select a GPU type when requesting GPUs.
             </div>
           ) : null}
 
-          {createReleaseMode !== "project-agent" && releaseResourcesQuery.isError ? (
+          {createReleaseMode === "default" && releaseResourcesQuery.isError ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
               {formatMainSequenceError(releaseResourcesQuery.error)}
             </div>
           ) : null}
 
-          {projectImagesQuery.isError ? (
+          {createReleaseMode !== "static-site" && projectImagesQuery.isError ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
               {formatMainSequenceError(projectImagesQuery.error)}
             </div>
           ) : null}
 
-          {computeState.gpuRequest && availableGpuTypesQuery.isError ? (
+          {createReleaseMode !== "static-site" &&
+          computeState.gpuRequest &&
+          availableGpuTypesQuery.isError ? (
             <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
               {formatMainSequenceError(availableGpuTypesQuery.error)}
             </div>
@@ -1824,7 +3628,20 @@ export function MainSequenceProjectResourceReleasesTab({
             </Button>
             <Button
               onClick={() => {
-                if (!selectedImageUid || !createReleaseKind) {
+                if (!createReleaseKind) {
+                  return;
+                }
+
+                if (createReleaseMode === "static-site") {
+                  if (!staticSiteCreateInput) {
+                    return;
+                  }
+
+                  createResourceReleaseMutation.mutate(staticSiteCreateInput);
+                  return;
+                }
+
+                if (!selectedImageUid) {
                   return;
                 }
 
@@ -1847,24 +3664,29 @@ export function MainSequenceProjectResourceReleasesTab({
                 }
 
                 createResourceReleaseMutation.mutate({
-                  resource: selectedResourceUid,
-                  related_image: selectedImageUid,
+                  resource_uid: selectedResourceUid,
+                  related_image_uid: selectedImageUid,
                   cpu_request: computeState.cpuRequest.trim() || "100m",
                   memory_request: computeState.memoryRequest.trim() || "512Mi",
-                  gpu_request: parsedGpuRequest ? String(parsedGpuRequest) : undefined,
-                  gpu_type: computeState.gpuType.trim() || undefined,
+                  gpu_request: parsedGpuRequest ? String(parsedGpuRequest) : null,
+                  gpu_type: computeState.gpuType.trim() || null,
                   release_kind: createReleaseKind,
                   spot: computeState.spot,
+                  automatic_deployment: createAutomaticDeployment,
                 });
               }}
               disabled={
                 createResourceReleaseMutation.isPending ||
-                (createReleaseMode !== "project-agent" && releaseResourcesQuery.isLoading) ||
-                projectImagesQuery.isLoading ||
-                (Boolean(computeState.gpuRequest) && availableGpuTypesQuery.isLoading) ||
-                !selectedImageUid ||
-                !gpuSelectionIsValid ||
-                (createReleaseMode !== "project-agent" && !selectedResourceUid)
+                (createReleaseMode === "static-site"
+                  ? staticSiteCapabilitiesQuery.isLoading ||
+                    staticSiteRequiredConfigurationMissing ||
+                    !staticSiteCreateInput
+                  : (createReleaseMode !== "project-agent" && releaseResourcesQuery.isLoading) ||
+                    projectImagesQuery.isLoading ||
+                    (Boolean(computeState.gpuRequest) && availableGpuTypesQuery.isLoading) ||
+                    !selectedImageUid ||
+                    !gpuSelectionIsValid ||
+                    (createReleaseMode !== "project-agent" && !selectedResourceUid))
               }
             >
               {createResourceReleaseMutation.isPending ? (
@@ -1876,6 +3698,8 @@ export function MainSequenceProjectResourceReleasesTab({
               )}
               {createReleaseMode === "project-agent"
                 ? "Create Project Agent"
+                : createReleaseMode === "static-site"
+                  ? "Create Static Site"
                 : createReleaseKind
                   ? `Create ${formatReleaseKind(createReleaseKind)}`
                   : "Create release"}
@@ -1950,6 +3774,16 @@ export function MainSequenceProjectResourceReleasesTab({
           return deleteResourceReleaseMutation.mutateAsync(releasesPendingDelete);
         }}
       />
+
+      {staticSiteViewerState ? (
+        <StaticSiteReleaseViewer
+          state={staticSiteViewerState}
+          onClose={closeStaticSiteViewer}
+          themeId={themeId}
+          themeMode={activeTheme.mode}
+          userUid={sessionUser?.uid ?? null}
+        />
+      ) : null}
     </div>
   );
 }

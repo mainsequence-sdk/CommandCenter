@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-managed-connection-query-widget-sources",
+  "title": "ADR: Managed Connection Query Sources for Consumer Widgets",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-managed-connection-query-widget-sources.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-managed-connection-query-widget-sources",
+  "permalink": "/docs/adr/command_center/adr-managed-connection-query-widget-sources",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-managed-connection-query-widget-sources.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

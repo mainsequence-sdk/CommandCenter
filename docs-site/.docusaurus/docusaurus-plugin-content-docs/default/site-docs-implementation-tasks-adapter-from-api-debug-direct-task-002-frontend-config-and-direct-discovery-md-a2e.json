@@ -1,0 +1,15 @@
+{
+  "id": "implementation_tasks/adapter-from-api-debug-direct/task-002-frontend-config-and-direct-discovery",
+  "title": "Task 002: Frontend Config And Direct Discovery",
+  "description": "Objective",
+  "source": "@site/../docs/implementation_tasks/adapter-from-api-debug-direct/task-002-frontend-config-and-direct-discovery.md",
+  "sourceDirName": "implementation_tasks/adapter-from-api-debug-direct",
+  "slug": "/implementation_tasks/adapter-from-api-debug-direct/task-002-frontend-config-and-direct-discovery",
+  "permalink": "/docs/implementation_tasks/adapter-from-api-debug-direct/task-002-frontend-config-and-direct-discovery",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/implementation_tasks/adapter-from-api-debug-direct/task-002-frontend-config-and-direct-discovery.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

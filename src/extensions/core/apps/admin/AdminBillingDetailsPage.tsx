@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import {
   getCurrentUserCreditsSummary,
   listBillingUsage,
-  type BillingUsageColumnDef,
   type BillingUsageRow,
   type UserCreditSummary,
 } from "./api";
@@ -28,6 +27,24 @@ const billingRangePresets: Array<{ id: BillingRangePreset; label: string }> = [
   { id: "current-year", label: "Current Year" },
 ];
 
+const billingUsageColumns: Array<{
+  field:
+    | "started_at"
+    | "ended_at"
+    | "billing_category"
+    | "billed_resource_name"
+    | "parent_resource_name"
+    | "total_cost";
+  headerName: string;
+}> = [
+  { field: "started_at", headerName: "Started" },
+  { field: "ended_at", headerName: "Ended" },
+  { field: "billing_category", headerName: "Billing Category" },
+  { field: "billed_resource_name", headerName: "Billed Resource" },
+  { field: "parent_resource_name", headerName: "Owning Resource" },
+  { field: "total_cost", headerName: "Cost" },
+];
+
 function formatAdminError(error: unknown) {
   return error instanceof Error ? error.message : "The billing usage request failed.";
 }
@@ -36,17 +53,13 @@ function padDatePart(value: number) {
   return String(value).padStart(2, "0");
 }
 
-function toDatetimeLocalValue(date: Date) {
+function toDateInputValue(date: Date) {
   return [
     date.getFullYear(),
     "-",
     padDatePart(date.getMonth() + 1),
     "-",
     padDatePart(date.getDate()),
-    "T",
-    padDatePart(date.getHours()),
-    ":",
-    padDatePart(date.getMinutes()),
   ].join("");
 }
 
@@ -87,7 +100,7 @@ function normalizeRangeForQuery(startDate: string, endDate: string) {
   };
 }
 
-function formatUsageEndTime(value: string) {
+function formatUsageTimestamp(value: string | null | undefined) {
   if (!value) {
     return "—";
   }
@@ -106,10 +119,10 @@ function formatUsageEndTime(value: string) {
   });
 }
 
-function formatUsageCost(value: string) {
+function formatUsageCost(value: BillingUsageRow["total_cost"]) {
   const amount = Number(value);
   if (!Number.isFinite(amount)) {
-    return value || "—";
+    return value == null ? "—" : String(value) || "—";
   }
 
   return new Intl.NumberFormat(undefined, {
@@ -118,27 +131,89 @@ function formatUsageCost(value: string) {
   }).format(amount);
 }
 
-function formatUsageCell(
-  row: BillingUsageRow,
-  column: BillingUsageColumnDef,
-) {
-  const rawValue = row[column.field as keyof BillingUsageRow];
+function formatUsageKind(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase();
 
-  if (column.field === "usage_end_time") {
-    return formatUsageEndTime(String(rawValue ?? ""));
+  if (!normalized) {
+    return null;
   }
 
-  if (column.field === "total_cost" || column.valueFormatter === "currencyCellFormatter") {
-    return formatUsageCost(String(rawValue ?? ""));
+  if (normalized === "service_runtime") {
+    return "Service Runtime";
   }
 
-  if (column.field === "source_type") {
-    return String(rawValue ?? "")
-      .replaceAll("_", " ")
-      .replace(/\b\w/g, (match) => match.toUpperCase());
+  return normalized
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function formatUsageText(value: string | null | undefined) {
+  return value?.trim() || "—";
+}
+
+function BillingResourceCell({
+  kind,
+  name,
+  uid,
+}: {
+  kind: string | null;
+  name: string | null;
+  uid: string | null;
+}) {
+  const displayName = formatUsageText(name ?? uid);
+  const formattedKind = formatUsageKind(kind);
+
+  return (
+    <div className="min-w-[220px] space-y-1">
+      <div className="font-medium text-foreground">{displayName}</div>
+      {formattedKind || uid ? (
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+          {formattedKind ? <span>{formattedKind}</span> : null}
+          {uid ? (
+            <span className="max-w-[260px] truncate font-mono text-[10px]">
+              {uid}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function formatUsageCell(row: BillingUsageRow, field: (typeof billingUsageColumns)[number]["field"]) {
+  if (field === "started_at" || field === "ended_at") {
+    return formatUsageTimestamp(row[field]);
   }
 
-  return String(rawValue ?? "—");
+  if (field === "total_cost") {
+    return formatUsageCost(row.total_cost);
+  }
+
+  if (field === "billing_category") {
+    return formatUsageKind(row.billing_category) ?? "—";
+  }
+
+  if (field === "billed_resource_name") {
+    return (
+      <BillingResourceCell
+        kind={row.billed_resource_kind}
+        name={row.billed_resource_name}
+        uid={row.billed_resource_uid}
+      />
+    );
+  }
+
+  if (field === "parent_resource_name") {
+    return (
+      <BillingResourceCell
+        kind={row.parent_resource_kind}
+        name={row.parent_resource_name}
+        uid={row.parent_resource_uid}
+      />
+    );
+  }
+
+  return "—";
 }
 
 function clampBudgetPercent(value: number) {
@@ -375,12 +450,12 @@ function getCompactCellClassName(edge: "left" | "middle" | "right" = "middle") {
 
 export function AdminBillingDetailsPage() {
   const initialRange = useMemo(() => getPresetRange("month"), []);
-  const [startDateInput, setStartDateInput] = useState(toDatetimeLocalValue(initialRange.start));
-  const [endDateInput, setEndDateInput] = useState(toDatetimeLocalValue(initialRange.end));
+  const [startDateInput, setStartDateInput] = useState(toDateInputValue(initialRange.start));
+  const [endDateInput, setEndDateInput] = useState(toDateInputValue(initialRange.end));
   const [appliedRange, setAppliedRange] = useState(() =>
     normalizeRangeForQuery(
-      toDatetimeLocalValue(initialRange.start),
-      toDatetimeLocalValue(initialRange.end),
+      toDateInputValue(initialRange.start),
+      toDateInputValue(initialRange.end),
     ),
   );
   const [activePreset, setActivePreset] = useState<BillingRangePreset | null>("month");
@@ -418,13 +493,7 @@ export function AdminBillingDetailsPage() {
     () => (billingSummaryQuery.data ? buildBudgetSummaryCard(billingSummaryQuery.data) : null),
     [billingSummaryQuery.data],
   );
-  const usageColumns = useMemo(
-    () =>
-      (billingUsageQuery.data?.columnDefs ?? []).filter(
-        (column) => column.field !== "is_estimate_state",
-      ),
-    [billingUsageQuery.data?.columnDefs],
-  );
+  const usageColumns = billingUsageColumns;
 
   function applyRange(startDate: string, endDate: string, preset: BillingRangePreset | null = null) {
     const normalizedRange = normalizeRangeForQuery(startDate, endDate);
@@ -437,7 +506,7 @@ export function AdminBillingDetailsPage() {
 
   function handlePresetClick(preset: BillingRangePreset) {
     const range = getPresetRange(preset);
-    applyRange(toDatetimeLocalValue(range.start), toDatetimeLocalValue(range.end), preset);
+    applyRange(toDateInputValue(range.start), toDateInputValue(range.end), preset);
   }
 
   return (
@@ -490,8 +559,7 @@ export function AdminBillingDetailsPage() {
                   </label>
                   <Input
                     id="billing-usage-start"
-                    type="datetime-local"
-                    step={60}
+                    type="date"
                     value={startDateInput}
                     onChange={(event) => {
                       setStartDateInput(event.target.value);
@@ -508,8 +576,7 @@ export function AdminBillingDetailsPage() {
                   </label>
                   <Input
                     id="billing-usage-end"
-                    type="datetime-local"
-                    step={60}
+                    type="date"
                     value={endDateInput}
                     onChange={(event) => {
                       setEndDateInput(event.target.value);
@@ -614,7 +681,15 @@ export function AdminBillingDetailsPage() {
                   </thead>
                   <tbody>
                     {usageRows.map((row, rowIndex) => (
-                      <tr key={`${row.usage_end_time}-${row.source_object}-${rowIndex}`}>
+                      <tr
+                        key={[
+                          row.started_at,
+                          row.ended_at,
+                          row.billed_resource_uid,
+                          row.billed_resource_name,
+                          rowIndex,
+                        ].join("-")}
+                      >
                         {usageColumns.map((column, columnIndex) => (
                           <td
                             key={`${rowIndex}-${column.field}`}
@@ -626,7 +701,7 @@ export function AdminBillingDetailsPage() {
                                   : "middle",
                             )}
                           >
-                            {formatUsageCell(row, column)}
+                            {formatUsageCell(row, column.field)}
                           </td>
                         ))}
                       </tr>

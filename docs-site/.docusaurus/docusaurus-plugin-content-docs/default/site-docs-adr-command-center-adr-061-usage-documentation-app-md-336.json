@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-061-usage-documentation-app",
+  "title": "ADR 061: Usage Documentation App",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-061-usage-documentation-app.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-061-usage-documentation-app",
+  "permalink": "/docs/adr/command_center/adr-061-usage-documentation-app",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-061-usage-documentation-app.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

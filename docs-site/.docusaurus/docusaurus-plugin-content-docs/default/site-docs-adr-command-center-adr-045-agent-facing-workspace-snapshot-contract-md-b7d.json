@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-045-agent-facing-workspace-snapshot-contract",
+  "title": "ADR-045: Agent-Facing Workspace Snapshot Contract",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-045-agent-facing-workspace-snapshot-contract.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-045-agent-facing-workspace-snapshot-contract",
+  "permalink": "/docs/adr/command_center/adr-045-agent-facing-workspace-snapshot-contract",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-045-agent-facing-workspace-snapshot-contract.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

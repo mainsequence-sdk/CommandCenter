@@ -24,6 +24,9 @@ Runtime data mode is selected with:
 - `VITE_USE_MOCK_DATA=true` for local mock adapters
 - `VITE_USE_MOCK_DATA=false` for the live REST adapters and to remove the built-in `Demo` app from the shell registry
 - `VITE_BYPASS_AUTH=true` to bypass backend auth locally and use the built-in role picker
+- `VITE_COMMAND_CENTER_DEV_LOGIN_IDENTIFIER` and `VITE_COMMAND_CENTER_DEV_LOGIN_PASSWORD`
+  to let `/login?dev_autologin=1` preload and auto-submit real backend login credentials in Vite
+  dev mode only when `VITE_USE_MOCK_DATA=false` and `VITE_BYPASS_AUTH=false`
 - `VITE_API_BASE_URL` for live transport endpoints
 - `VITE_INCLUDE_AUI=true|false` to enable or disable the detachable `assistant-ui` shell integration
 - `VITE_INCLUDE_WORKSPACES=true|false` to enable or disable the `Workspaces` app at the registry level
@@ -63,6 +66,15 @@ configured token endpoint, fetches user details for identity, then fetches the c
 Command Center shell-access record and stores the resolved session locally.
 
 For local development only, `VITE_BYPASS_AUTH=true` switches the login surface back to a mock access-class picker that bypasses backend auth entirely.
+
+For local debugging against the real backend, `VITE_COMMAND_CENTER_DEV_LOGIN_IDENTIFIER` and
+`VITE_COMMAND_CENTER_DEV_LOGIN_PASSWORD` can be set in `.env.local` with
+`VITE_USE_MOCK_DATA=false` and `VITE_BYPASS_AUTH=false`. In Vite dev mode,
+`/login?dev_autologin=1` and `/login-v2?dev_autologin=1` preload those credentials and auto-submit
+once through the same JWT login path as a manual sign-in. Plain `/login` remains a manual login
+surface for testing other users. MFA challenges, shell-access resolution, token persistence, and
+backend failures are still handled by the normal auth store. Do not set these variables in
+production build environments because `VITE_` values are browser-exposed.
 
 The UI integration boundary stays the same:
 

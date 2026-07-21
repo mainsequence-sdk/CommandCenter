@@ -474,7 +474,6 @@ export function AppComponentWidgetSettings({
   }
 
   function handleSelectMainSequenceRelease(release: {
-    id: number;
     uid: string;
     title: string;
     project_name: string;

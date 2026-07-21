@@ -1,0 +1,15 @@
+{
+  "id": "adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts",
+  "title": "ADR 074: UID-Only Main Sequence Backend Identifier Contracts",
+  "description": "- Status: Implemented",
+  "source": "@site/../docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts.md",
+  "sourceDirName": "adr/main_sequence",
+  "slug": "/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts",
+  "permalink": "/docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

@@ -11,6 +11,7 @@ import { MainSequenceBucketsPage } from "./features/buckets/MainSequenceBucketsP
 import { MainSequenceClustersPage } from "./features/clusters/MainSequenceClustersPage";
 import { MainSequenceConstantsPage } from "./features/constants/MainSequenceConstantsPage";
 import { MainSequenceDataNodesPage } from "./features/data-nodes/MainSequenceDataNodesPage";
+import { MainSequenceDeploymentHistoryPage } from "./features/deployment-history/MainSequenceDeploymentHistoryPage";
 import { MainSequenceJobsPage } from "./features/jobs/MainSequenceJobsPage";
 import { MainSequenceNamespacesPage } from "./features/namespaces/MainSequenceNamespacesPage";
 import { MainSequencePhysicalDataSourcesPage } from "./features/physical-data-sources/MainSequencePhysicalDataSourcesPage";
@@ -131,6 +132,24 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
       component: MainSequenceJobsPage,
     },
     {
+      id: "deployment-history",
+      title: "Deployment History",
+      navLabel: "Deployment History",
+      description: "Browse deployment runs across all deployment target types.",
+      ...defineSurfaceAssistantContext({
+        summary:
+          "User is on Foundry Deployment History. This page lists deployment runs across all target types and opens timestamped logs for a selected run.",
+        availableActions: [
+          "Browse deployment runs",
+          "Inspect deployment status and target metadata",
+          "Open timestamped deployment logs",
+        ],
+      }),
+      navigationSection: operationsSection,
+      kind: "page",
+      component: MainSequenceDeploymentHistoryPage,
+    },
+    {
       id: "streamlit",
       title: "Streamlit",
       navLabel: "Streamlit",
@@ -158,7 +177,7 @@ export const mainSequenceWorkbenchApp: AppDefinition = {
           "User is on a Scalable Service detail surface. This page is opened from runtime-linked flows and shows the selected scalable-service runtime.",
         availableActions: [
           "Inspect service details",
-          "Review runtime pods",
+          "Review pods",
         ],
       }),
       navigationSection: deploymentServicesSection,

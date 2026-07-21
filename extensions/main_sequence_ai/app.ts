@@ -1,4 +1,4 @@
-import { Bot, FilePenLine, FileText, LayoutTemplate, MessageSquare, Sparkles } from "lucide-react";
+import { Bot, FilePenLine, LayoutTemplate, MessageSquare, Sparkles } from "lucide-react";
 
 import {
   defineSurfaceAssistantContext,
@@ -11,7 +11,6 @@ import { AgentSettingsSection } from "./features/settings/AgentSettingsSection";
 import { ModelProviderSettingsSection } from "./features/settings/ModelProviderSettingsSection";
 import { ChatPage } from "./surfaces/chat/ChatPage";
 import { AgentsMonitorPage } from "./surfaces/monitor/AgentsMonitorPage";
-import { ProjectAgentDeploymentLogsPage } from "./surfaces/project-agent-deployment-logs/ProjectAgentDeploymentLogsPage";
 import { AgentSessionDetailPage } from "./surfaces/session/AgentSessionDetailPage";
 import { CapabilitiesPage } from "./surfaces/capabilities/CapabilitiesPage";
 
@@ -144,25 +143,6 @@ export const mainSequenceAiApp: AppDefinition = {
       kind: "page",
       navigationSection: capabilitiesSection,
       component: CapabilitiesPage,
-    },
-    {
-      id: "project-agent-deployment-logs",
-      title: "Deployment Logs",
-      navLabel: "Deployment Logs",
-      icon: FileText,
-      description: "Standalone deployment-run log view for automatic project-agent releases.",
-      ...defineSurfaceAssistantContext({
-        summary:
-          "User is on the Deployment Logs surface inside Main Sequence AI. This page lists automatic project-agent deployment runs scoped to the authenticated user.",
-        availableActions: [
-          "Review automatic deployment run status",
-          "Inspect current deployment steps and errors",
-          "Return to the related Workbench project when a project UID is present",
-        ],
-      }),
-      kind: "page",
-      navigationSection: agentsSection,
-      component: ProjectAgentDeploymentLogsPage,
     },
     {
       id: "monitor",

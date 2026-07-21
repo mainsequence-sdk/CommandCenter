@@ -44,6 +44,7 @@ import { MainSequenceEntitySummaryCard } from "../../../../common/components/Mai
 import { MainSequenceRegistryPagination } from "../../../../common/components/MainSequenceRegistryPagination";
 import { MainSequenceProjectCodeTab } from "./MainSequenceProjectCodeTab";
 import { MainSequenceProjectDataNodeUpdatesTab } from "./MainSequenceProjectDataNodeUpdatesTab";
+import { MainSequenceProjectDeployHistoryTab } from "./MainSequenceProjectDeployHistoryTab";
 import { MainSequenceProjectInfraGraphTab } from "./MainSequenceProjectInfraGraphTab";
 import { MainSequenceProjectImagesTab } from "./MainSequenceProjectImagesTab";
 import { MainSequenceProjectJobsTab } from "./MainSequenceProjectJobsTab";
@@ -52,7 +53,9 @@ import { MainSequenceProjectSettingsTab } from "./MainSequenceProjectSettingsTab
 import { MainSequencePermissionsTab } from "../../../../common/components/MainSequencePermissionsTab";
 import { MainSequenceRegistrySearch } from "../../../../common/components/MainSequenceRegistrySearch";
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
+import { MainSequenceDataSourcePickerField } from "../../../../common/components/MainSequenceDataSourcePickerField";
 import { MainSequenceSelectionCheckbox } from "../../../../common/components/MainSequenceSelectionCheckbox";
+import { toProjectDataSourcePickerOption } from "../../../../common/components/dataSourcePickerOptions";
 import { getRegistryTableCellClassName } from "../../../../common/components/registryTable";
 import { useRegistrySelection } from "../../../../common/hooks/useRegistrySelection";
 import { useProjectAgentRailStore } from "../../../../../main_sequence_ai/assistant-ui/project-agent-rail-store";
@@ -116,6 +119,12 @@ const projectDetailTabs = [
     id: "data-node-updates",
     label: "Data Nodes Updates",
     title: "Data Nodes Updates",
+    body: "Coming soon.",
+  },
+  {
+    id: "deploy-history",
+    label: "Deploy History",
+    title: "Deploy History",
     body: "Coming soon.",
   },
   {
@@ -317,33 +326,8 @@ export function MainSequenceProjectsPage() {
   });
 
   const dataSourceOptions: PickerOption[] = (formOptionsQuery.data?.dataSources ?? []).map(
-    (option) => {
-      const label =
-        option.related_resource?.display_name?.trim() ||
-        option.related_resource?.name?.trim() ||
-        `Data source ${option.id}`;
-      const description = [
-        option.related_resource_class_type?.trim(),
-        option.related_resource?.status?.trim(),
-      ]
-        .filter(Boolean)
-        .join(" · ");
-
-      return {
-        value: option.uid,
-        label,
-        description,
-        keywords: [
-          option.uid,
-          label,
-          option.related_resource?.display_name ?? "",
-          option.related_resource?.name ?? "",
-          option.related_resource_class_type,
-          option.related_resource?.status ?? "",
-        ],
-      };
-    },
-  ) satisfies PickerOption[];
+    toProjectDataSourcePickerOption,
+  );
 
   const projectBaseImageOptions: PickerOption[] = (
     formOptionsQuery.data?.projectBaseImages ?? []
@@ -949,6 +933,11 @@ export function MainSequenceProjectsPage() {
                       selectedLocalUpdateId={isLocalUpdateDetailOpen ? selectedLocalUpdateId : null}
                       selectedLocalUpdateTabId={selectedLocalUpdateTabId}
                     />
+                  ) : activeTab.id === "deploy-history" && selectedProjectUid ? (
+                    <MainSequenceProjectDeployHistoryTab
+                      onOpenResourceReleaseDetail={openResourceReleaseDetail}
+                      projectUid={selectedProjectUid}
+                    />
                   ) : activeTab.id === "settings" && selectedProjectUid ? (
                     <MainSequenceProjectSettingsTab
                       key={selectedProjectUid}
@@ -1208,7 +1197,7 @@ export function MainSequenceProjectsPage() {
                   <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                     Data source
                   </label>
-                  <PickerField
+                  <MainSequenceDataSourcePickerField
                     value={formState.dataSourceUid}
                     onChange={(value) => {
                       createProjectMutation.reset();

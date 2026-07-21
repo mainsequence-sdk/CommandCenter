@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/mainsequence_ai/adr-063-project-agent-configuration-source-of-truth" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 063: Project Agent Configuration Source of Truth | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/mainsequence_ai/adr-063-project-agent-configuration-source-of-truth"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 063: Project Agent Configuration Source of Truth | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/mainsequence_ai/adr-063-project-agent-configuration-source-of-truth"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/mainsequence_ai/adr-063-project-agent-configuration-source-of-truth" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/mainsequence_ai/adr-063-project-agent-configuration-source-of-truth" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 063: Project Agent Configuration Source of Truth</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-06-12</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/mainsequence_ai/adr-058-refactor-project-agent-creation">ADR 058: Refactor Project Agent Creation</a></li>
+<li class=""><a class="" href="/docs/adr/mainsequence_ai/adr-060-session-backed-chat-request-contract">ADR 060: Main Sequence AI Session-Backed Chat Request Contract</a></li>
+<li class=""><a class="" href="/docs/adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap">ADR 077: Unified Astro Coding-Agent Bootstrap</a></li>
+<li class=""><a class="" href="/docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts">ADR 074: UID-Only Main Sequence Backend Identifier Contracts</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The <code>Main Sequence AI</code> Project Agents page configures a project-executor agent runtime for a
+selected Main Sequence project:</p>
+<ul>
+<li class=""><code>/app/main_sequence_ai/project-agents?msProjectUid=&lt;project_uid&gt;</code></li>
+</ul>
+<p>The page currently needs three different backend/runtime payloads:</p>
+<ol>
+<li class="">project-executor service state</li>
+<li class="">persisted agent configuration</li>
+<li class="">available provider/model options</li>
+</ol>
+<p>Those payloads are related but not equivalent.</p>
+<p>The project-executor service payload answers service/runtime questions:</p>
+<ul>
+<li class="">whether a project-executor service exists for the project</li>
+<li class="">which agent the service is linked to</li>
+<li class="">whether the service is ready</li>
+<li class="">automatic deployment state</li>
+<li class="">runtime image drift state</li>
+<li class="">delete/deploy service metadata</li>
+</ul>
+<p>The persisted model selection and reasoning configuration belong to the linked <code>Agent</code>, not to the
+model catalog and not to a locally inferred default. The selected <code>llm_provider</code>, <code>llm_model</code>, and
+<code>llm_thinking</code> must be loaded from the linked agent details when that agent exists.</p>
+<p>The available-models endpoint answers a different question:</p>
+<ul>
+<li class="">which providers/models can be selected now</li>
+</ul>
+<p>It is an options catalog. It must not be treated as the source of the existing project-agent
+configuration.</p>
+<p>Mixing these concerns creates bugs:</p>
+<ul>
+<li class="">the form can show the first available catalog model instead of the actual persisted agent model</li>
+<li class="">the form can omit the persisted reasoning/thinking setting owned by the linked agent</li>
+<li class="">deploy can accidentally resend a default model when the existing agent detail has not hydrated</li>
+<li class="">a catalog refresh can overwrite backend-owned configuration</li>
+<li class="">the UI can confuse &quot;current selected model&quot; with &quot;selectable model options&quot;</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>The Project Agents page will use separate source-of-truth rules for current configuration and
+available options.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-service-lookup-identifies-the-linked-agent">1. Service lookup identifies the linked agent<a href="#1-service-lookup-identifies-the-linked-agent" class="hash-link" aria-label="Direct link to 1. Service lookup identifies the linked agent" title="Direct link to 1. Service lookup identifies the linked agent" translate="no">​</a></h3>
+<p>The page first reads the project-executor service:</p>
+<ul>
+<li class=""><code>GET /orm/api/agents/v1/project-executor-agent-services/by-project/&lt;project_uid&gt;/</code></li>
+</ul>
+<p>That response is authoritative for service-level configuration and runtime state, including:</p>
+<ul>
+<li class=""><code>uid</code></li>
+<li class=""><code>agent_uid</code></li>
+<li class=""><code>automatic_deployment</code></li>
+<li class="">readiness state</li>
+<li class="">runtime image drift state</li>
+<li class="">service delete/deploy metadata</li>
+</ul>
+<p>The frontend must use the public agent identifier from this response to load the linked agent. The
+preferred field is <code>agent_uid</code>.</p>
+<p>The frontend must not introduce new dependencies on numeric <code>agent_id</code> values for this path.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-agent-details-are-the-source-of-the-selected-model-configuration">2. Agent details are the source of the selected model configuration<a href="#2-agent-details-are-the-source-of-the-selected-model-configuration" class="hash-link" aria-label="Direct link to 2. Agent details are the source of the selected model configuration" title="Direct link to 2. Agent details are the source of the selected model configuration" translate="no">​</a></h3>
+<p>If the service response has a linked agent, the Project Agents form must load agent detail:</p>
+<ul>
+<li class=""><code>GET /orm/api/agents/v1/agents/&lt;agent_uid&gt;/</code></li>
+</ul>
+<p>The returned agent detail is authoritative for the form&#x27;s current selected model configuration:</p>
+<ul>
+<li class=""><code>llm_provider</code></li>
+<li class=""><code>llm_model</code></li>
+<li class=""><code>llm_thinking</code></li>
+</ul>
+<p>When agent detail exists, those values populate the Provider, Model, and reasoning/thinking
+controls before any catalog default is applied.</p>
+<p>The UI must preserve the agent-detail values even when the current available-models catalog does
+not include that provider/model/reasoning combination. In that case, the UI should show the
+backend-owned value as the current configuration and make any mismatch explicit instead of silently
+selecting a different catalog option.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-the-available-models-endpoint-is-only-the-options-catalog">3. The available-models endpoint is only the options catalog<a href="#3-the-available-models-endpoint-is-only-the-options-catalog" class="hash-link" aria-label="Direct link to 3. The available-models endpoint is only the options catalog" title="Direct link to 3. The available-models endpoint is only the options catalog" translate="no">​</a></h3>
+<p>The existing available-models request remains the correct source for selectable options:</p>
+<ul>
+<li class=""><code>/api/chat/get_available_models?created_by_user_uid=&lt;user_uid&gt;</code></li>
+</ul>
+<p>That response provides the provider/model option set for the selector. It is not authoritative for
+the current project-agent configuration.</p>
+<p>The catalog may be used to:</p>
+<ul>
+<li class="">render provider options</li>
+<li class="">render model options</li>
+<li class="">render reasoning/thinking options when the selected model advertises them</li>
+<li class="">mark options unusable when provider auth is missing</li>
+<li class="">validate whether the current agent-detail model is selectable</li>
+<li class="">validate whether the current agent-detail thinking value is selectable for the current model</li>
+<li class="">provide choices when the user intentionally changes the model</li>
+</ul>
+<p>The catalog must not:</p>
+<ul>
+<li class="">overwrite <code>llm_provider</code> / <code>llm_model</code> loaded from agent detail</li>
+<li class="">overwrite <code>llm_thinking</code> loaded from agent detail</li>
+<li class="">auto-select the first available provider/model after an existing agent detail has loaded</li>
+<li class="">be required to know the current persisted configuration when the agent detail already provides it</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-new-agent-behavior-is-separate-from-existing-agent-hydration">4. New-agent behavior is separate from existing-agent hydration<a href="#4-new-agent-behavior-is-separate-from-existing-agent-hydration" class="hash-link" aria-label="Direct link to 4. New-agent behavior is separate from existing-agent hydration" title="Direct link to 4. New-agent behavior is separate from existing-agent hydration" translate="no">​</a></h3>
+<p>If no project-executor service or linked agent exists yet, there is no existing agent configuration
+to hydrate. In that state, the UI may use the available-models catalog to offer an initial
+selection for a new deploy.</p>
+<p>Once a linked agent exists, agent detail wins.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-deploy-sends-the-explicit-form-state">5. Deploy sends the explicit form state<a href="#5-deploy-sends-the-explicit-form-state" class="hash-link" aria-label="Direct link to 5. Deploy sends the explicit form state" title="Direct link to 5. Deploy sends the explicit form state" translate="no">​</a></h3>
+<p>Deploy continues to call:</p>
+<ul>
+<li class=""><code>POST /orm/api/agents/v1/project-executor-agent-services/deploy/</code></li>
+</ul>
+<p>The request body sends the explicit form state:</p>
+<ul>
+<li class=""><code>project</code></li>
+<li class=""><code>llm_provider</code></li>
+<li class=""><code>llm_model</code></li>
+<li class=""><code>llm_thinking</code></li>
+<li class="">compute settings</li>
+<li class=""><code>automatic_deployment</code></li>
+</ul>
+<p>For an existing linked agent, the initial form state must come from agent detail. If the user
+changes provider/model, the changed form state is sent in deploy. A deploy response may then update
+the agent and service state; the page should invalidate and rehydrate both the service and linked
+agent detail.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope">Scope<a href="#scope" class="hash-link" aria-label="Direct link to Scope" title="Direct link to Scope" translate="no">​</a></h2>
+<p>This ADR covers:</p>
+<ul>
+<li class="">source-of-truth rules for the Project Agents configuration form</li>
+<li class="">ownership of <code>llm_provider</code>, <code>llm_model</code>, and <code>llm_thinking</code></li>
+<li class="">the role of the available-models catalog</li>
+<li class="">frontend hydration order for existing project agents</li>
+<li class="">UID-only linked-agent lookup for this flow</li>
+</ul>
+<p>This ADR does not cover:</p>
+<ul>
+<li class="">chat session model changes</li>
+<li class="">AgentSession detail hydration</li>
+<li class="">global model-provider settings</li>
+<li class="">automatic deployment execution semantics</li>
+<li class="">backend image build or runtime deployment internals</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-direction">Implementation Direction<a href="#implementation-direction" class="hash-link" aria-label="Direct link to Implementation Direction" title="Direct link to Implementation Direction" translate="no">​</a></h2>
+<ol>
+<li class="">Fetch the project-executor service by project UID.</li>
+<li class="">Read <code>agent_uid</code> from that service when present.</li>
+<li class="">Fetch agent detail by <code>agent_uid</code>.</li>
+<li class="">Populate <code>selectedLlmProvider</code>, <code>selectedLlmModelId</code>, and selected reasoning/thinking state from
+<code>agent.llm_provider</code>, <code>agent.llm_model</code>, and <code>agent.llm_thinking</code> before applying catalog
+defaults.</li>
+<li class="">Fetch the available-models catalog separately for the selector option set.</li>
+<li class="">If the agent-detail model appears in the catalog, select the matching catalog option.</li>
+<li class="">If that catalog model advertises reasoning/thinking options and the agent-detail
+<code>llm_thinking</code> value appears there, select that matching option.</li>
+<li class="">If the agent-detail model or thinking value does not appear in the catalog, preserve the
+backend-owned provider/model/thinking values in the UI and do not silently replace them.</li>
+<li class="">Only use catalog-first defaulting when no linked agent detail exists yet.</li>
+<li class="">On deploy success, invalidate both:</li>
+</ol>
+<ul>
+<li class=""><code>project-executor-agent-services/by-project/&lt;project_uid&gt;/</code></li>
+<li class=""><code>agents/&lt;agent_uid&gt;/</code></li>
+</ul>
+<ol start="11">
+<li class="">Do not add new numeric <code>agent_id</code> dependencies. Use public UIDs for linked agent lookup.</li>
+</ol>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">existing project agents render the actual persisted provider/model</li>
+<li class="">existing project agents render the actual persisted reasoning/thinking setting</li>
+<li class="">the options catalog can change without overwriting backend-owned configuration</li>
+<li class="">deploy does not accidentally submit a catalog default for an existing agent</li>
+<li class="">frontend behavior matches the backend ownership model: model configuration belongs to the Agent</li>
+<li class="">UID-only identity rules stay intact for the project-agent path</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="negative">Negative<a href="#negative" class="hash-link" aria-label="Direct link to Negative" title="Direct link to Negative" translate="no">​</a></h3>
+<ul>
+<li class="">the form has one more hydration dependency for existing agents</li>
+<li class="">the UI must handle a state where the current agent-detail model or thinking value is not present
+in the catalog</li>
+<li class="">backend must consistently expose <code>agent_uid</code> from the project-executor service response</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="required-fixes">Required Fixes<a href="#required-fixes" class="hash-link" aria-label="Direct link to Required Fixes" title="Direct link to Required Fixes" translate="no">​</a></h2>
+<ul>
+<li class="">The Project Agents page must stop treating the available-models response as the current
+configuration source.</li>
+<li class="">The Project Agents page must hydrate current provider/model from linked agent detail when a
+linked agent exists.</li>
+<li class="">The Project Agents page must hydrate <code>llm_thinking</code> from linked agent detail when a linked agent
+exists.</li>
+<li class="">The Project Agents page must preserve loaded agent-detail provider/model/thinking values even
+when the catalog is missing that option.</li>
+<li class="">The project-executor service response must expose the linked public <code>agent_uid</code>.</li>
+<li class="">Frontend code must avoid new numeric <code>agent_id</code> dependencies in this flow.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/mainsequence_ai/adr-063-project-agent-configuration-source-of-truth.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a><ul><li><a href="#1-service-lookup-identifies-the-linked-agent" class="table-of-contents__link toc-highlight">1. Service lookup identifies the linked agent</a></li><li><a href="#2-agent-details-are-the-source-of-the-selected-model-configuration" class="table-of-contents__link toc-highlight">2. Agent details are the source of the selected model configuration</a></li><li><a href="#3-the-available-models-endpoint-is-only-the-options-catalog" class="table-of-contents__link toc-highlight">3. The available-models endpoint is only the options catalog</a></li><li><a href="#4-new-agent-behavior-is-separate-from-existing-agent-hydration" class="table-of-contents__link toc-highlight">4. New-agent behavior is separate from existing-agent hydration</a></li><li><a href="#5-deploy-sends-the-explicit-form-state" class="table-of-contents__link toc-highlight">5. Deploy sends the explicit form state</a></li></ul></li><li><a href="#scope" class="table-of-contents__link toc-highlight">Scope</a></li><li><a href="#implementation-direction" class="table-of-contents__link toc-highlight">Implementation Direction</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#negative" class="table-of-contents__link toc-highlight">Negative</a></li></ul></li><li><a href="#required-fixes" class="table-of-contents__link toc-highlight">Required Fixes</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

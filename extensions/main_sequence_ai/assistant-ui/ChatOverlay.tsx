@@ -48,7 +48,7 @@ export function ChatOverlay({
       style={!isDocked && rightOffsetPx > 0 ? { right: `${rightOffsetPx}px` } : undefined}
       className={
         isDocked
-          ? "relative flex h-full min-h-0 w-full flex-col overflow-hidden border-l border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_84%,transparent)_0%,color-mix(in_srgb,var(--card)_90%,transparent)_28%,color-mix(in_srgb,var(--background)_86%,transparent)_100%)] text-card-foreground backdrop-blur-3xl"
+          ? "relative z-[100] flex h-full min-h-0 w-full flex-col overflow-hidden border-l border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_84%,transparent)_0%,color-mix(in_srgb,var(--card)_90%,transparent)_28%,color-mix(in_srgb,var(--background)_86%,transparent)_100%)] text-card-foreground backdrop-blur-3xl"
           : "fixed inset-y-0 right-0 z-[110] flex w-[min(540px,calc(100vw-10px))] flex-col overflow-hidden border-l border-border/70 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--card)_84%,transparent)_0%,color-mix(in_srgb,var(--card)_90%,transparent)_28%,color-mix(in_srgb,var(--background)_86%,transparent)_100%)] text-card-foreground shadow-[-26px_0_80px_rgba(0,0,0,0.28)] backdrop-blur-3xl"
       }
     >

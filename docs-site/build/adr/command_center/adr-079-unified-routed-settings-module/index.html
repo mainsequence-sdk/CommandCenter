@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-079-unified-routed-settings-module" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 079: Unified Routed Settings Module | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-079-unified-routed-settings-module"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 079: Unified Routed Settings Module | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-079-unified-routed-settings-module"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-079-unified-routed-settings-module" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-079-unified-routed-settings-module" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 079: Unified Routed Settings Module</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-06-26</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-extension-contributed-shell-settings-menus">ADR: Extension-Contributed Shell Settings Menus</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-first-class-connection-model">ADR: First-Class Connection Model</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-runtime-credential-browser-auth">ADR: Runtime Credential Browser Auth</a></li>
+<li class=""><a class="" href="/docs/access-control">Access Control docs</a></li>
+<li class=""><a class="" href="/docs/apps">Apps docs</a></li>
+<li class=""><a class="" href="/docs/platform">Platform docs</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Command Center currently splits settings and administration across two different UX models:</p>
+<ul>
+<li class="">User settings live in <code>SettingsDialog</code>, a modal-style shell surface opened from the user menu.</li>
+<li class="">Platform Admin Settings also reuse <code>SettingsDialog</code> internals, and they should move into the same
+routed Settings module while preserving their platform-admin-only gates.</li>
+<li class="">Organization administration lives in the <code>admin</code> app, a routed page application surfaced through
+the Organization Admin button/menu.</li>
+</ul>
+<p>This creates a UX and ownership gap:</p>
+<ul>
+<li class="">settings that feel related are split across different entry points</li>
+<li class="">the Organization Admin button competes with the user settings button</li>
+<li class="">the settings modal is too constrained for large account, billing, and organization pages</li>
+<li class="">the Organization Admin routed app already has the better page-level interaction model, but its
+exploration submenu is noisy and too prominent</li>
+<li class="">extension-contributed settings entries exist, but the old settings-dialog framing makes them feel
+secondary instead of first-class</li>
+</ul>
+<p>The previous settings-menu ADR accepted extension-contributed settings inside a dialog. That was a
+reasonable first step, but the current product direction should move settings out of a modal and
+into normal routed application surfaces.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Create one first-class routed <code>Settings</code> module and use it as the single entry point for user,
+billing, organization, organization-owned application, extension-contributed, and platform
+configuration.</p>
+<p>The shell should expose one Settings entry. The standalone Organization Admin button should be
+removed or reduced to a compatibility redirect. Organization administration becomes a permissioned
+section inside Settings, not a separate shell-level affordance.</p>
+<p>Canonical route shape:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/account/profile</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/account/preferences</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/account/security</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/account/sessions</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/account/usage-detail</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/billing/invoices</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/billing/details</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/billing/hosted-resources</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/organization/users</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/organization/plans</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/organization/security-sessions</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/organization/widgets</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/applications/main-sequence-markets</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/applications/main_sequence_ai/agents-settings</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/applications/main_sequence_ai/model-providers</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/platform/configuration</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/platform/widget-registry</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/platform/connection-registry</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/organization/github</span><br></span></code></pre></div></div>
+<p>The exact final route list can evolve, but the route ownership is fixed: account and organization
+settings pages, extension-contributed settings pages, and platform diagnostics live under
+<code>/app/settings/...</code>.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="information-architecture">Information Architecture<a href="#information-architecture" class="hash-link" aria-label="Direct link to Information Architecture" title="Direct link to Information Architecture" translate="no">​</a></h2>
+<p>The Settings module uses a page-level shell with:</p>
+<ul>
+<li class="">a compact page header</li>
+<li class="">a left exploration submenu</li>
+<li class="">a content outlet for the selected settings page</li>
+<li class="">no modal frame</li>
+</ul>
+<p>Top-level groups:</p>
+<ul>
+<li class=""><code>Account</code></li>
+<li class=""><code>Billing</code></li>
+<li class=""><code>Organization</code></li>
+<li class=""><code>Applications</code></li>
+<li class=""><code>Platform</code></li>
+</ul>
+<p>The group model should be data-driven and permission-aware. If a user cannot access a group, the
+group is not shown.</p>
+<p>Recommended initial mapping:</p>
+<table><thead><tr><th>Settings group</th><th>Pages</th></tr></thead><tbody><tr><td><code>Account</code></td><td>profile, preferences, usage detail, security, sessions</td></tr><tr><td><code>Billing</code></td><td>invoices, billing details, hosted resources, manage credits</td></tr><tr><td><code>Organization</code></td><td>users, active plans, security sessions, GitHub organizations, widget configurations</td></tr><tr><td><code>Applications</code></td><td>Main Sequence Markets, Main Sequence AI provider/agent settings, and other application settings</td></tr><tr><td><code>Platform</code></td><td>configuration, widget registry, connection registry</td></tr></tbody></table>
+<p>Organization pages require <code>org_admin:view</code>. Platform-only diagnostics keep their existing
+platform-admin permission requirements inside Settings.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="exploration-submenu-ux">Exploration Submenu UX<a href="#exploration-submenu-ux" class="hash-link" aria-label="Direct link to Exploration Submenu UX" title="Direct link to Exploration Submenu UX" translate="no">​</a></h2>
+<p>The Settings exploration submenu should look closer to the current Organization Admin page model
+than the modal settings nav, but it must be quieter:</p>
+<ul>
+<li class="">show short group labels</li>
+<li class="">show short item labels</li>
+<li class="">keep descriptions in page headers, not in the nav list</li>
+<li class="">support group collapse and expansion</li>
+<li class="">support a collapsed rail mode with icons and tooltips</li>
+<li class="">persist collapsed group state locally per user/browser</li>
+<li class="">highlight the active route</li>
+<li class="">keep badge/count affordances optional and sparse</li>
+</ul>
+<p>The submenu should not render every page as a loud card or long descriptive row. It is navigation,
+not documentation.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="routing">Routing<a href="#routing" class="hash-link" aria-label="Direct link to Routing" title="Direct link to Routing" translate="no">​</a></h2>
+<p>The new <code>settingsApp</code> should be registered through the app registry as a normal app.</p>
+<p>Settings is the canonical frontend namespace for account, billing, organization, Access &amp; RBAC,
+application, and platform settings. The shell should not register or advertise standalone
+<code>admin</code>, <code>access-rbac</code>, or internal shell-settings app ids.</p>
+<p>The old user settings modal entry should navigate to:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">/app/settings/account/profile</span><br></span></code></pre></div></div>
+<p>Deep links to former settings-dialog section ids should map to the closest route, for example:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">general -&gt; /app/settings/account/preferences</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">account -&gt; /app/settings/account/profile</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">security -&gt; /app/settings/account/security</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">configuration -&gt; /app/settings/platform/configuration</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">registry -&gt; /app/settings/platform/widget-registry</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">connection-registry -&gt; /app/settings/platform/connection-registry</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">main_sequence_ai::agents-settings -&gt; /app/settings/applications/main_sequence_ai/agents-settings</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">main_sequence_ai::model-providers -&gt; /app/settings/applications/main_sequence_ai/model-providers</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="app-registry-model">App Registry Model<a href="#app-registry-model" class="hash-link" aria-label="Direct link to App Registry Model" title="Direct link to App Registry Model" translate="no">​</a></h2>
+<p>Settings should become a routed app, not a special shell modal. However, extension-contributed
+settings still need a registry contract.</p>
+<p>Update the existing shell settings contribution model so entries can be routed:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">export</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">AppSettingsAudience</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;user&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;organization&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;platform&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token keyword" style="font-style:italic">export</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">AppSettingsContribution</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  id</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  audience</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AppSettingsAudience</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  label</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  description</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  icon</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AppIcon</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  order</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  routeSegment</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  group</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    id</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    label</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    icon</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AppIcon</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    order</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    collapsible</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">boolean</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  component</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> ComponentType</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Compatibility rule:</p>
+<ul>
+<li class="">user-scoped shared shell contributions can be adapted into Settings during migration</li>
+<li class="">product-specific settings that already use shell settings contributions can stay in Settings until
+their owning app has a deliberate replacement IA</li>
+<li class="">platform-admin diagnostics should stay gated and route under the Settings <code>Platform</code> group</li>
+</ul>
+<p>The settings registry should flatten contributions with app metadata:</p>
+<ul>
+<li class=""><code>appId</code></li>
+<li class=""><code>appTitle</code></li>
+<li class=""><code>appSource</code></li>
+<li class=""><code>appIcon</code></li>
+<li class="">route path</li>
+<li class="">backend shell-access surface id</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="permission-rules">Permission Rules<a href="#permission-rules" class="hash-link" aria-label="Direct link to Permission Rules" title="Direct link to Permission Rules" translate="no">​</a></h2>
+<p>Visibility requires backend shell access for:</p>
+<ul>
+<li class="">the concrete Settings section app such as <code>settings.account</code>, <code>settings.organization</code>,
+<code>settings.access-rbac</code>, <code>settings.applications</code>, or <code>settings.platform</code></li>
+<li class="">the concrete Settings section surface such as <code>settings.platform.auth</code></li>
+</ul>
+<p>The Settings shell should never show inaccessible group headers.</p>
+<p>Moving pages into one Settings module must not make organization, billing, platform, provider,
+application, or diagnostic pages visible unless the backend returns the matching settings surface.
+A shared Settings route is only a navigation container; it is not a permission escalation boundary.</p>
+<ul>
+<li class="">route-level <code>PermissionRoute</code> checks</li>
+<li class="">page-local guards that disable or hide mutations for non-admin users</li>
+<li class="">backend-enforced permission failures, which must still render as page errors instead of being
+hidden by frontend-only assumptions</li>
+</ul>
+<p>If a user navigates directly to an inaccessible settings URL:</p>
+<ul>
+<li class="">render the normal permission boundary</li>
+<li class="">do not silently redirect to an unrelated settings page</li>
+</ul>
+<p>Default route resolution:</p>
+<ol>
+<li class="">first accessible account page</li>
+<li class="">first accessible billing page</li>
+<li class="">first accessible organization page</li>
+<li class="">first accessible applications page</li>
+<li class="">first accessible platform page</li>
+<li class="">explicit no-access settings state</li>
+</ol>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="storage-and-backend-contract-impact">Storage And Backend Contract Impact<a href="#storage-and-backend-contract-impact" class="hash-link" aria-label="Direct link to Storage And Backend Contract Impact" title="Direct link to Storage And Backend Contract Impact" translate="no">​</a></h2>
+<p>This ADR is primarily frontend navigation and composition.</p>
+<p>No backend API shape changes are required for the first implementation. Existing admin and user
+settings API calls should be reused unchanged.</p>
+<p>Frontend storage impact:</p>
+<ul>
+<li class="">add local UI state for collapsed settings navigation groups and optional collapsed rail state</li>
+<li class="">do not change workspace, widget, connection, binding, or runtime-state persistence contracts</li>
+</ul>
+<p>Backend impact:</p>
+<ul>
+<li class="">keep existing permission names and API endpoints</li>
+<li class="">no new backend redirects are required if frontend route redirects are handled in the SPA</li>
+<li class="">backend documentation may need updated screenshots/routes, but not request/response changes</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="non-goals">Non-Goals<a href="#non-goals" class="hash-link" aria-label="Direct link to Non-Goals" title="Direct link to Non-Goals" translate="no">​</a></h2>
+<p>This ADR does not:</p>
+<ul>
+<li class="">redesign organization user management behavior</li>
+<li class="">redesign billing, credits, or plan management APIs</li>
+<li class="">change RBAC permission names</li>
+<li class="">change authentication token or MFA contracts</li>
+<li class="">create a new backend settings aggregation endpoint</li>
+<li class="">require every product extension to implement settings pages immediately</li>
+<li class="">preserve the user settings modal as a parallel primary UX</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<p>Positive:</p>
+<ul>
+<li class="">one mental model for all settings</li>
+<li class="">no duplicate user settings and organization admin affordances</li>
+<li class="">large settings/admin pages get full route, history, and page-layout support</li>
+<li class="">organization admin becomes easier to discover without being a separate shell mode</li>
+<li class="">extension settings can scale without bloating <code>SettingsDialog</code></li>
+</ul>
+<p>Negative:</p>
+<ul>
+<li class="">migration touches shell navigation, routing, app registry, settings sections, and tests</li>
+<li class="">old links need redirects</li>
+<li class="">the old settings dialog cannot remain the source of truth</li>
+<li class="">route-driven settings require more deliberate page headers and loading states</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-1-inventory-and-route-contract">Phase 1: Inventory And Route Contract<a href="#phase-1-inventory-and-route-contract" class="hash-link" aria-label="Direct link to Phase 1: Inventory And Route Contract" title="Direct link to Phase 1: Inventory And Route Contract" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Inventory every current <code>SettingsDialog</code> section, including user, platform, contributed, and
+hidden/internal sections.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Inventory every current organization-admin Settings surface in <code>src/extensions/core/index.ts</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Inventory every current visibility gate, including backend shell-access surfaces,
+<code>PermissionRoute</code> wrappers, contributed sections, and page-local mutation guards.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Decide the final route slug for each existing section and admin surface.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove standalone admin route names from the shell route table.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Write a section-id redirect table for old settings dialog section ids.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Confirm the first accessible default settings route for user-only, org-admin, and
+platform-admin sessions.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Write a permission parity matrix that maps each old section/surface to its new route and
+exact required permissions.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-2-settings-app-shell">Phase 2: Settings App Shell<a href="#phase-2-settings-app-shell" class="hash-link" aria-label="Direct link to Phase 2: Settings App Shell" title="Direct link to Phase 2: Settings App Shell" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add a <code>settingsApp</code> registration in <code>src/extensions/core/index.ts</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add a routed settings layout component with page header, collapsible exploration submenu, and
+outlet/content region.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Implement grouped navigation data with group ordering, item ordering, active-state matching,
+and permission filtering.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure permission filtering happens before group rendering so inaccessible groups and empty
+groups are not shown.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add local persistence for collapsed groups and optional collapsed rail mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure the submenu uses short labels only; move descriptions into page headers.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add no-access and not-found states inside the Settings app.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-3-move-user-settings-out-of-the-modal">Phase 3: Move User Settings Out Of The Modal<a href="#phase-3-move-user-settings-out-of-the-modal" class="hash-link" aria-label="Direct link to Phase 3: Move User Settings Out Of The Modal" title="Direct link to Phase 3: Move User Settings Out Of The Modal" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extract account profile content from <code>SettingsDialog</code> into a routed settings page.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extract preferences/theme/language content into a routed settings page.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extract MFA/security content into a routed settings page.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extract user sessions content into a routed settings page.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extract user credits/billing contribution into a routed settings page.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep existing hooks, queries, mutations, and toasts unchanged unless a page extraction requires
+a component boundary cleanup.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove modal-only assumptions such as fixed dialog height, internal section scroll anchors,
+and dialog close side effects.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-4-move-organization-admin-into-settings">Phase 4: Move Organization Admin Into Settings<a href="#phase-4-move-organization-admin-into-settings" class="hash-link" aria-label="Direct link to Phase 4: Move Organization Admin Into Settings" title="Direct link to Phase 4: Move Organization Admin Into Settings" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Move <code>AdminOrganizationUsersPage</code> to <code>/app/settings/organization/users</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Move <code>AdminActivePlansPage</code> to <code>/app/settings/organization/plans</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Move <code>AdminLoginSessionsPage</code> to <code>/app/settings/organization/security-sessions</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Move <code>AdminWidgetConfigurationsPage</code> to <code>/app/settings/organization/widgets</code> or
+<code>/app/settings/organization/applications/widgets</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Move <code>AdminMainSequenceMarketsPage</code> to
+<code>/app/settings/organization/applications/main-sequence-markets</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Move <code>AdminGithubOrganizationsPage</code> to <code>/app/settings/organization/github</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Move <code>AdminInvoicesPage</code> to <code>/app/settings/billing/invoices</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Move <code>AdminBillingDetailsPage</code> to <code>/app/settings/billing/details</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Move <code>AdminHostedResourcesPage</code> to <code>/app/settings/billing/hosted-resources</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Move <code>AdminManageCreditsPage</code> to <code>/app/settings/billing/manage-credits</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Preserve each page&#x27;s current data fetching, permissions, mutation behavior, and assistant
+context.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-5-registry-contribution-migration">Phase 5: Registry Contribution Migration<a href="#phase-5-registry-contribution-migration" class="hash-link" aria-label="Direct link to Phase 5: Registry Contribution Migration" title="Direct link to Phase 5: Registry Contribution Migration" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add the routed settings contribution contract to the app definition types.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Adapt existing <code>shellMenuContributions</code> into routed settings contributions for backward
+compatibility during migration.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep shared user contributions in <code>settingsApp</code> only when they are not product-specific.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Adapt Main Sequence AI shell settings contributions into Settings application routes.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep organization-owned application settings, such as Main Sequence Markets, in Settings.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add tests for contribution sorting, grouping, permission filtering, and route generation.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-6-shell-entry-point-cleanup">Phase 6: Shell Entry Point Cleanup<a href="#phase-6-shell-entry-point-cleanup" class="hash-link" aria-label="Direct link to Phase 6: Shell Entry Point Cleanup" title="Direct link to Phase 6: Shell Entry Point Cleanup" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Change <code>UserMenu</code> Settings action to navigate to <code>/app/settings/account/profile</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove the standalone Organization Admin button from the shell.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->If an admin menu remains temporarily, make its entries navigate into <code>/app/settings/...</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove <code>SettingsDialog</code> from the primary shell flow.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep a temporary compatibility wrapper only if needed for old code paths, and mark it for
+deletion.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update i18n keys from <code>settingsDialog.*</code> and <code>userMenu.settings</code> where labels change.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-7-route-cleanup">Phase 7: Route Cleanup<a href="#phase-7-route-cleanup" class="hash-link" aria-label="Direct link to Phase 7: Route Cleanup" title="Direct link to Phase 7: Route Cleanup" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove old standalone admin route names from the active SPA route table.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add compatibility handling only for old settings section ids that are still emitted by
+existing shell controls.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep backend shell-access boundaries on every Settings target.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add route tests for user-only, org-admin, and platform-admin access.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Verify browser back/forward works across Settings pages.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-8-visual-and-ux-polish">Phase 8: Visual And UX Polish<a href="#phase-8-visual-and-ux-polish" class="hash-link" aria-label="Direct link to Phase 8: Visual And UX Polish" title="Direct link to Phase 8: Visual And UX Polish" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Match the broad Organization Admin page feel: full-page shell, clear page header, and roomy
+content cards.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Reduce submenu noise: no long descriptions, no dense metadata in nav rows, no heavy cards for
+every nav item.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add collapsible group behavior and active-route styling.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add responsive behavior for narrow screens, likely drawer-style settings navigation.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Confirm keyboard navigation and focus behavior for collapsible groups.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Confirm loading, error, empty, and permission states across migrated pages.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-9-documentation-and-removal">Phase 9: Documentation And Removal<a href="#phase-9-documentation-and-removal" class="hash-link" aria-label="Direct link to Phase 9: Documentation And Removal" title="Direct link to Phase 9: Documentation And Removal" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <code>src/app/layout/README.md</code> with the new Settings ownership model.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <code>src/extensions/core/README.md</code> with settings app registration and contribution rules.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update docs for app registry settings contributions.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update in-app user-facing docs if they mention Organization Admin as a separate shell button.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove dead modal-only code after all routes are migrated.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove obsolete admin-menu code paths after redirects are stable.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="phase-10-verification">Phase 10: Verification<a href="#phase-10-verification" class="hash-link" aria-label="Direct link to Phase 10: Verification" title="Direct link to Phase 10: Verification" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Run TypeScript checks.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Run route and permission tests.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Run settings contribution registry tests.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Manually verify user-only session: Settings shows Account/Billing only.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Manually verify org-admin session: Settings shows Organization pages and no separate
+Organization Admin button.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Manually verify platform-admin session: Settings shows Platform diagnostics.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Manually verify old standalone admin URLs are not advertised by the shell.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Manually verify old settings entry opens the routed Settings app instead of a modal.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="acceptance-criteria">Acceptance Criteria<a href="#acceptance-criteria" class="hash-link" aria-label="Direct link to Acceptance Criteria" title="Direct link to Acceptance Criteria" translate="no">​</a></h2>
+<ul>
+<li class="">There is exactly one primary shell entry for Settings.</li>
+<li class="">User settings are no longer presented in a modal.</li>
+<li class="">Organization Admin is no longer a standalone primary shell button.</li>
+<li class="">Organization admin pages are available under <code>/app/settings/organization/...</code>.</li>
+<li class="">The Settings submenu is grouped, permission-aware, collapsible, and quiet.</li>
+<li class="">Existing admin functionality works after migration.</li>
+<li class="">Existing settings functionality works after migration.</li>
+<li class="">Existing permission gates are preserved exactly; no user can see or mutate a settings/admin page
+they could not see or mutate before the migration.</li>
+<li class="">Old admin links redirect to their new routes.</li>
+<li class="">No backend API contract changes are required.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-079-unified-routed-settings-module.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#information-architecture" class="table-of-contents__link toc-highlight">Information Architecture</a></li><li><a href="#exploration-submenu-ux" class="table-of-contents__link toc-highlight">Exploration Submenu UX</a></li><li><a href="#routing" class="table-of-contents__link toc-highlight">Routing</a></li><li><a href="#app-registry-model" class="table-of-contents__link toc-highlight">App Registry Model</a></li><li><a href="#permission-rules" class="table-of-contents__link toc-highlight">Permission Rules</a></li><li><a href="#storage-and-backend-contract-impact" class="table-of-contents__link toc-highlight">Storage And Backend Contract Impact</a></li><li><a href="#non-goals" class="table-of-contents__link toc-highlight">Non-Goals</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a><ul><li><a href="#phase-1-inventory-and-route-contract" class="table-of-contents__link toc-highlight">Phase 1: Inventory And Route Contract</a></li><li><a href="#phase-2-settings-app-shell" class="table-of-contents__link toc-highlight">Phase 2: Settings App Shell</a></li><li><a href="#phase-3-move-user-settings-out-of-the-modal" class="table-of-contents__link toc-highlight">Phase 3: Move User Settings Out Of The Modal</a></li><li><a href="#phase-4-move-organization-admin-into-settings" class="table-of-contents__link toc-highlight">Phase 4: Move Organization Admin Into Settings</a></li><li><a href="#phase-5-registry-contribution-migration" class="table-of-contents__link toc-highlight">Phase 5: Registry Contribution Migration</a></li><li><a href="#phase-6-shell-entry-point-cleanup" class="table-of-contents__link toc-highlight">Phase 6: Shell Entry Point Cleanup</a></li><li><a href="#phase-7-route-cleanup" class="table-of-contents__link toc-highlight">Phase 7: Route Cleanup</a></li><li><a href="#phase-8-visual-and-ux-polish" class="table-of-contents__link toc-highlight">Phase 8: Visual And UX Polish</a></li><li><a href="#phase-9-documentation-and-removal" class="table-of-contents__link toc-highlight">Phase 9: Documentation And Removal</a></li><li><a href="#phase-10-verification" class="table-of-contents__link toc-highlight">Phase 10: Verification</a></li></ul></li><li><a href="#acceptance-criteria" class="table-of-contents__link toc-highlight">Acceptance Criteria</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

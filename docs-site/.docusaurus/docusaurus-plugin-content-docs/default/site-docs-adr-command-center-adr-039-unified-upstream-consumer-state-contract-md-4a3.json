@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-039-unified-upstream-consumer-state-contract",
+  "title": "ADR 039: Unified Upstream Consumer State Contract",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-039-unified-upstream-consumer-state-contract.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-039-unified-upstream-consumer-state-contract",
+  "permalink": "/docs/adr/command_center/adr-039-unified-upstream-consumer-state-contract",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-039-unified-upstream-consumer-state-contract.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { clearAvailableRunConfigOptionsCache } from "../../runtime/available-models-api";
 import { fetchModelCatalog, type ModelCatalogItem } from "../../runtime/model-catalog-api";
 import {
   cancelModelProviderSignIn,
@@ -419,6 +420,8 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
   });
 
   const refresh = async () => {
+    clearAvailableRunConfigOptionsCache();
+
     if (!hasAssistantRuntimeEndpoint) {
       await assistantRuntime.refetch();
       return;
@@ -684,10 +687,6 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
     () => new Map((providerAuthQuery.data ?? []).map((entry) => [entry.provider, entry])),
     [providerAuthQuery.data],
   );
-  const catalogOnlyProviders = useMemo(
-    () => providerOrder.filter((provider) => !providerMap.has(provider)),
-    [providerMap, providerOrder],
-  );
   const pendingProvider =
     (signInMutation.isPending && signInMutation.variables) ||
     (signOffMutation.isPending && signOffMutation.variables) ||
@@ -765,34 +764,26 @@ export function ModelProviderSettingsSection(_props: AppShellMenuRenderProps) {
       hasAssistantRuntimeEndpoint &&
       hasSessionUserUid &&
       !providerAuthQuery.isError &&
-      !modelsQuery.isError &&
-      catalogOnlyProviders.length > 0 ? (
-        <div className="rounded-[calc(var(--radius)-4px)] border border-warning/30 bg-warning/10 p-4 text-sm text-warning">
-          The model catalog returned providers, but{" "}
-          <span className="font-mono">/api/model-providers</span> did not return auth-state entries
-          for: {catalogOnlyProviders.join(", ")}.
-        </div>
-      ) : null}
-
-      {!providerAuthQuery.isLoading &&
-      !modelsQuery.isLoading &&
-      hasAssistantRuntimeEndpoint &&
-      hasSessionUserUid &&
-      !providerAuthQuery.isError &&
       !modelsQuery.isError ? (
         <div className="space-y-4">
           {providerOrder.map((provider) => {
-            const authState = providerMap.get(provider);
-
-            if (!authState) {
-              return null;
-            }
+            const models = modelsByProvider.get(provider) ?? [];
+            const authState = providerMap.get(provider) ?? {
+              provider,
+              authKind: "oauth" as const,
+              signInAvailable: true,
+              authenticated: false,
+              authSource: null,
+              knownModelCount: models.length,
+              usableModelCount: 0,
+              lastValidatedAt: null,
+            };
 
             return (
               <ProviderAuthCard
                 key={provider}
                 authState={authState}
-                models={modelsByProvider.get(provider) ?? []}
+                models={models}
                 pendingProvider={pendingProvider}
                 onSignIn={() => {
                   setAttemptError(null);

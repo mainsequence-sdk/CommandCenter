@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-067b-websocket-stream-run-boundary-reset" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 067-B: WebSocket Stream Run Boundary Reset | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-067b-websocket-stream-run-boundary-reset"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 067-B: WebSocket Stream Run Boundary Reset | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-067b-websocket-stream-run-boundary-reset"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-067b-websocket-stream-run-boundary-reset" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-067b-websocket-stream-run-boundary-reset" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 067-B: WebSocket Stream Run Boundary Reset</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-05-20</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-041-connection-query-websocket-streaming">ADR 041: Query-Shaped WebSocket Streaming for Connections</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision">ADR 046: WebSocket Stream Survivability And Reconnect Supervision</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-047-workspace-runtime-data-reference-store">ADR 047: Workspace Runtime Data Reference Store</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction">ADR 049: Publication-Driven Seed/Live Runtime Reduction</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-064-variable-reference-graph-integration">ADR 064: Variable References as Widget Graph Edges</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers">ADR 068: Automatic Partial WebSocket Row Patching For Tabular Consumers</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-069-websocket-stream-variable-resubscription">ADR 069: Variable-Driven WebSocket Stream Resubscription</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Variable-backed WebSocket connection widgets now resubscribe when a referenced variable changes.</p>
+<p>That fixes the subscription-start problem, but exposes a separate retained-state bug:</p>
+<ul>
+<li class="">the selected table row changes from one symbol to another</li>
+<li class="">the stream request/runtime key changes</li>
+<li class="">a new WebSocket subscription starts</li>
+<li class="">the new session still receives the previous subscription&#x27;s retained runtime frame as
+<code>initialRuntimeState</code></li>
+<li class="">the first snapshot or delta from the new subscription is accumulated onto the old symbol&#x27;s rows</li>
+<li class="">downstream charts, graphs, tables, and OHLC widgets render mixed rows from different variable
+selections</li>
+</ul>
+<p>The visible symptom is a chart that appears overwritten or distorted. For OHLC widgets, rows from
+the previous symbol and the new symbol can share rendered timestamps, so the widget reports merged
+rows and the price scale becomes invalid for the selected symbol.</p>
+<p>This is not the same problem as ADR 068.</p>
+<p>ADR 068 decides how to patch rows after the correct seed/live datasets are participating in one
+run. This ADR decides when a stream run boundary must clear retained runtime state so old rows do
+not contaminate the next run.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-runtime-key-changes-are-new-stream-runs">1. Runtime Key Changes Are New Stream Runs<a href="#1-runtime-key-changes-are-new-stream-runs" class="hash-link" aria-label="Direct link to 1. Runtime Key Changes Are New Stream Runs" title="Direct link to 1. Runtime Key Changes Are New Stream Runs" translate="no">​</a></h3>
+<p>A change to the stream request identity is a hard run boundary.</p>
+<p>Examples:</p>
+<ul>
+<li class="">referenced symbol changes from <code>BTCUSDT</code> to <code>ETHUSDT</code></li>
+<li class="">query model changes</li>
+<li class="">connection changes</li>
+<li class="">time range changes when the query is time-range-aware</li>
+<li class="">public execution key changes</li>
+</ul>
+<p>At that boundary, the new WebSocket session must not inherit the previous run&#x27;s retained rows.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-reconnects-keep-state-resubscriptions-reset-state">2. Reconnects Keep State, Resubscriptions Reset State<a href="#2-reconnects-keep-state-resubscriptions-reset-state" class="hash-link" aria-label="Direct link to 2. Reconnects Keep State, Resubscriptions Reset State" title="Direct link to 2. Reconnects Keep State, Resubscriptions Reset State" translate="no">​</a></h3>
+<p>Reconnects inside the same runtime key may keep retained state because they represent the same
+logical stream run.</p>
+<p>Resubscriptions caused by a changed runtime key must reset retained state because they represent a
+different logical stream run.</p>
+<p>The runtime must keep these cases separate:</p>
+<ul>
+<li class="">same runtime key, socket reconnects: keep retained frame and resume token when supported</li>
+<li class="">different runtime key, variable/request changed: clear retained frame and start a new source run</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-downstream-consumers-must-see-a-clean-transition">3. Downstream Consumers Must See A Clean Transition<a href="#3-downstream-consumers-must-see-a-clean-transition" class="hash-link" aria-label="Direct link to 3. Downstream Consumers Must See A Clean Transition" title="Direct link to 3. Downstream Consumers Must See A Clean Transition" translate="no">​</a></h3>
+<p>When a stream run boundary occurs, downstream consumers should not continue rendering the old
+retained frame as if it belongs to the new variable.</p>
+<p>The stream widget should publish an idle/loading lifecycle frame for the new request before the new
+snapshot or delta arrives. That lets downstream widgets show a loading or waiting state rather than
+mixing old and new data.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-runtime-data-refs-must-be-scoped-by-run-identity">4. Runtime Data Refs Must Be Scoped By Run Identity<a href="#4-runtime-data-refs-must-be-scoped-by-run-identity" class="hash-link" aria-label="Direct link to 4. Runtime Data Refs Must Be Scoped By Run Identity" title="Direct link to 4. Runtime Data Refs Must Be Scoped By Run Identity" translate="no">​</a></h3>
+<p>Runtime data refs already use the subscription key in their ref key. That is good, but the session
+bootstrap path can still pass old retained state before the new subscription writes its own ref.</p>
+<p>The implementation must ensure that:</p>
+<ul>
+<li class="">old refs are not used as the initial retained frame for a new runtime key</li>
+<li class="">old refs can remain in the store without affecting the new run</li>
+<li class="">downstream reduction signatures include enough run identity to avoid reusing stale combined refs</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="stream-widget-session-bootstrap">Stream Widget Session Bootstrap<a href="#stream-widget-session-bootstrap" class="hash-link" aria-label="Direct link to Stream Widget Session Bootstrap" title="Direct link to Stream Widget Session Bootstrap" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->In <code>ConnectionStreamQueryWidget</code>, detect when <code>runtimeKey</code> changes from the previous
+mounted stream request.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Pass <code>initialRuntimeState: undefined</code> to
+<code>createConnectionStreamQueryWidgetRuntimeSession(...)</code> when the runtime key changed.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Preserve <code>initialRuntimeState</code> only for same-key reconnect/session reuse paths.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Publish a lifecycle frame for the new runtime key before the new stream emits retained data.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure the lifecycle frame includes the new <code>sourceRunId</code> or a request-boundary marker so
+downstream consumers do not treat old state as current.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="connection-stream-runtime-session">Connection Stream Runtime Session<a href="#connection-stream-runtime-session" class="hash-link" aria-label="Direct link to Connection Stream Runtime Session" title="Direct link to Connection Stream Runtime Session" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add regression coverage proving a new subscription does not accumulate the previous
+subscription&#x27;s retained frame.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Verify <code>ack</code> and <code>heartbeat</code> messages for a new run do not republish old retained rows.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep reconnect behavior unchanged: same-run reconnects may retain rows and resume tokens.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure <code>snapshot</code> for a new run replaces retained rows instead of calling
+<code>accumulateSnapshotFrame(...)</code> with a previous run frame.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure <code>delta</code> for a new run without retained state becomes the new retained seed for that
+run, not a patch over the previous run.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-data-store-and-ref-boundaries">Runtime Data Store And Ref Boundaries<a href="#runtime-data-store-and-ref-boundaries" class="hash-link" aria-label="Direct link to Runtime Data Store And Ref Boundaries" title="Direct link to Runtime Data Store And Ref Boundaries" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Verify <code>storeTabularFrameRuntimeState(...)</code> writes stream runtime refs under the new
+subscription key.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure old <code>RuntimeDataRef</code> objects are not reused when the runtime key changes.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add runtime data store or stream tests proving old refs remain readable but are not selected
+by the new run.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Confirm no backend workspace persistence is affected by clearing frontend runtime state.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="incremental-consumer-and-downstream-widgets">Incremental Consumer And Downstream Widgets<a href="#incremental-consumer-and-downstream-widgets" class="hash-link" aria-label="Direct link to Incremental Consumer And Downstream Widgets" title="Direct link to Incremental Consumer And Downstream Widgets" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add incremental consumer coverage where <code>livePublication.sourceRunId</code> changes and the live
+frame contains a different symbol.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Assert downstream retained datasets do not contain rows from the previous variable after the
+new run publishes.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add graph or OHLC coverage proving duplicate rendered timestamps from the old symbol do not
+survive a variable-driven stream restart.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Verify tables, graphs, OHLC widgets, and statistic widgets receive either loading/empty state
+or the new run&#x27;s rows, never mixed old/new rows.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="diagnostics">Diagnostics<a href="#diagnostics" class="hash-link" aria-label="Direct link to Diagnostics" title="Direct link to Diagnostics" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add dev-only diagnostic logging around runtime-key changes while implementing the fix.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Log previous runtime key, next runtime key, previous sourceRunId, next sourceRunId, and
+whether retained state was cleared.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove or gate the diagnostics before completing the task so the console is not spammed.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation">Documentation<a href="#documentation" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>connection-stream-query</code> README/USAGE_GUIDANCE to document the run boundary rule.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Link this ADR from ADR 069 as the retained-state companion fix.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep ADR 068 focused on row patching and merge mapping after the correct run state exists.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="contract-notes">Contract Notes<a href="#contract-notes" class="hash-link" aria-label="Direct link to Contract Notes" title="Direct link to Contract Notes" translate="no">​</a></h2>
+<p>This ADR does not require a backend workspace storage change.</p>
+<p>It affects frontend runtime semantics only:</p>
+<ul>
+<li class="">variable/request changes reset retained stream state</li>
+<li class="">reconnects inside the same runtime key keep retained stream state</li>
+<li class="">downstream widgets should stop seeing stale rows from prior variable selections</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">Variable changes do not mix old and new stream rows.</li>
+<li class="">OHLC/chart widgets stop merging stale rows that share timestamps with the new selection.</li>
+<li class="">Reconnect survivability remains intact for same-run socket failures.</li>
+<li class="">ADR 068 can focus on row patching and merge mapping without also solving run-boundary cleanup.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="negative">Negative<a href="#negative" class="hash-link" aria-label="Direct link to Negative" title="Direct link to Negative" translate="no">​</a></h3>
+<ul>
+<li class="">During a variable-driven resubscription, widgets may briefly show loading/empty state instead of
+stale data.</li>
+<li class="">Tests must distinguish reconnect continuity from request-boundary resets.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-067b-websocket-stream-run-boundary-reset.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a><ul><li><a href="#1-runtime-key-changes-are-new-stream-runs" class="table-of-contents__link toc-highlight">1. Runtime Key Changes Are New Stream Runs</a></li><li><a href="#2-reconnects-keep-state-resubscriptions-reset-state" class="table-of-contents__link toc-highlight">2. Reconnects Keep State, Resubscriptions Reset State</a></li><li><a href="#3-downstream-consumers-must-see-a-clean-transition" class="table-of-contents__link toc-highlight">3. Downstream Consumers Must See A Clean Transition</a></li><li><a href="#4-runtime-data-refs-must-be-scoped-by-run-identity" class="table-of-contents__link toc-highlight">4. Runtime Data Refs Must Be Scoped By Run Identity</a></li></ul></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a><ul><li><a href="#stream-widget-session-bootstrap" class="table-of-contents__link toc-highlight">Stream Widget Session Bootstrap</a></li><li><a href="#connection-stream-runtime-session" class="table-of-contents__link toc-highlight">Connection Stream Runtime Session</a></li><li><a href="#runtime-data-store-and-ref-boundaries" class="table-of-contents__link toc-highlight">Runtime Data Store And Ref Boundaries</a></li><li><a href="#incremental-consumer-and-downstream-widgets" class="table-of-contents__link toc-highlight">Incremental Consumer And Downstream Widgets</a></li><li><a href="#diagnostics" class="table-of-contents__link toc-highlight">Diagnostics</a></li><li><a href="#documentation" class="table-of-contents__link toc-highlight">Documentation</a></li></ul></li><li><a href="#contract-notes" class="table-of-contents__link toc-highlight">Contract Notes</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#negative" class="table-of-contents__link toc-highlight">Negative</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

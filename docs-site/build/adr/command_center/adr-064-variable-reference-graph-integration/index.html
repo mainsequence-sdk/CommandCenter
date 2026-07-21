@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-064-variable-reference-graph-integration" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 064: Variable References as Widget Graph Edges | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-064-variable-reference-graph-integration"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 064: Variable References as Widget Graph Edges | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-064-variable-reference-graph-integration"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-064-variable-reference-graph-integration" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-064-variable-reference-graph-integration" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 064: Variable References as Widget Graph Edges</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-05-19</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-058-cross-widget-references-and-variables">ADR 058: Cross-Widget References And Variables</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-widget-bindings-and-dependency-graph">ADR: First-Class Widget Bindings and Dependency Graph</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-binding-output-transforms">ADR: Binding-Level Output Transforms for Structured Widget Outputs</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-managed-connection-query-widget-sources">ADR: Managed Connection Query Sources for Consumer Widgets</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-executable-widget-graph-runner">ADR: Executable Widget Graph Runner and Refresh Coordination</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>ADR 058 established the user-facing variable language:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">$(source-widget).output.path</span><br></span></code></pre></div></div>
+<p>That language is useful only if it behaves like the rest of the workspace graph. Today the
+implementation is too split:</p>
+<ul>
+<li class="">normal widget composition is represented through <code>bindings</code></li>
+<li class="">variable expressions are parsed from title/props and compiled into generated reference bindings</li>
+<li class="">the settings editor, managed connection editor, runtime execution path, and graph visualization do
+not all consume the exact same dependency model</li>
+<li class=""><code>DashboardWidgetDependencyGraphEdge.source</code> currently only records <code>&quot;binding&quot;</code>, so variable edges
+cannot be distinguished or visualized as variable/reference edges</li>
+<li class="">connection authoring can show a correct-looking variable token while the actual request path still
+depends on whether the current surface resolved the generated binding</li>
+<li class="">runtime variable invalidation can become a side channel beside the widget graph instead of being a
+graph dependency that participates in ordering, readiness, and downstream execution</li>
+</ul>
+<p>The concrete failure mode this ADR addresses is:</p>
+<ol>
+<li class="">a connection query prop, for example <code>query.symbols</code>, is backed by a variable reference</li>
+<li class="">that variable points to another widget output, for example a table or Asset Screener active cell</li>
+<li class="">the preview/editor may show the token correctly</li>
+<li class="">the connection execution path may not resolve the token through the same dependency graph used by
+normal ports</li>
+<li class="">if the referenced value is not ready, the connection can still be scheduled and can repeatedly
+execute or error before its effective query is available</li>
+</ol>
+<p>The fix is not another widget-specific patch. Variable references must become graph-native.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Variable references are first-class widget graph edges.</p>
+<p>They are not a second runtime system, not a connection-specific substitution layer, and not a
+frontend-only fake dependency. The reference language remains an authoring syntax, but once parsed it
+must compile into the same dependency model as explicit bindings.</p>
+<p>The graph model will distinguish edge origin:</p>
+<ul>
+<li class="">explicit binding edges, created by the bindings UI or widget-managed bindings</li>
+<li class="">variable reference edges, created from whole-value variable expressions in titles and props</li>
+<li class="">system-managed edges, when a managed source widget is created and wired by the platform</li>
+</ul>
+<p>Variable references will use platform-managed source outputs and target inputs:</p>
+<ul>
+<li class="">source outputs can be declared widget outputs such as <code>dataset</code>, <code>activeRow</code>, and
+<code>activeCellValue</code></li>
+<li class="">source outputs can also be platform reference roots such as <code>__widget-reference.source.props</code>,
+<code>__widget-reference.source.runtimeState</code>, and <code>__widget-reference.source.title</code></li>
+<li class="">target inputs can be normal widget inputs or platform reference targets such as <code>title</code> and
+<code>props.query.symbols</code></li>
+</ul>
+<p>The dependency remains:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">source widget output</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; optional binding transform, such as extract-path</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; target widget setting/input</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; resolved effective widget props/title</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; widget runtime or downstream execution</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="graph-visualization-requirement">Graph Visualization Requirement<a href="#graph-visualization-requirement" class="hash-link" aria-label="Direct link to Graph Visualization Requirement" title="Direct link to Graph Visualization Requirement" translate="no">​</a></h2>
+<p>Variable connections must be visible in the workspace graph.</p>
+<p>The graph UI must show variable-reference edges between widgets, not hide them inside settings text.
+The edge should make the target field visible enough to debug:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">Asset Screener.activeCellValue -&gt; Binance query.props.query.symbols</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">Table.activeRow.Symbol -&gt; Card.title</span><br></span></code></pre></div></div>
+<p>Variable edges should be visually distinct from explicit binding edges, for example with a dashed
+primary-color stroke and a &quot;variable&quot; label or edge detail. This is a graph-inspection feature, not
+just a styling change. Users need to see why a connection, chart, table, or title depends on another
+widget even when the dependency came from typing <code>$(...)</code> into a setting.</p>
+<p>Referenced-workspace graph expansion must use the same rule. If a workspace graph is projected into
+another workspace, variable edges inside that referenced graph should remain visible.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="architecture">Architecture<a href="#architecture" class="hash-link" aria-label="Direct link to Architecture" title="Direct link to Architecture" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-one-dependency-builder">1. One Dependency Builder<a href="#1-one-dependency-builder" class="hash-link" aria-label="Direct link to 1. One Dependency Builder" title="Direct link to 1. One Dependency Builder" translate="no">​</a></h3>
+<p><code>createDashboardWidgetDependencyModel(...)</code> is the source of truth for both explicit bindings and
+variable references.</p>
+<p>The dependency builder should:</p>
+<ul>
+<li class="">normalize explicit <code>instance.bindings</code></li>
+<li class="">derive variable expression bindings from the same widget list</li>
+<li class="">tag derived edges as variable-reference edges</li>
+<li class="">preserve transform metadata such as <code>extract-path:Symbol</code></li>
+<li class="">expose the same resolved inputs to settings, canvas rendering, execution, and graph UI</li>
+</ul>
+<p>No connection widget or consumer widget should implement its own <code>$(...)</code> substitution path.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-draft-graphs-for-settings">2. Draft Graphs for Settings<a href="#2-draft-graphs-for-settings" class="hash-link" aria-label="Direct link to 2. Draft Graphs for Settings" title="Direct link to 2. Draft Graphs for Settings" translate="no">​</a></h3>
+<p>Widget settings must be able to build a draft dependency graph.</p>
+<p>The settings page edits a draft widget state before save/apply. That draft can contain new or
+removed variable expressions, especially in managed connection query props. The settings surface must
+therefore build a dependency model where the selected widget instance is replaced by its draft title,
+props, presentation, and bindings.</p>
+<p>Managed connection editors must consume this draft graph when building request previews and running
+manual test actions. A query preview should not use committed workspace bindings when the visible
+draft field already contains a variable reference.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-variables-are-readiness-dependencies">3. Variables Are Readiness Dependencies<a href="#3-variables-are-readiness-dependencies" class="hash-link" aria-label="Direct link to 3. Variables Are Readiness Dependencies" title="Direct link to 3. Variables Are Readiness Dependencies" translate="no">​</a></h3>
+<p>A required reference-backed execution input that still contains a literal <code>$(...)</code> expression or an
+invalid transform result is not an executable request. A reference that has resolved to <code>null</code> is a
+settled value, not an unresolved reference. The backend may accept that <code>null</code>, reject it with a
+domain error, or return an empty result, but the frontend must not treat the resolved <code>null</code> as a
+reason to keep resolving upstream.</p>
+<p>For connection query widgets this means:</p>
+<ul>
+<li class="">do not send a backend request with a literal <code>$(...)</code> token</li>
+<li class="">do not send a backend request with an unresolved reference expression</li>
+<li class="">allow a resolved <code>null</code> to move through the normal execution/error path</li>
+<li class="">publish a local waiting/blocked diagnostic such as <code>waiting-for-reference</code></li>
+<li class="">resume execution only when the graph resolves the reference expression or the user explicitly
+refreshes/retries after a settled error</li>
+</ul>
+<p>This rule must be generic. Connection widgets are the most visible failure mode, but the graph
+should expose unresolved required variable inputs to any executable widget.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-runtime-variable-changes-flow-through-the-graph">4. Runtime Variable Changes Flow Through the Graph<a href="#4-runtime-variable-changes-flow-through-the-graph" class="hash-link" aria-label="Direct link to 4. Runtime Variable Changes Flow Through the Graph" title="Direct link to 4. Runtime Variable Changes Flow Through the Graph" translate="no">​</a></h3>
+<p>When a source widget publishes a new runtime value, the platform must evaluate only the active
+variable-reference edges that depend on that source output and transform path.</p>
+<p>If the resolved value changed:</p>
+<ul>
+<li class="">passive consumers recompute effective title/props in memory</li>
+<li class="">executable consumers and downstream branches are scheduled through the graph runner</li>
+<li class="">managed hidden connection sources receive an execution-only resolved prop overlay</li>
+<li class="">resolved values are not persisted back into saved widget props</li>
+</ul>
+<p>This replaces source-side or commit-only variable invalidation. The trigger is the graph edge value
+changing, regardless of whether the upstream value came from a saved setting, runtime state, a table
+selection, or another connection-backed widget.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-managed-connection-sources-use-effective-execution-identity">5. Managed Connection Sources Use Effective Execution Identity<a href="#5-managed-connection-sources-use-effective-execution-identity" class="hash-link" aria-label="Direct link to 5. Managed Connection Sources Use Effective Execution Identity" title="Direct link to 5. Managed Connection Sources Use Effective Execution Identity" translate="no">​</a></h3>
+<p>Managed connection sources must not be keyed only by connection id or hidden source widget id.</p>
+<p>The runtime identity for a managed connection execution must include:</p>
+<ul>
+<li class="">workspace/runtime scope</li>
+<li class="">owner widget id</li>
+<li class="">hidden source widget id</li>
+<li class="">connection id and connection type</li>
+<li class="">query model id</li>
+<li class="">resolved query payload</li>
+<li class="">requested output contract</li>
+<li class="">time range or refresh identity</li>
+<li class="">max rows and incremental settings</li>
+</ul>
+<p>If a query prop is reference-backed, the identity uses the resolved value. If the value is not ready,
+there is no executable identity yet.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="6-passive-upstream-resolution-is-one-shot-per-invalidation">6. Passive Upstream Resolution Is One-Shot Per Invalidation<a href="#6-passive-upstream-resolution-is-one-shot-per-invalidation" class="hash-link" aria-label="Direct link to 6. Passive Upstream Resolution Is One-Shot Per Invalidation" title="Direct link to 6. Passive Upstream Resolution Is One-Shot Per Invalidation" translate="no">​</a></h3>
+<p>Passive upstream resolution must be a one-shot child-to-parent request per invalidation, followed by
+a parent-to-child publication. A passive consumer may ask its upstream graph to resolve once when it
+has no upstream publication. Once the upstream graph answers, the result is settled for that
+invalidation, even if the answer is <code>null</code>, empty, error, or incompatible with the consumer.</p>
+<p>The concrete loop is:</p>
+<ol>
+<li class="">a passive consumer asks <code>useResolveWidgetUpstream(...)</code> to resolve its bound source</li>
+<li class="">the graph runs an upstream connection with <code>reason: manual-recalculate</code></li>
+<li class="">the connection writes a runtime result, <code>null</code>, empty output, or error frame</li>
+<li class="">the passive consumer still maps &quot;not renderable for me&quot; back to <code>awaiting-upstream</code></li>
+<li class="">the passive effect treats that as permission to resolve upstream again and starts
+another resolve cycle</li>
+</ol>
+<p>This is wrong. <code>missing publication</code> and <code>published but unusable/null/error</code> are different states:</p>
+<ul>
+<li class=""><code>missing publication</code>: upstream has not answered yet; one passive upstream resolve is valid.</li>
+<li class=""><code>published null</code>: upstream answered with a valid null value; stop resolving and render the
+settled null/empty state.</li>
+<li class=""><code>published error</code>: upstream answered with an error; stop resolving and render the error.</li>
+<li class=""><code>published incompatible</code>: upstream answered but the value cannot be consumed; stop resolving and
+render the incompatibility.</li>
+<li class=""><code>loading</code>: upstream is already in flight; do not start another one.</li>
+</ul>
+<p>The update direction must be one pass:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">child detects missing publication</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; provider resolves parent/upstream graph once</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; parent publishes runtime outcome</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; child renders ready/null/error/incompatible</span><br></span></code></pre></div></div>
+<p>The provider owns the one-shot state machine. Runtime outputs that are the result of the attempt
+must not make the same passive attempt look new. The provider should keep a settled-attempt cache
+keyed by target instance, stable upstream requirement, target overrides, and dashboard state. That
+cache clears only when inputs, variable edges, effective execution config, dashboard refresh
+identity, or explicit user refresh changes.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="7-risk-review-for-existing-widgets-and-streams">7. Risk Review For Existing Widgets And Streams<a href="#7-risk-review-for-existing-widgets-and-streams" class="hash-link" aria-label="Direct link to 7. Risk Review For Existing Widgets And Streams" title="Direct link to 7. Risk Review For Existing Widgets And Streams" translate="no">​</a></h3>
+<p>This change is intentionally scoped to passive upstream orchestration. It must not change widget
+renderers, connection adapters, WebSocket socket lifecycle, or persisted workspace shape.</p>
+<p>Reviewed passive consumers:</p>
+<ul>
+<li class="">Table, Graph, Statistic, Tabular Transform, and Debug Stream all request upstream work through
+<code>useResolveWidgetUpstream(...)</code>. They should continue to decide their own render state from the
+shared upstream consumer state, but they must not own retry loops.</li>
+<li class="">HTTP <code>connection-query</code> and streaming <code>connection-stream-query</code> widgets remain source
+owners. A passive consumer can request one upstream resolution, but the source widget publishes
+<code>loading</code>, <code>ready</code>, <code>empty</code>, <code>error</code>, or <code>null</code> as the answer.</li>
+<li class="">Managed HTTP and managed WebSocket source widgets stay real graph nodes. The one-shot passive
+cache must not hide explicit refreshes, dashboard refresh cycles, variable changes, binding
+rewires, source configuration changes, or target override changes.</li>
+<li class="">WebSocket/stream connections must not be opened by passive consumer rerenders. The stream source
+owns socket lifecycle and publishes stream state; consumers only render the publication.</li>
+<li class="">Connection request identity and incremental cache identity still include the effective resolved
+request. The passive settled key intentionally excludes runtime output produced by the same
+resolve attempt only to prevent retry loops after a settled answer.</li>
+</ul>
+<p>Regression coverage must preserve these invariants:</p>
+<ul>
+<li class="">a passive consumer that keeps asking after an upstream write triggers only one
+<code>manual-recalculate</code> for that invalidation</li>
+<li class="">a settled error publication from the upstream source does not trigger another passive upstream
+resolution pass</li>
+<li class="">executable request keys still change when upstream source configuration or meaningful runtime
+output changes</li>
+<li class="">passive settled keys do not change merely because the attempted upstream source published an
+error/null/empty runtime answer</li>
+<li class="">stream-capable consumers continue to use the same passive hook and do not create socket-specific
+retry behavior</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="8-runtime-variable-refresh-must-not-deactivate-the-source-selection">8. Runtime Variable Refresh Must Not Deactivate The Source Selection<a href="#8-runtime-variable-refresh-must-not-deactivate-the-source-selection" class="hash-link" aria-label="Direct link to 8. Runtime Variable Refresh Must Not Deactivate The Source Selection" title="Direct link to 8. Runtime Variable Refresh Must Not Deactivate The Source Selection" translate="no">​</a></h3>
+<p>Runtime variable refresh starts after a widget publishes a runtime value that is actively consumed
+by a variable reference. For example:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">Asset Screener.activeCellValue -&gt; Binance connection query.symbols</span><br></span></code></pre></div></div>
+<p>The concrete failure mode is:</p>
+<ol>
+<li class="">the user clicks an Asset Screener cell</li>
+<li class="">Asset Screener publishes the selected cell in <code>runtimeState.interaction.selection</code></li>
+<li class="">the workspace host queues a variable-driven runtime refresh for the Asset Screener source</li>
+<li class="">the refresh planner schedules the downstream Binance connection</li>
+<li class="">graph execution recursively runs executable dependencies of the Binance target</li>
+<li class="">because Asset Screener depends on a managed Mock API source, that upstream Mock API source runs
+before Binance</li>
+<li class="">the Asset Screener incremental tabular consumer writes a retained frame to the same widget
+<code>runtimeState</code></li>
+<li class="">that retained-frame write replaces the root runtime object and drops
+<code>runtimeState.interaction.selection</code></li>
+<li class="">the variable now resolves to null/empty and the downstream connection runs with an empty symbol</li>
+</ol>
+<p>This is a runtime-state ownership bug, not a backend validation problem. <code>runtimeState</code> currently
+contains both:</p>
+<ul>
+<li class="">data publication state, such as retained tabular frames and incremental metadata</li>
+<li class="">local UI interaction state, such as table or Asset Screener selection</li>
+</ul>
+<p>Those namespaces must not destructively overwrite each other.</p>
+<p>The deterministic fix has two parts:</p>
+<ol>
+<li class="">Incremental retained-frame writes must preserve non-frame UI interaction namespaces from the
+previous runtime state, at minimum <code>runtimeState.interaction</code>. A data refresh must never erase a
+user selection unless the selected row/cell is explicitly invalidated by widget-owned selection
+reconciliation.</li>
+<li class="">Variable-driven runtime refresh must be downstream-only from the changed runtime source. When
+<code>changedWidgetId</code> is the widget that just published a runtime variable value, executable
+ancestors of that widget are already satisfied for this invalidation and must not be rerun just
+to execute downstream consumers. In the example above, clicking Asset Screener should execute
+the affected Binance branch using the published active cell value; it should not rerun the Mock
+API source feeding Asset Screener.</li>
+</ol>
+<p>This keeps update direction acyclic for runtime variable changes:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">source runtime value already published</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; compare active variable edges</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; recompute affected passive/effective props</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; execute downstream executable branches only</span><br></span></code></pre></div></div>
+<p>The source&#x27;s upstream graph can still run on explicit dashboard refresh, manual refresh, initial
+hydration, or direct source refresh. It must not run as a side effect of consuming a just-published
+runtime variable value.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-checklist">Implementation Checklist<a href="#implementation-checklist" class="hash-link" aria-label="Direct link to Implementation Checklist" title="Direct link to Implementation Checklist" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Extend <code>DashboardWidgetDependencyGraphEdge</code> so graph edges can distinguish explicit bindings,
+variable references, and system-managed bindings.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Preserve variable reference metadata on graph edges, including source expression, target field,
+transform signature, and generated input id.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>createDashboardWidgetDependencyModel(...)</code> so derived variable bindings are emitted as
+variable-reference graph edges while still resolving through the existing binding machinery.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a draft dependency-model API or option that replaces selected widget instance state with
+local settings draft state before deriving variable bindings.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Wire <code>CustomWidgetSettingsPage</code> to build and pass the draft dependency model into settings
+surfaces that need resolved draft values.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Wire <code>ManagedConnectionConsumerPanel</code> and <code>ConnectionQueryWorkbench</code> so preview and manual
+test actions resolve connection query props from the draft dependency graph.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add generic readiness gating for executable widgets with unresolved required
+reference-backed inputs.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Make connection query execution publish a local waiting diagnostic instead of hitting the
+backend when a required reference-backed query field is unresolved.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Route runtime variable value changes through the graph runner so passive consumers recompute
+first and executable downstream branches are scheduled from the same graph.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update managed connection source sync so hidden sources use execution-only resolved prop
+overlays and do not persist resolved variable values into owner or source props.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure managed connection runtime state is cleared only when the effective resolved execution
+identity materially changes.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Visualize variable-reference edges in <code>CustomWorkspaceGraphPage</code> with distinct styling and
+readable source/target labels.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Include variable-reference edges in referenced-workspace graph projections.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests covering table/Asset Screener variable references into connection query props.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests proving settings preview, manual query execution, canvas execution, and graph
+execution all resolve the same variable-backed connection request.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests proving unresolved required variable inputs block backend execution without causing
+repeated retries.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests proving runtime updates from a connection-backed source widget can populate a
+downstream variable source and then trigger only the affected downstream executable branch.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add graph UI tests or focused graph-model tests proving variable edges are present and tagged
+separately from explicit binding edges.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add provider-level regression coverage proving passive upstream resolution does not retry when
+the upstream source publishes a settled error/null-style runtime outcome and the consumer
+still asks for resolution.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Replace render-driven passive upstream retries with a provider-owned one-shot settled state
+machine. Reason: <code>null</code>, empty, error, and incompatible upstream outcomes are settled parent
+answers, not &quot;still awaiting upstream&quot;; passive widgets should request one upstream resolve
+per invalidation and then render the published outcome without looping.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Preserve <code>runtimeState.interaction</code> and other non-frame UI namespaces when the incremental
+tabular consumer publishes a retained frame runtime state. A seed/live data refresh must not
+erase table or Asset Screener selection state.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add regression coverage proving the shared retained-frame consumer used by table and Asset
+Screener preserves selected-cell interaction state when an upstream source refreshes and the
+retained frame runtime state is republished.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Change variable-driven runtime refresh execution so runtime-origin changes execute only the
+affected downstream branch from the changed source boundary, without rerunning executable
+ancestors of the changed source.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add regression coverage proving a source-selection variable such as
+<code>Asset Screener.activeCellValue -&gt; connection query.symbols</code> executes the downstream
+connection branch with the selected value and does not rerun the source widget&#x27;s upstream
+executable as part of that variable refresh.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update <code>src/dashboards/README.md</code>, <code>src/widgets/shared/README.md</code>, and
+<code>src/widgets/core/connection-query/README.md</code> after implementation.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="storage-contract-impact">Storage Contract Impact<a href="#storage-contract-impact" class="hash-link" aria-label="Direct link to Storage Contract Impact" title="Direct link to Storage Contract Impact" translate="no">​</a></h2>
+<p>The preferred implementation does not require a new persisted workspace shape.</p>
+<p>Variable graph edges should be derived from existing saved widget state:</p>
+<ul>
+<li class="">widget title</li>
+<li class="">widget props</li>
+<li class="">widget bindings</li>
+<li class="">widget runtime state for runtime resolution only</li>
+</ul>
+<p>Graph edge metadata can be in-memory. If implementation stores a new edge kind, variable metadata,
+or generated reference binding payload in persisted workspace JSON, that is a backend-visible storage
+contract change and must be coordinated with the backend.</p>
+<p>Existing generated reference bindings must remain backward compatible. Older workspaces that already
+contain generated reference bindings should continue to load, resolve, and visualize correctly.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">Variable references and normal bindings share one graph model.</li>
+<li class="">Connection request previews and runtime execution stop drifting.</li>
+<li class="">The graph can explain variable-driven dependencies to users.</li>
+<li class="">Unresolved runtime-backed variables block execution cleanly instead of sending broken requests.</li>
+<li class="">Table, Asset Screener, connection, card title, and future widgets use the same variable machinery.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="tradeoffs">Tradeoffs<a href="#tradeoffs" class="hash-link" aria-label="Direct link to Tradeoffs" title="Direct link to Tradeoffs" translate="no">​</a></h3>
+<ul>
+<li class="">The dependency graph type becomes slightly richer.</li>
+<li class="">Settings must build a draft graph for accurate previews.</li>
+<li class="">The graph UI needs enough labeling to avoid hiding important variable target paths.</li>
+<li class="">Tests must cover both passive UI recomputation and executable downstream scheduling.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rejected-options">Rejected Options<a href="#rejected-options" class="hash-link" aria-label="Direct link to Rejected Options" title="Direct link to Rejected Options" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="keep-variables-as-a-side-channel-registry">Keep variables as a side-channel registry<a href="#keep-variables-as-a-side-channel-registry" class="hash-link" aria-label="Direct link to Keep variables as a side-channel registry" title="Direct link to Keep variables as a side-channel registry" translate="no">​</a></h3>
+<p>Rejected. A side-channel registry can help inspect active references, but it cannot be the execution
+source of truth. It leaves normal port bindings and variable references with different scheduling,
+readiness, and visualization behavior.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="add-connection-specific-variable-substitution">Add connection-specific variable substitution<a href="#add-connection-specific-variable-substitution" class="hash-link" aria-label="Direct link to Add connection-specific variable substitution" title="Direct link to Add connection-specific variable substitution" translate="no">​</a></h3>
+<p>Rejected. It would fix one visible symptom while leaving other widgets with inconsistent semantics.
+Connections should consume resolved effective props from the graph like every other executable
+widget.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="persist-resolved-variable-values-into-widget-props">Persist resolved variable values into widget props<a href="#persist-resolved-variable-values-into-widget-props" class="hash-link" aria-label="Direct link to Persist resolved variable values into widget props" title="Direct link to Persist resolved variable values into widget props" translate="no">​</a></h3>
+<p>Rejected. Variable values are runtime/local effective state. Persisting resolved values would leak
+one user&#x27;s current selection into shared workspace configuration and break the distinction between
+saved configuration and runtime state.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-064-variable-reference-graph-integration.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#graph-visualization-requirement" class="table-of-contents__link toc-highlight">Graph Visualization Requirement</a></li><li><a href="#architecture" class="table-of-contents__link toc-highlight">Architecture</a><ul><li><a href="#1-one-dependency-builder" class="table-of-contents__link toc-highlight">1. One Dependency Builder</a></li><li><a href="#2-draft-graphs-for-settings" class="table-of-contents__link toc-highlight">2. Draft Graphs for Settings</a></li><li><a href="#3-variables-are-readiness-dependencies" class="table-of-contents__link toc-highlight">3. Variables Are Readiness Dependencies</a></li><li><a href="#4-runtime-variable-changes-flow-through-the-graph" class="table-of-contents__link toc-highlight">4. Runtime Variable Changes Flow Through the Graph</a></li><li><a href="#5-managed-connection-sources-use-effective-execution-identity" class="table-of-contents__link toc-highlight">5. Managed Connection Sources Use Effective Execution Identity</a></li><li><a href="#6-passive-upstream-resolution-is-one-shot-per-invalidation" class="table-of-contents__link toc-highlight">6. Passive Upstream Resolution Is One-Shot Per Invalidation</a></li><li><a href="#7-risk-review-for-existing-widgets-and-streams" class="table-of-contents__link toc-highlight">7. Risk Review For Existing Widgets And Streams</a></li><li><a href="#8-runtime-variable-refresh-must-not-deactivate-the-source-selection" class="table-of-contents__link toc-highlight">8. Runtime Variable Refresh Must Not Deactivate The Source Selection</a></li></ul></li><li><a href="#implementation-checklist" class="table-of-contents__link toc-highlight">Implementation Checklist</a></li><li><a href="#storage-contract-impact" class="table-of-contents__link toc-highlight">Storage Contract Impact</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#tradeoffs" class="table-of-contents__link toc-highlight">Tradeoffs</a></li></ul></li><li><a href="#rejected-options" class="table-of-contents__link toc-highlight">Rejected Options</a><ul><li><a href="#keep-variables-as-a-side-channel-registry" class="table-of-contents__link toc-highlight">Keep variables as a side-channel registry</a></li><li><a href="#add-connection-specific-variable-substitution" class="table-of-contents__link toc-highlight">Add connection-specific variable substitution</a></li><li><a href="#persist-resolved-variable-values-into-widget-props" class="table-of-contents__link toc-highlight">Persist resolved variable values into widget props</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

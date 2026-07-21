@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-048-alpaca-websocket-command-center-extension" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 048: Alpaca WebSocket Market Data Frontend Extension | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-048-alpaca-websocket-command-center-extension"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 048: Alpaca WebSocket Market Data Frontend Extension | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-048-alpaca-websocket-command-center-extension"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-048-alpaca-websocket-command-center-extension" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-048-alpaca-websocket-command-center-extension" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 048: Alpaca WebSocket Market Data Frontend Extension</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-04-30</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class="">Backend ADR 018: Alpaca Market Data Adapter Supports WebSocket Streams</li>
+<li class="">Backend ADR 011: Alpaca Market Data Adapter</li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-041-connection-query-websocket-streaming">ADR 041: Query-Shaped WebSocket Streaming for Connections</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles">ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision">ADR 046: WebSocket Stream Survivability And Reconnect Supervision</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-047-workspace-runtime-data-reference-store">ADR 047: Workspace Runtime Data Reference Store</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The backend Alpaca adapter now extends the existing <code>finance.alpaca-market-data</code>
+connection type with query-shaped WebSocket streaming through the generic route:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">WS /api/v1/command_center/connections/&lt;connectionId&gt;/stream-query/</span><br></span></code></pre></div></div>
+<p>The browser still sends the normal Command Center query-shaped subscribe
+message. It must not speak Alpaca provider channels, provider auth messages, or
+provider WebSocket URLs directly.</p>
+<p>The current frontend Alpaca connection definition is REST-only. It advertises:</p>
+<ul>
+<li class="">top-level capabilities: <code>query</code>, <code>resource</code>, <code>health-check</code></li>
+<li class="">HTTP query models for historical and latest equity/crypto data</li>
+<li class="">public config fields for REST base URLs, REST feeds/locations, timeout, cache,
+and dedupe policy</li>
+<li class="">secure config fields <code>apiKeyId</code> and <code>apiSecretKey</code></li>
+</ul>
+<p>Backend ADR 018 explicitly leaves one frontend task open:</p>
+<ul>
+<li class="">update the frontend connection type manifest so
+<code>finance.alpaca-market-data</code> advertises top-level <code>stream</code> and
+<code>queryModels[].stream.transport=websocket</code> for supported live query kinds.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Extend the existing Alpaca frontend connection module. Do not create a second
+Alpaca connection type, a provider-specific stream widget, or an Alpaca-only
+Explore wrapper.</p>
+<p>The frontend connection id remains:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">finance</span><span class="token punctuation" style="color:rgb(199, 146, 234)">.</span><span class="token plain">alpaca</span><span class="token operator" style="color:rgb(137, 221, 255)">-</span><span class="token plain">market</span><span class="token operator" style="color:rgb(137, 221, 255)">-</span><span class="token plain">data</span><br></span></code></pre></div></div>
+<p>The first frontend slice adds explicit WebSocket-only query models:</p>
+<ul>
+<li class=""><code>alpaca-equity-live-trades</code></li>
+<li class=""><code>alpaca-equity-live-quotes</code></li>
+<li class=""><code>alpaca-equity-live-bars</code></li>
+<li class=""><code>alpaca-crypto-live-trades</code></li>
+<li class=""><code>alpaca-crypto-live-quotes</code></li>
+<li class=""><code>alpaca-crypto-live-bars</code></li>
+</ul>
+<p>Existing REST query models remain HTTP-only. We must not mark the REST latest
+or historical query models as dual transport. Live WebSocket paths are separate
+query models because they have different lifecycle, retry, provider session,
+and subscription semantics.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="non-goals">Non-Goals<a href="#non-goals" class="hash-link" aria-label="Direct link to Non-Goals" title="Direct link to Non-Goals" translate="no">​</a></h2>
+<ul>
+<li class="">Do not add direct browser-to-Alpaca WebSockets.</li>
+<li class="">Do not expose Alpaca provider channel names as public UI choices.</li>
+<li class="">Do not add Alpaca trading account streams, Broker API streams, order updates,
+options, news, orderbooks, LULD, or market status events in the first slice.</li>
+<li class="">Do not use <code>timeRange</code>, <code>pageToken</code>, <code>sort</code>, or HTTP <code>limit</code> as live
+subscription fields.</li>
+<li class="">Do not add a second Alpaca connection instance type for WebSockets.</li>
+<li class="">Do not bypass <code>connection-stream-query</code>, <code>ConnectionQueryWorkbench</code>, or the
+shared connection authoring contract.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="frontend-contract">Frontend Contract<a href="#frontend-contract" class="hash-link" aria-label="Direct link to Frontend Contract" title="Direct link to Frontend Contract" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="connection-capabilities">Connection capabilities<a href="#connection-capabilities" class="hash-link" aria-label="Direct link to Connection capabilities" title="Direct link to Connection capabilities" translate="no">​</a></h3>
+<p>Update the connection definition:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">capabilities</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;query&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;resource&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;health-check&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;stream&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><br></span></code></pre></div></div>
+<p>The connection remains <code>accessMode: &quot;proxy&quot;</code>. Browser code still uses backend
+generic connection routes.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="public-config-additions">Public config additions<a href="#public-config-additions" class="hash-link" aria-label="Direct link to Public config additions" title="Direct link to Public config additions" translate="no">​</a></h3>
+<p>Add optional WebSocket public config fields. Existing instances remain valid
+when these fields are absent because the backend supplies defaults.</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">export</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">AlpacaPublicConfig</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  dataBaseUrl</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  tradingBaseUrl</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  assetClasses</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AlpacaAssetClass</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  feed</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AlpacaFeed</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  cryptoLocation</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AlpacaCryptoLocation</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  defaultTimeframe</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  defaultLimit</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  requestTimeoutMs</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  queryCachePolicy</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AlpacaQueryCachePolicy</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  queryCacheTtlMs</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  metadataCacheTtlMs</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  dedupeInFlight</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">boolean</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  webSocketBaseUrl</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  webSocketSandboxBaseUrl</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  webSocketUseSandbox</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">boolean</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  webSocketStockFeed</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AlpacaWebSocketStockFeed</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  webSocketCryptoLocation</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AlpacaWebSocketCryptoLocation</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  webSocketAuthTimeoutMs</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  webSocketProviderConnectionLimitPerEndpoint</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Field guidance:</p>
+<ul>
+<li class="">
+<p><code>webSocketBaseUrl</code></p>
+<ul>
+<li class="">Label: WebSocket base URL</li>
+<li class="">Type: string</li>
+<li class="">Required: no</li>
+<li class="">Default: <code>wss://stream.data.alpaca.markets</code></li>
+<li class="">Example: <code>wss://stream.data.alpaca.markets</code></li>
+<li class="">Used by: backend adapter</li>
+<li class="">UI help: Alpaca production Market Data WebSocket root used only by the backend adapter. Default: <code>wss://stream.data.alpaca.markets</code>.</li>
+</ul>
+</li>
+<li class="">
+<p><code>webSocketSandboxBaseUrl</code></p>
+<ul>
+<li class="">Label: WebSocket sandbox base URL</li>
+<li class="">Type: string</li>
+<li class="">Required: no</li>
+<li class="">Default: <code>wss://stream.data.sandbox.alpaca.markets</code></li>
+<li class="">Example: <code>wss://stream.data.sandbox.alpaca.markets</code></li>
+<li class="">Used by: backend adapter</li>
+<li class="">UI help: Alpaca sandbox Market Data WebSocket root used only when WebSocket sandbox mode is enabled.</li>
+</ul>
+</li>
+<li class="">
+<p><code>webSocketUseSandbox</code></p>
+<ul>
+<li class="">Label: Use WebSocket sandbox</li>
+<li class="">Type: boolean</li>
+<li class="">Required: no</li>
+<li class="">Default: <code>false</code></li>
+<li class="">Example: <code>false</code></li>
+<li class="">Used by: backend adapter</li>
+<li class="">UI help: Route live Alpaca subscriptions through the sandbox WebSocket host. HTTP REST routes continue to use their own configured base URLs.</li>
+</ul>
+</li>
+<li class="">
+<p><code>webSocketStockFeed</code></p>
+<ul>
+<li class="">Label: WebSocket equity feed</li>
+<li class="">Type: select</li>
+<li class="">Required: no</li>
+<li class="">Default: <code>iex</code></li>
+<li class="">Example: <code>iex</code></li>
+<li class="">Options: <code>iex</code>, <code>sip</code>, <code>delayed_sip</code>, <code>boats</code>, <code>overnight</code></li>
+<li class="">Used by: frontend defaults and backend adapter</li>
+<li class="">UI help: Default Alpaca equity WebSocket feed for live trades, quotes, and bars. <code>otc</code> is REST-only in the current frontend slice.</li>
+</ul>
+</li>
+<li class="">
+<p><code>webSocketCryptoLocation</code></p>
+<ul>
+<li class="">Label: WebSocket crypto location</li>
+<li class="">Type: select</li>
+<li class="">Required: no</li>
+<li class="">Default: <code>us</code></li>
+<li class="">Example: <code>us</code></li>
+<li class="">Options: <code>us</code>, <code>us-1</code>, <code>eu-1</code></li>
+<li class="">Used by: frontend defaults and backend adapter</li>
+<li class="">UI help: Default Alpaca crypto WebSocket location for live trades, quotes, and bars. Unsupported REST-only locations are rejected for streams.</li>
+</ul>
+</li>
+<li class="">
+<p><code>webSocketAuthTimeoutMs</code></p>
+<ul>
+<li class="">Label: WebSocket auth timeout ms</li>
+<li class="">Type: number</li>
+<li class="">Required: no</li>
+<li class="">Default: <code>10000</code></li>
+<li class="">Example: <code>10000</code></li>
+<li class="">Used by: backend adapter</li>
+<li class="">UI help: Alpaca provider authentication timeout for backend-owned WebSocket sessions. Must be at most 10000 milliseconds.</li>
+</ul>
+</li>
+<li class="">
+<p><code>webSocketProviderConnectionLimitPerEndpoint</code></p>
+<ul>
+<li class="">Label: Provider WS endpoint limit</li>
+<li class="">Type: number</li>
+<li class="">Required: no</li>
+<li class="">Default: <code>1</code></li>
+<li class="">Example: <code>1</code></li>
+<li class="">Used by: backend adapter</li>
+<li class="">UI help: Documents Alpaca&#x27;s provider connection limit per endpoint. Keep at 1 unless the backend adapter and provider plan explicitly support more.</li>
+</ul>
+</li>
+</ul>
+<p>Add these fields to:</p>
+<ul>
+<li class=""><code>AlpacaPublicConfig</code></li>
+<li class=""><code>publicConfigSchema.fields[]</code>, with <code>description</code> text matching the UI help</li>
+<li class=""><code>AlpacaConnectionConfigEditor</code></li>
+<li class=""><code>usageGuidance</code></li>
+<li class=""><code>connections/alpaca/README.md</code></li>
+<li class="">realistic <code>examples</code></li>
+</ul>
+<p>The config editor should place these fields under a dedicated <code>WebSocket streams</code>
+section so users can distinguish REST endpoint defaults from live stream
+defaults.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="secure-config">Secure config<a href="#secure-config" class="hash-link" aria-label="Direct link to Secure config" title="Direct link to Secure config" translate="no">​</a></h3>
+<p>Secure config remains unchanged:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">apiKeyId</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">apiSecretKey</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><br></span></code></pre></div></div>
+<p>The frontend must not add provider auth payload fields, provider tokens, or
+browser-visible WebSocket credentials.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="query-models">Query Models<a href="#query-models" class="hash-link" aria-label="Direct link to Query Models" title="Direct link to Query Models" translate="no">​</a></h2>
+<p>Add stream-only query kinds to the union:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">export</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">AlpacaStreamQueryKind</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;alpaca-equity-live-trades&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;alpaca-equity-live-quotes&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;alpaca-equity-live-bars&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;alpaca-crypto-live-trades&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;alpaca-crypto-live-quotes&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;alpaca-crypto-live-bars&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><br></span></code></pre></div></div>
+<p>The live query payload shape stays small:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">export</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">interface</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">AlpacaConnectionQuery</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  kind</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AlpacaQueryKind</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  symbols</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  feed</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AlpacaFeed </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> AlpacaWebSocketStockFeed</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  cryptoLocation</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AlpacaCryptoLocation </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> AlpacaWebSocketCryptoLocation</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token comment" style="color:rgb(105, 112, 152);font-style:italic">// REST-only fields</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  timeframe</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  limit</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  pageToken</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  sort</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> AlpacaSortDirection</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Live query editor rules:</p>
+<ul>
+<li class="">require at least one symbol at runtime, while allowing an empty draft for UI
+authoring</li>
+<li class="">uppercase equity symbols in examples and helper copy</li>
+<li class="">preserve crypto symbols with <code>/</code>, for example <code>BTC/USD</code></li>
+<li class="">show <code>feed</code> only for equity live query models</li>
+<li class="">show <code>cryptoLocation</code> only for crypto live query models</li>
+<li class="">hide <code>timeframe</code>, <code>timeRange</code>, <code>limit</code>, <code>pageToken</code>, and <code>sort</code> for live
+query models</li>
+<li class="">describe live bars as provider minute bars for the first slice</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="equity-live-trades">Equity live trades<a href="#equity-live-trades" class="hash-link" aria-label="Direct link to Equity live trades" title="Direct link to Equity live trades" translate="no">​</a></h3>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  id</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;alpaca-equity-live-trades&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  label</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Equity Live Trades (WS)&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  description</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Subscribe to live Alpaca equity trade updates through the backend WebSocket bridge.&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  outputContracts</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token constant" style="color:rgb(130, 170, 255)">CORE_TABULAR_FRAME_SOURCE_CONTRACT</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  defaultQuery</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"> kind</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;alpaca-equity-live-trades&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> symbols</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> feed</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;iex&quot;</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  controls</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;symbols&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;feed&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  preview</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    graph</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      xField</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;timestamp&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      yField</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;price&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      groupField</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;symbol&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      rowIdentityFields</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;timestamp&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;symbol&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;tradeId&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;assetClass&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      preferredChartType</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;line&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">      maxRetainedRows</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">1000</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  stream</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    transport</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;websocket&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    modes</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;delta&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    defaultMode</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;delta&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    supportsResume</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token boolean" style="color:rgb(255, 88, 116)">false</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    heartbeatMs</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">30000</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    defaultMergeKeyFields</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token string" style="color:rgb(195, 232, 141)">&quot;timestamp&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;symbol&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;tradeId&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;assetClass&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="equity-live-quotes">Equity live quotes<a href="#equity-live-quotes" class="hash-link" aria-label="Direct link to Equity live quotes" title="Direct link to Equity live quotes" translate="no">​</a></h3>
+<p>Use the same shape with:</p>
+<ul>
+<li class=""><code>id</code>: <code>alpaca-equity-live-quotes</code></li>
+<li class=""><code>label</code>: <code>Equity Live Quotes (WS)</code></li>
+<li class=""><code>defaultQuery.kind</code>: <code>alpaca-equity-live-quotes</code></li>
+<li class="">graph default <code>yField</code>: <code>bidPrice</code></li>
+<li class="">row identity and merge fields:
+<code>[&quot;timestamp&quot;, &quot;symbol&quot;, &quot;assetClass&quot;]</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="equity-live-bars">Equity live bars<a href="#equity-live-bars" class="hash-link" aria-label="Direct link to Equity live bars" title="Direct link to Equity live bars" translate="no">​</a></h3>
+<p>Use the same shape with:</p>
+<ul>
+<li class=""><code>id</code>: <code>alpaca-equity-live-bars</code></li>
+<li class=""><code>label</code>: <code>Equity Live Bars (WS)</code></li>
+<li class=""><code>defaultQuery.kind</code>: <code>alpaca-equity-live-bars</code></li>
+<li class="">graph default <code>yField</code>: <code>close</code></li>
+<li class="">row identity and merge fields:
+<code>[&quot;timestamp&quot;, &quot;symbol&quot;, &quot;timeframe&quot;, &quot;barType&quot;, &quot;assetClass&quot;]</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="crypto-live-trades">Crypto live trades<a href="#crypto-live-trades" class="hash-link" aria-label="Direct link to Crypto live trades" title="Direct link to Crypto live trades" translate="no">​</a></h3>
+<p>Use the same shape with:</p>
+<ul>
+<li class=""><code>id</code>: <code>alpaca-crypto-live-trades</code></li>
+<li class=""><code>label</code>: <code>Crypto Live Trades (WS)</code></li>
+<li class=""><code>defaultQuery</code>: <code>{ kind: &quot;alpaca-crypto-live-trades&quot;, symbols: [], cryptoLocation: &quot;us&quot; }</code></li>
+<li class="">controls: <code>[&quot;symbols&quot;, &quot;cryptoLocation&quot;]</code></li>
+<li class="">graph default <code>yField</code>: <code>price</code></li>
+<li class="">row identity and merge fields:
+<code>[&quot;timestamp&quot;, &quot;symbol&quot;, &quot;tradeId&quot;, &quot;assetClass&quot;]</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="crypto-live-quotes">Crypto live quotes<a href="#crypto-live-quotes" class="hash-link" aria-label="Direct link to Crypto live quotes" title="Direct link to Crypto live quotes" translate="no">​</a></h3>
+<p>Use the same shape with:</p>
+<ul>
+<li class=""><code>id</code>: <code>alpaca-crypto-live-quotes</code></li>
+<li class=""><code>label</code>: <code>Crypto Live Quotes (WS)</code></li>
+<li class=""><code>defaultQuery.kind</code>: <code>alpaca-crypto-live-quotes</code></li>
+<li class="">graph default <code>yField</code>: <code>bidPrice</code></li>
+<li class="">row identity and merge fields:
+<code>[&quot;timestamp&quot;, &quot;symbol&quot;, &quot;assetClass&quot;]</code></li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="crypto-live-bars">Crypto live bars<a href="#crypto-live-bars" class="hash-link" aria-label="Direct link to Crypto live bars" title="Direct link to Crypto live bars" translate="no">​</a></h3>
+<p>Use the same shape with:</p>
+<ul>
+<li class=""><code>id</code>: <code>alpaca-crypto-live-bars</code></li>
+<li class=""><code>label</code>: <code>Crypto Live Bars (WS)</code></li>
+<li class=""><code>defaultQuery.kind</code>: <code>alpaca-crypto-live-bars</code></li>
+<li class="">graph default <code>yField</code>: <code>close</code></li>
+<li class="">row identity and merge fields:
+<code>[&quot;timestamp&quot;, &quot;symbol&quot;, &quot;timeframe&quot;, &quot;barType&quot;, &quot;assetClass&quot;]</code></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="authoring-and-explore-behavior">Authoring And Explore Behavior<a href="#authoring-and-explore-behavior" class="hash-link" aria-label="Direct link to Authoring And Explore Behavior" title="Direct link to Authoring And Explore Behavior" translate="no">​</a></h2>
+<p>The shared connection authoring contract remains the owner of default draft
+selection and Explore copy.</p>
+<p>Required behavior:</p>
+<ul>
+<li class="">HTTP mode defaults to the existing <code>alpaca-equity-ohlc</code> REST query model.</li>
+<li class="">WebSocket mode defaults to <code>alpaca-equity-live-trades</code> when the connection
+has equity enabled, otherwise the first available streamable Alpaca query
+model.</li>
+<li class="">The shared workbench transport selector must show live models only in WS mode.</li>
+<li class="">The connection path picker must make transport explicit through separate
+query labels, not by showing one path as both HTTP and WebSocket.</li>
+<li class="">Stream query summaries should say &quot;WebSocket stream&quot; or &quot;live subscription&quot;,
+not &quot;run request&quot;.</li>
+<li class="">The stream test panel should send the generic subscribe payload and should
+show Alpaca frames through <code>ConnectionQueryResponsePreview</code>.</li>
+</ul>
+<p>Do not add a per-Alpaca Explore wrapper. <code>ConnectionExploreSurface</code> and
+<code>ConnectionQueryWorkbench</code> remain the only normal Explore path.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="workspace-runtime-behavior">Workspace Runtime Behavior<a href="#workspace-runtime-behavior" class="hash-link" aria-label="Direct link to Workspace Runtime Behavior" title="Direct link to Workspace Runtime Behavior" translate="no">​</a></h2>
+<p>Alpaca live data uses the generic <code>connection-stream-query</code> widget.</p>
+<p>The stream source:</p>
+<ul>
+<li class="">stores <code>ConnectionRef</code>, <code>queryModelId</code>, normalized query payload, output
+contract, merge keys, and retention settings</li>
+<li class="">must not store provider URLs, provider channels, credentials, or backend route
+fragments in widget props</li>
+<li class="">opens the generic Command Center <code>stream-query</code> WebSocket through the shared
+ticket-auth helper</li>
+<li class="">normalizes incoming <code>ConnectionQueryResponse</code> frames through the existing
+tabular conversion path</li>
+<li class="">publishes <code>updates</code> with <code>widget-runtime-update@v1</code></li>
+<li class="">keeps lifecycle status visible through existing runtime state fields</li>
+</ul>
+<p>Downstream widgets consume Alpaca streams exactly like other incremental
+connection publications:</p>
+<ul>
+<li class="">historical HTTP data may bind to <code>seedData</code></li>
+<li class="">Alpaca live stream data may bind to <code>liveUpdates</code></li>
+<li class="">graph, table, statistic, and OHLC must not branch on Alpaca provider details</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-contract-impact">Backend Contract Impact<a href="#backend-contract-impact" class="hash-link" aria-label="Direct link to Backend Contract Impact" title="Direct link to Backend Contract Impact" translate="no">​</a></h2>
+<p>This ADR assumes backend ADR 018 is authoritative and implemented for the
+generic WebSocket contract.</p>
+<p>Frontend implementation changes the connection manifest and persisted public
+config shape additively. Backend already accepts the new optional WebSocket
+public config fields and stream query kinds. Existing Alpaca connection
+instances remain valid without migration.</p>
+<p>No frontend change may require browser-visible provider credentials or
+provider-native stream routes.</p>
+<p>Known backend follow-ups from ADR 018 remain backend-owned:</p>
+<ul>
+<li class="">Redis-coordinated Alpaca endpoint session ownership and fanout for
+multi-worker deployments</li>
+<li class="">focused backend tests for auth failure, subscription failure, reconnect
+failure, and unsubscribe cleanup</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-plan">Implementation Plan<a href="#implementation-plan" class="hash-link" aria-label="Direct link to Implementation Plan" title="Direct link to Implementation Plan" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="connection-definition">Connection definition<a href="#connection-definition" class="hash-link" aria-label="Direct link to Connection definition" title="Direct link to Connection definition" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add Alpaca WebSocket public config TypeScript fields.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <code>AlpacaWebSocketStockFeed</code> and <code>AlpacaWebSocketCryptoLocation</code> types.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add <code>stream</code> to top-level capabilities.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add six stream-only query models with <code>stream.transport=&quot;websocket&quot;</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add stream preview graph hints and <code>defaultMergeKeyFields</code> for each live
+query model.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add live examples for equity and crypto streams.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="config-editor-and-schema">Config editor and schema<a href="#config-editor-and-schema" class="hash-link" aria-label="Direct link to Config editor and schema" title="Direct link to Config editor and schema" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add a <code>WebSocket streams</code> schema section.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add public config schema fields for all WebSocket config additions.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add matching config editor fields and help text.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep REST feed/location fields separate from WebSocket feed/location
+fields so users can see which defaults affect HTTP versus WS.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="query-editor-and-authoring-contract">Query editor and authoring contract<a href="#query-editor-and-authoring-contract" class="hash-link" aria-label="Direct link to Query editor and authoring contract" title="Direct link to Query editor and authoring contract" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extend <code>AlpacaConnectionQueryEditor</code> for live query kinds.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Hide HTTP-only fields for live query kinds.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add helper copy that explains live bars are provider minute bars in the
+first slice.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <code>alpacaAuthoring.ts</code> to choose stream defaults in WS mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure source summaries and run/test copy use the shared authoring
+contract.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="documentation">Documentation<a href="#documentation" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <code>connections/alpaca/README.md</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update Alpaca <code>usageGuidance</code> with every new public config field and live
+query model.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update any shared connection docs if examples need an Alpaca WS sample.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="tests">Tests<a href="#tests" class="hash-link" aria-label="Direct link to Tests" title="Direct link to Tests" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add connection definition tests proving top-level <code>stream</code> capability is
+present and every live query model is streamable.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add tests for default merge keys and graph preview hints.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add query editor tests for live equity and crypto field visibility.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add authoring contract tests proving HTTP mode and WS mode choose
+different Alpaca defaults.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add streamability filtering tests proving existing REST Alpaca paths do
+not appear as WS models.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="acceptance-criteria">Acceptance Criteria<a href="#acceptance-criteria" class="hash-link" aria-label="Direct link to Acceptance Criteria" title="Direct link to Acceptance Criteria" translate="no">​</a></h2>
+<ul>
+<li class="">Data Sources Explore shows Alpaca live stream query models only under the WS
+transport path.</li>
+<li class="">Workspace <code>connection-stream-query</code> can select Alpaca equity and crypto live
+trades, quotes, and bars.</li>
+<li class="">Existing Alpaca HTTP query models continue to work and remain HTTP-only.</li>
+<li class="">Saved Alpaca connection instances without new WebSocket public config fields
+remain valid.</li>
+<li class="">The browser never stores or displays Alpaca provider credentials, provider
+auth messages, or provider-native stream URLs as runtime widget props.</li>
+<li class="">Downstream widgets receive standard incremental tabular publications and do
+not need Alpaca-specific consumer code.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-048-alpaca-websocket-command-center-extension.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#non-goals" class="table-of-contents__link toc-highlight">Non-Goals</a></li><li><a href="#frontend-contract" class="table-of-contents__link toc-highlight">Frontend Contract</a><ul><li><a href="#connection-capabilities" class="table-of-contents__link toc-highlight">Connection capabilities</a></li><li><a href="#public-config-additions" class="table-of-contents__link toc-highlight">Public config additions</a></li><li><a href="#secure-config" class="table-of-contents__link toc-highlight">Secure config</a></li></ul></li><li><a href="#query-models" class="table-of-contents__link toc-highlight">Query Models</a><ul><li><a href="#equity-live-trades" class="table-of-contents__link toc-highlight">Equity live trades</a></li><li><a href="#equity-live-quotes" class="table-of-contents__link toc-highlight">Equity live quotes</a></li><li><a href="#equity-live-bars" class="table-of-contents__link toc-highlight">Equity live bars</a></li><li><a href="#crypto-live-trades" class="table-of-contents__link toc-highlight">Crypto live trades</a></li><li><a href="#crypto-live-quotes" class="table-of-contents__link toc-highlight">Crypto live quotes</a></li><li><a href="#crypto-live-bars" class="table-of-contents__link toc-highlight">Crypto live bars</a></li></ul></li><li><a href="#authoring-and-explore-behavior" class="table-of-contents__link toc-highlight">Authoring And Explore Behavior</a></li><li><a href="#workspace-runtime-behavior" class="table-of-contents__link toc-highlight">Workspace Runtime Behavior</a></li><li><a href="#backend-contract-impact" class="table-of-contents__link toc-highlight">Backend Contract Impact</a></li><li><a href="#implementation-plan" class="table-of-contents__link toc-highlight">Implementation Plan</a><ul><li><a href="#connection-definition" class="table-of-contents__link toc-highlight">Connection definition</a></li><li><a href="#config-editor-and-schema" class="table-of-contents__link toc-highlight">Config editor and schema</a></li><li><a href="#query-editor-and-authoring-contract" class="table-of-contents__link toc-highlight">Query editor and authoring contract</a></li><li><a href="#documentation" class="table-of-contents__link toc-highlight">Documentation</a></li><li><a href="#tests" class="table-of-contents__link toc-highlight">Tests</a></li></ul></li><li><a href="#acceptance-criteria" class="table-of-contents__link toc-highlight">Acceptance Criteria</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

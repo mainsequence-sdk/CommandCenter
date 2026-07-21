@@ -44,8 +44,11 @@ Current surfaces in this folder:
 - `AdminInvoicesPage.tsx`: billing invoice registry backed by `/orm/api/pods/billing/invoices/`
   with cursor pagination, `origin_url` fallback support, and View/PDF invoice actions
 - `AdminBillingDetailsPage.tsx`: billing usage table backed by `/orm/api/pods/billing/usage/`
-  with a top budget summary built from `/user/api/user/credits/summary/`, `datetime-local`
-  range filters, and quick date presets
+  with a top budget summary built from `/user/api/user/credits/summary/`, date-only `YYYY-MM-DD`
+  range filters, quick date presets, and explicit billing-detail columns for `started_at`,
+  `ended_at`, `billing_category`, billed resource, owning resource, and cost. Product wording maps
+  service runtime usage to `Service Runtime` and the table does not depend on legacy
+  `source_type` / `source_object` fields.
 - `AdminHostedResourcesPage.tsx`: billing-owned managed database surface reached at
   `/app/settings/billing/hosted-resources/databases`. It uses the generic hosted resource database
   workflow under

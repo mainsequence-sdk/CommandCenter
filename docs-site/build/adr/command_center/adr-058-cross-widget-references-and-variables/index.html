@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-058-cross-widget-references-and-variables" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 058: Cross-Widget References And Variables | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-058-cross-widget-references-and-variables"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 058: Cross-Widget References And Variables | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-058-cross-widget-references-and-variables"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-058-cross-widget-references-and-variables" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-058-cross-widget-references-and-variables" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 058: Cross-Widget References And Variables</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-05-08</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-widget-bindings-and-dependency-graph">ADR: First-Class Widget Bindings and Dependency Graph</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-binding-output-transforms">ADR: Binding-Level Output Transforms for Structured Widget Outputs</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-connection-first-workspace-dataflow">ADR: Connection-First Workspace Dataflow</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-executable-widget-graph-runner">ADR: Executable Widget Graph Runner and Refresh Coordination</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The widget graph already gives the platform most of what it needs for safe composition:</p>
+<ul>
+<li class="">explicit widget outputs</li>
+<li class="">explicit widget inputs</li>
+<li class="">canonical bindings stored on widget instances</li>
+<li class="">binding transforms such as <code>select-array-item</code> and <code>extract-path</code></li>
+<li class="">execution ordering through the dependency graph</li>
+<li class="">self-reference blocking and contract validation</li>
+</ul>
+<p>What it does not yet give users is a first-class cross-widget reference and variable model.</p>
+<p>The need is generic:</p>
+<ul>
+<li class="">a source widget owns some useful value</li>
+<li class="">a downstream widget wants to reuse that value as:<!-- -->
+<ul>
+<li class="">chrome text such as a title</li>
+<li class="">any saved config field</li>
+<li class="">any request or filter field</li>
+<li class="">any render-time scalar setting</li>
+</ul>
+</li>
+</ul>
+<p>The wrong direction would be to let widgets read free-form expressions over arbitrary widget state,
+for example:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">($self.bindings.source_widget....)</span><br></span></code></pre></div></div>
+<p>We reject that direction.</p>
+<p>Problems with it:</p>
+<ul>
+<li class="">it bypasses explicit source-output to target-input graph edges</li>
+<li class="">it couples consumers to internal binding storage and producer internals</li>
+<li class="">it weakens validation, self-reference blocking, and execution reasoning</li>
+<li class="">it creates an unbounded expression language over widget implementation details</li>
+<li class="">it makes public-workspace safety and persisted workspace validation harder</li>
+</ul>
+<p>The system we want must stay graph-native. References must compile to known dependencies.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Cross-widget references and variables will be modeled as canonical widget bindings between explicit
+consumer targets and automatically discoverable existing producer state.</p>
+<p>The key change from a fully manual model is this:</p>
+<ul>
+<li class="">automatic discovery from existing widget state is the default producer path</li>
+<li class="">widget authors must not have to redeclare every reusable field</li>
+<li class="">curated explicit outputs are optional convenience paths, not the baseline requirement</li>
+</ul>
+<p>This ADR makes five decisions:</p>
+<ol>
+<li class="">cross-widget references are still bindings, not a second storage model</li>
+<li class="">every widget&#x27;s existing instance state becomes automatically explorable through the binding system</li>
+<li class="">existing setting/configuration fields, including existing shell-owned fields such as widget title, become reference-capable</li>
+<li class="">exact whole-value widget reference expressions are allowed as an authoring language when they compile back into the same explicit binding graph</li>
+<li class="">mixed literal-plus-reference text interpolation remains out of scope for this slice</li>
+</ol>
+<p>The dependency remains:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">source widget output</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; canonical binding edge</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; target widget input</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; resolved widget behavior</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="producer-model">Producer Model<a href="#producer-model" class="hash-link" aria-label="Direct link to Producer Model" title="Direct link to Producer Model" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="automatic-discovery-over-existing-instance-state">Automatic Discovery Over Existing Instance State<a href="#automatic-discovery-over-existing-instance-state" class="hash-link" aria-label="Direct link to Automatic Discovery Over Existing Instance State" title="Direct link to Automatic Discovery Over Existing Instance State" translate="no">​</a></h3>
+<p>Every widget instance already persists state through the widget instance model. The binding system
+should discover that existing state directly rather than asking widget authors to republish it into
+a second structure.</p>
+<p>The default automatic roots are:</p>
+<ul>
+<li class=""><code>instance-title</code></li>
+<li class=""><code>props</code></li>
+<li class=""><code>runtime-state</code></li>
+</ul>
+<p>These are not widget-authored outputs and not a second persisted snapshot. They are stable binding
+discovery namespaces over the existing instance model, exposed by the shared dependency layer and
+binding UI.</p>
+<p>The important rule is:</p>
+<ul>
+<li class="">users should be able to explore existing widget-owned state automatically</li>
+<li class="">widget authors should not have to hand-declare every reusable field</li>
+<li class="">the platform should read the existing instance model directly instead of forcing the same data to
+be republished under a second wrapper object</li>
+</ul>
+<p>The binding UI can use the existing structured binding transform model to project nested values from
+these roots:</p>
+<ul>
+<li class=""><code>extract-path</code></li>
+<li class=""><code>select-array-item</code></li>
+</ul>
+<p>That gives an automatic exploration path without adding arbitrary expressions and without requiring a
+second declared snapshot path such as <code>reference.props...</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="what-is-automatically-exposed">What Is Automatically Exposed<a href="#what-is-automatically-exposed" class="hash-link" aria-label="Direct link to What Is Automatically Exposed" title="Direct link to What Is Automatically Exposed" translate="no">​</a></h3>
+<p>The default automatic roots should expose widget-owned state only:</p>
+<ul>
+<li class="">saved instance title</li>
+<li class="">saved widget props</li>
+<li class="">widget runtime state</li>
+</ul>
+<p>It should not expose:</p>
+<ul>
+<li class="">canonical binding metadata itself</li>
+<li class="">shell-owned internal bookkeeping</li>
+<li class="">DOM state</li>
+<li class="">non-serializable objects</li>
+<li class="">credentials or secure config</li>
+<li class="">arbitrary upstream resolved inputs by default</li>
+</ul>
+<p>The last rule is important. Automatic discovery should describe what the widget owns, not quietly
+republish transitive upstream dependencies.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="curated-explicit-outputs-remain-useful">Curated Explicit Outputs Remain Useful<a href="#curated-explicit-outputs-remain-useful" class="hash-link" aria-label="Direct link to Curated Explicit Outputs Remain Useful" title="Direct link to Curated Explicit Outputs Remain Useful" translate="no">​</a></h3>
+<p>Widgets may still publish explicit additional outputs when they improve UX, stability, or clarity.</p>
+<p>Examples:</p>
+<ul>
+<li class=""><code>primary-symbol</code></li>
+<li class=""><code>request-label</code></li>
+<li class=""><code>selected-row-id</code></li>
+<li class=""><code>effective-date</code></li>
+</ul>
+<p>But these become optional convenience outputs. They are not the only way a value becomes
+referenceable.</p>
+<p>The intended model is:</p>
+<ul>
+<li class="">automatic discovery over existing widget state for broad exploration</li>
+<li class="">curated explicit outputs for common, stable, high-signal values</li>
+</ul>
+<p>That keeps maintenance low without losing the ability to make common bindings simple.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consumer-model">Consumer Model<a href="#consumer-model" class="hash-link" aria-label="Direct link to Consumer Model" title="Direct link to Consumer Model" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="existing-setting-fields-are-referenceable">Existing Setting Fields Are Referenceable<a href="#existing-setting-fields-are-referenceable" class="hash-link" aria-label="Direct link to Existing Setting Fields Are Referenceable" title="Direct link to Existing Setting Fields Are Referenceable" translate="no">​</a></h3>
+<p>Downstream widgets consume cross-widget values through existing configuration fields.</p>
+<p>There are two classes of target:</p>
+<ol>
+<li class="">existing shell-owned fields</li>
+<li class="">existing widget-owned fields</li>
+</ol>
+<p>Shell-owned fields cover values already owned by the workspace shell rather than one widget
+implementation.</p>
+<p>Example:</p>
+<ul>
+<li class="">existing widget title field</li>
+<li class="">accepted contract: <code>core.value.string@v1</code></li>
+</ul>
+<p>Widget-owned targets should not require one bespoke input definition per setting field. Instead, the
+general settings/configuration system should allow a saved field to resolve from either:</p>
+<ul>
+<li class="">a local literal value</li>
+<li class="">a binding-backed reference value</li>
+</ul>
+<p>In other words, the target model should be &quot;any configurable field can opt into reference mode&quot;
+rather than &quot;authors must add a separate synthetic input for each field they want bindable.&quot;</p>
+<p>These generic targets may map to:</p>
+<ul>
+<li class="">a prop path</li>
+<li class="">a generated field</li>
+<li class="">a filter or request field</li>
+<li class="">a render-only scalar setting</li>
+</ul>
+<p>The platform should prefer generic setting-field resolution over per-widget ad hoc parsing of
+upstream widget data.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="title-is-an-existing-field-not-a-new-feature">Title Is An Existing Field, Not A New Feature<a href="#title-is-an-existing-field-not-a-new-feature" class="hash-link" aria-label="Direct link to Title Is An Existing Field, Not A New Feature" title="Direct link to Title Is An Existing Field, Not A New Feature" translate="no">​</a></h3>
+<p>The widget title is still a useful example because it already exists and is shell-owned. Its
+resolution can remain:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">resolved bound title</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  ?? saved instance.title</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  ?? widget.title</span><br></span></code></pre></div></div>
+<p>But title is not the core feature. The broader rule is:</p>
+<ul>
+<li class="">any setting/configuration field should be referenceable through the same generic mechanism</li>
+<li class="">shell-owned fields such as title participate through the same existing settings/runtime path</li>
+<li class="">widget-owned fields participate through generic setting-path targets</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="binding-semantics">Binding Semantics<a href="#binding-semantics" class="hash-link" aria-label="Direct link to Binding Semantics" title="Direct link to Binding Semantics" translate="no">​</a></h2>
+<p>Bindings remain canonical widget graph edges.</p>
+<p>Cross-widget references do not require a second persistence model. The dependency stays:</p>
+<ul>
+<li class="">source widget id</li>
+<li class="">source root or declared output id</li>
+<li class="">optional transform steps</li>
+<li class="">target widget id</li>
+<li class="">target input id</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="exact-reference-expressions">Exact Reference Expressions<a href="#exact-reference-expressions" class="hash-link" aria-label="Direct link to Exact Reference Expressions" title="Direct link to Exact Reference Expressions" translate="no">​</a></h3>
+<p>This slice allows one author-friendly string form for exact whole-value references:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">$(widget-identifier).source.path</span><br></span></code></pre></div></div>
+<p>Examples:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">$(prices-table).activeRow.symbol</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">$(prices-table).selectedRows.rows[0].symbol</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">$(query-source).props.query.symbols[0]</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">$(summary-note).runtimeState.latestSummary</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">$(chart-title).title</span><br></span></code></pre></div></div>
+<p>Rules:</p>
+<ul>
+<li class="">the entire saved literal value must be one reference expression</li>
+<li class="">the expression is authoring syntax only</li>
+<li class="">it compiles to one canonical binding edge plus ordered transform steps</li>
+<li class="">the compiled binding remains the persisted graph model</li>
+<li class="">widget expressions must not become arbitrary traversal or code execution</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="variable-aware-settings-inputs">Variable-Aware Settings Inputs<a href="#variable-aware-settings-inputs" class="hash-link" aria-label="Direct link to Variable-Aware Settings Inputs" title="Direct link to Variable-Aware Settings Inputs" translate="no">​</a></h3>
+<p>Widget settings fields that accept literal string values should be aware of the widget-reference
+language while the user is typing.</p>
+<p>The first required authoring affordance is:</p>
+<ul>
+<li class="">when the user types <code>$(</code> in a supported settings input, show an inline picker</li>
+<li class="">the picker lists referenceable widgets in the current workspace</li>
+<li class="">each option shows the widget label/title and the stable widget instance id</li>
+<li class="">selecting a widget inserts the widget reference token, for example <code>$(widget-instance-id)</code></li>
+<li class="">the input remains the owning field; the picker is an authoring helper, not a second binding screen</li>
+<li class="">once a complete whole-value reference is selected, the field should render it as a removable
+reference token/pill rather than leaving it visually indistinguishable from normal string text</li>
+<li class="">the token/pill should show the selected widget label plus the selected source/path where possible</li>
+<li class="">the token/pill must expose an <code>X</code> remove affordance that clears the reference and restores the
+local literal editing state</li>
+<li class="">settings fields must not also render a separate chain-button/reference picker beside the same input</li>
+<li class="">non-string controls opt out by default unless they render through a text input or textarea</li>
+<li class="">custom settings controls that do not use the shared base input components can opt in with the
+stable <code>ms-widget-variable-reference-input</code> class or <code>data-widget-variable-reference-input=&quot;true&quot;</code>
+attribute inside the widget settings provider</li>
+</ul>
+<p>The picker must use the same source-widget index as the compiler so it cannot suggest references
+that the binding layer cannot resolve. It must also respect the same self-reference and workspace
+scope rules as canonical bindings.</p>
+<p>This interaction is intentionally the first step. Later affordances can extend the same dropdown into
+source/output/path completion such as <code>.activeRow.symbol</code>. The completion model should stay generic:</p>
+<ul>
+<li class="">after <code>$(widget).</code>, show the source roots exposed by that widget</li>
+<li class="">source roots include declared outputs and platform-owned roots such as <code>title</code>, <code>props</code>, and
+<code>runtimeState</code></li>
+<li class="">after a selected source root plus <code>.</code>, show descriptor-backed object fields when the source has a
+value descriptor or a resolved runtime value descriptor</li>
+<li class="">completion options insert only the segment being completed, keeping the current text field as the
+authoring surface</li>
+<li class="">tokenized display is visual only; the field still compiles to the same canonical binding edge and
+does not create a second token storage model</li>
+</ul>
+<p>That means a future mixed template such as:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">Price for {{ticker}}</span><br></span></code></pre></div></div>
+<p>is still a separate later slice. Mixed interpolation must compile to explicit binding-backed target
+models too, but that is not what we are landing here.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-variable-reference-registry">Runtime Variable Reference Registry<a href="#runtime-variable-reference-registry" class="hash-link" aria-label="Direct link to Runtime Variable Reference Registry" title="Direct link to Runtime Variable Reference Registry" translate="no">​</a></h3>
+<p>The widget-reference language also needs a workspace-scoped runtime registry of active variable
+references. This registry is not a second persisted model and not a catalog of every discoverable
+widget value.</p>
+<p>The registry is derived from canonical widget bindings and contains only values that are actually
+linked by at least one consumer.</p>
+<p>Examples:</p>
+<ul>
+<li class="">include <code>$(prices-table).activeRow.symbol</code> when a card title or setting field references it</li>
+<li class="">include <code>$(prices-table).selectedRows.rows[0].symbol</code> when a downstream setting references it</li>
+<li class="">do not include every table column, row field, runtime-state key, or prop path only because it is
+discoverable in autocomplete</li>
+<li class="">do not include unselected autocomplete candidates</li>
+<li class="">do not include ordinary widget input bindings such as <code>connection-query.dataset -&gt; table.source</code>;
+those remain dependency graph edges, not widget-reference-language variables</li>
+</ul>
+<p>The runtime registry should index each active variable by:</p>
+<ul>
+<li class="">source widget id</li>
+<li class="">source output id or platform discovery root</li>
+<li class="">ordered binding transform signature</li>
+<li class="">consumer widget id</li>
+<li class="">consumer target input id</li>
+<li class="">consumer target kind for reference-backed settings, currently title or prop path</li>
+</ul>
+<p>Its purpose is to make active references observable and efficiently invalidated:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">source title / props / runtimeState / declared output changes</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; active variable keys for that source are invalidated</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; dependent resolved inputs recompute</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; effective title / props / widget inputs recompute</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; dependent widgets rerender or become stale according to graph execution policy</span><br></span></code></pre></div></div>
+<p>The registry must not push runtime values by mutating saved widget props or saved widget titles.
+Saved fields remain authoring state. Runtime reference updates resolve effective values in memory
+through the same dependency model used by widget bindings and graph execution.
+The dependency model may derive missing canonical bindings from saved exact whole-value
+expressions at resolution time so older drafts still render, but that repair stays in memory until
+the settings save path persists the generated binding.</p>
+<p>Executable downstream widgets need one more rule: a changed variable should not blindly execute
+cost-generating or network-backed work. It should mark the relevant graph node stale or use the
+existing graph refresh/execution policy so the backend remains the source of truth for work that
+has side effects or cost.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="variable-change-graph-update">Variable Change Graph Update<a href="#variable-change-graph-update" class="hash-link" aria-label="Direct link to Variable Change Graph Update" title="Direct link to Variable Change Graph Update" translate="no">​</a></h3>
+<p>The runtime variable registry is not only an inspection tool. It is also the narrowest safe place
+to drive downstream updates when a widget commit changes a referenced value.</p>
+<p>The important boundary is:</p>
+<ul>
+<li class="">draft typing in widget settings must not trigger graph execution</li>
+<li class="">a committed widget-settings change may invalidate active variable consumers</li>
+<li class="">only consumers that actually reference the changed widget through the variable registry should be
+considered</li>
+</ul>
+<p>This ADR therefore requires a commit-scoped invalidation path rather than a generic
+&quot;any widget draft changed&quot; watcher.</p>
+<p>The intended flow is:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">widget settings commit</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; compare committed before/after values for the changed widget</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; use the runtime variable registry source index to find active variable consumers</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; invalidate only affected variable keys</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; recompute effective title / props / resolved inputs in memory</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; rerender passive consumers immediately</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; queue executable downstream consumers through existing stale/refresh/execution policy</span><br></span></code></pre></div></div>
+<p>This flow has four rules:</p>
+<ol>
+<li class="">the invalidation trigger is a widget commit event, not keystrokes in a draft form</li>
+<li class="">the runtime registry remains derived and in-memory only; it must not persist dirty flags or a
+second variable state model</li>
+<li class="">impact should be computed from active variable consumers only, using
+<code>sourceWidgetId -&gt; variable entries -&gt; consumer widgets</code></li>
+<li class="">executable consumers should be scheduled through the graph runner as targeted downstream work,
+not through unconditional source-side auto-execution</li>
+</ol>
+<p>Two execution lanes are required:</p>
+<ul>
+<li class="">render-only lane:<!-- -->
+<ul>
+<li class="">effective titles, props, and reference-backed resolved inputs recompute after commit</li>
+<li class="">passive widgets rerender without graph execution</li>
+</ul>
+</li>
+<li class="">execution lane:<!-- -->
+<ul>
+<li class="">affected executable widgets, or widgets with executable downstream branches, are marked stale
+and refreshed through the existing graph execution policy</li>
+</ul>
+</li>
+</ul>
+<p>This also implies one authoring constraint:</p>
+<ul>
+<li class="">widget settings paths that should participate in variable-driven downstream updates must share one
+explicit commit boundary</li>
+</ul>
+<p>If one settings surface buffers local draft state and another mutates the workspace draft on every
+edit, variable-driven graph refresh will still fire inconsistently while the user is configuring a
+widget. The settings layer must therefore normalize around &quot;draft first, commit once&quot; before this
+slice is considered complete.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="planned-runtime-architecture">Planned Runtime Architecture<a href="#planned-runtime-architecture" class="hash-link" aria-label="Direct link to Planned Runtime Architecture" title="Direct link to Planned Runtime Architecture" translate="no">​</a></h3>
+<p>The implementation should land as one narrow runtime pipeline rather than as a broad
+workspace-change observer.</p>
+<p>The expected runtime pieces are:</p>
+<ol>
+<li class="">
+<p><strong>Commit emitter</strong></p>
+<ul>
+<li class="">emits one explicit widget-settings commit event after a widget save/apply action succeeds</li>
+<li class="">includes:<!-- -->
+<ul>
+<li class="">changed widget id</li>
+<li class="">committed before snapshot</li>
+<li class="">committed after snapshot</li>
+<li class="">commit source such as settings save, settings apply, or another explicit authoring commit</li>
+</ul>
+</li>
+<li class="">must not fire for draft keystrokes, autocomplete selection while still editing, or preview-only
+local demo state</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Variable invalidation planner</strong></p>
+<ul>
+<li class="">reads the runtime variable registry source index for the changed widget id</li>
+<li class="">if no active variable consumers reference that widget, exits immediately</li>
+<li class="">compares only the committed source values actually referenced by those variable entries</li>
+<li class="">produces an impact plan that lists:<!-- -->
+<ul>
+<li class="">changed variable keys</li>
+<li class="">affected passive consumer widgets</li>
+<li class="">affected executable consumer widgets</li>
+<li class="">affected widgets that are not executable themselves but have executable downstream branches</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Render-only lane</strong></p>
+<ul>
+<li class="">invalidates the affected variable entries in memory</li>
+<li class="">recomputes effective title / props / resolved inputs through the dependency model</li>
+<li class="">lets passive widgets rerender from the recomputed effective state without graph execution</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Execution lane</strong></p>
+<ul>
+<li class="">marks affected executable widgets stale through the existing execution policy</li>
+<li class="">schedules only the targeted executable consumers or executable downstream branches</li>
+<li class="">does not re-run the committed source widget automatically unless that widget itself is part of
+the affected executable target set</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Execution coordinator</strong></p>
+<ul>
+<li class="">receives the impact plan after the workspace draft already reflects the committed widget state</li>
+<li class="">runs targeted downstream refresh work through the existing graph runner rather than through an
+ad hoc side channel</li>
+<li class="">dedupes repeated targets within one commit cycle</li>
+</ul>
+</li>
+</ol>
+<p>This keeps the boundary precise:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">explicit widget commit</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; active-variable impact plan</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; passive rerender in memory</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; targeted executable stale/refresh queue</span><br></span></code></pre></div></div>
+<p>The implementation must not become:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">any workspace draft mutation</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; recompute all variables</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; execute broad downstream graph work</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="planned-rollout-sequence">Planned Rollout Sequence<a href="#planned-rollout-sequence" class="hash-link" aria-label="Direct link to Planned Rollout Sequence" title="Direct link to Planned Rollout Sequence" translate="no">​</a></h3>
+<p>This slice should land in order. Earlier steps are prerequisites for later steps.</p>
+<ol>
+<li class="">
+<p><strong>Normalize commit boundaries</strong></p>
+<ul>
+<li class="">make widget-settings surfaces converge on one explicit draft-to-commit boundary for changes
+that should participate in variable-driven downstream updates</li>
+<li class="">explicitly exclude preview/test actions that should not count as a committed saved widget
+change</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Add the commit-scoped invalidation event</strong></p>
+<ul>
+<li class="">create one runtime event or queue entry for &quot;widget committed&quot;</li>
+<li class="">publish it only after the committed workspace draft is available to the dependency model</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Implement the variable invalidation planner</strong></p>
+<ul>
+<li class="">start from changed source widget id</li>
+<li class="">resolve active registry entries for that source</li>
+<li class="">compare before/after only for referenced source values</li>
+<li class="">emit a structured impact plan</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Wire passive rerender first</strong></p>
+<ul>
+<li class="">invalidate the affected variable keys</li>
+<li class="">verify effective titles, props, and resolved inputs recompute without persistence drift</li>
+<li class="">verify no graph execution is triggered for passive-only impact plans</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Wire targeted executable downstream scheduling</strong></p>
+<ul>
+<li class="">hand executable impact targets to the existing graph stale/refresh coordinator</li>
+<li class="">avoid source-wide unconditional <code>executeWidgetFlow(...)</code> behavior</li>
+<li class="">schedule only affected executable consumers or executable branches</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Add regression coverage</strong></p>
+<ul>
+<li class="">passive consumer rerender after commit</li>
+<li class="">no execution during draft typing</li>
+<li class="">executable downstream queueing after commit</li>
+<li class="">active-reference-only impact calculation</li>
+<li class="">no saved-prop, saved-title, or runtime-registry persistence drift</li>
+</ul>
+</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="planned-runtime-surface-boundaries">Planned Runtime Surface Boundaries<a href="#planned-runtime-surface-boundaries" class="hash-link" aria-label="Direct link to Planned Runtime Surface Boundaries" title="Direct link to Planned Runtime Surface Boundaries" translate="no">​</a></h3>
+<p>To avoid mixing concerns, the implementation should keep these responsibilities separate:</p>
+<ul>
+<li class="">settings authoring layer:<!-- -->
+<ul>
+<li class="">owns draft editing and explicit commit</li>
+<li class="">does not decide downstream execution targets</li>
+</ul>
+</li>
+<li class="">dependency / variable layer:<!-- -->
+<ul>
+<li class="">owns active variable indexes and effective value recomputation</li>
+<li class="">does not persist dirty flags or a second variable snapshot</li>
+</ul>
+</li>
+<li class="">graph execution layer:<!-- -->
+<ul>
+<li class="">owns stale marking, refresh policy, and targeted executable downstream scheduling</li>
+<li class="">does not inspect raw draft keystrokes or individual settings UI events</li>
+</ul>
+</li>
+</ul>
+<p>The simplest acceptable implementation is therefore:</p>
+<ul>
+<li class="">commit in authoring layer</li>
+<li class="">plan in variable/dependency layer</li>
+<li class="">execute in graph runner layer</li>
+</ul>
+<p>Anything that skips those boundaries risks recreating the original bug class where a UI edit path
+causes broad unpredictable downstream work.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="managed-executable-source-invalidation">Managed Executable Source Invalidation<a href="#managed-executable-source-invalidation" class="hash-link" aria-label="Direct link to Managed Executable Source Invalidation" title="Direct link to Managed Executable Source Invalidation" translate="no">​</a></h3>
+<p>Managed connection sources introduce a specific graph shape that the generic variable planner must
+understand:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">table runtime output</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; variable-backed owner setting</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; owner effective props</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; owned managed executable source props</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; managed source runtime output</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; owner rendered input</span><br></span></code></pre></div></div>
+<p>The important detail is that the executable node is not the owner widget. For example, a graph can
+own a hidden <code>connection-query</code> widget through <code>managedBy.ownerInstanceId</code>, while the variable
+reference is authored on the graph owner&#x27;s <code>embeddedConnectionQuery.query.symbols</code> setting.</p>
+<p>The existing plain downstream binding walk is insufficient for this shape because:</p>
+<ul>
+<li class="">the changed variable consumer is the owner widget</li>
+<li class="">the owner widget can be passive and have no execution definition</li>
+<li class="">the owned managed source is upstream of the owner through the generated source binding, not
+downstream of the owner</li>
+<li class="">the owned managed source&#x27;s saved props are synchronized from owner props only on settings commits</li>
+<li class="">runtime variable changes resolve owner effective props in memory and must not mutate saved owner
+props or saved managed-source props</li>
+</ul>
+<p>Therefore the variable invalidation planner must add a managed-source projection step before
+targeted execution scheduling.</p>
+<p>The exact runtime solution is:</p>
+<ol>
+<li class="">Build the normal before/after dependency snapshots from the committed or runtime-updated widget
+trees.</li>
+<li class="">For each changed variable entry, collect affected consumer widget ids from the active variable
+registry.</li>
+<li class="">For each affected consumer, resolve the consumer&#x27;s effective title and props through
+<code>resolveReferenceBackedWidgetState(...)</code> using the dependency model.</li>
+<li class="">If the affected consumer has a managed-connection consumer adapter and is in a managed source
+mode, find its owned managed executable source widgets by <code>managedBy.ownerInstanceId</code>.</li>
+<li class="">Create an execution-only projected widget tree where each owned managed source receives props,
+presentation, and title derived from the affected owner&#x27;s effective props and the adapter.</li>
+<li class="">Compare the before/after projected managed-source execution signature. If the projected managed
+source props did not change, do not schedule it.</li>
+<li class="">If the projected managed source changed and has an execution definition, add it to the targeted
+executable queue.</li>
+<li class="">From each projected managed source, also collect normal executable downstream targets through
+the existing downstream binding walk.</li>
+<li class="">Execute the projected managed source before downstream executable targets so passive owners can
+rerender from the newly published source runtime state.</li>
+</ol>
+<p>This is still generic. The planner does not special-case graph, Binance, or connection query
+fields. It only depends on:</p>
+<ul>
+<li class="">the shared managed-connection consumer adapter registry</li>
+<li class="">the generic <code>managedBy.ownerInstanceId</code> ownership relation</li>
+<li class="">the widget execution definition on the owned managed source</li>
+<li class="">the existing dependency model and graph runner</li>
+</ul>
+<p>The execution-only projection must not be persisted:</p>
+<ul>
+<li class="">saved owner props remain the authored value, including the reference expression or canonical
+binding-backed local literal</li>
+<li class="">saved managed-source props remain the last committed synchronized props</li>
+<li class="">the runtime variable registry remains derived</li>
+<li class="">only runtime execution receives the projected managed-source props</li>
+</ul>
+<p>This closes the managed-source gap without turning variable changes into broad source-side flow
+execution.</p>
+<p>The target behavior for the graph connection case is:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">table.activeCellValue changes</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; graph embeddedConnectionQuery.query.symbols effective value changes</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; planner detects graph as affected variable consumer</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; planner projects graph-owned connection-query props from graph effective props</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; connection-query is queued as the executable target</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; connection-query publishes a new dataset</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; graph rerenders from its existing source binding</span><br></span></code></pre></div></div>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="downstream-passive-variable-source-invalidation">Downstream Passive Variable Source Invalidation<a href="#downstream-passive-variable-source-invalidation" class="hash-link" aria-label="Direct link to Downstream Passive Variable Source Invalidation" title="Direct link to Downstream Passive Variable Source Invalidation" translate="no">​</a></h3>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="problem">Problem<a href="#problem" class="hash-link" aria-label="Direct link to Problem" title="Direct link to Problem" translate="no">​</a></h4>
+<p>Runtime variable invalidation is too narrow when the changed widget is not the variable source
+itself.</p>
+<p>A runtime write by widget <code>A</code> can change active variable values owned by downstream passive widget
+<code>B</code>. For example:</p>
+<div class="language-text codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">connection-query.dataset changes</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; table consumes dataset</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; table.activeRow.symbol changes</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  -&gt; another connection-query uses $(table).activeRow.symbol</span><br></span></code></pre></div></div>
+<p>The source value that must be compared is owned by the table, not by the upstream connection. If
+the planner only checks variables exported directly by the changed connection widget, it misses the
+real active variable change and never schedules the downstream executable branch.</p>
+<p>This is not a connection-query readiness problem and it must not be fixed by adding
+connection-query-specific execution gates. The variable planner must find the right changed active
+variables and schedule the right executable targets.</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="solution">Solution<a href="#solution" class="hash-link" aria-label="Direct link to Solution" title="Direct link to Solution" translate="no">​</a></h4>
+<p>Keep execution behavior unchanged and fix only the variable invalidation planner.</p>
+<p>On a runtime update for <code>changedWidgetId</code>, the planner must build before/after execution snapshots
+and compare active variable entries for:</p>
+<ul>
+<li class="">the changed widget id itself</li>
+<li class="">widgets downstream of the changed widget through normal graph bindings</li>
+</ul>
+<p>It still compares only active variable entries. It must not scan every discoverable field in the
+workspace.</p>
+<p>If an active variable changed, the planner marks its consumers affected. For passive owner widgets
+with managed executable sources, the planner projects the owner&#x27;s effective props into the hidden
+managed source as execution-only <code>targetOverrides</code>, then schedules the hidden managed source and
+its downstream executable branch.</p>
+<p>The projection must not persist resolved variable values into saved props. Saved owner props and
+saved managed-source props remain the authored values.</p>
+<p>The fix boundary is explicit:</p>
+<ul>
+<li class="">do not add connection-query-specific readiness gates</li>
+<li class="">do not change connection runtime model behavior</li>
+<li class="">do not change Asset Screener, Table rendering, empty states, or selection behavior</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h4>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->On runtime update for <code>changedWidgetId</code>, build before/after execution snapshots from the
+pre-write and post-write widget trees.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Collect active variable entries for <code>changedWidgetId</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Walk normal graph bindings downstream from <code>changedWidgetId</code> in both before and after
+snapshots.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Collect active variable entries owned by each downstream passive widget reached by that walk.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Compare only those active variable values before/after; ignore unrelated props and
+discoverable values that are not linked variables.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Mark consumers affected only when the active variable value signature changed.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->For affected passive owner widgets with managed executable sources, resolve the owner&#x27;s
+effective props through the normal reference-backed state layer.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Project effective owner props into the owned hidden executable source as execution-only
+<code>targetOverrides</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Schedule changed hidden managed sources before their downstream executable branches.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Do not write projected managed-source props or resolved variable values back to saved owner
+props or saved managed-source props.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add regression coverage for
+<code>connection-query.dataset -&gt; table.activeRow.symbol -&gt; managed connection-query</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add regression coverage that no executable source is scheduled when the active variable value
+did not change.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add regression coverage that saved owner props and saved managed-source props remain
+unchanged after the variable-driven execution plan.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="follow-up-connection-runtime-keying-review">Follow-Up: Connection Runtime Keying Review<a href="#follow-up-connection-runtime-keying-review" class="hash-link" aria-label="Direct link to Follow-Up: Connection Runtime Keying Review" title="Direct link to Follow-Up: Connection Runtime Keying Review" translate="no">​</a></h3>
+<p>Runtime variable changes must keep connection instance identity separate from connection execution
+identity.</p>
+<p>There are two different maps in this area:</p>
+<ol>
+<li class="">
+<p><strong>Connection instance map/list</strong></p>
+<ul>
+<li class="">This is <code>GET /api/v1/command_center/connections/</code>.</li>
+<li class="">It is the catalog of configured connection instances, keyed by connection id.</li>
+<li class="">Variables must not touch this map.</li>
+<li class="">A Binance connection remains &quot;Binance connection id 5&quot;; a selected symbol is not part of the
+connection instance.</li>
+</ul>
+</li>
+<li class="">
+<p><strong>Connection execution/runtime map</strong></p>
+<ul>
+<li class="">This map must be keyed by the effective resolved execution configuration.</li>
+<li class="">The key must distinguish at least:<!-- -->
+<ul>
+<li class="">workspace or runtime scope</li>
+<li class="">source widget id or owner widget id</li>
+<li class="">connection id</li>
+<li class="">query model id</li>
+<li class="">resolved query payload, for example <code>symbols: [&quot;ETHUSDT&quot;]</code></li>
+<li class="">requested output contract</li>
+<li class="">time range or refresh identity</li>
+<li class="">max rows and incremental refresh settings</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p>If any runtime key is only <code>connectionId</code>, or only the hidden connection widget id, it is wrong. It
+can reuse stale runtime for a different variable value.</p>
+<p>The current incremental query cache partly follows the right shape:</p>
+<ul>
+<li class=""><code>incrementalConnectionRefresh.ts</code> builds an identity that includes <code>request.query</code>,
+<code>request.variables</code>, <code>connectionTypeId</code>, <code>queryModelId</code>, requested contract, <code>maxRows</code>, and
+<code>scopeId</code></li>
+<li class="">therefore, if the request has already resolved from <code>BTCUSDT</code> to <code>ETHUSDT</code>, the incremental
+identity is different</li>
+</ul>
+<p>The remaining review points are:</p>
+<ul>
+<li class="">verify the variable is resolved before building the connection request</li>
+<li class="">verify runtime refresh actually executes the hidden managed connection source</li>
+<li class="">verify the owner widget, such as a graph, consumes the new hidden source runtime state through
+its existing binding</li>
+<li class="">verify no connection runtime store, in-flight dedupe path, retained state path, or preview/runtime
+status path is keyed only by widget id or connection id when it should be keyed by the resolved
+execution configuration</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-this-is-generic">Why This Is Generic<a href="#why-this-is-generic" class="hash-link" aria-label="Direct link to Why This Is Generic" title="Direct link to Why This Is Generic" translate="no">​</a></h2>
+<p>This ADR is intentionally not tied to:</p>
+<ul>
+<li class=""><code>connection-query</code></li>
+<li class=""><code>connection-stream-query</code></li>
+<li class="">Alpaca</li>
+<li class="">charts</li>
+<li class="">titles only</li>
+</ul>
+<p>Those are examples, not the architecture.</p>
+<p>Valid examples under this model:</p>
+<ul>
+<li class="">a connection widget exposes <code>props.query.symbols</code> through automatic discovery, and a chart binds
+the first symbol to the existing widget title field</li>
+<li class="">a table exposes <code>runtime-state.selection</code> through automatic discovery, and an app-component widget
+binds a selected id into a request field</li>
+<li class="">an app-component exposes <code>runtime-state.lastResponse</code> through automatic discovery, and another
+widget extracts one nested field for display</li>
+<li class="">an agent widget exposes <code>runtime-state.latestSummary</code> through automatic discovery, and a note
+widget binds it into a display field</li>
+<li class="">a graph widget binds an upstream discovered value into any normal saved setting field such as a
+filter selector, legend label, request argument, or display option</li>
+</ul>
+<p>The producer type is incidental. The contract is the same.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope-of-the-first-slice">Scope Of The First Slice<a href="#scope-of-the-first-slice" class="hash-link" aria-label="Direct link to Scope Of The First Slice" title="Direct link to Scope Of The First Slice" translate="no">​</a></h2>
+<p>This ADR covers one platform slice only.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks-1">Implementation Tasks<a href="#implementation-tasks-1" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Wire binding discovery directly to existing widget instance state such as <code>instance.title</code>, <code>props</code>, and <code>runtimeState</code></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define the canonical discovery namespaces and path semantics used by bindings when they point into existing widget instance state</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Define the safe default discovery boundaries and exclusion rules</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Define how non-serializable values, empty values, and missing paths are represented during discovery and resolution</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Extend binding source metadata so a binding can target either a declared output id or a discovered instance-state path</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Extend binding validation so discovered-path bindings still participate in contract checks, cycle detection, self-reference blocking, and dependency ordering</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define the scalar and structured value coercion rules when a discovered path is consumed by a configurable setting field</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define the exact whole-value widget reference expression grammar for <code>$(widget-identifier).source.path</code></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a shared variable-aware settings input behavior that listens for <code>$(</code> in supported literal fields</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Show an inline workspace widget picker when <code>$(</code> is typed, populated from the same referenceable widget source index used by the compiler</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Render each widget picker option with the human label/title, widget type context, and stable widget instance id</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Insert the selected widget token into the current field as <code>$(widget-instance-id)</code> without moving the user into a separate binding screen</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Commit completed reference completions with Enter/Tab so keyboard authoring lands in token view instead of leaving a raw-looking string</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Reuse the variable-aware input behavior for the shared card-title field and schema-backed string settings inputs</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove the separate inline chain-button setting-reference picker from shared widget settings now that references are authored in the owning field</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Render completed whole-value references as removable token/pill UI inside supported settings inputs</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Show the widget label and selected source/path on the reference token/pill when that metadata is available</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add an <code>X</code> remove affordance on reference tokens that clears the reference and returns the field to literal editing</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define how non-string settings controls opt out or expose a string-editing path before receiving the variable picker</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Expose a stable class/data-attribute opt-in for custom settings controls that do not render the shared base input components</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add source-root completion after <code>$(widget).</code> using the same declared output and platform-root model as the compiler</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add descriptor-backed nested field completion after <code>$(widget).source.</code> when object fields are known</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Define array-selector completion for paths such as <code>rows[0]</code>, <code>[first]</code>, and <code>[last]</code></li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Resolve widget identifiers in expressions by instance id first, then by unique current widget title</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Compile expression roots to either platform-owned discovery sources (<code>title</code>, <code>props</code>, <code>runtimeState</code>) or declared source output ids</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Compile nested object paths and array selectors in expressions into ordered canonical binding transform steps</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Make existing setting/configuration fields resolve from either literal values or bindings</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define how shell-owned existing fields such as widget title participate in the same generic resolution path</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Route widget settings reads through a shared resolution layer instead of per-widget ad hoc upstream parsing</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update the binding authoring UI so source-widget exploration can browse discovered existing instance state without requiring widget-authored exports</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update the binding authoring UI so target-field selection works for generic configurable fields instead of only declared bespoke inputs</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define how the UI distinguishes authored literal values from binding-backed values on the same configuration field</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define how unresolved references, invalid paths, and contract mismatches are surfaced to the user at authoring time and at runtime</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Preserve existing widget binding transforms such as <code>extract-path</code> and <code>select-array-item</code> for discovered-path bindings</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Define whether discovered-path references are persisted as path arrays, strings, or another stable serialized form</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep exact-expression authoring ephemeral by compiling it into canonical bindings instead of persisting a second expression storage model</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep reference-authored fields editable in shared settings when the literal value itself is an exact widget expression</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Assess whether the persisted binding/storage model changes the backend contract and notify the backend side if serialization semantics change</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Document the maintenance boundary clearly: widget authors should not need to redeclare fields already present in instance state, while explicit outputs remain optional ergonomic shortcuts</li>
+</ul>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-variable-reference-registry-1">Runtime Variable Reference Registry<a href="#runtime-variable-reference-registry-1" class="hash-link" aria-label="Direct link to Runtime Variable Reference Registry" title="Direct link to Runtime Variable Reference Registry" translate="no">​</a></h4>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define the workspace-scoped runtime variable registry as a derived index over canonical widget bindings</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure the registry contains only active linked variables, not every discoverable widget output, prop path, runtime-state key, or autocomplete candidate</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define the variable key shape using source widget id, source output id or platform root, and ordered binding transform signature</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define the consumer metadata shape using target widget id, target input id, target kind, and optional prop path</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Build the registry from normalized <code>WidgetInstanceBindings</code> so <code>widgets[].bindings</code> stays the source of truth</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Exclude ordinary widget IO bindings from the variable registry; they remain represented by the dependency graph</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add source-to-consumer indexes so changes to a widget title, props, runtime state, or declared output can invalidate only affected variables</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Route invalidation through the dependency model so effective title, props, and resolved widget inputs recompute in memory</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep saved widget props and saved widget titles immutable during runtime variable updates</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Route executable downstream widgets through stale/refresh/execution policy instead of unconditional automatic execution</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a commit-scoped widget-change invalidation path so variable-driven updates run only after a settings commit, not while the user is typing in draft inputs</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Compare committed before/after source values only for active variable entries referenced from the changed source widget instead of treating every prop change as globally impactful</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Split variable-driven updates into a render-only lane for passive consumers and an execution lane for affected executable downstream widgets</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a targeted downstream execution planner that starts from changed variable sources and schedules only affected executable consumers or executable branches</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Normalize widget-settings authoring paths around one explicit draft-to-commit boundary before variable-driven downstream execution is enabled everywhere</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Expose debug/inspection helpers that can list active variables and their consumers for a workspace session</li>
+</ul>
+<p>It does not cover:</p>
+<ul>
+<li class="">mixed literal-plus-reference text templates</li>
+<li class="">arbitrary string interpolation over any widget internals</li>
+<li class="">analytical transforms embedded inside the reference layer</li>
+<li class="">a separate persisted workspace-wide global variables registry</li>
+<li class="">automatic exposure of transitive upstream data by default</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-and-storage-impact">Backend And Storage Impact<a href="#backend-and-storage-impact" class="hash-link" aria-label="Direct link to Backend And Storage Impact" title="Direct link to Backend And Storage Impact" translate="no">​</a></h2>
+<p>Workspace storage impact:</p>
+<ul>
+<li class="">binding storage stays on existing widget <code>bindings</code></li>
+<li class="">existing settings/configuration fields gain reference-capable resolution without a second storage model</li>
+<li class="">exact whole-value widget reference expressions should compile away into canonical bindings before
+persistence rather than creating a second saved expression model</li>
+<li class="">the runtime variable registry is derived per workspace session from existing bindings and should
+not be persisted as a second source of truth</li>
+<li class="">if widget instances later persist mixed-template text or named variable metadata, that will be a
+separate persisted contract change and should get its own explicit assessment</li>
+</ul>
+<p>Backend impact:</p>
+<ul>
+<li class="">if backend widget validation distinguishes between literal setting values and reference-backed
+setting values, it must tolerate the generic reference-capable setting shape</li>
+<li class="">if widget type contracts or saved-widget validation enumerate allowed source kinds, they must
+tolerate the platform-owned automatic discovery roots</li>
+<li class="">if backend validation treats bindings as opaque graph metadata today, this slice remains largely
+frontend-dominant</li>
+</ul>
+<p>Public workspace safety:</p>
+<ul>
+<li class="">automatic discovery must exclude credentials, secure config, and backend-only transport state</li>
+<li class="">discovered values must stay JSON-serializable and bounded enough for UI exploration</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<p>Positive:</p>
+<ul>
+<li class="">the platform gets one generic cross-widget reference model</li>
+<li class="">widgets do not need to hand-declare every reusable field</li>
+<li class="">titles, request fields, filters, and any other configurable settings can all use the same binding semantics</li>
+<li class="">curated outputs still exist when the default exploration path is too noisy</li>
+<li class="">users get one compact widget-reference language for whole-value settings without introducing a
+second graph model</li>
+<li class="">active referenced values become inspectable and efficiently invalidated without tracking every
+possible widget value</li>
+</ul>
+<p>Negative:</p>
+<ul>
+<li class="">the platform must define safe automatic discovery boundaries</li>
+<li class="">some widgets may still want custom curation because raw props or runtime state can be noisy</li>
+<li class="">a runtime reference registry adds another derived cache that must not drift from canonical
+bindings</li>
+<li class="">a later mixed-template interpolation layer will still need a second ADR</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="guardrails">Guardrails<a href="#guardrails" class="hash-link" aria-label="Direct link to Guardrails" title="Direct link to Guardrails" translate="no">​</a></h2>
+<ul>
+<li class="">Do not let consumers traverse binding metadata or shell internals.</li>
+<li class="">Do not introduce arbitrary expression parsing or widget-internal traversal syntax.</li>
+<li class="">Do not add a second graph model or a presentation-only binding storage path outside canonical
+widget bindings.</li>
+<li class="">Do not persist exact widget-reference expressions as a second saved authoring model when they can
+compile to canonical bindings.</li>
+<li class="">Do not make the reference model connection-specific, provider-specific, or chart-specific.</li>
+<li class="">Do not automatically expose transitive upstream resolved inputs unless a later ADR decides that
+explicitly.</li>
+<li class="">Do not require widget authors to add a bespoke synthetic input for every setting field that should
+support references.</li>
+<li class="">Do not reintroduce a second inline chain/link picker beside widget setting inputs; the owning
+input plus <code>$(</code> autocomplete is the settings authoring surface.</li>
+<li class="">Do not leave completed whole-value references visually indistinguishable from literal strings in
+settings fields that support tokenized display.</li>
+<li class="">Do not persist reference tokens as a second storage shape; tokenization is a view over the exact
+reference expression and canonical binding.</li>
+<li class="">Do not persist the runtime variable registry or let it become a second source of truth beside
+widget bindings.</li>
+<li class="">Do not populate the runtime registry with every discoverable value; include only variables that
+are actively linked by at least one consumer.</li>
+<li class="">Do not mutate saved widget props or titles when a runtime variable changes; recompute effective
+values in memory.</li>
+<li class="">Do not auto-execute cost-generating downstream widgets on every variable invalidation unless the
+existing graph execution policy explicitly allows it.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-checklist">Implementation Checklist<a href="#implementation-checklist" class="hash-link" aria-label="Direct link to Implementation Checklist" title="Direct link to Implementation Checklist" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Implement automatic discovery in the general widget platform and shared dependency layer, not
+in per-widget <code>defineWidget(...)</code> construction.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add automatic discovery roots for every widget instance from existing widget state.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Define and document the default discovery roots and exclusion rules.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Extend the shared settings/runtime model so existing configuration fields can resolve from a
+local literal value or a binding-backed reference value.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add exact whole-value widget reference expression authoring to shared widget settings for the
+instance title plus saved prop paths.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add <code>$(</code> autocomplete to supported shared settings inputs so users can discover workspace
+widgets by label and instance id while typing expressions.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Extend the same autocomplete flow so <code>$(widget).</code> completes exposed source roots and
+<code>$(widget).source.</code> completes known object fields.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Render selected whole-value references as removable token/pill UI in supported settings inputs,
+while preserving canonical binding storage.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Commit keyboard-selected completions with Enter/Tab so completed references immediately render
+as tokens.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove the old settings-side chain-button picker so reference authoring happens in the
+relevant title or schema field instead of in a parallel panel.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Route the existing widget title field through the same generic reference-resolution path.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Compile exact widget-reference expressions into canonical bindings before persistence and keep
+the expression form as authoring syntax only.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update the workspace widget host to prefer the resolved bound title over the saved instance
+title.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep binding updates, validation, transforms, and execution ordering inside the existing
+widget dependency model.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Treat curated explicit outputs as optional ergonomics, not mandatory per-field maintenance.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-variable-reference-registry-2">Runtime Variable Reference Registry<a href="#runtime-variable-reference-registry-2" class="hash-link" aria-label="Direct link to Runtime Variable Reference Registry" title="Direct link to Runtime Variable Reference Registry" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Implement a workspace-scoped runtime variable registry provider/store derived from normalized widget bindings.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Register only linked variable keys that have at least one consumer.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep ordinary widget IO bindings out of the variable registry so debug/inspection output only shows widget-reference-language variables.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Track source-to-consumer and consumer-to-source indexes for efficient invalidation and debugging.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Recompute registry entries when widgets, bindings, source outputs, or runtime state change.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Resolve active variable values through dependency-model selectors so downstream effective settings update without mutating persisted props or titles.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Integrate variable invalidation with existing graph stale/refresh/execution policy for executable widgets.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add commit-scoped variable change graph updates so executable downstream refresh happens after widget-settings commit, not during draft editing.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add one explicit runtime widget-commit event carrying changed widget id plus committed before/after snapshots.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Publish the widget-commit event only after the committed workspace draft is visible to dependency resolution.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Implement a variable invalidation planner that starts from <code>sourceWidgetId -&gt; active variable entries -&gt; affected consumers</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Restrict before/after comparison to referenced source values only; do not treat unrelated prop changes on the same widget as variable-impactful.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Apply passive variable invalidation first so effective titles, props, and resolved inputs rerender in memory before any executable downstream scheduling.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a targeted executable downstream scheduler that consumes the invalidation plan instead of broad source-side flow execution.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Audit connection runtime identity so connection instance catalogs remain keyed by connection id, while execution/runtime, retained-state, in-flight dedupe, and preview/status entries are keyed by resolved effective execution configuration.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add regression coverage proving <code>symbols: [&quot;BTCUSDT&quot;]</code> and <code>symbols: [&quot;ETHUSDT&quot;]</code> from the same connection id and hidden source widget do not reuse stale connection runtime or retained query state.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add targeted invalidation tests covering active-reference-only impact calculation, passive rerender after commit, executable downstream queueing, and no persistence/runtime-store drift.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add tests covering linked-only registration, source invalidation, effective prop/title recomputation, and no persistence drift.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-058-cross-widget-references-and-variables.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#producer-model" class="table-of-contents__link toc-highlight">Producer Model</a><ul><li><a href="#automatic-discovery-over-existing-instance-state" class="table-of-contents__link toc-highlight">Automatic Discovery Over Existing Instance State</a></li><li><a href="#what-is-automatically-exposed" class="table-of-contents__link toc-highlight">What Is Automatically Exposed</a></li><li><a href="#curated-explicit-outputs-remain-useful" class="table-of-contents__link toc-highlight">Curated Explicit Outputs Remain Useful</a></li></ul></li><li><a href="#consumer-model" class="table-of-contents__link toc-highlight">Consumer Model</a><ul><li><a href="#existing-setting-fields-are-referenceable" class="table-of-contents__link toc-highlight">Existing Setting Fields Are Referenceable</a></li><li><a href="#title-is-an-existing-field-not-a-new-feature" class="table-of-contents__link toc-highlight">Title Is An Existing Field, Not A New Feature</a></li></ul></li><li><a href="#binding-semantics" class="table-of-contents__link toc-highlight">Binding Semantics</a><ul><li><a href="#exact-reference-expressions" class="table-of-contents__link toc-highlight">Exact Reference Expressions</a></li><li><a href="#variable-aware-settings-inputs" class="table-of-contents__link toc-highlight">Variable-Aware Settings Inputs</a></li><li><a href="#runtime-variable-reference-registry" class="table-of-contents__link toc-highlight">Runtime Variable Reference Registry</a></li><li><a href="#variable-change-graph-update" class="table-of-contents__link toc-highlight">Variable Change Graph Update</a></li><li><a href="#planned-runtime-architecture" class="table-of-contents__link toc-highlight">Planned Runtime Architecture</a></li><li><a href="#planned-rollout-sequence" class="table-of-contents__link toc-highlight">Planned Rollout Sequence</a></li><li><a href="#planned-runtime-surface-boundaries" class="table-of-contents__link toc-highlight">Planned Runtime Surface Boundaries</a></li><li><a href="#managed-executable-source-invalidation" class="table-of-contents__link toc-highlight">Managed Executable Source Invalidation</a></li><li><a href="#downstream-passive-variable-source-invalidation" class="table-of-contents__link toc-highlight">Downstream Passive Variable Source Invalidation</a></li><li><a href="#follow-up-connection-runtime-keying-review" class="table-of-contents__link toc-highlight">Follow-Up: Connection Runtime Keying Review</a></li></ul></li><li><a href="#why-this-is-generic" class="table-of-contents__link toc-highlight">Why This Is Generic</a></li><li><a href="#scope-of-the-first-slice" class="table-of-contents__link toc-highlight">Scope Of The First Slice</a><ul><li><a href="#implementation-tasks-1" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li></ul></li><li><a href="#backend-and-storage-impact" class="table-of-contents__link toc-highlight">Backend And Storage Impact</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a></li><li><a href="#guardrails" class="table-of-contents__link toc-highlight">Guardrails</a></li><li><a href="#implementation-checklist" class="table-of-contents__link toc-highlight">Implementation Checklist</a><ul><li><a href="#runtime-variable-reference-registry-2" class="table-of-contents__link toc-highlight">Runtime Variable Reference Registry</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

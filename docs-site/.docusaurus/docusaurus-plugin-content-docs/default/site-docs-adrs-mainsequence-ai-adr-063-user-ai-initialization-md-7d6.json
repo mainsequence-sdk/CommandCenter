@@ -1,0 +1,15 @@
+{
+  "id": "adrs/mainsequence-ai/adr-063-user-ai-initialization",
+  "title": "ADR 063: User AI Initialization",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adrs/mainsequence-ai/adr-063-user-ai-initialization.md",
+  "sourceDirName": "adrs/mainsequence-ai",
+  "slug": "/adrs/mainsequence-ai/adr-063-user-ai-initialization",
+  "permalink": "/docs/adrs/mainsequence-ai/adr-063-user-ai-initialization",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adrs/mainsequence-ai/adr-063-user-ai-initialization.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

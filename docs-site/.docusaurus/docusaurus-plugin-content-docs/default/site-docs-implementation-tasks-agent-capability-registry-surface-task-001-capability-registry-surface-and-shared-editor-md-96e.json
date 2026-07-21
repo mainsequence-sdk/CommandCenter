@@ -1,0 +1,15 @@
+{
+  "id": "implementation_tasks/agent-capability-registry-surface/task-001-capability-registry-surface-and-shared-editor",
+  "title": "Task 001: Capability Registry Surface and Shared Editor",
+  "description": "Goal",
+  "source": "@site/../docs/implementation_tasks/agent-capability-registry-surface/task-001-capability-registry-surface-and-shared-editor.md",
+  "sourceDirName": "implementation_tasks/agent-capability-registry-surface",
+  "slug": "/implementation_tasks/agent-capability-registry-surface/task-001-capability-registry-surface-and-shared-editor",
+  "permalink": "/docs/implementation_tasks/agent-capability-registry-surface/task-001-capability-registry-surface-and-shared-editor",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/implementation_tasks/agent-capability-registry-surface/task-001-capability-registry-surface-and-shared-editor.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

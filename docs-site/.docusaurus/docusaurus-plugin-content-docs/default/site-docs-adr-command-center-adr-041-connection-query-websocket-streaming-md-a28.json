@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-041-connection-query-websocket-streaming",
+  "title": "ADR 041: Query-Shaped WebSocket Streaming for Connections",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-041-connection-query-websocket-streaming.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-041-connection-query-websocket-streaming",
+  "permalink": "/docs/adr/command_center/adr-041-connection-query-websocket-streaming",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-041-connection-query-websocket-streaming.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

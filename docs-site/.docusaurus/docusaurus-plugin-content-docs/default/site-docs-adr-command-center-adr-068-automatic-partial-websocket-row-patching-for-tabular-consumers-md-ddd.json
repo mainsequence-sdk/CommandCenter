@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers",
+  "title": "ADR 068: Automatic Partial WebSocket Row Patching For Tabular Consumers",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers",
+  "permalink": "/docs/adr/command_center/adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

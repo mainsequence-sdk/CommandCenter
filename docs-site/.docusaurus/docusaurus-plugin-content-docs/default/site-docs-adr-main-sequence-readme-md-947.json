@@ -1,0 +1,19 @@
+{
+  "id": "adr/main_sequence/adr-main-sequence-index",
+  "title": "Main Sequence Architecture Decision Records",
+  "description": "This section is the decision log for Main Sequence application architecture inside Command",
+  "source": "@site/../docs/adr/main_sequence/README.md",
+  "sourceDirName": "adr/main_sequence",
+  "slug": "/adr/main_sequence",
+  "permalink": "/docs/adr/main_sequence",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/main_sequence/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "adr-main-sequence-index",
+    "title": "Main Sequence Architecture Decision Records",
+    "slug": "/adr/main_sequence"
+  }
+}

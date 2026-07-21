@@ -8,14 +8,14 @@ import { useToast } from "@/components/ui/toaster";
 import {
   deployCodingAgentService,
   fetchCodingAgentDeploymentDefaults,
-  fetchProjectExecutorAutomaticDeploymentRuns,
   formatMainSequenceError,
   type AstroCommandCenterAgentServiceDeployResponse,
   type CodingAgentDeploymentDefaultsRecord,
   type CodingAgentServiceSummary,
+  type DeploymentRunListRecord,
   type DeployCodingAgentServiceInput,
-  type ProjectExecutorAutomaticDeploymentRun,
   type ProjectExecutorAgentServiceDeployResponse,
+  listDeploymentRuns,
 } from "../../../main_sequence/common/api";
 import {
   buildMainSequenceCostEstimateResources,
@@ -53,7 +53,7 @@ export interface CodingAgentDeploymentControllerConfig {
   enableDefaultsFallback?: boolean;
   enabled: boolean;
   getDeployStatusSummary: (
-    result: CodingAgentDeploymentResult | ProjectExecutorAutomaticDeploymentRun,
+    result: CodingAgentDeploymentResult | DeploymentRunListRecord,
   ) => string;
   includeGpuFields?: boolean;
   loadCurrentService: (options: { signal?: AbortSignal }) => Promise<CodingAgentServiceSummary | null>;
@@ -69,7 +69,6 @@ export interface CodingAgentDeploymentControllerConfig {
     | {
         kind: "poll-project-runs";
         limit?: number;
-        ordering?: string;
       };
   resetKey: string;
   scope: DeployCodingAgentServiceInput["scope"];
@@ -124,7 +123,7 @@ export function isDeploymentFailureStatus(status: string | null | undefined) {
 }
 
 function selectDeploymentProgressRun(
-  runs: ProjectExecutorAutomaticDeploymentRun[] | undefined,
+  runs: DeploymentRunListRecord[] | undefined,
   deployResult: CodingAgentDeploymentResult | null,
 ) {
   if (!deployResult || !runs?.length) {
@@ -134,6 +133,35 @@ function selectDeploymentProgressRun(
   const resultUid = deployResult.uid?.trim();
   const matchingRun = resultUid ? runs.find((run) => run.uid === resultUid) : null;
   return matchingRun ?? runs[0] ?? null;
+}
+
+function readDeploymentRunErrorField(
+  run: DeploymentRunListRecord,
+  keys: string[],
+) {
+  if (typeof run.error === "string" && run.error.trim()) {
+    return run.error.trim();
+  }
+
+  if (!run.error || typeof run.error !== "object") {
+    return null;
+  }
+
+  for (const key of keys) {
+    const value = run.error[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function readProjectUidFromScope(scope: DeployCodingAgentServiceInput["scope"]) {
+  return scope.kind === "project" && scope.project_uid?.trim()
+    ? scope.project_uid.trim()
+    : null;
 }
 
 function createDefaultDeploymentComputeState(): DeploymentComputeState {
@@ -180,6 +208,7 @@ export function useCodingAgentDeploymentController(
   const automaticDeploymentEnabledByConfig = config.enableAutomaticDeployment === true;
   const defaultsFallbackEnabled = config.enableDefaultsFallback !== false;
   const postSubmitStrategy = config.postSubmitStrategy ?? { kind: "none" as const };
+  const deploymentRunsProjectUid = readProjectUidFromScope(config.scope);
   const serviceQueryKey = [...config.currentServiceQueryKey];
   const modelCatalogCacheKey = useMemo(
     () =>
@@ -233,7 +262,7 @@ export function useCodingAgentDeploymentController(
         assistantEndpoint: configuredAssistantEndpoint ?? undefined,
         cacheKey: modelCatalogCacheKey,
         createdByUserUid: sessionUserUid,
-        runtimeTarget: configuredAssistantEndpoint ? "configured" : "command-center-base",
+        runtimeTarget: "command-center-base",
         signal,
         token: sessionToken,
         tokenType: sessionTokenType,
@@ -355,11 +384,13 @@ export function useCodingAgentDeploymentController(
     queryKey: [
       ...serviceQueryKey,
       "deployment-progress-runs",
+      deploymentRunsProjectUid,
       deployResult?.uid ?? "none",
     ],
     queryFn: () =>
-      fetchProjectExecutorAutomaticDeploymentRuns({
-        ordering: postSubmitStrategy.kind === "poll-project-runs" ? postSubmitStrategy.ordering : undefined,
+      listDeploymentRuns({
+        projectUid: deploymentRunsProjectUid,
+        targetType: "project_executor",
         limit: postSubmitStrategy.kind === "poll-project-runs" ? postSubmitStrategy.limit : undefined,
       }),
     enabled:
@@ -373,7 +404,7 @@ export function useCodingAgentDeploymentController(
     staleTime: 0,
   });
   const latestDeploymentProgressRun = useMemo(
-    () => selectDeploymentProgressRun(deploymentRunsPollingQuery.data, deployResult),
+    () => selectDeploymentProgressRun(deploymentRunsPollingQuery.data?.results, deployResult),
     [deploymentRunsPollingQuery.data, deployResult],
   );
 
@@ -587,11 +618,15 @@ export function useCodingAgentDeploymentController(
         return current;
       }
 
-      const nextStatus = latestDeploymentProgressRun.status || current.status;
-      const nextStep = latestDeploymentProgressRun.current_step ?? current.current_step;
-      const nextResult = latestDeploymentProgressRun.result ?? current.result;
-      const nextErrorCode = latestDeploymentProgressRun.error_code ?? current.error_code;
-      const nextErrorDetail = latestDeploymentProgressRun.error_detail ?? current.error_detail;
+      const nextStatus = latestDeploymentProgressRun.state || current.status;
+      const nextStep = latestDeploymentProgressRun.phase ?? current.current_step;
+      const nextResult = current.result;
+      const nextErrorCode =
+        readDeploymentRunErrorField(latestDeploymentProgressRun, ["error_code", "code"]) ??
+        current.error_code;
+      const nextErrorDetail =
+        readDeploymentRunErrorField(latestDeploymentProgressRun, ["error_detail", "detail"]) ??
+        current.error_detail;
 
       if (
         current.status === nextStatus &&

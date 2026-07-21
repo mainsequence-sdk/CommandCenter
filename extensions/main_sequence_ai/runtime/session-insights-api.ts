@@ -6,6 +6,7 @@ import {
 import { env } from "@/config/env";
 import { requireAgentSessionLookupId } from "./agent-sessions-api";
 import { MainSequenceAiError } from "./error-source";
+import { buildRuntimeHttpErrorMessage } from "./http-error";
 
 function buildSessionInsightsUrl(sessionId: string | number) {
   const normalizedSessionId = requireAgentSessionLookupId(
@@ -63,13 +64,14 @@ export async function fetchSessionInsights({
       });
     }
 
-    const payload = (await response.json().catch(() => null)) as
-      | { detail?: string; error?: string; message?: string }
-      | null;
     throw new MainSequenceAiError(
-      `Failed to load session insights for session ${sessionId} from ${requestUrl} (${response.status}). ${
-        payload?.message || payload?.detail || payload?.error || response.statusText || "Unknown backend error."
-      }`,
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage: `Session insights failed with status ${response.status}.`,
+        method: "GET",
+        operation: `Agent session insights request failed for session ${sessionId}`,
+        response,
+        url: requestUrl,
+      }),
       {
         source: "agent_session_insights",
         status: response.status,

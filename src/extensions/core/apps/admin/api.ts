@@ -261,11 +261,16 @@ export interface BillingInvoicesResponse {
 }
 
 export interface BillingUsageRow {
-  usage_start_time: string;
-  usage_end_time: string;
-  source_type: string;
-  source_object: string;
-  total_cost: string;
+  started_at: string | null;
+  ended_at: string | null;
+  billing_category: string | null;
+  billed_resource_kind: string | null;
+  billed_resource_uid: string | null;
+  billed_resource_name: string | null;
+  parent_resource_kind: string | null;
+  parent_resource_uid: string | null;
+  parent_resource_name: string | null;
+  total_cost: string | number | null;
 }
 
 export interface BillingUsageColumnDef {

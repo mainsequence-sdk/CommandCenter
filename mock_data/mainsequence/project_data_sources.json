@@ -8,6 +8,7 @@
       "label": "Warehouse Lakehouse",
       "class_type": "timescale_db",
       "status": "healthy",
+      "source_logo": "database",
       "uid": "mock-physical-data-source-701"
     },
     "creation_date": "2026-01-05T09:00:00Z",
@@ -23,6 +24,7 @@
       "label": "Macro Research Store",
       "class_type": "duck_db",
       "status": "healthy",
+      "source_logo": "database",
       "uid": "mock-physical-data-source-702"
     },
     "creation_date": "2026-01-11T10:00:00Z",
@@ -38,6 +40,7 @@
       "label": "Operations Event Store",
       "class_type": "timescale_db_remote",
       "status": "healthy",
+      "source_logo": "database",
       "uid": "mock-physical-data-source-703"
     },
     "creation_date": "2026-01-18T11:00:00Z",

@@ -1,0 +1,24 @@
+{
+  "id": "adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap",
+  "title": "ADR 077: Unified Astro Coding-Agent Bootstrap",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap.md",
+  "sourceDirName": "adr/mainsequence_ai",
+  "slug": "/adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap",
+  "permalink": "/docs/adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR 078: Capability Registry Surface and Agent Capability Editor Widget",
+    "permalink": "/docs/adr/mainsequence_ai/adr-078-capability-registry-surface-and-editor-widget"
+  },
+  "next": {
+    "title": "ADR 060: Main Sequence AI Session-Backed Chat Request Contract",
+    "permalink": "/docs/adr/mainsequence_ai/adr-060-session-backed-chat-request-contract"
+  }
+}

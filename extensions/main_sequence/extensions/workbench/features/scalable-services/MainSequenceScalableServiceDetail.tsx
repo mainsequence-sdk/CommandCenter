@@ -167,7 +167,7 @@ function ScalableServicePodsTableWithSelection({
           <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             <th className="px-4 pb-2">Pod Name</th>
             <th className="px-4 pb-2">Status</th>
-            <th className="px-4 pb-2">Knative Service</th>
+            <th className="px-4 pb-2">Owning Service</th>
             <th className="px-4 pb-2">Service Runtime</th>
             <th className="px-4 pb-2">Revision Runtime</th>
             <th className="px-4 pb-2">Pod UID</th>
@@ -224,7 +224,6 @@ function ScalableServiceRevisionsTable({ rows }: { rows: ScalableServiceRevision
           <tr className="text-left text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
             <th className="px-4 pb-2">Revision</th>
             <th className="px-4 pb-2">First Seen</th>
-            <th className="px-4 pb-2">Ready At</th>
             <th className="px-4 pb-2">Last Seen</th>
             <th className="px-4 pb-2">Retired At</th>
           </tr>
@@ -269,9 +268,6 @@ function ScalableServiceRevisionsTable({ rows }: { rows: ScalableServiceRevision
               </td>
               <td className={getRegistryTableCellClassName(false)}>
                 {getRevisionTimestamp(row, ["first_seen_at"])}
-              </td>
-              <td className={getRegistryTableCellClassName(false)}>
-                {getRevisionTimestamp(row, ["ready_at"])}
               </td>
               <td className={getRegistryTableCellClassName(false)}>
                 {getRevisionTimestamp(row, ["last_seen_at"])}

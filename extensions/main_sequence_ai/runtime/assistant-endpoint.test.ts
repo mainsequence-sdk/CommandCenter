@@ -46,9 +46,10 @@ describe("assistant endpoint resolver", () => {
     mocks.getOrCreateAgentSessionRequest.mockReset();
     mocks.fetchAgentSessionRuntimeAccess.mockReset();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
-  it("keeps Astro runtime access in configured endpoint mode and uses the configured endpoint", async () => {
+  it("resolves Command Center base through Astro handle runtime access and uses the configured transport endpoint", async () => {
     mocks.fetchAstroCommandCenterAgentServiceByUser.mockResolvedValue({
       uid: "service-uid-91",
       agent_uid: "agent-uid-91",
@@ -72,7 +73,7 @@ describe("assistant endpoint resolver", () => {
       rpcUrl: "https://astro-runtime.example.test",
       token: "runtime-token",
       isReady: true,
-      knativeServiceRuntimeId: "runtime-uid-91",
+      serviceRuntimeId: "runtime-uid-91",
       imageDrift: null,
       reconciliation: null,
     });
@@ -136,7 +137,7 @@ describe("assistant endpoint resolver", () => {
         rpcUrl: "https://astro-runtime.example.test",
         token: "expired-runtime-token",
         isReady: true,
-        knativeServiceRuntimeId: "runtime-uid-91",
+        serviceRuntimeId: "runtime-uid-91",
         imageDrift: null,
         reconciliation: null,
       })
@@ -148,7 +149,7 @@ describe("assistant endpoint resolver", () => {
         rpcUrl: "https://astro-runtime.example.test",
         token: "fresh-runtime-token",
         isReady: true,
-        knativeServiceRuntimeId: "runtime-uid-91",
+        serviceRuntimeId: "runtime-uid-91",
         imageDrift: null,
         reconciliation: null,
       });
@@ -179,5 +180,55 @@ describe("assistant endpoint resolver", () => {
     expect((fetchMock.mock.calls[1]?.[1]?.headers as Headers).get("Authorization")).toBe(
       "Bearer fresh-runtime-token",
     );
+  });
+
+  it("uses dynamic session runtime access before proxy configured access when a session id exists", async () => {
+    vi.stubEnv("VITE_ASSISTANT_UI_PROXY_TARGET", "http://assistant-proxy.example.test");
+    mocks.fetchAgentSessionRuntimeAccess.mockResolvedValue({
+      sessionId: "session-uid-91",
+      codingAgentId: "agent-uid-91",
+      codingAgentServiceId: "service-uid-91",
+      mode: "token",
+      rpcUrl: "https://astro-runtime.example.test",
+      token: "runtime-token",
+      isReady: true,
+      serviceRuntimeId: "runtime-uid-91",
+      imageDrift: null,
+      reconciliation: null,
+    });
+
+    const access = await resolveMainSequenceAiAssistantAccess({
+      assistantEndpoint: "/__assistant__",
+      currentSessionId: "session-uid-91",
+      runtimeTarget: "agent-runtime",
+      sessionToken: "session-token",
+      sessionTokenType: "Bearer",
+      sessionUserUid: "user-uid-91",
+    });
+
+    expect(mocks.fetchAgentSessionRuntimeAccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-uid-91",
+      }),
+    );
+    expect(access.mode).toBe("dynamic");
+    expect(access.assistantEndpoint).toBe("https://astro-runtime.example.test");
+    expect(access.token).toBe("runtime-token");
+  });
+
+  it("rejects agent-runtime calls without a concrete session id", async () => {
+    vi.stubEnv("VITE_ASSISTANT_UI_PROXY_TARGET", "http://assistant-proxy.example.test");
+
+    await expect(
+      resolveMainSequenceAiAssistantAccess({
+        assistantEndpoint: "/__assistant__",
+        runtimeTarget: "agent-runtime",
+        sessionToken: "session-token",
+        sessionTokenType: "Bearer",
+        sessionUserUid: "user-uid-91",
+      }),
+    ).rejects.toThrow("requires a concrete session id or command-center-base target");
+
+    expect(mocks.fetchAgentSessionRuntimeAccess).not.toHaveBeenCalled();
   });
 });

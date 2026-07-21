@@ -24,6 +24,8 @@ This nested extension owns the administrative and operational Main Sequence Foun
 - Move code into `../../common/` only when it is meant to be reused by another Main Sequence extension.
 - Foundry surfaces in `app.ts` now also carry assistant-facing summaries and action lists through
   `assistantContext`; keep those descriptions aligned with the actual page capabilities.
+- `features/deployment-history/` owns the global, unfiltered deployment-run history and timestamped
+  log detail surface at `/app/main-sequence-foundry/deployment-history`.
 - Foundry menu groupings are shell-access metadata as well as navigation. `Clusters` and
   `TimeScaleDB Services` belong to the `Tenancy Infrastructure` section so they can later be
   separated from the single user-facing Foundry application into infrastructure-focused access

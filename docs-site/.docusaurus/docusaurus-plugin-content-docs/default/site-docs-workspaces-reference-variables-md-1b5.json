@@ -1,0 +1,15 @@
+{
+  "id": "workspaces/reference-variables",
+  "title": "Reference Variables",
+  "description": "Reference variables let a workspace setting read a live value from another widget instance. They are",
+  "source": "@site/../docs/workspaces/reference-variables.md",
+  "sourceDirName": "workspaces",
+  "slug": "/workspaces/reference-variables",
+  "permalink": "/docs/workspaces/reference-variables",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/workspaces/reference-variables.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

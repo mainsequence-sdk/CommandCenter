@@ -7,8 +7,8 @@ This feature owns the scalable-service detail shell in Main Sequence Foundry.
 - `MainSequenceScalableServicesPage.tsx`: internal deep-link entry that requires
   `msScalableServiceUid` and routes into the detail shell. It is not a browsable registry page.
 - `MainSequenceScalableServiceDetail.tsx`: summary-backed detail shell with the `Pods` and `Revisions` tabs for the selected scalable service.
-- `MainSequenceKnativePodRuntimeDetail.tsx`: nested pod-runtime detail shell, similar to job-run detail, with `Logs` and `Resource Usage` tabs.
-- `MainSequenceKnativePodRuntimeLogsTab.tsx`: log-table presentation for `knative-pod-runtimes/{uid}/logs/`.
+- `MainSequenceKnativePodRuntimeDetail.tsx`: nested pod-runtime detail shell, similar to job-run detail, with `Logs` and `Resource Usage` tabs. The file name tracks the backend route lineage; UI copy uses Service Runtime wording.
+- `MainSequenceKnativePodRuntimeLogsTab.tsx`: log-table presentation for `knative-pod-runtimes/{uid}/logs/`. The route name is backend-owned; user-facing labels stay generic.
 
 ## API Dependencies
 

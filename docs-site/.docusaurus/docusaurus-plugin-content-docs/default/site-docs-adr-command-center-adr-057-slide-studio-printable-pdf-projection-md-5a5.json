@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-057-slide-studio-printable-pdf-projection",
+  "title": "ADR 057: Slide Studio Printable PDF Projection",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-057-slide-studio-printable-pdf-projection.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-057-slide-studio-printable-pdf-projection",
+  "permalink": "/docs/adr/command_center/adr-057-slide-studio-printable-pdf-projection",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-057-slide-studio-printable-pdf-projection.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

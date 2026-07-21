@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Task 001: Bind Main Sequence Markets To Adapter From API Connection | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Task 001: Bind Main Sequence Markets To Adapter From API Connection | Main Sequence Command Center"><meta data-rh="true" name="description" content="Objective"><meta data-rh="true" property="og:description" content="Objective"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Task 001: Bind Main Sequence Markets To Adapter From API Connection</h1></header>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="objective">Objective<a href="#objective" class="hash-link" aria-label="Direct link to Objective" title="Direct link to Objective" translate="no">​</a></h2>
+<p>Make the <code>main_sequence_markets</code> application resolve its API through an organization-selected
+<code>command_center.adapter_from_api</code> connection instead of a fixed URL, while preserving existing
+application behavior.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope">Scope<a href="#scope" class="hash-link" aria-label="Direct link to Scope" title="Direct link to Scope" translate="no">​</a></h2>
+<ul>
+<li class="">Add Adapter From API application binding metadata.</li>
+<li class="">Add an organization admin <code>Main Sequence Markets</code> section for selecting the bound connection.</li>
+<li class="">Add a Main Sequence Markets connection resolver.</li>
+<li class="">Route Main Sequence Markets API helper calls through the bound Adapter From API connection.</li>
+<li class="">Preserve existing raw JSON response shapes for Main Sequence Markets callers.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="out-of-scope">Out Of Scope<a href="#out-of-scope" class="hash-link" aria-label="Direct link to Out Of Scope" title="Direct link to Out Of Scope" translate="no">​</a></h2>
+<ul>
+<li class="">Creating a new <code>mainsequence.markets</code> connection type.</li>
+<li class="">Creating a wrapper adapter around Adapter From API.</li>
+<li class="">Adding user-specific connection persistence.</li>
+<li class="">Refactoring widget storage or widget <code>connectionRef</code> contracts.</li>
+<li class="">Changing the Main Sequence Markets backend API payload contract.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-checklist">Implementation Checklist<a href="#implementation-checklist" class="hash-link" aria-label="Direct link to Implementation Checklist" title="Direct link to Implementation Checklist" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add <code>applicationBindings</code> typing to Adapter From API public config.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Document the <code>main_sequence_markets</code> / <code>primary-api</code> binding in
+<code>connections/adapter-from-api/README.md</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update Adapter From API connection usage guidance so agents know this is an app binding
+marker, not a new connection type.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Confirm backend connection config validation accepts and returns <code>applicationBindings</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Decide uniqueness ownership: backend does not enforce one <code>main_sequence_markets</code> /
+<code>primary-api</code> binding per organization; the frontend admin/app resolver detects duplicates and
+blocks execution with an explicit configuration error.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a resolver in the Main Sequence common layer:
+<code>isMainSequenceMarketsApiConnection(connection)</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add deterministic resolution states for no binding, exactly one binding, and duplicate
+bindings.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add an organization admin section named <code>Main Sequence Markets</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->In that section, list only <code>command_center.adapter_from_api</code> connections.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->In that section, show selected connection name, status, transport mode, and compiled contract
+presence.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Save the selected connection by adding the binding marker to its public config.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove the same binding marker from any previously bound Adapter From API connection in the
+organization.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a shared Main Sequence Markets API transport that executes requests through the selected
+Adapter From API connection.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add frontend session caching for the selected Main Sequence Markets Adapter From API
+connection so <code>requestMarketsJson(...)</code> does not fetch/list connections on every API request.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->In direct debug mode, auto-discover the browser-side Adapter From API contract when the
+bound connection has no stored <code>compiledContract</code>, then cache the hydrated connection snapshot in
+session storage.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Invalidate the session cache when the admin binding is saved, when the selected data source
+is edited, or when execution proves the cached connection id is stale.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Preserve the existing <code>requestJson&lt;T&gt;</code> caller contract by unwrapping Adapter From API
+execution responses back to raw JSON.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Support backend proxy mode and debug direct mode through the same selected connection for
+operations the selected Adapter From API runtime accepts.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Audit all Main Sequence Markets API calls for required HTTP methods.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Extend backend Adapter From API operation validation/execution for <code>PUT</code>, <code>PATCH</code>, and
+<code>DELETE</code>. The frontend direct runtime now accepts those methods, but the existing backend
+adapter source still validates operations as GET/POST only.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Verify the selected API contract exposes every operation used by Main Sequence Markets.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep existing widget behavior unchanged unless a widget already calls the shared Main
+Sequence Markets API helper.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit unconfigured and duplicate-binding UI errors.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests for binding resolution.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add tests for admin save behavior.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add tests for raw JSON unwrap behavior.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add at least one integration-level test that proves a Markets page executes through the
+selected connection.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="acceptance-criteria">Acceptance Criteria<a href="#acceptance-criteria" class="hash-link" aria-label="Direct link to Acceptance Criteria" title="Direct link to Acceptance Criteria" translate="no">​</a></h2>
+<ul>
+<li class="">Organization admin can select the Adapter From API connection for <code>Main Sequence Markets</code>.</li>
+<li class="">The selected connection stores this marker:</li>
+</ul>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;appId&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;main_sequence_markets&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;role&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;primary-api&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<ul>
+<li class="">Main Sequence Markets resolves the selected connection with
+<code>connection.filter(isMainSequenceMarketsApiConnection)</code> or the equivalent registry query.</li>
+<li class="">Main Sequence Markets API requests execute through the selected Adapter From API connection.</li>
+<li class="">Switching the selected connection between backend proxy mode and debug direct mode does not
+require changing Main Sequence Markets pages, widgets, or workspace bindings.</li>
+<li class="">Existing Main Sequence Markets pages and widgets receive the same application-level response
+shapes as before.</li>
+<li class="">Missing binding and duplicate binding states are visible and actionable.</li>
+<li class="">No <code>mainsequence.markets</code> connection type is registered.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="verification">Verification<a href="#verification" class="hash-link" aria-label="Direct link to Verification" title="Direct link to Verification" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Run typecheck.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Run relevant connection tests.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Run relevant Main Sequence Markets tests.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Manually verify admin selection, missing binding state, and duplicate binding state.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Manually verify one representative read endpoint and one representative mutation endpoint.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Manually verify the same bound connection works in backend proxy mode and debug direct mode.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="storage-and-backend-contract-assessment">Storage And Backend Contract Assessment<a href="#storage-and-backend-contract-assessment" class="hash-link" aria-label="Direct link to Storage And Backend Contract Assessment" title="Direct link to Storage And Backend Contract Assessment" translate="no">​</a></h2>
+<p>This task changes connection instance <code>publicConfig</code> for <code>command_center.adapter_from_api</code>.</p>
+<p>New persisted public config key:</p>
+<ul>
+<li class=""><code>applicationBindings</code></li>
+</ul>
+<p>Workspace storage, widget storage, widget binding storage, and runtime-state storage are unchanged.</p>
+<p>The backend does not need a new Main Sequence Markets app-configuration table. It accepts,
+preserves, and returns the new Adapter From API public config key as metadata. Server-side
+uniqueness validation is not part of this implementation; duplicate binding detection belongs to
+the frontend admin/app resolver.</p>
+<p>Backend confirmation on 2026-06-10: connection instance validation uses the synced
+<code>publicConfigSchema</code>, so adding <code>applicationBindings</code> to the Adapter From API schema makes the field
+valid. The Adapter From API backend preparation path copies the submitted public config before
+normalizing transport fields, and connection response serialization returns stored public config
+without stripping this key.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#objective" class="table-of-contents__link toc-highlight">Objective</a></li><li><a href="#scope" class="table-of-contents__link toc-highlight">Scope</a></li><li><a href="#out-of-scope" class="table-of-contents__link toc-highlight">Out Of Scope</a></li><li><a href="#implementation-checklist" class="table-of-contents__link toc-highlight">Implementation Checklist</a></li><li><a href="#acceptance-criteria" class="table-of-contents__link toc-highlight">Acceptance Criteria</a></li><li><a href="#verification" class="table-of-contents__link toc-highlight">Verification</a></li><li><a href="#storage-and-backend-contract-assessment" class="table-of-contents__link toc-highlight">Storage And Backend Contract Assessment</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

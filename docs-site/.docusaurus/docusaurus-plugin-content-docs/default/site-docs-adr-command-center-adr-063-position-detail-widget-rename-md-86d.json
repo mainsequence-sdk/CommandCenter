@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-063-position-detail-widget-rename",
+  "title": "ADR 063: Rename Portfolio Weights Widget to Position Detail",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-063-position-detail-widget-rename.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-063-position-detail-widget-rename",
+  "permalink": "/docs/adr/command_center/adr-063-position-detail-widget-rename",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-063-position-detail-widget-rename.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

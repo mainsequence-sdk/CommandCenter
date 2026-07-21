@@ -20,7 +20,9 @@ import {
   type SummaryResponse,
   updateProjectSettings,
 } from "../../../../common/api";
+import { MainSequenceDataSourcePickerField } from "../../../../common/components/MainSequenceDataSourcePickerField";
 import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
+import { toProjectDataSourcePickerOption } from "../../../../common/components/dataSourcePickerOptions";
 
 function normalizeMatchValue(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
@@ -109,18 +111,7 @@ export function MainSequenceProjectSettingsTab({
 
   const projectDataSourceOptions: PickerOption[] = useMemo(
     () =>
-      (formOptionsQuery.data?.dataSources ?? []).map((option) => ({
-        value: option.uid,
-        label: option.related_resource?.display_name ?? `Data source ${option.uid}`,
-        description: option.related_resource
-          ? `${option.related_resource_class_type} · ${option.related_resource.status}`
-          : option.related_resource_class_type,
-        keywords: [
-          option.related_resource?.display_name ?? "",
-          option.related_resource_class_type,
-          option.related_resource?.status ?? "",
-        ],
-      })),
+      (formOptionsQuery.data?.dataSources ?? []).map(toProjectDataSourcePickerOption),
     [formOptionsQuery.data?.dataSources],
   );
 
@@ -325,7 +316,7 @@ export function MainSequenceProjectSettingsTab({
               <label className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                 Data source
               </label>
-              <PickerField
+              <MainSequenceDataSourcePickerField
                 value={formState.dataSourceUid}
                 onChange={(value) => {
                   updateProjectSettingsMutation.reset();

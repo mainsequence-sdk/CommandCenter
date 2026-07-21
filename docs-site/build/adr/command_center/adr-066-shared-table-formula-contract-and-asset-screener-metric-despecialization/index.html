@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 066: Pro Table Formula Enablement And Asset Screener Pro Inheritance | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 066: Pro Table Formula Enablement And Asset Screener Pro Inheritance | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 066: Pro Table Formula Enablement And Asset Screener Pro Inheritance</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-05-20</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-065-shared-table-core-with-community-and-pro-table-widgets">ADR 065: Shared Table Core With Community And Pro Table Widgets</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction">ADR 049: Publication-Driven Seed/Live Runtime Reduction</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-041-connection-query-websocket-streaming">ADR 041: Query-Shaped WebSocket Streaming for Connections</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>ADR 065 already split the table stack into:</p>
+<ul>
+<li class=""><code>table</code>: Community widget</li>
+<li class=""><code>pro-table</code>: Enterprise widget</li>
+<li class="">one shared table core underneath both</li>
+</ul>
+<p>That shared-core split is now implemented.</p>
+<p>Asset Screener already reuses substantial parts of the shared table implementation:</p>
+<ul>
+<li class=""><a href="/docs/assets/files/AssetScreenerWidget-b85f70f246f62876c51cd7c2473d7952.tsx" target="_blank" class=""><code>AssetScreenerWidget.tsx</code></a>
+renders through <code>TableFrameView</code></li>
+<li class=""><a href="/docs/assets/files/AssetScreenerWidgetSettings-59676dd95b12e957c8323bbe0d98d766.tsx" target="_blank" class=""><code>AssetScreenerWidgetSettings.tsx</code></a>
+already embeds <code>TableWidgetSettings</code></li>
+<li class="">the screener already persists shared table display settings inside <code>props.table</code></li>
+</ul>
+<p>So this migration should stay small.</p>
+<p>The remaining gap is that the screener is still effectively consuming the Community table path by
+default rather than explicitly inheriting the <code>pro-table</code> capability path.</p>
+<p>The intended scope of this ADR is only:</p>
+<ol>
+<li class=""><code>pro-table</code> includes a formulas setting, enabled by default.</li>
+<li class="">Asset Screener inherits from the <code>pro-table</code> path rather than the Community <code>table</code> path.</li>
+</ol>
+<p>This ADR is intentionally not the place to redesign screener metric semantics, live-update
+contracts, or build a spreadsheet-style editing surface. The goal is to align capability ownership
+with the shared <code>pro-table</code> implementation that now exists and keep formula authoring narrow.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-pro-table-owns-the-formula-capable-table-path">1. Pro Table Owns The Formula-Capable Table Path<a href="#1-pro-table-owns-the-formula-capable-table-path" class="hash-link" aria-label="Direct link to 1. Pro Table Owns The Formula-Capable Table Path" title="Direct link to 1. Pro Table Owns The Formula-Capable Table Path" translate="no">​</a></h3>
+<p>The shared table core will expose one formula-capability setting in the <code>pro-table</code> path.</p>
+<p>That means:</p>
+<ul>
+<li class=""><code>pro-table</code> gets a user-facing formulas setting</li>
+<li class="">that setting defaults to <code>true</code></li>
+<li class="">the Community <code>table</code> widget does not become formula-capable just because <code>pro-table</code> is
+introduced</li>
+</ul>
+<p>The setting must be implemented in the shared table settings surface, but capability-gated so it
+is only exposed where Enterprise-backed formula behavior is allowed.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-formulas-are-column-level-not-spreadsheet-editing">2. Formulas Are Column-Level, Not Spreadsheet Editing<a href="#2-formulas-are-column-level-not-spreadsheet-editing" class="hash-link" aria-label="Direct link to 2. Formulas Are Column-Level, Not Spreadsheet Editing" title="Direct link to 2. Formulas Are Column-Level, Not Spreadsheet Editing" translate="no">​</a></h3>
+<p>The first implementation scope is only column formulas.</p>
+<p>That means:</p>
+<ul>
+<li class="">a column can be declared as a formula column</li>
+<li class="">the user provides one formula expression for that column</li>
+<li class="">the formula renders as a normal table column in the live widget</li>
+<li class="">formulas are not authored by editing live cells</li>
+<li class="">formulas are not a second embedded grid inside settings</li>
+<li class="">formulas are not arbitrary spreadsheet state spread across rows and cells</li>
+</ul>
+<p>The authoring model should stay simple:</p>
+<ul>
+<li class="">choose or mark a column as <code>formula</code></li>
+<li class="">enter the formula expression in the existing settings surface</li>
+<li class="">render the computed values in the table output</li>
+</ul>
+<p>This keeps the scope to “formula column rendering” rather than “Excel inside the widget”.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-asset-screener-moves-to-the-pro-table-capability-path">3. Asset Screener Moves To The Pro Table Capability Path<a href="#3-asset-screener-moves-to-the-pro-table-capability-path" class="hash-link" aria-label="Direct link to 3. Asset Screener Moves To The Pro Table Capability Path" title="Direct link to 3. Asset Screener Moves To The Pro Table Capability Path" translate="no">​</a></h3>
+<p>Asset Screener should inherit the same Enterprise table capability path used by <code>pro-table</code>.</p>
+<p>In practice that means the screener should stop implicitly consuming the Community table defaults
+and instead consume the shared table core using the same Pro-oriented options:</p>
+<ul>
+<li class="">Enterprise AG Grid modules</li>
+<li class="">Pro table settings surface</li>
+<li class="">formula capability enabled by default</li>
+</ul>
+<p>The screener should keep its own market-specific runtime semantics, but its shared table surface
+should be aligned with <code>pro-table</code>, not <code>table</code>.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-the-migration-must-stay-minimal">4. The Migration Must Stay Minimal<a href="#4-the-migration-must-stay-minimal" class="hash-link" aria-label="Direct link to 4. The Migration Must Stay Minimal" title="Direct link to 4. The Migration Must Stay Minimal" translate="no">​</a></h3>
+<p>This is not a request to fork table logic or move the screener onto a separate table
+implementation.</p>
+<p>The migration should be minimal because the screener already reuses:</p>
+<ul>
+<li class="">shared table rendering</li>
+<li class="">shared table settings</li>
+<li class="">shared persisted <code>props.table</code> settings structure</li>
+</ul>
+<p>The preferred implementation is to route the screener through reusable Pro table configuration
+options rather than duplicating any render or settings logic.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-formula-authoring-stays-in-settings-first">5. Formula Authoring Stays In Settings First<a href="#5-formula-authoring-stays-in-settings-first" class="hash-link" aria-label="Direct link to 5. Formula Authoring Stays In Settings First" title="Direct link to 5. Formula Authoring Stays In Settings First" translate="no">​</a></h3>
+<p>The first formula-authoring implementation should stay out of the live widget surface.</p>
+<p>That means:</p>
+<ul>
+<li class="">formulas are authored inside widget settings</li>
+<li class="">view mode remains read-only</li>
+<li class="">workspace edit mode remains move/resize/configure mode</li>
+<li class="">live grid cell interaction keeps its current meaning for selection and variable publication</li>
+<li class="">persisted formulas must live in shared table props/settings, not transient AG Grid instance
+state</li>
+</ul>
+<p>This keeps the current interaction contract stable while allowing formula capability to ship on the
+<code>pro-table</code> path.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="formula-authoring">Formula Authoring<a href="#formula-authoring" class="hash-link" aria-label="Direct link to Formula Authoring" title="Direct link to Formula Authoring" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add one shared table formulas setting to the shared table props/settings model.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add one shared table column-level formula field to the shared table props/settings model.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Allow a column to be marked or declared as a <code>formula</code> column in the shared table settings
+model.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a formula expression input to the existing shared table settings surface for formula
+columns.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep first-version formula authoring inside widget settings only.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Do not add a second grid or spreadsheet-style editing surface inside widget settings.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep view mode read-only for formula-capable tables.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep workspace edit mode limited to move/resize/configure behavior rather than live
+spreadsheet editing.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Preserve current live cell interaction semantics for selection outputs, active cell outputs,
+and variable publication.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Persist authored formulas in the shared table props/settings contract rather than transient
+AG Grid instance state.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure formula columns render as ordinary table columns once computed, with no separate
+runtime interaction model.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="pro-table">Pro Table<a href="#pro-table" class="hash-link" aria-label="Direct link to Pro Table" title="Direct link to Pro Table" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Gate that setting by table edition/capability so it is exposed on <code>pro-table</code>, not forced
+onto the Community <code>table</code> widget.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Make the <code>pro-table</code> widget default that formulas setting to <code>true</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Ensure the shared table registry metadata and usage guidance describe that formula capability
+as part of the <code>pro-table</code> path.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="asset-screener-inheritance">Asset Screener Inheritance<a href="#asset-screener-inheritance" class="hash-link" aria-label="Direct link to Asset Screener Inheritance" title="Direct link to Asset Screener Inheritance" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Introduce or reuse one shared Pro-table configuration bundle so <code>pro-table</code> and
+Asset Screener consume the same Enterprise table options instead of duplicating flags.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update Asset Screener rendering to use the shared Pro-table capability path rather than the
+Community table defaults.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update Asset Screener settings to use the shared Pro-table settings path rather than the
+Community table defaults.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Default Asset Screener table settings to formulas enabled unless the user explicitly turns
+them off.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Keep Asset Screener runtime merge behavior, identity semantics, and live-update contracts
+unchanged in this ADR.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Preserve backward compatibility for existing Asset Screener instances by treating the new
+formula setting as additive, with sane defaults when older saved widgets do not persist it yet.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="regression-and-compatibility">Regression And Compatibility<a href="#regression-and-compatibility" class="hash-link" aria-label="Direct link to Regression And Compatibility" title="Direct link to Regression And Compatibility" translate="no">​</a></h3>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add regression coverage proving:<!-- -->
+<ul>
+<li class=""><code>pro-table</code> enables formulas by default</li>
+<li class="">Community <code>table</code> stays backward compatible</li>
+<li class="">Asset Screener uses the shared Pro table capability path without forking shared table logic</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="plan-notes">Plan Notes<a href="#plan-notes" class="hash-link" aria-label="Direct link to Plan Notes" title="Direct link to Plan Notes" translate="no">​</a></h2>
+<p>This should be a small implementation if the shared table split is being used correctly.</p>
+<p>The minimal code path should be:</p>
+<ol>
+<li class="">add one shared <code>formulasEnabled</code>-style setting in the shared table settings contract</li>
+<li class="">add one shared column-level formula field and formula expression input in the existing table
+settings UI</li>
+<li class="">keep formula authoring settings-only and avoid introducing a second grid/editor surface</li>
+<li class="">wire <code>pro-table</code> so that setting defaults to <code>true</code></li>
+<li class="">pass the same Pro table capability options into Asset Screener’s existing shared
+<code>TableFrameView</code> and <code>TableWidgetSettings</code> integration</li>
+</ol>
+<p>The screener should not need its own formula UI or a second table settings implementation.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="contract-notes">Contract Notes<a href="#contract-notes" class="hash-link" aria-label="Direct link to Contract Notes" title="Direct link to Contract Notes" translate="no">​</a></h2>
+<p>This ADR is expected to introduce an additive persisted table-setting field for formula enablement.</p>
+<p>That means:</p>
+<ul>
+<li class="">existing <code>table</code> widget behavior should remain backward compatible</li>
+<li class="">existing Asset Screener saved instances should still load without a migration</li>
+<li class="">backend contract review is still required if the persisted shared table settings shape changes in
+a backend-visible way</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a><ul><li><a href="#1-pro-table-owns-the-formula-capable-table-path" class="table-of-contents__link toc-highlight">1. Pro Table Owns The Formula-Capable Table Path</a></li><li><a href="#2-formulas-are-column-level-not-spreadsheet-editing" class="table-of-contents__link toc-highlight">2. Formulas Are Column-Level, Not Spreadsheet Editing</a></li><li><a href="#3-asset-screener-moves-to-the-pro-table-capability-path" class="table-of-contents__link toc-highlight">3. Asset Screener Moves To The Pro Table Capability Path</a></li><li><a href="#4-the-migration-must-stay-minimal" class="table-of-contents__link toc-highlight">4. The Migration Must Stay Minimal</a></li><li><a href="#5-formula-authoring-stays-in-settings-first" class="table-of-contents__link toc-highlight">5. Formula Authoring Stays In Settings First</a></li></ul></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a><ul><li><a href="#formula-authoring" class="table-of-contents__link toc-highlight">Formula Authoring</a></li><li><a href="#pro-table" class="table-of-contents__link toc-highlight">Pro Table</a></li><li><a href="#asset-screener-inheritance" class="table-of-contents__link toc-highlight">Asset Screener Inheritance</a></li><li><a href="#regression-and-compatibility" class="table-of-contents__link toc-highlight">Regression And Compatibility</a></li></ul></li><li><a href="#plan-notes" class="table-of-contents__link toc-highlight">Plan Notes</a></li><li><a href="#contract-notes" class="table-of-contents__link toc-highlight">Contract Notes</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

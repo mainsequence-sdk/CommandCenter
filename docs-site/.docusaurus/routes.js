@@ -4,15 +4,15 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 export default [
   {
     path: '/docs/',
-    component: ComponentCreator('/docs/', 'b15'),
+    component: ComponentCreator('/docs/', '71f'),
     routes: [
       {
         path: '/docs/',
-        component: ComponentCreator('/docs/', '959'),
+        component: ComponentCreator('/docs/', 'ec9'),
         routes: [
           {
             path: '/docs/',
-            component: ComponentCreator('/docs/', 'e6e'),
+            component: ComponentCreator('/docs/', '01e'),
             routes: [
               {
                 path: '/docs/access-control',
@@ -39,230 +39,499 @@ export default [
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/adr/adr-038-progressive-workspace-widget-hydration',
-                component: ComponentCreator('/docs/adr/adr-038-progressive-workspace-widget-hydration', '586'),
+                path: '/docs/adr/command_center',
+                component: ComponentCreator('/docs/adr/command_center', '2f8'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-039-unified-upstream-consumer-state-contract',
-                component: ComponentCreator('/docs/adr/adr-039-unified-upstream-consumer-state-contract', 'a6f'),
+                path: '/docs/adr/command_center/adr-038-progressive-workspace-widget-hydration',
+                component: ComponentCreator('/docs/adr/command_center/adr-038-progressive-workspace-widget-hydration', '06a'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-040-dashboard-surface-return-hydration',
-                component: ComponentCreator('/docs/adr/adr-040-dashboard-surface-return-hydration', '8a5'),
+                path: '/docs/adr/command_center/adr-039-unified-upstream-consumer-state-contract',
+                component: ComponentCreator('/docs/adr/command_center/adr-039-unified-upstream-consumer-state-contract', '5c4'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-041-connection-query-websocket-streaming',
-                component: ComponentCreator('/docs/adr/adr-041-connection-query-websocket-streaming', '8e1'),
+                path: '/docs/adr/command_center/adr-040-dashboard-surface-return-hydration',
+                component: ComponentCreator('/docs/adr/command_center/adr-040-dashboard-surface-return-hydration', 'ce4'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-042-tabular-transform-row-filtering',
-                component: ComponentCreator('/docs/adr/adr-042-tabular-transform-row-filtering', '358'),
+                path: '/docs/adr/command_center/adr-041-connection-query-websocket-streaming',
+                component: ComponentCreator('/docs/adr/command_center/adr-041-connection-query-websocket-streaming', 'cb2'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-adapter-from-api-connection',
-                component: ComponentCreator('/docs/adr/adr-adapter-from-api-connection', '055'),
+                path: '/docs/adr/command_center/adr-042-tabular-transform-row-filtering',
+                component: ComponentCreator('/docs/adr/command_center/adr-042-tabular-transform-row-filtering', 'a97'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-agent-monitor-workspace-reference-widget',
-                component: ComponentCreator('/docs/adr/adr-agent-monitor-workspace-reference-widget', '29b'),
+                path: '/docs/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics',
+                component: ComponentCreator('/docs/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics', 'ee0'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-agent-ready-widget-type-registry-contract',
-                component: ComponentCreator('/docs/adr/adr-agent-ready-widget-type-registry-contract', '005'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-agent-session-interaction-readiness-gate',
-                component: ComponentCreator('/docs/adr/adr-agent-session-interaction-readiness-gate', 'd43'),
+                path: '/docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles',
+                component: ComponentCreator('/docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles', '7f1'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-agent-terminal-managed-session-creation',
-                component: ComponentCreator('/docs/adr/adr-agent-terminal-managed-session-creation', 'bfa'),
+                path: '/docs/adr/command_center/adr-045-agent-facing-workspace-snapshot-contract',
+                component: ComponentCreator('/docs/adr/command_center/adr-045-agent-facing-workspace-snapshot-contract', 'e9f'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-app-component-binding-native-api-widget',
-                component: ComponentCreator('/docs/adr/adr-app-component-binding-native-api-widget', '7f0'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-app-component-caching',
-                component: ComponentCreator('/docs/adr/adr-app-component-caching', '222'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-app-component-mock-json-target',
-                component: ComponentCreator('/docs/adr/adr-app-component-mock-json-target', 'da1'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-app-component-response-notification-ui',
-                component: ComponentCreator('/docs/adr/adr-app-component-response-notification-ui', 'ce1'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-binding-output-transforms',
-                component: ComponentCreator('/docs/adr/adr-binding-output-transforms', 'cbb'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-connection-authoring-contract',
-                component: ComponentCreator('/docs/adr/adr-connection-authoring-contract', 'e5a'),
+                path: '/docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision',
+                component: ComponentCreator('/docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision', '149'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-connection-first-workspace-dataflow',
-                component: ComponentCreator('/docs/adr/adr-connection-first-workspace-dataflow', '864'),
+                path: '/docs/adr/command_center/adr-047-workspace-runtime-data-reference-store',
+                component: ComponentCreator('/docs/adr/command_center/adr-047-workspace-runtime-data-reference-store', '1fa'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-executable-widget-graph-runner',
-                component: ComponentCreator('/docs/adr/adr-executable-widget-graph-runner', '4e5'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-extension-contributed-shell-settings-menus',
-                component: ComponentCreator('/docs/adr/adr-extension-contributed-shell-settings-menus', '05f'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-first-class-connection-model',
-                component: ComponentCreator('/docs/adr/adr-first-class-connection-model', 'e3f'),
+                path: '/docs/adr/command_center/adr-048-alpaca-websocket-command-center-extension',
+                component: ComponentCreator('/docs/adr/command_center/adr-048-alpaca-websocket-command-center-extension', '938'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-headless-workspace-settings-runtime',
-                component: ComponentCreator('/docs/adr/adr-headless-workspace-settings-runtime', '609'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-incremental-connection-response-refresh',
-                component: ComponentCreator('/docs/adr/adr-incremental-connection-response-refresh', '971'),
+                path: '/docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction',
+                component: ComponentCreator('/docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction', '620'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-incremental-workspace-normalization',
-                component: ComponentCreator('/docs/adr/adr-incremental-workspace-normalization', 'c0c'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-inline-canvas-rich-text-widget',
-                component: ComponentCreator('/docs/adr/adr-inline-canvas-rich-text-widget', '905'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-live-workspace-agent-snapshot-archive',
-                component: ComponentCreator('/docs/adr/adr-live-workspace-agent-snapshot-archive', '478'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-main-sequence-ai-command-center-base-session',
-                component: ComponentCreator('/docs/adr/adr-main-sequence-ai-command-center-base-session', 'e22'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution',
-                component: ComponentCreator('/docs/adr/adr-main-sequence-ai-runtime-endpoint-resolution', '278'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-main-sequence-simple-table-connection',
-                component: ComponentCreator('/docs/adr/adr-main-sequence-simple-table-connection', '6a5'),
+                path: '/docs/adr/command_center/adr-050-workspace-slide-as-structural-container',
+                component: ComponentCreator('/docs/adr/command_center/adr-050-workspace-slide-as-structural-container', '863'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-managed-connection-query-widget-sources',
-                component: ComponentCreator('/docs/adr/adr-managed-connection-query-widget-sources', '8be'),
+                path: '/docs/adr/command_center/adr-051-consistent-widget-chrome-between-edit-and-view-modes',
+                component: ComponentCreator('/docs/adr/command_center/adr-051-consistent-widget-chrome-between-edit-and-view-modes', 'a39'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-organization-widget-type-configurations',
-                component: ComponentCreator('/docs/adr/adr-organization-widget-type-configurations', '286'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-postgresql-connection',
-                component: ComponentCreator('/docs/adr/adr-postgresql-connection', '279'),
+                path: '/docs/adr/command_center/adr-052-slide-studio-slideshow-projection-mode',
+                component: ComponentCreator('/docs/adr/command_center/adr-052-slide-studio-slideshow-projection-mode', '8eb'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-rgl-v2-workspace-studio',
-                component: ComponentCreator('/docs/adr/adr-rgl-v2-workspace-studio', '563'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-runtime-credential-browser-auth',
-                component: ComponentCreator('/docs/adr/adr-runtime-credential-browser-auth', '4ee'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-shared-workspace-state',
-                component: ComponentCreator('/docs/adr/adr-shared-workspace-state', 'a15'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-single-runtime-owner-workspace-widgets',
-                component: ComponentCreator('/docs/adr/adr-single-runtime-owner-workspace-widgets', '9e4'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-source-driven-downstream-execution',
-                component: ComponentCreator('/docs/adr/adr-source-driven-downstream-execution', '84c'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-standardized-connection-result-contracts',
-                component: ComponentCreator('/docs/adr/adr-standardized-connection-result-contracts', 'bee'),
+                path: '/docs/adr/command_center/adr-053-public-view-for-workspace-and-slide-studio',
+                component: ComponentCreator('/docs/adr/command_center/adr-053-public-view-for-workspace-and-slide-studio', 'c9e'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-widget-agent-context-bindings',
-                component: ComponentCreator('/docs/adr/adr-widget-agent-context-bindings', 'bbe'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-widget-bindings-and-dependency-graph',
-                component: ComponentCreator('/docs/adr/adr-widget-bindings-and-dependency-graph', 'acd'),
-                exact: true,
-                sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/adr/adr-widget-settings-demo-preview-draft',
-                component: ComponentCreator('/docs/adr/adr-widget-settings-demo-preview-draft', 'a0f'),
+                path: '/docs/adr/command_center/adr-054-synthetic-public-workspace-render-permissions',
+                component: ComponentCreator('/docs/adr/command_center/adr-054-synthetic-public-workspace-render-permissions', 'df2'),
                 exact: true
               },
               {
-                path: '/docs/adr/adr-workspace-widget-referenced-graph-expansion',
-                component: ComponentCreator('/docs/adr/adr-workspace-widget-referenced-graph-expansion', 'e3c'),
+                path: '/docs/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting',
+                component: ComponentCreator('/docs/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting', 'c43'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-056-slide-structural-containment-in-workspace-graph',
+                component: ComponentCreator('/docs/adr/command_center/adr-056-slide-structural-containment-in-workspace-graph', 'c6b'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-057-slide-studio-printable-pdf-projection',
+                component: ComponentCreator('/docs/adr/command_center/adr-057-slide-studio-printable-pdf-projection', '331'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-058-cross-widget-references-and-variables',
+                component: ComponentCreator('/docs/adr/command_center/adr-058-cross-widget-references-and-variables', '060'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-059-user-instance-canonical-workspace-controls',
+                component: ComponentCreator('/docs/adr/command_center/adr-059-user-instance-canonical-workspace-controls', '373'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-060-instant-widget-settings-runtime',
+                component: ComponentCreator('/docs/adr/command_center/adr-060-instant-widget-settings-runtime', '0d8'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-061-usage-documentation-app',
+                component: ComponentCreator('/docs/adr/command_center/adr-061-usage-documentation-app', '41f'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-062-typed-widget-module-pattern',
+                component: ComponentCreator('/docs/adr/command_center/adr-062-typed-widget-module-pattern', '64b'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-063-position-detail-widget-rename',
+                component: ComponentCreator('/docs/adr/command_center/adr-063-position-detail-widget-rename', '69f'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-064-variable-reference-graph-integration',
+                component: ComponentCreator('/docs/adr/command_center/adr-064-variable-reference-graph-integration', 'e77'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-065-shared-table-core-with-community-and-pro-table-widgets',
+                component: ComponentCreator('/docs/adr/command_center/adr-065-shared-table-core-with-community-and-pro-table-widgets', 'f1e'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization',
+                component: ComponentCreator('/docs/adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization', 'cf9'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-067-tabular-transform-owns-shared-computed-column-authoring',
+                component: ComponentCreator('/docs/adr/command_center/adr-067-tabular-transform-owns-shared-computed-column-authoring', 'bab'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-067b-websocket-stream-run-boundary-reset',
+                component: ComponentCreator('/docs/adr/command_center/adr-067b-websocket-stream-run-boundary-reset', 'dbb'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers',
+                component: ComponentCreator('/docs/adr/command_center/adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers', 'be1'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-069-websocket-stream-variable-resubscription',
+                component: ComponentCreator('/docs/adr/command_center/adr-069-websocket-stream-variable-resubscription', 'd33'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-070-workspace-variable-explorer',
+                component: ComponentCreator('/docs/adr/command_center/adr-070-workspace-variable-explorer', '7b9'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-071-atomic-widget-settings-workspace-save',
+                component: ComponentCreator('/docs/adr/command_center/adr-071-atomic-widget-settings-workspace-save', '785'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-072-backend-variables-and-reference-defaults',
+                component: ComponentCreator('/docs/adr/command_center/adr-072-backend-variables-and-reference-defaults', '79a'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning',
+                component: ComponentCreator('/docs/adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning', '8aa'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-074-adapter-from-api-debug-direct-mode',
+                component: ComponentCreator('/docs/adr/command_center/adr-074-adapter-from-api-debug-direct-mode', '299'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-077-client-side-mysql-connection',
+                component: ComponentCreator('/docs/adr/command_center/adr-077-client-side-mysql-connection', '417'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-078-client-side-sql-server-connection',
+                component: ComponentCreator('/docs/adr/command_center/adr-078-client-side-sql-server-connection', '762'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-079-unified-routed-settings-module',
+                component: ComponentCreator('/docs/adr/command_center/adr-079-unified-routed-settings-module', 'ecf'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-080-resolved-shell-access-as-visualization-gates',
+                component: ComponentCreator('/docs/adr/command_center/adr-080-resolved-shell-access-as-visualization-gates', 'a1c'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-081-general-shell-access-scope-resolution',
+                component: ComponentCreator('/docs/adr/command_center/adr-081-general-shell-access-scope-resolution', '985'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-adapter-from-api-connection',
+                component: ComponentCreator('/docs/adr/command_center/adr-adapter-from-api-connection', 'eae'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-agent-ready-widget-type-registry-contract',
+                component: ComponentCreator('/docs/adr/command_center/adr-agent-ready-widget-type-registry-contract', '06f'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-app-component-binding-native-api-widget',
+                component: ComponentCreator('/docs/adr/command_center/adr-app-component-binding-native-api-widget', '268'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-app-component-caching',
+                component: ComponentCreator('/docs/adr/command_center/adr-app-component-caching', '682'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-app-component-mock-json-target',
+                component: ComponentCreator('/docs/adr/command_center/adr-app-component-mock-json-target', '099'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-app-component-response-notification-ui',
+                component: ComponentCreator('/docs/adr/command_center/adr-app-component-response-notification-ui', '48f'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-binding-output-transforms',
+                component: ComponentCreator('/docs/adr/command_center/adr-binding-output-transforms', '865'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-connection-authoring-contract',
+                component: ComponentCreator('/docs/adr/command_center/adr-connection-authoring-contract', 'cc0'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-connection-first-workspace-dataflow',
+                component: ComponentCreator('/docs/adr/command_center/adr-connection-first-workspace-dataflow', '97a'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-executable-widget-graph-runner',
+                component: ComponentCreator('/docs/adr/command_center/adr-executable-widget-graph-runner', 'a69'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-extension-contributed-shell-settings-menus',
+                component: ComponentCreator('/docs/adr/command_center/adr-extension-contributed-shell-settings-menus', 'ea5'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-first-class-connection-model',
+                component: ComponentCreator('/docs/adr/command_center/adr-first-class-connection-model', '9f1'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-headless-workspace-settings-runtime',
+                component: ComponentCreator('/docs/adr/command_center/adr-headless-workspace-settings-runtime', 'eb1'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-incremental-connection-response-refresh',
+                component: ComponentCreator('/docs/adr/command_center/adr-incremental-connection-response-refresh', 'ac9'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-incremental-workspace-normalization',
+                component: ComponentCreator('/docs/adr/command_center/adr-incremental-workspace-normalization', '364'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-inline-canvas-rich-text-widget',
+                component: ComponentCreator('/docs/adr/command_center/adr-inline-canvas-rich-text-widget', 'aa6'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-live-workspace-agent-snapshot-archive',
+                component: ComponentCreator('/docs/adr/command_center/adr-live-workspace-agent-snapshot-archive', 'f60'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-main-sequence-simple-table-connection',
+                component: ComponentCreator('/docs/adr/command_center/adr-main-sequence-simple-table-connection', 'fd3'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-managed-connection-query-widget-sources',
+                component: ComponentCreator('/docs/adr/command_center/adr-managed-connection-query-widget-sources', 'bae'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-organization-widget-type-configurations',
+                component: ComponentCreator('/docs/adr/command_center/adr-organization-widget-type-configurations', '716'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-postgresql-connection',
+                component: ComponentCreator('/docs/adr/command_center/adr-postgresql-connection', 'cf0'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-rgl-v2-workspace-studio',
+                component: ComponentCreator('/docs/adr/command_center/adr-rgl-v2-workspace-studio', '9a4'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-runtime-credential-browser-auth',
+                component: ComponentCreator('/docs/adr/command_center/adr-runtime-credential-browser-auth', '34e'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-shared-workspace-state',
+                component: ComponentCreator('/docs/adr/command_center/adr-shared-workspace-state', '51d'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-single-runtime-owner-workspace-widgets',
+                component: ComponentCreator('/docs/adr/command_center/adr-single-runtime-owner-workspace-widgets', 'a26'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-source-driven-downstream-execution',
+                component: ComponentCreator('/docs/adr/command_center/adr-source-driven-downstream-execution', 'd4a'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-standardized-connection-result-contracts',
+                component: ComponentCreator('/docs/adr/command_center/adr-standardized-connection-result-contracts', '79b'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-widget-agent-context-bindings',
+                component: ComponentCreator('/docs/adr/command_center/adr-widget-agent-context-bindings', 'fe2'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-widget-bindings-and-dependency-graph',
+                component: ComponentCreator('/docs/adr/command_center/adr-widget-bindings-and-dependency-graph', 'e81'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/command_center/adr-widget-settings-demo-preview-draft',
+                component: ComponentCreator('/docs/adr/command_center/adr-widget-settings-demo-preview-draft', '7e7'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/command_center/adr-workspace-widget-referenced-graph-expansion',
+                component: ComponentCreator('/docs/adr/command_center/adr-workspace-widget-referenced-graph-expansion', 'f21'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/main_sequence',
+                component: ComponentCreator('/docs/adr/main_sequence', 'c79'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts',
+                component: ComponentCreator('/docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts', '5de'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/main_sequence/adr-075-ms-markets-api-binding',
+                component: ComponentCreator('/docs/adr/main_sequence/adr-075-ms-markets-api-binding', 'cbd'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/mainsequence_ai',
+                component: ComponentCreator('/docs/adr/mainsequence_ai', '87c'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/mainsequence_ai/adr-058-refactor-project-agent-creation',
+                component: ComponentCreator('/docs/adr/mainsequence_ai/adr-058-refactor-project-agent-creation', '893'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/mainsequence_ai/adr-059-global-settings-runtime-resolution',
+                component: ComponentCreator('/docs/adr/mainsequence_ai/adr-059-global-settings-runtime-resolution', '497'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/mainsequence_ai/adr-060-session-backed-chat-request-contract',
+                component: ComponentCreator('/docs/adr/mainsequence_ai/adr-060-session-backed-chat-request-contract', 'dcd'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models',
+                component: ComponentCreator('/docs/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models', '8fd'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/mainsequence_ai/adr-063-project-agent-configuration-source-of-truth',
+                component: ComponentCreator('/docs/adr/mainsequence_ai/adr-063-project-agent-configuration-source-of-truth', '8dd'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/mainsequence_ai/adr-076-agent-detail-capabilities-tab',
+                component: ComponentCreator('/docs/adr/mainsequence_ai/adr-076-agent-detail-capabilities-tab', '30c'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap',
+                component: ComponentCreator('/docs/adr/mainsequence_ai/adr-077-unified-astro-coding-agent-bootstrap', 'c94'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/mainsequence_ai/adr-078-capability-registry-surface-and-editor-widget',
+                component: ComponentCreator('/docs/adr/mainsequence_ai/adr-078-capability-registry-surface-and-editor-widget', 'd5d'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/adr/mainsequence_ai/adr-agent-monitor-workspace-reference-widget',
+                component: ComponentCreator('/docs/adr/mainsequence_ai/adr-agent-monitor-workspace-reference-widget', '95a'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/mainsequence_ai/adr-agent-session-interaction-readiness-gate',
+                component: ComponentCreator('/docs/adr/mainsequence_ai/adr-agent-session-interaction-readiness-gate', 'af8'),
+                exact: true
+              },
+              {
+                path: '/docs/adr/mainsequence_ai/adr-agent-terminal-managed-session-creation',
+                component: ComponentCreator('/docs/adr/mainsequence_ai/adr-agent-terminal-managed-session-creation', '03a'),
+                exact: true
+              },
+              {
+                path: '/docs/adrs/mainsequence-ai/adr-063-user-ai-initialization',
+                component: ComponentCreator('/docs/adrs/mainsequence-ai/adr-063-user-ai-initialization', '505'),
+                exact: true
+              },
+              {
+                path: '/docs/adrs/mainsequence-ai/adr-064-agent-type-identity',
+                component: ComponentCreator('/docs/adrs/mainsequence-ai/adr-064-agent-type-identity', 'd04'),
+                exact: true
+              },
+              {
+                path: '/docs/adrs/mainsequence-markets/adrs/adr-001-market-asset-screener-data-contract',
+                component: ComponentCreator('/docs/adrs/mainsequence-markets/adrs/adr-001-market-asset-screener-data-contract', '3ca'),
+                exact: true
+              },
+              {
+                path: '/docs/adrs/widgets/adr-001-table-selection-outputs',
+                component: ComponentCreator('/docs/adrs/widgets/adr-001-table-selection-outputs', '914'),
                 exact: true
               },
               {
@@ -322,6 +591,51 @@ export default [
                 sidebar: "docsSidebar"
               },
               {
+                path: '/docs/implementation_tasks/adapter-from-api-debug-direct/',
+                component: ComponentCreator('/docs/implementation_tasks/adapter-from-api-debug-direct/', 'c35'),
+                exact: true
+              },
+              {
+                path: '/docs/implementation_tasks/adapter-from-api-debug-direct/task-001-backend-direct-mode-persistence',
+                component: ComponentCreator('/docs/implementation_tasks/adapter-from-api-debug-direct/task-001-backend-direct-mode-persistence', '716'),
+                exact: true
+              },
+              {
+                path: '/docs/implementation_tasks/adapter-from-api-debug-direct/task-002-frontend-config-and-direct-discovery',
+                component: ComponentCreator('/docs/implementation_tasks/adapter-from-api-debug-direct/task-002-frontend-config-and-direct-discovery', '733'),
+                exact: true
+              },
+              {
+                path: '/docs/implementation_tasks/adapter-from-api-debug-direct/task-003-direct-execution-runtime-and-workspace-routing',
+                component: ComponentCreator('/docs/implementation_tasks/adapter-from-api-debug-direct/task-003-direct-execution-runtime-and-workspace-routing', '449'),
+                exact: true
+              },
+              {
+                path: '/docs/implementation_tasks/agent-capability-registry-surface/task-001-capability-registry-surface-and-shared-editor',
+                component: ComponentCreator('/docs/implementation_tasks/agent-capability-registry-surface/task-001-capability-registry-surface-and-shared-editor', 'deb'),
+                exact: true
+              },
+              {
+                path: '/docs/implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow',
+                component: ComponentCreator('/docs/implementation_tasks/coding-agent-deployment-unification/task-001-unify-coding-agent-deployment-workflow', '0e8'),
+                exact: true
+              },
+              {
+                path: '/docs/implementation_tasks/main-sequence-registry-pagination-problem/',
+                component: ComponentCreator('/docs/implementation_tasks/main-sequence-registry-pagination-problem/', 'fe3'),
+                exact: true
+              },
+              {
+                path: '/docs/implementation_tasks/ms-markets-api-binding/',
+                component: ComponentCreator('/docs/implementation_tasks/ms-markets-api-binding/', 'f4c'),
+                exact: true
+              },
+              {
+                path: '/docs/implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api',
+                component: ComponentCreator('/docs/implementation_tasks/ms-markets-api-binding/task-001-bind-main-sequence-markets-to-adapter-from-api', '11a'),
+                exact: true
+              },
+              {
                 path: '/docs/operations',
                 component: ComponentCreator('/docs/operations', 'cba'),
                 exact: true,
@@ -370,11 +684,6 @@ export default [
                 sidebar: "docsSidebar"
               },
               {
-                path: '/docs/todos/assistant_ui',
-                component: ComponentCreator('/docs/todos/assistant_ui', '630'),
-                exact: true
-              },
-              {
                 path: '/docs/widgets',
                 component: ComponentCreator('/docs/widgets', '66d'),
                 exact: true,
@@ -414,6 +723,11 @@ export default [
                 component: ComponentCreator('/docs/workspaces/overview', '41f'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/workspaces/reference-variables',
+                component: ComponentCreator('/docs/workspaces/reference-variables', '159'),
+                exact: true
               },
               {
                 path: '/docs/workspaces/runtime-performance-remediation',

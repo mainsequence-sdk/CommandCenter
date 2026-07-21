@@ -39,11 +39,14 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   `POST /orm/api/agents/v1/agents/{agent_uid}/sessions/get_or_create_session/`,
   plus the AgentSession model-binding PATCH for `llm_provider` / `llm_model`.
 - `available-models-api.ts`
-  Shared assistant-backend model catalog fetch helper used by the page chat composer. It also owns
-  the shared in-memory available-models cache used to avoid repeated
-  `/api/chat/get_available_models` requests for the same user + agent-request-name scope for
-  15 minutes after a successful load. The cache also exposes expired snapshots so callers can keep
-  the last successful catalog rendered while refreshing the runtime in the background.
+  Shared assistant-backend sendable-model discovery helper used by the page chat composer. It also
+  owns the shared in-memory available-models cache. Chat runtime availability is read strictly from
+  `/api/chat/get_available_models`; `/api/models/catalog` remains a settings/catalog endpoint and
+  is not a chat fallback. Non-empty results are cached for 15 minutes for the same user +
+  agent-request-name scope. Empty model responses are cached for only 60 seconds: long enough to
+  avoid request loops, short enough to recover quickly after provider credentials or runtime
+  availability changes. The cache also exposes expired snapshots so callers can keep the last
+  successful catalog rendered while refreshing the runtime in the background.
 - `run-config-selection.ts`
   Shared provider/model/thinking selection resolver. It merges backend model catalogs with the
   current persisted agent or session defaults so callers can render standard run-config fields
@@ -68,8 +71,11 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 ## Maintenance Notes
 
 - Keep this directory free of `assistant-ui` runtime hooks and overlay/page UI concerns.
-- Assistant-runtime calls use the configured assistant endpoint when `VITE_ASSISTANT_UI_PROXY_TARGET`
-  is set. Otherwise agent-runtime calls use `runtime_access.rpc_url` plus
+- Assistant-runtime calls are always runtime-access backed. When
+  `VITE_ASSISTANT_UI_PROXY_TARGET` is set, the configured proxy endpoint may replace the HTTP URL
+  used for the final assistant-runtime request, but the frontend must still resolve an
+  `AgentSession` and call `resolve_runtime_access/` first to obtain the runtime token and metadata.
+  Without a proxy override, calls use `runtime_access.rpc_url` plus
   `Authorization: Bearer <runtime_access.token>`.
 - When both `VITE_ASSISTANT_UI_PROXY_TARGET` and `VITE_ASSISTANT_UI_EXECUTOR_TARGET` are set,
   proxy-mode session traffic can branch by agent type: sessions for
@@ -83,7 +89,7 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   the standard assistant proxy target for that route.
 - `assistant_ui.endpoint` may be blank when Main Sequence AI should rely entirely on backend
   runtime access. Render paths must not call the configured/static endpoint as a hard requirement
-  for agent-runtime calls.
+  or fallback for agent-runtime calls.
 - When `VITE_ASSISTANT_UI_PROXY_TARGET` is set for Command Center operational traffic, the frontend
   still resolves Astro service identity, gets the canonical handle-bound AgentSession, and calls
   `resolve_runtime_access/` with the normal empty `{}` body. The configured proxy endpoint replaces
@@ -94,6 +100,11 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
   runtime endpoints such as history, tools, or chat. Agent-runtime resolution no longer creates or
   selects Astro implicitly when no concrete `AgentSession` id is selected; callers must provide a
   real backend session id.
+- Requests that do not target an existing selected session but still need Command Center
+  operational runtime access must use `runtimeTarget: "command-center-base"`. That path resolves
+  the deployed Astro service, gets or creates the canonical Astro handle session, and then calls
+  `resolve_runtime_access/`. There is no production `configured` runtime target that bypasses
+  session runtime access.
 - The frontend treats `image_drift` from that per-session `resolve_runtime_access` response as
   backend-owned status. It only normalizes the payload shape enough to surface a generic warning
   in chat when the backend says that the selected runtime needs an update.
@@ -150,10 +161,10 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - `available-models-api.ts` also normalizes the provider-grouped `/api/chat/get_available_models`
   response and preserves per-model reasoning-effort capabilities so the chat composer can render
   provider, model, and reasoning selectors in sequence.
-- `available-models-api.ts` caches normalized model catalogs in memory by caller-provided
-  user + agent-request-name cache key so chat session churn does not refetch the same runtime catalog
-  repeatedly after a successful load. The current TTL is 15 minutes, and expired snapshots remain
-  readable for UI stability while a fresh request is in flight.
+- `available-models-api.ts` caches normalized sendable-model responses in memory by
+  caller-provided user + agent-request-name cache key so chat session churn does not refetch the
+  same runtime model list repeatedly after a successful load. The current TTL is 15 minutes, and
+  expired snapshots remain readable for UI stability while a fresh request is in flight.
 - reasoning options for the chat picker are derived from each model's
   `capabilities.runConfig.reasoning_effort` payload, with `defaults.runConfig.reasoning_effort`
   used as the selected default when present.
@@ -190,3 +201,5 @@ other extension-owned surfaces without pulling in chat-shell runtime state.
 - Runtime helpers should throw source-tagged errors through `error-source.ts` so chat-visible
   failures can identify whether they came from Command Center guards/parsing, Main Sequence
   session APIs, or the agent runtime transport/stream.
+- Agent-service HTTP failures should use `http-error.ts` so every visible error includes the
+  failed operation, HTTP status, full resolved URL, and backend response body/message.

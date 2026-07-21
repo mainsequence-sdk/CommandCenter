@@ -1,0 +1,15 @@
+{
+  "id": "adrs/mainsequence-markets/adrs/adr-001-market-asset-screener-data-contract",
+  "title": "ADR 001: Market Asset Screener Data Contract",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adrs/mainsequence-markets/adrs/adr-001-market-asset-screener-data-contract.md",
+  "sourceDirName": "adrs/mainsequence-markets/adrs",
+  "slug": "/adrs/mainsequence-markets/adrs/adr-001-market-asset-screener-data-contract",
+  "permalink": "/docs/adrs/mainsequence-markets/adrs/adr-001-market-asset-screener-data-contract",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adrs/mainsequence-markets/adrs/adr-001-market-asset-screener-data-contract.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

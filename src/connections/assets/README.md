@@ -8,6 +8,12 @@ Shared static assets for platform connection types live here.
   PostgreSQL wiki logo page. Use is subject to the PostgreSQL trademark policy.
 - `mysql-logo.svg`: MySQL brand glyph used by the MySQL connection type. Source: Simple Icons
   MySQL SVG, downloaded from `https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/mysql.svg`.
+- `python-logo.svg`: Python brand glyph reserved for Python runtime and adapter surfaces. Source:
+  Simple Icons Python SVG, downloaded from
+  `https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/python.svg`.
+- `nodejs-logo.svg`: Node.js brand glyph reserved for Node.js runtime and adapter surfaces. Source:
+  Simple Icons Node.js SVG, downloaded from
+  `https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/nodedotjs.svg`.
 - `mssql-logo.svg`: Microsoft SQL Server 2025 icon used by the `mssql.database` connection type.
   Source: Microsoft SQL Server product icon, mirrored by Wikimedia Commons from
   `https://www.microsoft.com/en-us/sql-server`; copyright status is listed as public domain for

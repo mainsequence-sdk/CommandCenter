@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 073: Split Finite Execution And Stream Publication Planning | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 073: Split Finite Execution And Stream Publication Planning | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 073: Split Finite Execution And Stream Publication Planning</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-05-22</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-executable-widget-graph-runner">ADR: Executable Widget Graph Runner and Refresh Coordination</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-source-driven-downstream-execution">ADR: Source-Driven Downstream Execution After Manual Widget Actions</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-039-unified-upstream-consumer-state-contract">ADR 039: Unified Upstream Consumer State Contract</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-041-connection-query-websocket-streaming">ADR 041: Query-Shaped WebSocket Streaming for Connections</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-043-websocket-stream-preview-graphing-semantics">ADR 043: WebSocket Stream Preview And Graphing Semantics</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles">ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision">ADR 046: WebSocket Stream Survivability And Reconnect Supervision</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-047-workspace-runtime-data-reference-store">ADR 047: Workspace Runtime Data Reference Store</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-049-publication-driven-seed-live-runtime-reduction">ADR 049: Publication-Driven Seed/Live Runtime Reduction</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-068-automatic-partial-websocket-row-patching-for-tabular-consumers">ADR 068: Automatic Partial WebSocket Row Patching For Tabular Consumers</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-069-websocket-stream-variable-resubscription">ADR 069: Variable-Driven WebSocket Stream Resubscription</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Workspace execution currently mixes two different lifecycles:</p>
+<ul>
+<li class="">finite execution, where a widget request runs once and finishes as success or error</li>
+<li class="">stream publication, where a WebSocket source owns a long-running connection and publishes runtime
+updates outside the finite graph runner</li>
+</ul>
+<p>The existing graph runner is correct for target-oriented execution:</p>
+<ul>
+<li class="">dashboard refresh</li>
+<li class="">manual recalculation</li>
+<li class="">settings test execution</li>
+<li class="">source-driven request flows that need upstream dependencies first</li>
+</ul>
+<p>It is not a complete model for live streams. WebSocket widgets publish runtime state directly, while
+downstream consumers and status UI still read generic execution state such as <code>waiting</code>, <code>running</code>,
+<code>success</code>, and <code>error</code>.</p>
+<p>That causes incorrect user-visible states:</p>
+<ul>
+<li class="">a stream can be live and feeding downstream data while a generic execution state still marks a
+node as waiting</li>
+<li class="">downstream widgets can flicker between green and orange when retained stream data is valid but a
+transient upstream publication is idle</li>
+<li class="">graph and sidebar status dots cannot distinguish &quot;currently running a finite request&quot; from
+&quot;healthy live stream&quot;</li>
+<li class="">upstream stream errors do not have one consistent way to propagate to all downstream consumers
+with the original failing widget attached</li>
+</ul>
+<p>This is not a widget-specific problem. It is a graph status and propagation problem.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Split workspace runtime planning into two coordinated planners:</p>
+<ol>
+<li class=""><strong>Finite execution planner</strong> for one-shot request execution.</li>
+<li class=""><strong>Stream publication planner</strong> for WebSocket and other long-running publication sources.</li>
+</ol>
+<p>Both planners write into one shared widget status reducer so the graph, sidebar, settings surfaces,
+and workspace chrome display a consistent state. The reducer must preserve the source of each state
+instead of collapsing finite execution and stream publication into one generic color.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="finite-execution-planner">Finite Execution Planner<a href="#finite-execution-planner" class="hash-link" aria-label="Direct link to Finite Execution Planner" title="Direct link to Finite Execution Planner" translate="no">​</a></h2>
+<p>Finite execution covers target refreshes and explicit user actions that run to completion.</p>
+<p>The planner must build the affected execution graph before running nodes:</p>
+<ol>
+<li class="">Build the directed subgraph of widgets that will be updated.</li>
+<li class="">Mark all planned widgets as <code>waiting</code>.</li>
+<li class="">Start with executable roots that have no blocking parents.</li>
+<li class="">Mark currently executing widgets as <code>updating</code>.</li>
+<li class="">On success, mark the widget as <code>ready</code> and release eligible children.</li>
+<li class="">On error, mark the widget as <code>error</code> and mark descendants as <code>upstream-error</code>.</li>
+</ol>
+<p>An upstream error must carry structured source information:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;status&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;upstream-error&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;blockedByWidgetId&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;connection-query-1&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;blockedByOutputId&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;dataset&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;message&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Connection query failed&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;sourceStatus&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;error&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>Descendants should not execute normally after a required parent fails unless the widget explicitly
+declares that it can consume upstream errors as input data.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="stream-publication-planner">Stream Publication Planner<a href="#stream-publication-planner" class="hash-link" aria-label="Direct link to Stream Publication Planner" title="Direct link to Stream Publication Planner" translate="no">​</a></h2>
+<p>Stream publication covers WebSocket and other long-running sources that do not fit a single
+request/response lifecycle.</p>
+<p>The stream source owns connection lifecycle:</p>
+<ul>
+<li class=""><code>idle</code></li>
+<li class=""><code>connecting</code></li>
+<li class=""><code>live</code></li>
+<li class=""><code>reconnecting</code></li>
+<li class=""><code>error</code></li>
+<li class=""><code>closed</code></li>
+</ul>
+<p>The planner must propagate stream publications downstream without converting every message into a
+full finite execution run.</p>
+<p>Rules:</p>
+<ul>
+<li class="">A live stream source with a usable retained output is <code>live</code>, not <code>running</code>.</li>
+<li class="">A reconnecting stream with a usable retained output remains <code>live</code> or <code>reconnecting-live</code>, not
+<code>waiting</code>.</li>
+<li class="">Downstream widgets receiving valid stream data remain <code>live</code> or <code>ready</code>.</li>
+<li class="">Before the first usable stream publication, downstream consumers are <code>waiting</code>.</li>
+<li class="">If the stream source errors, downstream consumers become <code>upstream-error</code> with the stream source
+as <code>blockedByWidgetId</code>.</li>
+<li class="">Stream propagation must be edge-aware, especially for seed/live bindings where one input can be
+ready while the other input is intentionally unbound.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="refresh-command-semantics">Refresh Command Semantics<a href="#refresh-command-semantics" class="hash-link" aria-label="Direct link to Refresh Command Semantics" title="Direct link to Refresh Command Semantics" translate="no">​</a></h2>
+<p>The workspace <code>Refresh</code> command belongs to finite execution planning. It must not restart,
+reconnect, close, reopen, or otherwise re-execute WebSocket stream connections.</p>
+<p>Rules:</p>
+<ul>
+<li class="">Refresh may execute finite request widgets such as HTTP connection queries whose refresh policy
+allows dashboard refresh.</li>
+<li class="">Refresh may execute downstream finite branches that consume the current retained stream output.</li>
+<li class="">Refresh must not treat a WebSocket source as a refresh target.</li>
+<li class="">Refresh must not call WebSocket widget execution as a side effect of refreshing a downstream
+consumer.</li>
+<li class="">Refresh must not reset stream runtime state, retained stream rows, stream sequence numbers,
+reconnect counters, or live connection lifecycle.</li>
+<li class="">Stream reconnection is owned only by the stream publication planner and the stream widget&#x27;s socket
+lifecycle.</li>
+<li class="">If a stream is <code>live</code> or <code>reconnecting</code> with retained usable output, refresh should leave that
+stream state alone and let downstream consumers read the retained publication.</li>
+<li class="">If a stream is in <code>error</code>, refresh should not hide the error by restarting the stream. The stream
+error should propagate downstream as <code>upstream-error</code> until the stream lifecycle itself recovers or
+the user changes stream configuration.</li>
+</ul>
+<p>Current code intent matches this rule: <code>connection-stream-query</code> declares <code>refreshPolicy: not-applicable</code>, no execution triggers, and no executable graph runner entry point. The refresh
+target selector may include passive consumers that depend on stream outputs, but it must never
+classify the stream source itself as a finite refresh target.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="shared-display-status-with-source-aware-indicators">Shared Display Status With Source-Aware Indicators<a href="#shared-display-status-with-source-aware-indicators" class="hash-link" aria-label="Direct link to Shared Display Status With Source-Aware Indicators" title="Direct link to Shared Display Status With Source-Aware Indicators" translate="no">​</a></h2>
+<p>The UI must not directly choose between raw execution state and raw runtime state. It must consume a
+single derived display status.</p>
+<p>The shared reducer owns precedence and combination, but the derived status must not collapse three
+separate concepts into one overloaded glyph:</p>
+<ul>
+<li class=""><strong>Primary widget status</strong>: whether this widget is healthy, waiting, updating, or errored.</li>
+<li class=""><strong>Output lineage</strong>: whether the current published value is finite, stream-derived, or both.</li>
+<li class=""><strong>Activity</strong>: whether this widget is actively executing, connecting, reconnecting, or processing
+an update right now.</li>
+</ul>
+<p>These are different questions. A transform can be healthy and publishing a valid frame while that
+frame is stream-derived. That does not necessarily mean the transform itself owns a WebSocket. It
+means the current output lineage includes a stream source.</p>
+<p>The derived status must preserve these dimensions:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">StatusSource</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;finite-execution&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;stream-publication&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;runtime&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;upstream&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">StatusIndicator</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;dot&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;lightning&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;dot+lightning&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">OutputLineage</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;finite&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;stream&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;finite+stream&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;local&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">ActivityState</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;idle&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;executing&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;connecting&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;reconnecting&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;processing-stream-update&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain" style="display:inline-block"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">DisplayStatus</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  tone</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;neutral&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;waiting&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;updating&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;ready&quot;</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;error&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  source</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> StatusSource </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> StatusSource</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  indicator</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> StatusIndicator</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  lineage</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> OutputLineage</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  activity</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> ActivityState</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  message</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  blockedByWidgetId</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  blockedByOutputId</span><span class="token operator" style="color:rgb(137, 221, 255)">?</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><br></span></code></pre></div></div>
+<p>The reducer derives display state using this precedence:</p>
+<ol>
+<li class="">Local <code>error</code> is red.</li>
+<li class=""><code>upstream-error</code> is red and references the upstream source.</li>
+<li class="">Finite <code>updating</code> is primary/loading.</li>
+<li class="">Stream <code>live</code> or <code>reconnecting</code> with retained usable output is green/live.</li>
+<li class="">Finite <code>ready</code> or runtime <code>ready</code> is green.</li>
+<li class="">Waiting for first required input publication is orange/waiting.</li>
+<li class="">Idle/unconfigured state is neutral.</li>
+</ol>
+<p>The visual indicator is source-aware:</p>
+<ul>
+<li class="">finite execution status uses a dot or normal execution spinner</li>
+<li class="">stream publication status uses a lightning or stream indicator</li>
+<li class="">when finite execution and stream publication both have active status, the UI shows both indicators</li>
+<li class="">normal finite execution error is a red dot</li>
+<li class="">WebSocket or stream publication error is a red lightning indicator</li>
+<li class="">when both finite execution and stream publication are in error, the UI shows red dot plus red
+lightning</li>
+<li class="">downstream blocked by finite execution error shows red dot with the upstream source reference</li>
+<li class="">downstream blocked by stream error shows red lightning with the upstream source reference</li>
+<li class="">healthy live stream shows green lightning</li>
+<li class="">stream waiting for first publication shows orange lightning</li>
+</ul>
+<p>A single display reducer therefore means one canonical source of truth for status precedence and
+combination. It does not mean one visual glyph or one collapsed status source.</p>
+<p>Important: the dot/lightning display is not allowed to mean both &quot;what the widget is&quot; and &quot;where its
+current value came from&quot; without naming which layer is being shown. The reducer must expose the
+primary widget status separately from output lineage.</p>
+<p>Examples:</p>
+<ul>
+<li class="">A WebSocket connection widget with a live socket has primary status <code>ready/live</code>, lineage
+<code>stream</code>, and activity <code>idle</code> or <code>processing-stream-update</code> depending on whether a message is
+currently being handled.</li>
+<li class="">A Tabular Transform with only <code>liveUpdates</code> bound has primary status <code>ready</code> once it publishes a
+transformed frame, lineage <code>stream</code>, and activity <code>idle</code> except during transform processing. It
+does not become a WebSocket owner just because its output is stream-derived.</li>
+<li class="">A Tabular Transform is single-source. It may bind <code>seedData</code> or <code>liveUpdates</code>, but not both; the
+active input role decides the active output channel.</li>
+<li class="">A finite HTTP connection query has primary status <code>ready</code> or <code>error</code>, lineage <code>finite</code>, and
+activity <code>executing</code> only while the request is in flight.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="status-ownership-matrix">Status Ownership Matrix<a href="#status-ownership-matrix" class="hash-link" aria-label="Direct link to Status Ownership Matrix" title="Direct link to Status Ownership Matrix" translate="no">​</a></h2>
+<p>Every widget must classify each active status signal by source before the shared reducer chooses the
+final color and indicator. This rule is global, not specific to Tabular Transform.</p>
+<p>Required composition rules:</p>
+<ul>
+<li class=""><code>liveUpdates</code> only, with a stream source, shows the stream indicator only.</li>
+<li class=""><code>seedData</code> only, with a finite or retained non-stream source, shows the finite/runtime dot only.</li>
+<li class="">Widgets that are true dual-role consumers and have <code>seedData</code> plus <code>liveUpdates</code> bound show both
+dot and lightning when both channels have active state. Tabular Transform is excluded because it
+is a single-source transform, not a seed/live joiner.</li>
+<li class="">finite execution <code>waiting</code>, <code>updating</code>, <code>ready</code>, or <code>error</code> owns the dot channel.</li>
+<li class="">stream <code>connecting</code>, <code>live</code>, <code>reconnecting</code>, <code>waiting</code>, or <code>error</code> owns the lightning channel.</li>
+<li class="">combined finite/seed plus stream state shows both channels without allowing one channel to erase
+the other.</li>
+</ul>
+<p>The status reducer must therefore receive provenance for ready runtime outputs. A transformed output
+with <code>status: ready</code> is not automatically a finite/runtime dot. The producer must say whether that
+ready value came from:</p>
+<ul>
+<li class="">seed-only input</li>
+<li class="">live-only input</li>
+<li class="">both seed and live inputs, only for widgets whose contract explicitly says they are dual-role
+consumers</li>
+<li class="">local finite execution</li>
+<li class="">local static/runtime UI state</li>
+</ul>
+<p>This prevents the specific class of bug where a live-only transformed frame is valid and flowing,
+but the UI shows a green dot as if a separate finite execution path also succeeded. In that case the
+correct display is green lightning only. If the same transform also consumes seed data, the correct
+configuration is invalid for Tabular Transform; dot plus lightning applies to true dual-role
+consumers such as Table, Graph, Statistic, and Asset Screener.</p>
+<p>This provenance requirement applies to every multi-input or transformed-output widget. It is not
+valid for the display reducer to infer channel ownership from <code>source.kind</code>, widget id, or a generic
+<code>runtimeState.status</code> alone.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="effective-change-gating">Effective Change Gating<a href="#effective-change-gating" class="hash-link" aria-label="Direct link to Effective Change Gating" title="Direct link to Effective Change Gating" translate="no">​</a></h2>
+<p>Stream publication must not fan out through the graph on every raw runtime write.</p>
+<p>Before downstream propagation, the runtime must compute an effective signature for each published
+output and each referenced variable result. The stream planner only propagates when the effective
+signature changes for a consumer-relevant output.</p>
+<p>This prevents high-frequency streams from:</p>
+<ul>
+<li class="">re-running unrelated widgets</li>
+<li class="">shaking graph nodes</li>
+<li class="">repeatedly marking widgets waiting/updating when the effective consumed value did not change</li>
+<li class="">forcing variable-driven consumers to re-execute on every raw WebSocket tick</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-variable-change-planning">Runtime Variable Change Planning<a href="#runtime-variable-change-planning" class="hash-link" aria-label="Direct link to Runtime Variable Change Planning" title="Direct link to Runtime Variable Change Planning" translate="no">​</a></h2>
+<p>Runtime value changes are not topology changes.</p>
+<p>Examples:</p>
+<ul>
+<li class="">selecting a different table row</li>
+<li class="">selecting a different Asset Screener row</li>
+<li class="">changing an active cell</li>
+<li class="">receiving a stream update that changes only retained runtime values</li>
+</ul>
+<p>These events do not change widgets, bindings, input ports, output ports, or graph edges. Therefore they
+must not use the same expensive before/after dependency-model rebuild path used for settings and
+binding changes.</p>
+<p>The runtime variable path has three separate responsibilities:</p>
+<ol>
+<li class=""><strong>Immediate local value update</strong>: the source widget&#x27;s runtime state changes immediately and every
+local runtime view, including Variable Explorer, can show the new value without waiting for
+downstream execution.</li>
+<li class=""><strong>Effective value gating</strong>: only referenced variable entries owned by the changed source widget are
+resolved, transformed, and compared against the previous effective signature.</li>
+<li class=""><strong>Downstream dispatch</strong>: if a referenced effective variable changed, the precomputed variable
+registry and dependency graph are used to find consumers and executable descendants.</li>
+</ol>
+<p>The costly dependency path is reserved for topology-changing operations:</p>
+<ul>
+<li class="">widget added or removed</li>
+<li class="">binding added, removed, or retargeted</li>
+<li class="">widget settings changed in a way that alters inputs, outputs, references, or execution behavior</li>
+<li class="">registry or widget definition changed</li>
+</ul>
+<p>For runtime value changes, the planner must use the existing graph:</p>
+<div class="language-ts codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-ts codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token keyword" style="font-style:italic">type</span><span class="token plain"> </span><span class="token class-name" style="color:rgb(255, 203, 107)">RuntimeVariableChangePlan</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  changedWidgetId</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  revision</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">number</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  changedEntries</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">Array</span><span class="token operator" style="color:rgb(137, 221, 255)">&lt;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    entryId</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    sourceOutputId</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    transformSignature</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    beforeEffectiveSignature</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token plain"> </span><span class="token operator" style="color:rgb(137, 221, 255)">|</span><span class="token plain"> </span><span class="token keyword" style="font-style:italic">undefined</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    afterEffectiveSignature</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    targetWidgetIds</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token operator" style="color:rgb(137, 221, 255)">&gt;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  executableTargetWidgetIds</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token builtin" style="color:rgb(130, 170, 255)">string</span><span class="token punctuation" style="color:rgb(199, 146, 234)">[</span><span class="token punctuation" style="color:rgb(199, 146, 234)">]</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><br></span></code></pre></div></div>
+<p>Required runtime variable flow:</p>
+<ol>
+<li class="">Source widget publishes the new runtime state synchronously into the local runtime override store.</li>
+<li class="">Variable Explorer reads from that same effective runtime store and updates immediately.</li>
+<li class="">The runtime variable planner looks up <code>variableRegistry.bySourceWidgetId.get(changedWidgetId)</code>.</li>
+<li class="">It resolves only those outputs and only the referenced transforms, for example
+<code>activeRow -&gt; extract-path:symbol</code>.</li>
+<li class="">It compares effective signatures against the runtime variable signature cache.</li>
+<li class="">If no effective referenced value changed, it stops.</li>
+<li class="">If a value changed, it uses the already-known consumer list and existing dependency graph paths to
+dispatch downstream finite execution or stream resubscription work.</li>
+</ol>
+<p>The runtime variable planner must not rebuild the full dependency model just to discover topology that
+is already known. Rebuilding the dependency model belongs to settings/bindings/widget topology changes.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-fast-resolution-and-graph-reuse-plan">Runtime Fast Resolution And Graph Reuse Plan<a href="#runtime-fast-resolution-and-graph-reuse-plan" class="hash-link" aria-label="Direct link to Runtime Fast Resolution And Graph Reuse Plan" title="Direct link to Runtime Fast Resolution And Graph Reuse Plan" translate="no">​</a></h3>
+<p>Runtime variable resolution is a hot path. It must reuse the compiled workspace dependency graph and
+compiled variable registry instead of rebuilding dependency topology for every runtime publication.</p>
+<p>This applies to every runtime value publication, including:</p>
+<ul>
+<li class="">active row or active cell changes</li>
+<li class="">retained table/screener/chart runtime output changes</li>
+<li class="">stream publications that update retained runtime values</li>
+<li class="">local UI state publications that expose variables</li>
+<li class="">any widget output that can be referenced through a variable transform</li>
+</ul>
+<p>Row selection is only one example. The primary contract is fast resolution over stable topology.</p>
+<p>Implementation order:</p>
+<ol>
+<li class="">Keep a compiled variable graph for the current workspace topology.</li>
+<li class="">Commit the source widget runtime publication to the local runtime override/output store
+synchronously.</li>
+<li class="">Let Variable Explorer render from the updated effective-variable cache immediately.</li>
+<li class="">Resolve only referenced variable entries that the compiled registry says can be affected by the
+changed source widget and output.</li>
+<li class="">Compare transformed effective signatures, for example <code>activeRow.symbol</code>, against the previous
+cached signature for that variable entry.</li>
+<li class="">If no referenced effective signature changed, stop without downstream graph work.</li>
+<li class="">If a referenced effective signature changed, dispatch only the already-known consumers and
+executable descendants from the compiled variable registry and graph paths.</li>
+</ol>
+<p>This plan intentionally avoids dependency recalculation on runtime publication. Dependency
+recalculation is allowed only after topology changes. Runtime publications can change values, but they
+cannot create or remove graph edges.</p>
+<p>Acceptance criteria:</p>
+<ul>
+<li class="">Variable Explorer changes on the same interaction that commits the runtime publication, without waiting for
+downstream HTTP requests, stream writes, or graph refresh.</li>
+<li class="">A newer runtime publication during an active downstream refresh cannot be swallowed by an older
+publication&#x27;s completion handler.</li>
+<li class="">Downstream consumers run only when the effective transformed variable value they reference changes.</li>
+<li class="">Unrelated stream ticks do not rebuild dependency topology and do not trigger variable consumers when
+their referenced effective variable values are unchanged.</li>
+<li class="">Topology snapshots are rebuilt only for settings, binding, widget definition, or workspace graph
+changes.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="runtime-variable-queue-revisions">Runtime Variable Queue Revisions<a href="#runtime-variable-queue-revisions" class="hash-link" aria-label="Direct link to Runtime Variable Queue Revisions" title="Direct link to Runtime Variable Queue Revisions" translate="no">​</a></h3>
+<p>Runtime variable refresh work must be revision-safe.</p>
+<p>It is invalid to dedupe active work only by <code>changedWidgetId</code>. That can swallow a newer row selection
+while an older selection refresh is still running.</p>
+<p>Correct queue semantics:</p>
+<ul>
+<li class="">Every runtime variable change receives a monotonic revision per source widget.</li>
+<li class="">If no work is active for the source widget, enqueue the revision and start it.</li>
+<li class="">If work is active and a newer revision arrives, keep the newer revision pending separately.</li>
+<li class="">When an older revision finishes, it may clear only that revision.</li>
+<li class="">If a newer revision is pending, it must run after the active revision completes.</li>
+<li class="">A stale revision must never remove or overwrite a newer pending revision.</li>
+<li class="">The variable signature cache is updated for the effective value that was actually evaluated, not for
+an arbitrary raw runtime write.</li>
+</ul>
+<p>This preserves the intended performance property: high-frequency streams and repeated clicks still
+coalesce where safe, but the final user-visible selection cannot be dropped.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="seed-and-live-input-semantics">Seed And Live Input Semantics<a href="#seed-and-live-input-semantics" class="hash-link" aria-label="Direct link to Seed And Live Input Semantics" title="Direct link to Seed And Live Input Semantics" translate="no">​</a></h2>
+<p>Multi-input consumers must not be judged by a single generic upstream readiness bit.</p>
+<p>For seed/live consumers:</p>
+<ul>
+<li class="">if only <code>liveUpdates</code> is bound, the live path is sufficient</li>
+<li class="">if only <code>seedData</code> is bound, the seed path is sufficient</li>
+<li class="">if both are bound, the consumer evaluates each input according to its declared role</li>
+<li class="">an unbound optional role must not hold the widget in waiting</li>
+<li class="">a bound role that has not published its first usable value can make the consumer waiting</li>
+<li class="">a bound role with a stream error can make the consumer <code>upstream-error</code></li>
+</ul>
+<p>This rule is generic for widgets whose contract declares dual-role consumption. A transform node may
+declare stricter cardinality. Tabular Transform declares a single active source role: <code>seedData</code>
+publishes <code>dataset</code>; <code>liveUpdates</code> publishes <code>updates</code>; binding both is a configuration error.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="diagnostics">Diagnostics<a href="#diagnostics" class="hash-link" aria-label="Direct link to Diagnostics" title="Direct link to Diagnostics" translate="no">​</a></h2>
+<p>Every planned status transition must be explainable.</p>
+<p>The graph, sidebar hover card, and widget settings should be able to show:</p>
+<ul>
+<li class="">current display status</li>
+<li class="">local status source: execution, stream, runtime, or upstream</li>
+<li class="">upstream blocker when status is <code>waiting</code> or <code>upstream-error</code></li>
+<li class="">whether the widget has retained usable output</li>
+<li class="">last successful publication time for stream paths</li>
+<li class="">last finite execution time for request paths</li>
+</ul>
+<p>Diagnostics should be structured data, not ad hoc console strings.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<p>Positive:</p>
+<ul>
+<li class="">request execution and stream publication no longer fight over one status slot</li>
+<li class="">graph and sidebar can distinguish finite request errors from stream errors</li>
+<li class="">live WebSocket flows can stay green while still surfacing real stream errors</li>
+<li class="">downstream error propagation becomes visible and attributable</li>
+<li class="">seed/live graphs can show which side is blocked or failing</li>
+<li class="">high-frequency streams stop causing full graph recalculation noise</li>
+</ul>
+<p>Tradeoffs:</p>
+<ul>
+<li class="">the runtime needs a richer status model than <code>idle | running | success | waiting | error</code></li>
+<li class="">graph, sidebar, settings, and variable explorer status surfaces must read the same reducer</li>
+<li class="">stream paths need their own propagation planner instead of piggybacking on target execution</li>
+<li class="">runtime variable changes need a fast path separate from topology-changing settings/bindings changes</li>
+<li class="">pending runtime variable work needs revision ownership so active work cannot swallow newer runtime
+publications</li>
+<li class="">tests must cover both finite request flows and stream publication flows</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="widget-gap-analysis">Widget Gap Analysis<a href="#widget-gap-analysis" class="hash-link" aria-label="Direct link to Widget Gap Analysis" title="Direct link to Widget Gap Analysis" translate="no">​</a></h2>
+<p>The current widget registry mostly declares the right ownership split, but the implementation is not
+fully aligned with this ADR yet.</p>
+<table><thead><tr><th>Widget or family</th><th>Current classification</th><th>Architecture fit</th><th>Gap to close</th></tr></thead><tbody><tr><td><code>connection-query</code></td><td><code>execution-owner</code>, finite request, refresh allowed</td><td>Mostly aligned</td><td>Keep <code>canExecute</code> structural only: connection selected, query model selected, time range buildable. Missing variable-backed query fields must execute and surface backend or adapter errors, not be blocked by frontend reference preflight. Add conformance tests for this behavior.</td></tr><tr><td><code>app-component</code></td><td><code>execution-owner</code>, finite request, refresh allowed</td><td>Mostly aligned</td><td>Bring into the finite planner conformance suite so API request errors propagate as local <code>error</code> and block descendants as <code>upstream-error</code>.</td></tr><tr><td><code>position-detail</code></td><td><code>execution-owner</code>, finite request, refresh allowed</td><td>Mostly aligned</td><td>Bring into the finite planner conformance suite and verify refresh/readiness does not depend on ad hoc widget UI state.</td></tr><tr><td><code>main-sequence-dependency-graph</code></td><td><code>execution-owner</code>, finite request, refresh allowed</td><td>Mostly aligned</td><td>Bring into the finite planner conformance suite and verify runtime errors are source-attributed.</td></tr><tr><td><code>connection-stream-query</code></td><td>stream source, refresh not applicable</td><td>Partially aligned</td><td>Make it the canonical first stream planner source. Socket lifecycle, retained publication, effective output signatures, stream errors, and downstream stream propagation must feed the stream planner instead of relying only on component runtime writes.</td></tr><tr><td><code>tabular-transform</code></td><td>single-source transform node with seed/live input alternatives and dataset/updates output alternatives</td><td>Partially aligned</td><td>It must not use the shared dual-role combiner. Enforce single-source cardinality, gate inactive outputs by active input role, and keep live-only bindings on the live path once a transformed live frame exists.</td></tr><tr><td><code>table</code></td><td>passive tabular consumer and republisher, refresh not applicable</td><td>Partially aligned</td><td>Move status/readiness for seed/live input combinations into the shared role-aware consumer resolver. Table merge and active selection outputs must participate in effective signature gating so variable consumers do not refresh on unrelated stream ticks.</td></tr><tr><td><code>graph</code></td><td>passive tabular consumer, refresh not applicable</td><td>Partially aligned</td><td>Use the shared role-aware seed/live resolver for live-only, seed-only, and combined inputs. Managed hidden connection sources must use the finite or stream planner based on source type, not custom graph behavior.</td></tr><tr><td><code>statistic</code></td><td>passive tabular consumer, refresh not applicable</td><td>Partially aligned</td><td>Use the shared role-aware seed/live resolver and effective signature gating for reduced card outputs.</td></tr><tr><td><code>ms-markets-asset-screener</code></td><td>passive semantic tabular consumer with seed/live inputs, refresh not applicable</td><td>Partially aligned</td><td>Use the same role-aware seed/live resolver as Table. Live merge must happen before screener domain resolution, and active-row variables must be gated by effective transformed value signatures.</td></tr><tr><td><code>main-sequence-ohlc-bars</code></td><td>passive tabular chart consumer with seed/live inputs, refresh not applicable</td><td>Partially aligned</td><td>Use the shared role-aware seed/live resolver and stream publication status so live OHLC charts do not flicker between waiting and ready.</td></tr><tr><td><code>main-sequence-curve-plot</code>, <code>main-sequence-zero-curve</code></td><td>passive bound-data consumers, refresh not applicable</td><td>Mostly aligned</td><td>Add conformance coverage that unbound optional inputs are neutral or waiting as intended and upstream errors display through the shared reducer.</td></tr><tr><td><code>debug_stream</code></td><td>passive tabular debug consumer, refresh not applicable</td><td>Partially aligned</td><td>Convert debug output status to the shared source-aware reducer so it can show stream publication source and upstream blockers consistently.</td></tr><tr><td><code>markdown-note</code>, <code>rich-text-note</code>, <code>workspace-row</code>, <code>workspace-slide</code>, <code>main-sequence-project-infra-graph</code>, <code>echarts-spec</code>, <code>lightweight-charts-spec</code></td><td>local/static or configuration widgets with no finite execution</td><td>Mostly aligned</td><td>Make runtime classification explicit where it is currently implicit so status reducers and registry audits do not infer incorrect waiting or execution behavior.</td></tr></tbody></table>
+<p>The audit target is not to make every widget executable. The target is for every widget to declare
+one of these roles clearly:</p>
+<ul>
+<li class="">finite execution owner</li>
+<li class="">stream publication owner</li>
+<li class="">passive consumer</li>
+<li class="">local/static UI</li>
+</ul>
+<p>Every role must feed the same display status reducer, but only finite execution owners participate
+in the finite planner and only stream publication owners participate in the stream planner.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Introduce a source-aware display status model that preserves finite execution, stream
+publication, runtime, and upstream status sources.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add combined visual indicator support for dot, lightning, and dot-plus-lightning states in the
+graph, sidebar, hover cards, and widget settings surfaces.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Refactor finite request execution into an explicit downstream update plan that pre-marks
+executable affected nodes as waiting, marks running nodes as updating, and propagates upstream
+errors with source references. Passive targets continue to derive visible status from the shared
+display reducer so they are not left in orphaned waiting states when no executable node completes
+them.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Propagate finite execution parent failures to blocked downstream nodes as <code>upstream-error</code>
+with <code>blockedByWidgetId</code> and direct <code>blockedByOutputId</code> when available.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a separate stream publication planner that handles WebSocket lifecycle and downstream
+propagation without converting every stream message into a full graph execution.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Enforce refresh semantics so workspace refresh never restarts or re-executes WebSocket stream
+sources and only refreshes finite execution branches plus downstream consumers of retained stream
+publications.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Gate stream propagation by effective output and variable signatures so high-frequency runtime
+writes only fan out when consumer-visible values change.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Make role-aware input readiness generic so seed/live and future multi-input widgets can
+distinguish unbound optional inputs, waiting bound inputs, ready retained outputs, and upstream
+stream errors. The current implementation uses the shared incremental tabular consumer resolver
+as the role-aware boundary for all seed/live tabular consumers; future non-tabular multi-input
+roles should use the same state shape.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Replace ad hoc status console logging with structured diagnostics that explain current
+display status, source, upstream blocker, retained-output availability, and last publication or
+execution time.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add regression tests for finite success, finite error propagation, stream live propagation,
+stream first-publication waiting, stream error propagation, and combined finite-plus-stream
+status indicators.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a widget architecture conformance audit that scans every registered widget for explicit
+role classification: finite execution owner, stream publication owner, passive consumer, or
+local/static UI.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add conformance tests for finite execution-owner widgets: <code>connection-query</code>,
+<code>app-component</code>, <code>position-detail</code>, and <code>main-sequence-dependency-graph</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add conformance tests for stream publication-owner widgets, starting with
+<code>connection-stream-query</code>, covering refresh exclusion, retained output, stream error propagation,
+and effective output signature gating.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Migrate dual-role seed/live consumers to the shared role-aware resolver: <code>table</code>, <code>graph</code>,
+<code>statistic</code>, <code>ms-markets-asset-screener</code>, and <code>main-sequence-ohlc-bars</code>. Keep
+<code>tabular-transform</code> single-source with explicit seed-or-live cardinality.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Verify passive bound-data consumers and debug/spec widgets use the shared display status
+reducer and explicit runtime classification: <code>main-sequence-curve-plot</code>,
+<code>main-sequence-zero-curve</code>, <code>debug_stream</code>, <code>markdown-note</code>, <code>rich-text-note</code>, <code>workspace-row</code>,
+<code>workspace-slide</code>, <code>main-sequence-project-infra-graph</code>, <code>echarts-spec</code>, and
+<code>lightweight-charts-spec</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add variable-output effective signature tests for interaction outputs such as Table active
+row, Asset Screener active row, selected rows, active cell, and selected cell values.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Split variable-driven planning into two paths: topology rebuild for settings/bindings/widget
+changes, and source-scoped fast runtime planning for runtime value publications.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add an immediate effective variable value store that is updated by source runtime publications
+before downstream execution starts, and make Variable Explorer read this store so variables update
+synchronously with the publication that changed them.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Replace <code>changedWidgetId</code>-only runtime variable refresh dedupe with per-source monotonic
+revisions. Active work may coalesce pending revisions, but completion of an older revision must not
+clear a newer runtime publication.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Make runtime variable planning resolve only entries from
+<code>variableRegistry.bySourceWidgetId.get(changedWidgetId)</code>, narrow further by changed source output
+when available, compare effective transformed signatures, and dispatch through the existing graph
+paths without rebuilding the full dependency topology.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add regression tests for rapid runtime value changes, including row selection: publish A then B
+while A&#x27;s downstream refresh is active; B must remain visible in Variable Explorer and must trigger
+the final downstream refresh.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add regression tests proving that unrelated WebSocket ticks do not rebuild dependency topology and
+do not fan out variable refresh work unless a referenced effective variable signature changes.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-and-storage-contract-assessment">Backend And Storage Contract Assessment<a href="#backend-and-storage-contract-assessment" class="hash-link" aria-label="Direct link to Backend And Storage Contract Assessment" title="Direct link to Backend And Storage Contract Assessment" translate="no">​</a></h2>
+<p>The first implementation should be frontend-runtime only.</p>
+<p>No backend storage contract change is required if:</p>
+<ul>
+<li class="">update plans are ephemeral</li>
+<li class="">display status is derived client-side</li>
+<li class="">stream publication signatures are in-memory runtime data</li>
+<li class="">upstream-error propagation is not persisted into workspace JSON</li>
+</ul>
+<p>A backend contract change is required only if we later persist:</p>
+<ul>
+<li class="">status history</li>
+<li class="">last publication diagnostics</li>
+<li class="">execution plans</li>
+<li class="">upstream-error snapshots</li>
+<li class="">stream health telemetry</li>
+</ul>
+<p>If that later happens, the backend must receive an explicit model proposal instead of treating the
+fields as frontend-only widget props.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-073-split-finite-execution-and-stream-publication-planning.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#finite-execution-planner" class="table-of-contents__link toc-highlight">Finite Execution Planner</a></li><li><a href="#stream-publication-planner" class="table-of-contents__link toc-highlight">Stream Publication Planner</a></li><li><a href="#refresh-command-semantics" class="table-of-contents__link toc-highlight">Refresh Command Semantics</a></li><li><a href="#shared-display-status-with-source-aware-indicators" class="table-of-contents__link toc-highlight">Shared Display Status With Source-Aware Indicators</a></li><li><a href="#status-ownership-matrix" class="table-of-contents__link toc-highlight">Status Ownership Matrix</a></li><li><a href="#effective-change-gating" class="table-of-contents__link toc-highlight">Effective Change Gating</a></li><li><a href="#runtime-variable-change-planning" class="table-of-contents__link toc-highlight">Runtime Variable Change Planning</a><ul><li><a href="#runtime-fast-resolution-and-graph-reuse-plan" class="table-of-contents__link toc-highlight">Runtime Fast Resolution And Graph Reuse Plan</a></li><li><a href="#runtime-variable-queue-revisions" class="table-of-contents__link toc-highlight">Runtime Variable Queue Revisions</a></li></ul></li><li><a href="#seed-and-live-input-semantics" class="table-of-contents__link toc-highlight">Seed And Live Input Semantics</a></li><li><a href="#diagnostics" class="table-of-contents__link toc-highlight">Diagnostics</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a></li><li><a href="#widget-gap-analysis" class="table-of-contents__link toc-highlight">Widget Gap Analysis</a></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li><li><a href="#backend-and-storage-contract-assessment" class="table-of-contents__link toc-highlight">Backend And Storage Contract Assessment</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

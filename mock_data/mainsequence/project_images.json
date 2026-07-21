@@ -1,8 +1,10 @@
 [
   {
     "id": 9,
+    "uid": "mock-project-image-analytics-main",
     "project_repo_hash": "abcdef1234567890",
     "related_project": 81,
+    "related_project_uid": "mock-project-analytics",
     "base_image": {
       "id": 1,
       "latest_digest": "sha256:111111111111",
@@ -13,8 +15,10 @@
   },
   {
     "id": 10,
+    "uid": "mock-project-image-macro-main",
     "project_repo_hash": "1234567890abcdef",
     "related_project": 88,
+    "related_project_uid": "mock-project-macro",
     "base_image": {
       "id": 2,
       "latest_digest": "sha256:222222222222",
@@ -25,8 +29,10 @@
   },
   {
     "id": 11,
+    "uid": "mock-project-image-ops-main",
     "project_repo_hash": "fedcba9876543210",
     "related_project": 93,
+    "related_project_uid": "mock-project-ops",
     "base_image": {
       "id": 3,
       "latest_digest": "sha256:333333333333",

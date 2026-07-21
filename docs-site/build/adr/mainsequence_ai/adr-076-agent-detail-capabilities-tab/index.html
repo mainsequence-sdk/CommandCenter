@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/mainsequence_ai/adr-076-agent-detail-capabilities-tab" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 076: Agent Detail Capabilities Tab | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/mainsequence_ai/adr-076-agent-detail-capabilities-tab"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 076: Agent Detail Capabilities Tab | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/mainsequence_ai/adr-076-agent-detail-capabilities-tab"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/mainsequence_ai/adr-076-agent-detail-capabilities-tab" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/mainsequence_ai/adr-076-agent-detail-capabilities-tab" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 076: Agent Detail Capabilities Tab</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-06-14</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/mainsequence_ai/adr-060-session-backed-chat-request-contract">ADR 060: Main Sequence AI Session-Backed Chat Request Contract</a></li>
+<li class=""><a class="" href="/docs/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models">ADR 062: Remove Unused Agent Capability and Session Resource Models</a></li>
+<li class=""><a class="" href="/docs/adr/mainsequence_ai/adr-063-project-agent-configuration-source-of-truth">ADR 063: Project Agent Configuration Source of Truth</a></li>
+<li class=""><a class="" href="/docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts">ADR 074: UID-Only Main Sequence Backend Identifier Contracts</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>The <code>Main Sequence AI</code> agent detail surface currently exposes three tabs:</p>
+<ul>
+<li class=""><code>Overview</code></li>
+<li class=""><code>Agent Card</code></li>
+<li class=""><code>Sessions</code></li>
+</ul>
+<p>It does not expose the agent&#x27;s reusable capabilities as first-class resources.</p>
+<p>The backend now separates:</p>
+<ol>
+<li class="">reusable capability resources</li>
+<li class="">agent/session bindings to those capabilities</li>
+</ol>
+<p>That split changes how the frontend must model authoring.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="capability-resources">Capability resources<a href="#capability-resources" class="hash-link" aria-label="Direct link to Capability resources" title="Direct link to Capability resources" translate="no">​</a></h3>
+<p>Reusable capabilities live under:</p>
+<ul>
+<li class=""><code>GET /orm/api/agents/v1/capabilities/</code></li>
+<li class=""><code>POST /orm/api/agents/v1/capabilities/</code></li>
+<li class=""><code>GET /orm/api/agents/v1/capabilities/{capability_uid}/</code></li>
+<li class=""><code>PATCH /orm/api/agents/v1/capabilities/{capability_uid}/</code></li>
+<li class=""><code>DELETE /orm/api/agents/v1/capabilities/{capability_uid}/</code></li>
+<li class=""><code>GET /orm/api/agents/v1/capabilities/{capability_uid}/content/</code></li>
+<li class=""><code>PUT /orm/api/agents/v1/capabilities/{capability_uid}/content/</code></li>
+</ul>
+<p>The reusable resource owns:</p>
+<ul>
+<li class=""><code>name</code></li>
+<li class=""><code>kind</code></li>
+<li class=""><code>description</code></li>
+<li class=""><code>source_type</code></li>
+<li class=""><code>source_ref</code></li>
+<li class=""><code>capability_path</code></li>
+<li class=""><code>metadata</code></li>
+<li class="">content metadata such as <code>has_content</code>, <code>content_sha256</code>, <code>content_mime_type</code>, and <code>content_size</code></li>
+<li class="">editability through <code>is_editable</code></li>
+</ul>
+<p>Allowed frontend kinds for now are:</p>
+<ul>
+<li class=""><code>skill</code></li>
+<li class=""><code>prompt</code></li>
+</ul>
+<p>The backend enum contains <code>extension</code>, but that kind is currently rejected and must not be exposed
+as a selectable authoring choice.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="agent-bindings">Agent bindings<a href="#agent-bindings" class="hash-link" aria-label="Direct link to Agent bindings" title="Direct link to Agent bindings" translate="no">​</a></h3>
+<p>An agent owns bindings, not the underlying capability resource itself:</p>
+<ul>
+<li class=""><code>GET /orm/api/agents/v1/agents/{agent_uid}/capabilities/</code></li>
+<li class=""><code>POST /orm/api/agents/v1/agents/{agent_uid}/capabilities/bind/</code></li>
+<li class=""><code>POST /orm/api/agents/v1/agents/{agent_uid}/capabilities/unbind/</code></li>
+</ul>
+<p>The binding owns:</p>
+<ul>
+<li class=""><code>role</code></li>
+<li class=""><code>sort_order</code></li>
+<li class=""><code>is_enabled</code></li>
+<li class=""><code>is_locked</code></li>
+<li class=""><code>configuration</code></li>
+<li class="">binding-local <code>source_type</code></li>
+<li class="">binding-local <code>source_ref</code></li>
+</ul>
+<p>This means the agent detail UI cannot treat a bound capability as a single flat document. It must
+respect the resource/binding split.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-a-dedicated-tab-is-needed">Why a dedicated tab is needed<a href="#why-a-dedicated-tab-is-needed" class="hash-link" aria-label="Direct link to Why a dedicated tab is needed" title="Direct link to Why a dedicated tab is needed" translate="no">​</a></h3>
+<p>The agent detail screen is now the natural place to inspect and manage capabilities because it
+already owns:</p>
+<ul>
+<li class="">canonical agent summary state</li>
+<li class="">agent-card inspection</li>
+<li class="">session history</li>
+<li class="">project-executor configuration actions</li>
+</ul>
+<p>Adding capability management to some other surface would fragment agent authoring and make the new
+binding model harder to understand.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-markdown-authoring-matters">Why markdown authoring matters<a href="#why-markdown-authoring-matters" class="hash-link" aria-label="Direct link to Why markdown authoring matters" title="Direct link to Why markdown authoring matters" translate="no">​</a></h3>
+<p>Skills and prompts are content-first assets. A plain form-only editor is insufficient because the
+user needs to author and review markdown in place.</p>
+<p>The backend also makes content updates explicit:</p>
+<ul>
+<li class="">capability create/update payloads do <strong>not</strong> carry <code>content_file</code></li>
+<li class="">content updates happen through <code>/content/</code></li>
+<li class=""><code>is_editable=false</code> capabilities must be treated as read-only</li>
+</ul>
+<p>The frontend therefore needs a markdown authoring surface that understands:</p>
+<ul>
+<li class="">resource metadata</li>
+<li class="">binding metadata</li>
+<li class="">editable vs read-only content</li>
+<li class="">live markdown preview</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="agentsession-contract-changes-in-the-same-implementation-window">AgentSession contract changes in the same implementation window<a href="#agentsession-contract-changes-in-the-same-implementation-window" class="hash-link" aria-label="Direct link to AgentSession contract changes in the same implementation window" title="Direct link to AgentSession contract changes in the same implementation window" translate="no">​</a></h3>
+<p>This implementation window also touches adjacent <code>Agent</code> and <code>AgentSession</code> UX that depends on the
+same agent-detail surface.</p>
+<p>The backend <code>AgentSessionSerializer</code> now exposes one canonical bound handle instead of a plural
+handle list:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;uid&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;session-uid&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;agent_uid&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;agent-uid&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;agent_name&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Agent name&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;agent_type&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;custom&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;created_by_user_uid&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;user-uid&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;parent_session_uid&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token null keyword" style="font-style:italic">null</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;name&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;Quarterly portfolio review&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;status&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;running&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;runtime_state&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;working&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;working&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token boolean" style="color:rgb(255, 88, 116)">true</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;started_at&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;2026-06-14T10:00:00Z&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;ended_at&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token null keyword" style="font-style:italic">null</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;llm_provider&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;openai&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;llm_model&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;gpt-5.4&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;llm_thinking&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;engine_name&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;mainsequence-agent-runtime&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;runtime_config_snapshot&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;error_detail&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;thread_id&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;session_metadata&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;bound_handle&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;uid&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;handle-uid&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;handle_unique_id&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;portfolio-review-q2-2026&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;owner_user_uid&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;user-uid&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">    </span><span class="token property">&quot;is_locked&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token boolean" style="color:rgb(255, 88, 116)">false</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>That contract creates two immediate frontend requirements:</p>
+<ol>
+<li class="">the <code>Sessions</code> list inside <code>Agent Detail</code> must always surface the bound handle when the
+serializer provides it</li>
+<li class="">the dedicated <code>AgentSession</code> detail surface must stop using its current bespoke layout and move
+to the same summary-plus-tabs detail pattern used elsewhere in Main Sequence</li>
+</ol>
+<p>Those changes belong in this ADR because the <code>Capabilities</code> tab increases how often users move
+between:</p>
+<ul>
+<li class="">the agent detail surface</li>
+<li class="">agent-bound sessions</li>
+<li class="">capability and prompt authoring</li>
+</ul>
+<p>If session handle visibility and session detail structure remain inconsistent, the agent authoring
+flow will still feel fragmented even after the capabilities tab exists.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>The <code>Agent Detail</code> surface will add a fourth tab called <code>Capabilities</code>.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-the-tab-is-agent-binding-scoped">1. The tab is agent-binding scoped<a href="#1-the-tab-is-agent-binding-scoped" class="hash-link" aria-label="Direct link to 1. The tab is agent-binding scoped" title="Direct link to 1. The tab is agent-binding scoped" translate="no">​</a></h2>
+<p>The tab will treat:</p>
+<ul>
+<li class=""><code>GET /orm/api/agents/v1/agents/{agent_uid}/capabilities/</code></li>
+</ul>
+<p>as the source of truth for what the current agent can use.</p>
+<p>The screen will not infer capability membership from:</p>
+<ul>
+<li class=""><code>agent_card</code></li>
+<li class="">search results</li>
+<li class="">session history</li>
+<li class="">capability registry contents alone</li>
+</ul>
+<p>Those sources may describe or suggest capabilities, but the binding list is authoritative for the
+agent detail tab.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-the-tab-will-show-prompts-and-skills-only">2. The tab will show prompts and skills only<a href="#2-the-tab-will-show-prompts-and-skills-only" class="hash-link" aria-label="Direct link to 2. The tab will show prompts and skills only" title="Direct link to 2. The tab will show prompts and skills only" translate="no">​</a></h2>
+<p>The visible kinds for this phase are:</p>
+<ul>
+<li class=""><code>prompt</code></li>
+<li class=""><code>skill</code></li>
+</ul>
+<p>The UI will not offer <code>extension</code> creation or filtering.</p>
+<p>The tab will provide:</p>
+<ul>
+<li class="">an <code>All</code> view</li>
+<li class="">a <code>Prompts</code> view</li>
+<li class="">a <code>Skills</code> view</li>
+</ul>
+<p>This is a presentation filter over one bound-capability dataset, not three separate backend
+queries.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-the-ui-will-preserve-the-capability-resource--binding-split">3. The UI will preserve the capability resource / binding split<a href="#3-the-ui-will-preserve-the-capability-resource--binding-split" class="hash-link" aria-label="Direct link to 3. The UI will preserve the capability resource / binding split" title="Direct link to 3. The UI will preserve the capability resource / binding split" translate="no">​</a></h2>
+<p>The tab will expose two layers of information:</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="resource-layer">Resource layer<a href="#resource-layer" class="hash-link" aria-label="Direct link to Resource layer" title="Direct link to Resource layer" translate="no">​</a></h3>
+<p>Shown from the nested <code>capability</code> object and capability detail/content endpoints:</p>
+<ul>
+<li class=""><code>name</code></li>
+<li class=""><code>kind</code></li>
+<li class=""><code>description</code></li>
+<li class=""><code>source_type</code></li>
+<li class=""><code>source_ref</code></li>
+<li class=""><code>capability_path</code></li>
+<li class=""><code>metadata</code></li>
+<li class=""><code>is_editable</code></li>
+<li class="">content metadata</li>
+<li class="">markdown content</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="binding-layer">Binding layer<a href="#binding-layer" class="hash-link" aria-label="Direct link to Binding layer" title="Direct link to Binding layer" translate="no">​</a></h3>
+<p>Shown from the agent binding itself:</p>
+<ul>
+<li class=""><code>role</code></li>
+<li class=""><code>sort_order</code></li>
+<li class=""><code>is_enabled</code></li>
+<li class=""><code>is_locked</code></li>
+<li class=""><code>configuration</code></li>
+<li class="">binding-local <code>source_type</code></li>
+<li class="">binding-local <code>source_ref</code></li>
+</ul>
+<p>The frontend must not flatten those fields into one PATCH payload because the backend does not
+model them that way.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-the-tab-will-use-lazy-content-loading">4. The tab will use lazy content loading<a href="#4-the-tab-will-use-lazy-content-loading" class="hash-link" aria-label="Direct link to 4. The tab will use lazy content loading" title="Direct link to 4. The tab will use lazy content loading" translate="no">​</a></h2>
+<p>The bindings list endpoint is sufficient for the overview table, but markdown content must be
+loaded lazily.</p>
+<p>When the user opens a capability editor or detail pane, the frontend will fetch:</p>
+<ul>
+<li class=""><code>GET /orm/api/agents/v1/capabilities/{capability_uid}/content/</code></li>
+</ul>
+<p>This avoids loading full markdown bodies for every bound capability during the initial agent-detail
+hydration.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-the-editor-will-be-a-live-markdown-editor">5. The editor will be a live markdown editor<a href="#5-the-editor-will-be-a-live-markdown-editor" class="hash-link" aria-label="Direct link to 5. The editor will be a live markdown editor" title="Direct link to 5. The editor will be a live markdown editor" translate="no">​</a></h2>
+<p>Editing prompts and skills will use a split authoring experience:</p>
+<ul>
+<li class="">left: editable markdown source</li>
+<li class="">right: live rendered markdown preview</li>
+</ul>
+<p>Implementation should reuse existing repository primitives where possible:</p>
+<ul>
+<li class=""><code>@uiw/react-codemirror</code> for source editing</li>
+<li class=""><code>MarkdownContent</code> for preview rendering</li>
+</ul>
+<p>The editor is not a rich-text surface. The saved source of truth remains markdown text.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="6-content-editing-uses-the-dedicated-content-endpoint-only">6. Content editing uses the dedicated content endpoint only<a href="#6-content-editing-uses-the-dedicated-content-endpoint-only" class="hash-link" aria-label="Direct link to 6. Content editing uses the dedicated content endpoint only" title="Direct link to 6. Content editing uses the dedicated content endpoint only" translate="no">​</a></h2>
+<p>Capability metadata and capability content are separate save paths.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="metadata-save">Metadata save<a href="#metadata-save" class="hash-link" aria-label="Direct link to Metadata save" title="Direct link to Metadata save" translate="no">​</a></h3>
+<p>Use:</p>
+<ul>
+<li class=""><code>POST /orm/api/agents/v1/capabilities/</code> for new reusable capabilities</li>
+<li class=""><code>PATCH /orm/api/agents/v1/capabilities/{capability_uid}/</code> for resource metadata updates</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="content-save">Content save<a href="#content-save" class="hash-link" aria-label="Direct link to Content save" title="Direct link to Content save" translate="no">​</a></h3>
+<p>Use:</p>
+<ul>
+<li class=""><code>PUT /orm/api/agents/v1/capabilities/{capability_uid}/content/</code></li>
+</ul>
+<p>with JSON such as:</p>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;content&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;# Markdown skill\n&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;filename&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;rebalance.md&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;content_mime_type&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;text/markdown&quot;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>The normal metadata create/update payloads must not send <code>content_file</code>.</p>
+<p>If <code>is_editable=false</code>, the editor becomes read-only and the content save action stays disabled.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="7-add-flow-supports-both-create-and-bind-and-bind-existing">7. Add flow supports both create-and-bind and bind-existing<a href="#7-add-flow-supports-both-create-and-bind-and-bind-existing" class="hash-link" aria-label="Direct link to 7. Add flow supports both create-and-bind and bind-existing" title="Direct link to 7. Add flow supports both create-and-bind and bind-existing" translate="no">​</a></h2>
+<p>The <code>Capabilities</code> tab will expose an <code>Add capability</code> action with two supported paths:</p>
+<ol>
+<li class="">create a new reusable capability and bind it to this agent</li>
+<li class="">bind an existing reusable capability to this agent</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="create-and-bind">Create-and-bind<a href="#create-and-bind" class="hash-link" aria-label="Direct link to Create-and-bind" title="Direct link to Create-and-bind" translate="no">​</a></h3>
+<p>The save flow is:</p>
+<ol>
+<li class=""><code>POST /orm/api/agents/v1/capabilities/</code></li>
+<li class="">optionally <code>PUT /orm/api/agents/v1/capabilities/{capability_uid}/content/</code></li>
+<li class=""><code>POST /orm/api/agents/v1/agents/{agent_uid}/capabilities/bind/</code></li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="bind-existing">Bind-existing<a href="#bind-existing" class="hash-link" aria-label="Direct link to Bind-existing" title="Direct link to Bind-existing" translate="no">​</a></h3>
+<p>The flow is:</p>
+<ol>
+<li class="">pick an existing capability from the reusable capability registry</li>
+<li class=""><code>POST /orm/api/agents/v1/agents/{agent_uid}/capabilities/bind/</code></li>
+</ol>
+<p>The underlying capability resource is shared. Binding an existing capability must not imply that
+the agent owns exclusive edit or delete rights to the resource.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="8-unbind-is-separate-from-delete">8. Unbind is separate from delete<a href="#8-unbind-is-separate-from-delete" class="hash-link" aria-label="Direct link to 8. Unbind is separate from delete" title="Direct link to 8. Unbind is separate from delete" translate="no">​</a></h2>
+<p>The first implementation will support unbinding from the current agent:</p>
+<ul>
+<li class=""><code>POST /orm/api/agents/v1/agents/{agent_uid}/capabilities/unbind/</code></li>
+</ul>
+<p>It will not delete the underlying reusable capability resource from the agent-detail tab by
+default.</p>
+<p>Deleting a reusable capability can affect other agents or sessions. That needs a separate decision
+with explicit cross-agent impact handling.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="9-session-capability-bindings-are-out-of-scope-for-this-tab">9. Session capability bindings are out of scope for this tab<a href="#9-session-capability-bindings-are-out-of-scope-for-this-tab" class="hash-link" aria-label="Direct link to 9. Session capability bindings are out of scope for this tab" title="Direct link to 9. Session capability bindings are out of scope for this tab" translate="no">​</a></h2>
+<p>The backend also supports:</p>
+<ul>
+<li class=""><code>GET /orm/api/agents/v1/sessions/{session_uid}/capabilities/</code></li>
+<li class="">session bind/unbind</li>
+</ul>
+<p>This ADR does not introduce session-capability authoring into the agent detail surface.</p>
+<p>Agent-bound and session-bound capabilities have different semantics:</p>
+<ul>
+<li class="">agent-bound capabilities affect normal agent discovery/search</li>
+<li class="">session-bound capabilities do not</li>
+</ul>
+<p>Mixing them into the same first implementation would make the UI ambiguous.</p>
+<p>Session capability management can be added later on <code>AgentSession</code> detail if needed.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="10-agent-detail-session-lists-must-always-show-the-bound-handle">10. Agent-detail session lists must always show the bound handle<a href="#10-agent-detail-session-lists-must-always-show-the-bound-handle" class="hash-link" aria-label="Direct link to 10. Agent-detail session lists must always show the bound handle" title="Direct link to 10. Agent-detail session lists must always show the bound handle" translate="no">​</a></h2>
+<p>The <code>Sessions</code> tab inside <code>Agent Detail</code> consumes <code>AgentSessionSerializer</code> rows and must surface
+handle information as first-class row metadata.</p>
+<p>When <code>bound_handle</code> is present, the session list must display:</p>
+<ul>
+<li class=""><code>bound_handle.handle_unique_id</code> as the primary handle label</li>
+<li class=""><code>bound_handle.uid</code> as secondary detail where space allows</li>
+</ul>
+<p>Handle presence must not be hidden behind raw JSON or a secondary drilldown. It belongs directly in
+the session list because handle identity is part of how users distinguish long-lived sessions.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="11-agentsession-detail-will-use-the-standard-summary-and-tabs-pattern">11. AgentSession detail will use the standard summary and tabs pattern<a href="#11-agentsession-detail-will-use-the-standard-summary-and-tabs-pattern" class="hash-link" aria-label="Direct link to 11. AgentSession detail will use the standard summary and tabs pattern" title="Direct link to 11. AgentSession detail will use the standard summary and tabs pattern" translate="no">​</a></h2>
+<p>The dedicated <code>AgentSession</code> detail screen must follow the same detail conventions used across the
+rest of the application:</p>
+<ul>
+<li class="">summary header first</li>
+<li class="">tabs for major information groups</li>
+<li class="">consistent detail sections beneath the active tab</li>
+</ul>
+<p>It should stop reading like a one-off debug page.</p>
+<p>This ADR does not freeze the final tab names, but the layout direction is fixed:</p>
+<ul>
+<li class="">one canonical summary area</li>
+<li class="">one canonical tab strip</li>
+<li class="">one consistent detail-body pattern</li>
+</ul>
+<p>The goal is that agent detail and session detail feel like neighboring entity screens, not separate
+products.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="12-agentsession-handle-normalization-will-use-bound_handle-as-the-canonical-field">12. AgentSession handle normalization will use <code>bound_handle</code> as the canonical field<a href="#12-agentsession-handle-normalization-will-use-bound_handle-as-the-canonical-field" class="hash-link" aria-label="Direct link to 12-agentsession-handle-normalization-will-use-bound_handle-as-the-canonical-field" title="Direct link to 12-agentsession-handle-normalization-will-use-bound_handle-as-the-canonical-field" translate="no">​</a></h2>
+<p>For <code>AgentSessionSerializer</code>-backed screens, the frontend will normalize handles from the singular
+<code>bound_handle</code> object.</p>
+<p>The normalized shape should preserve at least:</p>
+<ul>
+<li class="">handle UID</li>
+<li class=""><code>handle_unique_id</code></li>
+<li class=""><code>owner_user_uid</code></li>
+<li class=""><code>is_locked</code></li>
+</ul>
+<p>The following surfaces must read that canonical contract consistently:</p>
+<ul>
+<li class="">the <code>Sessions</code> tab inside <code>Agent Detail</code></li>
+<li class="">the standalone <code>AgentSession</code> detail page</li>
+<li class="">shared session catalogs and pickers that consume <code>AgentSessionSerializer</code> rows</li>
+</ul>
+<p>For this serializer contract, the frontend must stop depending on plural <code>bound_handles</code> array
+semantics.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope">Scope<a href="#scope" class="hash-link" aria-label="Direct link to Scope" title="Direct link to Scope" translate="no">​</a></h2>
+<p>This ADR covers:</p>
+<ul>
+<li class="">the new <code>Capabilities</code> tab inside <code>AgentDetailView</code></li>
+<li class="">prompt and skill display for agent-bound capabilities</li>
+<li class="">reusable capability resource vs binding separation</li>
+<li class="">live markdown authoring for capability content</li>
+<li class="">add, bind, edit-content, edit-metadata, and unbind flows</li>
+<li class="">handle visibility in the <code>Agent Detail</code> sessions list</li>
+<li class=""><code>AgentSessionSerializer</code> normalization for singular <code>bound_handle</code></li>
+<li class=""><code>AgentSession</code> detail layout alignment with the standard summary/tabs/detail pattern</li>
+</ul>
+<p>This ADR does not cover:</p>
+<ul>
+<li class="">session-bound capability authoring UI</li>
+<li class="">reusable capability deletion semantics across agents</li>
+<li class=""><code>extension</code> capability kind</li>
+<li class="">non-markdown binary file authoring</li>
+<li class="">capability search/discovery ranking outside this tab</li>
+<li class="">backend changes to handle lifecycle semantics beyond the published serializer fields</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-direction">Implementation Direction<a href="#implementation-direction" class="hash-link" aria-label="Direct link to Implementation Direction" title="Direct link to Implementation Direction" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="ui-shape">UI shape<a href="#ui-shape" class="hash-link" aria-label="Direct link to UI shape" title="Direct link to UI shape" translate="no">​</a></h3>
+<ol>
+<li class="">Add a <code>Capabilities</code> tab to <code>extensions/main_sequence_ai/surfaces/agents/AgentDetailView.tsx</code>.</li>
+<li class="">Load agent bindings from <code>GET /orm/api/agents/v1/agents/{agent_uid}/capabilities/</code>.</li>
+<li class="">Render one list with client-side kind filters:<!-- -->
+<ul>
+<li class=""><code>All</code></li>
+<li class=""><code>Prompts</code></li>
+<li class=""><code>Skills</code></li>
+</ul>
+</li>
+<li class="">Show binding metadata and nested capability metadata in distinct columns/sections.</li>
+<li class="">Open capability detail/editing in a dedicated panel or dialog instead of overloading the
+existing <code>Agent Card</code> view.</li>
+<li class="">Update the <code>Sessions</code> tab inside <code>Agent Detail</code> so each session row always surfaces the
+normalized bound handle when the serializer provides one.</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="api-clients">API clients<a href="#api-clients" class="hash-link" aria-label="Direct link to API clients" title="Direct link to API clients" translate="no">​</a></h3>
+<ol start="7">
+<li class="">Add shared clients for:<!-- -->
+<ul>
+<li class="">capability list/detail/content</li>
+<li class="">agent capability bindings</li>
+<li class="">bind/unbind</li>
+</ul>
+</li>
+<li class="">Keep all lookup paths UID-only.</li>
+<li class="">Treat bind as the only write path for binding-level fields.</li>
+<li class="">Refetch bindings after every bind, unbind, sync, or capability metadata/content save.</li>
+<li class="">Normalize <code>AgentSessionSerializer.bound_handle</code> in the shared session-model layer and stop
+depending on plural <code>bound_handles</code> for serializer-backed session screens.</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="editing-workflow">Editing workflow<a href="#editing-workflow" class="hash-link" aria-label="Direct link to Editing workflow" title="Direct link to Editing workflow" translate="no">​</a></h3>
+<ol start="12">
+<li class="">For editable capabilities, load content lazily from <code>/content/</code>.</li>
+<li class="">Build a split markdown editor using existing <code>CodeMirror</code> and <code>MarkdownContent</code> primitives.</li>
+<li class="">Save resource metadata through <code>POST</code>/<code>PATCH</code>.</li>
+<li class="">Save markdown source through <code>PUT /content/</code>.</li>
+<li class="">Disable content save when <code>is_editable=false</code>.</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="add-flow">Add flow<a href="#add-flow" class="hash-link" aria-label="Direct link to Add flow" title="Direct link to Add flow" translate="no">​</a></h3>
+<ol start="17">
+<li class="">Add an <code>Add capability</code> dialog with:</li>
+</ol>
+<ul>
+<li class=""><code>Create new</code></li>
+<li class=""><code>Bind existing</code></li>
+</ul>
+<ol start="18">
+<li class="">Restrict new capability kind selection to:</li>
+</ol>
+<ul>
+<li class=""><code>prompt</code></li>
+<li class=""><code>skill</code></li>
+</ul>
+<ol start="19">
+<li class="">Support inline markdown authoring during create-new.</li>
+<li class="">Bind the new or selected reusable capability to the current agent after the resource step.</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="agentsession-detail-alignment">AgentSession detail alignment<a href="#agentsession-detail-alignment" class="hash-link" aria-label="Direct link to AgentSession detail alignment" title="Direct link to AgentSession detail alignment" translate="no">​</a></h3>
+<ol start="21">
+<li class="">Refactor the standalone <code>AgentSession</code> detail surface to use the standard summary-plus-tabs
+layout pattern already used by agent, project, and other Main Sequence entity screens.</li>
+<li class="">Move handle presentation out of raw-json-only sections and into the summary/detail flow.</li>
+<li class="">Ensure the dedicated session page and any shared detail sections read handle data from the
+normalized singular <code>bound_handle</code> contract.</li>
+</ol>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="tests-and-docs">Tests and docs<a href="#tests-and-docs" class="hash-link" aria-label="Direct link to Tests and docs" title="Direct link to Tests and docs" translate="no">​</a></h3>
+<ol start="24">
+<li class="">Add focused tests for:</li>
+</ol>
+<ul>
+<li class="">capability binding normalization</li>
+<li class="">content endpoint save sequencing</li>
+<li class="">readonly capability behavior</li>
+<li class=""><code>bound_handle</code> normalization for session rows and detail payloads</li>
+<li class="">agent-detail session-row rendering with handle metadata</li>
+</ul>
+<ol start="25">
+<li class="">After implementation, update:</li>
+</ol>
+<ul>
+<li class=""><code>extensions/main_sequence_ai/surfaces/agents/README.md</code></li>
+<li class=""><code>extensions/main_sequence_ai/surfaces/session/README.md</code></li>
+<li class=""><code>extensions/main_sequence_ai/agent-session-detail/README.md</code></li>
+<li class="">any new feature-directory README created for capability clients/components</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add a <code>Capabilities</code> tab to <code>extensions/main_sequence_ai/surfaces/agents/AgentDetailView.tsx</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add shared API clients for reusable capability list/detail/content operations.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add shared API clients for agent capability bindings, bind, and unbind.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep all new capability and binding lookups UID-only.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Load <code>GET /orm/api/agents/v1/agents/{agent_uid}/capabilities/</code> as the canonical dataset for
+the tab.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Render one bound-capabilities list with client-side filters for <code>All</code>, <code>Prompts</code>, and
+<code>Skills</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Separate binding metadata from reusable capability metadata in the UI.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Build a capability detail/editor surface as a dedicated panel or dialog instead of reusing
+the <code>Agent Card</code> tab.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Load capability markdown lazily from
+<code>GET /orm/api/agents/v1/capabilities/{capability_uid}/content/</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Build a live markdown editor with source editing on one side and rendered markdown preview on
+the other.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Reuse existing repository primitives for authoring and preview:<!-- -->
+<ul>
+<li class=""><code>@uiw/react-codemirror</code></li>
+<li class=""><code>MarkdownContent</code></li>
+</ul>
+</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Save reusable capability metadata through <code>POST /orm/api/agents/v1/capabilities/</code> and
+<code>PATCH /orm/api/agents/v1/capabilities/{capability_uid}/</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Save markdown source only through
+<code>PUT /orm/api/agents/v1/capabilities/{capability_uid}/content/</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep <code>content_file</code> out of normal metadata create/update payloads.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Enforce <code>is_editable=false</code> as a read-only content state in the editor.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add an <code>Add capability</code> flow with two modes:<!-- -->
+<ul>
+<li class=""><code>Create new</code></li>
+<li class=""><code>Bind existing</code></li>
+</ul>
+</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Restrict new capability creation kinds to <code>prompt</code> and <code>skill</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Support inline markdown authoring during create-new.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Bind newly created capabilities to the current agent after the resource step completes.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Support binding an existing reusable capability to the current agent.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Support unbinding from the current agent without deleting the underlying reusable capability.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Normalize <code>AgentSessionSerializer.bound_handle</code> as the canonical handle contract for
+serializer-backed session screens.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update the <code>Sessions</code> tab inside <code>Agent Detail</code> so each session row always shows the bound
+handle when present.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Surface <code>bound_handle.handle_unique_id</code> as the primary handle label in agent-detail session
+rows.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Surface <code>bound_handle.uid</code> as secondary handle detail where the row layout allows it.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Refactor the standalone <code>AgentSession</code> detail page to the standard summary-plus-tabs detail
+layout.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Move handle presentation in <code>AgentSession</code> detail out of raw JSON sections and into the
+summary/detail flow.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure shared session pickers/catalogs that consume <code>AgentSessionSerializer</code> rows also read
+the singular <code>bound_handle</code> contract.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add focused tests for capability binding normalization and capability content save
+sequencing.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add focused tests for readonly capability behavior.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add focused tests for <code>bound_handle</code> normalization in shared session models.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add focused tests for agent-detail session-row rendering with handle metadata.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <code>extensions/main_sequence_ai/surfaces/agents/README.md</code> after implementation.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <code>extensions/main_sequence_ai/surfaces/session/README.md</code> after implementation.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <code>extensions/main_sequence_ai/agent-session-detail/README.md</code> after implementation.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add README coverage for any new capability-specific feature directory introduced by the
+implementation.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">agent capability authoring becomes visible at the point where users already inspect the agent</li>
+<li class="">the UI matches the backend capability/binding model instead of flattening it</li>
+<li class="">prompts and skills become editable without abusing the agent-card payload</li>
+<li class="">markdown content stays first-class and previewable</li>
+<li class="">session handles become visible and consistent anywhere <code>AgentSessionSerializer</code> is rendered</li>
+<li class="">agent detail and session detail become structurally aligned, making the authoring flow easier to
+scan</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="negative">Negative<a href="#negative" class="hash-link" aria-label="Direct link to Negative" title="Direct link to Negative" translate="no">​</a></h3>
+<ul>
+<li class="">the tab introduces another set of agent-detail queries and mutations</li>
+<li class="">the UI must manage two write surfaces for one conceptual item:<!-- -->
+<ul>
+<li class="">resource metadata</li>
+<li class="">markdown content</li>
+</ul>
+</li>
+<li class="">reusing existing capabilities introduces shared-ownership considerations</li>
+<li class="">binding updates depend on backend bind semantics staying stable</li>
+<li class="">the session-detail surface refactor adds UI churn beyond the narrow capabilities tab itself</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="required-fixes">Required Fixes<a href="#required-fixes" class="hash-link" aria-label="Direct link to Required Fixes" title="Direct link to Required Fixes" translate="no">​</a></h2>
+<ul>
+<li class="">The agent detail surface must stop treating capabilities as implicit agent-card data.</li>
+<li class="">The agent detail surface must expose agent-bound capabilities through the canonical bindings
+endpoint.</li>
+<li class="">The frontend must separate reusable capability metadata writes from markdown content writes.</li>
+<li class="">The frontend must not surface <code>extension</code> as a selectable capability kind in this phase.</li>
+<li class="">The frontend must keep reusable capability deletion out of the first agent-detail tab
+implementation.</li>
+<li class="">The <code>Sessions</code> tab inside <code>Agent Detail</code> must always display the session handle when
+<code>bound_handle</code> is present.</li>
+<li class="">Shared session normalization must read the singular <code>bound_handle</code> contract for
+<code>AgentSessionSerializer</code>-backed screens.</li>
+<li class="">The standalone <code>AgentSession</code> detail surface must be refactored to the standard
+summary-plus-tabs entity-detail style.</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/mainsequence_ai/adr-076-agent-detail-capabilities-tab.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a><ul><li><a href="#capability-resources" class="table-of-contents__link toc-highlight">Capability resources</a></li><li><a href="#agent-bindings" class="table-of-contents__link toc-highlight">Agent bindings</a></li><li><a href="#why-a-dedicated-tab-is-needed" class="table-of-contents__link toc-highlight">Why a dedicated tab is needed</a></li><li><a href="#why-markdown-authoring-matters" class="table-of-contents__link toc-highlight">Why markdown authoring matters</a></li><li><a href="#agentsession-contract-changes-in-the-same-implementation-window" class="table-of-contents__link toc-highlight">AgentSession contract changes in the same implementation window</a></li></ul></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#1-the-tab-is-agent-binding-scoped" class="table-of-contents__link toc-highlight">1. The tab is agent-binding scoped</a></li><li><a href="#2-the-tab-will-show-prompts-and-skills-only" class="table-of-contents__link toc-highlight">2. The tab will show prompts and skills only</a></li><li><a href="#3-the-ui-will-preserve-the-capability-resource--binding-split" class="table-of-contents__link toc-highlight">3. The UI will preserve the capability resource / binding split</a><ul><li><a href="#resource-layer" class="table-of-contents__link toc-highlight">Resource layer</a></li><li><a href="#binding-layer" class="table-of-contents__link toc-highlight">Binding layer</a></li></ul></li><li><a href="#4-the-tab-will-use-lazy-content-loading" class="table-of-contents__link toc-highlight">4. The tab will use lazy content loading</a></li><li><a href="#5-the-editor-will-be-a-live-markdown-editor" class="table-of-contents__link toc-highlight">5. The editor will be a live markdown editor</a></li><li><a href="#6-content-editing-uses-the-dedicated-content-endpoint-only" class="table-of-contents__link toc-highlight">6. Content editing uses the dedicated content endpoint only</a><ul><li><a href="#metadata-save" class="table-of-contents__link toc-highlight">Metadata save</a></li><li><a href="#content-save" class="table-of-contents__link toc-highlight">Content save</a></li></ul></li><li><a href="#7-add-flow-supports-both-create-and-bind-and-bind-existing" class="table-of-contents__link toc-highlight">7. Add flow supports both create-and-bind and bind-existing</a><ul><li><a href="#create-and-bind" class="table-of-contents__link toc-highlight">Create-and-bind</a></li><li><a href="#bind-existing" class="table-of-contents__link toc-highlight">Bind-existing</a></li></ul></li><li><a href="#8-unbind-is-separate-from-delete" class="table-of-contents__link toc-highlight">8. Unbind is separate from delete</a></li><li><a href="#9-session-capability-bindings-are-out-of-scope-for-this-tab" class="table-of-contents__link toc-highlight">9. Session capability bindings are out of scope for this tab</a></li><li><a href="#10-agent-detail-session-lists-must-always-show-the-bound-handle" class="table-of-contents__link toc-highlight">10. Agent-detail session lists must always show the bound handle</a></li><li><a href="#11-agentsession-detail-will-use-the-standard-summary-and-tabs-pattern" class="table-of-contents__link toc-highlight">11. AgentSession detail will use the standard summary and tabs pattern</a></li><li><a href="#12-agentsession-handle-normalization-will-use-bound_handle-as-the-canonical-field" class="table-of-contents__link toc-highlight">12. AgentSession handle normalization will use <code>bound_handle</code> as the canonical field</a></li><li><a href="#scope" class="table-of-contents__link toc-highlight">Scope</a></li><li><a href="#implementation-direction" class="table-of-contents__link toc-highlight">Implementation Direction</a><ul><li><a href="#ui-shape" class="table-of-contents__link toc-highlight">UI shape</a></li><li><a href="#api-clients" class="table-of-contents__link toc-highlight">API clients</a></li><li><a href="#editing-workflow" class="table-of-contents__link toc-highlight">Editing workflow</a></li><li><a href="#add-flow" class="table-of-contents__link toc-highlight">Add flow</a></li><li><a href="#agentsession-detail-alignment" class="table-of-contents__link toc-highlight">AgentSession detail alignment</a></li><li><a href="#tests-and-docs" class="table-of-contents__link toc-highlight">Tests and docs</a></li></ul></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#negative" class="table-of-contents__link toc-highlight">Negative</a></li></ul></li><li><a href="#required-fixes" class="table-of-contents__link toc-highlight">Required Fixes</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

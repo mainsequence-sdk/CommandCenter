@@ -1,0 +1,15 @@
+{
+  "id": "implementation_tasks/ms-markets-api-binding/README",
+  "title": "MS Markets API Binding Tasks",
+  "description": "Implementation tasks for ADR 075: MS Markets API Binding.",
+  "source": "@site/../docs/implementation_tasks/ms-markets-api-binding/README.md",
+  "sourceDirName": "implementation_tasks/ms-markets-api-binding",
+  "slug": "/implementation_tasks/ms-markets-api-binding/",
+  "permalink": "/docs/implementation_tasks/ms-markets-api-binding/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/implementation_tasks/ms-markets-api-binding/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

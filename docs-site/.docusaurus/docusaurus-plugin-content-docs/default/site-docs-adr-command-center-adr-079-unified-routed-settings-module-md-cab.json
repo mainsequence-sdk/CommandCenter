@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-079-unified-routed-settings-module",
+  "title": "ADR 079: Unified Routed Settings Module",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-079-unified-routed-settings-module.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-079-unified-routed-settings-module",
+  "permalink": "/docs/adr/command_center/adr-079-unified-routed-settings-module",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-079-unified-routed-settings-module.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

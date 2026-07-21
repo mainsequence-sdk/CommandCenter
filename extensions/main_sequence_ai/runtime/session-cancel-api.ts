@@ -2,6 +2,7 @@ import {
   fetchMainSequenceAiAssistantResponse,
   type MainSequenceAiAssistantRuntimeTarget,
 } from "./assistant-endpoint";
+import { buildRuntimeHttpErrorMessage } from "./http-error";
 
 export interface CancelChatSessionRequest {
   runtimeSessionUid: string;
@@ -24,7 +25,7 @@ export async function cancelChatSession({
   token?: string | null;
   tokenType?: string;
 }) {
-  const { response } = await fetchMainSequenceAiAssistantResponse({
+  const { response, url } = await fetchMainSequenceAiAssistantResponse({
     accept: "application/json",
     assistantEndpoint,
     currentSessionId: body.runtimeSessionUid,
@@ -46,14 +47,14 @@ export async function cancelChatSession({
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as
-      | { detail?: string; error?: string; message?: string }
-      | null;
     throw new Error(
-      payload?.message ||
-        payload?.detail ||
-        payload?.error ||
-        `Session cancellation failed with status ${response.status}.`,
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage: `Session cancellation failed with status ${response.status}.`,
+        method: "POST",
+        operation: "Agent session cancellation request failed",
+        response,
+        url,
+      }),
     );
   }
 }

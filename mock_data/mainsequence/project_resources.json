@@ -1,7 +1,9 @@
 [
   {
     "id": 6,
+    "uid": "mock-project-resource-revenue-dashboard",
     "project": 81,
+    "project_uid": "mock-project-analytics",
     "name": "Revenue Dashboard",
     "resource_type": "streamlit_dashboard",
     "path": "dashboards/revenue_dashboard/app.py",
@@ -12,7 +14,9 @@
   },
   {
     "id": 7,
+    "uid": "mock-project-resource-macro-dashboard",
     "project": 88,
+    "project_uid": "mock-project-macro",
     "name": "Macro Dashboard",
     "resource_type": "streamlit_dashboard",
     "path": "dashboards/macro_dashboard/app.py",
@@ -23,7 +27,9 @@
   },
   {
     "id": 8,
+    "uid": "mock-project-resource-ops-status-board",
     "project": 93,
+    "project_uid": "mock-project-ops",
     "name": "Ops Status Board",
     "resource_type": "streamlit_dashboard",
     "path": "dashboards/ops_status/app.py",
@@ -34,7 +40,9 @@
   },
   {
     "id": 21,
+    "uid": "mock-project-resource-revenue-job",
     "project": 81,
+    "project_uid": "mock-project-analytics",
     "name": "revenue_job.py",
     "resource_type": "python_module",
     "path": "jobs/revenue_job.py",
@@ -45,7 +53,9 @@
   },
   {
     "id": 22,
+    "uid": "mock-project-resource-macro-job",
     "project": 88,
+    "project_uid": "mock-project-macro",
     "name": "macro_job.py",
     "resource_type": "python_module",
     "path": "jobs/macro_job.py",

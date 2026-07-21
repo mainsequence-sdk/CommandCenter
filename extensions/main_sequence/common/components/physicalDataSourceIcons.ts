@@ -38,6 +38,20 @@ function extractFileName(path: string | null | undefined) {
   return fileName.trim().toLowerCase();
 }
 
+function isImageSource(path: string | null | undefined) {
+  const trimmedPath = path?.trim();
+
+  if (!trimmedPath) {
+    return false;
+  }
+
+  if (/^(https?:\/\/|data:image\/|\/|\.\.?\/)/i.test(trimmedPath)) {
+    return true;
+  }
+
+  return /\.(svg|png|jpe?g|gif|webp|avif)$/i.test(extractFileName(trimmedPath));
+}
+
 export function resolvePhysicalDataSourceIcon({
   classType,
   sourceLogo,
@@ -57,5 +71,5 @@ export function resolvePhysicalDataSourceIcon({
     return iconByFileName[fileName];
   }
 
-  return sourceLogo?.trim() ? sourceLogo : null;
+  return isImageSource(sourceLogo) ? sourceLogo!.trim() : null;
 }

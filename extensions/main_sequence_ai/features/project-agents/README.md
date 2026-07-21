@@ -67,7 +67,7 @@ It is the AI-owned implementation of the project-agent workflow:
   dialog, and the same `POST /orm/api/agents/v1/coding-agent-services/deploy/` mutation path.
 - `waiting_sdk_update`, `waiting_project_image`, `waiting_executor_image`, `running`, and
   `pending` show a progress panel and poll
-  `/orm/api/agents/v1/project-executor-automatic-deployment-runs/?ordering=-created_at&limit=20`.
+  `/orm/api/pods/deployment-runs/?project_uid=<project_uid>&target_type=project_executor&limit=20`.
 - Starting a deploy must not eagerly invalidate the selected project summary or immediately refetch
   the project-agent service. The configurator already has local deploy status plus deployment-run
   polling for in-progress feedback.

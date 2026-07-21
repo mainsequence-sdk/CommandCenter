@@ -1,0 +1,273 @@
+[
+  {
+    "id": 3102,
+    "uid": "mock-agent-deployment-research-2",
+    "target_type": "project_executor",
+    "target": {
+      "uid": "mock-project-executor-research",
+      "name": "Research agent",
+      "kind": "project_executor"
+    },
+    "project_uid": "mock-project-analytics",
+    "operation": "build_and_deploy",
+    "source": "repository_event",
+    "commit_sha": "d31f60f7cc2a40f8",
+    "configuration_revision": 7,
+    "state": "deployed",
+    "phase": null,
+    "outcome": "success",
+    "created_at": "2026-07-20T14:25:03.104Z",
+    "started_at": "2026-07-20T14:25:05.219Z",
+    "finished_at": "2026-07-20T14:27:44.802Z",
+    "logs": {
+      "state": "available",
+      "url": "/orm/api/pods/deployment-runs/mock-agent-deployment-research-2/logs/",
+      "retention_expires_at": null
+    },
+    "error": null,
+    "revision_context": {
+      "project_uid": "mock-project-analytics",
+      "current_commit_sha": "d31f60f7cc2a40f8"
+    },
+    "trigger_context": {
+      "repository_event": "push"
+    },
+    "artifact_context": {},
+    "cleanup_context": {},
+    "result": {},
+    "steps": [],
+    "log_entries": [
+      {
+        "sequence": 1,
+        "timestamp": "2026-07-20T14:25:05.219Z",
+        "stream": "stdout",
+        "level": "info",
+        "text": "Deployment accepted for Research agent."
+      },
+      {
+        "sequence": 2,
+        "timestamp": "2026-07-20T14:25:18.487Z",
+        "stream": "stdout",
+        "level": "info",
+        "text": "Project image is ready; preparing the project executor runtime."
+      },
+      {
+        "sequence": 3,
+        "timestamp": "2026-07-20T14:27:44.802Z",
+        "stream": "stdout",
+        "level": "info",
+        "text": "Deployment completed and the new executor revision is serving traffic."
+      }
+    ]
+  },
+  {
+    "id": 3101,
+    "uid": "mock-agent-deployment-research-1",
+    "target_type": "project_executor",
+    "target": {
+      "uid": "mock-project-executor-research",
+      "name": "Research agent",
+      "kind": "project_executor"
+    },
+    "project_uid": "mock-project-analytics",
+    "operation": "build_and_deploy",
+    "source": "manual",
+    "commit_sha": "b25e2ce4164218e0",
+    "configuration_revision": 6,
+    "state": "failed",
+    "phase": "runtime_start",
+    "outcome": "failed",
+    "created_at": "2026-07-20T13:02:11.016Z",
+    "started_at": "2026-07-20T13:02:12.400Z",
+    "finished_at": "2026-07-20T13:03:01.771Z",
+    "logs": {
+      "state": "available",
+      "url": "/orm/api/pods/deployment-runs/mock-agent-deployment-research-1/logs/",
+      "retention_expires_at": null
+    },
+    "error": {
+      "error_code": "EXECUTOR_START_FAILED",
+      "error_detail": "The executor process exited before it became ready."
+    },
+    "revision_context": {
+      "project_uid": "mock-project-analytics",
+      "current_commit_sha": "b25e2ce4164218e0"
+    },
+    "trigger_context": {},
+    "artifact_context": {},
+    "cleanup_context": {},
+    "result": {},
+    "steps": [],
+    "log_entries": [
+      {
+        "sequence": 1,
+        "timestamp": "2026-07-20T13:02:12.400Z",
+        "stream": "stdout",
+        "level": "info",
+        "text": "Starting project executor revision 6."
+      },
+      {
+        "sequence": 2,
+        "timestamp": "2026-07-20T13:03:01.771Z",
+        "stream": "stderr",
+        "level": "error",
+        "text": "Executor startup failed: required runtime environment variable MODEL_PROVIDER_API_KEY is not configured."
+      }
+    ]
+  },
+  {
+    "id": 3003,
+    "uid": "mock-deployment-run-docs-3",
+    "target_type": "static_site",
+    "target": {
+      "uid": "mock-static-site-release-docs",
+      "name": "Documentation",
+      "kind": "static_site"
+    },
+    "project_uid": "mock-project-analytics",
+    "operation": "build_and_deploy",
+    "source": "repository_event",
+    "commit_sha": "abcdef1234567890",
+    "configuration_revision": 3,
+    "state": "deployed",
+    "phase": null,
+    "outcome": "success",
+    "created_at": "2026-07-18T15:42:00Z",
+    "started_at": "2026-07-18T15:42:20Z",
+    "finished_at": "2026-07-18T15:45:25Z",
+    "logs": {
+      "state": "available",
+      "url": "/orm/api/pods/deployment-runs/mock-deployment-run-docs-3/logs/",
+      "retention_expires_at": null
+    },
+    "error": null,
+    "revision_context": {
+      "project_uid": "mock-project-analytics",
+      "current_commit_sha": "abcdef1234567890",
+      "release_kind": "static_site",
+      "resource_path": "docs-site",
+      "resource_release_uid": "mock-static-site-release-docs"
+    },
+    "trigger_context": {
+      "repository_event": "push"
+    },
+    "artifact_context": {},
+    "cleanup_context": {},
+    "result": {},
+    "steps": [],
+    "log_entries": [
+      {
+        "sequence": 1,
+        "timestamp": "2026-07-18T15:42:20Z",
+        "stream": "stdout",
+        "text": "Installing dependencies."
+      },
+      {
+        "sequence": 2,
+        "timestamp": "2026-07-18T15:44:40Z",
+        "stream": "stdout",
+        "text": "Static package built successfully."
+      }
+    ]
+  },
+  {
+    "id": 3002,
+    "uid": "mock-deployment-run-docs-2",
+    "target_type": "static_site",
+    "target": {
+      "uid": "mock-static-site-release-docs",
+      "name": "Documentation",
+      "kind": "static_site"
+    },
+    "project_uid": "mock-project-analytics",
+    "operation": "build_and_deploy",
+    "source": "manual",
+    "commit_sha": "abcdee9876543210",
+    "configuration_revision": 2,
+    "state": "deployed",
+    "phase": null,
+    "outcome": "success",
+    "created_at": "2026-07-17T12:10:00Z",
+    "started_at": "2026-07-17T12:10:18Z",
+    "finished_at": "2026-07-17T12:12:35Z",
+    "logs": {
+      "state": "available",
+      "url": "/orm/api/pods/deployment-runs/mock-deployment-run-docs-2/logs/",
+      "retention_expires_at": null
+    },
+    "error": null,
+    "revision_context": {
+      "project_uid": "mock-project-analytics",
+      "current_commit_sha": "abcdee9876543210",
+      "release_kind": "static_site",
+      "resource_path": "docs-site",
+      "resource_release_uid": "mock-static-site-release-docs"
+    },
+    "trigger_context": {},
+    "artifact_context": {},
+    "cleanup_context": {},
+    "result": {},
+    "steps": [],
+    "log_entries": [
+      {
+        "sequence": 1,
+        "timestamp": "2026-07-17T12:10:18Z",
+        "stream": "stdout",
+        "text": "Manual deployment started."
+      },
+      {
+        "sequence": 2,
+        "timestamp": "2026-07-17T12:12:10Z",
+        "stream": "stdout",
+        "text": "Static package built successfully."
+      }
+    ]
+  },
+  {
+    "id": 3001,
+    "uid": "mock-deployment-run-api-1",
+    "target_type": "resource_release",
+    "target": {
+      "uid": "mock-resource-release-api",
+      "name": "orders-api",
+      "kind": "fastapi"
+    },
+    "project_uid": "mock-project-analytics",
+    "operation": "build_and_deploy",
+    "source": "manual",
+    "commit_sha": "abc123abc123",
+    "configuration_revision": 1,
+    "state": "running",
+    "phase": "waiting_project_image",
+    "outcome": "",
+    "created_at": "2026-07-19T11:00:00Z",
+    "started_at": "2026-07-19T11:00:05Z",
+    "finished_at": null,
+    "logs": {
+      "state": "available",
+      "url": "/orm/api/pods/deployment-runs/mock-deployment-run-api-1/logs/",
+      "retention_expires_at": null
+    },
+    "error": null,
+    "revision_context": {
+      "project_uid": "mock-project-analytics",
+      "current_commit_sha": "abc123abc123",
+      "release_kind": "fastapi",
+      "resource_path": "api/demo/main.py",
+      "resource_release_uid": "mock-resource-release-api"
+    },
+    "trigger_context": {},
+    "artifact_context": {},
+    "cleanup_context": {},
+    "result": {},
+    "steps": [],
+    "log_entries": [
+      {
+        "sequence": 1,
+        "timestamp": "2026-07-19T11:00:05Z",
+        "stream": "stdout",
+        "text": "Waiting for project image."
+      }
+    ]
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-067b-websocket-stream-run-boundary-reset",
+  "title": "ADR 067-B: WebSocket Stream Run Boundary Reset",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-067b-websocket-stream-run-boundary-reset.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-067b-websocket-stream-run-boundary-reset",
+  "permalink": "/docs/adr/command_center/adr-067b-websocket-stream-run-boundary-reset",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-067b-websocket-stream-run-boundary-reset.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

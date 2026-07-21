@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-064-variable-reference-graph-integration",
+  "title": "ADR 064: Variable References as Widget Graph Edges",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-064-variable-reference-graph-integration.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-064-variable-reference-graph-integration",
+  "permalink": "/docs/adr/command_center/adr-064-variable-reference-graph-integration",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-064-variable-reference-graph-integration.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

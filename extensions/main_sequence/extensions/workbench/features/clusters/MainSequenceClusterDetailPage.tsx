@@ -16,7 +16,7 @@ import {
   fetchClusterSummary,
   formatMainSequenceError,
   listClusterDeployments,
-  listClusterKnative,
+  listClusterServiceRuntimes,
   listClusterNamespaces,
   listClusterNodePools,
   listClusterNodes,
@@ -26,7 +26,7 @@ import {
   type ClusterDeploymentRow,
   type ClusterDetailTabDefinition,
   type ClusterDetailTabId,
-  type ClusterKnativeRow,
+  type ClusterServiceRuntimeRow,
   type ClusterNamespaceRow,
   type ClusterNodePoolRow,
   type ClusterNodeRow,
@@ -66,7 +66,7 @@ const clusterTabLabels: Record<ClusterDetailTabId, string> = {
   deployments: "Deployments",
   services: "Services",
   storage: "Storage",
-  knative: "Knative",
+  knative: "Service Runtimes",
 };
 
 const tabEmptyStateCopy: Record<
@@ -105,8 +105,8 @@ const tabEmptyStateCopy: Record<
     description: "No storage resources matched the current namespace filter.",
   },
   knative: {
-    title: "No Knative services found",
-    description: "No Knative services matched the current namespace filter.",
+    title: "No service runtimes found",
+    description: "No service runtimes matched the current namespace filter.",
   },
 };
 
@@ -434,7 +434,7 @@ export function MainSequenceClusterDetailPage({ clusterUid: providedClusterUid }
             namespace: namespaceFilter ?? undefined,
           });
         case "knative":
-          return listClusterKnative(clusterUid, {
+          return listClusterServiceRuntimes(clusterUid, {
             namespace: namespaceFilter ?? undefined,
           });
         default:
@@ -444,28 +444,8 @@ export function MainSequenceClusterDetailPage({ clusterUid: providedClusterUid }
     enabled: isClusterUidValid && summaryQuery.isSuccess,
   });
 
-  const effectiveSelectedPodNamespace = useMemo(() => {
-    if (selectedPodNamespace) {
-      return selectedPodNamespace;
-    }
-
-    if (activeTab !== "pods" || !selectedPodName) {
-      return null;
-    }
-
-    const podRows = (activeTabQuery.data ?? []) as ClusterPodRow[];
-    const matchingNamespaces = new Set(
-      podRows
-        .filter((row) => row.name === selectedPodName)
-        .map((row) => row.namespace?.trim())
-        .filter((namespace): namespace is string => Boolean(namespace)),
-    );
-
-    return matchingNamespaces.size === 1 ? Array.from(matchingNamespaces)[0] : null;
-  }, [activeTab, activeTabQuery.data, selectedPodName, selectedPodNamespace]);
-
   const podLogsSelected =
-    activeTab === "pods" && Boolean(selectedPodName) && Boolean(effectiveSelectedPodNamespace);
+    activeTab === "pods" && Boolean(selectedPodName) && Boolean(selectedPodNamespace);
 
   const podLogsQuery = useQuery({
     queryKey: [
@@ -473,13 +453,13 @@ export function MainSequenceClusterDetailPage({ clusterUid: providedClusterUid }
       "clusters",
       "pod_logs",
       clusterUid,
-      effectiveSelectedPodNamespace ?? "",
+      selectedPodNamespace ?? "",
       selectedPodName ?? "",
       selectedPodContainer ?? "",
     ],
     queryFn: () =>
       fetchClusterPodLogs(clusterUid, {
-        namespace: effectiveSelectedPodNamespace ?? "",
+        namespace: selectedPodNamespace ?? "",
         pod: selectedPodName ?? "",
         container: selectedPodContainer,
         tail_lines: 500,
@@ -489,7 +469,7 @@ export function MainSequenceClusterDetailPage({ clusterUid: providedClusterUid }
       isClusterUidValid &&
       summaryQuery.isSuccess &&
       activeTab === "pods" &&
-      Boolean(effectiveSelectedPodNamespace) &&
+      Boolean(selectedPodNamespace) &&
       Boolean(selectedPodName),
   });
 
@@ -633,11 +613,9 @@ export function MainSequenceClusterDetailPage({ clusterUid: providedClusterUid }
     updateSearchParams((nextParams) => {
       nextParams.set(mainSequenceClusterTabParam, "pods");
       nextParams.delete(legacyClusterTabParam);
-      nextParams.set("namespace", namespace);
       nextParams.set(mainSequenceClusterPodNamespaceParam, namespace);
       nextParams.set(mainSequenceClusterPodNameParam, row.name);
       nextParams.delete(mainSequenceClusterPodContainerParam);
-      nextParams.delete("node_pool");
     });
   }
 
@@ -732,7 +710,7 @@ export function MainSequenceClusterDetailPage({ clusterUid: providedClusterUid }
     { id: "pvcs", label: "PVCs", render: (row) => formatCellValue(row.pvcs) },
     {
       id: "knative_services",
-      label: "Knative services",
+      label: "Service runtimes",
       render: (row) => formatCellValue(row.knative_services),
     },
     { id: "age", label: "Age", render: (row) => formatCellValue(row.age) },
@@ -798,7 +776,7 @@ export function MainSequenceClusterDetailPage({ clusterUid: providedClusterUid }
     { id: "age", label: "Age", render: (row) => formatCellValue(row.age) },
   ];
 
-  const knativeColumns: ClusterTableColumn<ClusterKnativeRow>[] = [
+  const serviceRuntimeColumns: ClusterTableColumn<ClusterServiceRuntimeRow>[] = [
     { id: "name", label: "Name", render: (row) => formatCellValue(row.name) },
     { id: "namespace", label: "Namespace", render: (row) => formatCellValue(row.namespace) },
     { id: "ready", label: "Ready", render: (row) => formatCellValue(row.ready) },
@@ -916,10 +894,10 @@ export function MainSequenceClusterDetailPage({ clusterUid: providedClusterUid }
       case "knative":
         return (
           <ClusterDetailTable
-            columns={knativeColumns}
+            columns={serviceRuntimeColumns}
             minWidthClassName="min-w-[1080px]"
             rowKey={(row) => `${row.namespace ?? "default"}-${row.name}`}
-            rows={rows as ClusterKnativeRow[]}
+            rows={rows as ClusterServiceRuntimeRow[]}
           />
         );
       default:
@@ -928,7 +906,7 @@ export function MainSequenceClusterDetailPage({ clusterUid: providedClusterUid }
   }
 
   function renderPodLogsPanel() {
-    if (!podLogsSelected || !selectedPodName || !effectiveSelectedPodNamespace) {
+    if (!podLogsSelected || !selectedPodName || !selectedPodNamespace) {
       return null;
     }
 
@@ -939,7 +917,7 @@ export function MainSequenceClusterDetailPage({ clusterUid: providedClusterUid }
             <div>
               <CardTitle>Pod logs</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Logs for {effectiveSelectedPodNamespace}/{selectedPodName}
+                Logs for {selectedPodNamespace}/{selectedPodName}
                 {selectedPodContainer ? ` · container ${selectedPodContainer}` : ""}.
               </p>
             </div>

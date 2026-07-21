@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-044-incremental-connection-publications-seed-live-roles",
+  "title": "ADR 044: Incremental Connection Publications With Explicit Seed And Live Roles",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles",
+  "permalink": "/docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-044-incremental-connection-publications-seed-live-roles.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

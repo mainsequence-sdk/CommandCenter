@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 055: Simplify Slide To Body-Only Widget Hosting | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 055: Simplify Slide To Body-Only Widget Hosting | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 055: Simplify Slide To Body-Only Widget Hosting</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-05-03</li>
+<li class="">Owners: Workspaces frontend</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>ADR 050 established the correct high-level direction for <code>workspace-slide</code>:</p>
+<ul>
+<li class=""><code>Slide</code> is structural</li>
+<li class="">slide-contained content remains normal workspace widgets</li>
+<li class="">slide/runtime rendering should reuse the shared workspace widget host</li>
+</ul>
+<p>That direction fixed the earlier nested-widget-store mistake, but it still left the slide model too
+general.</p>
+<p>Today the slide exposes five generic widget-hosting regions:</p>
+<ul>
+<li class=""><code>header</code></li>
+<li class=""><code>left</code></li>
+<li class=""><code>body</code></li>
+<li class=""><code>right</code></li>
+<li class=""><code>footer</code></li>
+</ul>
+<p>That flexibility looks attractive, but it is carrying too much complexity for the value it gives:</p>
+<ol>
+<li class="">every optional band becomes a full widget drop target</li>
+<li class="">every band participates in drag and cross-host reparenting semantics</li>
+<li class="">every band must preserve bounded subgrid behavior</li>
+<li class="">slide settings, region dividers, and slideshow rendering all have to honor five generic layout
+surfaces instead of one primary stage</li>
+<li class="">the slide authoring model drifts away from the real use case, which is a presentation stage
+with optional slide-owned auxiliary structure, not five independent dashboard canvases</li>
+</ol>
+<p>The result is that <code>Slide</code> is structurally cleaner than the original embedded-snapshot design, but
+it is still heavier than it should be.</p>
+<p>The main stage of a slide is the body. The other bands are better treated as reserved structural
+areas for narrowly defined slide-owned capabilities such as:</p>
+<ul>
+<li class="">title or eyebrow text</li>
+<li class="">footer text</li>
+<li class="">branding</li>
+<li class="">navigation affordances</li>
+<li class="">other future slide-specific presentation metadata</li>
+</ul>
+<p>They should not remain general widget drop zones.</p>
+<p>There is also no strong reason to keep <code>left</code> and <code>right</code> as first-class generic layout regions
+inside the slide model. They multiply layout combinations and drag targets, but they do not align
+with the simpler presentation model we actually want.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p><code>workspace-slide</code> will be simplified so that:</p>
+<ol>
+<li class=""><code>body</code> is the <strong>only</strong> generic widget-hosting region.</li>
+<li class=""><code>left</code> and <code>right</code> are removed as generic slide layout regions.</li>
+<li class=""><code>header</code> and <code>footer</code> remain, but they are <strong>not</strong> widget regions.</li>
+<li class=""><code>header</code> and <code>footer</code> are each divided into three slide-owned slots:<!-- -->
+<ul>
+<li class=""><code>left</code></li>
+<li class=""><code>middle</code></li>
+<li class=""><code>right</code></li>
+</ul>
+</li>
+<li class="">Each slot is controlled by the slide widget itself, not by generic workspace widget placement.</li>
+<li class="">In the first implementation, the only supported slot content types are:<!-- -->
+<ul>
+<li class=""><code>text</code></li>
+<li class=""><code>image</code></li>
+</ul>
+</li>
+<li class="">Normal workspace widgets assigned to a slide may only persist <code>slidePlacement.region = &quot;body&quot;</code>
+after migration.</li>
+</ol>
+<p>This ADR narrows ADR 050 rather than replacing it:</p>
+<ul>
+<li class=""><code>Slide</code> remains a structural container</li>
+<li class="">slide-contained widgets remain normal workspace widgets</li>
+<li class="">the shared workspace renderer remains the only widget renderer</li>
+</ul>
+<p>What changes is the scope of the slide subgrid:</p>
+<ul>
+<li class="">from <strong>five generic widget-hosting regions</strong></li>
+<li class="">to <strong>one generic widget-hosting region (<code>body</code>)</strong></li>
+</ul>
+<p>And what changes in the auxiliary structure is:</p>
+<ul>
+<li class="">from <strong>free-form header/footer/left/right widget regions</strong></li>
+<li class="">to <strong>slide-owned header/footer bands with three controlled slots each</strong></li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="why-this-is-better">Why This Is Better<a href="#why-this-is-better" class="hash-link" aria-label="Direct link to Why This Is Better" title="Direct link to Why This Is Better" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="simpler-mental-model">Simpler mental model<a href="#simpler-mental-model" class="hash-link" aria-label="Direct link to Simpler mental model" title="Direct link to Simpler mental model" translate="no">​</a></h3>
+<p>Users should understand a slide as:</p>
+<ul>
+<li class="">one main content stage</li>
+<li class="">optional slide-owned framing bands</li>
+<li class="">optional header/footer slots for simple presentational content</li>
+</ul>
+<p>not as a five-panel dashboard layout.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="less-drag-and-host-transfer-complexity">Less drag and host-transfer complexity<a href="#less-drag-and-host-transfer-complexity" class="hash-link" aria-label="Direct link to Less drag and host-transfer complexity" title="Direct link to Less drag and host-transfer complexity" translate="no">​</a></h3>
+<p>If only <code>body</code> accepts generic widgets:</p>
+<ul>
+<li class="">fewer drop targets exist</li>
+<li class="">fewer cross-host transfer cases need to be valid</li>
+<li class="">fewer region-local layout states need to be preserved</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="better-slideshow-consistency">Better slideshow consistency<a href="#better-slideshow-consistency" class="hash-link" aria-label="Direct link to Better slideshow consistency" title="Direct link to Better slideshow consistency" translate="no">​</a></h3>
+<p>Slide presentation mode should optimize one main aspect-ratio-constrained stage. Auxiliary bands
+should behave like presentation chrome, not like extra widget canvases that compete with the body
+for layout and interaction rules.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="cleaner-future-slide-features">Cleaner future slide features<a href="#cleaner-future-slide-features" class="hash-link" aria-label="Direct link to Cleaner future slide features" title="Direct link to Cleaner future slide features" translate="no">​</a></h3>
+<p>Dedicated slide capabilities such as title, footer, branding, or presentation controls can be
+added without also promising that every band must support arbitrary widget composition forever.</p>
+<p>The three-slot header/footer model also keeps future capabilities honest: if a feature belongs to
+the slide shell, it should be expressed as slide-owned slot content, not smuggled in through a
+generic widget-hosting escape hatch.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="good">Good<a href="#good" class="hash-link" aria-label="Direct link to Good" title="Direct link to Good" translate="no">​</a></h3>
+<ul>
+<li class="">Slide authoring becomes easier to reason about.</li>
+<li class="">The bounded slide subgrid becomes smaller and more stable.</li>
+<li class="">Slideshow rendering and editor rendering become easier to keep visually aligned.</li>
+<li class="">Drag behavior becomes easier to maintain.</li>
+<li class="">Future slide-specific presentation features can use reserved bands without competing with generic
+widget hosting.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="tradeoffs">Tradeoffs<a href="#tradeoffs" class="hash-link" aria-label="Direct link to Tradeoffs" title="Direct link to Tradeoffs" translate="no">​</a></h3>
+<ul>
+<li class="">Existing workspaces that placed widgets in <code>header</code>, <code>left</code>, <code>right</code>, or <code>footer</code> need
+migration.</li>
+<li class="">Some multi-band compositions that were technically possible today will no longer be valid as
+arbitrary widget layouts.</li>
+<li class="">Header/footer content is intentionally constrained at first to simple text and image content.</li>
+<li class="">If we later need complex non-body composition, that should come from a dedicated slide-owned
+feature model, not by reopening all regions as generic widget hosts.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="migration-direction">Migration Direction<a href="#migration-direction" class="hash-link" aria-label="Direct link to Migration Direction" title="Direct link to Migration Direction" translate="no">​</a></h2>
+<p>When implemented, saved workspaces should migrate as follows:</p>
+<ol>
+<li class="">Any slide child already in <code>body</code> remains unchanged.</li>
+<li class="">Any slide child in <code>header</code>, <code>left</code>, <code>right</code>, or <code>footer</code> must be remapped.</li>
+</ol>
+<p>Preferred migration behavior:</p>
+<ul>
+<li class="">move those widgets into the slide <code>body</code></li>
+<li class="">preserve their widget instances and bindings</li>
+<li class="">preserve as much relative ordering as possible</li>
+<li class="">clear the old non-body <code>slidePlacement.region</code> values</li>
+</ul>
+<p>Header/footer slot content is not derived automatically from migrated widget instances in the first
+pass. Migration should prioritize preserving widget content in <code>body</code> rather than trying to infer
+whether an old header/footer widget should become slide-owned text or image content.</p>
+<p>If preserving exact spatial relationships is not feasible, the migration should still favor a safe,
+deterministic placement into <code>body</code> rather than preserving a more complex invalid model.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rejected-alternatives">Rejected Alternatives<a href="#rejected-alternatives" class="hash-link" aria-label="Direct link to Rejected Alternatives" title="Direct link to Rejected Alternatives" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-keep-all-five-regions-as-generic-widget-hosts">1. Keep all five regions as generic widget hosts<a href="#1-keep-all-five-regions-as-generic-widget-hosts" class="hash-link" aria-label="Direct link to 1. Keep all five regions as generic widget hosts" title="Direct link to 1. Keep all five regions as generic widget hosts" translate="no">​</a></h3>
+<p>Rejected because it preserves the exact complexity we now want to remove.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-remove-header-left-right-and-footer-entirely">2. Remove <code>header</code>, <code>left</code>, <code>right</code>, and <code>footer</code> entirely<a href="#2-remove-header-left-right-and-footer-entirely" class="hash-link" aria-label="Direct link to 2-remove-header-left-right-and-footer-entirely" title="Direct link to 2-remove-header-left-right-and-footer-entirely" translate="no">​</a></h3>
+<p>Rejected because the slide still benefits from reserved structural bands for slide-owned
+presentation features, especially a simple header/footer composition model.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-keep-auxiliary-regions-widget-capable-but-only-for-a-widget-allowlist">3. Keep auxiliary regions widget-capable, but only for a widget allowlist<a href="#3-keep-auxiliary-regions-widget-capable-but-only-for-a-widget-allowlist" class="hash-link" aria-label="Direct link to 3. Keep auxiliary regions widget-capable, but only for a widget allowlist" title="Direct link to 3. Keep auxiliary regions widget-capable, but only for a widget allowlist" translate="no">​</a></h3>
+<p>Rejected because it still keeps the wrong generic-host abstraction alive. If those bands are meant
+for specialized functionality, that should be expressed explicitly in the slide model rather than
+through special-cased widget allowances.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-keep-left-and-right-as-structural-regions-but-not-widget-regions">4. Keep <code>left</code> and <code>right</code> as structural regions, but not widget regions<a href="#4-keep-left-and-right-as-structural-regions-but-not-widget-regions" class="hash-link" aria-label="Direct link to 4-keep-left-and-right-as-structural-regions-but-not-widget-regions" title="Direct link to 4-keep-left-and-right-as-structural-regions-but-not-widget-regions" translate="no">​</a></h3>
+<p>Rejected because they still complicate the slide shell and stage proportions without a clear
+presentation-specific capability model. Header and footer slots are enough for the simpler slide
+contract we want now.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Narrow the slide authoring contract so only <code>body</code> is a generic widget drop target.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove generic widget-host rendering for <code>header</code>, <code>left</code>, <code>right</code>, and <code>footer</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove <code>left</code> and <code>right</code> as first-class slide layout regions from the slide shell model.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove cross-host transfer targets for non-body slide regions.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Simplify <code>WorkspaceSlideWidgetProps</code> and slide settings so auxiliary bands are modeled as
+reserved structure, not generic widget containers.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add explicit slide-owned <code>header</code> and <code>footer</code> slot models with <code>left</code>, <code>middle</code>, and
+<code>right</code> sections.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add first-pass slot content types for <code>text</code> and <code>image</code> only.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Define the slide-owned prop contract for header/footer slot content instead of routing that
+content through generic widget instances.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add deterministic workspace migration from non-body slide placements into <code>body</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update slideshow/editor rendering so auxiliary bands behave like slide-owned presentation
+chrome instead of widget host regions.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update the widget and workspace READMEs after implementation.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Reconcile ADR 050 wording once the simplified model lands.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-contract-impact">Backend Contract Impact<a href="#backend-contract-impact" class="hash-link" aria-label="Direct link to Backend Contract Impact" title="Direct link to Backend Contract Impact" translate="no">​</a></h2>
+<p>This is a persisted workspace contract change when implemented.</p>
+<p>Today <code>slidePlacement.region</code> may contain:</p>
+<ul>
+<li class=""><code>header</code></li>
+<li class=""><code>left</code></li>
+<li class=""><code>body</code></li>
+<li class=""><code>right</code></li>
+<li class=""><code>footer</code></li>
+</ul>
+<p>After this ADR is implemented, normal workspace widgets should only persist:</p>
+<ul>
+<li class=""><code>slidePlacement.region = &quot;body&quot;</code></li>
+</ul>
+<p>That means any backend or saved-widget serializer/deserializer that reads or writes workspace
+widget instances must tolerate the migration window and preserve migrated slide placement data
+correctly.</p>
+<p>This ADR also implies an additive slide-widget prop contract change when implemented:</p>
+<ul>
+<li class="">the slide widget will need explicit header/footer slot content props</li>
+<li class="">those slot props are slide-owned structured content, not nested widget instances</li>
+</ul>
+<p>If backend validation is strict on widget props, it must tolerate that new slide-widget prop shape.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="success-criteria">Success Criteria<a href="#success-criteria" class="hash-link" aria-label="Direct link to Success Criteria" title="Direct link to Success Criteria" translate="no">​</a></h2>
+<p>The simplification is successful when all of the following are true:</p>
+<ol>
+<li class="">Only the slide <code>body</code> accepts arbitrary workspace widgets.</li>
+<li class=""><code>left</code> and <code>right</code> no longer exist as generic slide widget regions.</li>
+<li class=""><code>header</code> and <code>footer</code> are no longer generic widget drop targets.</li>
+<li class=""><code>header</code> and <code>footer</code> each expose three slide-owned slots: <code>left</code>, <code>middle</code>, and <code>right</code>.</li>
+<li class="">The first implementation supports only <code>text</code> and <code>image</code> slot content.</li>
+<li class="">Slide authoring and slideshow rendering both optimize around one primary content stage.</li>
+<li class="">Cross-host transfer logic no longer needs to reason about non-body destination regions.</li>
+<li class="">Existing saved workspaces with non-body slide children migrate deterministically into a valid
+body-only model.</li>
+</ol></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#why-this-is-better" class="table-of-contents__link toc-highlight">Why This Is Better</a><ul><li><a href="#simpler-mental-model" class="table-of-contents__link toc-highlight">Simpler mental model</a></li><li><a href="#less-drag-and-host-transfer-complexity" class="table-of-contents__link toc-highlight">Less drag and host-transfer complexity</a></li><li><a href="#better-slideshow-consistency" class="table-of-contents__link toc-highlight">Better slideshow consistency</a></li><li><a href="#cleaner-future-slide-features" class="table-of-contents__link toc-highlight">Cleaner future slide features</a></li></ul></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#good" class="table-of-contents__link toc-highlight">Good</a></li><li><a href="#tradeoffs" class="table-of-contents__link toc-highlight">Tradeoffs</a></li></ul></li><li><a href="#migration-direction" class="table-of-contents__link toc-highlight">Migration Direction</a></li><li><a href="#rejected-alternatives" class="table-of-contents__link toc-highlight">Rejected Alternatives</a><ul><li><a href="#1-keep-all-five-regions-as-generic-widget-hosts" class="table-of-contents__link toc-highlight">1. Keep all five regions as generic widget hosts</a></li><li><a href="#2-remove-header-left-right-and-footer-entirely" class="table-of-contents__link toc-highlight">2. Remove <code>header</code>, <code>left</code>, <code>right</code>, and <code>footer</code> entirely</a></li><li><a href="#3-keep-auxiliary-regions-widget-capable-but-only-for-a-widget-allowlist" class="table-of-contents__link toc-highlight">3. Keep auxiliary regions widget-capable, but only for a widget allowlist</a></li><li><a href="#4-keep-left-and-right-as-structural-regions-but-not-widget-regions" class="table-of-contents__link toc-highlight">4. Keep <code>left</code> and <code>right</code> as structural regions, but not widget regions</a></li></ul></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li><li><a href="#backend-contract-impact" class="table-of-contents__link toc-highlight">Backend Contract Impact</a></li><li><a href="#success-criteria" class="table-of-contents__link toc-highlight">Success Criteria</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

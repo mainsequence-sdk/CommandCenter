@@ -1,6 +1,7 @@
 [
   {
     "id": 81,
+    "uid": "mock-project-analytics",
     "project_name": "Analytics",
     "data_source": {
       "id": 301,
@@ -43,6 +44,7 @@
   },
   {
     "id": 88,
+    "uid": "mock-project-macro",
     "project_name": "Macro",
     "data_source": {
       "id": 302,
@@ -85,6 +87,7 @@
   },
   {
     "id": 93,
+    "uid": "mock-project-ops",
     "project_name": "Ops Control",
     "data_source": {
       "id": 303,

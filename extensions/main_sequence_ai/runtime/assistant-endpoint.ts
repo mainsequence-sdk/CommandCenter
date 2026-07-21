@@ -24,15 +24,14 @@ export interface MainSequenceAiResolvedAssistantAccess {
   codingAgentServiceId: string | null;
   imageDrift: AgentImageDriftRecord | null;
   isReady: boolean | null;
-  knativeServiceRuntimeId: string | null;
-  mode: "configured" | "dynamic";
+  serviceRuntimeId: string | null;
+  mode: "dynamic";
   runtimeAccessMode: string | null;
   token: string | null;
 }
 
 export type MainSequenceAiAssistantRuntimeTarget =
   | "agent-runtime"
-  | "configured"
   | "command-center-base";
 
 let cachedDynamicAssistantAccess: MainSequenceAiResolvedAssistantAccess | null = null;
@@ -211,7 +210,7 @@ function normalizeDynamicAssistantAccess(
     codingAgentServiceId: payload.codingAgentServiceId,
     imageDrift: payload.imageDrift,
     isReady: payload.isReady,
-    knativeServiceRuntimeId: payload.knativeServiceRuntimeId,
+    serviceRuntimeId: payload.serviceRuntimeId,
     mode: "dynamic",
     runtimeAccessMode: payload.mode,
     token: runtimeToken,
@@ -544,55 +543,30 @@ export async function resolveMainSequenceAiAssistantAccess({
     });
   }
 
-  if (
-    runtimeTarget === "configured" ||
-    (isMainSequenceAiAssistantProxyMode() && Boolean(assistantEndpoint?.trim()))
-  ) {
-    const configuredAssistantEndpoint =
-      assistantEndpoint?.trim()
-        ? normalizeMainSequenceAiAssistantEndpoint(assistantEndpoint)
-        : resolveMainSequenceAiConfiguredAssistantEndpoint();
-
-    if (!configuredAssistantEndpoint) {
-      throw new MainSequenceAiError("assistant_ui.endpoint is blank.", {
-        source: "frontend",
-      });
-    }
-
-    return {
-      assistantEndpoint: configuredAssistantEndpoint,
-      codingAgentId: null,
-      codingAgentServiceId: null,
-      imageDrift: null,
-      isReady: null,
-      knativeServiceRuntimeId: null,
-      mode: "configured",
-      runtimeAccessMode: null,
-      token: sessionToken ?? null,
-    };
-  }
-
   const normalizedCurrentSessionId = normalizeRuntimeSessionId(currentSessionId);
 
-  if (!normalizedCurrentSessionId) {
-    throw new MainSequenceAiError("AgentSession runtime access requires a concrete session id.", {
-      source: "frontend_runtime_guard",
+  if (normalizedCurrentSessionId) {
+    if (
+      !forceRefresh &&
+      cachedDynamicAssistantAccess &&
+      cachedDynamicAssistantAccessSessionId === normalizedCurrentSessionId
+    ) {
+      return cachedDynamicAssistantAccess;
+    }
+
+    return refreshDynamicAssistantAccess({
+      currentSessionId: normalizedCurrentSessionId,
+      sessionToken,
+      sessionTokenType,
     });
   }
 
-  if (
-    !forceRefresh &&
-    cachedDynamicAssistantAccess &&
-    cachedDynamicAssistantAccessSessionId === normalizedCurrentSessionId
-  ) {
-    return cachedDynamicAssistantAccess;
-  }
-
-  return refreshDynamicAssistantAccess({
-    currentSessionId: normalizedCurrentSessionId,
-    sessionToken,
-    sessionTokenType,
-  });
+  throw new MainSequenceAiError(
+    "AgentSession runtime access requires a concrete session id or command-center-base target.",
+    {
+      source: "frontend_runtime_guard",
+    },
+  );
 }
 
 function mergeAssistantHeaders({
@@ -674,7 +648,6 @@ export async function fetchMainSequenceAiAssistantResponse({
 
   if (
     retryOnAuthFailure &&
-    firstAttempt.resolvedAccess.mode === "dynamic" &&
     (firstAttempt.response.status === 401 || firstAttempt.response.status === 403)
   ) {
     return execute(true);

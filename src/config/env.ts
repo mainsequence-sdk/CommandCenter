@@ -7,6 +7,11 @@ function toBooleanEnv(value: string | undefined, fallback: boolean) {
 }
 
 const rawEnv = import.meta.env as Record<string, string | undefined>;
+const isDevRuntime = import.meta.env.DEV;
+const devLoginIdentifier =
+  rawEnv.VITE_COMMAND_CENTER_DEV_LOGIN_IDENTIFIER?.trim() ?? "";
+const devLoginPassword = rawEnv.VITE_COMMAND_CENTER_DEV_LOGIN_PASSWORD ?? "";
+const hasDevLoginCredentials = Boolean(devLoginIdentifier && devLoginPassword);
 
 export const env = {
   apiBaseUrl: rawEnv.VITE_API_BASE_URL ?? "http://localhost:8000",
@@ -16,4 +21,9 @@ export const env = {
   debugChat: toBooleanEnv(rawEnv.VITE_DEBUG_CHAT, false),
   includeAui: toBooleanEnv(rawEnv.VITE_INCLUDE_AUI, true),
   includeWorkspaces: toBooleanEnv(rawEnv.VITE_INCLUDE_WORKSPACES, true),
+  devLogin: {
+    enabled: isDevRuntime && hasDevLoginCredentials,
+    identifier: isDevRuntime ? devLoginIdentifier : "",
+    password: isDevRuntime ? devLoginPassword : "",
+  },
 } as const;

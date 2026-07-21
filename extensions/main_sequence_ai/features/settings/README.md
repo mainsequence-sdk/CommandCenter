@@ -81,8 +81,9 @@ content.
 - Model-provider settings requests require `session.user.uid` and pass it as
   `created_by_user_uid`; they must not pass legacy numeric `created_by_user` values, and numeric
   legacy ids must be rejected before any provider-settings request is sent.
-- If the model catalog returns providers that are missing from `/api/model-providers`, surface that
-  mismatch as a warning. Do not synthesize auth-state cards only from catalog providers.
+- If the model catalog returns providers that are missing from `/api/model-providers`, render them
+  as unsigned sign-in candidates. Missing credential rows are expected for providers the user has
+  not signed into yet; they are not warnings.
 - Provider cards should follow backend workflow flags directly: `authenticated` controls `Sign off`,
   `signInAvailable` controls `Sign in`, and `authSource` stays diagnostic only.
 - The model list in this section is informational. It should not mutate chat model selection.

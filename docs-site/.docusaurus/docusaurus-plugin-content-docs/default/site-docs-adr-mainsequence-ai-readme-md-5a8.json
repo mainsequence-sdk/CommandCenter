@@ -1,0 +1,28 @@
+{
+  "id": "adr/mainsequence_ai/adr-main-sequence-ai-index",
+  "title": "Main Sequence AI Architecture Decision Records",
+  "description": "This section is the decision log for Main Sequence AI application architecture.",
+  "source": "@site/../docs/adr/mainsequence_ai/README.md",
+  "sourceDirName": "adr/mainsequence_ai",
+  "slug": "/adr/mainsequence_ai",
+  "permalink": "/docs/adr/mainsequence_ai",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/mainsequence_ai/README.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "adr-main-sequence-ai-index",
+    "title": "Main Sequence AI Architecture Decision Records",
+    "slug": "/adr/mainsequence_ai"
+  },
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Runtime Credential Browser Auth",
+    "permalink": "/docs/adr/command_center/adr-runtime-credential-browser-auth"
+  },
+  "next": {
+    "title": "ADR 078: Capability Registry Surface and Agent Capability Editor Widget",
+    "permalink": "/docs/adr/mainsequence_ai/adr-078-capability-registry-surface-and-editor-widget"
+  }
+}

@@ -6,6 +6,7 @@ import { normalizeSessionHistorySnapshot } from "../assistant-ui/session-history
 import { env } from "@/config/env";
 import { requireAgentSessionLookupId } from "./agent-sessions-api";
 import { MainSequenceAiError } from "./error-source";
+import { buildRuntimeHttpErrorMessage } from "./http-error";
 
 function createEmptySessionHistorySnapshot(sessionId: string): SessionHistorySnapshot {
   const session: SessionHistoryApiSession = {
@@ -81,13 +82,14 @@ export async function fetchSessionHistory({
       return createEmptySessionHistorySnapshot(String(sessionId));
     }
 
-    const payload = (await response.json().catch(() => null)) as
-      | { detail?: string; error?: string; message?: string }
-      | null;
     throw new MainSequenceAiError(
-      `Failed to load session history for session ${sessionId} from ${requestUrl} (${response.status}). ${
-        payload?.message || payload?.detail || payload?.error || response.statusText || "Unknown backend error."
-      }`,
+      await buildRuntimeHttpErrorMessage({
+        fallbackMessage: `Session history failed with status ${response.status}.`,
+        method: "GET",
+        operation: `Agent session history request failed for session ${sessionId}`,
+        response,
+        url: requestUrl,
+      }),
       {
         source: "agent_session_history",
         status: response.status,

@@ -112,6 +112,7 @@ export interface DynamicTableDataSourceOption {
     organization: number;
     class_type: string;
     status: string;
+    source_logo?: string | null;
   } | null;
   related_resource_class_type: string;
 }
@@ -122,6 +123,7 @@ export interface ProjectDataSourceListRelatedResource {
   label: string;
   class_type: string;
   status: string;
+  source_logo?: string | null;
 }
 
 export interface ProjectDataSourceListRow {
@@ -205,6 +207,7 @@ export interface ProjectDataSourceRelatedResourceOption {
   label: string;
   class_type: string;
   status: string;
+  source_logo?: string | null;
 }
 
 export interface ProjectDataSourceEditorInput {
@@ -822,6 +825,58 @@ export interface PricingCurveSelectionsResponse {
   curve: PricingCurveSelectionCurve;
   count: number;
   results: PricingCurveSelectionRow[];
+}
+
+export interface PricingCurveDeleteOptions {
+  deleteCurveSelections?: boolean;
+  deleteValues?: boolean;
+}
+
+export interface PricingCurveDeleteImpactRelationship {
+  key: string;
+  label: string;
+  model: string;
+  column: string;
+  relationship_type: "direct" | "indirect" | "derived";
+  on_delete: string;
+  count: number;
+  effect: string;
+  severity: "blocking" | "destructive" | "mutating" | "warning" | "info";
+  blocks_delete: boolean;
+  description: string;
+}
+
+export interface PricingCurveDeleteImpactResponse {
+  resource_type: "pricing_curve";
+  uid: string;
+  identifier: string | null;
+  display_name: string | null;
+  can_delete: boolean;
+  blocking_count: number;
+  affected_count: number;
+  delete_endpoint: string;
+  relationships: PricingCurveDeleteImpactRelationship[];
+  warnings: string[];
+}
+
+export interface PricingCurveDeleteStorageCleanup {
+  data_node_uid: string;
+  storage_table_identifier: string | null;
+  deleted_count: number;
+  table_empty: boolean | null;
+}
+
+export interface PricingCurveDeleteResponse {
+  detail: string;
+  uid: string;
+  curve_identifier: string;
+  deleted_count: number;
+  deleted_values_count: number;
+  deleted_curve_selections_count: number;
+  deleted_curve_building_details_count: number;
+  delete_values: boolean;
+  delete_curve_selections: boolean;
+  storage_cleanups: PricingCurveDeleteStorageCleanup[];
 }
 
 export interface AssetCategoryListRow {
@@ -1747,7 +1802,7 @@ export interface ClusterStorageRow {
   age?: string | null;
 }
 
-export interface ClusterKnativeRow {
+export interface ClusterServiceRuntimeRow {
   name: string;
   namespace?: string | null;
   ready?: string | null;
@@ -3658,6 +3713,7 @@ export interface SummaryField {
   info?: string;
   link_url?: string | null;
   href?: string;
+  iframe?: boolean;
   edit?: SummaryEditConfig;
 }
 
@@ -3886,18 +3942,50 @@ export interface ResourceReleaseReadmeSummary {
   empty_message?: string;
 }
 
+export interface ResourceReleaseDeploymentPointer {
+  uid: string;
+  state?: string | null;
+  status?: string | null;
+  source?: string | null;
+  commit_sha?: string | null;
+  queued_at?: string | null;
+  activated_at?: string | null;
+  finished_at?: string | null;
+  error_code?: string | null;
+  error_detail?: string | null;
+  [key: string]: unknown;
+}
+
 export interface ResourceReleaseRecord {
-  id: number;
+  id?: number;
   uid: string;
   subdomain: string;
-  resource: number;
-  readme_resource: number | null;
-  related_job: number;
+  resource_uid?: string | null;
+  readme_resource_uid?: string | null;
+  related_job_uid?: string | null;
+  resource?: number | string | null;
+  readme_resource?: number | string | null;
+  related_job?: number | string | null;
   release_kind: string;
+  automatic_deployment?: boolean;
+  project_uid?: string | null;
+  name?: string | null;
+  public_url?: string | null;
+  lifecycle_status?: "active" | "deleting" | "delete_failed" | string | null;
+  configuration_revision?: number | null;
+  active_deployment?: ResourceReleaseDeploymentPointer | null;
+  desired_deployment?: ResourceReleaseDeploymentPointer | null;
+  build_environment_keys?: string[] | null;
+  root_directory?: string | null;
+  framework?: string | null;
+  node_version?: string | null;
+  output_directory?: string | null;
+  routing_mode?: string | null;
+  spa_entry_file?: string | null;
 }
 
 export interface ResourceReleaseResourceRecord {
-  id: number;
+  id?: number;
   uid: string;
   subdomain: string;
   release_kind: string;
@@ -3910,6 +3998,9 @@ export interface ResourceReleaseResourceRecord {
   project_repo_hash: string | null;
   public_url: string | null;
   exchange_launch_url?: string | null;
+  automatic_deployment?: boolean;
+  lifecycle_status?: string | null;
+  active_deployment?: ResourceReleaseDeploymentPointer | null;
 }
 
 export interface ResourceReleaseExchangeLaunchUrlResponse {
@@ -3973,15 +4064,163 @@ export interface ProjectResourceRecord {
   repo_commit_sha: string | null;
 }
 
-export interface CreateResourceReleaseInput {
-  resource: string;
-  related_image: string;
-  release_kind?: string;
+export interface CreateRuntimeResourceReleaseInput {
+  resource_uid: string;
+  related_image_uid: string;
+  release_kind?: "streamlit_dashboard" | "agent" | "fastapi" | string;
   cpu_request?: string;
   memory_request?: string;
-  gpu_request?: string;
-  gpu_type?: string;
+  gpu_request?: string | null;
+  gpu_type?: string | null;
   spot?: boolean;
+  automatic_deployment?: boolean;
+}
+
+export interface CreateStaticSiteResourceReleaseInput {
+  release_kind: "static_site";
+  project_uid: string;
+  name: string;
+  automatic_deployment?: boolean;
+  root_directory?: string | null;
+  framework?: string | null;
+  node_version?: string | null;
+  output_directory?: string | null;
+  routing_mode?: string | null;
+  spa_entry_file?: string | null;
+  build_environment?: Record<string, string>;
+}
+
+export type CreateResourceReleaseInput =
+  | CreateRuntimeResourceReleaseInput
+  | CreateStaticSiteResourceReleaseInput;
+
+export interface UpdateResourceReleaseInput {
+  automatic_deployment: boolean;
+}
+
+export type DeploymentRunTargetType =
+  | "resource_release"
+  | "project_executor"
+  | "static_site"
+  | string;
+
+export interface DeploymentRunTarget {
+  uid: string;
+  name?: string | null;
+  kind?: string | null;
+  [key: string]: unknown;
+}
+
+export interface DeploymentRunLogsAvailability {
+  state: string;
+  url?: string | null;
+  retention_expires_at?: string | null;
+  [key: string]: unknown;
+}
+
+export interface DeploymentRunError {
+  error_code?: string | null;
+  error_detail?: string | null;
+  code?: string | null;
+  detail?: string | null;
+  [key: string]: unknown;
+}
+
+export interface DeploymentRunListRecord {
+  uid: string;
+  target_type: DeploymentRunTargetType;
+  target: DeploymentRunTarget;
+  project_uid?: string | null;
+  operation?: string | null;
+  source?: string | null;
+  commit_sha?: string | null;
+  configuration_revision?: number | null;
+  state: string;
+  phase?: string | null;
+  outcome?: string | null;
+  created_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  logs?: DeploymentRunLogsAvailability | null;
+  error?: DeploymentRunError | string | null;
+  [key: string]: unknown;
+}
+
+export interface DeploymentRunRecord extends DeploymentRunListRecord {
+  revision_context?: Record<string, unknown> | null;
+  trigger_context?: Record<string, unknown> | null;
+  artifact_context?: Record<string, unknown> | null;
+  cleanup_context?: Record<string, unknown> | null;
+  result?: Record<string, unknown> | null;
+  steps?: unknown[];
+}
+
+export interface DeploymentRunFilters {
+  projectUid?: string | null;
+  targetType?: DeploymentRunTargetType | null;
+  limit?: number;
+  offset?: number;
+}
+
+export interface DeploymentRunLogEntry {
+  sequence?: number | string | null;
+  timestamp?: string | null;
+  source?: string | null;
+  stream?: string | null;
+  level?: string | null;
+  message?: string | null;
+  text?: string | null;
+  [key: string]: unknown;
+}
+
+export interface DeploymentRunLogPage {
+  run_uid: string;
+  entries: DeploymentRunLogEntry[];
+  sources: unknown[];
+  next_cursor: string | null;
+  complete: boolean;
+  retention_expires_at?: string | null;
+}
+
+export type StaticSiteCreateFieldType =
+  | "boolean"
+  | "choice"
+  | "repository_path"
+  | "string"
+  | "string_map"
+  | "url_path"
+  | "uuid";
+
+export interface StaticSiteCreateFieldChoice {
+  value: string;
+  label: string;
+}
+
+export interface StaticSiteCreateFieldCondition {
+  when: Record<string, string>;
+  enabled: boolean;
+  required: boolean;
+  default: unknown;
+  choices?: StaticSiteCreateFieldChoice[];
+}
+
+export interface StaticSiteCreateField {
+  name: string;
+  type: StaticSiteCreateFieldType;
+  help_text: string;
+  required: boolean;
+  nullable: boolean;
+  default: unknown;
+  choices?: StaticSiteCreateFieldChoice[];
+  constraints?: Record<string, unknown>;
+  conditions?: StaticSiteCreateFieldCondition[];
+}
+
+export interface StaticSiteCapabilities {
+  creation?: {
+    fields?: StaticSiteCreateField[];
+  };
+  [key: string]: unknown;
 }
 
 export interface CreateProjectExecutorAgentServiceInput {
@@ -4117,7 +4356,7 @@ export interface CodingAgentServiceSummary {
   gpu_type?: string | null;
   spot?: boolean | null;
   related_job_uid?: string | null;
-  knative_service_runtime_uid?: string | null;
+  service_runtime_uid?: string | null;
   subdomain: string | null;
   [key: string]: unknown;
 }
@@ -4135,51 +4374,6 @@ export interface ProjectExecutorAgentServiceSummary extends CodingAgentServiceSu
   runtime_image?: string | null;
   runtime_image_uid?: string | null;
   related_job?: number | string | null;
-}
-
-export type ProjectExecutorAutomaticDeploymentRunStatus =
-  | "pending"
-  | "running"
-  | "waiting_sdk_update"
-  | "waiting_project_image"
-  | "waiting_executor_image"
-  | "no_action"
-  | "deployed"
-  | "skipped"
-  | "blocked"
-  | "failed";
-
-export type ProjectExecutorAutomaticDeploymentRunStep =
-  | "resolve_eligibility"
-  | "create_project_image"
-  | "wait_project_image"
-  | "create_executor_image"
-  | "wait_executor_image"
-  | "resolve_configuration"
-  | "deploy_service"
-  | "cleanup_previous_images"
-  | "complete";
-
-export interface ProjectExecutorAutomaticDeploymentRun {
-  uid: string;
-  agent_uid?: string | null;
-  agent?: string | Record<string, unknown> | null;
-  status: ProjectExecutorAutomaticDeploymentRunStatus | string;
-  current_step?: ProjectExecutorAutomaticDeploymentRunStep | string | null;
-  automatic_deployment_source?: "manual" | "repository_event" | string | null;
-  revision_context?: Record<string, unknown> | null;
-  trigger_context?: Record<string, unknown> | null;
-  image_artifact_context?: Record<string, unknown> | null;
-  cleanup_context?: Record<string, unknown> | null;
-  attempts?: number | string | null;
-  result?: Record<string, unknown> | null;
-  error_code?: string | null;
-  error_detail?: string | null;
-  started_at?: string | null;
-  finished_at?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-  [key: string]: unknown;
 }
 
 export type ProjectExecutorAgentServiceDeployStatus =
@@ -5440,6 +5634,16 @@ function buildPricingCurveSearch({
   } satisfies Record<string, QueryValue>;
 }
 
+function buildPricingCurveDeleteSearch({
+  deleteCurveSelections = false,
+  deleteValues = false,
+}: PricingCurveDeleteOptions = {}) {
+  return {
+    delete_curve_selections: deleteCurveSelections,
+    delete_values: deleteValues,
+  } satisfies Record<string, QueryValue>;
+}
+
 export async function listPricingCurves(filters: PricingCurveFilters = {}) {
   const limit = filters.limit ?? mainSequenceRegistryPageSize;
   const offset = filters.offset ?? 0;
@@ -5457,6 +5661,30 @@ export function fetchPricingCurveSummary(curveUid: string) {
   return requestJson<EntitySummaryHeader>(
     pricingCurvesEndpoint,
     `${resolveMainSequenceUidPath(curveUid, "pricing curve")}/summary/`,
+  );
+}
+
+export function fetchPricingCurveDeleteImpact(
+  curveUid: string,
+  options: PricingCurveDeleteOptions = {},
+) {
+  return requestJson<PricingCurveDeleteImpactResponse>(
+    pricingCurvesEndpoint,
+    `${resolveMainSequenceUidPath(curveUid, "pricing curve")}/delete-impact/`,
+    undefined,
+    buildPricingCurveDeleteSearch(options),
+  );
+}
+
+export function deletePricingCurve(
+  curveUid: string,
+  options: PricingCurveDeleteOptions = {},
+) {
+  return requestJson<PricingCurveDeleteResponse>(
+    pricingCurvesEndpoint,
+    `${resolveMainSequenceUidPath(curveUid, "pricing curve")}/`,
+    { method: "DELETE" },
+    buildPricingCurveDeleteSearch(options),
   );
 }
 
@@ -7570,7 +7798,7 @@ export async function listClusterStorage(
   return normalizeListResponse(payload);
 }
 
-export async function listClusterKnative(
+export async function listClusterServiceRuntimes(
   clusterUid: string,
   {
     namespace,
@@ -7578,7 +7806,9 @@ export async function listClusterKnative(
     namespace?: string;
   } = {},
 ) {
-  const payload = await requestJson<PaginatedResponse<ClusterKnativeRow> | ClusterKnativeRow[]>(
+  const payload = await requestJson<
+    PaginatedResponse<ClusterServiceRuntimeRow> | ClusterServiceRuntimeRow[]
+  >(
     commandCenterConfig.mainSequence.endpoint,
     `cluster/${resolveMainSequenceUidPath(clusterUid, "cluster")}/knative/`,
     undefined,
@@ -9326,22 +9556,25 @@ export async function listProjectImages(
 export async function listResourceReleases({
   limit = 500,
   offset = 0,
+  projectUid,
 }: {
   limit?: number;
   offset?: number;
+  projectUid?: string;
 } = {}) {
   const payload = await requestJson<
     PaginatedResponse<ResourceReleaseRecord> | ResourceReleaseRecord[]
   >(commandCenterConfig.mainSequence.endpoint, "resource-release/", undefined, {
     limit,
     offset,
+    project_uid: projectUid,
   });
 
   const page = normalizeOffsetPaginatedResponse(payload, limit, offset);
 
   return {
     ...page,
-    results: [...page.results].sort((left, right) => right.id - left.id),
+    results: [...page.results].sort((left, right) => (right.id ?? 0) - (left.id ?? 0)),
   };
 }
 
@@ -9375,12 +9608,30 @@ export async function listResourceReleaseResources({
 
   return {
     ...page,
-    results: [...page.results].sort((left, right) => right.id - left.id),
+    results: [...page.results].sort((left, right) => (right.id ?? 0) - (left.id ?? 0)),
   };
 }
 
 export async function fetchResourceReleaseExchangeLaunch(exchangeLaunchUrl: string) {
   return requestJson<ResourceReleaseExchangeLaunchResponse>(env.apiBaseUrl, exchangeLaunchUrl);
+}
+
+export function requireStaticSiteExchangeLaunchUrl(
+  payload: ResourceReleaseExchangeLaunchResponse,
+) {
+  if (payload.release_kind !== "static_site") {
+    throw new Error("The exchange response is not for a static-site release.");
+  }
+
+  if (payload.mode !== "url") {
+    throw new Error("The static-site exchange response must use URL mode.");
+  }
+
+  if (typeof payload.url !== "string" || !payload.url.trim()) {
+    throw new Error("The static-site exchange response did not include a launch URL.");
+  }
+
+  return payload.url.trim();
 }
 
 export async function listProjectResources(
@@ -9422,11 +9673,235 @@ export function createProjectImage(input: CreateProjectImageInput) {
   });
 }
 
+function isStaticSiteCreateResourceReleaseInput(
+  input: CreateResourceReleaseInput,
+): input is CreateStaticSiteResourceReleaseInput {
+  return input.release_kind === "static_site";
+}
+
 export function createResourceRelease(input: CreateResourceReleaseInput) {
-  return requestJson<ResourceReleaseRecord>(commandCenterConfig.mainSequence.endpoint, "resource-release/", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  if (isStaticSiteCreateResourceReleaseInput(input)) {
+    return requestJson<ResourceReleaseRecord>(
+      commandCenterConfig.mainSequence.endpoint,
+      "resource-release/",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          release_kind: "static_site",
+          project_uid: input.project_uid,
+          name: input.name,
+          automatic_deployment: input.automatic_deployment,
+          root_directory: input.root_directory,
+          framework: input.framework,
+          node_version: input.node_version,
+          output_directory: input.output_directory,
+          routing_mode: input.routing_mode,
+          spa_entry_file: input.spa_entry_file,
+          build_environment: input.build_environment,
+        }),
+      },
+    );
+  }
+
+  return requestJson<ResourceReleaseRecord>(
+    commandCenterConfig.mainSequence.endpoint,
+    "resource-release/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        release_kind: input.release_kind,
+        resource_uid: input.resource_uid,
+        related_image_uid: input.related_image_uid,
+        cpu_request: input.cpu_request,
+        memory_request: input.memory_request,
+        gpu_request: input.gpu_request ?? null,
+        gpu_type: input.gpu_type ?? null,
+        spot: input.spot,
+        automatic_deployment: input.automatic_deployment ?? false,
+      }),
+    },
+  );
+}
+
+export function fetchResourceRelease(resourceReleaseUid: string) {
+  return requestJson<ResourceReleaseRecord>(
+    commandCenterConfig.mainSequence.endpoint,
+    `resource-release/${resolveMainSequenceUidPath(resourceReleaseUid, "resource release")}/`,
+  );
+}
+
+export function updateResourceRelease(
+  resourceReleaseUid: string,
+  input: UpdateResourceReleaseInput,
+) {
+  return requestJson<ResourceReleaseRecord>(
+    commandCenterConfig.mainSequence.endpoint,
+    `resource-release/${resolveMainSequenceUidPath(resourceReleaseUid, "resource release")}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        automatic_deployment: input.automatic_deployment,
+      }),
+    },
+  );
+}
+
+export function deployResourceReleaseCurrentVersion(resourceReleaseUid: string) {
+  return requestJson<DeploymentRunRecord>(
+    commandCenterConfig.mainSequence.endpoint,
+    `resource-release/${resolveMainSequenceUidPath(resourceReleaseUid, "resource release")}/deploy-current-version/`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+export async function listDeploymentRuns({
+  limit = mainSequenceRegistryPageSize,
+  offset = 0,
+  projectUid,
+  targetType,
+}: DeploymentRunFilters = {}) {
+  const payload = await requestJson<
+    PaginatedResponse<DeploymentRunListRecord> | DeploymentRunListRecord[]
+  >(
+    commandCenterConfig.mainSequence.endpoint,
+    "deployment-runs/",
+    undefined,
+    {
+      project_uid: projectUid?.trim() || undefined,
+      target_type: targetType?.trim() || undefined,
+      limit,
+      offset,
+    },
+  );
+
+  return normalizeOffsetPaginatedResponse(payload, limit, offset);
+}
+
+export function fetchDeploymentRun(runUid: string) {
+  return requestJson<DeploymentRunRecord>(
+    commandCenterConfig.mainSequence.endpoint,
+    `deployment-runs/${resolveMainSequenceUidPath(runUid, "deployment run")}/`,
+  );
+}
+
+export function fetchDeploymentRunLogs(runUid: string, cursor?: string | null) {
+  return requestJson<DeploymentRunLogPage>(
+    commandCenterConfig.mainSequence.endpoint,
+    `deployment-runs/${resolveMainSequenceUidPath(runUid, "deployment run")}/logs/`,
+    undefined,
+    {
+      cursor: cursor?.trim() || undefined,
+    },
+  );
+}
+
+const staticSiteCapabilitiesCache = new Map<
+  string,
+  { etag: string; payload: StaticSiteCapabilities }
+>();
+
+export async function fetchStaticSiteCapabilities(projectUid?: string | null) {
+  const search = {
+    project_uid: projectUid?.trim() || undefined,
+  };
+
+  if (env.useMockData) {
+    return requestJson<StaticSiteCapabilities>(
+      commandCenterConfig.mainSequence.endpoint,
+      "resource-release/static-site-capabilities/",
+      undefined,
+      search,
+    );
+  }
+
+  const requestUrl = buildEndpointUrl(
+    commandCenterConfig.mainSequence.endpoint,
+    "resource-release/static-site-capabilities/",
+    search,
+  );
+  const cached = staticSiteCapabilitiesCache.get(requestUrl);
+
+  async function sendRequest() {
+    const session = useAuthStore.getState().session;
+    const headers = new Headers();
+
+    headers.set("Accept", "application/json");
+
+    if (cached?.etag) {
+      headers.set("If-None-Match", cached.etag);
+    }
+
+    applySessionAuthHeaders(headers, session);
+
+    return fetch(requestUrl, {
+      headers,
+    });
+  }
+
+  let response: Response;
+
+  try {
+    response = await sendRequest();
+  } catch (error) {
+    throw new MainSequenceApiError(
+      "The browser could not reach the Main Sequence API.",
+      0,
+      error,
+    );
+  }
+
+  if (response.status === 401) {
+    const refreshed = await useAuthStore.getState().refreshSession();
+
+    if (refreshed) {
+      response = await sendRequest();
+    }
+  }
+
+  if (response.status === 304 && cached) {
+    return cached.payload;
+  }
+
+  const payload = await readResponsePayload(response);
+
+  if (!response.ok) {
+    throw new MainSequenceApiError(
+      readMessageFromPayload(payload) || `Main Sequence API request failed with ${response.status}.`,
+      response.status,
+      payload,
+    );
+  }
+
+  const etag = response.headers.get("ETag");
+  const capabilities = payload as StaticSiteCapabilities;
+
+  if (etag) {
+    staticSiteCapabilitiesCache.set(requestUrl, {
+      etag,
+      payload: capabilities,
+    });
+  }
+
+  return capabilities;
+}
+
+export function deployStaticSiteCurrentVersion(
+  resourceReleaseUid: string,
+  idempotencyKey: string,
+) {
+  return requestJson<DeploymentRunRecord>(
+    commandCenterConfig.mainSequence.endpoint,
+    `resource-release/${resolveMainSequenceUidPath(resourceReleaseUid, "resource release")}/deploy-current-version/`,
+    {
+      method: "POST",
+      headers: {
+        "Idempotency-Key": idempotencyKey,
+      },
+      body: JSON.stringify({}),
+    },
+  );
 }
 
 export function estimateBillingCost(input: BillingEstimateInput) {
@@ -9673,32 +10148,6 @@ export async function fetchProjectExecutorAgentServiceByProject(
     : null;
 }
 
-export async function fetchProjectExecutorAutomaticDeploymentRuns({
-  agentUid,
-  limit = 20,
-  ordering = "-created_at",
-}: {
-  agentUid?: string | null;
-  limit?: number;
-  ordering?: string;
-} = {}) {
-  const payload = await requestJson<
-    | PaginatedResponse<ProjectExecutorAutomaticDeploymentRun>
-    | ProjectExecutorAutomaticDeploymentRun[]
-  >(
-    "/orm/api/agents/v1/project-executor-automatic-deployment-runs/",
-    "",
-    undefined,
-    {
-      ...(agentUid?.trim() ? { agent_uid: agentUid.trim() } : {}),
-      ordering,
-      limit,
-    },
-  );
-
-  return normalizeListResponse(payload);
-}
-
 export interface CodingAgentDeploymentDefaultsInput {
   global_active: boolean;
   llm_provider: string;
@@ -9774,7 +10223,7 @@ export async function deleteProjectExecutorAgentServiceByProject(projectUid: str
 }
 
 export function deleteResourceRelease(resourceReleaseUid: string) {
-  return requestJson<null>(
+  return requestJson<ResourceReleaseRecord | null>(
     commandCenterConfig.mainSequence.endpoint,
     `resource-release/${resolveMainSequenceUidPath(resourceReleaseUid, "resource release")}/`,
     {

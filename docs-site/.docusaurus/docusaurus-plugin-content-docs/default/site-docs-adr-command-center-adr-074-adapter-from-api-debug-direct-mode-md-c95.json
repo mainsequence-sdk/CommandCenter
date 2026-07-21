@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-074-adapter-from-api-debug-direct-mode",
+  "title": "ADR 074: Adapter From API Debug Direct Mode",
+  "description": "- Status: Accepted and initially implemented",
+  "source": "@site/../docs/adr/command_center/adr-074-adapter-from-api-debug-direct-mode.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-074-adapter-from-api-debug-direct-mode",
+  "permalink": "/docs/adr/command_center/adr-074-adapter-from-api-debug-direct-mode",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-074-adapter-from-api-debug-direct-mode.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization",
+  "title": "ADR 066: Pro Table Formula Enablement And Asset Screener Pro Inheritance",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization",
+  "permalink": "/docs/adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-066-shared-table-formula-contract-and-asset-screener-metric-despecialization.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

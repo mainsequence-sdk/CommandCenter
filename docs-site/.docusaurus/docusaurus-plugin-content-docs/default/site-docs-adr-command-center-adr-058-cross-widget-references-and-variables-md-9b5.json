@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-058-cross-widget-references-and-variables",
+  "title": "ADR 058: Cross-Widget References And Variables",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-058-cross-widget-references-and-variables.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-058-cross-widget-references-and-variables",
+  "permalink": "/docs/adr/command_center/adr-058-cross-widget-references-and-variables",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-058-cross-widget-references-and-variables.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

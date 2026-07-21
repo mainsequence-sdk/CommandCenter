@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision",
+  "title": "ADR 046: WebSocket Stream Survivability And Reconnect Supervision",
+  "description": "- Status: Partially Implemented",
+  "source": "@site/../docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision",
+  "permalink": "/docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-046-websocket-stream-survivability-and-reconnect-supervision.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

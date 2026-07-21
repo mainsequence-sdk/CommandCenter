@@ -55,6 +55,12 @@
   `/api/v1/pricing/curves/{uid}/discount-curve/` with required `market_data_set` and optional
   `valuation_date`, and returns the typed discount-curve response used by the Pricing Curve detail
   page.
+- `fetchPricingCurveDeleteImpact(...)` and `deletePricingCurve(...)` implement the destructive
+  Pricing Curve delete workflow. The UI must call
+  `/api/v1/pricing/curves/{uid}/delete-impact/` first, pass `delete_values` and
+  `delete_curve_selections` as explicit booleans, and only call `DELETE
+  /api/v1/pricing/curves/{uid}/` with the same flags after the backend returns
+  `can_delete === true`.
 - `fetchMarketsSettings()` calls `/api/v1/settings/` and exposes the public Markets app metadata,
   runtime assumptions, documentation URLs, and assumption rows through one typed helper for the
   platform settings surface.
@@ -74,6 +80,28 @@
   `/orm/api/pods/cluster/{cluster_uid}/pod-logs/` with required `namespace` and `pod` query params
   and returns the snapshot `logs` string for the cluster detail page to render through the shared
   `LogTable`.
+- ResourceRelease helpers use the pods API root and the UID-only release contract. Creation sends
+  `resource_uid`, `related_image_uid`, compute requests, capacity, release kind, and the single
+  boolean policy `automatic_deployment`; it does not send deployment modes, tracked paths, or
+  current-version selectors. Project-scoped lists call `resource-release/` with `project_uid`
+  beside `limit` and `offset`. Edit calls only PATCH `{ automatic_deployment }`, while
+  `deployResourceReleaseCurrentVersion(...)` posts no body to the release
+  `deploy-current-version` action and returns a unified deployment-run payload.
+- Deployment run helpers use `/orm/api/pods/deployment-runs/`. Lists support `project_uid`,
+  `target_type`, `limit`, and `offset`; details use
+  `/orm/api/pods/deployment-runs/{run_uid}/`; logs use
+  `/orm/api/pods/deployment-runs/{run_uid}/logs/`. Resource-release-specific history filters
+  project-scoped `target_type=resource_release` rows client-side by `target.uid`.
+- Static-site ResourceRelease helpers use the static-site release contract on the same
+  `resource-release/` collection with `release_kind: "static_site"`. Creation submits resolved
+  `creation.fields` values from `resource-release/static-site-capabilities/`, renders each
+  field's `help_text`, and must not send runtime resource, image, job, compute fields, capability
+  descriptors, schema/catalog metadata, availability, features, or limits. The current static-site
+  create contract uses `spa_entry_file` for SPA fallback behavior and does not submit
+  `install_command`, `build_command`, or `routing_fallback`. Static-site deploy history is read
+  from unified deployment runs with `target_type=static_site`. Static manual deploys call
+  `resource-release/{release_uid}/deploy-current-version/` with an empty JSON body and an
+  `Idempotency-Key` and receive a unified deployment-run payload.
 - Markets positions helpers also live here. `fetchManagedAccountHoldingsPositionDetails(...)`
   adapts the canonical managed-account holdings collection endpoint
   `/api/v1/account/{uid}/holdings/` into the shared position-detail payload shape used by

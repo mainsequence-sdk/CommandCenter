@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting",
+  "title": "ADR 055: Simplify Slide To Body-Only Widget Hosting",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting",
+  "permalink": "/docs/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

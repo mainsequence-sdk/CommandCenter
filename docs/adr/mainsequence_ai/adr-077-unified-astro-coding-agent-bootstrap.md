@@ -135,7 +135,7 @@ Expected response:
         "kind": "user",
         "user_uid": "user-uid"
       },
-      "knative_service_runtime_uid": "runtime-uid-or-null",
+      "service_runtime_uid": "runtime-uid-or-null",
       "is_ready": true,
       "image_drift": {},
       "automatic_deployment": true
@@ -213,7 +213,7 @@ Expected response when access can be minted:
   "rpc_url": "https://...",
   "token": "...",
   "is_ready": false,
-  "knative_service_runtime_uid": "runtime-uid",
+  "service_runtime_uid": "runtime-uid",
   "runtime_paths": {
     "session": "/api/a2a/sessions/{session_uid}/runtime",
     "chat": "/api/a2a/sessions/{session_uid}/runtime/chat",
@@ -300,7 +300,11 @@ flow intentionally introduces a session-level model override.
 ### `ProjectAgentConfigurator.tsx`
 
 - production model catalog resolution should use the new Astro service/session/runtime sequence
-- debug/static configured mode can remain as a development escape hatch if explicitly configured
+- project-agent configuration and Agent detail model hydration must use the `command-center-base`
+  runtime target when they do not have a selected backend `AgentSession` uid
+- a configured/proxy assistant endpoint may alter the final assistant-runtime HTTP URL, but it must
+  not create a separate runtime target or bypass the Astro service, handle session, and
+  `resolve_runtime_access` sequence
 
 ## Answered Questions
 
@@ -421,28 +425,37 @@ Answer:
 - Settings should distinguish "Astro runtime starting" from model-catalog or provider-status
   request failures.
 
-### Configured/debug endpoint mode
+### Configured/proxy endpoint handling
 
-The frontend supports configured/static assistant endpoints and local proxy modes.
+The frontend supports configured assistant endpoints and local proxy paths as transport overrides.
+They are not runtime-access strategies.
 
 Question:
 
-- Should `runtimeTarget: "configured"` always bypass Astro deploy/session/runtime bootstrap?
-- Should command-center-base ever prefer configured endpoint in production, or only when explicit
-  debug env vars are present?
+- Should a configured endpoint or Vite proxy bypass Astro service lookup, handle-session
+  creation/reuse, or `resolve_runtime_access`?
+- What should model/provider screens do when they need assistant-runtime data but do not have a
+  selected chat session?
 
 Answer:
 
-- Configured/debug endpoint mode must not bypass Astro configuration, Command Center handle-session
-  creation/reuse, or `resolve_runtime_access`.
+- No production `runtimeTarget: "configured"` exists.
 - When debug/proxy env vars such as `VITE_ASSISTANT_UI_ENDPOINT=/__assistant__` and
   `VITE_ASSISTANT_UI_PROXY_TARGET=http://...` are set, the frontend still resolves the Astro
   `agent_uid`, gets or creates the Command Center handle session, and resolves runtime access for
   that concrete session when runtime access is needed.
-- `resolve_runtime_access` is a fast call and remains part of the workflow even when
-  `runtimeTarget: "configured"` is active.
-- The only runtime transport difference is that assistant-runtime calls use the configured/debug
-  endpoint instead of the `rpc_url` returned by `resolve_runtime_access`.
+- The only transport difference is that assistant-runtime calls may use the configured/proxy
+  endpoint instead of the `rpc_url` returned by `resolve_runtime_access`. The bearer token and
+  runtime metadata still come from `resolve_runtime_access`.
+- Selected-session calls use `runtimeTarget: "agent-runtime"` and must pass a concrete backend
+  `AgentSession` uid as `currentSessionId`.
+- Settings, model-provider screens, Agent detail handle-session model hydration, and
+  project-agent configuration model hydration use `runtimeTarget: "command-center-base"` when
+  they do not have a selected chat session. That path resolves the deployed user-scoped Astro
+  service, gets or creates the canonical Astro handle session, and then calls
+  `resolve_runtime_access`.
+- If neither a selected session uid nor the `command-center-base` workflow is available, the UI
+  should show a deploy/configure-required state. It must not fall back to a static endpoint.
 - The `resolve_runtime_access` request body stays the normal empty object. The frontend must not
   send `create_knative_service`; that flag is no longer supported.
 
@@ -522,9 +535,11 @@ Answer:
   render "Astro runtime starting" separately from model-catalog or provider-status failures.
 - [x] After model-provider auth changes, force provider-status/model-catalog rechecks without
   recreating Astro identity or the handle session.
-- [x] In configured/proxy endpoint mode, keep the Astro agent/session/runtime-access flow but
-  use the normal `resolve_runtime_access` request body and use the configured endpoint instead of
-  the returned `rpc_url` for assistant-runtime calls.
+- [x] Remove the production `configured` runtime target. Configured/proxy endpoint values are
+  transport overrides only; selected-session and command-center-base paths still call
+  `resolve_runtime_access`.
+- [x] Default no-session available-model/model-hydration requests to `command-center-base` instead
+  of a configured/static endpoint path.
 - [x] Remove any frontend request body usage of `create_knative_service`; the
   `resolve_runtime_access` request body is the normal empty object.
 - [x] Use the filtered user-scoped Astro service list, handle-session get-or-create, and
@@ -536,9 +551,11 @@ Answer:
   deploy service, get-or-create session by handle, resolve runtime access.
 - [x] Add tests that ChatProvider uses the Astro handle session instead of latest-session ordering
   for default Command Center rail binding and unions that session into the visible session catalog.
-- [x] Add tests that configured/proxy endpoint mode still calls `resolve_runtime_access`, does not
-  send `create_knative_service`, and uses the configured endpoint instead of the returned `rpc_url`
-  for assistant-runtime calls.
+- [x] Add tests that configured/proxy transport still calls `resolve_runtime_access`, does not send
+  `create_knative_service`, and uses the configured endpoint only as a transport override for
+  assistant-runtime calls.
+- [x] Add tests that agent-runtime requests without a concrete session uid are rejected instead of
+  falling back to a static configured endpoint.
 - [x] Add tests for settings runtime-access caching, `401` / `403` refresh, queued/starting
   messaging, and provider-auth-triggered catalog/status refresh.
 

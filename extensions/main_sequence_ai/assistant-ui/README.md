@@ -35,9 +35,9 @@ remaining height. The two shells still differ intentionally:
   not consume the reply viewport
 - the full-page composer now includes provider, model, and reasoning-effort selectors
 - model options are fetched from the assistant backend at `/api/chat/get_available_models`
-- available-model fetching resolves the selected backend `AgentSession` first, so it calls that
-  session's `runtime_access.rpc_url` instead of the static configured endpoint or Vite assistant
-  proxy
+- available-model fetching is always runtime-backed. With a selected backend `AgentSession`, it
+  resolves that session through `resolve_runtime_access/`. Without a selected session, it uses the
+  `command-center-base` Astro handle workflow, then resolves runtime access for that handle session.
 - when that per-session runtime-access response includes backend `image_drift`, chat stores only
   the warning metadata needed for UI and surfaces a generic "needs an update" warning in the full
   page and session-detail rail
@@ -73,13 +73,15 @@ remaining height. The two shells still differ intentionally:
   global list
 - the model dropdown now includes a direct `Sign in to provider` action that opens the shared
   Settings app on the Main Sequence AI Model Providers section
-- if the backend returns no models, the entire selector row is hidden and no fallback model or
-  fallback reasoning effort is forced
-- if the backend model catalog request fails in live mode, the composer is disabled and shows an
-  explicit "models could not be fetched" error instead of allowing sends
-- if the backend model catalog loads successfully but returns no available models, that catalog is
-  authoritative: `ChatProvider` clears picker selection, the composer is disabled, the selector row
-  stays hidden, and the only model-provider action shown is `Sign in to provider`
+- chat model hydration is strict: `/api/chat/get_available_models` is the only source of sendable
+  chat models; `/api/models/catalog` is only for settings/provider inspection and must not be used
+  as a chat fallback
+- if the backend available-model request fails in live mode, the composer is disabled and shows an
+  explicit request error that keeps the chat model-load failure separate from
+  the underlying assistant runtime/service detail
+- if runtime availability returns no usable models, `ChatProvider` clears
+  picker selection, the composer is disabled, the selector row stays hidden, and the action opens
+  model provider settings for inspection instead of assuming sign-in is the only fix
 - if model resolution is still loading for the current user/agent scope, the composer stays
   disabled and Command Center does not start a send until the catalog resolves
 - the selected model and reasoning effort are owned by `ChatProvider`, not by assistant-ui composer
@@ -383,6 +385,11 @@ not own static runtime/model usage metadata.
 `AppShell.tsx` wraps the shell in `ChatProvider`, renders `ChatMount`, and owns the docked
 right-rail shell column.
 
+Both main-assistant and project-agent docked rails use the shared `ChatOverlay` surface at shell
+layer `z-index: 100`. Keep that layer above full-content feature viewers such as the static-site
+iframe (`z-index: 80`) so the right rail remains visible and interactive while those viewers are
+open. Overlay-mode rails remain at `z-index: 110`.
+
 `ChatMount` is responsible for:
 
 - overlay-only shell mounting when the chat rail is in overlay mode
@@ -428,10 +435,12 @@ If you do those steps, the main project should return to its pre-chat shape beca
 
 ## Live Transport Notes
 
-- Live assistant-runtime requests resolve their root through `runtime/assistant-endpoint.ts`,
-  which resolves runtime access from the selected `AgentSession` and uses `runtime_access.rpc_url`.
-  `assistant_ui.endpoint` is only for explicitly configured/static mode and is not a fallback for
-  Main Sequence AI agent-runtime calls.
+- Live assistant-runtime requests resolve their root through `runtime/assistant-endpoint.ts`.
+  Selected-session requests must pass the backend `AgentSession` uid and call
+  `resolve_runtime_access/` before contacting the runtime. Command Center operational requests use
+  the `command-center-base` Astro handle workflow and also call `resolve_runtime_access/`.
+  `assistant_ui.endpoint` or the Vite proxy endpoint may replace the HTTP transport URL, but it is
+  not a runtime-access bypass and is not a fallback for missing session identity.
 - The live runtime keeps assistant-ui's standard stream decoding, but sends only the most recent
   user message in `messages` instead of the full thread history.
 - The selected `AgentSession` now overrides `threadId` in the live request body, so backend session

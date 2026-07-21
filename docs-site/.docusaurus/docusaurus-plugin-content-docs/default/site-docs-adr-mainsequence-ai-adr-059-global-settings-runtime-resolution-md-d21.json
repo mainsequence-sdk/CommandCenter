@@ -1,0 +1,15 @@
+{
+  "id": "adr/mainsequence_ai/adr-059-global-settings-runtime-resolution",
+  "title": "ADR 059: Main Sequence AI Global Settings Runtime Resolution",
+  "description": "- Status: Superseded",
+  "source": "@site/../docs/adr/mainsequence_ai/adr-059-global-settings-runtime-resolution.md",
+  "sourceDirName": "adr/mainsequence_ai",
+  "slug": "/adr/mainsequence_ai/adr-059-global-settings-runtime-resolution",
+  "permalink": "/docs/adr/mainsequence_ai/adr-059-global-settings-runtime-resolution",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/mainsequence_ai/adr-059-global-settings-runtime-resolution.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

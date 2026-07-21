@@ -1,23 +1,28 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { AlertTriangle, ArrowLeft, Loader2, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Select } from "@/components/ui/select";
 
 import {
+  deletePricingCurve,
+  fetchPricingCurveDeleteImpact,
   fetchPricingCurveDiscountCurve,
   fetchPricingCurveSelections,
   fetchPricingCurveSummary,
   formatMainSequenceError,
   listPricingMarketDataSets,
   type EntitySummaryHeader,
+  type PricingCurveDeleteImpactRelationship,
+  type PricingCurveDeleteResponse,
   type PricingCurveDiscountCurveResponse,
   type PricingCurveSelectionRow,
   type PricingMarketDataSet,
@@ -415,11 +420,295 @@ function CurveSelectionsSection({
   );
 }
 
+function getDeleteSeverityVariant(
+  severity: PricingCurveDeleteImpactRelationship["severity"],
+) {
+  if (severity === "blocking" || severity === "destructive") {
+    return "danger" as const;
+  }
+
+  if (severity === "warning" || severity === "mutating") {
+    return "warning" as const;
+  }
+
+  return "neutral" as const;
+}
+
+function CurveDeleteDialog({
+  curveTitle,
+  curveUid,
+  onClose,
+  onDeleted,
+  open,
+}: {
+  curveTitle: string;
+  curveUid: string;
+  onClose: () => void;
+  onDeleted?: (result: PricingCurveDeleteResponse) => void | Promise<void>;
+  open: boolean;
+}) {
+  const [deleteValues, setDeleteValues] = useState(false);
+  const [deleteCurveSelections, setDeleteCurveSelections] = useState(false);
+  const wasOpenRef = useRef(false);
+  const deleteImpactQuery = useQuery({
+    queryKey: [
+      "main_sequence",
+      "pricing_curves",
+      "delete_impact",
+      curveUid,
+      deleteValues,
+      deleteCurveSelections,
+    ],
+    queryFn: () =>
+      fetchPricingCurveDeleteImpact(curveUid, {
+        deleteCurveSelections,
+        deleteValues,
+      }),
+    enabled: open && Boolean(curveUid),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: () =>
+      deletePricingCurve(curveUid, {
+        deleteCurveSelections,
+        deleteValues,
+      }),
+    onSuccess: async (result) => {
+      await onDeleted?.(result);
+      onClose();
+    },
+  });
+
+  useEffect(() => {
+    const wasOpen = wasOpenRef.current;
+    wasOpenRef.current = open;
+
+    if (open && !wasOpen) {
+      setDeleteValues(false);
+      setDeleteCurveSelections(false);
+      deleteMutation.reset();
+    }
+  }, [deleteMutation, open]);
+
+  const impact = deleteImpactQuery.data ?? null;
+  const displayName = readText(impact?.display_name) ?? readText(impact?.identifier) ?? curveTitle;
+  const canDelete =
+    impact?.can_delete === true && !deleteImpactQuery.isFetching && !deleteMutation.isPending;
+  const relationships = impact?.relationships ?? [];
+
+  return (
+    <Dialog
+      title="Delete Pricing Curve"
+      description="Review the backend delete impact before deleting this curve."
+      open={open}
+      onClose={deleteMutation.isPending ? () => undefined : onClose}
+      className="max-w-[min(980px,calc(100vw-24px))]"
+    >
+      <div className="space-y-5">
+        <div className="rounded-[calc(var(--radius)-6px)] border border-danger/30 bg-danger/10 px-4 py-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+            <div className="space-y-1">
+              <div className="text-sm font-semibold text-danger">Destructive operation</div>
+              <p className="text-sm leading-6 text-danger">
+                This deletes the pricing curve identity. Additional toggles expand deletion to
+                stored curve observations and market-data-set curve selections.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-3 md:col-span-2">
+            <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              Curve
+            </div>
+            <div className="mt-2 font-medium text-foreground">{displayName}</div>
+            <div className="mt-1 break-all font-mono text-xs text-muted-foreground">{curveUid}</div>
+          </div>
+          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-3">
+            <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              Blocking
+            </div>
+            <div className="mt-2 text-sm font-medium text-foreground">
+              {(impact?.blocking_count ?? 0).toLocaleString()}
+            </div>
+          </div>
+          <div className="rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35 px-3 py-3">
+            <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+              Affected
+            </div>
+            <div className="mt-2 text-sm font-medium text-foreground">
+              {(impact?.affected_count ?? 0).toLocaleString()}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="flex items-start gap-3 rounded-[calc(var(--radius)-6px)] border border-danger/25 bg-background/35 px-4 py-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 accent-danger"
+              checked={deleteValues}
+              disabled={deleteMutation.isPending}
+              onChange={(event) => setDeleteValues(event.target.checked)}
+            />
+            <span className="space-y-1">
+              <span className="block text-sm font-medium text-foreground">Delete curve values</span>
+              <span className="block text-xs leading-5 text-muted-foreground">
+                Delete DiscountCurvesStorage observations for this curve identifier.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 rounded-[calc(var(--radius)-6px)] border border-danger/25 bg-background/35 px-4 py-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 accent-danger"
+              checked={deleteCurveSelections}
+              disabled={deleteMutation.isPending}
+              onChange={(event) => setDeleteCurveSelections(event.target.checked)}
+            />
+            <span className="space-y-1">
+              <span className="block text-sm font-medium text-foreground">
+                Delete curve selections
+              </span>
+              <span className="block text-xs leading-5 text-muted-foreground">
+                Delete market-data-set curve-selection rows pointing to this curve.
+              </span>
+            </span>
+          </label>
+        </div>
+
+        {deleteImpactQuery.isLoading ? (
+          <div className="flex min-h-32 items-center justify-center rounded-[calc(var(--radius)-6px)] border border-border/70 bg-background/35">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading delete impact
+            </div>
+          </div>
+        ) : null}
+
+        {deleteImpactQuery.isError ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+            {formatMainSequenceError(deleteImpactQuery.error)}
+          </div>
+        ) : null}
+
+        {impact ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={impact.can_delete ? "success" : "danger"}>
+                {impact.can_delete ? "Delete allowed" : "Delete blocked"}
+              </Badge>
+              {deleteImpactQuery.isFetching ? (
+                <Badge variant="neutral">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Refreshing impact
+                </Badge>
+              ) : null}
+            </div>
+
+            {impact.warnings.length > 0 ? (
+              <div className="rounded-[calc(var(--radius)-6px)] border border-warning/35 bg-warning/10 px-4 py-3 text-sm text-warning">
+                {impact.warnings.map((warning) => (
+                  <div key={warning}>{warning}</div>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="overflow-x-auto rounded-[calc(var(--radius)-4px)] border border-border/70">
+              <table className="w-full min-w-[860px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-border/70 text-left text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                    <th className="px-4 py-3">Relationship</th>
+                    <th className="px-4 py-3">Count</th>
+                    <th className="px-4 py-3">Severity</th>
+                    <th className="px-4 py-3">Effect</th>
+                    <th className="px-4 py-3">Blocks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {relationships.length === 0 ? (
+                    <tr>
+                      <td className="px-4 py-6 text-center text-muted-foreground" colSpan={5}>
+                        No dependent relationships reported.
+                      </td>
+                    </tr>
+                  ) : null}
+                  {relationships.map((relationship) => (
+                    <tr
+                      key={relationship.key}
+                      className="border-b border-border/60 last:border-0"
+                    >
+                      <td className="px-4 py-3 align-top">
+                        <div className="font-medium text-foreground">{relationship.label}</div>
+                        <div className="mt-1 font-mono text-xs text-muted-foreground">
+                          {relationship.model}.{relationship.column}
+                        </div>
+                        <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                          {relationship.description}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 align-top font-mono text-xs">
+                        {relationship.count.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <Badge variant={getDeleteSeverityVariant(relationship.severity)}>
+                          {relationship.severity}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 align-top text-muted-foreground">
+                        {relationship.effect}
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <Badge variant={relationship.blocks_delete ? "danger" : "neutral"}>
+                          {relationship.blocks_delete ? "Yes" : "No"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+
+        {deleteMutation.isError ? (
+          <div className="rounded-[calc(var(--radius)-6px)] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+            {formatMainSequenceError(deleteMutation.error)}
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap justify-end gap-2 border-t border-border/70 pt-4">
+          <Button variant="outline" onClick={onClose} disabled={deleteMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            disabled={!canDelete}
+            onClick={() => {
+              deleteMutation.mutate();
+            }}
+          >
+            {deleteMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+            Delete pricing curve
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
 export function MainSequencePricingCurveDetailView({
   curveDate,
   curveUid,
   initialCurve,
   onBack,
+  onDeleted,
   onResetContext,
   onSelectTab,
   onSelectCurveDate,
@@ -431,6 +720,7 @@ export function MainSequencePricingCurveDetailView({
   curveUid: string;
   initialCurve: PricingCurveRow | null;
   onBack: () => void;
+  onDeleted?: (result: PricingCurveDeleteResponse) => void | Promise<void>;
   onResetContext: () => void;
   onSelectTab: (tabId: PricingCurveDetailTabId) => void;
   onSelectCurveDate: (value: string) => void;
@@ -439,6 +729,7 @@ export function MainSequencePricingCurveDetailView({
   selectedTabId: PricingCurveDetailTabId;
 }) {
   const navigate = useNavigate();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const isCurveTab = selectedTabId === "curve";
   const isSelectionsTab = selectedTabId === "selections";
   const curveSummaryQuery = useQuery({
@@ -541,10 +832,16 @@ export function MainSequencePricingCurveDetailView({
         title={pageTitle}
         description={pageDescription}
         actions={
-          <Button type="button" variant="outline" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
-            Back to curves
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="danger" onClick={() => setDeleteDialogOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+              Delete curve
+            </Button>
+            <Button type="button" variant="outline" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4" />
+              Back to curves
+            </Button>
+          </div>
         }
       />
 
@@ -704,6 +1001,14 @@ export function MainSequencePricingCurveDetailView({
           selections={curveSelections}
         />
       ) : null}
+
+      <CurveDeleteDialog
+        curveTitle={pageTitle}
+        curveUid={curveUid}
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onDeleted={onDeleted}
+      />
     </div>
   );
 }

@@ -1,0 +1,15 @@
+{
+  "id": "adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models",
+  "title": "ADR 062: Remove Unused Agent Capability and Session Resource Models",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models.md",
+  "sourceDirName": "adr/mainsequence_ai",
+  "slug": "/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models",
+  "permalink": "/docs/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/mainsequence_ai/adr-062-remove-unused-agent-resource-models.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

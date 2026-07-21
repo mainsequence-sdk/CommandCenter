@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-059-user-instance-canonical-workspace-controls" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 059: User-Instance Canonical Workspace Controls | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-059-user-instance-canonical-workspace-controls"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 059: User-Instance Canonical Workspace Controls | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Proposed"><meta data-rh="true" property="og:description" content="- Status: Proposed"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-059-user-instance-canonical-workspace-controls"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-059-user-instance-canonical-workspace-controls" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-059-user-instance-canonical-workspace-controls" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 059: User-Instance Canonical Workspace Controls</h1></header>
+<ul>
+<li class="">Status: Proposed</li>
+<li class="">Date: 2026-05-12</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-shared-workspace-state">ADR: Shared Workspace Content vs Per-User View State</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-incremental-workspace-normalization">ADR: Incremental Workspace Normalization and Resource-Scoped Save</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-038-progressive-workspace-widget-hydration">ADR 038: Progressive Workspace Initial Rendering and Per-Widget Hydration</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-040-dashboard-surface-return-hydration">ADR 040: Dashboard Surface Return Hydration</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Workspace control state is currently split across two overlapping representations:</p>
+<ul>
+<li class="">shared workspace <code>dashboard.controls</code></li>
+<li class="">per-user workspace user-state <code>selectedControls</code></li>
+</ul>
+<p>That split exists in the right places conceptually, but the current implementation still mixes the
+two at runtime:</p>
+<ul>
+<li class="">live time-range and refresh selections are written back into <code>dashboard.controls</code></li>
+<li class="">user-state hydration is optional instead of canonical</li>
+<li class="">workspace load can still fall back to control defaults when no hydrated user-state selection is
+present yet</li>
+<li class="">local user-state updates currently mutate both saved and draft workspace maps, which blurs
+shared workspace content and per-user state</li>
+</ul>
+<p>This creates buggy behavior:</p>
+<ul>
+<li class="">the active selected range and refresh interval can drift back to defaults</li>
+<li class="">the base workspace can leak into the current user&#x27;s active workspace instance</li>
+<li class="">user-state can be treated as an overlay instead of the canonical active control state</li>
+<li class="">reopening the same workspace can restore a different control state than the one the user last set</li>
+</ul>
+<p>The required workflow is stricter:</p>
+<ol>
+<li class="">if the user changes refresh interval or time range in workspace edit mode, that update must hit:<!-- -->
+<ul>
+<li class="">the base workspace seed configuration</li>
+<li class="">the current user&#x27;s workspace instance</li>
+</ul>
+</li>
+<li class="">whenever a workspace loads, it must always resolve active controls from the user instance</li>
+<li class="">the runtime must never silently fall back to generic defaults for an already-addressable backend
+workspace route</li>
+<li class="">if a user instance does not exist yet for that workspace, create it from the base workspace
+control seed first, then load active controls from that user instance</li>
+</ol>
+<p>This ADR uses <code>user instance</code> to mean the per-user state record for one workspace. It does not
+introduce a separate global cross-workspace user preference model.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>The current user&#x27;s workspace instance becomes the canonical source of active workspace control
+state.</p>
+<p><code>dashboard.controls</code> remains part of the shared workspace document, but only as:</p>
+<ul>
+<li class="">control capability/configuration</li>
+<li class="">control seed values for first-time user-instance creation</li>
+</ul>
+<p>The active selected values:</p>
+<ul>
+<li class=""><code>timeRangeKey</code></li>
+<li class=""><code>rangeStartMs</code></li>
+<li class=""><code>rangeEndMs</code></li>
+<li class=""><code>refreshIntervalMs</code></li>
+</ul>
+<p>must be treated as user-instance-owned state after hydration.</p>
+<p>The runtime must not use shared workspace defaults as a fallback active selection for a backend
+workspace once that workspace id is known.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="shared-vs-user-owned-semantics">Shared vs User-Owned Semantics<a href="#shared-vs-user-owned-semantics" class="hash-link" aria-label="Direct link to Shared vs User-Owned Semantics" title="Direct link to Shared vs User-Owned Semantics" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="shared-workspace-owns">Shared Workspace Owns<a href="#shared-workspace-owns" class="hash-link" aria-label="Direct link to Shared Workspace Owns" title="Direct link to Shared Workspace Owns" translate="no">​</a></h3>
+<p>The shared workspace document owns:</p>
+<ul>
+<li class="">whether controls are enabled</li>
+<li class="">available time-range options</li>
+<li class="">available refresh intervals</li>
+<li class="">the base seed selection copied into a missing user instance</li>
+<li class="">all non-user-scoped workspace structure and widget definitions</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="user-instance-owns">User Instance Owns<a href="#user-instance-owns" class="hash-link" aria-label="Direct link to User Instance Owns" title="Direct link to User Instance Owns" translate="no">​</a></h3>
+<p>The workspace user-state record owns:</p>
+<ul>
+<li class="">the active selected time range</li>
+<li class="">the active selected custom range bounds</li>
+<li class="">the active selected refresh interval</li>
+<li class="">widget runtime state already scoped to the current user/session view</li>
+</ul>
+<p>After hydration, these values are canonical for runtime and authoring surfaces.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="load-workflow">Load Workflow<a href="#load-workflow" class="hash-link" aria-label="Direct link to Load Workflow" title="Direct link to Load Workflow" translate="no">​</a></h2>
+<p>The load workflow becomes:</p>
+<ol>
+<li class="">fetch the shared base workspace document</li>
+<li class="">fetch the current user&#x27;s workspace-instance state for that workspace</li>
+<li class="">if the user-state record does not exist:<!-- -->
+<ul>
+<li class="">build a user-state record from the shared workspace control seed</li>
+<li class="">persist that user-state record</li>
+<li class="">use that persisted record as the canonical active state</li>
+</ul>
+</li>
+<li class="">hydrate the selected workspace draft from:<!-- -->
+<ul>
+<li class="">shared workspace structure</li>
+<li class="">user-instance selected controls</li>
+<li class="">user-instance widget runtime state</li>
+</ul>
+</li>
+<li class="">mount workspace controls from the hydrated user-instance selection only</li>
+</ol>
+<p>The important hardening rule is:</p>
+<ul>
+<li class="">runtime must not mount from generic control defaults while waiting for whether user-state exists</li>
+<li class="">runtime must resolve through the user-instance path first</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="edit-workflow">Edit Workflow<a href="#edit-workflow" class="hash-link" aria-label="Direct link to Edit Workflow" title="Direct link to Edit Workflow" translate="no">​</a></h2>
+<p>When a user edits refresh or time range in workspace edit mode, the system must perform two
+separate writes with separate ownership:</p>
+<ol>
+<li class="">update the shared workspace control seed</li>
+<li class="">update the current user&#x27;s workspace-instance active selection</li>
+</ol>
+<p>These are not the same state even when they happen from one UI action.</p>
+<p>The shared write affects:</p>
+<ul>
+<li class="">what a first-time user instance will inherit later</li>
+<li class="">what the workspace author intends as the seed configuration</li>
+</ul>
+<p>The user-instance write affects:</p>
+<ul>
+<li class="">what this current user sees immediately</li>
+<li class="">what this current user gets when they reopen the workspace later</li>
+</ul>
+<p>The implementation must not satisfy both semantics by reusing one object that mixes shared seed
+fields and active user selection fields indiscriminately.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="no-runtime-default-fallback-for-backend-workspace-routes">No Runtime Default Fallback For Backend Workspace Routes<a href="#no-runtime-default-fallback-for-backend-workspace-routes" class="hash-link" aria-label="Direct link to No Runtime Default Fallback For Backend Workspace Routes" title="Direct link to No Runtime Default Fallback For Backend Workspace Routes" translate="no">​</a></h2>
+<p>For backend-backed workspaces, generic control defaults such as <code>&quot;15m&quot;</code> or <code>1800000</code> are allowed
+only as:</p>
+<ul>
+<li class="">framework-level empty initialization before any workspace id exists</li>
+<li class="">seed normalization when creating a brand-new shared workspace document</li>
+</ul>
+<p>They are not allowed as the active fallback for an existing backend workspace route during normal
+load.</p>
+<p>If the app can identify a workspace id, it must resolve:</p>
+<ul>
+<li class="">shared workspace</li>
+<li class="">user-instance state</li>
+</ul>
+<p>before treating the control state as authoritative.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">active controls become deterministic per user and per workspace</li>
+<li class="">reopening a workspace restores the same user-scoped range and refresh selection</li>
+<li class="">shared workspace seeds stay distinct from active user selections</li>
+<li class="">control-state bugs become easier to reason about because ownership is explicit</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="costs">Costs<a href="#costs" class="hash-link" aria-label="Direct link to Costs" title="Direct link to Costs" translate="no">​</a></h3>
+<ul>
+<li class="">control-state persistence/hydration becomes a stricter two-record workflow</li>
+<li class="">edit-mode control changes now require coordinated shared-workspace and user-instance updates</li>
+<li class="">backend user-state semantics must distinguish missing state from empty state</li>
+<li class="">migration is required for older workspaces that still store active selected controls in the
+shared document shape</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Define one canonical ownership rule in code comments and docs: shared workspace controls are seed/config only, user-instance controls are active runtime state.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Audit all reads of <code>dashboard.controls.timeRange.selectedRange</code>, <code>customStartMs</code>, <code>customEndMs</code>, and <code>refresh.selectedIntervalMs</code> and classify each call site as shared-seed logic or active-user-state logic.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Stop treating active selected control values as part of the authoritative shared workspace state after hydration.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Refactor <code>updateWorkspaceUserState(...)</code> in <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/features/dashboards/custom-workspace-studio-store.ts">custom-workspace-studio-store.ts</a> so it no longer mutates <code>savedWorkspaceById</code> as if user-state were shared workspace content.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep user-state updates scoped to the hydrated selected draft projection plus user-state revision bookkeeping.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Refactor workspace load in <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/features/dashboards/custom-workspace-studio-store.ts">custom-workspace-studio-store.ts</a> so base workspace detail and user-state are resolved as one canonical hydration workflow instead of “base first, user overlay if present”.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Treat a missing workspace user-state record as a first-class branch, not as equivalent to “no selected controls”.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->On missing user-state, derive a new user-instance selected-controls snapshot from the shared workspace control seed.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Persist that synthesized user-state record before marking the workspace as fully hydrated.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Hydrate the runtime-selected workspace from the persisted user-instance state, not from shared control defaults.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Remove runtime fallback behavior that treats <code>DashboardControls.tsx</code> defaults as acceptable active selections for an already-addressable backend workspace.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/dashboards/DashboardControls.tsx">DashboardControls.tsx</a> mounts backend workspaces from hydrated user-instance selection and does not silently revert to generic defaults once a workspace id exists.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Keep framework-level defaults only for blank/new local initialization before any workspace hydration path exists.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Separate “shared control seed update” from “current user active selection update” in the edit-mode controls flow.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/features/dashboards/useCustomWorkspaceStudio.ts">useCustomWorkspaceStudio.ts</a> so committing controls writes the user-instance state canonically and coordinates any required shared-workspace seed update through a separate explicit path.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Review <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/features/dashboards/custom-dashboard-storage.ts">custom-dashboard-storage.ts</a> <code>updateDashboardControlsState(...)</code> and either restrict it to shared seed authoring or split it into separate shared-seed and active-selection helpers.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <a class="" href="/docs/Users/jose/code/MainSequenceClientSide/CommandCenter/src/features/dashboards/workspace-user-state.ts">workspace-user-state.ts</a> helpers so extract/apply logic reflects the new ownership model and does not blur shared seed with active user selection.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Decide whether the current shared <code>controls</code> shape remains the seed carrier or whether a dedicated seed-only subshape is needed for clarity.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->If a dedicated shared seed shape is introduced, assess and document the backend workspace payload contract change before implementation.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->If the current <code>controls</code> shape is retained temporarily, document which fields are seed-only versus active-user-state-only during migration.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add migration logic for older workspace payloads that still embed live selected control values in the shared workspace document.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure save flows persist shared workspace structure separately from workspace user-state, even when one UI action updates both ownership layers.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure workspace reopen always prefers the hydrated user-instance state over shared workspace seed values.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Ensure switching between users cannot leak one user&#x27;s control selection into another user&#x27;s workspace instance.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Add regression tests for:<!-- -->
+<ul>
+<li class="">existing user-state load</li>
+<li class="">missing user-state creation from shared seed</li>
+<li class="">custom-range persistence</li>
+<li class="">refresh-interval persistence</li>
+<li class="">reopen behavior</li>
+<li class="">user switch isolation</li>
+<li class="">edit-mode dual write semantics</li>
+</ul>
+</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Update <a href="https://github.com/mainsequence-sdk/CommandCenter/blob/main/src/features/dashboards/README.md" target="_blank" rel="noopener noreferrer" class="">src/features/dashboards/README.md</a> and any nearby workspace persistence docs to describe the hardened ownership and load workflow.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="backend-contract-impact">Backend Contract Impact<a href="#backend-contract-impact" class="hash-link" aria-label="Direct link to Backend Contract Impact" title="Direct link to Backend Contract Impact" translate="no">​</a></h2>
+<p>This is a backend-relevant contract hardening, not a frontend-only cleanup.</p>
+<p>The frontend can keep using the existing workspace detail endpoint plus workspace user-state
+endpoint only if the backend semantics support all of the following clearly:</p>
+<ul>
+<li class="">shared workspace detail returns shared/base workspace content</li>
+<li class="">user-state fetch distinguishes a missing user record from a valid empty state</li>
+<li class="">user-state mutation can create the user-instance record deterministically</li>
+<li class="">shared workspace save and user-state save remain independent operations</li>
+</ul>
+<p>If the current backend user-state endpoint cannot distinguish “missing record” from “empty state”
+or cannot reliably create the per-user workspace instance on first access, backend work is required
+before this ADR can be fully implemented.</p>
+<p>This ADR does not introduce a new global user-default workspace-controls endpoint. The user
+instance remains workspace-scoped.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-059-user-instance-canonical-workspace-controls.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#shared-vs-user-owned-semantics" class="table-of-contents__link toc-highlight">Shared vs User-Owned Semantics</a><ul><li><a href="#shared-workspace-owns" class="table-of-contents__link toc-highlight">Shared Workspace Owns</a></li><li><a href="#user-instance-owns" class="table-of-contents__link toc-highlight">User Instance Owns</a></li></ul></li><li><a href="#load-workflow" class="table-of-contents__link toc-highlight">Load Workflow</a></li><li><a href="#edit-workflow" class="table-of-contents__link toc-highlight">Edit Workflow</a></li><li><a href="#no-runtime-default-fallback-for-backend-workspace-routes" class="table-of-contents__link toc-highlight">No Runtime Default Fallback For Backend Workspace Routes</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#costs" class="table-of-contents__link toc-highlight">Costs</a></li></ul></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li><li><a href="#backend-contract-impact" class="table-of-contents__link toc-highlight">Backend Contract Impact</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

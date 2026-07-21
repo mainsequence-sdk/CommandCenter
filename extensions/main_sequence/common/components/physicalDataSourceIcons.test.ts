@@ -11,4 +11,8 @@ describe("resolvePhysicalDataSourceIcon", () => {
       expect(resolvePhysicalDataSourceIcon({ classType })).toBe(mssqlIcon);
     },
   );
+
+  it("ignores symbolic non-image source logo values", () => {
+    expect(resolvePhysicalDataSourceIcon({ sourceLogo: "database" })).toBeNull();
+  });
 });

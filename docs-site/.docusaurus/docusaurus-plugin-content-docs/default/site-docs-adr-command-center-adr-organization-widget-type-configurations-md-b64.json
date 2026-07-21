@@ -1,0 +1,24 @@
+{
+  "id": "adr/command_center/adr-organization-widget-type-configurations",
+  "title": "ADR: Organization-Scoped Widget Type Configurations",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-organization-widget-type-configurations.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-organization-widget-type-configurations",
+  "permalink": "/docs/adr/command_center/adr-organization-widget-type-configurations",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-organization-widget-type-configurations.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Agent-Ready Widget Type Registry Contract",
+    "permalink": "/docs/adr/command_center/adr-agent-ready-widget-type-registry-contract"
+  },
+  "next": {
+    "title": "ADR: Inline Canvas Editing Capability and Rich Text Widget",
+    "permalink": "/docs/adr/command_center/adr-inline-canvas-rich-text-widget"
+  }
+}

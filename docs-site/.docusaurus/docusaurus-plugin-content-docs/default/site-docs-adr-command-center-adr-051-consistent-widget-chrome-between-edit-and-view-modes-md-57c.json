@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-051-consistent-widget-chrome-between-edit-and-view-modes",
+  "title": "ADR 051: Consistent Widget Chrome Between Edit And View Modes",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-051-consistent-widget-chrome-between-edit-and-view-modes.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-051-consistent-widget-chrome-between-edit-and-view-modes",
+  "permalink": "/docs/adr/command_center/adr-051-consistent-widget-chrome-between-edit-and-view-modes",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-051-consistent-widget-chrome-between-edit-and-view-modes.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

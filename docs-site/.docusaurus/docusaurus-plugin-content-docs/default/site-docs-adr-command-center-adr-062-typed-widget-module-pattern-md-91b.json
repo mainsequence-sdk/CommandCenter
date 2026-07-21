@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-062-typed-widget-module-pattern",
+  "title": "ADR 062: Typed Widget Module Pattern",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-062-typed-widget-module-pattern.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-062-typed-widget-module-pattern",
+  "permalink": "/docs/adr/command_center/adr-062-typed-widget-module-pattern",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-062-typed-widget-module-pattern.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

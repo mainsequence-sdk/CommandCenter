@@ -11,7 +11,7 @@ import {
   deleteProjectExecutorAgentServiceByProject,
   fetchProjectExecutorAgentServiceByProject,
   formatMainSequenceError,
-  type ProjectExecutorAutomaticDeploymentRun,
+  type DeploymentRunListRecord,
   type ProjectExecutorAgentServiceDeployResponse,
 } from "../../../main_sequence/common/api";
 import { normalizeAgentImageDriftRecord } from "../../image-drift";
@@ -31,17 +31,60 @@ function normalizeDeploymentStatus(status: string | null | undefined) {
   return typeof status === "string" && status.trim() ? status.trim() : "";
 }
 
+type ProjectAgentDeploymentStatusResult =
+  | CodingAgentDeploymentResult
+  | DeploymentRunListRecord;
+
+function isDeploymentRunListRecord(
+  result: ProjectAgentDeploymentStatusResult,
+): result is DeploymentRunListRecord {
+  return typeof result.state === "string" && typeof result.target_type === "string";
+}
+
+function readDeployStatus(result: ProjectAgentDeploymentStatusResult) {
+  return isDeploymentRunListRecord(result) ? result.state : result.status;
+}
+
 function getDeployResultMessage(
-  result: CodingAgentDeploymentResult | ProjectExecutorAutomaticDeploymentRun,
+  result: ProjectAgentDeploymentStatusResult,
 ) {
-  const message = result.result?.message;
-  return typeof message === "string" && message.trim() ? message.trim() : null;
+  const resultPayload =
+    "result" in result && result.result && typeof result.result === "object"
+      ? (result.result as Record<string, unknown>)
+      : null;
+
+  if (resultPayload) {
+    const message = resultPayload.message;
+    if (typeof message === "string" && message.trim()) {
+      return message.trim();
+    }
+  }
+
+  if (isDeploymentRunListRecord(result)) {
+    if (typeof result.error === "string" && result.error.trim()) {
+      return result.error.trim();
+    }
+
+    if (result.error && typeof result.error === "object") {
+      const errorPayload = result.error as Record<string, unknown>;
+
+      for (const key of ["error_detail", "detail", "message"]) {
+        const value = errorPayload[key];
+
+        if (typeof value === "string" && value.trim()) {
+          return value.trim();
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 function getDeployStatusSummary(
-  result: CodingAgentDeploymentResult | ProjectExecutorAutomaticDeploymentRun,
+  result: ProjectAgentDeploymentStatusResult,
 ) {
-  const status = normalizeDeploymentStatus(result.status);
+  const status = normalizeDeploymentStatus(readDeployStatus(result));
 
   switch (status) {
     case "deployed":
@@ -58,11 +101,11 @@ function getDeployStatusSummary(
     case "pending":
       return "Project agent deployment is running.";
     case "blocked":
-      return result.error_detail?.trim() || getDeployResultMessage(result) || "Deployment is blocked.";
+      return getDeployResultMessage(result) || "Deployment is blocked.";
     case "failed":
-      return result.error_detail?.trim() || getDeployResultMessage(result) || "Deployment failed.";
+      return getDeployResultMessage(result) || "Deployment failed.";
     default:
-      return result.error_detail?.trim() || getDeployResultMessage(result) || `Status: ${status}`;
+      return getDeployResultMessage(result) || `Status: ${status}`;
   }
 }
 
@@ -108,7 +151,6 @@ export function ProjectAgentConfigurator({
         postSubmitStrategy: {
           kind: "poll-project-runs",
           limit: 20,
-          ordering: "-created_at",
         },
         resetKey: projectUid,
         scope: {

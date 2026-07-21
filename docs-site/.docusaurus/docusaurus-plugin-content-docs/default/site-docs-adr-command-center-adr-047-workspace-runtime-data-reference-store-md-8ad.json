@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-047-workspace-runtime-data-reference-store",
+  "title": "ADR 047: Workspace Runtime Data Reference Store",
+  "description": "- Status: Partially Implemented",
+  "source": "@site/../docs/adr/command_center/adr-047-workspace-runtime-data-reference-store.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-047-workspace-runtime-data-reference-store",
+  "permalink": "/docs/adr/command_center/adr-047-workspace-runtime-data-reference-store",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-047-workspace-runtime-data-reference-store.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

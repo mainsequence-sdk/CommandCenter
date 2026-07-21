@@ -25,6 +25,10 @@ import {
   type PermissionCandidateUserRecord,
   type ShareablePrincipalsResponse,
 } from "../../../../common/api";
+import {
+  mergePermissionEntityIds,
+  resolvePermissionEntityId,
+} from "../../../../common/components/permissionEntityId";
 
 const namespacePermissionsObjectUrl = "/orm/api/ts_manager/namespace";
 
@@ -48,37 +52,8 @@ const emptyPermissionAssignments: RbacAssignmentValue = {
   edit: { userIds: [], teamIds: [] },
 };
 
-function normalizePermissionEntityId(id: string | number) {
-  if (typeof id === "number") {
-    return id;
-  }
-
-  const trimmed = id.trim();
-
-  if (/^-?\d+$/.test(trimmed)) {
-    const parsed = Number(trimmed);
-
-    if (Number.isSafeInteger(parsed)) {
-      return parsed;
-    }
-  }
-
-  return trimmed;
-}
-
 function mergeRbacIds(...lists: Array<Array<string | number>>) {
-  const seen = new Set<string>();
-
-  return lists.flat().map(normalizePermissionEntityId).filter((id) => {
-    const key = String(id);
-
-    if (seen.has(key)) {
-      return false;
-    }
-
-    seen.add(key);
-    return true;
-  });
+  return mergePermissionEntityIds(...lists);
 }
 
 function formatPermissionUserName(
@@ -128,12 +103,12 @@ function buildPermissionValue(
 ) {
   return normalizePermissionValue({
     view: {
-      userIds: canView?.users.map((user) => user.id) ?? [],
-      teamIds: canView?.teams.map((team) => team.id) ?? [],
+      userIds: mergePermissionEntityIds(canView?.users ?? []),
+      teamIds: mergePermissionEntityIds(canView?.teams ?? []),
     },
     edit: {
-      userIds: canEdit?.users.map((user) => user.id) ?? [],
-      teamIds: canEdit?.teams.map((team) => team.id) ?? [],
+      userIds: mergePermissionEntityIds(canEdit?.users ?? []),
+      teamIds: mergePermissionEntityIds(canEdit?.teams ?? []),
     },
   });
 }
@@ -189,7 +164,11 @@ export function MainSequenceNamespacePermissionsCard({
     const usersById = new Map<string, RbacAssignableUser>();
 
     for (const user of permissionCandidateUsersQuery.data ?? []) {
-      const normalizedId = normalizePermissionEntityId(user.id);
+      const normalizedId = resolvePermissionEntityId(user);
+
+      if (normalizedId === null) {
+        continue;
+      }
 
       usersById.set(String(normalizedId), {
         id: normalizedId,
@@ -199,7 +178,11 @@ export function MainSequenceNamespacePermissionsCard({
     }
 
     for (const user of [...(canViewQuery.data?.users ?? []), ...(canEditQuery.data?.users ?? [])]) {
-      const normalizedId = normalizePermissionEntityId(user.id);
+      const normalizedId = resolvePermissionEntityId(user);
+
+      if (normalizedId === null) {
+        continue;
+      }
 
       usersById.set(String(normalizedId), {
         id: normalizedId,
@@ -209,14 +192,17 @@ export function MainSequenceNamespacePermissionsCard({
     }
 
     if (sessionUser) {
-      const normalizedId = normalizePermissionEntityId(sessionUser.id);
-      const existingUser = usersById.get(String(normalizedId));
+      const normalizedId = resolvePermissionEntityId(sessionUser);
 
-      usersById.set(String(normalizedId), {
-        id: normalizedId,
-        email: sessionUser.email,
-        name: sessionUser.name || existingUser?.name || sessionUser.email,
-      });
+      if (normalizedId !== null) {
+        const existingUser = usersById.get(String(normalizedId));
+
+        usersById.set(String(normalizedId), {
+          id: normalizedId,
+          email: sessionUser.email,
+          name: sessionUser.name || existingUser?.name || sessionUser.email,
+        });
+      }
     }
 
     return [...usersById.values()].sort((left, right) => left.email.localeCompare(right.email));
@@ -226,8 +212,14 @@ export function MainSequenceNamespacePermissionsCard({
     const teamsById = new Map<string, RbacAssignableTeam>();
 
     for (const team of permissionTeamsQuery.data ?? []) {
-      teamsById.set(String(team.id), {
-        id: team.id,
+      const normalizedId = resolvePermissionEntityId(team);
+
+      if (normalizedId === null) {
+        continue;
+      }
+
+      teamsById.set(String(normalizedId), {
+        id: normalizedId,
         name: team.name,
         description: team.description,
         memberCount: team.member_count,
@@ -235,7 +227,11 @@ export function MainSequenceNamespacePermissionsCard({
     }
 
     for (const team of [...(canViewQuery.data?.teams ?? []), ...(canEditQuery.data?.teams ?? [])]) {
-      const normalizedId = normalizePermissionEntityId(team.id);
+      const normalizedId = resolvePermissionEntityId(team);
+
+      if (normalizedId === null) {
+        continue;
+      }
 
       teamsById.set(String(normalizedId), {
         id: normalizedId,

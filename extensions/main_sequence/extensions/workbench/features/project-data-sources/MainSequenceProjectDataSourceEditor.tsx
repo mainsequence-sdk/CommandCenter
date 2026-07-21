@@ -25,23 +25,12 @@ import {
   type ProjectDataSourceEditorPayload,
   type ProjectDataSourceEditorWriteResponse,
 } from "../../../../common/api";
-import { PickerField, type PickerOption } from "../../../../common/components/PickerField";
+import { MainSequenceDataSourcePickerField } from "../../../../common/components/MainSequenceDataSourcePickerField";
+import type { PickerOption } from "../../../../common/components/PickerField";
+import { toPhysicalDataSourcePickerOption } from "../../../../common/components/dataSourcePickerOptions";
 import { MainSequenceProjectDataSourceMetaTableImportDialog } from "./MainSequenceProjectDataSourceMetaTableImportDialog";
 
 const metaTableNamespaceParam = "msMetaTableNamespace";
-
-function getProjectDataSourceRelatedResourceOptionValue(option: {
-  id: string;
-  uid?: string | null;
-}) {
-  const uid = typeof option.uid === "string" ? option.uid.trim() : "";
-
-  if (uid.length > 0) {
-    return uid;
-  }
-
-  return option.id.trim();
-}
 
 function getEditorField(
   payload: ProjectDataSourceEditorPayload | undefined,
@@ -116,12 +105,9 @@ export function MainSequenceProjectDataSourceEditor({
   });
 
   const relatedResourceOptions = useMemo<PickerOption[]>(() => {
-    const options: PickerOption[] = (relatedResourceOptionsQuery.data ?? []).map((option) => ({
-      value: getProjectDataSourceRelatedResourceOptionValue(option),
-      label: option.label,
-      description: [option.class_type, option.status].filter(Boolean).join(" · "),
-      keywords: [option.class_type, option.status],
-    }));
+    const options: PickerOption[] = (relatedResourceOptionsQuery.data ?? []).map(
+      toPhysicalDataSourcePickerOption,
+    );
 
     if (
       relatedResourceUid &&
@@ -344,7 +330,7 @@ export function MainSequenceProjectDataSourceEditor({
                   <label className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
                     {relatedResourceField?.label ?? "Related resource"}
                   </label>
-                  <PickerField
+                  <MainSequenceDataSourcePickerField
                     value={relatedResourceUid}
                     displayValue={relatedResourceDisplayValue}
                     onChange={(value) => {

@@ -78,6 +78,7 @@ type MockState = {
   projectResources: Array<Record<string, unknown>>;
   resourceReleases: Array<Record<string, unknown>>;
   resourceReleaseGallery: Array<Record<string, unknown>>;
+  deploymentRuns: Array<Record<string, unknown>>;
   jobs: Array<Record<string, unknown>>;
   jobRuns: Array<Record<string, unknown>>;
   jobRunLogs: Record<string, Array<Record<string, unknown>>>;
@@ -120,6 +121,8 @@ function createMockState(): MockState {
     projectResources: readDataset("project_resources"),
     resourceReleases: readDataset("resource_releases"),
     resourceReleaseGallery: readDataset("resource_release_gallery"),
+    deploymentRuns:
+      readOptionalDataset<Array<Record<string, unknown>>>("deployment_runs") ?? [],
     jobs: readDataset("jobs"),
     jobRuns: readDataset("job_runs"),
     jobRunLogs: readDataset("job_run_logs"),
@@ -897,6 +900,344 @@ function findByUid(rows: Array<Record<string, unknown>>, uid: string) {
   return rows.find((row) => readString(row.uid) === normalized) ?? null;
 }
 
+function isStaticSiteResourceRelease(release: Record<string, unknown> | null | undefined) {
+  return lowerNeedle(readString(release?.release_kind)) === "static_site";
+}
+
+function findMockResourceRelease(resourceReleaseUid: string) {
+  return (
+    findByUid(state.resourceReleases, resourceReleaseUid) ??
+    findByUid(state.resourceReleaseGallery, resourceReleaseUid)
+  );
+}
+
+function updateMockResourceReleaseCopies(
+  resourceReleaseUid: string,
+  update: (release: Record<string, unknown>) => void,
+) {
+  for (const release of [...state.resourceReleases, ...state.resourceReleaseGallery]) {
+    if (readString(release.uid) === resourceReleaseUid) {
+      update(release);
+    }
+  }
+}
+
+function readProjectLatestCommitSha(project: Record<string, unknown> | null | undefined) {
+  const latestCommit = isRecord(project?.latest_commit) ? project?.latest_commit : null;
+  return (
+    readOptionalString(latestCommit?.sha) ??
+    readOptionalString(latestCommit?.short) ??
+    "abcdef1234567890"
+  );
+}
+
+function buildStaticSiteCapabilities(projectUid: string | null) {
+  const pathConstraints = {
+    format: "repository_relative_posix",
+    allow_absolute: false,
+    allow_backslash: false,
+    allow_nul: false,
+    forbidden_segments: ["", ".", ".."],
+    forbidden_prefixes: [".mainsequence"],
+    max_bytes: 1024,
+  };
+
+  return {
+    creation: {
+      fields: [
+        {
+          name: "release_kind",
+          type: "choice",
+          help_text: "Creates a static website release. This value is fixed to static_site.",
+          required: true,
+          nullable: false,
+          default: "static_site",
+          choices: [{ value: "static_site", label: "Static site" }],
+        },
+        {
+          name: "project_uid",
+          type: "uuid",
+          help_text:
+            "The current Project. It identifies the repository and branch to deploy and is filled automatically.",
+          required: true,
+          nullable: false,
+          default: projectUid,
+        },
+        {
+          name: "name",
+          type: "string",
+          help_text:
+            "A user-facing name for this static-site release, for example Documentation.",
+          required: true,
+          nullable: false,
+          default: "",
+          constraints: {
+            max_length: 255,
+          },
+        },
+        {
+          name: "automatic_deployment",
+          type: "boolean",
+          help_text:
+            "When enabled, a repository push received for this Project automatically creates a new deployment.",
+          required: false,
+          nullable: false,
+          default: true,
+        },
+        {
+          name: "root_directory",
+          type: "repository_path",
+          help_text:
+            "The repository-relative directory containing the Vite project. Leave it empty when package.json is at the repository root; for example, enter frontend when the file is frontend/package.json.",
+          required: false,
+          nullable: false,
+          default: "",
+          constraints: {
+            ...pathConstraints,
+            allow_empty: true,
+          },
+        },
+        {
+          name: "framework",
+          type: "choice",
+          help_text: "The framework used to build the website. This phase supports only Vite.",
+          required: false,
+          nullable: false,
+          default: "vite",
+          choices: [{ value: "vite", label: "Vite" }],
+        },
+        {
+          name: "node_version",
+          type: "choice",
+          help_text: "The Node.js version used to install dependencies and build the Vite website.",
+          required: false,
+          nullable: true,
+          default: "24",
+          choices: [{ value: "24", label: "Node.js 24" }],
+          conditions: [
+            {
+              when: { framework: "vite" },
+              enabled: true,
+              required: false,
+              default: "24",
+              choices: [{ value: "24", label: "Node.js 24" }],
+            },
+          ],
+        },
+        {
+          name: "output_directory",
+          type: "repository_path",
+          help_text:
+            "The directory produced by the build and published as the website, relative to the selected root directory; Vite normally uses dist.",
+          required: false,
+          nullable: true,
+          default: "dist",
+          constraints: {
+            ...pathConstraints,
+            allow_empty: false,
+          },
+          conditions: [
+            { when: { framework: "vite" }, enabled: true, required: true, default: "dist" },
+          ],
+        },
+        {
+          name: "routing_mode",
+          type: "choice",
+          help_text:
+            "How requests without an exact generated file are handled. SPA uses the SPA entry file; Static returns a not-found response.",
+          required: false,
+          nullable: true,
+          default: "spa",
+          choices: [
+            { value: "static", label: "Static" },
+            { value: "spa", label: "SPA" },
+          ],
+          conditions: [
+            {
+              when: { framework: "vite" },
+              enabled: true,
+              required: true,
+              default: "spa",
+              choices: [
+                { value: "static", label: "Static" },
+                { value: "spa", label: "SPA" },
+              ],
+            },
+          ],
+        },
+        {
+          name: "spa_entry_file",
+          type: "url_path",
+          help_text:
+            "For SPA routing, this generated file is served when a requested path has no matching file, normally /index.html, so the Vite client-side router can handle the URL. It is omitted for Static routing.",
+          required: false,
+          nullable: true,
+          default: "/index.html",
+          constraints: {
+            max_bytes: 1024,
+          },
+          conditions: [
+            { when: { routing_mode: "static" }, enabled: false, required: false, default: null },
+            { when: { routing_mode: "spa" }, enabled: true, required: true, default: "/index.html" },
+          ],
+        },
+        {
+          name: "build_environment",
+          type: "string_map",
+          help_text:
+            "String environment variables provided to the Vite build commands, for example VITE_API_URL=https://api.example.com.",
+          required: false,
+          nullable: false,
+          default: {},
+          constraints: {
+            allow_blank_values: true,
+            key_pattern: "^[A-Za-z_][A-Za-z0-9_]*$",
+            reserved_key_prefixes: ["MAINSEQUENCE_"],
+            reserved_prefix_case_sensitive: false,
+            max_entries: 100,
+            max_key_length: 128,
+            max_value_length: 8192,
+            max_total_bytes: 65536,
+          },
+        },
+      ],
+    },
+  };
+}
+
+function syncMockReleaseDeploymentPointer(
+  resourceReleaseUid: string,
+  run: Record<string, unknown>,
+  pointer: "active" | "desired",
+) {
+  const summary = {
+    uid: readString(run.uid),
+    state: readString(run.state),
+    status: readString(run.state),
+    source: readString(run.source),
+    commit_sha: readString(run.commit_sha),
+    queued_at: readOptionalString(run.created_at),
+    activated_at: readOptionalString(run.finished_at),
+    finished_at: readOptionalString(run.finished_at),
+    error: run.error ?? null,
+  };
+
+  updateMockResourceReleaseCopies(resourceReleaseUid, (release) => {
+    if (pointer === "active") {
+      release.active_deployment = summary;
+    }
+
+    release.desired_deployment = summary;
+  });
+}
+
+function createMockDeploymentRun(
+  release: Record<string, unknown>,
+  source: "create" | "manual" | "repository_event",
+  options: {
+    operation?: string;
+    phase?: string | null;
+    state?: string;
+    syncPointer?: "active" | "desired" | null;
+  } = {},
+) {
+  const releaseUid = readString(release.uid);
+  const projectUid = readString(release.project_uid);
+  const project = findByUid(state.projects, projectUid);
+  const now = new Date().toISOString();
+  const nextIdValue = nextId(state.deploymentRuns);
+  const releaseKind = readString(release.release_kind) || "streamlit_dashboard";
+  const targetType = isStaticSiteResourceRelease(release)
+    ? "static_site"
+    : "resource_release";
+  const stateValue = options.state ?? "running";
+  const phase = options.phase ?? "waiting_project_image";
+  const commitSha =
+    readOptionalString(release.project_repo_hash) ??
+    readProjectLatestCommitSha(project);
+  const run = {
+    id: nextIdValue,
+    uid: `mock-deployment-run-${nextIdValue}`,
+    target_type: targetType,
+    target: {
+      uid: releaseUid,
+      name:
+        readString(release.name) ||
+        readString(release.subdomain) ||
+        `Release ${releaseUid}`,
+      kind: releaseKind,
+    },
+    project_uid: projectUid,
+    operation: options.operation ?? "build_and_deploy",
+    source,
+    commit_sha: commitSha,
+    configuration_revision: readNumber(release.configuration_revision) || 1,
+    state: stateValue,
+    phase,
+    outcome: ["deployed", "no_action"].includes(stateValue) ? "success" : "",
+    created_at: now,
+    started_at: stateValue === "pending" ? null : now,
+    finished_at: ["deployed", "no_action", "skipped", "blocked", "failed"].includes(stateValue)
+      ? now
+      : null,
+    logs: {
+      state: "available",
+      url: `/orm/api/pods/deployment-runs/mock-deployment-run-${nextIdValue}/logs/`,
+      retention_expires_at: null,
+    },
+    error: null,
+    revision_context: {
+      project_uid: projectUid || "mock-project-uid",
+      current_commit_sha: commitSha,
+      release_kind: releaseKind,
+      resource_path:
+        readString(release.resource_path) ||
+        readString(release.root_directory) ||
+        readString(release.resource_name) ||
+        "mock/resource.py",
+      resource_release_uid: releaseUid,
+    },
+    trigger_context: {},
+    artifact_context: {},
+    cleanup_context: {},
+    result: {},
+    steps: [],
+    log_entries: [
+      {
+        sequence: 1,
+        timestamp: now,
+        stream: "stdout",
+        text: "Deployment run created in local mock mode.",
+      },
+    ],
+  };
+
+  state.deploymentRuns.unshift(run);
+
+  if (options.syncPointer) {
+    syncMockReleaseDeploymentPointer(releaseUid, run, options.syncPointer);
+  }
+
+  return run;
+}
+
+function filterDeploymentRuns(searchParams: URLSearchParams) {
+  const projectUidFilter = lowerNeedle(searchParams.get("project_uid"));
+  const targetTypeFilter = lowerNeedle(searchParams.get("target_type"));
+
+  return sortDescendingById(state.deploymentRuns.filter((run) => {
+    if (projectUidFilter && lowerNeedle(readString(run.project_uid)) !== projectUidFilter) {
+      return false;
+    }
+
+    if (targetTypeFilter && lowerNeedle(readString(run.target_type)) !== targetTypeFilter) {
+      return false;
+    }
+
+    return true;
+  }));
+}
+
 function filterAssets(searchParams: URLSearchParams, body: Record<string, unknown> | null) {
   const search = searchParams.get("search") ?? readOptionalString(body?.search);
   const ticker = searchParams.get("ticker") ?? readOptionalString(body?.ticker);
@@ -1241,6 +1582,116 @@ function buildMockPricingCurveSelections(curveUid: string) {
   };
 }
 
+function buildMockPricingCurveDeleteImpact(
+  curveUid: string,
+  deleteValues: boolean,
+  deleteCurveSelections: boolean,
+) {
+  const curve = buildMockPricingCurves().find((row) => row.uid === curveUid);
+
+  if (!curve) {
+    throw new Error(`Mock pricing curve ${curveUid} was not found.`);
+  }
+
+  const valueCount = 128;
+  const selectionCount = 1;
+  const relationships = [
+    {
+      key: "discount_curve_values",
+      label: "Discount curve observations",
+      model: "DiscountCurvesStorage",
+      column: "curve_identifier",
+      relationship_type: "derived",
+      on_delete: deleteValues ? "delete values" : "blocked unless delete_values=true",
+      count: valueCount,
+      effect: deleteValues
+        ? "Discount curve observations for this curve identifier will be deleted."
+        : "Stored observations still reference this curve identifier.",
+      severity: deleteValues ? "destructive" : "blocking",
+      blocks_delete: !deleteValues,
+      description:
+        "Historical discount-curve observations are keyed by curve identifier in bound DataNode storage.",
+    },
+    {
+      key: "curve_selections",
+      label: "Curve selections",
+      model: "PricingMarketDataSetCurveBindingTable",
+      column: "curve_uid",
+      relationship_type: "direct",
+      on_delete: deleteCurveSelections
+        ? "delete curve selections"
+        : "blocked unless delete_curve_selections=true",
+      count: selectionCount,
+      effect: deleteCurveSelections
+        ? "Market-data-set curve-selection rows pointing to this curve will be deleted."
+        : "Market-data-set curve selections still point to this curve.",
+      severity: deleteCurveSelections ? "destructive" : "blocking",
+      blocks_delete: !deleteCurveSelections,
+      description:
+        "Curve selections define where this curve is used by pricing market-data sets.",
+    },
+  ] as const;
+  const blockingRelationships = relationships.filter((relationship) => relationship.blocks_delete);
+
+  return {
+    resource_type: "pricing_curve",
+    uid: curve.uid,
+    identifier: curve.unique_identifier,
+    display_name: curve.display_name,
+    can_delete: blockingRelationships.length === 0,
+    blocking_count: blockingRelationships.reduce(
+      (count, relationship) => count + relationship.count,
+      0,
+    ),
+    affected_count:
+      1 + (deleteValues ? valueCount : 0) + (deleteCurveSelections ? selectionCount : 0),
+    delete_endpoint: `/api/v1/pricing/curves/${curve.uid}/`,
+    relationships,
+    warnings: [
+      ...(deleteValues
+        ? ["Discount curve observations for this curve identifier will be permanently deleted."]
+        : []),
+      ...(deleteCurveSelections
+        ? ["Market-data-set curve-selection rows pointing to this curve will be permanently deleted."]
+        : []),
+    ],
+  };
+}
+
+function buildMockPricingCurveDeleteResponse(
+  curveUid: string,
+  deleteValues: boolean,
+  deleteCurveSelections: boolean,
+) {
+  const curve = buildMockPricingCurves().find((row) => row.uid === curveUid);
+
+  if (!curve) {
+    throw new Error(`Mock pricing curve ${curveUid} was not found.`);
+  }
+
+  return {
+    detail: "Pricing curve deleted from mock state.",
+    uid: curve.uid,
+    curve_identifier: curve.unique_identifier,
+    deleted_count: 1,
+    deleted_values_count: deleteValues ? 128 : 0,
+    deleted_curve_selections_count: deleteCurveSelections ? 1 : 0,
+    deleted_curve_building_details_count: 1,
+    delete_values: deleteValues,
+    delete_curve_selections: deleteCurveSelections,
+    storage_cleanups: deleteValues
+      ? [
+          {
+            data_node_uid: `mock-data-node-${curve.uid}`,
+            storage_table_identifier: "DiscountCurvesStorage",
+            deleted_count: 128,
+            table_empty: false,
+          },
+        ]
+      : [],
+  };
+}
+
 function buildMockPricingCurveDiscountCurve(
   curveUid: string,
   marketDataSetValue: string | null,
@@ -1525,6 +1976,113 @@ function buildTargetPortfolioSummary(portfolio: Record<string, unknown>) {
 }
 
 function buildResourceReleaseSummary(release: Record<string, unknown>) {
+  if (isStaticSiteResourceRelease(release)) {
+    const releaseUid = readString(release.uid);
+    const deploymentCount = state.deploymentRuns.filter(
+      (run) =>
+        readString(run.target_type) === "static_site" &&
+        isRecord(run.target) &&
+        readString(run.target.uid) === releaseUid,
+    ).length;
+    const lifecycleStatus = readString(release.lifecycle_status) || "active";
+    const activeDeployment = isRecord(release.active_deployment)
+      ? release.active_deployment
+      : null;
+    const desiredDeployment = isRecord(release.desired_deployment)
+      ? release.desired_deployment
+      : null;
+
+    return buildEntitySummary(
+      releaseUid,
+      "resource_release",
+      readString(release.name) || readString(release.subdomain) || "Static site",
+      {
+        badges: [
+          {
+            key: "release_kind",
+            label: "Static site",
+            tone: "secondary",
+          },
+          {
+            key: "lifecycle_status",
+            label: lifecycleStatus.replaceAll("_", " "),
+            tone: lifecycleStatus === "active" ? "success" : "warning",
+          },
+          {
+            key: "deployment_policy",
+            label: readBoolean(release.automatic_deployment)
+              ? "CI/CD release"
+              : "Manual frozen release",
+            tone: readBoolean(release.automatic_deployment) ? "success" : "neutral",
+          },
+        ],
+        inlineFields: [
+          {
+            key: "resource_type",
+            label: "Resource type",
+            value: "static_site",
+            kind: "text",
+          },
+          {
+            key: "project_uid",
+            label: "Project",
+            value: readString(release.project_uid),
+            kind: "code",
+          },
+          {
+            key: "public_url",
+            label: "Public URL",
+            value: readString(release.public_url),
+            kind: "link",
+            href: `/orm/api/pods/resource-release/${releaseUid}/exchange-launch/`,
+            iframe: true,
+          },
+        ],
+        highlightFields: [
+          {
+            key: "subdomain",
+            label: "Subdomain",
+            value: readString(release.subdomain),
+            kind: "text",
+          },
+          {
+            key: "active_commit",
+            label: "Active commit",
+            value: readString(activeDeployment?.commit_sha),
+            kind: "code",
+          },
+          {
+            key: "desired_commit",
+            label: "Desired commit",
+            value: readString(desiredDeployment?.commit_sha),
+            kind: "code",
+          },
+        ],
+        stats: [
+          {
+            key: "deployments",
+            label: "Deployments",
+            display: String(deploymentCount),
+            value: deploymentCount,
+            kind: "number",
+          },
+          {
+            key: "configuration_revision",
+            label: "Configuration",
+            display: `r${readNumber(release.configuration_revision) || 1}`,
+            value: readNumber(release.configuration_revision) || 1,
+            kind: "number",
+          },
+        ],
+        readme: {
+          path: "Static site",
+          html: `<p>${readString(release.name) || "Static site"} is served from the project repository.</p>`,
+          last_modified: null,
+        },
+      },
+    );
+  }
+
   return buildEntitySummary(
     readString(release.uid),
     "resource_release",
@@ -1536,6 +2094,13 @@ function buildResourceReleaseSummary(release: Record<string, unknown>) {
           label: readString(release.release_kind) || "resource",
           tone: "info",
         },
+        {
+          key: "deployment_policy",
+          label: readBoolean(release.automatic_deployment)
+            ? "CI/CD release"
+            : "Manual frozen release",
+          tone: readBoolean(release.automatic_deployment) ? "success" : "neutral",
+        },
       ],
       inlineFields: [
         {
@@ -1545,9 +2110,20 @@ function buildResourceReleaseSummary(release: Record<string, unknown>) {
           kind: "text",
         },
         {
-          key: "resource_name",
+          key: "resource_uid",
           label: "Resource",
-          value: readString(release.resource_name),
+          value:
+            readOptionalString(release.resource_uid) ??
+            readOptionalString(release.resource_name) ??
+            readString(release.resource),
+          kind: "text",
+        },
+        {
+          key: "related_job_uid",
+          label: "Job",
+          value:
+            readOptionalString(release.related_job_uid) ??
+            readOptionalString(release.related_job),
           kind: "text",
         },
         {
@@ -2067,11 +2643,11 @@ function buildClusterSummary(cluster: Record<string, unknown>, searchParams: URL
       },
       {
         key: "knative_services",
-        label: "Knative",
+        label: "Service Runtimes",
         display: String(readArray(cluster.knative).length),
         value: readArray(cluster.knative).length,
         kind: "number",
-        info: "Knative Serving services in serving.knative.dev/v1.",
+        info: "Service runtime resources in the cluster.",
       },
     ],
     extensions: {
@@ -2346,6 +2922,18 @@ function handlePricingCurves(route: string, method: string, searchParams: URLSea
     return buildPricingCurveSummary(decodeURIComponent(summaryMatch[1] ?? ""));
   }
 
+  const deleteImpactMatch = route.match(
+    /^\/api\/v1\/pricing\/curves\/([^/]+)\/delete-impact\/$/,
+  );
+
+  if (deleteImpactMatch && method === "GET") {
+    return buildMockPricingCurveDeleteImpact(
+      decodeURIComponent(deleteImpactMatch[1] ?? ""),
+      searchParams.get("delete_values") === "true",
+      searchParams.get("delete_curve_selections") === "true",
+    );
+  }
+
   const curveSelectionsMatch = route.match(
     /^\/api\/v1\/pricing\/curves\/([^/]+)\/curve-selections\/$/,
   );
@@ -2361,6 +2949,16 @@ function handlePricingCurves(route: string, method: string, searchParams: URLSea
       decodeURIComponent(discountCurveMatch[1] ?? ""),
       searchParams.get("market_data_set"),
       searchParams.get("valuation_date"),
+    );
+  }
+
+  const detailMatch = route.match(/^\/api\/v1\/pricing\/curves\/([^/]+)\/$/);
+
+  if (detailMatch && method === "DELETE") {
+    return buildMockPricingCurveDeleteResponse(
+      decodeURIComponent(detailMatch[1] ?? ""),
+      searchParams.get("delete_values") === "true",
+      searchParams.get("delete_curve_selections") === "true",
     );
   }
 
@@ -3921,6 +4519,7 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
             organization: 1,
             class_type: readString((source.related_resource as Record<string, unknown>).class_type),
             status: readString((source.related_resource as Record<string, unknown>).status),
+            source_logo: readString((source.related_resource as Record<string, unknown>).source_logo),
           }
         : null,
       related_resource_class_type: readString(
@@ -3976,6 +4575,7 @@ function handleProjectDataSources(route: string, method: string, searchParams: U
       label: readString(source.display_name),
       class_type: readString(source.class_type),
       status: readString(source.status),
+      source_logo: readString(source.source_logo),
     }));
   }
 
@@ -5612,14 +6212,149 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
     return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
+  if (route === "/resource-release/static-site-capabilities/" && method === "GET") {
+    return buildStaticSiteCapabilities(readOptionalString(searchParams.get("project_uid")));
+  }
+
+  if (route === "/deployment-runs/" && method === "GET") {
+    return paginate(
+      filterDeploymentRuns(searchParams),
+      searchParams.get("limit"),
+      searchParams.get("offset"),
+    );
+  }
+
+  const deploymentRunLogsMatch = route.match(/^\/deployment-runs\/([^/]+)\/logs\/$/);
+  if (deploymentRunLogsMatch && method === "GET") {
+    const runUid = deploymentRunLogsMatch[1] ?? "";
+    const run = findByUid(state.deploymentRuns, runUid);
+    const entries = readArray<Record<string, unknown>>(run?.log_entries);
+
+    return {
+      run_uid: runUid,
+      entries:
+        entries.length > 0
+          ? entries
+          : [
+              {
+                sequence: 1,
+                timestamp: readOptionalString(run?.created_at),
+                stream: "stdout",
+                text: `Mock logs for deployment run ${runUid}.`,
+              },
+            ],
+      sources: [],
+      next_cursor: null,
+      complete: true,
+      retention_expires_at: null,
+    };
+  }
+
+  const deploymentRunDetailMatch = route.match(/^\/deployment-runs\/([^/]+)\/$/);
+  if (deploymentRunDetailMatch && method === "GET") {
+    return findByUid(state.deploymentRuns, deploymentRunDetailMatch[1] ?? "");
+  }
+
   if (route === "/resource-release/" && method === "GET") {
-    return paginate(sortDescendingById(state.resourceReleases), searchParams.get("limit"), searchParams.get("offset"));
+    const releaseKindFilter = lowerNeedle(searchParams.get("release_kind"));
+    const projectUidFilter = lowerNeedle(searchParams.get("project_uid"));
+    const search = searchParams.get("search");
+    const filtered = sortDescendingById(
+      state.resourceReleases.filter((release) => {
+        if (releaseKindFilter && lowerNeedle(readString(release.release_kind)) !== releaseKindFilter) {
+          return false;
+        }
+
+        if (projectUidFilter && lowerNeedle(readString(release.project_uid)) !== projectUidFilter) {
+          return false;
+        }
+
+        return matchesSearch(
+          [
+            release.uid,
+            release.subdomain,
+            release.name,
+            release.title,
+            release.release_kind,
+            release.project_uid,
+            release.project_name,
+            release.resource_uid,
+            release.resource_name,
+            release.public_url,
+          ],
+          search,
+        );
+      }),
+    );
+
+    return paginate(filtered, searchParams.get("limit"), searchParams.get("offset"));
   }
 
   if (route === "/resource-release/" && method === "POST") {
     const body = parseBody(init);
-    const resource = state.projectResources.find((item) => readString(item.uid) === readString(body?.resource));
-    const image = state.projectImages.find((item) => readString(item.uid) === readString(body?.related_image));
+    const releaseKind = readString(body?.release_kind) || "streamlit_dashboard";
+
+    if (releaseKind === "static_site") {
+      const projectUid = readString(body?.project_uid);
+      const project = findByUid(state.projects, projectUid) ?? state.projects[0] ?? null;
+      const nextIdValue = nextId(state.resourceReleases);
+      const name = readString(body?.name) || `Static site ${nextIdValue}`;
+      const subdomainSlug = name.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
+      const subdomain = `${subdomainSlug || "static-site"}-${nextIdValue}`;
+      const buildEnvironment = isRecord(body?.build_environment) ? body?.build_environment : {};
+      const record = {
+        id: nextIdValue,
+        uid: `mock-static-site-release-${nextIdValue}`,
+        subdomain,
+        resource: null,
+        resource_uid: null,
+        readme_resource: null,
+        readme_resource_uid: null,
+        related_job: null,
+        related_job_uid: null,
+        release_kind: "static_site",
+        automatic_deployment: readBoolean(body?.automatic_deployment),
+        title: name,
+        name,
+        project_id: readNumber(project?.id),
+        project_uid: readString(project?.uid) || projectUid,
+        project_name: readString(project?.project_name),
+        project_repo_hash: readProjectLatestCommitSha(project),
+        public_url: `https://${subdomain}.sites.main-sequence.app`,
+        exchange_launch_url: `/orm/api/pods/resource-release/mock-static-site-release-${nextIdValue}/exchange-launch/`,
+        lifecycle_status: "active",
+        configuration_revision: 1,
+        active_deployment: null,
+        desired_deployment: null,
+        build_environment_keys: Object.keys(buildEnvironment),
+        root_directory: readOptionalString(body?.root_directory) ?? "",
+        framework: readOptionalString(body?.framework),
+        node_version: readOptionalString(body?.node_version),
+        output_directory: readOptionalString(body?.output_directory),
+        routing_mode: readOptionalString(body?.routing_mode),
+        spa_entry_file: readOptionalString(body?.spa_entry_file),
+        readme_html: "Static-site release created in local state.",
+      };
+
+      state.resourceReleases.unshift(record);
+      state.resourceReleaseGallery.unshift(cloneValue(record));
+      createMockDeploymentRun(record, "create", {
+        phase: "waiting_project_image",
+        state: "running",
+        syncPointer: "desired",
+      });
+
+      return findMockResourceRelease(readString(record.uid)) ?? record;
+    }
+
+    const resourceUid =
+      readOptionalString(body?.resource_uid) ?? readOptionalString(body?.resource) ?? "";
+    const imageUid =
+      readOptionalString(body?.related_image_uid) ??
+      readOptionalString(body?.related_image) ??
+      "";
+    const resource = state.projectResources.find((item) => readString(item.uid) === resourceUid);
+    const image = state.projectImages.find((item) => readString(item.uid) === imageUid);
     const job =
       state.jobs.find((item) => readString(item.related_image_uid) === readString(image?.uid)) ??
       state.jobs[0];
@@ -5632,16 +6367,20 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
       id: nextIdValue,
       uid: `mock-resource-release-${nextIdValue}`,
       subdomain,
-      resource: readString(body?.resource),
+      resource: readNumber(resource?.id) || resourceUid,
+      resource_uid: resourceUid,
       readme_resource: null,
+      readme_resource_uid: null,
       related_job: readNumber(job?.id),
-      release_kind: readString(body?.release_kind) || "streamlit_dashboard",
+      related_job_uid: readString(job?.uid),
+      release_kind: releaseKind,
+      automatic_deployment: readBoolean(body?.automatic_deployment),
       title: readString(resource?.name),
-      resource_uid: readString(resource?.uid),
       resource_name: readString(resource?.name),
+      resource_path: readString(resource?.path),
       project_uid: readString(project?.uid),
       project_name: readString(project?.project_name),
-      image_uid: readString(image?.uid),
+      image_uid: imageUid,
       project_repo_hash: readString(image?.project_repo_hash),
       public_url: `https://${subdomain}.dash.main-sequence.app`,
       exchange_launch_url: `/orm/api/pods/resource-release/mock-resource-release-${nextIdValue}/exchange-launch/`,
@@ -5666,12 +6405,17 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
   if (route === "/resource-release/gallery/" && method === "GET") {
     const exclude = lowerNeedle(searchParams.get("exclude"));
     const releaseKindFilter = lowerNeedle(searchParams.get("release_kind"));
+    const projectUidFilter = lowerNeedle(searchParams.get("project_uid"));
     const search = lowerNeedle(searchParams.get("search"));
     const filtered = sortDescendingById(
       state.resourceReleaseGallery.filter((release) => {
         const releaseKind = lowerNeedle(readString(release.release_kind));
 
         if (releaseKindFilter && releaseKind !== releaseKindFilter) {
+          return false;
+        }
+
+        if (projectUidFilter && lowerNeedle(readString(release.project_uid)) !== projectUidFilter) {
           return false;
         }
 
@@ -5687,11 +6431,21 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
           release.title,
           release.resource_name,
           release.project_name,
+          release.name,
+          release.lifecycle_status,
+          release.root_directory,
+          release.framework,
           release.subdomain,
           release.public_url,
           release.uid,
           release.project_uid,
           release.resource_uid,
+          isRecord(release.active_deployment)
+            ? release.active_deployment.commit_sha
+            : null,
+          isRecord(release.desired_deployment)
+            ? release.desired_deployment.commit_sha
+            : null,
         ].map((value) => lowerNeedle(readString(value))).join(" ");
 
         return searchable.includes(search);
@@ -5703,14 +6457,87 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
   const releaseSummaryMatch = route.match(/^\/resource-release\/([^/]+)\/summary\/$/);
   if (releaseSummaryMatch && method === "GET") {
     const releaseUid = releaseSummaryMatch[1] ?? "";
-    const release = findByUid(state.resourceReleaseGallery, releaseUid) ??
-      findByUid(state.resourceReleases, releaseUid);
+    const release =
+      findByUid(state.resourceReleases, releaseUid) ??
+      findByUid(state.resourceReleaseGallery, releaseUid);
     return buildResourceReleaseSummary(release ?? { uid: releaseUid, title: `Release ${releaseUid}` });
   }
 
-  const releaseDeleteMatch = route.match(/^\/resource-release\/([^/]+)\/$/);
-  if (releaseDeleteMatch && method === "DELETE") {
-    const releaseUid = releaseDeleteMatch[1] ?? "";
+  const deployCurrentReleaseMatch = route.match(
+    /^\/resource-release\/([^/]+)\/deploy-current-version\/$/,
+  );
+  if (deployCurrentReleaseMatch && method === "POST") {
+    const releaseUid = deployCurrentReleaseMatch[1] ?? "";
+    const release =
+      findByUid(state.resourceReleases, releaseUid) ??
+      findByUid(state.resourceReleaseGallery, releaseUid);
+
+    return createMockDeploymentRun(release ?? { uid: releaseUid }, "manual", {
+      phase: "waiting_project_image",
+      state: "running",
+      syncPointer: release && isStaticSiteResourceRelease(release) ? "desired" : null,
+    });
+  }
+
+  const activateDeploymentMatch = route.match(
+    /^\/resource-release\/([^/]+)\/activate-deployment\/$/,
+  );
+  if (activateDeploymentMatch && method === "POST") {
+    const releaseUid = activateDeploymentMatch[1] ?? "";
+    const release =
+      findByUid(state.resourceReleases, releaseUid) ??
+      findByUid(state.resourceReleaseGallery, releaseUid) ??
+      { uid: releaseUid };
+
+    return createMockDeploymentRun(release, "manual", {
+      operation: "activate_deployment",
+      phase: null,
+      state: "deployed",
+      syncPointer: "active",
+    });
+  }
+
+  const releaseDetailMatch = route.match(/^\/resource-release\/([^/]+)\/$/);
+  if (releaseDetailMatch && method === "GET") {
+    const releaseUid = releaseDetailMatch[1] ?? "";
+    return (
+      findByUid(state.resourceReleases, releaseUid) ??
+      findByUid(state.resourceReleaseGallery, releaseUid)
+    );
+  }
+
+  if (releaseDetailMatch && method === "PATCH") {
+    const releaseUid = releaseDetailMatch[1] ?? "";
+    const body = parseBody(init);
+    const automaticDeployment = readBoolean(body?.automatic_deployment);
+
+    for (const release of [
+      ...state.resourceReleases,
+      ...state.resourceReleaseGallery,
+    ]) {
+      if (readString(release.uid) === releaseUid) {
+        release.automatic_deployment = automaticDeployment;
+      }
+    }
+
+    return (
+      findByUid(state.resourceReleases, releaseUid) ??
+      findByUid(state.resourceReleaseGallery, releaseUid)
+    );
+  }
+
+  if (releaseDetailMatch && method === "DELETE") {
+    const releaseUid = releaseDetailMatch[1] ?? "";
+    const release = findMockResourceRelease(releaseUid);
+
+    if (isStaticSiteResourceRelease(release)) {
+      updateMockResourceReleaseCopies(releaseUid, (item) => {
+        item.lifecycle_status = "deleting";
+      });
+
+      return findMockResourceRelease(releaseUid);
+    }
+
     state.resourceReleases = state.resourceReleases.filter((release) => readString(release.uid) !== releaseUid);
     state.resourceReleaseGallery = state.resourceReleaseGallery.filter((release) => readString(release.uid) !== releaseUid);
     return null;
@@ -5719,6 +6546,16 @@ function handleResources(route: string, method: string, searchParams: URLSearchP
   const launchMatch = route.match(/^\/resource-release\/([^/]+)\/exchange-launch\/$/);
   if (launchMatch && method === "GET") {
     const release = findByUid(state.resourceReleaseGallery, launchMatch[1] ?? "");
+    if (isStaticSiteResourceRelease(release)) {
+      const publicUrl = readString(release?.public_url).replace(/\/$/, "");
+
+      return {
+        release_kind: "static_site",
+        mode: "url",
+        url: `${publicUrl}/.mainsequence/launch#token=mock-static-site-launch-token`,
+      };
+    }
+
     if (lowerNeedle(readString(release?.release_kind)) === "agent") {
       return {
         release_kind: "agent",

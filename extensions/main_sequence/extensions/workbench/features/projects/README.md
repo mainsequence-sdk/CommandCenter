@@ -11,6 +11,7 @@ This feature owns the Main Sequence project registry and project detail experien
 - `MainSequenceProjectImagesTab.tsx`: project image listing and related image state.
 - `MainSequenceProjectJobsTab.tsx`: project-scoped jobs tab.
 - `MainSequenceProjectResourceReleasesTab.tsx`: resource release tab for projects.
+- `MainSequenceProjectDeployHistoryTab.tsx`: project-scoped static-site deployment history tab.
 - `MainSequenceResourceReleaseApiTestTab.tsx`: developer-focused FastAPI release tester that reuses the shared AppComponent OpenAPI explorer and request runner.
 - `MainSequenceProjectSettingsTab.tsx`: project settings tab with the data source/base image pickers used by project creation plus project-secret assignment controls.
 - `MainSequenceJobRunsTab.tsx`: run listing within the project context.
@@ -20,7 +21,7 @@ This feature owns the Main Sequence project registry and project detail experien
 ## Notes
 
 - Project-only tabs and dialogs should remain here even when they are large.
-- The active project detail tabs are `Code`, `Infra Graph`, `Jobs`, `Images`, `Resource Releases`, `Data Nodes Updates`, `Settings`, and `Permissions`.
+- The active project detail tabs are `Code`, `Infra Graph`, `Jobs`, `Images`, `Resource Releases`, `Data Nodes Updates`, `Deploy History`, `Settings`, and `Permissions`.
 - Shared registry controls should stay in `../../components`.
 - The selected-job detail view in the `Jobs` tab exposes a direct `Run Job` action that posts to `job/{uid}/run_job/` and refreshes the run list after success. Users may optionally enter command-style arguments beside the action; the UI tokenizes that input and sends it as the backend `command_args: string[]` payload.
 - Job run list and detail surfaces display `command_args` returned by the job-run serializer so manual run parameters remain visible after launch.
@@ -28,9 +29,57 @@ This feature owns the Main Sequence project registry and project detail experien
   contract so expanded log details can show fields like `filename`, `lineno`, `func_name`, and
   any extra structured context returned by the backend.
 - The settings tab reuses the shared project form-options query and writes through the project detail `PATCH` endpoint.
+- Project create and settings data-source selectors use `MainSequenceDataSourcePickerField` with
+  the shared data-source picker option builders, so project data-source choices always include the
+  resolved physical data-source icon plus consistent class/status metadata.
 - Project permissions use the shared `MainSequencePermissionsTab` against the standard shareable-object project endpoints.
 - The infra graph tab is backed by the dedicated `widgets/project-infra-graph/` module. That module also powers the reusable workspace widget definition, so project-tab changes should keep the compact widget variant working too. It follows the backend link contract directly: click inspects via `summary_url`, and `Explore graph` drills down via `graph_url`. The graph presentation is intentionally project-centric, with the project node centered and the rest of the infrastructure arranged radially instead of in column lanes.
-- The resource releases tab supports project resource release creation flows for dashboard, agent, and fastapi release kinds.
+- The resource releases tab supports project resource release creation flows for dashboard, agent,
+  fastapi, and static-site release kinds.
+- Generic resource release creation sends the UID-only backend contract with `resource_uid`,
+  `related_image_uid`, compute fields, and the single boolean `automatic_deployment` policy. The
+  UI renders `automatic_deployment` as a boolean and must not add deployment modes, tracked-path
+  selectors, or current-version tracking selectors.
+- Static-site release creation is capability-gated through
+  `/orm/api/pods/resource-release/static-site-capabilities/`. The create request maps
+  `creation.fields[].name` to the user-selected effective value, renders each field's `help_text`,
+  omits disabled fields, and must not send capability descriptors, schema/catalog metadata,
+  availability, features, or limits. The current creation surface uses the returned
+  `spa_entry_file` field for SPA routing and does not render or submit removed command/fallback
+  fields. Static sites do not select project resources, project images, jobs, or compute requests.
+- Resource release details include a `Deployment` tab. That tab edits only
+  `automatic_deployment`, keeps `uid`, `subdomain`, `resource_uid`, `readme_resource_uid`,
+  `related_job_uid`, and `release_kind` read-only, and exposes `Deploy current version` as a
+  separate manual rotation action that works even when automatic deployment is disabled.
+- Resource release deployment run history reads
+  `/orm/api/pods/deployment-runs/?project_uid=<project_uid>&target_type=resource_release` and
+  filters the returned rows client-side by `target.uid` for the selected release. Rows render
+  `state`, `phase`, `source`, `target.kind`, `commit_sha`, and the unified `error` payload.
+- The project `Deploy History` tab is project-scoped through
+  `/orm/api/pods/deployment-runs/?project_uid=<project_uid>`. The tab can filter by
+  `resource_release`, `project_executor`, or `static_site`, opens details through
+  `/orm/api/pods/deployment-runs/{run_uid}/`, and opens logs through
+  `/orm/api/pods/deployment-runs/{run_uid}/logs/`.
+- Static-site release details use the entity summary as their complete overview and expose only the
+  separate `Permissions` tab below it; do not duplicate summary fields in another overview panel.
+- A static-site summary `public_url` field with `kind: "link"`, `href`, and `iframe: true`
+  opens the full Foundry content area in a temporary iframe viewer. Every activation fetches a new
+  exchange URL from `href` through the authenticated Main Sequence client, validates
+  `release_kind: "static_site"` and `mode: "url"`, and uses only the returned `url` as the
+  iframe source. The static-site host must allow the Command Center origin in its production
+  `Content-Security-Policy: frame-ancestors` response, while Command Center must allow the hosted
+  site origin in its own `Content-Security-Policy: frame-src` response; either policy can prevent
+  framing. After a version-1 `mainsequence.*` `ready` message from the exact iframe
+  window and launch origin, Command Center replies on the same channel with an `initialize`
+  message containing only the logged-in user's UID plus the active theme ID and light/dark mode.
+  Theme changes resend that initialization context. Closing the viewer unmounts the iframe and
+  discards the one-use URL. Embedded sites are intentionally iframe-only and the viewer must not
+  expose a toolbar or top-level new-tab action; the iframe is full-bleed and Escape closes the
+  viewer. Do not add an HTML `sandbox` attribute to the static-site iframe: project-owned Vite
+  applications can depend on browser storage during module bootstrap, and the restricted sandbox
+  leaves their React root empty. Isolation is instead enforced by the cross-origin boundary, the
+  gateway's `frame-ancestors` policy, Command Center's `frame-src` policy, and strict source/origin
+  checks on the postMessage handshake.
 - The project detail summary card owns the top-right project actions menu.
 - That control uses a compact vertical 3-dots trigger and keeps project-agent actions inside a
   nested `Project agent` submenu so more project-scoped actions can be added without growing the

@@ -75,6 +75,7 @@ import {
   MainSequenceAiError,
   withMainSequenceAiErrorSource,
 } from "../runtime/error-source";
+import { buildRuntimeHttpErrorMessage } from "../runtime/http-error";
 import { cancelChatSession } from "../runtime/session-cancel-api";
 import {
   applyModelConfigToSerializedSession,
@@ -3484,6 +3485,21 @@ export function ChatProvider({
         imageDrift: resolvedAccess.imageDrift,
         sessionId: activeSession?.id ?? currentSessionId,
       });
+      if (!response.ok) {
+        throw new MainSequenceAiError(
+          await buildRuntimeHttpErrorMessage({
+            fallbackMessage: `Chat stream failed with status ${response.status}.`,
+            method: "POST",
+            operation: "Agent chat stream request failed",
+            response,
+            url,
+          }),
+          {
+            source: "assistant_backend_http",
+            status: response.status,
+          },
+        );
+      }
       return response;
     },
     protocol: commandCenterConfig.assistantUi.protocol as LatestMessageDataStreamProtocol,

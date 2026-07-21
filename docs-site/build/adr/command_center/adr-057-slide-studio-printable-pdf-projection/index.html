@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/command_center/adr-057-slide-studio-printable-pdf-projection" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 057: Slide Studio Printable PDF Projection | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-057-slide-studio-printable-pdf-projection"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 057: Slide Studio Printable PDF Projection | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Accepted"><meta data-rh="true" property="og:description" content="- Status: Accepted"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-057-slide-studio-printable-pdf-projection"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-057-slide-studio-printable-pdf-projection" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/command_center/adr-057-slide-studio-printable-pdf-projection" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 057: Slide Studio Printable PDF Projection</h1></header>
+<ul>
+<li class="">Status: Accepted</li>
+<li class="">Date: 2026-05-05</li>
+<li class="">Owners: Workspaces frontend</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a class="" href="/docs/adr/command_center/adr-050-workspace-slide-as-structural-container">ADR 050: Workspace Slide as Structural Container</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-052-slide-studio-slideshow-projection-mode">ADR 052: Slide Studio Slideshow Projection Mode</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-053-public-view-for-workspace-and-slide-studio">ADR 053: Public View For Workspace And Slide Studio</a></li>
+<li class=""><a class="" href="/docs/adr/command_center/adr-055-simplify-slide-to-body-only-widget-hosting">ADR 055: Simplify Slide To Body-Only Widget Hosting</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p><code>slide-studio</code> currently supports authoring and slideshow presentation, but it does not provide a
+print-oriented export path.</p>
+<p>Users want an <code>Export PDF</code> action that produces a printable deck where:</p>
+<ul>
+<li class="">each top-level slide occupies a full page</li>
+<li class="">the printed layout matches the authored slide composition as closely as possible</li>
+<li class="">the result can be saved as PDF through the browser print flow</li>
+</ul>
+<p>The current system already has the important building blocks:</p>
+<ul>
+<li class="">slide ordering is implicit from top-level <code>workspace-slide</code> widget order</li>
+<li class="">slide rendering already reuses one fixed logical <code>16:9</code> canvas</li>
+<li class="">slideshow projection already renders one top-level slide per screen</li>
+<li class="">hidden/sidebar dependency widgets can remain mounted offscreen while visible slides render</li>
+</ul>
+<p>The missing piece is a dedicated print projection.</p>
+<p>The wrong approach would be to introduce a second export renderer or screenshot stitching pipeline.
+That would create drift between:</p>
+<ul>
+<li class="">editor mode</li>
+<li class="">slideshow mode</li>
+<li class="">print/export mode</li>
+</ul>
+<p>We should keep one slide rendering contract and add a new projection mode around it.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>Slide Studio PDF export will be implemented as a <strong>print projection mode</strong> of <code>slide-studio</code>, not as
+a separate PDF generation engine.</p>
+<p>The first version will:</p>
+<ol>
+<li class="">add a workspace-level <code>Export PDF</code> action for <code>slide-studio</code></li>
+<li class="">open a dedicated print projection route or mode</li>
+<li class="">render all top-level slides in deck order</li>
+<li class="">place exactly one slide on each print page</li>
+<li class="">use the browser print pipeline (<code>window.print()</code>) so the user can save as PDF</li>
+</ol>
+<p>This is a frontend-only projection and must not require workspace publishing or a backend export
+service.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="design">Design<a href="#design" class="hash-link" aria-label="Direct link to Design" title="Direct link to Design" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-add-a-print-projection-mode">1. Add a print projection mode<a href="#1-add-a-print-projection-mode" class="hash-link" aria-label="Direct link to 1. Add a print projection mode" title="Direct link to 1. Add a print projection mode" translate="no">​</a></h3>
+<p><code>slide-studio</code> should gain a route-driven print mode, for example:</p>
+<ul>
+<li class=""><code>?mode=print</code></li>
+</ul>
+<p>This mode is specific to <code>slide-studio</code>. It should not be exposed for normal workspaces in the first
+version.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-reuse-the-existing-slide-renderer">2. Reuse the existing slide renderer<a href="#2-reuse-the-existing-slide-renderer" class="hash-link" aria-label="Direct link to 2. Reuse the existing slide renderer" title="Direct link to 2. Reuse the existing slide renderer" translate="no">​</a></h3>
+<p>The print projection must reuse the same slide surface contract as editor/slideshow mode:</p>
+<ul>
+<li class=""><code>WorkspaceSlideSurface</code></li>
+</ul>
+<p>This is the main anti-drift rule.</p>
+<p>The print view may change the surrounding stage/chrome and scaling behavior, but it must not create
+a second slide layout algorithm.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-render-all-top-level-slides">3. Render all top-level slides<a href="#3-render-all-top-level-slides" class="hash-link" aria-label="Direct link to 3. Render all top-level slides" title="Direct link to 3. Render all top-level slides" translate="no">​</a></h3>
+<p>Unlike slideshow mode, print mode should render the entire deck in one pass.</p>
+<p>The print renderer should:</p>
+<ul>
+<li class="">collect all top-level <code>workspace-slide</code> widgets</li>
+<li class="">preserve current deck ordering</li>
+<li class="">render one print page container per slide</li>
+</ul>
+<p>Slide-contained child widgets remain rendered through the same normal workspace widget path already
+used by slideshow mode.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-one-slide-per-page">4. One slide per page<a href="#4-one-slide-per-page" class="hash-link" aria-label="Direct link to 4. One slide per page" title="Direct link to 4. One slide per page" translate="no">​</a></h3>
+<p>Each top-level slide should map to exactly one printed page.</p>
+<p>Print CSS should enforce page separation with rules such as:</p>
+<ul>
+<li class=""><code>break-after: page</code></li>
+<li class=""><code>page-break-after: always</code></li>
+</ul>
+<p>The printed page should have no extra deck chrome or navigation controls.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-use-browser-print-instead-of-client-side-pdf-assembly">5. Use browser print instead of client-side PDF assembly<a href="#5-use-browser-print-instead-of-client-side-pdf-assembly" class="hash-link" aria-label="Direct link to 5. Use browser print instead of client-side PDF assembly" title="Direct link to 5. Use browser print instead of client-side PDF assembly" translate="no">​</a></h3>
+<p>The first version should use:</p>
+<ul>
+<li class="">HTML/CSS rendering</li>
+<li class=""><code>window.print()</code></li>
+</ul>
+<p>and let the browser/system print dialog handle PDF creation.</p>
+<p>This avoids:</p>
+<ul>
+<li class="">screenshot rasterization</li>
+<li class="">canvas stitching</li>
+<li class="">a second PDF-specific rendering stack</li>
+<li class="">browser-specific image capture bugs</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="6-prefer-a-presentation-page-size">6. Prefer a presentation page size<a href="#6-prefer-a-presentation-page-size" class="hash-link" aria-label="Direct link to 6. Prefer a presentation page size" title="Direct link to 6. Prefer a presentation page size" translate="no">​</a></h3>
+<p>The print projection should target a <code>16:9</code> page shape first so the slide canvas does not distort.</p>
+<p>Preferred print CSS:</p>
+<div class="language-css codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-css codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token atrule rule">@page</span><span class="token plain"> </span><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">size</span><span class="token punctuation" style="color:rgb(199, 146, 234)">:</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">13.333</span><span class="token unit">in</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">7.5</span><span class="token unit">in</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">margin</span><span class="token punctuation" style="color:rgb(199, 146, 234)">:</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">0</span><span class="token punctuation" style="color:rgb(199, 146, 234)">;</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<p>If browser support forces a fallback, landscape zero-margin output is acceptable, but the logical
+slide aspect ratio still remains the source of truth.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="7-remove-non-print-chrome">7. Remove non-print chrome<a href="#7-remove-non-print-chrome" class="hash-link" aria-label="Direct link to 7. Remove non-print chrome" title="Direct link to 7. Remove non-print chrome" translate="no">​</a></h3>
+<p>Print mode must not render:</p>
+<ul>
+<li class="">workspace editor chrome</li>
+<li class="">slideshow next/previous controls</li>
+<li class="">public top navigation shell</li>
+<li class="">hover hints</li>
+<li class="">drag handles</li>
+<li class="">edit affordances</li>
+</ul>
+<p>The output should read as a clean deck, not as an app screenshot.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="8-keep-dependency-hydration-active">8. Keep dependency hydration active<a href="#8-keep-dependency-hydration-active" class="hash-link" aria-label="Direct link to 8. Keep dependency hydration active" title="Direct link to 8. Keep dependency hydration active" translate="no">​</a></h3>
+<p>Print mode still needs the same data/runtime discipline as slideshow mode.</p>
+<p>Visible slide widgets may depend on hidden/sidebar-only widgets. Therefore:</p>
+<ul>
+<li class="">hidden dependency widgets should still hydrate offscreen</li>
+<li class="">print mode should not simplify itself into a static DOM-only projection that skips widget runtime</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="9-add-a-print-readiness-gate">9. Add a print-readiness gate<a href="#9-add-a-print-readiness-gate" class="hash-link" aria-label="Direct link to 9. Add a print-readiness gate" title="Direct link to 9. Add a print-readiness gate" translate="no">​</a></h3>
+<p>Print should not trigger on the first paint.</p>
+<p>The print mode should wait for:</p>
+<ul>
+<li class="">initial dashboard hydration</li>
+<li class="">at least one stable render pass</li>
+</ul>
+<p>Then it can:</p>
+<ul>
+<li class="">automatically invoke <code>window.print()</code></li>
+<li class="">and optionally expose a manual <code>Print again</code> action if the browser blocks or dismisses the dialog</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="10-export-action-belongs-to-workspace-level-actions">10. Export action belongs to workspace-level actions<a href="#10-export-action-belongs-to-workspace-level-actions" class="hash-link" aria-label="Direct link to 10. Export action belongs to workspace-level actions" title="Direct link to 10. Export action belongs to workspace-level actions" translate="no">​</a></h3>
+<p>The trigger should be a workspace-level <code>Export PDF</code> action for <code>slide-studio</code>.</p>
+<p>It should not be:</p>
+<ul>
+<li class="">a widget action</li>
+<li class="">a slide widget action</li>
+<li class="">a public-view action</li>
+</ul>
+<p>This is a deck-level operation.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="non-goals">Non-Goals<a href="#non-goals" class="hash-link" aria-label="Direct link to Non-Goals" title="Direct link to Non-Goals" translate="no">​</a></h2>
+<p>The first version will not:</p>
+<ul>
+<li class="">generate PDFs in JavaScript without the browser print pipeline</li>
+<li class="">support print export for normal workspaces</li>
+<li class="">generate PPT/PPTX</li>
+<li class="">depend on public link publishing</li>
+<li class="">persist per-workspace print presets</li>
+<li class="">snapshot slides into raster images before export</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">Print output stays aligned with the same slide renderer used in authoring/presentation.</li>
+<li class="">The implementation remains frontend-only.</li>
+<li class="">Browser-native PDF save flows do most of the heavy lifting.</li>
+<li class="">The deck stays vector/text-friendly where widgets already render that way.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="negative">Negative<a href="#negative" class="hash-link" aria-label="Direct link to Negative" title="Direct link to Negative" translate="no">​</a></h3>
+<ul>
+<li class="">Browser print behavior can still vary across environments.</li>
+<li class="">Custom <code>@page</code> sizing support is not perfectly uniform.</li>
+<li class="">Some widgets may need print-specific verification if they depend on late canvas sizing.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rejected-alternatives">Rejected Alternatives<a href="#rejected-alternatives" class="hash-link" aria-label="Direct link to Rejected Alternatives" title="Direct link to Rejected Alternatives" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-screenshot-based-pdf-export">1. Screenshot-based PDF export<a href="#1-screenshot-based-pdf-export" class="hash-link" aria-label="Direct link to 1. Screenshot-based PDF export" title="Direct link to 1. Screenshot-based PDF export" translate="no">​</a></h3>
+<p>Rejected because it introduces rendering drift, rasterization loss, and another export pipeline to
+maintain.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-dedicated-backend-pdf-service">2. Dedicated backend PDF service<a href="#2-dedicated-backend-pdf-service" class="hash-link" aria-label="Direct link to 2. Dedicated backend PDF service" title="Direct link to 2. Dedicated backend PDF service" translate="no">​</a></h3>
+<p>Rejected for the first version because the existing frontend slide renderer already owns the visual
+contract.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-reuse-slideshow-mode-directly-and-hide-controls-with-css-only">3. Reuse slideshow mode directly and hide controls with CSS only<a href="#3-reuse-slideshow-mode-directly-and-hide-controls-with-css-only" class="hash-link" aria-label="Direct link to 3. Reuse slideshow mode directly and hide controls with CSS only" title="Direct link to 3. Reuse slideshow mode directly and hide controls with CSS only" translate="no">​</a></h3>
+<p>Rejected because slideshow and print are different projections with different behavior:</p>
+<ul>
+<li class="">slideshow is interactive and single-slide</li>
+<li class="">print is static and whole-deck</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-print-one-very-long-page-and-rely-on-automatic-pagination">4. Print one very long page and rely on automatic pagination<a href="#4-print-one-very-long-page-and-rely-on-automatic-pagination" class="hash-link" aria-label="Direct link to 4. Print one very long page and rely on automatic pagination" title="Direct link to 4. Print one very long page and rely on automatic pagination" translate="no">​</a></h3>
+<p>Rejected because slide boundaries are explicit and must map to explicit print pages.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="storage-contract-assessment">Storage Contract Assessment<a href="#storage-contract-assessment" class="hash-link" aria-label="Direct link to Storage Contract Assessment" title="Direct link to Storage Contract Assessment" translate="no">​</a></h2>
+<p>This ADR should be implemented without changing persisted storage.</p>
+<p>No change is required to:</p>
+<ul>
+<li class=""><code>DashboardDefinition</code></li>
+<li class=""><code>DashboardWidgetInstance</code></li>
+<li class="">slide widget props</li>
+<li class="">widget runtime state persistence</li>
+<li class="">workspace publishing/public-link contracts</li>
+</ul>
+<p>If a future version adds persisted export presets, paper size options, or branded print themes,
+that should be treated as a separate storage-contract ADR.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a <code>slide-studio</code> print projection mode in the route/runtime layer.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a workspace-level <code>Export PDF</code> action visible only for <code>slide-studio</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Build a print-only deck renderer that iterates all top-level slides in deck order.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Reuse <code>WorkspaceSlideSurface</code> for print rendering instead of building a second slide layout
+path.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add print CSS so each slide gets exactly one page.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove slideshow/public/editor chrome from print projection mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Preserve hidden dependency widget hydration for print mode.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Add a print-readiness gate before invoking <code>window.print()</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Set a sensible document title so browser PDF save defaults use the deck title.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update Slide Studio docs in <code>src/features/dashboards/README.md</code>.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update slide widget docs in <code>src/widgets/core/workspace-slide/README.md</code> if print mode adds
+authoring expectations.</li>
+<li class="task-list-item"><input type="checkbox" disabled=""> <!-- -->Verify output with chart-heavy and text-heavy decks in at least one Chromium browser.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="success-criteria">Success Criteria<a href="#success-criteria" class="hash-link" aria-label="Direct link to Success Criteria" title="Direct link to Success Criteria" translate="no">​</a></h2>
+<p>The implementation is correct when all of the following are true:</p>
+<ol>
+<li class=""><code>Export PDF</code> is available for <code>slide-studio</code>.</li>
+<li class="">Opening export mode renders the whole deck, not just the active slideshow slide.</li>
+<li class="">Each top-level slide prints as one page.</li>
+<li class="">Printed slides preserve the same composition contract as slideshow mode.</li>
+<li class="">No navigation/editor/public chrome appears in the printed output.</li>
+<li class="">The feature works through the normal browser print/save-as-PDF flow without backend support.</li>
+</ol></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-057-slide-studio-printable-pdf-projection.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#design" class="table-of-contents__link toc-highlight">Design</a><ul><li><a href="#1-add-a-print-projection-mode" class="table-of-contents__link toc-highlight">1. Add a print projection mode</a></li><li><a href="#2-reuse-the-existing-slide-renderer" class="table-of-contents__link toc-highlight">2. Reuse the existing slide renderer</a></li><li><a href="#3-render-all-top-level-slides" class="table-of-contents__link toc-highlight">3. Render all top-level slides</a></li><li><a href="#4-one-slide-per-page" class="table-of-contents__link toc-highlight">4. One slide per page</a></li><li><a href="#5-use-browser-print-instead-of-client-side-pdf-assembly" class="table-of-contents__link toc-highlight">5. Use browser print instead of client-side PDF assembly</a></li><li><a href="#6-prefer-a-presentation-page-size" class="table-of-contents__link toc-highlight">6. Prefer a presentation page size</a></li><li><a href="#7-remove-non-print-chrome" class="table-of-contents__link toc-highlight">7. Remove non-print chrome</a></li><li><a href="#8-keep-dependency-hydration-active" class="table-of-contents__link toc-highlight">8. Keep dependency hydration active</a></li><li><a href="#9-add-a-print-readiness-gate" class="table-of-contents__link toc-highlight">9. Add a print-readiness gate</a></li><li><a href="#10-export-action-belongs-to-workspace-level-actions" class="table-of-contents__link toc-highlight">10. Export action belongs to workspace-level actions</a></li></ul></li><li><a href="#non-goals" class="table-of-contents__link toc-highlight">Non-Goals</a></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#negative" class="table-of-contents__link toc-highlight">Negative</a></li></ul></li><li><a href="#rejected-alternatives" class="table-of-contents__link toc-highlight">Rejected Alternatives</a><ul><li><a href="#1-screenshot-based-pdf-export" class="table-of-contents__link toc-highlight">1. Screenshot-based PDF export</a></li><li><a href="#2-dedicated-backend-pdf-service" class="table-of-contents__link toc-highlight">2. Dedicated backend PDF service</a></li><li><a href="#3-reuse-slideshow-mode-directly-and-hide-controls-with-css-only" class="table-of-contents__link toc-highlight">3. Reuse slideshow mode directly and hide controls with CSS only</a></li><li><a href="#4-print-one-very-long-page-and-rely-on-automatic-pagination" class="table-of-contents__link toc-highlight">4. Print one very long page and rely on automatic pagination</a></li></ul></li><li><a href="#storage-contract-assessment" class="table-of-contents__link toc-highlight">Storage Contract Assessment</a></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li><li><a href="#success-criteria" class="table-of-contents__link toc-highlight">Success Criteria</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">ADR 074: UID-Only Main Sequence Backend Identifier Contracts | Main Sequence Command Center</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" name="twitter:image" content="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 1200 630&#x27;%3E%3Crect width=&#x27;1200&#x27; height=&#x27;630&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M190 455V175h70l105 156 105-156h70v280h-65V289l-90 133h-40l-90-133v166h-65Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><meta data-rh="true" property="og:url" content="https://mainsequence-sdk.github.io/docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="ADR 074: UID-Only Main Sequence Backend Identifier Contracts | Main Sequence Command Center"><meta data-rh="true" name="description" content="- Status: Implemented"><meta data-rh="true" property="og:description" content="- Status: Implemented"><link data-rh="true" rel="icon" href="data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 32 32&#x27;%3E%3Crect width=&#x27;32&#x27; height=&#x27;32&#x27; rx=&#x27;8&#x27; fill=&#x27;%230b1017&#x27;/%3E%3Cpath d=&#x27;M8 23V9h3.2l4.8 7.8L20.8 9H24v14h-3V14.7l-4.1 6.7h-1.8L11 14.7V23H8Z&#x27; fill=&#x27;%23f1e7c9&#x27;/%3E%3C/svg%3E"><link data-rh="true" rel="canonical" href="https://mainsequence-sdk.github.io/docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts" hreflang="en"><link data-rh="true" rel="alternate" href="https://mainsequence-sdk.github.io/docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts" hreflang="x-default"><link rel="stylesheet" href="/docs/assets/css/styles.bb258668.css">
+<script src="/docs/assets/js/runtime~main.f830217d.js" defer="defer"></script>
+<script src="/docs/assets/js/main.3ebc8fde.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>document.documentElement.setAttribute("data-theme","dark"),document.documentElement.setAttribute("data-theme-choice","dark"),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docs/"><b class="navbar__title text--truncate">Command Center Docs</b></a><a class="navbar__item navbar__link" href="/docs/">Documentation</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">Open App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><main class="docMainContainer_TBSr docMainContainerEnhanced_lQrH"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>ADR 074: UID-Only Main Sequence Backend Identifier Contracts</h1></header>
+<ul>
+<li class="">Status: Implemented</li>
+<li class="">Date: 2026-05-22</li>
+<li class="">Owners: Main Sequence frontend</li>
+<li class="">Related:<!-- -->
+<ul>
+<li class=""><a href="https://github.com/mainsequence-sdk/CommandCenter/blob/main/extensions/main_sequence/README.md" target="_blank" rel="noopener noreferrer" class="">Main Sequence Namespace</a></li>
+<li class=""><a href="https://github.com/mainsequence-sdk/CommandCenter/blob/main/extensions/main_sequence/common/api/README.md" target="_blank" rel="noopener noreferrer" class="">Main Sequence Shared API</a></li>
+<li class=""><a href="https://github.com/mainsequence-sdk/CommandCenter/blob/main/extensions/main_sequence/extensions/workbench/README.md" target="_blank" rel="noopener noreferrer" class="">Main Sequence Workbench</a></li>
+<li class=""><a href="https://github.com/mainsequence-sdk/CommandCenter/blob/main/extensions/main_sequence/extensions/markets/README.md" target="_blank" rel="noopener noreferrer" class="">Main Sequence Markets</a></li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="context">Context<a href="#context" class="hash-link" aria-label="Direct link to Context" title="Direct link to Context" translate="no">​</a></h2>
+<p>Main Sequence frontend surfaces still contain a mixed identifier model.</p>
+<p>Some backend contracts already use <code>uid</code> as the canonical lookup key, while parts of the frontend
+still do one or more of the following:</p>
+<ul>
+<li class="">build detail routes with numeric <code>id</code></li>
+<li class="">send numeric foreign keys in request bodies</li>
+<li class="">store entity references in fields still named <code>...Id</code></li>
+<li class="">keep deep-link query params in <code>...Id</code> form even when the value is now a UUID string</li>
+<li class="">retain compatibility branches that accept either <code>id</code> or <code>uid</code></li>
+</ul>
+<p>That mixed state is no longer acceptable.</p>
+<p>The backend contract direction is now explicit: numeric <code>id</code> is deprecated for the Main Sequence
+object families covered by this ADR, and lookup must happen through <code>uid</code>. This migration is not a
+soft preference. It is a contract change.</p>
+<p>More importantly, numeric fallback is not a valid compatibility strategy. The backend is not
+expected to continue honoring numeric <code>id</code> lookup for these contracts, so fallback logic is not
+just misleading, it will fail.</p>
+<p>Without a clear architectural rule, each feature drifts independently:</p>
+<ul>
+<li class="">Workbench routes partially migrate but keep numeric query assumptions</li>
+<li class="">Markets screens migrate detail routes but keep numeric payload fields</li>
+<li class="">shared widget and connection configs keep storing UID strings under misleading <code>...Id</code> names</li>
+<li class="">helper functions silently introduce fallback logic that preserves broken mental models</li>
+</ul>
+<p>The result is fragile code, misleading storage contracts, and recurring regressions whenever a new
+screen touches an entity that has already migrated on the backend.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="decision">Decision<a href="#decision" class="hash-link" aria-label="Direct link to Decision" title="Direct link to Decision" translate="no">​</a></h2>
+<p>For Main Sequence-owned frontend surfaces covered by this ADR, <code>uid</code> is the only supported
+identifier for backend-facing entity lookup.</p>
+<p>This ADR establishes five non-negotiable rules:</p>
+<ol>
+<li class=""><strong>No numeric fallback</strong>
+<ul>
+<li class="">Shared helpers, feature pages, widgets, connections, and mocks must not fall back to numeric
+<code>id</code>.</li>
+<li class="">Numeric fallback is explicitly rejected because the deprecated <code>id</code> paths are not expected to
+work.</li>
+</ul>
+</li>
+<li class=""><strong>Path parameters are UID-only</strong>
+<ul>
+<li class="">Detail, summary, mutation, and related subresource routes must use <code>&lt;uid&gt;</code>.</li>
+</ul>
+</li>
+<li class=""><strong>Frontend storage must stop pretending identifiers are numeric</strong>
+<ul>
+<li class="">Persisted config, widget props, connection public config, and deep-link query params should
+move to explicit <code>...Uid</code> field names instead of storing UUID strings in legacy <code>...Id</code>
+fields.</li>
+</ul>
+</li>
+<li class=""><strong>Query/body foreign references must use UID once backend supports it</strong>
+<ul>
+<li class="">Payload fields such as <code>execution_venue</code>, <code>account</code>, <code>data_node</code>, or similar references must
+send UID strings once their backend contract has migrated.</li>
+</ul>
+</li>
+<li class=""><strong>Legacy list and bulk contracts are blockers, not hidden bridges</strong>
+<ul>
+<li class="">Any backend list or bulk endpoint that still requires numeric foreign keys is treated as
+not-yet-migrated. The frontend should not make that contract look UID-native by hiding a
+numeric bridge inside canonical shared helpers.</li>
+</ul>
+</li>
+</ol>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="scope">Scope<a href="#scope" class="hash-link" aria-label="Direct link to Scope" title="Direct link to Scope" translate="no">​</a></h2>
+<p>This ADR governs <code>extensions/main_sequence/</code> and the Main Sequence-specific frontend APIs it owns.</p>
+<p>It covers:</p>
+<ul>
+<li class="">shared API helpers in <code>extensions/main_sequence/common/api/</code></li>
+<li class="">Main Sequence Workbench feature pages, deep links, widgets, and connection types</li>
+<li class="">Main Sequence Markets feature pages, widgets, and editors</li>
+<li class="">Main Sequence mock API contracts</li>
+<li class="">persisted Main Sequence frontend config/state that references backend entities</li>
+</ul>
+<p>It does not automatically rewrite unrelated core platform contracts such as:</p>
+<ul>
+<li class=""><code>/user/api/...</code></li>
+<li class="">organization/team administration</li>
+<li class="">other non-Main Sequence application domains</li>
+</ul>
+<p>Those should move under separate ADRs when their backend contracts migrate.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="design">Design<a href="#design" class="hash-link" aria-label="Direct link to Design" title="Direct link to Design" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-canonical-identifier-rules">1. Canonical identifier rules<a href="#1-canonical-identifier-rules" class="hash-link" aria-label="Direct link to 1. Canonical identifier rules" title="Direct link to 1. Canonical identifier rules" translate="no">​</a></h3>
+<p>For Main Sequence entities covered by this ADR:</p>
+<ul>
+<li class="">route params: <code>uid</code></li>
+<li class="">request payload references: <code>uid</code></li>
+<li class="">selection state: <code>uid</code></li>
+<li class="">deep-link query params: <code>...Uid</code></li>
+<li class="">persisted public config / widget props / binding state: <code>...Uid</code></li>
+<li class="">mock fixtures: <code>uid</code></li>
+</ul>
+<p>The frontend should not retain misleading field names like <code>dataNodeId</code> or <code>accountId</code> once the
+entity contract is fully UID-based.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-shared-api-helpers-are-the-first-migration-boundary">2. Shared API helpers are the first migration boundary<a href="#2-shared-api-helpers-are-the-first-migration-boundary" class="hash-link" aria-label="Direct link to 2. Shared API helpers are the first migration boundary" title="Direct link to 2. Shared API helpers are the first migration boundary" translate="no">​</a></h3>
+<p>The canonical source of truth for this migration is the shared API layer in:</p>
+<ul>
+<li class=""><code>extensions/main_sequence/common/api/index.ts</code></li>
+</ul>
+<p>Feature pages and widgets should not invent their own per-screen identifier translation rules.
+Shared helpers must expose the final contract directly.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-persisted-contracts-must-be-renamed-not-cosmetically-repurposed">3. Persisted contracts must be renamed, not cosmetically repurposed<a href="#3-persisted-contracts-must-be-renamed-not-cosmetically-repurposed" class="hash-link" aria-label="Direct link to 3. Persisted contracts must be renamed, not cosmetically repurposed" title="Direct link to 3. Persisted contracts must be renamed, not cosmetically repurposed" translate="no">​</a></h3>
+<p>When a widget, connection, or deep link stores a backend entity reference, the contract should be
+renamed from <code>...Id</code> to <code>...Uid</code> instead of silently changing the value type.</p>
+<p>Examples:</p>
+<ul>
+<li class=""><code>dataNodeId</code> -&gt; <code>dataNodeUid</code></li>
+<li class=""><code>simpleTableId</code> -&gt; <code>simpleTableUid</code></li>
+<li class=""><code>accountId</code> -&gt; <code>accountUid</code></li>
+<li class=""><code>msDataNodeId</code> -&gt; <code>msDataNodeUid</code></li>
+</ul>
+<p>This makes the frontend storage model honest and prevents years of type drift where a field called
+<code>...Id</code> actually holds a UUID string.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="4-list-and-bulk-endpoints-are-uid-only-too">4. List and bulk endpoints are UID-only too<a href="#4-list-and-bulk-endpoints-are-uid-only-too" class="hash-link" aria-label="Direct link to 4. List and bulk endpoints are UID-only too" title="Direct link to 4. List and bulk endpoints are UID-only too" translate="no">​</a></h3>
+<p>This ADR applies beyond <code>/foo/&lt;uid&gt;/</code> detail routes. List filters, bulk actions, and nested payload
+references must also use UID contracts.</p>
+<p>Examples of required migrations:</p>
+<ul>
+<li class=""><code>id=&lt;id&gt;</code> -&gt; <code>uid=&lt;uid&gt;</code></li>
+<li class=""><code>id__in=&lt;id&gt;,&lt;id&gt;</code> -&gt; <code>uid__in=&lt;uid&gt;,&lt;uid&gt;</code></li>
+<li class=""><code>categories__id=&lt;id&gt;</code> -&gt; <code>categories__uid=&lt;uid&gt;</code></li>
+<li class=""><code>categories__id__in=&lt;id&gt;,&lt;id&gt;</code> -&gt; <code>categories__uid__in=&lt;uid&gt;,&lt;uid&gt;</code></li>
+<li class=""><code>related_table=&lt;id&gt;</code> -&gt; <code>related_table_uid=&lt;uid&gt;</code></li>
+<li class=""><code>remote_table=&lt;id&gt;</code> -&gt; <code>remote_table__uid=&lt;uid&gt;</code></li>
+<li class=""><code>project__id=&lt;id&gt;</code> -&gt; <code>project__uid=&lt;uid&gt;</code></li>
+<li class=""><code>selected_ids: number[]</code> -&gt; <code>selected_uids: string[]</code></li>
+<li class=""><code>ids: number[]</code> -&gt; <code>uids: string[]</code></li>
+</ul>
+<p>Under this ADR, hiding numeric list or bulk identifiers inside shared frontend helpers is not
+acceptable. The endpoint contract itself must be UID-native.</p>
+<p>What is rejected is a hidden “UID in the UI, numeric bridge in the shared helper” pattern that
+makes the codebase look migrated while the real contract remains split.</p>
+<p>What is also rejected is any fallback implementation that continues calling deprecated numeric paths
+under the assumption that they might still work. Under this ADR, they should be treated as broken
+contracts.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="5-migration-should-happen-by-endpoint-family-not-by-random-screen-edits">5. Migration should happen by endpoint family, not by random screen edits<a href="#5-migration-should-happen-by-endpoint-family-not-by-random-screen-edits" class="hash-link" aria-label="Direct link to 5. Migration should happen by endpoint family, not by random screen edits" title="Direct link to 5. Migration should happen by endpoint family, not by random screen edits" translate="no">​</a></h3>
+<p>The migration sequence should move from shared APIs outward:</p>
+<ol>
+<li class="">shared API helpers</li>
+<li class="">stored config and route/query contracts</li>
+<li class="">feature pages</li>
+<li class="">widgets and connections</li>
+<li class="">mocks, tests, and docs</li>
+</ol>
+<p>This keeps the contract coherent while changes roll through the codebase.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="consequences">Consequences<a href="#consequences" class="hash-link" aria-label="Direct link to Consequences" title="Direct link to Consequences" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="positive">Positive<a href="#positive" class="hash-link" aria-label="Direct link to Positive" title="Direct link to Positive" translate="no">​</a></h3>
+<ul>
+<li class="">Shared contracts become explicit and honest.</li>
+<li class="">Feature screens stop reimplementing identifier mapping ad hoc.</li>
+<li class="">Persisted config becomes self-describing.</li>
+<li class="">Future backend UID migrations become cheaper because the frontend rule is already clear.</li>
+</ul>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="negative">Negative<a href="#negative" class="hash-link" aria-label="Direct link to Negative" title="Direct link to Negative" translate="no">​</a></h3>
+<ul>
+<li class="">This is a real breaking contract change for persisted frontend state.</li>
+<li class="">Existing links, widget props, connection configs, and query param names that still use <code>...Id</code>
+will need migration.</li>
+<li class="">Endpoint families still requiring numeric foreign keys cannot be papered over anymore; they must
+either migrate on the backend or remain clearly unmigrated.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="rejected-alternatives">Rejected Alternatives<a href="#rejected-alternatives" class="hash-link" aria-label="Direct link to Rejected Alternatives" title="Direct link to Rejected Alternatives" translate="no">​</a></h2>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="1-keep-id-names-and-store-uuid-strings-in-them">1. Keep <code>...Id</code> names and store UUID strings in them<a href="#1-keep-id-names-and-store-uuid-strings-in-them" class="hash-link" aria-label="Direct link to 1-keep-id-names-and-store-uuid-strings-in-them" title="Direct link to 1-keep-id-names-and-store-uuid-strings-in-them" translate="no">​</a></h3>
+<p>Rejected because it preserves a false contract and guarantees more confusion later.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-keep-numeric-fallback-in-shared-helpers">2. Keep numeric fallback in shared helpers<a href="#2-keep-numeric-fallback-in-shared-helpers" class="hash-link" aria-label="Direct link to 2. Keep numeric fallback in shared helpers" title="Direct link to 2. Keep numeric fallback in shared helpers" translate="no">​</a></h3>
+<p>Rejected because it hides backend contract drift and turns the migration into an unbounded
+compatibility layer. It also fails the stated backend contract because deprecated numeric lookups
+are not expected to work.</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="3-migrate-page-by-page-without-a-shared-api-rule">3. Migrate page by page without a shared API rule<a href="#3-migrate-page-by-page-without-a-shared-api-rule" class="hash-link" aria-label="Direct link to 3. Migrate page by page without a shared API rule" title="Direct link to 3. Migrate page by page without a shared API rule" translate="no">​</a></h3>
+<p>Rejected because it recreates the exact drift this ADR is meant to stop.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="storage-contract-assessment">Storage Contract Assessment<a href="#storage-contract-assessment" class="hash-link" aria-label="Direct link to Storage Contract Assessment" title="Direct link to Storage Contract Assessment" translate="no">​</a></h2>
+<p>This ADR implies frontend storage contract changes.</p>
+<p>Affected categories include:</p>
+<ul>
+<li class="">widget props</li>
+<li class="">connection public config</li>
+<li class="">deep-link query params</li>
+<li class="">page selection state persisted in URLs</li>
+<li class="">any saved Main Sequence feature configuration that currently stores numeric IDs or UID strings in
+<code>...Id</code> fields</li>
+</ul>
+<p>This is not frontend-only cleanup. Backend and frontend owners must coordinate migrations for any
+persisted or shareable state that references these objects.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="implementation-tasks">Implementation Tasks<a href="#implementation-tasks" class="hash-link" aria-label="Direct link to Implementation Tasks" title="Direct link to Implementation Tasks" translate="no">​</a></h2>
+<ul class="contains-task-list containsTaskList_mC6p">
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Build a contract inventory of all Main Sequence backend-facing helpers that still use numeric
+<code>id</code> or misleading <code>...Id</code> names.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Group that inventory by endpoint family:<!-- -->
+<ul>
+<li class="">Markets / assets</li>
+<li class="">Workbench / <code>ts_manager</code></li>
+<li class="">Projects / infra / pods</li>
+<li class="">permissions and other shared Main Sequence objects</li>
+</ul>
+</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->For each migrated backend object family, change shared API helpers in
+<code>extensions/main_sequence/common/api/index.ts</code> to accept and emit UID-only contracts.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove all numeric fallback branches from Main Sequence shared API helpers and mock handlers.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Remove any frontend code path that still calls deprecated numeric-ID endpoints for migrated
+Main Sequence object families.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Rename persisted frontend identifier fields from <code>...Id</code> to <code>...Uid</code> across Main Sequence
+widgets, connections, and deep-link query params.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Document the hard break for saved frontend state that still uses legacy <code>...Id</code> fields.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update Workbench feature pages to navigate and select by UID-only contracts.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update Markets feature pages to navigate and mutate by UID-only contracts.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update shared Main Sequence widgets and connections so their public config and runtime inputs
+no longer expose legacy <code>...Id</code> names.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Migrate backend list and bulk endpoint calls to UID contracts instead of numeric bridges.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update mock handlers so fixture behavior matches the UID-only contracts.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update tests to assert UID-only paths, payloads, and persisted config names.</li>
+<li class="task-list-item"><input type="checkbox" disabled="" checked=""> <!-- -->Update the nearest feature READMEs after each endpoint family migration so local
+documentation stays accurate.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="completion-criteria">Completion Criteria<a href="#completion-criteria" class="hash-link" aria-label="Direct link to Completion Criteria" title="Direct link to Completion Criteria" translate="no">​</a></h2>
+<p>This ADR should not be considered complete until all of the following are true:</p>
+<ul>
+<li class="">no Main Sequence shared API helper still exposes numeric-ID lookup for the object families covered
+by this ADR</li>
+<li class="">no Main Sequence persisted config stores backend entity references in legacy <code>...Id</code> fields</li>
+<li class="">no Main Sequence deep-link query param uses <code>...Id</code> for UID-backed entities</li>
+<li class="">no Main Sequence mock handler or fixture relies on numeric fallback for migrated object families</li>
+<li class="">no remaining Main Sequence backend lookup contract is hidden behind frontend numeric translation
+logic</li>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/main-sequence/command-center/tree/main/../docs/adr/main_sequence/adr-074-uid-only-main-sequence-backend-identifier-contracts.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#context" class="table-of-contents__link toc-highlight">Context</a></li><li><a href="#decision" class="table-of-contents__link toc-highlight">Decision</a></li><li><a href="#scope" class="table-of-contents__link toc-highlight">Scope</a></li><li><a href="#design" class="table-of-contents__link toc-highlight">Design</a><ul><li><a href="#1-canonical-identifier-rules" class="table-of-contents__link toc-highlight">1. Canonical identifier rules</a></li><li><a href="#2-shared-api-helpers-are-the-first-migration-boundary" class="table-of-contents__link toc-highlight">2. Shared API helpers are the first migration boundary</a></li><li><a href="#3-persisted-contracts-must-be-renamed-not-cosmetically-repurposed" class="table-of-contents__link toc-highlight">3. Persisted contracts must be renamed, not cosmetically repurposed</a></li><li><a href="#4-list-and-bulk-endpoints-are-uid-only-too" class="table-of-contents__link toc-highlight">4. List and bulk endpoints are UID-only too</a></li><li><a href="#5-migration-should-happen-by-endpoint-family-not-by-random-screen-edits" class="table-of-contents__link toc-highlight">5. Migration should happen by endpoint family, not by random screen edits</a></li></ul></li><li><a href="#consequences" class="table-of-contents__link toc-highlight">Consequences</a><ul><li><a href="#positive" class="table-of-contents__link toc-highlight">Positive</a></li><li><a href="#negative" class="table-of-contents__link toc-highlight">Negative</a></li></ul></li><li><a href="#rejected-alternatives" class="table-of-contents__link toc-highlight">Rejected Alternatives</a><ul><li><a href="#1-keep-id-names-and-store-uuid-strings-in-them" class="table-of-contents__link toc-highlight">1. Keep <code>...Id</code> names and store UUID strings in them</a></li><li><a href="#2-keep-numeric-fallback-in-shared-helpers" class="table-of-contents__link toc-highlight">2. Keep numeric fallback in shared helpers</a></li><li><a href="#3-migrate-page-by-page-without-a-shared-api-rule" class="table-of-contents__link toc-highlight">3. Migrate page by page without a shared API rule</a></li></ul></li><li><a href="#storage-contract-assessment" class="table-of-contents__link toc-highlight">Storage Contract Assessment</a></li><li><a href="#implementation-tasks" class="table-of-contents__link toc-highlight">Implementation Tasks</a></li><li><a href="#completion-criteria" class="table-of-contents__link toc-highlight">Completion Criteria</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/docs/platform/architecture">Architecture</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/platform/notifications">Notifications</a></li><li class="footer__item"><a class="footer__link-item" href="/docs/access-control/rbac-assignment-matrix">RBAC Assignment Matrix</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Platform</div><ul class="footer__items clean-list"><li class="footer__item"><a href="http://localhost:5173/app" target="_blank" rel="noopener noreferrer" class="footer__link-item">Command Center App<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a class="footer__link-item" href="/docs/extensions/overview">Extensions</a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright 2026 Main Sequence</div></div></div></footer></div>
+</body>
+</html>

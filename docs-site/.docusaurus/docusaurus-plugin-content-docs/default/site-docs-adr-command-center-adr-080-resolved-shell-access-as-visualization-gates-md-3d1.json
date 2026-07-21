@@ -1,0 +1,15 @@
+{
+  "id": "adr/command_center/adr-080-resolved-shell-access-as-visualization-gates",
+  "title": "ADR 080: Resolved Shell Access As Visualization Gates",
+  "description": "- Status: Accepted",
+  "source": "@site/../docs/adr/command_center/adr-080-resolved-shell-access-as-visualization-gates.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-080-resolved-shell-access-as-visualization-gates",
+  "permalink": "/docs/adr/command_center/adr-080-resolved-shell-access-as-visualization-gates",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-080-resolved-shell-access-as-visualization-gates.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {}
+}

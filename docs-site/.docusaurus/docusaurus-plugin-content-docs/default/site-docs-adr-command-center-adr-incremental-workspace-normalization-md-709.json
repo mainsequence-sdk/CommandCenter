@@ -1,0 +1,24 @@
+{
+  "id": "adr/command_center/adr-incremental-workspace-normalization",
+  "title": "ADR: Incremental Workspace Normalization and Resource-Scoped Save",
+  "description": "- Status: Proposed",
+  "source": "@site/../docs/adr/command_center/adr-incremental-workspace-normalization.md",
+  "sourceDirName": "adr/command_center",
+  "slug": "/adr/command_center/adr-incremental-workspace-normalization",
+  "permalink": "/docs/adr/command_center/adr-incremental-workspace-normalization",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/main-sequence/command-center/tree/main/../docs/adr/command_center/adr-incremental-workspace-normalization.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {},
+  "sidebar": "docsSidebar",
+  "previous": {
+    "title": "ADR: Single Runtime Owner for Workspace Widgets",
+    "permalink": "/docs/adr/command_center/adr-single-runtime-owner-workspace-widgets"
+  },
+  "next": {
+    "title": "ADR: Live Workspace Agent Snapshot Archive",
+    "permalink": "/docs/adr/command_center/adr-live-workspace-agent-snapshot-archive"
+  }
+}
